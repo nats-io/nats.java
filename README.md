@@ -4,7 +4,7 @@
 
 ### A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
-**Current Release**: 2.17.0 &nbsp; **Current Snapshot**: 2.17.1-SNAPSHOT 
+**Current Release**: 2.17.4 &nbsp; **Current Snapshot**: 2.17.5-SNAPSHOT 
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
@@ -13,7 +13,8 @@
 [![Build Main Badge](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml/badge.svg?event=push)](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml)
 [![Release Badge](https://github.com/nats-io/nats.java/actions/workflows/build-release.yml/badge.svg?event=release)](https://github.com/nats-io/nats.java/actions/workflows/build-release.yml)
 
-#
+**Check out [NATS by example](https://natsbyexample.com) - An evolving collection of runnable, cross-client reference examples for NATS.**
+
 ### Simplification
 
 There is a new simplified api that makes working with streams and consumers well, simpler! Simplification is released as of 2.16.14.
@@ -39,22 +40,87 @@ Check out the [ServiceExample](src/examples/java/io/nats/examples/service/Servic
 
 ### Versions Specific Notes
 
-This is version 2.x of the java-nats library. This version is a ground up rewrite of the original library. Part of the goal of this re-write was to address the excessive use of threads, we created a Dispatcher construct to allow applications to control thread creation more intentionally. This version also removes all non-JDK runtime dependencies.
+This is version 2.x of the java-nats library.
 
 The API is [simple to use](#listening-for-incoming-messages) and highly [performant](#Benchmarking).
 
 Version 2+ uses a simplified versioning scheme. Any issues will be fixed in the incremental version number. As a major release, the major version has been updated to 2 to allow clients to limit there use of this new API. With the addition of drain() we updated to 2.1, NKey support moved us to 2.2.
 
-The NATS server renamed itself from gnatsd to nats-server around 2.4.4. This and other files try to use the new names, but some underlying code may change over several versions. If you are building yourself, please keep an eye out for issues and report them.
-
-Version 2.5.0 adds some back pressure to publish calls to alleviate issues when there is a slow network. This may alter performance characteristics of publishing apps, although the total performance is equivalent.
-
 Previous versions are still available in the repo.
 
-#### Version 2.17.0: Server 2.10 support. Subject and Queue Name Validation
+#### Version 2.17.4 Core Improvements
 
-With the release of the 2.10 server, the client has been updated to support new features. 
-The most important new feature is the ability to have multipler filter subjects for any single JetStream consumer.
+This release was full of core improvements which improve use of more asynchronous behaviors including
+* removing use of `synchronized` in favor of `ReentrantLock`
+* The ability to have a dispatcher use an executor to dispatch messages instead of the dispatcher thread being blocking to deliver a message.
+
+#### Version 2.17.3 Socket Write Timeout
+
+The client, unless overridden, uses a java.net.Socket for connections. 
+This java.net.Socket implementation does not support a write timeout, so writing data to the socket is a blocking call.
+
+Under some conditions it will block indefinitely, freezing that connection on the client.
+One way this could happen is if the server was too busy to read what was being sent.
+Or, it could be a device, network or connection issue.
+Whatever it is, it blocks the jvm Socket write implementation which _used to_ block us.
+It's rare, but it does happen.
+
+To address this, we now monitor socket writes to ensure they complete within a timeout.
+The timeout is configurable in Options via the builder and `socketWriteTimeout(duration|milliseconds)`.
+The default is 1 minute if you don't set it. 
+You can turn the watching off by setting a null duration or 0 milliseconds.
+
+When the watcher is turned on, a background task watches the write operations and makes sure they complete within the timeout. 
+If a write fails to complete, the task tells the connection to close the socket, which triggers the retry logic.
+There may still be messages in the output queue and messages that were in transit are in an unknown state. 
+Handling disconnections and output queue is left for another discussion.
+
+#### Version 2.17.2 Message Immutability Headers Bug
+
+Once a message is created, it is intended to be immutable. 
+Before 2.17.2, the Headers object could be modified (via put, add, remove) after construction,
+either directly with the developer's original Headers object or from the one available via `Message.getHeaders()`.
+This will cause a protocol failure when the message is written to the server, 
+because the protocol size had already been calculated. 
+This calculation is done at construction time because there are multiple places in the workflow 
+that rely on the protocol size, so it must not change once created.
+
+#### Version 2.17.1 Support for TLS First
+
+There is a new connection Option, `tlsFirst` for "TLSHandshakeFirst"
+
+In Server 2.10.3 and later, there is the ability to have TLS Handshake First. 
+The server config will add this:
+
+```text
+tls {
+  ...
+  handshake_first: 300ms
+}
+```
+
+TLS Handshake First is used to instruct the library perform
+the TLS handshake right after the connect and before receiving
+the INFO protocol from the server. If this option is enabled
+but the server is not configured to perform the TLS handshake
+first, the connection will fail.
+
+#### Version 2.17.0: Server 2.10 support.
+The release has support for Server 2.10 features and client validation improvements including:
+
+* Stream and Consumer info timestamps
+* Stream Configuration
+   * Compression Option
+   * Subject Transform
+   * Consumer Limits
+   * First Sequence
+* Multiple Filter Subjects
+* Subject and Queue Name Validation
+
+#### Multiple Filter Subjects
+
+A new  feature is the ability to have multiple filter subjects for any single JetStream consumer.
+
 ```java
 ConsumerConfiguration cc = ConsumerConfiguration.builder()
     ...
@@ -62,17 +128,34 @@ ConsumerConfiguration cc = ConsumerConfiguration.builder()
     .build();
 ```
 
+#### Subject and Queue Name Validation
+
 For subjects, up until now, the client has been very strict when validating subject names for consumer subject filters and subscriptions.
 It only allowed printable ascii characters except for `*`, `>`, `.`, `\\` and `/`. This restriction has been changed to the following:
 * cannot contain spaces \r \n \t
 * cannot start or end with subject token delimiter .
 * cannot have empty segments
 
-**This means that UTF characters are now allowed in this client.**
-
+This means that UTF characters are now allowed in subjects in this client.
 
 For queue names, there has been inconsistent validation, if any. Queue names now require the same validation as subjects.
-**Important** We realize this may affect existing applications, but need to require consistency across clients 
+**Important** We realize this may affect existing applications, but need to require consistency across clients.
+
+**Subscribe Subject Validation**
+
+Additionally, for subjects used in subscribe api, applications may start throwing an exception:
+
+```text
+90011 Subject does not match consumer configuration filter
+```
+Let's say you have a stream with subject `foo.>` And you are subscribing to `foo.a`.
+When you don't supply a filter subject on a consumer, it becomes `>`, which means all subjects.
+
+So this is a problem, because you think you are subscribing to `foo.a` but in reality, without this check,
+you will be getting all messages `foo.>` subjects, not just `foo.a`
+
+Validating the subscribe subject against the filter subject is needed to prevent this.
+Unfortunately, this makes existing code throw the `90011` exception.
 
 #### Version 2.16.14: Options properties improvements
 
@@ -337,9 +420,9 @@ Replace `{major.minor.patch}` with the correct version in the examples.
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.0/jnats-2.17.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.0/jnats-2.17.0.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.4/jnats-2.17.4.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.4/jnats-2.17.4.jar).
 
-The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.0/jnats-2.17.0-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.0/jnats-2.17.0-examples.jar).
+The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.4/jnats-2.17.4-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.4/jnats-2.17.4-examples.jar).
 
 To use NKeys, you will need the ed25519 library, which can be downloaded at [https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar).
 
@@ -437,47 +520,71 @@ There are also examples in the [java-nats-examples](https://github.com/nats-io/j
 
 ### Connecting
 
-There are four different ways to connect using the Java library:
+There are five different ways to connect using the Java library, 
+each with a parallel method that will allow doing reconnect logic if the initial connect fails.
+The ability to reconnect on  the initial connection failure is _NOT_ an Options setting.
 
-1. Connect to a local server on the default port:
+1. Connect to a local server on the default url. From the Options class: `DEFAULT_URL = "nats://localhost:4222";`
 
     ```java
+    // default options 
     Connection nc = Nats.connect();
+   
+    // default options, reconnect on connect 
+    Connection nc = Nats.connectReconnectOnConnect();
     ```
 
-2. Connect to one or more servers using a URL:
+1. Connect to one or more servers using a URL:
 
     ```java
-    //single URL
+    // single URL, all other default options
     Connection nc = Nats.connect("nats://myhost:4222");
 
-    //comma-separated list of URLs
+    // comma-separated list of URLs, all other default options
     Connection nc = Nats.connect("nats://myhost:4222,nats://myhost:4223");
+
+    // single URL, all other default options, reconnect on connect
+    Connection nc = Nats.connectReconnectOnConnect("nats://myhost:4222");
+
+    // comma-separated list of URLs, all other default options, reconnect on connect
+    Connection nc = Nats.connectReconnectOnConnect("nats://myhost:4222,nats://myhost:4223");
     ```
 
-3. Connect to one or more servers with a custom configuration:
+1. Connect to one or more servers with a custom configuration:
 
     ```java
     Options o = new Options.Builder().server("nats://serverone:4222").server("nats://servertwo:4222").maxReconnects(-1).build();
+
+    // custom options
     Connection nc = Nats.connect(o);
+
+    // custom options, reconnect on connect
+    Connection nc = Nats.connectReconnectOnConnect(o);
     ```
 
-    See the javadoc for a complete list of configuration options.
-
-4. Connect asynchronously, this requires a callback to tell the application when the client is connected:
+1. Connect asynchronously, this requires a callback to tell the application when the client is connected:
 
     ```java
     Options options = new Options.Builder().server(Options.DEFAULT_URL).connectionListener(handler).build();
     Nats.connectAsynchronously(options, true);
     ```
 
-    This feature is experimental, please let us know if you like it.
-
-5. Connect with authentication handler:
+1. Connect with authentication handler:
 
     ```java
     AuthHandler authHandler = Nats.credentials(System.getenv("NATS_CREDS"));
+
+    // single URL, all other default options
     Connection nc = Nats.connect("nats://myhost:4222", authHandler);
+
+    // comma-separated list of URLs, all other default options
+    Connection nc = Nats.connect("nats://myhost:4222,nats://myhost:4223", authHandler);
+
+    // single URL, all other default options, reconnect on connect
+    Connection nc = Nats.connectReconnectOnConnect("nats://myhost:4222", authHandler);
+
+    // comma-separated list of URLs, all other default options, reconnect on connect
+    Connection nc = Nats.connectReconnectOnConnect("nats://myhost:4222,nats://myhost:4223", authHandler);
     ```
 
 ### Publishing

@@ -35,6 +35,9 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         super(connection, jsOptions);
     }
 
+    NatsJetStream(NatsJetStreamImpl impl) {
+        super(impl);
+    }
     // ----------------------------------------------------------------------------------------------------
     // Publish
     // ----------------------------------------------------------------------------------------------------
@@ -232,7 +235,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     MessageManagerFactory _pullMessageManagerFactory =
         (mmConn, mmJs, mmStream, mmSo, mmCc, mmQueueMode, mmSyncMode) -> new PullMessageManager(mmConn, mmSo, mmSyncMode);
     MessageManagerFactory _pullOrderedMessageManagerFactory =
-        (mmConn, mmJs, mmStream, mmSo, mmCc, mmQueueMode, mmSyncMode) -> new OrderedPullMessageManager(mmConn, mmJs, mmStream, mmSo, mmCc, mmSyncMode);
+        (mmConn, mmJs, mmStream, mmSo, mmCc, mmQueueMode, mmSyncMode) -> new PullOrderedMessageManager(mmConn, mmJs, mmStream, mmSo, mmCc, mmSyncMode);
 
     JetStreamSubscription createSubscription(String userSubscribeSubject,
                                              PushSubscribeOptions pushSubscribeOptions,
@@ -240,8 +243,8 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
                                              String queueName,
                                              NatsDispatcher dispatcher,
                                              MessageHandler userHandler,
-                                             boolean isAutoAck
-    ) throws IOException, JetStreamApiException {
+                                             boolean isAutoAck,
+                                             PullMessageManager pmmInstance) throws IOException, JetStreamApiException {
 
         // Parameter notes. For those relating to the callers, you can see all the callers further down in this source file.
         //    - pull subscribe callers guarantee that pullSubscribeOptions is not null
@@ -448,8 +451,13 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         final MessageManager mm;
         final NatsSubscriptionFactory subFactory;
         if (isPullMode) {
-            MessageManagerFactory mmFactory = so.isOrdered() ? _pullOrderedMessageManagerFactory : _pullMessageManagerFactory;
-            mm = mmFactory.createMessageManager(conn, this, settledStream, so, settledCC, false, dispatcher == null);
+            if (pmmInstance == null) {
+                MessageManagerFactory mmFactory = so.isOrdered() ? _pullOrderedMessageManagerFactory : _pullMessageManagerFactory;
+                mm = mmFactory.createMessageManager(conn, this, settledStream, so, settledCC, false, dispatcher == null);
+            }
+            else {
+                mm = pmmInstance;
+            }
             subFactory = (sid, lSubject, lQgroup, lConn, lDispatcher)
                 -> new NatsJetStreamPullSubscription(sid, lSubject, lConn, lDispatcher, this, settledStream, settledConsumerName, mm);
         }
@@ -508,6 +516,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             if (maxBatch != null && maxBatch != serverCcc.getMaxBatch()) { changes.add("maxBatch"); }
             if (maxBytes != null && maxBytes != serverCcc.getMaxBytes()) { changes.add("maxBytes"); }
             if (numReplicas != null && !numReplicas.equals(serverCcc.numReplicas)) { changes.add("numReplicas"); }
+            if (pauseUntil != null && !pauseUntil.equals(serverCcc.pauseUntil)) { changes.add("pauseUntil"); }
 
             if (ackWait != null && !ackWait.equals(getOrUnset(serverCcc.ackWait))) { changes.add("ackWait"); }
             if (idleHeartbeat != null && !idleHeartbeat.equals(getOrUnset(serverCcc.idleHeartbeat))) { changes.add("idleHeartbeat"); }
@@ -565,7 +574,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     @Override
     public JetStreamSubscription subscribe(String subscribeSubject) throws IOException, JetStreamApiException {
         subscribeSubject = validateSubject(subscribeSubject, true);
-        return createSubscription(subscribeSubject, null, null, null, null, null, false);
+        return createSubscription(subscribeSubject, null, null, null, null, null, false, null);
     }
 
     /**
@@ -574,7 +583,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     @Override
     public JetStreamSubscription subscribe(String subscribeSubject, PushSubscribeOptions options) throws IOException, JetStreamApiException {
         subscribeSubject = validateSubject(subscribeSubject, false);
-        return createSubscription(subscribeSubject, options, null, null, null, null, false);
+        return createSubscription(subscribeSubject, options, null, null, null, null, false, null);
     }
 
     /**
@@ -584,7 +593,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     public JetStreamSubscription subscribe(String subscribeSubject, String queue, PushSubscribeOptions options) throws IOException, JetStreamApiException {
         subscribeSubject = validateSubject(subscribeSubject, false);
         validateQueueName(queue, false);
-        return createSubscription(subscribeSubject, options, null, queue, null, null, false);
+        return createSubscription(subscribeSubject, options, null, queue, null, null, false, null);
     }
 
     /**
@@ -595,7 +604,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         subscribeSubject = validateSubject(subscribeSubject, false);
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
-        return createSubscription(subscribeSubject, null, null, null, (NatsDispatcher) dispatcher, handler, autoAck);
+        return createSubscription(subscribeSubject, null, null, null, (NatsDispatcher) dispatcher, handler, autoAck, null);
     }
 
     /**
@@ -606,7 +615,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         subscribeSubject = validateSubject(subscribeSubject, false);
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
-        return createSubscription(subscribeSubject, options, null, null, (NatsDispatcher) dispatcher, handler, autoAck);
+        return createSubscription(subscribeSubject, options, null, null, (NatsDispatcher) dispatcher, handler, autoAck, null);
     }
 
     /**
@@ -618,7 +627,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         validateQueueName(queue, false);
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
-        return createSubscription(subscribeSubject, options, null, queue, (NatsDispatcher) dispatcher, handler, autoAck);
+        return createSubscription(subscribeSubject, options, null, queue, (NatsDispatcher) dispatcher, handler, autoAck, null);
     }
 
     /**
@@ -628,7 +637,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     public JetStreamSubscription subscribe(String subscribeSubject, PullSubscribeOptions options) throws IOException, JetStreamApiException {
         subscribeSubject = validateSubject(subscribeSubject, false);
         validateNotNull(options, "Pull Subscribe Options");
-        return createSubscription(subscribeSubject, null, options, null, null, null, false);
+        return createSubscription(subscribeSubject, null, options, null, null, null, false, null);
     }
 
     /**
@@ -640,7 +649,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
         validateNotNull(options, "Pull Subscribe Options");
-        return createSubscription(subscribeSubject, null, options, null, (NatsDispatcher) dispatcher, handler, false);
+        return createSubscription(subscribeSubject, null, options, null, (NatsDispatcher) dispatcher, handler, false, null);
     }
 
     /**

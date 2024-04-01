@@ -145,12 +145,16 @@ public interface ApiConstants {
     String OPT_START_SEQ     = "opt_start_seq";
     String OPT_START_TIME    = "opt_start_time";
     String OPTIONS           = "options";
+    String PAUSED            = "paused";
+    String PAUSE_REMAINING   = "pause_remaining";
+    String PAUSE_UNTIL       = "pause_until";
     String PLACEMENT         = "placement";
     String PORT              = "port";
     String PROCESSING_TIME   = "processing_time";
     String PROTO             = "proto";
     String PURGED            = "purged";
     String PUSH_BOUND        = "push_bound";
+    String QUEUE_GROUP       = "queue_group";
     String RATE_LIMIT_BPS    = "rate_limit_bps";
     String REPLAY_POLICY     = "replay_policy";
     String REPLICA           = "replica";

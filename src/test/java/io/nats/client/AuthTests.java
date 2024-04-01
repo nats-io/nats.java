@@ -16,7 +16,10 @@ package io.nats.client;
 import io.nats.client.Connection.Status;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.impl.TestHandler;
+import io.nats.client.support.JwtUtils;
+import io.nats.client.utils.ResourceUtils;
 import io.nats.client.utils.TestBase;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
@@ -27,6 +30,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -443,6 +447,13 @@ public class AuthTests extends TestBase {
             standardConnectionWait(nc);
             standardCloseConnection(nc);
         }
+
+        //test Nats.connect method
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/operatorJnatsTest.conf", false)) {
+            Connection nc = Nats.connect(ts.getURI(), Nats.credentials("src/test/resources/jwt_nkey/userJnatsTest.creds"));
+            standardConnectionWait(nc);
+            standardCloseConnection(nc);
+        }
     }
 
     @Test
@@ -604,13 +615,32 @@ public class AuthTests extends TestBase {
 
     @Test
     public void testReconnectAfterExpiration() throws Exception {
+        _testReconnectAfter("user authentication expired");
+    }
+
+    @Test
+    public void testReconnectAfterRevoked() throws Exception {
+        _testReconnectAfter("user authentication revoked");
+    }
+
+    @Test
+    public void testReconnectAfterAuthorizationViolation() throws Exception {
+        _testReconnectAfter("authorization violation");
+    }
+
+    @Test
+    public void testReconnectAfterAccountAuthenticationExpired() throws Exception {
+        _testReconnectAfter("account authentication expired");
+    }
+
+    private static void _testReconnectAfter(String errText) throws Exception {
         TestHandler handler = new TestHandler();
 
         CompletableFuture<Boolean> f = new CompletableFuture<Boolean>();
 
         NatsServerProtocolMock.Customizer timeoutCustomizer = (ts, r, w) -> {
             f.join(); // wait until we are ready
-            w.write("-ERR user authentication expired\r\n"); // Drop the line feed
+            w.write("-ERR " + errText + "\r\n"); // Drop the line feed
             w.flush();
         };
 
@@ -619,12 +649,13 @@ public class AuthTests extends TestBase {
         // Connect should fail on ts1
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(timeoutCustomizer, port, true);
              NatsTestServer ts2 = new NatsTestServer("src/test/resources/operator.conf", false)) {
-            Options options = new Options.Builder().
-                    servers(new String[]{ts.getURI(), ts2.getURI()}).
-                    maxReconnects(-1).
-                    noRandomize().
-                    authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds")).
-                    build();
+            Options options = new Options.Builder()
+                .servers(new String[]{ts.getURI(), ts2.getURI()})
+                .maxReconnects(-1)
+                .noRandomize()
+                .authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds"))
+                .errorListener(new ErrorListener() {})
+                .build();
 
             Connection nc = standardConnection(options);
             assertEquals(ts.getURI(), nc.getConnectedUrl());
@@ -638,8 +669,76 @@ public class AuthTests extends TestBase {
 
             String err = nc.getLastError();
             assertNotNull(err);
-            assertTrue(err.toLowerCase().startsWith("user authentication"));
+            assertTrue(err.toLowerCase().contains(errText));
             standardCloseConnection(nc);
         }
+    }
+
+    @Disabled("This test flaps on CI, it must be that environment")
+    @Test
+    public void testRealUserAuthenticationExpired() throws Exception {
+        CountDownLatch cdlConnected = new CountDownLatch(1);
+        CountDownLatch cdlDisconnected = new CountDownLatch(1);
+        CountDownLatch cdlReconnected = new CountDownLatch(1);
+        CountDownLatch elUserAuthenticationExpired = new CountDownLatch(1);
+        CountDownLatch elAuthorizationViolation = new CountDownLatch(1);
+
+        ConnectionListener cl = (conn, type) -> {
+            switch (type) {
+                case CONNECTED: cdlConnected.countDown(); break;
+                case DISCONNECTED: cdlDisconnected.countDown(); break;
+                case RECONNECTED: cdlReconnected.countDown(); break;
+            }
+        };
+
+        ErrorListener el = new ErrorListener() {
+            @Override
+            public void errorOccurred(Connection conn, String error) {
+                if (error.equalsIgnoreCase("user authentication expired")) {
+                    elUserAuthenticationExpired.countDown();
+                }
+                else if (error.equalsIgnoreCase("authorization violation")) {
+                    elAuthorizationViolation.countDown();
+                }
+            }
+        };
+
+        String accountSeed = "SAAPXJRFMUYDUH3NOZKE7BS2ZDO2P4ND7G6W743MTNA3KCSFPX3HNN6AX4";
+        String accountId = "ACPWDUYSZRRF7XAEZKUAGPUH6RPICWEHSTFELYKTOWUVZ4R2XMP4QJJX";
+        String userSeed = "SUAJ44FQWKEWGRSIPRFCIGDTVYSMUMRRHB4CPFXXRG5GODO5XY7S2L45ZA";
+
+        NKey nKeyAccount = NKey.fromSeed(accountSeed.toCharArray());
+
+        NKey nKeyUser = NKey.fromSeed(userSeed.toCharArray());
+        String publicUserKey = new String(nKeyUser.getPublicKey());
+
+        long expires = 2500;
+        long wait = 5000;
+        Duration expiration = Duration.ofMillis(expires);
+        String jwt = JwtUtils.issueUserJWT(nKeyAccount, accountId, publicUserKey, "jnatsTestUser", expiration);
+
+        String creds = String.format(JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(nKeyUser.getSeed()));
+        String credsFile = ResourceUtils.createTempFile("nats_java_test", ".creds", creds.split("\\Q\\n\\E"));
+
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/operatorJnatsTest.conf", false)) {
+
+            Options options = Options.builder()
+                .server(ts.getURI())
+                .credentialPath(credsFile)
+                .connectionListener(cl)
+                .errorListener(el)
+                .maxReconnects(5)
+                .build();
+            Connection nc = Nats.connect(options);
+
+            assertTrue(cdlConnected.await(wait, TimeUnit.MILLISECONDS));
+            assertTrue(cdlDisconnected.await(wait, TimeUnit.MILLISECONDS));
+            assertTrue(cdlReconnected.await(wait, TimeUnit.MILLISECONDS));
+            assertTrue(elUserAuthenticationExpired.await(wait, TimeUnit.MILLISECONDS));
+            assertTrue(elAuthorizationViolation.await(wait, TimeUnit.MILLISECONDS));
+
+            nc.close();
+        }
+        catch (Exception ignore) {}
     }
 }

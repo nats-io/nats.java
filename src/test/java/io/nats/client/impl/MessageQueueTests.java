@@ -26,14 +26,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class MessageQueueTests {
-    byte[] PING = "PING".getBytes();
-    byte[] ONE = "one".getBytes();
-    byte[] TWO = "two".getBytes();
-    byte[] THREE = "three".getBytes();
+    static final Duration REQUEST_CLEANUP_INTERVAL = Duration.ofSeconds(5);
+    static final byte[] PING = "PING".getBytes();
+    static final byte[] ONE = "one".getBytes();
+    static final byte[] TWO = "two".getBytes();
+    static final byte[] THREE = "three".getBytes();
 
     @Test
     public void testEmptyPop() throws InterruptedException {
-        MessageQueue q = new MessageQueue(false);
+        MessageQueue q = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
         NatsMessage msg = q.popNow();
         assertNull(msg);
         assertFalse(q.isSingleReaderMode());
@@ -42,7 +43,7 @@ public class MessageQueueTests {
     @Test
     public void testAccumulateThrowsOnNonSingleReader() {
         assertThrows(IllegalStateException.class, () -> {
-            MessageQueue q = new MessageQueue(false);
+            MessageQueue q = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
             q.push(new ProtocolMessage(PING));
             q.accumulate(100,1,null);
         });
@@ -50,7 +51,7 @@ public class MessageQueueTests {
 
     @Test
     public void testPushPop() throws InterruptedException {
-        MessageQueue q = new MessageQueue(false);
+        MessageQueue q = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
         NatsMessage expected = new ProtocolMessage(PING);
         q.push(expected);
         NatsMessage actual = q.popNow();
@@ -60,7 +61,7 @@ public class MessageQueueTests {
     @Test
     public void testTimeout() throws InterruptedException {
         long waitTime = 500;
-        MessageQueue q = new MessageQueue(false);
+        MessageQueue q = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
         long start = System.nanoTime();
         NatsMessage msg = q.pop(Duration.ofMillis(waitTime));
         long end = System.nanoTime();
@@ -75,7 +76,7 @@ public class MessageQueueTests {
 
     @Test
     public void testTimeoutZero() throws InterruptedException {
-        MessageQueue q = new MessageQueue(false);
+        MessageQueue q = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
         NatsMessage expected = new ProtocolMessage(PING);
         q.push(expected);
         NatsMessage msg = q.pop(Duration.ZERO);
@@ -85,7 +86,7 @@ public class MessageQueueTests {
     @Test
     public void testInterupt() throws InterruptedException {
         // Possible flaky test, since we can't be sure of thread timing
-        MessageQueue q = new MessageQueue(false);
+        MessageQueue q = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
         Thread t = new Thread(() -> {try {Thread.sleep(100);}catch(Exception e){/**/} q.pause();});
         t.start();
         NatsMessage msg = q.pop(Duration.ZERO);
@@ -95,7 +96,7 @@ public class MessageQueueTests {
     @Test
     public void testReset() throws InterruptedException {
         // Possible flaky test, since we can't be sure of thread timing
-        MessageQueue q = new MessageQueue(false);
+        MessageQueue q = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
         Thread t = new Thread(() -> {try {Thread.sleep(100);}catch(Exception e){/**/} q.pause();});
         t.start();
         NatsMessage msg = q.pop(Duration.ZERO);
@@ -115,7 +116,7 @@ public class MessageQueueTests {
     @Test
     public void testPopBeforeTimeout() throws InterruptedException {
         // Possible flaky test, since we can't be sure of thread timing
-        MessageQueue q = new MessageQueue(false);
+        MessageQueue q = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
 
         Thread t = new Thread(() -> {
             try {
@@ -135,7 +136,7 @@ public class MessageQueueTests {
     @Test
     public void testMultipleWriters() throws InterruptedException {
         // Possible flaky test, since we can't be sure of thread timing
-        MessageQueue q = new MessageQueue(false);
+        MessageQueue q = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
         int threads = 10;
 
         for (int i=0;i<threads;i++) {
@@ -155,7 +156,7 @@ public class MessageQueueTests {
     @Test
     public void testMultipleReaders() throws InterruptedException {
         // Possible flaky test, since we can't be sure of thread timing
-        MessageQueue q = new MessageQueue(false);
+        MessageQueue q = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
         int threads = 10;
         AtomicInteger count = new AtomicInteger(0);
         CountDownLatch latch = new CountDownLatch(threads);
@@ -183,7 +184,7 @@ public class MessageQueueTests {
     @Test
     public void testMultipleReadersAndWriters() throws InterruptedException {
         // Possible flaky test, since we can't be sure of thread timing
-        MessageQueue q = new MessageQueue(false);
+        MessageQueue q = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
         int threads = 10;
         int msgPerThread = 10;
         AtomicInteger count = new AtomicInteger(0);
@@ -218,7 +219,7 @@ public class MessageQueueTests {
     @Test
     public void testMultipleReaderWriters() throws InterruptedException {
         // Possible flaky test, since we can't be sure of thread timing
-        MessageQueue q = new MessageQueue(false);
+        MessageQueue q = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
         int threads = 10;
         int msgPerThread = 1_000;
         AtomicInteger count = new AtomicInteger(0);
@@ -246,7 +247,7 @@ public class MessageQueueTests {
 
     @Test
     public void testEmptyAccumulate() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
+        MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         NatsMessage msg = q.accumulate(1,1,null);
         assertNull(msg);
         assertTrue(q.isSingleReaderMode());
@@ -254,7 +255,7 @@ public class MessageQueueTests {
 
     @Test
     public void testSingleAccumulate() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
+        MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         q.push(new ProtocolMessage(PING));
         NatsMessage msg = q.accumulate(100,1,null);
         assertNotNull(msg);
@@ -262,7 +263,7 @@ public class MessageQueueTests {
 
     @Test
     public void testMultiAccumulate() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
+        MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
@@ -282,7 +283,7 @@ public class MessageQueueTests {
 
     @Test
     public void testPartialAccumulateOnCount() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
+        MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
@@ -296,7 +297,7 @@ public class MessageQueueTests {
 
     @Test
     public void testMultipleAccumulateOnCount() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
+        MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
@@ -316,7 +317,7 @@ public class MessageQueueTests {
 
     @Test
     public void testPartialAccumulateOnSize() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
+        MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
@@ -330,7 +331,7 @@ public class MessageQueueTests {
 
     @Test
     public void testMultipleAccumulateOnSize() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
+        MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
@@ -349,7 +350,7 @@ public class MessageQueueTests {
     
     @Test
     public void testAccumulateAndPop() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
+        MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
@@ -367,7 +368,7 @@ public class MessageQueueTests {
     @Test
     public void testMultipleWritersOneAccumulator() throws InterruptedException {
         // Possible flaky test, since we can't be sure of thread timing
-        MessageQueue q = new MessageQueue(true);
+        MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         int threads = 4;
         int msgPerThread = 77;
         int msgCount = threads * msgPerThread;
@@ -407,7 +408,7 @@ public class MessageQueueTests {
     @Test
     public void testInteruptAccumulate() throws InterruptedException {
         // Possible flaky test, since we can't be sure of thread timing
-        MessageQueue q = new MessageQueue(true);
+        MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         Thread t = new Thread(() -> {try {Thread.sleep(100);}catch(Exception e){} q.pause();});
         t.start();
         NatsMessage msg = q.accumulate(100,100, Duration.ZERO);
@@ -416,7 +417,7 @@ public class MessageQueueTests {
     
     @Test
     public void testLength() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
+        MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         NatsMessage msg1 = new ProtocolMessage(PING);
         NatsMessage msg2 = new ProtocolMessage(PING);
         NatsMessage msg3 = new ProtocolMessage(PING);
@@ -435,7 +436,7 @@ public class MessageQueueTests {
     
     @Test
     public void testSizeInBytes() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
+        MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         NatsMessage msg1 = new ProtocolMessage(ONE);
         NatsMessage msg2 = new ProtocolMessage(TWO);
         NatsMessage msg3 = new ProtocolMessage(THREE);
@@ -455,7 +456,7 @@ public class MessageQueueTests {
 
     @Test
     public void testSizeInBytesWithData() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
+        MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
 
         String subject = "subj";
         String replyTo = "reply";
@@ -483,7 +484,7 @@ public class MessageQueueTests {
 
     @Test
     public void testFilterTail() throws InterruptedException, UnsupportedEncodingException {
-        MessageQueue q = new MessageQueue(true);
+        MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         NatsMessage msg1 = new ProtocolMessage(ONE);
         NatsMessage msg2 = new ProtocolMessage(TWO);
         NatsMessage msg3 = new ProtocolMessage(THREE);
@@ -507,7 +508,7 @@ public class MessageQueueTests {
 
     @Test
     public void testFilterHead() throws InterruptedException, UnsupportedEncodingException {
-        MessageQueue q = new MessageQueue(true);
+        MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         NatsMessage msg1 = new ProtocolMessage(ONE);
         NatsMessage msg2 = new ProtocolMessage(TWO);
         NatsMessage msg3 = new ProtocolMessage(THREE);
@@ -531,7 +532,7 @@ public class MessageQueueTests {
 
     @Test
     public void testFilterMiddle() throws InterruptedException, UnsupportedEncodingException {
-        MessageQueue q = new MessageQueue(true);
+        MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         NatsMessage msg1 = new ProtocolMessage(ONE);
         NatsMessage msg2 = new ProtocolMessage(TWO);
         NatsMessage msg3 = new ProtocolMessage(THREE);
@@ -555,7 +556,7 @@ public class MessageQueueTests {
 
     @Test
     public void testPausedAccumulate() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true);
+        MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         q.pause();
         NatsMessage msg = q.accumulate(1,1,null);
         assertNull(msg);
@@ -564,15 +565,15 @@ public class MessageQueueTests {
     @Test
     public void testThrowOnFilterIfRunning() {
         assertThrows(IllegalStateException.class, () -> {
-            MessageQueue q = new MessageQueue(true);
-            q.filter((msg) -> {return true;});
-            assertFalse(true);
+            MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
+            q.filter((msg) -> true);
+            fail();
         });
     }
 
     @Test
     public void testExceptionWhenQueueIsFull() {
-        MessageQueue q  = new MessageQueue(true, 2);
+        MessageQueue q  = new MessageQueue(true, 2, false, REQUEST_CLEANUP_INTERVAL);
         NatsMessage msg1 = new ProtocolMessage(ONE);
         NatsMessage msg2 = new ProtocolMessage(TWO);
         NatsMessage msg3 = new ProtocolMessage(THREE);
@@ -589,7 +590,7 @@ public class MessageQueueTests {
 
     @Test
     public void testDiscardMessageWhenQueueFull() {
-        MessageQueue q  = new MessageQueue(true, 2, true);
+        MessageQueue q  = new MessageQueue(true, 2, true, REQUEST_CLEANUP_INTERVAL);
         NatsMessage msg1 = new ProtocolMessage(ONE);
         NatsMessage msg2 = new ProtocolMessage(TWO);
         NatsMessage msg3 = new ProtocolMessage(THREE);

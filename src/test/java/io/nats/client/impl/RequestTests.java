@@ -679,8 +679,9 @@ public class RequestTests extends TestBase {
     }
 
     @Test
-    public void testNatsRequestCompletableFuture() throws InterruptedException {
-        NatsRequestCompletableFuture f = new NatsRequestCompletableFuture(CancelAction.CANCEL, Duration.ofHours(-1));
+    public void testNatsRequestCompletableFuture() throws Exception {
+        // coverage for configuration
+        NatsRequestCompletableFuture f = new NatsRequestCompletableFuture(CancelAction.CANCEL, Duration.ofMillis(-1000), true);
         assertEquals(CancelAction.CANCEL, f.getCancelAction());
         assertTrue(f.hasExceededTimeout());
         assertFalse(f.wasCancelledClosing());
@@ -689,17 +690,43 @@ public class RequestTests extends TestBase {
         f.cancelTimedOut(); // not real use, just testing flags
         assertTrue(f.wasCancelledClosing());
         assertTrue(f.wasCancelledTimedOut());
+        assertTrue(f.useTimeoutException());
 
-        f = new NatsRequestCompletableFuture(CancelAction.COMPLETE, Duration.ofHours(-1));
+        f = new NatsRequestCompletableFuture(CancelAction.COMPLETE, Duration.ofNanos(0), true);
         assertEquals(CancelAction.COMPLETE, f.getCancelAction());
 
-        f = new NatsRequestCompletableFuture(CancelAction.REPORT, Duration.ofHours(-1));
+        f = new NatsRequestCompletableFuture(CancelAction.REPORT, Duration.ofNanos(0), true);
         assertEquals(CancelAction.REPORT, f.getCancelAction());
 
         // coverage for null timeout
-        f = new NatsRequestCompletableFuture(CancelAction.CANCEL, null);
+        f = new NatsRequestCompletableFuture(CancelAction.CANCEL, null, true);
         Thread.sleep(Options.DEFAULT_REQUEST_CLEANUP_INTERVAL.toMillis() + 100);
         assertTrue(f.hasExceededTimeout());
+
+        f = new NatsRequestCompletableFuture(CancelAction.CANCEL, Duration.ofNanos(0), false);
+        assertFalse(f.useTimeoutException());
+
+        // coverage for behavior
+        NatsRequestCompletableFuture fcf = new NatsRequestCompletableFuture(CancelAction.CANCEL, Duration.ofNanos(0), false);
+        assertFalse(fcf.useTimeoutException());
+        fcf.cancelClosing();
+        assertThrows(CancellationException.class, fcf::get);
+
+        NatsRequestCompletableFuture fct = new NatsRequestCompletableFuture(CancelAction.CANCEL, Duration.ofNanos(0), true);
+        assertTrue(fct.useTimeoutException());
+        fct.cancelClosing();
+        assertThrows(CancellationException.class, fct::get);
+
+        NatsRequestCompletableFuture ftof = new NatsRequestCompletableFuture(CancelAction.CANCEL, Duration.ofNanos(0), false);
+        assertFalse(ftof.useTimeoutException());
+        ftof.cancelTimedOut();
+        assertThrows(CancellationException.class, ftof::get);
+
+        NatsRequestCompletableFuture ftot = new NatsRequestCompletableFuture(CancelAction.CANCEL, Duration.ofNanos(0), true);
+        assertTrue(ftot.useTimeoutException());
+        ftot.cancelTimedOut();
+        ExecutionException ee = assertThrows(ExecutionException.class, ftot::get);
+        assertTrue(ee.getCause() instanceof TimeoutException);
     }
 
     @Test

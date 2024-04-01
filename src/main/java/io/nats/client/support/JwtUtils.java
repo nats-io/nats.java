@@ -54,8 +54,8 @@ public abstract class JwtUtils {
             "------END NATS USER JWT------\n" +
             "\n" +
             "************************* IMPORTANT *************************\n" +
-            "    NKEY Seed printed below can be used to sign and prove identity.\n" +
-            "    NKEYs are sensitive and should be treated as secrets.\n" +
+            "NKEY Seed printed below can be used to sign and prove identity.\n" +
+            "NKEYs are sensitive and should be treated as secrets.\n" +
             "\n" +
             "-----BEGIN USER NKEY SEED-----\n" +
             "%s\n" +

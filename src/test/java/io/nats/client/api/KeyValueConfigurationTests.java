@@ -41,6 +41,7 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
             .replicas(2)
             .placement(p)
             .republish(r)
+            .compression(true)
             .build();
         validate(bc);
 
@@ -72,6 +73,7 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
         assertEquals("src", kvc.getRepublish().getSource());
         assertEquals("dest", kvc.getRepublish().getDestination());
         assertTrue(kvc.getRepublish().isHeadersOnly());
+        assertTrue(kvc.isCompressed());
 
         assertTrue(kvc.toString().contains("bucketName"));
     }

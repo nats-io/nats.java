@@ -27,7 +27,7 @@ class NatsStreamContext implements StreamContext {
     final NatsJetStream js;
     final NatsJetStreamManagement jsm;
 
-    // for when this is contructed from the NatsJetStream itself
+    // for when this is constructed from the NatsJetStream itself
     NatsStreamContext(String streamName, NatsJetStream js, NatsConnection connection, JetStreamOptions jsOptions) throws IOException, JetStreamApiException {
         this.streamName = streamName;
         this.js = js == null ? new NatsJetStream(connection, jsOptions) : js;
@@ -80,7 +80,7 @@ class NatsStreamContext implements StreamContext {
      */
     @Override
     public ConsumerContext getConsumerContext(String consumerName) throws IOException, JetStreamApiException {
-        return new NatsConsumerContext(this, jsm.getConsumerInfo(streamName, consumerName));
+        return new NatsConsumerContext(this, jsm.getConsumerInfo(streamName, consumerName), null);
     }
 
     /**
@@ -88,7 +88,7 @@ class NatsStreamContext implements StreamContext {
      */
     @Override
     public ConsumerContext createOrUpdateConsumer(ConsumerConfiguration config) throws IOException, JetStreamApiException {
-        return new NatsConsumerContext(this, jsm.addOrUpdateConsumer(streamName, config));
+        return new NatsConsumerContext(this, jsm.addOrUpdateConsumer(streamName, config), null);
     }
 
     /**

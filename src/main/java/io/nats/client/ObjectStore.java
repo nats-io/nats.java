@@ -25,20 +25,17 @@ import java.util.List;
 
 /**
  * Object Store Management context for creation and access to key value buckets.
- * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
  */
 public interface ObjectStore {
 
     /**
      * Get the name of the object store's bucket.
-     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
      * @return the name
      */
     String getBucketName();
 
     /**
      * Place the contents of the input stream into a new object.
-     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
      * @param meta the metadata for the object
      * @param inputStream the source input stream
      * @return the ObjectInfo for the saved object
@@ -50,7 +47,6 @@ public interface ObjectStore {
 
     /**
      * Place the contents of the input stream into a new object.
-     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
      * @param objectName the name of the object
      * @param inputStream the source input stream
      * @return the ObjectInfo for the saved object
@@ -62,7 +58,6 @@ public interface ObjectStore {
 
     /**
      * Place the bytes into a new object.
-     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
      * @param objectName the name of the object
      * @param input the bytes to store
      * @return the ObjectInfo for the saved object
@@ -74,7 +69,6 @@ public interface ObjectStore {
 
     /**
      * Place the contents of the file into a new object using the file name as the object name.
-     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
      * @param file the file to read
      * @return the ObjectInfo for the saved object
      * @throws IOException covers various communication issues with the NATS server such as timeout or interruption
@@ -85,7 +79,6 @@ public interface ObjectStore {
 
     /**
      * Get an object by name from the store, reading it into the output stream, if the object exists.
-     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
      * @param objectName The name of the object
      * @param outputStream the destination stream.
      * @return the ObjectInfo for the object name or throw an exception if it does not exist or is deleted.
@@ -98,7 +91,6 @@ public interface ObjectStore {
 
     /**
      * Get the info for an object if the object exists / is not deleted.
-     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
      * @param objectName The name of the object
      * @return the ObjectInfo for the object name or throw an exception if it does not exist.
      * @throws IOException covers various communication issues with the NATS server such as timeout or interruption
@@ -108,7 +100,6 @@ public interface ObjectStore {
 
     /**
      * Get the info for an object if the object exists, optionally including deleted.
-     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
      * @param objectName The name of the object
      * @param includingDeleted whether to return info for deleted objects
      * @return the ObjectInfo for the object name or throw an exception if it does not exist.
@@ -119,7 +110,6 @@ public interface ObjectStore {
 
     /**
      * Update the metadata of name, description or headers. All other changes are ignored.
-     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
      * @param objectName The name of the object
      * @param meta the metadata with the new or unchanged name, description and headers.
      * @return the ObjectInfo after update
@@ -130,7 +120,6 @@ public interface ObjectStore {
 
     /**
      * Delete the object by name. A No-op if the object is already deleted.
-     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
      * @param objectName The name of the object
      * @return the ObjectInfo after delete or throw an exception if it does not exist.
      * @throws IOException covers various communication issues with the NATS server such as timeout or interruption
@@ -140,7 +129,6 @@ public interface ObjectStore {
 
     /**
      * Add a link to another object. A link cannot be for another link.
-     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
      * @param objectName The name of the object
      * @param toInfo the info object of the object to link to
      * @return the ObjectInfo for the link as saved or throws an exception
@@ -151,7 +139,6 @@ public interface ObjectStore {
 
     /**
      * Add a link to another object store (bucket).
-     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
      * @param objectName The name of the object
      * @param toStore the store object to link to
      * @return the ObjectInfo for the link as saved or throws an exception
@@ -162,7 +149,6 @@ public interface ObjectStore {
 
     /**
      * Close (seal) the bucket to changes. The store (bucket) will be read only.
-     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
      * @return the status object
      * @throws IOException covers various communication issues with the NATS server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
@@ -171,7 +157,6 @@ public interface ObjectStore {
 
     /**
      * Get a list of all object [infos] in the store.
-     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
      * @return the list of objects
      * @throws IOException covers various communication issues with the NATS server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
@@ -181,7 +166,6 @@ public interface ObjectStore {
 
     /**
      * Create a watch on the store (bucket).
-     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
      * @param watcher the implementation to receive changes.
      * @param watchOptions the watch options to apply. If multiple conflicting options are supplied, the last options wins.
      * @return the NatsObjectStoreWatchSubscription
@@ -193,7 +177,6 @@ public interface ObjectStore {
 
     /**
      * Get the ObjectStoreStatus object.
-     * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
      * @return the status object
      * @throws IOException covers various communication issues with the NATS server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data the request had an error related to the data

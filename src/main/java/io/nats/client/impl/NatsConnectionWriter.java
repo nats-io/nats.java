@@ -35,6 +35,7 @@ class NatsConnectionWriter implements Runnable {
 
     private final NatsConnection connection;
 
+    private final ReentrantLock writerLock;
     private Future<Boolean> stopped;
     private Future<DataPort> dataPortFuture;
     private DataPort dataPort = null;
@@ -51,6 +52,7 @@ class NatsConnectionWriter implements Runnable {
 
     NatsConnectionWriter(NatsConnection connection) {
         this.connection = connection;
+        writerLock = new ReentrantLock();
 
         this.running = new AtomicBoolean(false);
         this.reconnectMode = new AtomicBoolean(false);
@@ -64,12 +66,34 @@ class NatsConnectionWriter implements Runnable {
         sendBuffer = new byte[sbl];
 
         outgoing = new MessageQueue(true,
-                options.getMaxMessagesInOutgoingQueue(),
-                options.isDiscardMessagesWhenOutgoingQueueFull());
+            options.getMaxMessagesInOutgoingQueue(),
+            options.isDiscardMessagesWhenOutgoingQueueFull(),
+            options.getRequestCleanupInterval());
 
         // The "reconnect" buffer contains internal messages, and we will keep it unlimited in size
-        reconnectOutgoing = new MessageQueue(true, 0);
+        reconnectOutgoing = new MessageQueue(true, options.getRequestCleanupInterval());
         reconnectBufferSize = options.getReconnectBufferSize();
+    }
+
+    NatsConnectionWriter(NatsConnectionWriter sourceWriter) {
+        this.connection = sourceWriter.connection;
+        writerLock = new ReentrantLock();
+
+        this.running = new AtomicBoolean(false);
+        this.reconnectMode = new AtomicBoolean(false);
+        this.startStopLock = new ReentrantLock();
+        this.stopped = new CompletableFuture<>();
+        ((CompletableFuture<Boolean>)this.stopped).complete(Boolean.TRUE); // we are stopped on creation
+
+        int sbl = sourceWriter.sendBufferLength.get();
+        sendBufferLength = new AtomicInteger();
+        sendBuffer = new byte[sbl];
+
+        outgoing = new MessageQueue(sourceWriter.outgoing);
+
+        // The "reconnect" buffer contains internal messages, and we will keep it unlimited in size
+        reconnectOutgoing = new MessageQueue(sourceWriter.reconnectOutgoing);
+        reconnectBufferSize = sourceWriter.reconnectBufferSize;
     }
 
     // Should only be called if the current thread has exited.
@@ -92,73 +116,84 @@ class NatsConnectionWriter implements Runnable {
     // Returns a future that is completed when the thread completes, not when this
     // method does.
     Future<Boolean> stop() {
-        this.running.set(false);
-        this.startStopLock.lock();
-        try {
-            this.outgoing.pause();
-            this.reconnectOutgoing.pause();
-            // Clear old ping/pong requests
-            this.outgoing.filter((msg) ->
-                msg.isProtocol() &&
-                    (msg.protocolBab.equals(OP_PING_BYTES) || msg.protocolBab.equals(OP_PONG_BYTES)));
+        if (running.get()) {
+            running.set(false);
+            startStopLock.lock();
+            try {
+                this.outgoing.pause();
+                this.reconnectOutgoing.pause();
+                // Clear old ping/pong requests
+                this.outgoing.filter((msg) ->
+                    msg.isProtocol() &&
+                        (msg.protocolBab.equals(OP_PING_BYTES) || msg.protocolBab.equals(OP_PONG_BYTES)));
 
-        } finally {
-            this.startStopLock.unlock();
+            }
+            finally {
+                this.startStopLock.unlock();
+            }
         }
 
         return this.stopped;
     }
 
-    synchronized void sendMessageBatch(NatsMessage msg, DataPort dataPort, StatisticsCollector stats)
-        throws IOException {
+    boolean isRunning() {
+        return running.get();
+    }
 
-        int sendPosition = 0;
-        int sbl = sendBufferLength.get();
+    void sendMessageBatch(NatsMessage msg, DataPort dataPort, StatisticsCollector stats) throws IOException {
+        writerLock.lock();
+        try {
+            int sendPosition = 0;
+            int sbl = sendBufferLength.get();
 
-        while (msg != null) {
-            long size = msg.getSizeInBytes();
+            while (msg != null) {
+                long size = msg.getSizeInBytes();
 
-            if (sendPosition + size > sbl) {
-                if (sendPosition > 0) {
-                    dataPort.write(sendBuffer, sendPosition);
-                    connection.getNatsStatistics().registerWrite(sendPosition);
-                    sendPosition = 0;
+                if (sendPosition + size > sbl) {
+                    if (sendPosition > 0) {
+                        dataPort.write(sendBuffer, sendPosition);
+                        connection.getNatsStatistics().registerWrite(sendPosition);
+                        sendPosition = 0;
+                    }
+                    if (size > sbl) { // have to resize b/c can't fit 1 message
+                        sbl = bufferAllocSize((int) size, BUFFER_BLOCK_SIZE);
+                        sendBufferLength.set(sbl);
+                        sendBuffer = new byte[sbl];
+                    }
                 }
-                if (size > sbl) { // have to resize b/c can't fit 1 message
-                    sbl = bufferAllocSize((int)size, BUFFER_BLOCK_SIZE);
-                    sendBufferLength.set(sbl);
-                    sendBuffer = new byte[sbl];
-                }
-            }
 
-            int blen = msg.protocolBab.length();
-            System.arraycopy(msg.protocolBab.internalArray(), 0, sendBuffer, sendPosition, blen);
-            sendPosition += blen;
-
-            sendBuffer[sendPosition++] = CR;
-            sendBuffer[sendPosition++] = LF;
-
-            if (!msg.isProtocol()) {
-                sendPosition += msg.copyNotEmptyHeaders(sendPosition, sendBuffer);
-
-                byte[] bytes = msg.getData(); // guaranteed to not be null
-                if (bytes.length > 0) {
-                    System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
-                    sendPosition += bytes.length;
-                }
+                int blen = msg.protocolBab.length();
+                System.arraycopy(msg.protocolBab.internalArray(), 0, sendBuffer, sendPosition, blen);
+                sendPosition += blen;
 
                 sendBuffer[sendPosition++] = CR;
                 sendBuffer[sendPosition++] = LF;
+
+                if (!msg.isProtocol()) {
+                    sendPosition += msg.copyNotEmptyHeaders(sendPosition, sendBuffer);
+
+                    byte[] bytes = msg.getData(); // guaranteed to not be null
+                    if (bytes.length > 0) {
+                        System.arraycopy(bytes, 0, sendBuffer, sendPosition, bytes.length);
+                        sendPosition += bytes.length;
+                    }
+
+                    sendBuffer[sendPosition++] = CR;
+                    sendBuffer[sendPosition++] = LF;
+                }
+
+                stats.incrementOutMsgs();
+                stats.incrementOutBytes(size);
+
+                msg = msg.next;
             }
 
-            stats.incrementOutMsgs();
-            stats.incrementOutBytes(size);
-
-            msg = msg.next;
+            dataPort.write(sendBuffer, sendPosition);
+            connection.getNatsStatistics().registerWrite(sendPosition);
         }
-
-        dataPort.write(sendBuffer, sendPosition);
-        connection.getNatsStatistics().registerWrite(sendPosition);
+        finally {
+            writerLock.unlock();
+        }
     }
 
     @Override
@@ -187,7 +222,10 @@ class NatsConnectionWriter implements Runnable {
                 sendMessageBatch(msg, dataPort, stats);
             }
         } catch (IOException | BufferOverflowException io) {
-            this.connection.handleCommunicationIssue(io);
+            // if already not running, an IOE is not unreasonable in a transition state
+            if (running.get()) {
+                this.connection.handleCommunicationIssue(io);
+            }
         } catch (CancellationException | ExecutionException | InterruptedException ex) {
             // Exit
         } finally {
@@ -216,15 +254,19 @@ class NatsConnectionWriter implements Runnable {
         }
     }
 
-    synchronized void flushBuffer() {
+    void flushBuffer() {
         // Since there is no connection level locking, we rely on synchronization
         // of the APIs here.
-        try  {
+        writerLock.lock();
+        try {
             if (this.running.get()) {
                 dataPort.flush();
             }
         } catch (Exception e) {
             // NOOP;
+        }
+        finally {
+            writerLock.unlock();
         }
     }
 }

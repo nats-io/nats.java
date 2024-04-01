@@ -101,6 +101,34 @@ public class TestBase {
         boolean runTest(ServerInfo si);
     }
 
+    public static boolean atLeast2_9_0(Connection nc) {
+        return atLeast2_9_0(nc.getServerInfo());
+    }
+
+    public static boolean atLeast2_9_0(ServerInfo si) {
+        return si.isSameOrNewerThanVersion("2.9.0");
+    }
+
+    public static boolean atLeast2_9_1(ServerInfo si) {
+        return si.isSameOrNewerThanVersion("2.9.1");
+    }
+
+    public static boolean atLeast2_10() {
+        return RUN_SERVER_INFO.isNewerVersionThan("2.9.99");
+    }
+
+    public static boolean atLeast2_10(ServerInfo si) {
+        return si.isNewerVersionThan("2.9.99");
+    }
+
+    public static boolean atLeast2_10_3(ServerInfo si) {
+        return si.isSameOrNewerThanVersion("2.10.3");
+    }
+
+    public static boolean atLeast2_11(ServerInfo si) {
+        return si.isNewerVersionThan("2.10.99");
+    }
+
     public static void runInServer(InServerTest inServerTest) throws Exception {
         runInServer(false, false, null, null, inServerTest);
     }
@@ -149,7 +177,20 @@ public class TestBase {
         runInServer(debug, jetstream, builder, null, inServerTest);
     }
 
-    private static ServerInfo RUN_SERVER_INFO;
+    public static ServerInfo RUN_SERVER_INFO;
+
+    public static ServerInfo ensureRunServerInfo() throws Exception {
+        if (RUN_SERVER_INFO == null) {
+            runInServer(false, false, null, null, nc -> {});
+        }
+        return RUN_SERVER_INFO;
+    }
+
+    public static void initRunServerInfo(Connection nc) {
+        if (RUN_SERVER_INFO == null) {
+            RUN_SERVER_INFO = nc.getServerInfo();
+        }
+    }
 
     public static void runInServer(boolean debug, boolean jetstream, Options.Builder builder, VersionCheck vc, InServerTest inServerTest) throws Exception {
         if (vc != null && RUN_SERVER_INFO != null) {
@@ -166,8 +207,9 @@ public class TestBase {
         try (NatsTestServer ts = new NatsTestServer(debug, jetstream);
              Connection nc = standardConnection(builder.server(ts.getURI()).build()))
         {
+            initRunServerInfo(nc);
+
             if (vc != null) {
-                initRunServerInfo(nc);
                 if (!vc.runTest(RUN_SERVER_INFO)) {
                     return;
                 }
@@ -182,10 +224,6 @@ public class TestBase {
                 }
             }
         }
-    }
-
-    private static void initRunServerInfo(Connection nc) {
-        RUN_SERVER_INFO = nc.getServerInfo();
     }
 
     public static class LongRunningNatsTestServer extends NatsTestServer {
@@ -317,6 +355,10 @@ public class TestBase {
         return variant == null ? NUID.nextGlobalSequence() : "" + variant;
     }
 
+    public static String variant() {
+        return NUID.nextGlobalSequence();
+    }
+
     public static String stream() {
         return STREAM + "-" + variant(null);
     }
@@ -388,8 +430,16 @@ public class TestBase {
         return BUCKET + "-" + variant(variant);
     }
 
+    public static String bucket() {
+        return bucket(null);
+    }
+
     public static String key(Object variant) {
         return KEY + "-" + variant(variant);
+    }
+
+    public static String key() {
+        return KEY + "-" + variant(null);
     }
 
     public static String messageId(Object variant) {
@@ -400,6 +450,9 @@ public class TestBase {
         return DATA + "-" + variant(variant);
     }
 
+    public static byte[] dataBytes() {
+        return data(variant()).getBytes(StandardCharsets.US_ASCII);
+    }
     public static byte[] dataBytes(Object variant) {
         return data(variant).getBytes(StandardCharsets.US_ASCII);
     }

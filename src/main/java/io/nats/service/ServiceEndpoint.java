@@ -75,6 +75,14 @@ public class ServiceEndpoint {
     }
 
     /**
+     * Get the queueGroup for the ServiceEndpoint
+     * @return the queueGroup
+     */
+    public String getQueueGroup() {
+        return endpoint.getQueueGroup();
+    }
+
+    /**
      * Get the name of the {@link Group}
      * @return the group name or null if there is no group
      */
@@ -166,6 +174,16 @@ public class ServiceEndpoint {
          */
         public Builder endpointSubject(String subject) {
             endpointBuilder.subject(subject);
+            return this;
+        }
+
+        /**
+         * Set the queueGroup for the {@link Endpoint} for this ServiceEndpoint replacing any queueGroup already set.
+         * @param queueGroup the queueGroup
+         * @return the ServiceEndpoint.Builder
+         */
+        public Builder endpointQueueGroup(String queueGroup) {
+            endpointBuilder.queueGroup(queueGroup);
             return this;
         }
 

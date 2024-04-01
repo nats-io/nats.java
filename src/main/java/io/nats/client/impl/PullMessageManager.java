@@ -33,9 +33,7 @@ class PullMessageManager extends MessageManager {
 
     protected PullMessageManager(NatsConnection conn, SubscribeOptions so, boolean syncMode) {
         super(conn, so, syncMode);
-        trackingBytes = false;
-        pendingMessages = 0;
-        pendingBytes = 0;
+        resetTracking();
     }
 
     @Override
@@ -46,7 +44,8 @@ class PullMessageManager extends MessageManager {
 
     @Override
     protected void startPullRequest(String pullSubject, PullRequestOptions pro, boolean raiseStatusWarnings, PullManagerObserver pullManagerObserver) {
-        synchronized (stateChangeLock) {
+        stateChangeLock.lock();
+        try {
             this.raiseStatusWarnings = raiseStatusWarnings;
             this.pullManagerObserver = pullManagerObserver;
             pendingMessages += pro.getBatchSize();
@@ -57,63 +56,85 @@ class PullMessageManager extends MessageManager {
                 initOrResetHeartbeatTimer();
             }
             else {
-                shutdownHeartbeatTimer();
+                shutdownHeartbeatTimer(); // just in case the pull was changed from hb to non-hb
             }
         }
-    }
-
-    private void trackPending(int m, long b) {
-        synchronized (stateChangeLock) {
-            pendingMessages -= m;
-            boolean zero = pendingMessages < 1;
-            if (trackingBytes) {
-                pendingBytes -= b;
-                zero |= pendingBytes < 1;
-            }
-            if (zero) {
-                pendingMessages = 0;
-                pendingBytes = 0;
-                trackingBytes = false;
-                if (hb) {
-                    shutdownHeartbeatTimer();
-                }
-            }
-            if (pullManagerObserver != null) {
-                pullManagerObserver.pendingUpdated();
-            }
+        finally {
+            stateChangeLock.unlock();
         }
     }
 
     @Override
-    protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
-        messageReceived(); // record message time. Used for heartbeat tracking
+    protected void handleHeartbeatError() {
+        super.handleHeartbeatError();
+        resetTracking();
+        if (pullManagerObserver != null) {
+            pullManagerObserver.heartbeatError();
+        }
+    }
 
+    private void trackIncoming(int m, long b) {
+        stateChangeLock.lock();
+        try {
+            // message time used for heartbeat tracking
+            updateLastMessageReceived();
+
+            if (m != Integer.MIN_VALUE) {
+                pendingMessages -= m;
+                boolean zero = pendingMessages < 1;
+                if (trackingBytes) {
+                    pendingBytes -= b;
+                    zero |= pendingBytes < 1;
+                }
+                if (zero) {
+                    resetTracking();
+                }
+                if (pullManagerObserver != null) {
+                    pullManagerObserver.pendingUpdated();
+                }
+            }
+        }
+        finally {
+            stateChangeLock.unlock();
+        }
+    }
+
+    protected void resetTracking() {
+        pendingMessages = 0;
+        pendingBytes = 0;
+        trackingBytes = false;
+        updateLastMessageReceived();
+    }
+
+    @Override
+    protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
         Status status = msg.getStatus();
 
         // normal js message
         if (status == null) {
-            trackPending(1, msg.consumeByteCount());
+            trackIncoming(1, msg.consumeByteCount());
             return true;
         }
 
         // heartbeat just needed to be recorded
         if (status.isHeartbeat()) {
+            trackIncoming(Integer.MIN_VALUE, Integer.MIN_VALUE);
             return false;
         }
 
+        int m = Integer.MIN_VALUE;
+        long b = Long.MIN_VALUE;
         Headers h = msg.getHeaders();
         if (h != null) {
-            String s = h.getFirst(NATS_PENDING_MESSAGES);
-            if (s != null) {
-                try {
-                    int m = Integer.parseInt(s);
-                    long b = Long.parseLong(h.getFirst(NATS_PENDING_BYTES));
-                    trackPending(m, b);
-                }
-                catch (NumberFormatException ignore) {} // shouldn't happen but don't fail
+            try {
+                m = Integer.parseInt(h.getFirst(NATS_PENDING_MESSAGES));
+                b = Long.parseLong(h.getFirst(NATS_PENDING_BYTES));
+            }
+            catch (NumberFormatException ignore) {
+                m = Integer.MIN_VALUE; // shouldn't happen but don't fail; make sure don't track m/b
             }
         }
-
+        trackIncoming(m, b);
         return true;
     }
 
@@ -148,7 +169,8 @@ class PullMessageManager extends MessageManager {
                 }
 
                 if (statMsg.equals(BATCH_COMPLETED) ||
-                    statMsg.equals(MESSAGE_SIZE_EXCEEDS_MAX_BYTES))
+                    statMsg.equals(MESSAGE_SIZE_EXCEEDS_MAX_BYTES) ||
+                    statMsg.equals(SERVER_SHUTDOWN))
                 {
                     return STATUS_TERMINUS;
                 }

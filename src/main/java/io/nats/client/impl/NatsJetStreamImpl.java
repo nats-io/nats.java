@@ -65,6 +65,13 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         multipleSubjectFilter210Available = conn.getInfo().isNewerVersionThan("2.9.99");
     }
 
+    NatsJetStreamImpl(NatsJetStreamImpl impl) {
+        conn = impl.conn;
+        jso = impl.jso;
+        consumerCreate290Available = impl.consumerCreate290Available;
+        multipleSubjectFilter210Available = impl.multipleSubjectFilter210Available;
+    }
+
     // ----------------------------------------------------------------------------------------------------
     // Management that is also needed by regular context
     // ----------------------------------------------------------------------------------------------------
@@ -173,17 +180,31 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         return NUID.nextGlobalSequence();
     }
 
-    ConsumerConfiguration nextOrderedConsumerConfiguration(
+    ConsumerConfiguration consumerConfigurationForOrdered(
         ConsumerConfiguration originalCc,
         long lastStreamSeq,
-        String newDeliverSubject)
+        String newDeliverSubject,
+        String consumerName,
+        Long inactiveThreshold)
     {
-        return ConsumerConfiguration.builder(originalCc)
-            .deliverPolicy(DeliverPolicy.ByStartSequence)
-            .deliverSubject(newDeliverSubject)
-            .startSequence(Math.max(1, lastStreamSeq + 1))
-            .startTime(null) // clear start time in case it was originally set
-            .build();
+        ConsumerConfiguration.Builder builder =
+            ConsumerConfiguration.builder(originalCc)
+                .deliverSubject(newDeliverSubject)
+                .startTime(null); // clear start time in case it was originally set
+
+        if (lastStreamSeq > 0) {
+            builder.deliverPolicy(DeliverPolicy.ByStartSequence)
+                .startSequence(Math.max(1, lastStreamSeq + 1));
+        }
+
+        if (consumerName != null && consumerCreate290Available) {
+            builder.name(consumerName);
+        }
+
+        if (inactiveThreshold != null) {
+            builder.inactiveThreshold(inactiveThreshold);
+        }
+        return builder.build();
     }
 
     ConsumerInfo lookupConsumerInfo(String streamName, String consumerName) throws IOException, JetStreamApiException {

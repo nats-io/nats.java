@@ -12,13 +12,12 @@
 // limitations under the License.
 package io.nats.client.api;
 
+import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueUtils;
 import io.nats.client.support.NatsKeyValueUtil;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 
 import static io.nats.client.support.NatsKeyValueUtil.*;
 import static io.nats.client.support.Validator.*;
@@ -40,35 +39,11 @@ public class KeyValueConfiguration extends FeatureConfiguration {
     }
 
     /**
-     * Gets the maximum number of bytes for this bucket.
-     * @return the maximum number of bytes for this bucket.
-     */
-    public long getMaxBucketSize() {
-        return sc.getMaxBytes();
-    }
-
-    /**
      * Gets the maximum size for an individual value in the bucket.
      * @return the maximum size for a value.
      */      
     public long getMaxValueSize() {
         return sc.getMaxMsgSize();
-    }
-
-    @Override
-    public String toString() {
-        return "KeyValueConfiguration{" +
-            "name='" + bucketName + '\'' +
-            ", description='" + getDescription() + '\'' +
-            ", maxHistoryPerKey=" + getMaxHistoryPerKey() +
-            ", maxBucketSize=" + getMaxBucketSize() +
-            ", maxValueSize=" + getMaxValueSize() +
-            ", ttl=" + getTtl() +
-            ", storageType=" + getStorageType() +
-            ", replicas=" + getReplicas() +
-            ", placement=" + getPlacement() +
-            ", republish=" + getRepublish() +
-            '}';
     }
 
     /**
@@ -80,13 +55,46 @@ public class KeyValueConfiguration extends FeatureConfiguration {
     }
 
     /**
+     * The mirror definition for this configuration
+     * @return the mirror
+     */
+    public Mirror getMirror() {
+        return sc.getMirror();
+    }
+
+    /**
+     * The sources for this configuration
+     * @return the sources
+     */
+    public List<Source> getSources() {
+        return sc.getSources();
+    }
+
+    @Override
+    public String toString() {
+        return "KeyValueConfiguration" + toJson();
+    }
+
+    @Override
+    public JsonValue toJsonValue() {
+        JsonValueUtils.MapBuilder mb = new JsonValueUtils.MapBuilder(super.toJsonValue());
+        mb.jv.mapOrder.remove("metaData");
+        mb.put("maxHistoryPerKey", getMaxHistoryPerKey());
+        mb.put("maxValueSize", getMaxValueSize());
+        mb.put("republish", getRepublish());
+        mb.put("mirror", getMirror());
+        mb.put("sources", getSources());
+        mb.jv.mapOrder.add("metaData");
+        return mb.toJsonValue();
+    }
+
+    /**
      * Creates a builder for the Key Value Configuration.
      * @return a KeyValueConfiguration Builder
      */
     public static Builder builder() {
         return new Builder((KeyValueConfiguration)null);
     }
-
 
     /**
      * Creates a builder for the Key Value Configuration.
@@ -113,11 +121,16 @@ public class KeyValueConfiguration extends FeatureConfiguration {
      * <p>{@code new Builder().build()} will create a new KeyValueConfiguration.
      *
      */
-    public static class Builder {
-        String name;
+    public static class Builder
+        extends FeatureConfiguration.Builder<Builder, KeyValueConfiguration>
+    {
         Mirror mirror;
         final List<Source> sources = new ArrayList<>();
-        final StreamConfiguration.Builder scBuilder;
+
+        @Override
+        protected Builder getThis() {
+            return this;
+        }
 
         /**
          * Default Builder
@@ -156,9 +169,9 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param name name of the key value bucket.
          * @return the builder
          */
+        @Override
         public Builder name(String name) {
-            this.name = validateBucketName(name, true);
-            return this;
+            return super.name(name);
         }
 
         /**
@@ -166,9 +179,9 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param description description of the store.
          * @return the builder
          */
+        @Override
         public Builder description(String description) {
-            scBuilder.description(description);
-            return this;
+            return super.description(description);
         }
 
         /**
@@ -186,9 +199,9 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param maxBucketSize the maximum number of bytes
          * @return Builder
          */
+        @Override
         public Builder maxBucketSize(long maxBucketSize) {
-            scBuilder.maxBytes(validateMaxBucketBytes(maxBucketSize));
-            return this;
+            return super.maxBucketSize(maxBucketSize);
         }
 
         /**
@@ -206,9 +219,9 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param ttl the maximum age
          * @return Builder
          */
+        @Override
         public Builder ttl(Duration ttl) {
-            scBuilder.maxAge(ttl);
-            return this;
+            return super.ttl(ttl);
         }
 
         /**
@@ -216,9 +229,9 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param storageType the storage type
          * @return Builder
          */
+        @Override
         public Builder storageType(StorageType storageType) {
-            scBuilder.storageType(storageType);
-            return this;
+            return super.storageType(storageType);
         }
 
         /**
@@ -226,9 +239,9 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param replicas the number of replicas
          * @return Builder
          */
+        @Override
         public Builder replicas(int replicas) {
-            scBuilder.replicas(replicas);
-            return this;
+            return super.replicas(replicas);
         }
 
         /**
@@ -236,9 +249,30 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @param placement the placement directive object
          * @return Builder
          */
+        @Override
         public Builder placement(Placement placement) {
-            scBuilder.placement(placement);
-            return this;
+            return super.placement(placement);
+        }
+
+        /**
+         * Sets whether to use compression for the KeyValueConfiguration.
+         * If set, will use the default compression algorithm of the KV backing store.
+         * @param compression whether to use compression in the KeyValueConfiguration
+         * @return Builder
+         */
+        @Override
+        public Builder compression(boolean compression) {
+            return super.compression(compression);
+        }
+
+        /**
+         * Sets the metadata for the KeyValueConfiguration
+         * @param metadata the metadata map
+         * @return Builder
+         */
+        @Override
+        public Builder metadata(Map<String, String> metadata) {
+            return super.metadata(metadata);
         }
 
         /**
@@ -346,7 +380,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
                             .build());
                 }
             }
-            else if (sources.size() > 0) {
+            else if (!sources.isEmpty()) {
                 for (Source source : sources) {
                     String name = source.getName();
                     if (hasPrefix(name)) {

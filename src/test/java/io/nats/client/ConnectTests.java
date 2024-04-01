@@ -15,15 +15,19 @@ package io.nats.client;
 
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
+import io.nats.client.impl.SimulateSocketDataPortException;
 import io.nats.client.impl.TestHandler;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -329,10 +333,66 @@ public class ConnectTests {
 
     @Test
     public void testTimeCheckCoverage() throws Exception {
+        List<String> traces = new ArrayList<>();
+        TimeTraceLogger l = (f, a) -> traces.add(String.format(f, a));
+
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = new Options.Builder().server(ts.getURI()).traceConnection().build();
             assertCanConnect(options);
+
+            options = new Options.Builder().server(ts.getURI()).timeTraceLogger(l).build();
+            assertCanConnect(options);
         }
+
+        int i = 0;
+        assertTrue(traces.get(i++).startsWith("creating connection object"));
+        assertTrue(traces.get(i++).startsWith("creating NUID"));
+        assertTrue(traces.get(i++).startsWith("creating executors"));
+        assertTrue(traces.get(i++).startsWith("creating reader and writer"));
+        assertTrue(traces.get(i++).startsWith("connection object created"));
+        assertTrue(traces.get(i++).startsWith("starting connect loop"));
+        assertTrue(traces.get(i++).startsWith("setting status to connecting"));
+        assertTrue(traces.get(i++).startsWith("trying to connect"));
+        assertTrue(traces.get(i++).startsWith("starting connection attempt"));
+        assertTrue(traces.get(i++).startsWith("waiting for reader"));
+        assertTrue(traces.get(i++).startsWith("waiting for writer"));
+        assertTrue(traces.get(i++).startsWith("cleaning pong queue"));
+        assertTrue(traces.get(i++).startsWith("connecting data port"));
+        assertTrue(traces.get(i++).startsWith("reading info"));
+        assertTrue(traces.get(i++).startsWith("starting reader"));
+        assertTrue(traces.get(i++).startsWith("starting writer"));
+        assertTrue(traces.get(i++).startsWith("sending connect message"));
+        assertTrue(traces.get(i++).startsWith("sending initial ping"));
+        assertTrue(traces.get(i++).startsWith("starting ping and cleanup timers"));
+        assertTrue(traces.get(i++).startsWith("updating status to connected"));
+        assertTrue(traces.get(i++).startsWith("status updated"));
+        assertTrue(traces.get(i).startsWith("connect complete"));
+    }
+
+    @Test
+    public void testReconnectLogging() throws Exception {
+        List<String> traces = new ArrayList<>();
+        TimeTraceLogger l = (f, a) -> traces.add(String.format(f, a));
+
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Options options = new Options.Builder()
+                    .server(ts.getURI())
+                    .traceConnection()
+                    .timeTraceLogger(l)
+                    .reconnectWait(Duration.ofSeconds(1))
+                    .maxReconnects(1)
+                    .connectionTimeout(Duration.ofSeconds(2))
+                    .build();
+
+            try (Connection nc = Nats.connect(options)) {
+                assertConnected(nc);
+                ts.close();
+                Thread.sleep(3000);
+            }
+        }
+
+        boolean foundReconnectLog = traces.stream().anyMatch(s -> s.contains("reconnecting to server"));
+        assertTrue(foundReconnectLog, "Reconnect log not found");
     }
 
     @Test
@@ -426,6 +486,77 @@ public class ConnectTests {
             assertTrue(completedLatch.await(10, TimeUnit.SECONDS));
 
             standardCloseConnection(nc);
+        }
+    }
+
+    @SuppressWarnings({"unused", "UnusedAssignment", "resource"})
+    @Test
+    public void testSocketLevelException() throws Exception {
+        int port = NatsTestServer.nextPort();
+
+        AtomicBoolean simExReceived = new AtomicBoolean();
+        TestHandler th = new TestHandler();
+        ErrorListener el = new ErrorListener() {
+            @Override
+            public void exceptionOccurred(Connection conn, Exception exp) {
+                if (exp.getMessage().contains("Simulated Exception")) {
+                    simExReceived.set(true);
+                }
+            }
+        };
+
+        Options options = new Options.Builder()
+            .server(NatsTestServer.getNatsLocalhostUri(port))
+            .dataPortType("io.nats.client.impl.SimulateSocketDataPortException")
+            .connectionListener(th)
+            .errorListener(el)
+            .reconnectDelayHandler(l -> Duration.ofSeconds(1))
+            .build();
+
+        Connection connection = null;
+
+        // 1. DO NOT RECONNECT ON CONNECT
+        try (NatsTestServer ts = new NatsTestServer(port, false)) {
+            try {
+                SimulateSocketDataPortException.THROW_ON_CONNECT.set(true);
+                connection = Nats.connect(options);
+                fail();
+            }
+            catch (Exception ignore) {}
+        }
+
+        Thread.sleep(200); // just making sure messages get through
+        assertNull(connection);
+        assertTrue(simExReceived.get());
+        simExReceived.set(false);
+
+        // 2. RECONNECT ON CONNECT
+        try (NatsTestServer ts = new NatsTestServer(port, false)) {
+            try {
+                SimulateSocketDataPortException.THROW_ON_CONNECT.set(true);
+                th.prepForStatusChange(Events.RECONNECTED);
+                connection = Nats.connectReconnectOnConnect(options);
+                assertTrue(th.waitForStatusChange(5, TimeUnit.SECONDS));
+                th.prepForStatusChange(Events.DISCONNECTED);
+            }
+            catch (Exception e) {
+                fail("should have connected " + e);
+            }
+        }
+        assertTrue(th.waitForStatusChange(5, TimeUnit.SECONDS));
+        assertTrue(simExReceived.get());
+        simExReceived.set(false);
+
+        // 2. NORMAL RECONNECT
+        th.prepForStatusChange(Events.RECONNECTED);
+        try (NatsTestServer ts = new NatsTestServer(port, false)) {
+            SimulateSocketDataPortException.THROW_ON_CONNECT.set(true);
+            try {
+                assertTrue(th.waitForStatusChange(5, TimeUnit.SECONDS));
+            }
+            catch (Exception e) {
+                fail("should have reconnected " + e);
+            }
         }
     }
 }

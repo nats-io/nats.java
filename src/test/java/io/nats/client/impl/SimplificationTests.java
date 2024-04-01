@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -26,14 +27,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static io.nats.client.BaseConsumeOptions.*;
-import static io.nats.client.impl.JetStreamConsumerTests.EXPECTED_CON_SEQ_NUMS;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testStreamContext() throws Exception {
-        jsServer.run(this::atLeast291, nc -> {
+        jsServer.run(TestBase::atLeast2_9_1, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
@@ -132,7 +132,7 @@ public class SimplificationTests extends JetStreamTestBase {
     static int FETCH_ORDERED = 3;
     @Test
     public void testFetch() throws Exception {
-        jsServer.run(this::atLeast291, nc -> {
+        jsServer.run(TestBase::atLeast2_9_1, nc -> {
             TestingStreamContainer tsc = new TestingStreamContainer(nc);
             JetStream js = nc.jetStream();
             for (int x = 1; x <= 20; x++) {
@@ -257,7 +257,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testIterableConsumer() throws Exception {
-        jsServer.run(this::atLeast291, nc -> {
+        jsServer.run(TestBase::atLeast2_9_1, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             TestingStreamContainer tsc = new TestingStreamContainer(jsm);
@@ -285,7 +285,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedIterableConsumerBasic() throws Exception {
-        jsServer.run(this::atLeast291, nc -> {
+        jsServer.run(TestBase::atLeast2_9_1, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
@@ -342,7 +342,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testConsumeWithHandler() throws Exception {
-        jsServer.run(this::atLeast291, nc -> {
+        jsServer.run(TestBase::atLeast2_9_1, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             TestingStreamContainer tsc = new TestingStreamContainer(jsm);
@@ -382,7 +382,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testNext() throws Exception {
-        jsServer.run(this::atLeast291, nc -> {
+        jsServer.run(TestBase::atLeast2_9_1, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
@@ -417,7 +417,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testCoverage() throws Exception {
-        jsServer.run(this::atLeast291, nc -> {
+        jsServer.run(TestBase::atLeast2_9_1, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             TestingStreamContainer tsc = new TestingStreamContainer(jsm);
@@ -544,28 +544,10 @@ public class SimplificationTests extends JetStreamTestBase {
             () -> ConsumeOptions.builder().expiresIn(MIN_EXPIRES_MILLS - 1).build());
     }
 
-    public static class OrderedPullTestDropSimulator extends OrderedPullMessageManager {
+    // this sim is different from the other sim b/c next has a new sub every message
+    public static class PullOrderedNextTestDropSimulator extends PullOrderedMessageManager {
         @SuppressWarnings("ClassEscapesDefinedScope")
-        public OrderedPullTestDropSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode) {
-            super(conn, js, stream, so, serverCC, syncMode);
-        }
-
-        @Override
-        protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
-            if (msg.isJetStream()) {
-                long ss = msg.metaData().streamSequence();
-                long cs = msg.metaData().consumerSequence();
-                if ((ss == 2 && cs == 2) || (ss == 5 && cs == 4)) {
-                    return false;
-                }
-            }
-
-            return super.beforeQueueProcessorImpl(msg);
-        }
-    }
-
-    public static class OrderedPullNextTestDropSimulator extends OrderedPullMessageManager {
-        public OrderedPullNextTestDropSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode) {
+        public PullOrderedNextTestDropSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode) {
             super(conn, js, stream, so, serverCC, syncMode);
         }
 
@@ -592,14 +574,14 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testOrderedBehaviors() throws Exception {
-        jsServer.run(this::atLeast291, nc -> {
+    public void testOrderedBehaviorNext() throws Exception {
+        jsServer.run(TestBase::atLeast2_9_1, nc -> {
             // Setup
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             // Get this in place before subscriptions are made
-            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = OrderedPullNextTestDropSimulator::new;
+            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedNextTestDropSimulator::new;
 
             TestingStreamContainer tsc = new TestingStreamContainer(jsm);
             StreamContext sctx = js.getStreamContext(tsc.stream);
@@ -620,31 +602,62 @@ public class SimplificationTests extends JetStreamTestBase {
         });
     }
 
+    public static class PullOrderedTestDropSimulator extends PullOrderedMessageManager {
+        @SuppressWarnings("ClassEscapesDefinedScope")
+        public PullOrderedTestDropSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode) {
+            super(conn, js, stream, so, serverCC, syncMode);
+        }
+
+        @Override
+        protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
+            if (msg.isJetStream()
+                && msg.metaData().streamSequence() == 2
+                && msg.metaData().consumerSequence() == 2)
+            {
+                return false;
+            }
+
+            return super.beforeQueueProcessorImpl(msg);
+        }
+    }
+
     @Test
     public void testOrderedBehaviorFetch() throws Exception {
-        jsServer.run(this::atLeast291, nc -> {
+        jsServer.run(TestBase::atLeast2_9_1, nc -> {
             // Setup
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             // Get this in place before subscriptions are made
-            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = OrderedPullTestDropSimulator::new;
+            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
 
             TestingStreamContainer tsc = new TestingStreamContainer(jsm);
             StreamContext sctx = js.getStreamContext(tsc.stream);
-            jsPublish(js, tsc.subject(), 101, 6);
+            jsPublish(js, tsc.subject(), 101, 5);
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(tsc.subject());
             OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
-            try (FetchConsumer fcon = occtx.fetchMessages(6)) {
-                // Loop through the messages to make sure I get stream sequence 1 to 6
-                int expectedStreamSeq = 1;
-                while (expectedStreamSeq <= 6) {
-                    Message m = fcon.nextMessage();
-                    if (m != null) {
-                        assertEquals(expectedStreamSeq, m.metaData().streamSequence());
-                        assertEquals(EXPECTED_CON_SEQ_NUMS[expectedStreamSeq-1], m.metaData().consumerSequence());
-                        ++expectedStreamSeq;
-                    }
+            int expectedStreamSeq = 1;
+            FetchConsumeOptions fco = FetchConsumeOptions.builder().maxMessages(6).expiresIn(1000).build();
+            try (FetchConsumer fcon = occtx.fetch(fco)) {
+                Message m = fcon.nextMessage();
+                while (m != null) {
+                    assertEquals(expectedStreamSeq++, m.metaData().streamSequence());
+                    m = fcon.nextMessage();
+                }
+                // we know this because the simulator is designed to fail the first time at the second message
+                assertEquals(2, expectedStreamSeq);
+                // fetch failure will stop the consumer, but make sure it's done b/c with ordered
+                // I can't have more than one consuming at a time.
+                while (!fcon.isFinished()) {
+                    sleep(1);
+                }
+            }
+            // this should finish without error
+            try (FetchConsumer fcon = occtx.fetch(fco)) {
+                Message m = fcon.nextMessage();
+                while (expectedStreamSeq <= 5) {
+                    assertEquals(expectedStreamSeq++, m.metaData().streamSequence());
+                    m = fcon.nextMessage();
                 }
             }
         });
@@ -652,28 +665,26 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedBehaviorIterable() throws Exception {
-        jsServer.run(this::atLeast291, nc -> {
+        jsServer.run(TestBase::atLeast2_9_1, nc -> {
             // Setup
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             // Get this in place before subscriptions are made
-            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = OrderedPullTestDropSimulator::new;
+            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
 
             TestingStreamContainer tsc = new TestingStreamContainer(jsm);
             StreamContext sctx = js.getStreamContext(tsc.stream);
-            jsPublish(js, tsc.subject(), 101, 6);
+            jsPublish(js, tsc.subject(), 101, 5);
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(tsc.subject());
             OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
             try (IterableConsumer icon = occtx.iterate()) {
-                // Loop through the messages to make sure I get stream sequence 1 to 6
+                // Loop through the messages to make sure I get stream sequence 1 to 5
                 int expectedStreamSeq = 1;
-                while (expectedStreamSeq <= 6) {
+                while (expectedStreamSeq <= 5) {
                     Message m = icon.nextMessage(Duration.ofSeconds(1)); // use duration version here for coverage
                     if (m != null) {
-                        assertEquals(expectedStreamSeq, m.metaData().streamSequence());
-                        assertEquals(EXPECTED_CON_SEQ_NUMS[expectedStreamSeq-1], m.metaData().consumerSequence());
-                        ++expectedStreamSeq;
+                        assertEquals(expectedStreamSeq++, m.metaData().streamSequence());
                     }
                 }
             }
@@ -682,7 +693,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedConsume() throws Exception {
-        jsServer.run(this::atLeast291, nc -> {
+        jsServer.run(TestBase::atLeast2_9_1, nc -> {
             // Setup
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -692,16 +703,14 @@ public class SimplificationTests extends JetStreamTestBase {
             StreamContext sctx = js.getStreamContext(tsc.stream);
 
             // Get this in place before subscriptions are made
-            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = OrderedPullTestDropSimulator::new;
+            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
 
             CountDownLatch msgLatch = new CountDownLatch(6);
             AtomicInteger received = new AtomicInteger();
             AtomicLong[] ssFlags = new AtomicLong[6];
-            AtomicLong[] csFlags = new AtomicLong[6];
             MessageHandler handler = hmsg -> {
                 int i = received.incrementAndGet() - 1;
                 ssFlags[i] = new AtomicLong(hmsg.metaData().streamSequence());
-                csFlags[i] = new AtomicLong(hmsg.metaData().consumerSequence());
                 msgLatch.countDown();
             };
 
@@ -717,9 +726,7 @@ public class SimplificationTests extends JetStreamTestBase {
                 int expectedStreamSeq = 1;
                 while (expectedStreamSeq <= 6) {
                     int idx = expectedStreamSeq - 1;
-                    assertEquals(expectedStreamSeq, ssFlags[idx].get());
-                    assertEquals(EXPECTED_CON_SEQ_NUMS[idx], csFlags[idx].get());
-                    ++expectedStreamSeq;
+                    assertEquals(expectedStreamSeq++, ssFlags[idx].get());
                 }
             }
         });
@@ -727,7 +734,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedConsumeMultipleSubjects() throws Exception {
-        jsServer.run(this::atLeast210, nc -> {
+        jsServer.run(TestBase::atLeast2_10, nc -> {
             // Setup
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -741,29 +748,30 @@ public class SimplificationTests extends JetStreamTestBase {
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubjects(tsc.subject(0), tsc.subject(1));
             OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
 
+            int count0 = 0;
             int count1 = 0;
-            int count2 = 0;
             try (FetchConsumer fc = occtx.fetch(FetchConsumeOptions.builder().maxMessages(20).expiresIn(2000).build())) {
                 Message m = fc.nextMessage();
                 while (m != null) {
                     if (m.getSubject().equals(tsc.subject(0))) {
-                        count1++;
+                        count0++;
                     }
                     else {
-                        count2++;
+                        count1++;
                     }
+                    m.ack();
                     m = fc.nextMessage();
                 }
             }
 
-            assertEquals(10, count1);
-            assertEquals(5, count2);
+            assertEquals(10, count0);
+            assertEquals(5, count1);
         });
     }
 
     @Test
     public void testOrderedMultipleWays() throws Exception {
-        jsServer.run(this::atLeast291, nc -> {
+        jsServer.run(TestBase::atLeast2_9_1, nc -> {
             // Setup
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();

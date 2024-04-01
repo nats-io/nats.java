@@ -16,7 +16,9 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.AckPolicy;
 import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.support.JsonUtils;
 import io.nats.client.support.Status;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -29,6 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.api.ConsumerConfiguration.builder;
+import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.Status.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -651,7 +654,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testNamed() throws Exception {
-        runInJsServer(noPullWarnings(), this::atLeast290, nc -> {
+        runInJsServer(noPullWarnings(), TestBase::atLeast2_9_0, nc -> {
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
@@ -711,6 +714,9 @@ public class JetStreamPullTests extends JetStreamTestBase {
     public void testPullRequestOptionsBuilder() {
         assertThrows(IllegalArgumentException.class, () -> PullRequestOptions.builder(0).build());
         assertThrows(IllegalArgumentException.class, () -> PullRequestOptions.builder(-1).build());
+        assertThrows(IllegalArgumentException.class, () -> PullRequestOptions.builder(1).idleHeartbeat(1).build());
+        assertThrows(IllegalArgumentException.class, () -> PullRequestOptions.builder(1).noWait().idleHeartbeat(1).build());
+        assertThrows(IllegalArgumentException.class, () -> PullRequestOptions.builder(1).expiresIn(30000).idleHeartbeat(15001).build());
 
         PullRequestOptions pro = PullRequestOptions.builder(11).build();
         assertEquals(11, pro.getBatchSize());
@@ -729,24 +735,24 @@ public class JetStreamPullTests extends JetStreamTestBase {
         pro = PullRequestOptions.builder(31)
             .maxBytes(32)
             .expiresIn(33)
-            .idleHeartbeat(34)
+            .idleHeartbeat(16)
             .noWait()
             .build();
         assertEquals(31, pro.getBatchSize());
         assertEquals(32, pro.getMaxBytes());
         assertEquals(33, pro.getExpiresIn().toMillis());
-        assertEquals(34, pro.getIdleHeartbeat().toMillis());
+        assertEquals(16, pro.getIdleHeartbeat().toMillis());
         assertTrue(pro.isNoWait());
 
         pro = PullRequestOptions.builder(41)
             .expiresIn(Duration.ofMillis(43))
-            .idleHeartbeat(Duration.ofMillis(44))
+            .idleHeartbeat(Duration.ofMillis(21))
             .noWait(false) // just coverage of this method
             .build();
         assertEquals(41, pro.getBatchSize());
         assertEquals(0, pro.getMaxBytes());
         assertEquals(43, pro.getExpiresIn().toMillis());
-        assertEquals(44, pro.getIdleHeartbeat().toMillis());
+        assertEquals(21, pro.getIdleHeartbeat().toMillis());
         assertFalse(pro.isNoWait());
     }
 
@@ -926,7 +932,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
         });
     }
 
-    // This just flaps. It's a timing thing. Already spent too much time, it should work as is.
+    // This just flaps. It's a timing thing? Already spent too much time, IWOMM and it should work as is.
     @Test
     @Disabled
     public void testConsumerDeletedSyncSub() throws Exception {
@@ -941,20 +947,34 @@ public class JetStreamPullTests extends JetStreamTestBase {
         });
     }
 
-    // This just flaps. It's a timing thing. Already spent too much time, it should work as is.
-    @Test
-    @Disabled
-    public void testConsumerDeletedAsyncSub() throws Exception {
-        testConflictStatus(409, CONSUMER_DELETED, TYPE_ERROR, "2.9.6", (nc, jsm, js, tsc, handler) -> {
-            jsm.addOrUpdateConsumer(tsc.stream, builder().durable(durable(1)).ackPolicy(AckPolicy.None).build());
-            Dispatcher d = nc.createDispatcher();
-            PullSubscribeOptions so = PullSubscribeOptions.bind(tsc.stream, durable(1));
-            JetStreamSubscription sub = js.subscribe(null, d, m -> {}, so);
-            sub.pullExpiresIn(1, 30000);
-            jsm.deleteConsumer(tsc.stream, durable(1));
-            js.publish(tsc.subject(), null);
-            return sub;
-        });
+    // This just flaps. It's a timing thing? Already spent too much time, IWOMM and it should work as is.
+//    @Test
+//    public void testConsumerDeletedAsyncSub() throws Exception {
+//        testConflictStatus(409, CONSUMER_DELETED, TYPE_ERROR, "2.9.6", (nc, jsm, js, tsc, handler) -> {
+//            jsm.addOrUpdateConsumer(tsc.stream, builder().durable(durable(1)).ackPolicy(AckPolicy.None).build());
+//            Dispatcher d = nc.createDispatcher();
+//            PullSubscribeOptions so = PullSubscribeOptions.bind(tsc.stream, durable(1));
+//            JetStreamSubscription sub = js.subscribe(null, d, m -> {}, so);
+//            sub.pullExpiresIn(1, 30000);
+//            jsm.deleteConsumer(tsc.stream, durable(1));
+//            js.publish(tsc.subject(), null);
+//            return sub;
+//        });
+//    }
+
+    static class BadPullRequestOptions extends PullRequestOptions {
+        public BadPullRequestOptions() {
+            super(PullRequestOptions.builder(1));
+        }
+
+        @Override
+        public String toJson() {
+            StringBuilder sb = JsonUtils.beginJson();
+            JsonUtils.addField(sb, BATCH, 1);
+            JsonUtils.addFldWhenTrue(sb, NO_WAIT, true);
+            JsonUtils.addFieldAsNanos(sb, IDLE_HEARTBEAT, Duration.ofMillis(1));
+            return JsonUtils.endJson(sb).toString();
+        }
     }
 
     @Test
@@ -962,7 +982,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
         testConflictStatus(400, BAD_REQUEST, TYPE_ERROR, "2.9.0", (nc, jsm, js, tsc, handler) -> {
             PullSubscribeOptions so = makePso(b -> b);
             JetStreamSubscription sub = js.subscribe(tsc.subject(), so);
-            sub.pull(PullRequestOptions.builder(1).noWait().idleHeartbeat(1).build());
+            sub.pull(new BadPullRequestOptions());
             return sub;
         });
     }
@@ -973,7 +993,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             Dispatcher d = nc.createDispatcher();
             PullSubscribeOptions so = makePso(b -> b);
             JetStreamSubscription sub = js.subscribe(tsc.subject(), d, m -> {}, so);
-            sub.pull(PullRequestOptions.builder(1).noWait().idleHeartbeat(1).build());
+            sub.pull(new BadPullRequestOptions());
             return sub;
         });
     }
@@ -1023,7 +1043,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testExceedsMaxRequestBytesNthMessageSyncSub() throws Exception {
         TestHandler handler = new TestHandler();
-        runInJsServer(this::atLeast291, handler, nc -> {
+        runInJsServer(TestBase::atLeast2_9_1, handler, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
             TestingStreamContainer tsc = new TestingStreamContainer(jsm);
@@ -1051,7 +1071,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testExceedsMaxRequestBytesExactBytes() throws Exception {
         TestHandler handler = new TestHandler();
-        runInJsServer(this::atLeast291, handler, nc -> {
+        runInJsServer(TestBase::atLeast2_9_1, handler, nc -> {
             String stream = "sixsix"; // six letters so I can count
             String subject = "seven"; // seven letters so I can count
             String durable = durable(0); // short keeps under max bytes

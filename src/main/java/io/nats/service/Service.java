@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.endJson;
@@ -51,7 +52,7 @@ public class Service {
     private final PingResponse pingResponse;
     private final InfoResponse infoResponse;
 
-    private final Object startStopLock;
+    private final ReentrantLock startStopLock;
     private CompletableFuture<Boolean> runningIndicator;
     private ZonedDateTime started;
 
@@ -60,25 +61,23 @@ public class Service {
         conn = b.conn;
         drainTimeout = b.drainTimeout;
         dInternals = new ArrayList<>();
-        startStopLock = new Object();
+        startStopLock = new ReentrantLock();
 
         // set up the service contexts
         // ? do we need an internal dispatcher for any user endpoints
         // ! also while we are here, we need to collect the endpoints for the SchemaResponse
         Dispatcher dTemp = null;
-        List<Endpoint> infoEndpoints = new ArrayList<>();
         serviceContexts = new HashMap<>();
         for (ServiceEndpoint se : b.serviceEndpoints.values()) {
             if (se.getDispatcher() == null) {
                 if (dTemp == null) {
                     dTemp = conn.createDispatcher();
                 }
-                serviceContexts.put(se.getName(), new EndpointContext(conn, dTemp, true, se));
+                serviceContexts.put(se.getName(), new EndpointContext(conn, dTemp, false, se));
             }
             else {
-                serviceContexts.put(se.getName(), new EndpointContext(conn, null, true, se));
+                serviceContexts.put(se.getName(), new EndpointContext(conn, null, false, se));
             }
-            infoEndpoints.add(se.getEndpoint());
         }
         if (dTemp != null) {
             dInternals.add(dTemp);
@@ -86,7 +85,7 @@ public class Service {
 
         // build static responses
         pingResponse = new PingResponse(id, b.name, b.version, b.metadata);
-        infoResponse = new InfoResponse(id, b.name, b.version, b.metadata, b.description, infoEndpoints);
+        infoResponse = new InfoResponse(id, b.name, b.version, b.metadata, b.description, b.serviceEndpoints.values());
 
         if (b.pingDispatcher == null || b.infoDispatcher == null || b.schemaDispatcher == null || b.statsDispatcher == null) {
             dTemp = conn.createDispatcher();
@@ -111,7 +110,7 @@ public class Service {
 
         for (Endpoint endpoint : endpoints) {
             discoveryContexts.add(
-                new EndpointContext(conn, dInternal, false,
+                new EndpointContext(conn, dInternal, true,
                     new ServiceEndpoint(endpoint, handler, dUser)));
         }
     }
@@ -129,7 +128,7 @@ public class Service {
 
     private Endpoint internalEndpoint(String discoveryName, String optionalServiceNameSegment, String optionalServiceIdSegment) {
         String subject = toDiscoverySubject(discoveryName, optionalServiceNameSegment, optionalServiceIdSegment);
-        return new Endpoint(subject, subject, null, false);
+        return new Endpoint(subject, subject, null, null, false);
     }
 
     static String toDiscoverySubject(String discoveryName, String optionalServiceNameSegment, String optionalServiceIdSegment) {
@@ -147,7 +146,8 @@ public class Service {
      * @return a future that can be held to see if another thread called stop
      */
     public CompletableFuture<Boolean> startService() {
-        synchronized (startStopLock) {
+        startStopLock.lock();
+        try {
             if (runningIndicator == null) {
                 runningIndicator = new CompletableFuture<>();
                 for (EndpointContext ctx : serviceContexts.values()) {
@@ -159,6 +159,9 @@ public class Service {
                 started = DateTimeUtils.gmtNow();
             }
             return runningIndicator;
+        }
+        finally {
+            startStopLock.unlock();
         }
     }
 
@@ -199,7 +202,8 @@ public class Service {
      * @param t the optional error cause. If supplied, mark the future that was received from the start method that the service completed exceptionally
      */
     public void stop(boolean drain, Throwable t) {
-        synchronized (startStopLock) {
+        startStopLock.lock();
+        try {
             if (runningIndicator != null) {
                 if (drain) {
                     List<CompletableFuture<Boolean>> futures = new ArrayList<>();
@@ -255,6 +259,9 @@ public class Service {
                 }
                 runningIndicator = null; // we don't need a copy anymore
             }
+        }
+        finally {
+            startStopLock.unlock();
         }
     }
 

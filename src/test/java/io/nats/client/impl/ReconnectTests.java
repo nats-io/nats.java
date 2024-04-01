@@ -15,16 +15,21 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import nats.io.NatsRunnerUtils;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -427,7 +432,7 @@ public class ReconnectTests {
 
         NatsServerProtocolMock.Customizer receiveMessageCustomizer = (ts, r,w) -> {
             String subLine;
-            
+
             System.out.println("*** Mock Server @" + ts.getPort() + " waiting for SUB ...");
             try {
                 subLine = r.readLine();
@@ -638,15 +643,16 @@ public class ReconnectTests {
             }
         }
     }
-    private static class TestReconnecWaitHandler implements ConnectionListener {
-        int disconnectCount = 0;
 
-        public synchronized int getDisconnectCount() {
-            return disconnectCount;
+    private static class TestReconnecWaitHandler implements ConnectionListener {
+        AtomicInteger disconnectCount = new AtomicInteger();
+
+        public int getDisconnectCount() {
+            return disconnectCount.get();
         }
 
-        private synchronized void incrementDisconnectedCount() {
-            disconnectCount++;
+        private void incrementDisconnectedCount() {
+            disconnectCount.incrementAndGet();
         }
 
         @Override
@@ -679,5 +685,116 @@ public class ReconnectTests {
         assertTrue(trwh.getDisconnectCount() < 3, "disconnectCount");
 
         c.close();
+    }
+
+    @Test
+    public void testReconnectOnConnect() throws Exception {
+        int port = NatsTestServer.nextPort();
+        Options options = Options.builder().server(NatsTestServer.getNatsLocalhostUri(port)).build();
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<Connection> testConn = new AtomicReference<>();
+
+        Thread t = new Thread(() -> {
+            assertNull(testConn.get());
+            try {
+                Thread.sleep(2000); // give testConn time to be alive and trying.
+            }
+            catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            assertNull(testConn.get());
+
+            // start a server that test conn can connect to
+            try (NatsTestServer ts = new NatsTestServer(port, false)) {
+                //noinspection ResultOfMethodCallIgnored
+                latch.await(2000, TimeUnit.MILLISECONDS);
+                assertSame(Connection.Status.CONNECTED, testConn.get().getStatus());
+            }
+            catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+        t.start();
+
+        try {
+            testConn.set(Nats.connectReconnectOnConnect(options));
+            latch.countDown();
+        }
+        catch (IOException | InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+        t.join(5000);
+    }
+
+    @Test
+    public void testForceReconnect() throws Exception {
+        TestHandler handler = new TestHandler();
+        Options.Builder builder = Options.builder()
+            .connectionListener(handler)
+            .errorListener(handler);
+
+        runInJsServer(nc1 -> runInServer(nc2 -> {
+            int port1 = nc1.getServerInfo().getPort();
+            int port2 = nc2.getServerInfo().getPort();
+
+            String[] servers = new String[]{
+                NatsRunnerUtils.getNatsLocalhostUri(port1),
+                NatsRunnerUtils.getNatsLocalhostUri(port2)
+            };
+            Connection nc = standardConnection(builder.servers(servers).build());
+            int connectedPort = nc.getServerInfo().getPort();
+            nc.forceReconnect();
+            Thread.sleep(3000);
+            assertNotEquals(connectedPort, nc.getServerInfo().getPort());
+        }));
+
+        assertTrue(handler.getConnectionEvents().contains(Events.DISCONNECTED));
+        assertTrue(handler.getConnectionEvents().contains(Events.RECONNECTED));
+    }
+
+    @Test
+    public void testSocketDataPortTimeout() throws Exception {
+        TestHandler handler = new TestHandler();
+        Options.Builder builder = Options.builder()
+            .socketWriteTimeout(5000)
+            .dataPortType(SocketDataPortBlockSimulator.class.getCanonicalName())
+            .connectionListener(handler)
+            .errorListener(handler);
+
+        AtomicBoolean gotOutputQueueIsFull = new AtomicBoolean();
+        runInJsServer(nc1 -> runInServer(nc2 -> {
+            int port1 = nc1.getServerInfo().getPort();
+            int port2 = nc2.getServerInfo().getPort();
+
+            String[] servers = new String[]{
+                NatsRunnerUtils.getNatsLocalhostUri(port1),
+                NatsRunnerUtils.getNatsLocalhostUri(port2)
+            };
+            Connection nc = standardConnection(builder.servers(servers).build());
+            String subject = subject();
+            int connectedPort = nc.getServerInfo().getPort();
+            AtomicInteger pubId = new AtomicInteger();
+            while (pubId.get() < 50000) {
+                try {
+                    nc.publish(subject, ("" + pubId.incrementAndGet()).getBytes());
+                    if (pubId.get() == 10) {
+                        SocketDataPortBlockSimulator.SIMULATE_SOCKET_BLOCK.set(60000);
+                    }
+                }
+                catch (Exception e) {
+                    if (e.getMessage().contains("Output queue is full")) {
+                        gotOutputQueueIsFull.set(true);
+                    }
+                }
+            }
+            assertNotEquals(connectedPort, nc.getServerInfo().getPort());
+        }));
+
+        assertTrue(gotOutputQueueIsFull.get());
+        assertTrue(handler.getSocketWriteTimeoutCount() > 0);
+        assertTrue(handler.getConnectionEvents().contains(Events.DISCONNECTED));
+        assertTrue(handler.getConnectionEvents().contains(Events.RECONNECTED));
     }
 }

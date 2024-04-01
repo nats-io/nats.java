@@ -31,15 +31,37 @@ public class SSLUtils {
     public static final String DEFAULT_TLS_ALGORITHM = "SunX509";
     public static final String DEFAULT_KEYSTORE_TYPE = "JKS";
 
-    private static final TrustManager[] TRUST_ALL_CERTS = new TrustManager[] { new X509TrustManager() {
-        public java.security.cert.X509Certificate[] getAcceptedIssuers() {
-            return null;
+    private static TrustManagerDelegate TRUST_MANAGER_DELEGATE;
+
+    public static void setDefaultTrustManagerDelegate(TrustManagerDelegate trustManagerDelegate) {
+        SSLUtils.TRUST_MANAGER_DELEGATE = trustManagerDelegate;
+    }
+
+    public interface TrustManagerDelegate {
+        java.security.cert.X509Certificate[] getAcceptedIssuers();
+        void checkClientTrusted(X509Certificate[] certs, String authType);
+        void checkServerTrusted(X509Certificate[] certs, String authType);
+    }
+
+    private static final TrustManager[] DEFAULT_TRUST_MANAGERS = new TrustManager[] {
+        new X509TrustManager() {
+            public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                return TRUST_MANAGER_DELEGATE == null ? null : TRUST_MANAGER_DELEGATE.getAcceptedIssuers();
+            }
+
+            public void checkClientTrusted(X509Certificate[] certs, String authType) {
+                if (TRUST_MANAGER_DELEGATE != null) {
+                    TRUST_MANAGER_DELEGATE.checkClientTrusted(certs, authType);
+                }
+            }
+
+            public void checkServerTrusted(X509Certificate[] certs, String authType) {
+                if (TRUST_MANAGER_DELEGATE != null) {
+                    TRUST_MANAGER_DELEGATE.checkServerTrusted(certs, authType);
+                }
+            }
         }
-
-        public void checkClientTrusted(X509Certificate[] certs, String authType) {}
-
-        public void checkServerTrusted(X509Certificate[] certs, String authType) {}
-    } };
+    };
 
     public static SSLContext createOpenTLSContext() {
         try {
@@ -52,7 +74,7 @@ public class SSLUtils {
 
     public static SSLContext createTrustAllTlsContext() throws GeneralSecurityException {
         SSLContext context = SSLContext.getInstance(Options.DEFAULT_SSL_PROTOCOL);
-        context.init(null, TRUST_ALL_CERTS, SRAND);
+        context.init(null, DEFAULT_TRUST_MANAGERS, SRAND);
         return context;
     }
 

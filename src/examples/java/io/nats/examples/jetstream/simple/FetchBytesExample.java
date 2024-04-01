@@ -18,8 +18,8 @@ import io.nats.client.api.ConsumerConfiguration;
 
 import java.io.IOException;
 
-import static io.nats.examples.jetstream.simple.Utils.createOrReplaceStream;
-import static io.nats.examples.jetstream.simple.Utils.publish;
+import static io.nats.examples.jetstream.NatsJsUtils.createOrReplaceStream;
+import static io.nats.examples.jetstream.NatsJsUtils.publishOrExit;
 
 /**
  * This example will demonstrate simplified fetch
@@ -48,7 +48,7 @@ public class FetchBytesExample {
 
             // set's up the stream and publish data
             createOrReplaceStream(jsm, STREAM, SUBJECT);
-            publish(js, SUBJECT, MESSAGE_TEXT, MESSAGES);
+            publishOrExit(js, SUBJECT, MESSAGE_TEXT, MESSAGES);
 
             // Different max bytes sizes demonstrate expiration behavior
 

@@ -16,7 +16,6 @@ package io.nats.client;
 /**
  * The ObjectStoreOptions class specifies the general options for ObjectStore.
  * Options are created using the {@link ObjectStoreOptions.Builder Builder}.
- * OBJECT STORE IMPLEMENTATION IS EXPERIMENTAL AND SUBJECT TO CHANGE.
  */
 public class ObjectStoreOptions extends FeatureOptions {
 

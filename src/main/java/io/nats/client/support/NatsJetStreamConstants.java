@@ -38,6 +38,9 @@ public interface NatsJetStreamConstants {
     // JSAPI_CONSUMER_DELETE is used to delete consumers.
     String JSAPI_CONSUMER_DELETE = "CONSUMER.DELETE.%s.%s";
 
+    // JSAPI_CONSUMER_PAUSE is used to pause/resume consumers.
+    String JSAPI_CONSUMER_PAUSE = "CONSUMER.PAUSE.%s.%s";
+
     // JSAPI_CONSUMER_NAMES is used to return a list of consumer names
     String JSAPI_CONSUMER_NAMES = "CONSUMER.NAMES.%s";
 
@@ -97,6 +100,7 @@ public interface NatsJetStreamConstants {
     String NATS_TIMESTAMP     = "Nats-Time-Stamp";
     String NATS_SUBJECT       = "Nats-Subject";
     String NATS_LAST_SEQUENCE = "Nats-Last-Sequence";
+    String[] MESSAGE_INFO_HEADERS = new String[]{NATS_SUBJECT, NATS_SEQUENCE, NATS_TIMESTAMP, NATS_STREAM, NATS_LAST_SEQUENCE};
 
     String NATS_PENDING_MESSAGES = "Nats-Pending-Messages";
     String NATS_PENDING_BYTES    = "Nats-Pending-Bytes";

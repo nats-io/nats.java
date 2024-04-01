@@ -1,5 +1,6 @@
 package io.nats.client.impl;
 
+import io.nats.client.Message;
 import io.nats.client.support.IncomingHeadersProcessor;
 import io.nats.client.support.Status;
 import io.nats.client.support.Token;
@@ -30,30 +31,29 @@ public class HeadersTests {
     @Test
     public void add_key_strings_works() {
         add(
-                headers -> headers.add(KEY1, VAL1),
-                headers -> headers.add(KEY1, VAL2),
-                headers -> headers.add(KEY2, VAL3),
-                headers -> { headers.add(KEY1_ALT, VAL4); headers.add(KEY1_ALT, VAL5); }
-                );
+            headers -> headers.add(KEY1, VAL1),
+            headers -> headers.add(KEY1, VAL2),
+            headers -> headers.add(KEY2, VAL3),
+            headers -> { headers.add(KEY1_ALT, VAL4); headers.add(KEY1_ALT, VAL5); }
+        );
     }
 
     @Test
     public void add_key_collection_works() {
         add(
-                headers -> headers.add(KEY1, Collections.singletonList(VAL1)),
-                headers -> headers.add(KEY1, Collections.singletonList(VAL2)),
-                headers -> headers.add(KEY2, Collections.singletonList(VAL3)),
-                headers -> headers.add(KEY1_ALT, Arrays.asList(VAL4, VAL5))
+            headers -> headers.add(KEY1, Collections.singletonList(VAL1)),
+            headers -> headers.add(KEY1, Collections.singletonList(VAL2)),
+            headers -> headers.add(KEY2, Collections.singletonList(VAL3)),
+            headers -> headers.add(KEY1_ALT, Arrays.asList(VAL4, VAL5))
         );
     }
 
     private void add(
-            Consumer<Headers> stepKey1Val1,
-            Consumer<Headers> step2Key1Val2,
-            Consumer<Headers> step3Key2Val3,
-            Consumer<Headers> step4Key1AVal4Val5
-    )
-    {
+        Consumer<Headers> stepKey1Val1,
+        Consumer<Headers> step2Key1Val2,
+        Consumer<Headers> step3Key2Val3,
+        Consumer<Headers> step4Key1AVal4Val5
+    ) {
         Headers headers = new Headers();
 
         stepKey1Val1.accept(headers);
@@ -92,31 +92,31 @@ public class HeadersTests {
     @Test
     public void put_key_strings_works() {
         put(
-                headers -> headers.put(KEY1, VAL1),
-                headers -> headers.put(KEY1, VAL2),
-                headers -> headers.put(KEY2, VAL3),
-                headers -> headers.put(KEY1_ALT, VAL4),
-                headers -> headers.put(KEY1_OTHER, VAL5)
+            headers -> headers.put(KEY1, VAL1),
+            headers -> headers.put(KEY1, VAL2),
+            headers -> headers.put(KEY2, VAL3),
+            headers -> headers.put(KEY1_ALT, VAL4),
+            headers -> headers.put(KEY1_OTHER, VAL5)
         );
     }
 
     @Test
     public void put_key_collection_works() {
         put(
-                headers -> headers.put(KEY1, Collections.singletonList(VAL1)),
-                headers -> headers.put(KEY1, Collections.singletonList(VAL2)),
-                headers -> headers.put(KEY2, Collections.singletonList(VAL3)),
-                headers -> headers.put(KEY1_ALT, Collections.singletonList(VAL4)),
-                headers -> headers.put(KEY1_OTHER, Collections.singletonList(VAL5))
+            headers -> headers.put(KEY1, Collections.singletonList(VAL1)),
+            headers -> headers.put(KEY1, Collections.singletonList(VAL2)),
+            headers -> headers.put(KEY2, Collections.singletonList(VAL3)),
+            headers -> headers.put(KEY1_ALT, Collections.singletonList(VAL4)),
+            headers -> headers.put(KEY1_OTHER, Collections.singletonList(VAL5))
         );
     }
 
     private void put(
-            Consumer<Headers> step1PutKey1Val1,
-            Consumer<Headers> step2PutKey1Val2,
-            Consumer<Headers> step3PutKey2Val3,
-            Consumer<Headers> step4PutKey1AVal4,
-            Consumer<Headers> step6PutKey1HVal5)
+        Consumer<Headers> step1PutKey1Val1,
+        Consumer<Headers> step2PutKey1Val2,
+        Consumer<Headers> step3PutKey2Val3,
+        Consumer<Headers> step4PutKey1AVal4,
+        Consumer<Headers> step6PutKey1HVal5)
     {
         Headers headers = new Headers();
         assertTrue(headers.isEmpty());
@@ -207,6 +207,29 @@ public class HeadersTests {
             assertTrue(keySet.contains(k));
             assertTrue(headers.containsKey(k));
         }
+    }
+
+    @Test
+    public void testReadOnly() {
+        Headers notRO = new Headers();
+        notRO.put(KEY1, VAL1);
+        assertFalse(notRO.isReadOnly());
+        Headers headers1 = new Headers(notRO, true);
+        assertTrue(headers1.isReadOnly());
+        assertThrows(UnsupportedOperationException.class, () -> headers1.put(KEY1, VAL2));
+        assertThrows(UnsupportedOperationException.class, () -> headers1.put(KEY1, VAL2));
+        assertThrows(UnsupportedOperationException.class, () -> headers1.remove(KEY1));
+        assertThrows(UnsupportedOperationException.class, headers1::clear);
+        assertEquals(VAL1, headers1.getFirst(KEY1));
+
+        Message m = new NatsMessage("subject", null, notRO, null);
+        Headers headers2 = m.getHeaders();
+        assertTrue(headers2.isReadOnly());
+        assertThrows(UnsupportedOperationException.class, () -> headers2.put(KEY1, VAL2));
+        assertThrows(UnsupportedOperationException.class, () -> headers2.put(KEY1, VAL2));
+        assertThrows(UnsupportedOperationException.class, () -> headers2.remove(KEY1));
+        assertThrows(UnsupportedOperationException.class, headers2::clear);
+        assertEquals(VAL1, headers2.getFirst(KEY1));
     }
 
     @Test
@@ -339,40 +362,44 @@ public class HeadersTests {
     @Test
     public void remove_string_work() {
         remove(
-                headers -> headers.remove(KEY1),
-                headers -> headers.remove(KEY1_ALT),
-                headers -> headers.remove(KEY1_OTHER),
-                headers -> headers.remove(KEY2, KEY3)
+            headers -> headers.remove(KEY1),
+            headers -> headers.remove(KEY1_ALT),
+            headers -> headers.remove(KEY1_OTHER),
+            headers -> headers.remove(KEY2, KEY3)
         );
     }
 
     @Test
     public void remove_collection_work() {
         remove(
-                headers -> headers.remove(Collections.singletonList(KEY1)),
-                headers -> headers.remove(Collections.singletonList(KEY1_ALT)),
-                headers -> headers.remove(Collections.singletonList(KEY1_OTHER)),
-                headers -> headers.remove(Arrays.asList(KEY2, KEY3))
+            headers -> headers.remove(Collections.singletonList(KEY1)),
+            headers -> headers.remove(Collections.singletonList(KEY1_ALT)),
+            headers -> headers.remove(Collections.singletonList(KEY1_OTHER)),
+            headers -> headers.remove(Arrays.asList(KEY2, KEY3))
         );
     }
 
     @Test
-    public void getFirsts() {
+    public void testGetFirstGetLast() {
         Headers headers = new Headers();
         assertNull(headers.getFirst(KEY1));
+        assertNull(headers.getLast(KEY1));
         headers.add(KEY1, VAL1);
         assertEquals(VAL1, headers.getFirst(KEY1));
+        assertEquals(VAL1, headers.getLast(KEY1));
         headers.add(KEY1, VAL2);
         assertEquals(VAL1, headers.getFirst(KEY1));
+        assertEquals(VAL2, headers.getLast(KEY1));
         headers.put(KEY1, VAL3);
         assertEquals(VAL3, headers.getFirst(KEY1));
+        assertEquals(VAL3, headers.getLast(KEY1));
     }
 
     private void remove(
-            Consumer<Headers> step1RemoveKey1,
-            Consumer<Headers> step2RemoveKey1A,
-            Consumer<Headers> step3RemoveKey1H,
-            Consumer<Headers> step4RemoveKey2Key3)
+        Consumer<Headers> step1RemoveKey1,
+        Consumer<Headers> step2RemoveKey1A,
+        Consumer<Headers> step3RemoveKey1H,
+        Consumer<Headers> step4RemoveKey2Key3)
     {
         Headers headers = testHeaders();
 
@@ -707,19 +734,19 @@ public class HeadersTests {
     public void testToken() {
         byte[] serialized1 = "notspaceorcrlf".getBytes(StandardCharsets.US_ASCII);
         assertThrows(IllegalArgumentException.class,
-                () -> new Token(serialized1, serialized1.length, 0, TokenType.WORD));
+            () -> new Token(serialized1, serialized1.length, 0, TokenType.WORD));
         assertThrows(IllegalArgumentException.class,
-                () -> new Token(serialized1, serialized1.length, 0, TokenType.KEY));
+            () -> new Token(serialized1, serialized1.length, 0, TokenType.KEY));
         assertThrows(IllegalArgumentException.class,
-                () -> new Token(serialized1, serialized1.length, 0, TokenType.SPACE));
+            () -> new Token(serialized1, serialized1.length, 0, TokenType.SPACE));
         assertThrows(IllegalArgumentException.class,
-                () -> new Token(serialized1, serialized1.length, 0, TokenType.CRLF));
+            () -> new Token(serialized1, serialized1.length, 0, TokenType.CRLF));
         byte[] serialized2 = "\r".getBytes(StandardCharsets.US_ASCII);
         assertThrows(IllegalArgumentException.class,
-                () -> new Token(serialized2, serialized2.length, 0, TokenType.CRLF));
+            () -> new Token(serialized2, serialized2.length, 0, TokenType.CRLF));
         byte[] serialized3 = "\rnotlf".getBytes(StandardCharsets.US_ASCII);
         assertThrows(IllegalArgumentException.class,
-                () -> new Token(serialized3, serialized3.length, 0, TokenType.CRLF));
+            () -> new Token(serialized3, serialized3.length, 0, TokenType.CRLF));
         Token t = new Token("k1:v1\r\n\r\n".getBytes(StandardCharsets.US_ASCII), 9, 0, TokenType.KEY);
         t.mustBe(TokenType.KEY);
         assertThrows(IllegalArgumentException.class, () -> t.mustBe(TokenType.CRLF));

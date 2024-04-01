@@ -1,5 +1,109 @@
 # Change Log
 
+## 2.17.4
+
+#### Core
+* Fix reconnect() calls close() when simultaneously 'disconnecting' in another thread #1082 @MauriceVanVeen
+* Optional dispatching with executor instead of blocking #1083 @scottf
+* Offer timeout millis no longer hardcoded #1088 @scottf
+* ReentrantLock instead of synchronized #1095 @scottf
+* Force Reconnect API #1100 @scottf
+* SSLContextFactory #1101 @scottf
+
+#### JetStream
+* Implement Consumers Pause #1093 @MauriceVanVeen
+* Make sure Fetch No Wait returns as soon as it gets 404/408 #1096 @scottf
+* Message Info always use last value in the headers. #1099 @scottf
+
+#### KV
+* KV Watch From Revision #1081 @scottf
+* KeyValue atomic delete and purge methods. #1092 @davidmcote
+* KV Transform support. #1098 @scottf
+
+### Simplification
+* Allow simplification fetch to have noWait with or without expires. #1089 @scottf
+
+#### Test
+* Add Test for NUID to handle Sequence and Concurrency #1094 @photizzo
+
+#### Doc
+* upgrade documentation to specify backoff behavior #1078 @imclem
+
+#### Misc
+* Chaos App tuning and additional testing while porting. #1080 @scottf
+
+## 2.17.3
+
+#### Core
+* Socket Data Port with Manual Write Timeout #1064 @scottf
+* Provide implementation instead of empty trust manager check #1066 @scottf
+
+#### Test
+* Reconnect On Connect Unit Test #1062 #1063 @scottf
+
+#### Doc
+* Document Message Immutability Headers Bug #1059 @scottf
+
+## 2.17.2
+
+Robustness and recovery
+
+#### Core
+* Support StreamConfiguration creation from JSON #1023 @senior
+* TimeoutException instead of CancellationException on timeout #1031 @maximbreitman
+* Message Headers Improvement #1054 @scottf
+
+#### JetStream
+* Pull Request Validate Idle Heartbeat Against Expiration #1036 @scottf
+* Client side consumer recovery #1043 @scottf
+* Ensure robustness b/w compatible with server 2.8.4 #1046 @scottf
+* Chaos Testing Tuning #1055 @scottf
+
+#### Extensions (KV / OS / Service)
+* KV and OS Compression and Metadata #1034 @scottf
+
+#### Docs / Testing / Examples / Etc.
+* Initialize SocketDataPort directly #1022 @scottf
+* Add dockerfile for compatibility tests #1024 @piotrpio
+* Update jnats-server-runner to 1.2.6 #1027 @scottf
+* Auth Test Improvement #1028 @scottf
+* Test Base Tuning #1030 @scottf
+* Publish Expectations Test for JetStream API Code #1032 @scottf
+* More Tests for recent NatsRequestCompletableFuture enhancement #1035 @scottf
+* Add nats by example link #1037 @Jarema
+* Improve test for real user authentication expired #1040 @scottf
+* Update readme / better subject validation notes #1047 @scottf
+* Fetch Resilient Example #1048 @scottf
+* Refactoring and improving example code. #1049 @scottf
+
+## 2.17.1
+
+This release added was mostly about TLS and testing
+
+#### Core
+
+* Allow trust store without key store #999 @scottf @jnmoyne
+* Allow for custom dispatcher #1001 @scottf
+* Expanded support for server sent authorization errors #1006 @scottf
+* Reconnect on Connect additional api #1012 @scottf
+* Accept Tls First as an Option #1015 @scottf
+
+#### JetStream
+
+* Duplicate message for Interest stream fails seq check in PublishAck #1005 @MauriceVanVeen
+* Direct Message Subject Header May Contain Multiple Subjects #1016 @scottf
+
+#### Service Framework
+
+* Added custom endpoint queue support and fixed InfoResponse to show proper subject. #1010 @scottf
+
+#### Docs / Testing / Misc
+
+* Removing generic-ness from naming #1000 #1004 @scottf
+* Subscribe options name handling vs 2.8.4 #1011 @scottf
+* Client Compatibility Tests engine #1013 @scottf
+* Regression and Test Improvements #1017 #1018 @scottf
+
 ## 2.17.0
 
 This release added:

@@ -196,11 +196,25 @@ public class PullRequestOptions implements JsonSerializable {
         }
 
         /**
-         * Build the PullRequestOptions. Validates that the batch size is greater than 0
+         * Build the PullRequestOptions.
+         * <p>Validates that the batch size is greater than 0</p>
+         * <p>If supplied, validates that the idle heartbeat is valid for the expiration</p>
          * @return the built PullRequestOptions
          */
         public PullRequestOptions build() {
             validateGtZero(batchSize, "Pull batch size");
+            if (idleHeartbeat != null) {
+                long idleNanosTemp = idleHeartbeat.toNanos() * 2;
+                if (idleNanosTemp > 0) {
+                    if (expiresIn == null) {
+                        throw new IllegalArgumentException("Idle Heartbeat not allowed without expiration.");
+                    }
+                    long expiresNanos = expiresIn.toNanos();
+                    if (idleNanosTemp > expiresNanos) {
+                        throw new IllegalArgumentException("Idle Heartbeat cannot be more than half the expiration.");
+                    }
+                }
+            }
             return new PullRequestOptions(this);
         }
     }

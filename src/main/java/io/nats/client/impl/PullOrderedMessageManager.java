@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static io.nats.client.impl.MessageManager.ManageResult.MESSAGE;
 import static io.nats.client.impl.MessageManager.ManageResult.STATUS_HANDLED;
 
-class OrderedPullMessageManager extends PullMessageManager {
+class PullOrderedMessageManager extends PullMessageManager {
 
     protected final ConsumerConfiguration originalCc;
     protected final NatsJetStream js;
@@ -30,7 +30,7 @@ class OrderedPullMessageManager extends PullMessageManager {
     protected long expectedExternalConsumerSeq;
     protected final AtomicReference<String> targetSid;
 
-    protected OrderedPullMessageManager(NatsConnection conn,
+    protected PullOrderedMessageManager(NatsConnection conn,
                                         NatsJetStream js,
                                         String stream,
                                         SubscribeOptions so, ConsumerConfiguration originalCc, boolean syncMode) {
@@ -57,7 +57,12 @@ class OrderedPullMessageManager extends PullMessageManager {
         if (msg.isJetStream()) {
             long receivedConsumerSeq = msg.metaData().consumerSequence();
             if (expectedExternalConsumerSeq != receivedConsumerSeq) {
-                handleErrorCondition();
+                targetSid.set(null);
+                expectedExternalConsumerSeq = 1; // consumer always starts with consumer sequence 1
+                resetTracking();
+                if (pullManagerObserver != null) {
+                    pullManagerObserver.heartbeatError();
+                }
                 return STATUS_HANDLED;
             }
             trackJsMessage(msg);
@@ -66,36 +71,5 @@ class OrderedPullMessageManager extends PullMessageManager {
         }
 
         return manageStatus(msg);
-    }
-
-    private void handleErrorCondition() {
-        try {
-            targetSid.set(null);
-            expectedExternalConsumerSeq = 1; // consumer always starts with consumer sequence 1
-
-            // 1. shutdown the manager, for instance stops heartbeat timers
-            shutdown();
-
-            // 2. re-subscribe. This means kill the sub then make a new one
-            //    New sub needs a new deliverSubject
-            String newDeliverSubject = sub.connection.createInbox();
-            sub.reSubscribe(newDeliverSubject);
-            targetSid.set(sub.getSID());
-
-            // 3. make a new consumer using the same deliver subject but
-            //    with a new starting point
-            ConsumerConfiguration userCC = js.nextOrderedConsumerConfiguration(originalCc, lastStreamSeq, newDeliverSubject);
-            js._createConsumerUnsubscribeOnException(stream, userCC, sub);
-
-            // 4. restart the manager.
-            startup(sub);
-        }
-        catch (Exception e) {
-            IllegalStateException ise = new IllegalStateException("Ordered subscription fatal error.", e);
-            js.conn.processException(ise);
-            if (syncMode) {
-                throw ise;
-            }
-        }
     }
 }

@@ -56,6 +56,14 @@ class NatsMessageConsumerBase implements MessageConsumer {
      * {@inheritDoc}
      */
     @Override
+    public String getConsumerName() {
+        return sub.getConsumerName();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
         // don't look up consumer info if it was never set - this check is for ordered consumer
         if (cachedConsumerInfo != null) {

@@ -207,8 +207,27 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
      * {@inheritDoc}
      */
     @Override
+    public void delete(String key, long expectedRevision) throws IOException, JetStreamApiException {
+        validateNonWildcardKvKeyRequired(key);
+        Headers h = getDeleteHeaders().put(EXPECTED_LAST_SUB_SEQ_HDR, Long.toString(expectedRevision));
+        _write(key, null, h).getSeqno();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void purge(String key) throws IOException, JetStreamApiException {
         _write(key, null, getPurgeHeaders());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void purge(String key, long expectedRevision) throws IOException, JetStreamApiException {
+        Headers h = getPurgeHeaders().put(EXPECTED_LAST_SUB_SEQ_HDR, Long.toString(expectedRevision));
+        _write(key, null, h);
     }
 
     private PublishAck _write(String key, byte[] data, Headers h) throws IOException, JetStreamApiException {
@@ -220,13 +239,26 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
     public NatsKeyValueWatchSubscription watch(String key, KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
         validateKvKeyWildcardAllowedRequired(key);
         validateNotNull(watcher, "Watcher is required");
-        return new NatsKeyValueWatchSubscription(this, key, watcher, watchOptions);
+        return new NatsKeyValueWatchSubscription(this, key, watcher, -1, watchOptions);
+    }
+
+    @Override
+    public NatsKeyValueWatchSubscription watch(String key, KeyValueWatcher watcher, long fromRevision, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
+        validateKvKeyWildcardAllowedRequired(key);
+        validateNotNull(watcher, "Watcher is required");
+        return new NatsKeyValueWatchSubscription(this, key, watcher, fromRevision, watchOptions);
     }
 
     @Override
     public NatsKeyValueWatchSubscription watchAll(KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
         validateNotNull(watcher, "Watcher is required");
-        return new NatsKeyValueWatchSubscription(this, ">", watcher, watchOptions);
+        return new NatsKeyValueWatchSubscription(this, ">", watcher, -1, watchOptions);
+    }
+
+    @Override
+    public NatsKeyValueWatchSubscription watchAll(KeyValueWatcher watcher, long fromRevision, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
+        validateNotNull(watcher, "Watcher is required");
+        return new NatsKeyValueWatchSubscription(this, ">", watcher, fromRevision, watchOptions);
     }
 
     /**

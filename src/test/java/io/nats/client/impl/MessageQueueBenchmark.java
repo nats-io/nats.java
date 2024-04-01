@@ -18,6 +18,8 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 public class MessageQueueBenchmark {
+    static final Duration REQUEST_CLEANUP_INTERVAL = Duration.ofSeconds(5);
+    
     public static void main(String args[]) throws InterruptedException {
         int msgCount = 10_000_000;
         NatsMessage[] msgs = new NatsMessage[msgCount];
@@ -27,14 +29,14 @@ public class MessageQueueBenchmark {
         System.out.println("Warmed up ...");
         byte[] warmBytes = "a".getBytes();
 
-        MessageQueue warm = new MessageQueue(false);
+        MessageQueue warm = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
         for (int j = 0; j < msgCount; j++) {
             msgs[j] = new ProtocolMessage(warmBytes);
             warm.push(msgs[j]);
         }
 
         System.out.println("Starting tests ...");
-        MessageQueue push = new MessageQueue(false);
+        MessageQueue push = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
         start = System.nanoTime();
         for (int i = 0; i < msgCount; i++) {
             push.push(msgs[i]);
@@ -61,7 +63,7 @@ public class MessageQueueBenchmark {
         System.out.printf("\tor %s op/s\n",
                 NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
 
-        MessageQueue accumulateQueue = new MessageQueue(true);
+        MessageQueue accumulateQueue = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         for (int j = 0; j < msgCount; j++) {
             msgs[j].next = null;
         }
@@ -84,7 +86,7 @@ public class MessageQueueBenchmark {
         for (int j = 0; j < msgCount; j++) {
             msgs[j].next = null;
         }
-        final MessageQueue pushPopThreadQueue = new MessageQueue(false);
+        final MessageQueue pushPopThreadQueue = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
         final Duration timeout = Duration.ofMillis(10);
         final CompletableFuture<Void> go = new CompletableFuture<>();
         Thread pusher = new Thread(() -> {
@@ -128,7 +130,7 @@ public class MessageQueueBenchmark {
         for (int j = 0; j < msgCount; j++) {
             msgs[j].next = null;
         }
-        final MessageQueue pushPopNowThreadQueue = new MessageQueue(false);
+        final MessageQueue pushPopNowThreadQueue = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
         pusher = new Thread(() -> {
             try {
                 go2.get();
@@ -171,7 +173,7 @@ public class MessageQueueBenchmark {
             msgs[j].next = null;
         }
 
-        final MessageQueue pushAccumulateThreadQueue = new MessageQueue(true);
+        final MessageQueue pushAccumulateThreadQueue = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         pusher = new Thread(() -> {
             try {
                 go3.get();

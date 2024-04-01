@@ -20,6 +20,11 @@ import java.time.Duration;
  * The Consumer Context provides a convenient interface around a defined JetStream Consumer
  */
 public interface BaseConsumerContext {
+    /**
+     * Gets the consumer name that was used to create the context.
+     * @return the consumer name
+     */
+    String getConsumerName();
 
     /**
      * Read the next message with max wait set to {@value BaseConsumeOptions#DEFAULT_EXPIRES_IN_MILLIS} ms

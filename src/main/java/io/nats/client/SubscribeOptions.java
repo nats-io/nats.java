@@ -57,24 +57,24 @@ public abstract class SubscribeOptions {
 
         // read the consumer names and do basic validation
         // A1. validate name input
-        String temp = validateMustMatchIfBothSupplied(
+        String ccName = validateMustMatchIfBothSupplied(
             builder.name,
             builder.cc == null ? null : builder.cc.getName(),
             JsSoNameMismatch);
         // B1. Must be a valid consumer name if supplied
-        temp = validateConsumerName(temp, false);
+        ccName = validateConsumerName(ccName, false);
 
         // A2. validate durable input
-        String durable = validateMustMatchIfBothSupplied(
+        String ccDurable = validateMustMatchIfBothSupplied(
             builder.durable,
             builder.cc == null ? null : builder.cc.getDurable(),
             JsSoDurableMismatch);
 
         // B2. Must be a valid consumer name if supplied
-        durable = validateDurable(durable, false);
+        ccDurable = validateDurable(ccDurable, false);
 
         // C. name must match durable if both supplied
-        name = validateMustMatchIfBothSupplied(temp, durable, JsConsumerNameDurableMismatch);
+        name = validateMustMatchIfBothSupplied(ccName, ccDurable, JsConsumerNameDurableMismatch);
 
         if (bind && name == null) {
             throw JsSoNameOrDurableRequiredForBind.instance();
@@ -89,7 +89,7 @@ public abstract class SubscribeOptions {
 
         if (ordered) {
             validateNotSupplied(deliverGroup, JsSoOrderedNotAllowedWithDeliverGroup);
-            validateNotSupplied(durable, JsSoOrderedNotAllowedWithDurable);
+            validateNotSupplied(ccDurable, JsSoOrderedNotAllowedWithDurable);
             validateNotSupplied(deliverSubject, JsSoOrderedNotAllowedWithDeliverSubject);
             long hb = DEFAULT_ORDERED_HEARTBEAT;
             if (builder.cc != null) {
@@ -117,7 +117,7 @@ public abstract class SubscribeOptions {
                 .ackPolicy(AckPolicy.None)
                 .maxDeliver(1)
                 .ackWait(Duration.ofHours(22))
-                .name(name)
+                .name(ccName)
                 .memStorage(true)
                 .numReplicas(1);
 
@@ -128,10 +128,10 @@ public abstract class SubscribeOptions {
         }
         else {
             consumerConfig = ConsumerConfiguration.builder(builder.cc)
-                .durable(durable)
+                .name(ccName)
+                .durable(ccDurable)
                 .deliverSubject(deliverSubject)
                 .deliverGroup(deliverGroup)
-                .name(name)
                 .build();
         }
     }
@@ -229,8 +229,13 @@ public abstract class SubscribeOptions {
     @Override
     public String toString() {
         return getClass().getSimpleName() + "{" +
-            "stream='" + stream + '\'' +
-            "bind=" + bind +
+            "name='" + name + '\'' +
+            ", stream='" + stream + '\'' +
+            ", pull='" + pull + '\'' +
+            ", bind=" + bind +
+            ", fastBind=" + fastBind +
+            ", ordered=" + ordered +
+            ", messageAlarmTime=" + messageAlarmTime +
             ", " + consumerConfig +
             '}';
     }

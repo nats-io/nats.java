@@ -15,13 +15,13 @@ package io.nats.examples.jetstream.simple;
 
 import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
+import io.nats.examples.jetstream.ResilientPublisher;
 
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.nats.examples.jetstream.simple.Utils.Publisher;
-import static io.nats.examples.jetstream.simple.Utils.createOrReplaceStream;
+import static io.nats.examples.jetstream.NatsJsUtils.createOrReplaceStream;
 
 /**
  * This example will demonstrate simplified consume with a handler
@@ -30,7 +30,7 @@ public class MessageConsumerExample {
     private static final String STREAM = "consume-stream";
     private static final String SUBJECT = "consume-subject";
     private static final String CONSUMER_NAME = "consume-consumer";
-    private static final String MESSAGE_TEXT = "consume";
+    private static final String MESSAGE_PREFIX = "consume";
     private static final int STOP_COUNT = 500;
     private static final int REPORT_EVERY = 100;
 
@@ -39,11 +39,11 @@ public class MessageConsumerExample {
     public static void main(String[] args) {
         Options options = Options.builder().server(SERVER).build();
         try (Connection nc = Nats.connect(options)) {
-            JetStream js = nc.jetStream();
-            createOrReplaceStream(nc.jetStreamManagement(), STREAM, SUBJECT);
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            createOrReplaceStream(jsm, STREAM, SUBJECT);
 
             System.out.println("Starting publish...");
-            Publisher publisher = new Publisher(js, SUBJECT, MESSAGE_TEXT, 10);
+            ResilientPublisher publisher = new ResilientPublisher(nc, jsm, STREAM, SUBJECT).basicDataPrefix(MESSAGE_PREFIX).jitter(10);
             Thread pubThread = new Thread(publisher);
             pubThread.start();
 
@@ -110,7 +110,7 @@ public class MessageConsumerExample {
 
             report("Final", start, atomicCount.get());
 
-            publisher.stopPublishing(); // otherwise it will complain when the connection goes away
+            publisher.stop(); // otherwise it will complain when the connection goes away
             pubThread.join();
         }
         catch (IOException | InterruptedException ioe) {

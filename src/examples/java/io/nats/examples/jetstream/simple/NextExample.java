@@ -18,7 +18,7 @@ import io.nats.client.api.ConsumerConfiguration;
 
 import java.io.IOException;
 
-import static io.nats.examples.jetstream.simple.Utils.createOrReplaceStream;
+import static io.nats.examples.jetstream.NatsJsUtils.createOrReplaceStream;
 
 /**
  * This example will demonstrate simplified next

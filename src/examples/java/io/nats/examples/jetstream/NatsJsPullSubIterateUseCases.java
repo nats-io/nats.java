@@ -25,7 +25,8 @@ import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 import static io.nats.examples.ExampleUtils.sleep;
-import static io.nats.examples.jetstream.NatsJsUtils.*;
+import static io.nats.examples.jetstream.NatsJsUtils.createStreamExitWhenExists;
+import static io.nats.examples.jetstream.NatsJsUtils.publish;
 
 /**
  * This example will demonstrate miscellaneous uses cases of a pull subscription of:
@@ -81,7 +82,7 @@ public class NatsJsPullSubIterateUseCases {
             // -  Read the messages, get them all (0)
             System.out.println("----------\n1. There are no messages yet");
             Iterator<Message> iterator = sub.iterate(10, Duration.ofSeconds(3));
-            List<Message> messages = report(iterator);
+            List<Message> messages = NatsJsUtils.reportFetch(iterator);
             messages.forEach(Message::ack);
             System.out.println("We should have received 0 total messages, we received: " + messages.size());
 
@@ -90,7 +91,7 @@ public class NatsJsPullSubIterateUseCases {
             System.out.println("----------\n2. Publish 10 which satisfies the batch");
             publish(js, exArgs.subject, "A", 10);
             iterator = sub.iterate(10, Duration.ofSeconds(3));
-            messages = report(iterator);
+            messages = NatsJsUtils.reportFetch(iterator);
             messages.forEach(Message::ack);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
@@ -99,7 +100,7 @@ public class NatsJsPullSubIterateUseCases {
             System.out.println("----------\n3. Publish 20 which is larger than the batch size.");
             publish(js, exArgs.subject, "B", 20);
             iterator = sub.iterate(10, Duration.ofSeconds(3));
-            messages = report(iterator);
+            messages = NatsJsUtils.reportFetch(iterator);
             messages.forEach(Message::ack);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
@@ -107,7 +108,7 @@ public class NatsJsPullSubIterateUseCases {
             // -  iterate messages, get 10
             System.out.println("----------\n4. Get the rest of the publish.");
             iterator = sub.iterate(10, Duration.ofSeconds(3));
-            messages = report(iterator);
+            messages = NatsJsUtils.reportFetch(iterator);
             messages.forEach(Message::ack);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
@@ -117,7 +118,7 @@ public class NatsJsPullSubIterateUseCases {
             System.out.println("----------\n5. Publish 5 which is less than batch size.");
             publish(js, exArgs.subject, "C", 5);
             iterator = sub.iterate(10, Duration.ofSeconds(3));
-            messages = report(iterator);
+            messages = NatsJsUtils.reportFetch(iterator);
             messages.forEach(Message::ack);
             System.out.println("We should have received 5 total messages, we received: " + messages.size());
 
@@ -126,7 +127,7 @@ public class NatsJsPullSubIterateUseCases {
             System.out.println("----------\n6. Publish 15 which is more than the batch size.");
             publish(js, exArgs.subject, "D", 15);
             iterator = sub.iterate(10, Duration.ofSeconds(3));
-            messages = report(iterator);
+            messages = NatsJsUtils.reportFetch(iterator);
             messages.forEach(Message::ack);
             System.out.println("We should have received 10 total messages, we received: " + messages.size());
 
@@ -134,7 +135,7 @@ public class NatsJsPullSubIterateUseCases {
             // -  iterate messages, only get 5
             System.out.println("----------\n7. There are 5 messages left.");
             iterator = sub.iterate(10, Duration.ofSeconds(3));
-            messages = report(iterator);
+            messages = NatsJsUtils.reportFetch(iterator);
             messages.forEach(Message::ack);
             System.out.println("We should have received 5 messages, we received: " + messages.size());
 
@@ -143,7 +144,7 @@ public class NatsJsPullSubIterateUseCases {
             System.out.println("----------\n8. iterate but don't ack.");
             publish(js, exArgs.subject, "E", 10);
             iterator = sub.iterate(10, Duration.ofSeconds(3));
-            messages = report(iterator);
+            messages = NatsJsUtils.reportFetch(iterator);
             System.out.println("We should have received 10 message, we received: " + messages.size());
             sleep(3000); // longer than the ackWait
 
@@ -151,7 +152,7 @@ public class NatsJsPullSubIterateUseCases {
             // -  get the 10 messages we didn't ack
             System.out.println("----------\n9. iterate, get the messages we did not ack.");
             iterator = sub.iterate(10, Duration.ofSeconds(3));
-            messages = report(iterator);
+            messages = NatsJsUtils.reportFetch(iterator);
             messages.forEach(Message::ack);
             System.out.println("We should have received 10 message, we received: " + messages.size());
 

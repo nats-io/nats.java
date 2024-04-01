@@ -59,22 +59,6 @@ public class JetStreamTestBase extends TestBase {
 
     public static final Duration DEFAULT_TIMEOUT = Duration.ofMillis(1000);
 
-    public boolean atLeast290(Connection nc) {
-        return atLeast290(nc.getServerInfo());
-    }
-
-    public boolean atLeast290(ServerInfo si) {
-        return si.isSameOrNewerThanVersion("2.9.0");
-    }
-
-    public boolean atLeast291(ServerInfo si) {
-        return si.isSameOrNewerThanVersion("2.9.1");
-    }
-
-    public boolean atLeast210(ServerInfo si) {
-        return si.isNewerVersionThan("2.9.99");
-    }
-
     private static final AtomicInteger MOCK_SID_HOLDER = new AtomicInteger(4273);
     public static String mockSid() {
         return "" + MOCK_SID_HOLDER.incrementAndGet();
@@ -150,7 +134,7 @@ public class JetStreamTestBase extends TestBase {
 
         public String subject() {
             if (defaultSubjectVariant == null) {
-                defaultSubjectVariant = TestBase.subject();
+                defaultSubjectVariant = TestBase.variant(null);
             }
             return subject(defaultSubjectVariant);
         }

@@ -20,5 +20,8 @@ import io.nats.client.MessageHandler;
 import java.io.IOException;
 
 interface SimplifiedSubscriptionMaker {
-    NatsJetStreamPullSubscription subscribe(MessageHandler optionalMessageHandler, Dispatcher optionalDispatcher) throws IOException, JetStreamApiException;
+    NatsJetStreamPullSubscription subscribe(MessageHandler optionalMessageHandler,
+                                            Dispatcher optionalDispatcher,
+                                            PullMessageManager optionalPmm,
+                                            Long optionalInactiveThreshold) throws IOException, JetStreamApiException;
 }

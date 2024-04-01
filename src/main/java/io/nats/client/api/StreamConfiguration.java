@@ -13,9 +13,7 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.JsonSerializable;
-import io.nats.client.support.JsonUtils;
-import io.nats.client.support.JsonValue;
+import io.nats.client.support.*;
 
 import java.time.Duration;
 import java.util.*;
@@ -144,8 +142,20 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
+     * Returns a StreamConfiguration deserialized from its JSON form.
+     *
+     * @see #toJson()
+     * @param json the json representing the Stream Configuration
+     * @return StreamConfiguration for the given json
+     * @throws JsonParseException thrown if the parsing fails for invalid json
+     */
+    public static StreamConfiguration instance(String json) throws JsonParseException {
+        return instance(JsonParser.parse(json));
+    }
+
+    /**
      * Returns a JSON representation of this consumer configuration.
-     * 
+     *
      * @return json consumer configuration to send to the server.
      */
     public String toJson() {
@@ -432,7 +442,7 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
-     * Metadata for the consumer
+     * Metadata for the stream
      * @return the metadata map. Might be null.
      */
     public Map<String, String> getMetadata() {
