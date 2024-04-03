@@ -18,6 +18,7 @@ public interface ApiConstants {
     String ACK_FLOOR         = "ack_floor";
     String ACK_POLICY        = "ack_policy";
     String ACK_WAIT          = "ack_wait";
+    String ACTION            = "action";
     String ACTIVE            = "active";
     String ALLOW_ROLLUP_HDRS = "allow_rollup_hdrs";
     String ALLOW_DIRECT      = "allow_direct";

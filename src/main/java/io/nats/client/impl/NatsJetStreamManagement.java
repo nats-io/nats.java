@@ -128,7 +128,27 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
     public ConsumerInfo addOrUpdateConsumer(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException {
         validateStreamName(streamName, true);
         validateNotNull(config, "Config");
-        return _createConsumer(streamName, config);
+        return _createConsumer(streamName, config, ConsumerCreateRequest.Action.CreateOrUpdate);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ConsumerInfo createConsumer(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException {
+        validateStreamName(streamName, true);
+        validateNotNull(config, "Config");
+        return _createConsumer(streamName, config, ConsumerCreateRequest.Action.Create);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public ConsumerInfo updateConsumer(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException {
+        validateStreamName(streamName, true);
+        validateNotNull(config, "Config");
+        return _createConsumer(streamName, config, ConsumerCreateRequest.Action.Update);
     }
 
     /**
