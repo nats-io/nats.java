@@ -81,6 +81,7 @@ class NatsConnection implements Connection {
 
     private final String mainInbox;
     private final AtomicReference<NatsDispatcher> inboxDispatcher;
+    private final ReentrantLock inboxDispatcherLock;
     private Timer timer;
 
     private final AtomicBoolean needPing;
@@ -147,6 +148,7 @@ class NatsConnection implements Connection {
 
         this.serverInfo = new AtomicReference<>();
         this.inboxDispatcher = new AtomicReference<>();
+        this.inboxDispatcherLock = new ReentrantLock();
         this.pongQueue = new ConcurrentLinkedDeque<>();
         this.draining = new AtomicReference<>();
         this.blockPublishForDrain = new AtomicBoolean();
@@ -1186,17 +1188,20 @@ class NatsConnection implements Connection {
         }
 
         if (inboxDispatcher.get() == null) {
-            NatsDispatcher d = dispatcherFactory.createDispatcher(this, this::deliverReply);
+            inboxDispatcherLock.lock();
+            try {
+                if (inboxDispatcher.get() == null) {
+                    NatsDispatcher d = dispatcherFactory.createDispatcher(this, this::deliverReply);
 
-            // Theoretically two threads could be here
-            // compareAndSet returns false if thread 2 set the dispatcher
-            // in between the time thread 1 did get above and tried to compareAndSet
-            // really thin edge condition - could have used a lock, but this is probably enough
-            if (inboxDispatcher.compareAndSet(null, d)) {
-                String id = this.nuid.next();
-                this.dispatchers.put(id, d);
-                d.start(id);
-                d.subscribe(this.mainInbox);
+                    // Ensure the dispatcher is started before publishing messages
+                    String id = this.nuid.next();
+                    this.dispatchers.put(id, d);
+                    d.start(id);
+                    d.subscribe(this.mainInbox);
+                    inboxDispatcher.set(d);
+                }
+            } finally {
+                inboxDispatcherLock.unlock();
             }
         }
 
