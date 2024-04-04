@@ -1550,7 +1550,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(10149, e.getApiErrorCode());
 
             // initial create ok
-            jsmPre290.createConsumer(stream4, cc4);
+            ci = jsmPre290.createConsumer(stream4, cc4);
             assertEquals(fs1, ci.getConsumerConfiguration().getFilterSubject());
         });
     }
