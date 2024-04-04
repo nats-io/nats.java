@@ -600,8 +600,8 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
     @Test
     public void testPushSyncFlowControl() throws Exception {
-        TestHandler handler = new TestHandler();
-        Options.Builder ob = new Options.Builder().errorListener(handler);
+        ListenerForTesting listener = new ListenerForTesting();
+        Options.Builder ob = new Options.Builder().errorListener(listener);
 
         runInJsServer(ob, nc -> {
             // Create our JetStream context.
@@ -635,7 +635,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             }
 
             assertEquals(MSG_COUNT, set.size());
-            assertFalse(handler.getFlowControlProcessedEvents().isEmpty());
+            assertFalse(listener.getFlowControlProcessedEvents().isEmpty());
 
             // coverage for subscribe options heartbeat directly
             cc = ConsumerConfiguration.builder().idleHeartbeat(100).build();

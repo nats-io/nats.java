@@ -757,7 +757,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     }
 
     interface ConflictSetup {
-        JetStreamSubscription setup(Connection nc, JetStreamManagement jsm, JetStream js, TestingStreamContainer tsc, TestHandler handler) throws Exception;
+        JetStreamSubscription setup(Connection nc, JetStreamManagement jsm, JetStream js, TestingStreamContainer tsc, ListenerForTesting listener) throws Exception;
     }
 
     private boolean versionIsBefore(Connection nc, String targetVersion) {
@@ -779,9 +779,9 @@ public class JetStreamPullTests extends JetStreamTestBase {
     static final int TYPE_WARNING = 2;
     static final int TYPE_NONE = 0;
     private void testConflictStatus(int statusCode, String statusText, int type, String targetVersion, ConflictSetup setup) throws Exception {
-        TestHandler handler = new TestHandler();
+        ListenerForTesting listener = new ListenerForTesting();
         AtomicBoolean skip = new AtomicBoolean(false);
-        runInJsServer(handler, nc -> {
+        runInJsServer(listener, nc -> {
             skip.set(versionIsBefore(nc, targetVersion));
             if (skip.get()) {
                 return;
@@ -789,7 +789,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
             TestingStreamContainer tsc = new TestingStreamContainer(jsm);
-            JetStreamSubscription sub = setup.setup(nc, jsm, js, tsc, handler);
+            JetStreamSubscription sub = setup.setup(nc, jsm, js, tsc, listener);
             if (sub.getDispatcher() == null) {
                 if (type == TYPE_ERROR) {
                     JetStreamStatusException jsse = assertThrows(JetStreamStatusException.class, () -> sub.nextMessage(NEXT_MESSAGE));
@@ -802,16 +802,16 @@ public class JetStreamPullTests extends JetStreamTestBase {
                     sub.nextMessage(NEXT_MESSAGE);
                 }
             }
-            checkHandler(statusText, type, handler, WAIT_FOR_MESSAGES);
+            checkHandler(statusText, type, listener, WAIT_FOR_MESSAGES);
         });
     }
 
-    private void checkHandler(String statusText, int type, TestHandler handler, long timeout) {
+    private void checkHandler(String statusText, int type, ListenerForTesting listener, long timeout) {
         if (type == TYPE_ERROR) {
-            assertTrue(handler.pullStatusErrorOrWait(statusText, timeout));
+            assertTrue(listener.pullStatusErrorOrWait(statusText, timeout));
         }
         else if (type == TYPE_WARNING) {
-            assertTrue(handler.pullStatusWarningEventually(statusText, timeout));
+            assertTrue(listener.pullStatusWarningEventually(statusText, timeout));
         }
     }
 
@@ -947,7 +947,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
         });
     }
 
-    // This just flaps. It's a timing thing? Already spent too much time, IWOMM and it should work as is.
+// This just flaps. It's a timing thing? Already spent too much time, IWOMM and it should work as is.
 //    @Test
 //    public void testConsumerDeletedAsyncSub() throws Exception {
 //        testConflictStatus(409, CONSUMER_DELETED, TYPE_ERROR, "2.9.6", (nc, jsm, js, tsc, handler) -> {
@@ -1042,8 +1042,8 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testExceedsMaxRequestBytesNthMessageSyncSub() throws Exception {
-        TestHandler handler = new TestHandler();
-        runInJsServer(TestBase::atLeast2_9_1, handler, nc -> {
+        ListenerForTesting listener = new ListenerForTesting();
+        runInJsServer(TestBase::atLeast2_9_1, listener, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
             TestingStreamContainer tsc = new TestingStreamContainer(jsm);
@@ -1064,14 +1064,14 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertNotNull(sub.nextMessage(500));
             assertNotNull(sub.nextMessage(500));
             assertNull(sub.nextMessage(500));
-            checkHandler(MESSAGE_SIZE_EXCEEDS_MAX_BYTES, TYPE_NONE, handler, 2500);
+            checkHandler(MESSAGE_SIZE_EXCEEDS_MAX_BYTES, TYPE_NONE, listener, 2500);
         });
     }
 
     @Test
     public void testExceedsMaxRequestBytesExactBytes() throws Exception {
-        TestHandler handler = new TestHandler();
-        runInJsServer(TestBase::atLeast2_9_1, handler, nc -> {
+        ListenerForTesting listener = new ListenerForTesting();
+        runInJsServer(TestBase::atLeast2_9_1, listener, nc -> {
             String stream = "sixsix"; // six letters so I can count
             String subject = "seven"; // seven letters so I can count
             String durable = durable(0); // short keeps under max bytes
@@ -1095,7 +1095,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertNotNull(sub.nextMessage(500));
             assertNotNull(sub.nextMessage(500));
             assertNull(sub.nextMessage(500)); // there are no more messages
-            checkHandler(MESSAGE_SIZE_EXCEEDS_MAX_BYTES, TYPE_NONE, handler, 2500);
+            checkHandler(MESSAGE_SIZE_EXCEEDS_MAX_BYTES, TYPE_NONE, listener, 2500);
         });
     }
 
@@ -1118,31 +1118,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
             // create the consumer then use it
             AtomicInteger count = new AtomicInteger();
-            Thread readerThread = new Thread(() -> {
-                try {
-                    while (count.get() < stopCount) {
-                        Message msg = reader.nextMessage(1000);
-                        if (msg != null) {
-                            msg.ack();
-                            count.incrementAndGet();
-                        }
-                    }
-
-                    Thread.sleep(50); // allows more messages to come across
-                    reader.stop();
-
-                    Message msg = reader.nextMessage(Duration.ofMillis(1000)); // also coverage next message
-                    while (msg != null) {
-                        msg.ack();
-                        count.incrementAndGet();
-                        msg = reader.nextMessage(1000);
-                    }
-                }
-                catch (Exception e) {
-                    fail(e);
-                }
-            });
-            readerThread.start();
+            Thread readerThread = getReaderThread(count, stopCount, reader);
 
             Publisher publisher = new Publisher(js, tsc.subject(), 25);
             Thread pubThread = new Thread(publisher);
@@ -1154,5 +1130,34 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
             assertTrue(count.incrementAndGet() > 500);
         });
+    }
+
+    private static Thread getReaderThread(AtomicInteger count, int stopCount, JetStreamReader reader) {
+        Thread readerThread = new Thread(() -> {
+            try {
+                while (count.get() < stopCount) {
+                    Message msg = reader.nextMessage(1000);
+                    if (msg != null) {
+                        msg.ack();
+                        count.incrementAndGet();
+                    }
+                }
+
+                Thread.sleep(50); // allows more messages to come across
+                reader.stop();
+
+                Message msg = reader.nextMessage(Duration.ofMillis(1000)); // also coverage next message
+                while (msg != null) {
+                    msg.ack();
+                    count.incrementAndGet();
+                    msg = reader.nextMessage(1000);
+                }
+            }
+            catch (Exception e) {
+                fail(e);
+            }
+        });
+        readerThread.start();
+        return readerThread;
     }
 }

@@ -15,8 +15,8 @@ package io.nats.client;
 
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
+import io.nats.client.impl.ListenerForTesting;
 import io.nats.client.impl.SimulateSocketDataPortException;
-import io.nats.client.impl.TestHandler;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class ConnectTests {
     @Test
     public void testDefaultConnection() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(Options.DEFAULT_PORT, false)) {
+        try (NatsTestServer ignored = new NatsTestServer(Options.DEFAULT_PORT, false)) {
             Connection nc = standardConnection();
             assertEquals(Options.DEFAULT_PORT, nc.getServerInfo().getPort());
             standardCloseConnection(nc);
@@ -235,7 +235,6 @@ public class ConnectTests {
     @Test
     public void testIncompleteInitialInfo() {
         assertThrows(IOException.class, () -> {
-            Connection nc = null;
             String badInfo = "{\"server_id\"\r\n";
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, badInfo)) {
                 Options options = new Options.Builder().server(ts.getURI()).reconnectWait(Duration.ofDays(1)).build();
@@ -246,18 +245,18 @@ public class ConnectTests {
 
     @Test
     public void testAsyncConnection() throws Exception {
-        TestHandler handler = new TestHandler();
+        ListenerForTesting listener = new ListenerForTesting();
         Connection nc = null;
 
         try (NatsTestServer ts = new NatsTestServer(false)) {
-            Options options = new Options.Builder().server(ts.getURI()).connectionListener(handler).build();
-            handler.prepForStatusChange(Events.CONNECTED);
+            Options options = new Options.Builder().server(ts.getURI()).connectionListener(listener).build();
+            listener.prepForStatusChange(Events.CONNECTED);
 
             Nats.connectAsynchronously(options, false);
 
-            handler.waitForStatusChange(1, TimeUnit.SECONDS);
+            listener.waitForStatusChange(1, TimeUnit.SECONDS);
 
-            nc = handler.getLastEventConnection();
+            nc = listener.getLastEventConnection();
             assertNotNull(nc);
             assertConnected(nc);
             standardCloseConnection(nc);
@@ -266,21 +265,21 @@ public class ConnectTests {
 
     @Test
     public void testAsyncConnectionWithReconnect() throws Exception {
-        TestHandler handler = new TestHandler();
+        ListenerForTesting listener = new ListenerForTesting();
         int port = NatsTestServer.nextPort();
         Options options = new Options.Builder().server("nats://localhost:" + port).maxReconnects(-1)
-                .reconnectWait(Duration.ofMillis(100)).connectionListener(handler).build();
+                .reconnectWait(Duration.ofMillis(100)).connectionListener(listener).build();
 
         Nats.connectAsynchronously(options, true);
 
         sleep(5000); // No server at this point, let it fail and try to start over
 
-        Connection nc = handler.getLastEventConnection(); // will be disconnected, but should be there
+        Connection nc = listener.getLastEventConnection(); // will be disconnected, but should be there
         assertNotNull(nc);
 
-        handler.prepForStatusChange(Events.RECONNECTED);
-        try (NatsTestServer ts = new NatsTestServer(port, false)) {
-            standardConnectionWait(nc, handler);
+        listener.prepForStatusChange(Events.RECONNECTED);
+        try (NatsTestServer ignored = new NatsTestServer(port, false)) {
+            standardConnectionWait(nc, listener);
             standardCloseConnection(nc);
         }
     }
@@ -297,15 +296,15 @@ public class ConnectTests {
 
     @Test
     public void testErrorOnAsync() throws Exception {
-        TestHandler handler = new TestHandler();
+        ListenerForTesting listener = new ListenerForTesting();
         Options options = new Options.Builder().server("nats://localhost:" + NatsTestServer.nextPort())
-                .connectionListener(handler).errorListener(handler).noReconnect().build();
-        handler.prepForStatusChange(Events.CLOSED);
+                .connectionListener(listener).errorListener(listener).noReconnect().build();
+        listener.prepForStatusChange(Events.CLOSED);
         Nats.connectAsynchronously(options, false);
-        handler.waitForStatusChange(10, TimeUnit.SECONDS);
+        listener.waitForStatusChange(10, TimeUnit.SECONDS);
 
-        assertTrue(handler.getExceptionCount() > 0);
-        assertTrue(handler.getEventCount(Events.CLOSED) > 0);
+        assertTrue(listener.getExceptionCount() > 0);
+        assertTrue(listener.getEventCount(Events.CLOSED) > 0);
     }
 
     @Test
@@ -439,6 +438,7 @@ public class ConnectTests {
             CountDownLatch completedLatch = new CountDownLatch(1);
 
             Thread t = new Thread("publisher") {
+                @SuppressWarnings("ResultOfMethodCallIgnored")
                 public void run() {
                     byte[] payload = new byte[5];
                     pubLatch.countDown();
@@ -489,13 +489,13 @@ public class ConnectTests {
         }
     }
 
-    @SuppressWarnings({"unused", "UnusedAssignment", "resource"})
+    @SuppressWarnings({"unused", "UnusedAssignment"})
     @Test
     public void testSocketLevelException() throws Exception {
         int port = NatsTestServer.nextPort();
 
         AtomicBoolean simExReceived = new AtomicBoolean();
-        TestHandler th = new TestHandler();
+        ListenerForTesting listener = new ListenerForTesting();
         ErrorListener el = new ErrorListener() {
             @Override
             public void exceptionOccurred(Connection conn, Exception exp) {
@@ -508,7 +508,7 @@ public class ConnectTests {
         Options options = new Options.Builder()
             .server(NatsTestServer.getNatsLocalhostUri(port))
             .dataPortType("io.nats.client.impl.SimulateSocketDataPortException")
-            .connectionListener(th)
+            .connectionListener(listener)
             .errorListener(el)
             .reconnectDelayHandler(l -> Duration.ofSeconds(1))
             .build();
@@ -534,25 +534,25 @@ public class ConnectTests {
         try (NatsTestServer ts = new NatsTestServer(port, false)) {
             try {
                 SimulateSocketDataPortException.THROW_ON_CONNECT.set(true);
-                th.prepForStatusChange(Events.RECONNECTED);
+                listener.prepForStatusChange(Events.RECONNECTED);
                 connection = Nats.connectReconnectOnConnect(options);
-                assertTrue(th.waitForStatusChange(5, TimeUnit.SECONDS));
-                th.prepForStatusChange(Events.DISCONNECTED);
+                assertTrue(listener.waitForStatusChange(5, TimeUnit.SECONDS));
+                listener.prepForStatusChange(Events.DISCONNECTED);
             }
             catch (Exception e) {
                 fail("should have connected " + e);
             }
         }
-        assertTrue(th.waitForStatusChange(5, TimeUnit.SECONDS));
+        assertTrue(listener.waitForStatusChange(5, TimeUnit.SECONDS));
         assertTrue(simExReceived.get());
         simExReceived.set(false);
 
         // 2. NORMAL RECONNECT
-        th.prepForStatusChange(Events.RECONNECTED);
+        listener.prepForStatusChange(Events.RECONNECTED);
         try (NatsTestServer ts = new NatsTestServer(port, false)) {
             SimulateSocketDataPortException.THROW_ON_CONNECT.set(true);
             try {
-                assertTrue(th.waitForStatusChange(5, TimeUnit.SECONDS));
+                assertTrue(listener.waitForStatusChange(5, TimeUnit.SECONDS));
             }
             catch (Exception e) {
                 fail("should have reconnected " + e);

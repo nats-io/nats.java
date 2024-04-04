@@ -19,7 +19,6 @@ import io.nats.client.ConnectionListener.Events;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -32,7 +31,7 @@ public class MessageContentTests {
     public void testSimpleString() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
             Dispatcher d = nc.createDispatcher((msg) -> {
                 nc.publish(msg.getReplyTo(), msg.getData());
@@ -54,7 +53,7 @@ public class MessageContentTests {
     public void testUTF8String() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
             Dispatcher d = nc.createDispatcher((msg) -> {
                 nc.publish(msg.getReplyTo(), msg.getData());
@@ -76,7 +75,7 @@ public class MessageContentTests {
     public void testDifferentSizes() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
             Dispatcher d = nc.createDispatcher((msg) -> {
                 nc.publish(msg.getReplyTo(), msg.getData());
@@ -103,7 +102,7 @@ public class MessageContentTests {
     public void testZeros() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
             Dispatcher d = nc.createDispatcher((msg) -> {
                 nc.publish(msg.getReplyTo(), msg.getData());
@@ -116,7 +115,7 @@ public class MessageContentTests {
 
             assertNotNull(msg);
             assertEquals(data.length, msg.getData().length);
-            assertTrue(Arrays.equals(msg.getData(), data));
+            assertArrayEquals(msg.getData(), data);
         }
     }
     
@@ -200,29 +199,29 @@ public class MessageContentTests {
     }
 
     void runBadContentTest(NatsServerProtocolMock.Customizer badServer, CompletableFuture<Boolean> ready) throws Exception {
-        TestHandler handler = new TestHandler();
+        ListenerForTesting listener = new ListenerForTesting();
 
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(badServer, null)) {
             Options options = new Options.Builder().
                                 server(ts.getURI()).
                                 maxReconnects(0).
-                                errorListener(handler).
-                                connectionListener(handler).
+                                errorListener(listener).
+                                connectionListener(listener).
                                 build();
             Connection nc = Nats.connect(options);
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
 
-                handler.prepForStatusChange(Events.DISCONNECTED);
+                listener.prepForStatusChange(Events.DISCONNECTED);
                 ready.complete(Boolean.TRUE);
-                handler.waitForStatusChange(200, TimeUnit.MILLISECONDS);
+                listener.waitForStatusChange(200, TimeUnit.MILLISECONDS);
 
-                assertTrue(handler.getExceptionCount() > 0);
+                assertTrue(listener.getExceptionCount() > 0);
                 assertTrue(Connection.Status.DISCONNECTED == nc.getStatus()
                                                     || Connection.Status.CLOSED == nc.getStatus(), "Disconnected Status");
             } finally {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }

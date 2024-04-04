@@ -50,13 +50,13 @@ public class TLSConnectTests {
         return new Options.Builder()
             .server(servers)
             .maxReconnects(0)
-            .sslContext(TestSSLUtils.createTestSSLContext())
+            .sslContext(SslTestingHelper.createTestSSLContext())
             .build();
     }
 
     private static Options createTestOptionsViaProperties(String servers) {
         Options options;
-        Properties props = TestSSLUtils.createTestSSLProperties();
+        Properties props = SslTestingHelper.createTestSSLProperties();
         props.setProperty(Options.PROP_SERVERS, servers);
         props.setProperty(Options.PROP_MAX_RECONNECT, "0");
         options = new Options.Builder(props).build();
@@ -102,7 +102,7 @@ public class TLSConnectTests {
                     .server(servers)
                     .maxReconnects(0)
                     .tlsFirst()
-                    .sslContext(TestSSLUtils.createTestSSLContext())
+                    .sslContext(SslTestingHelper.createTestSSLContext())
                     .build();
                 assertCanConnectAndPubSub(options);
             }
@@ -243,7 +243,7 @@ public class TLSConnectTests {
     @Test
     public void testTLSMessageFlow() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
-            SSLContext ctx = TestSSLUtils.createTestSSLContext();
+            SSLContext ctx = SslTestingHelper.createTestSSLContext();
             int msgCount = 100;
             Options options = new Options.Builder()
                 .server(ts.getURI())
@@ -269,32 +269,32 @@ public class TLSConnectTests {
 
     @Test
     public void testTLSOnReconnect() throws InterruptedException, Exception {
-        Connection nc = null;
-        TestHandler handler = new TestHandler();
+        Connection nc;
+        ListenerForTesting listener = new ListenerForTesting();
         int port = NatsTestServer.nextPort();
         int newPort = NatsTestServer.nextPort();
 
         // Use two server ports to avoid port release timing issues
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", port, false)) {
-            SSLContext ctx = TestSSLUtils.createTestSSLContext();
+            SSLContext ctx = SslTestingHelper.createTestSSLContext();
             Options options = new Options.Builder().
                     server(ts.getURI()).
                     server(NatsTestServer.getNatsLocalhostUri(newPort)).
                     maxReconnects(-1).
                     sslContext(ctx).
-                    connectionListener(handler).
+                    connectionListener(listener).
                     reconnectWait(Duration.ofMillis(10)).
                     build();
             nc = standardConnection(options);
             assertInstanceOf(SocketDataPort.class, ((NatsConnection) nc).getDataPort(), "Correct data port class");
-            handler.prepForStatusChange(Events.DISCONNECTED);
+            listener.prepForStatusChange(Events.DISCONNECTED);
         }
 
-        flushAndWaitLong(nc, handler);
-        handler.prepForStatusChange(Events.RESUBSCRIBED);
+        flushAndWaitLong(nc, listener);
+        listener.prepForStatusChange(Events.RESUBSCRIBED);
 
         try (NatsTestServer ignored = new NatsTestServer("src/test/resources/tlsverify.conf", newPort, false)) {
-            standardConnectionWait(nc, handler, 10000);
+            standardConnectionWait(nc, listener, 10000);
         }
 
         standardCloseConnection(nc);
@@ -304,7 +304,7 @@ public class TLSConnectTests {
     public void testDisconnectOnUpgrade() {
         assertThrows(IOException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
-                SSLContext ctx = TestSSLUtils.createTestSSLContext();
+                SSLContext ctx = SslTestingHelper.createTestSSLContext();
                 Options options = new Options.Builder().
                                     server(ts.getURI()).
                                     maxReconnects(0).
@@ -333,7 +333,7 @@ public class TLSConnectTests {
     public void testClientSecureServerNotMismatch() {
         assertThrows(IOException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer()) {
-                SSLContext ctx = TestSSLUtils.createTestSSLContext();
+                SSLContext ctx = SslTestingHelper.createTestSSLContext();
                 Options options = new Options.Builder().
                                     server(ts.getURI()).
                                     maxReconnects(0).
@@ -356,7 +356,7 @@ public class TLSConnectTests {
 
         assertThrows(IOException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
-                SSLContext ctx = TestSSLUtils.createEmptySSLContext();
+                SSLContext ctx = SslTestingHelper.createEmptySSLContext();
                 Options options = new Options.Builder()
                         .server(ts.getURI())
                         .maxReconnects(0)
