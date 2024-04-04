@@ -26,7 +26,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 @SuppressWarnings("CallToPrintStackTrace")
-public class TestHandler implements ErrorListener, ConnectionListener {
+public class ListenerForTesting implements ErrorListener, ConnectionListener {
     private final ReentrantLock prepLock = new ReentrantLock();
 
     private final AtomicInteger count = new AtomicInteger();
@@ -60,11 +60,11 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     private final boolean printExceptions;
     private final boolean verbose;
 
-    public TestHandler() {
+    public ListenerForTesting() {
         this(false, false);
     }
 
-    public TestHandler(boolean printExceptions, boolean verbose) {
+    public ListenerForTesting(boolean printExceptions, boolean verbose) {
         this.printExceptions = printExceptions;
         this.verbose = verbose;
     }
@@ -191,11 +191,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
 
         prepLock.lock();
         try {
-            AtomicInteger counter = errorCounts.get(errorText);
-            if (counter == null) {
-                counter = new AtomicInteger();
-                errorCounts.put(errorText, counter);
-            }
+            AtomicInteger counter = errorCounts.computeIfAbsent(errorText, k -> new AtomicInteger());
             counter.incrementAndGet();
             if (errorWaitFuture != null && errorText.contains(errorToWaitFor)) {
                 errorWaitFuture.complete(Boolean.TRUE);
@@ -230,11 +226,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
 
         prepLock.lock();
         try {
-            AtomicInteger counter = eventCounts.get(type);
-            if (counter == null) {
-                counter = new AtomicInteger();
-                eventCounts.put(type, counter);
-            }
+            AtomicInteger counter = eventCounts.computeIfAbsent(type, k -> new AtomicInteger());
             counter.incrementAndGet();
             if (statusChanged != null && type == eventToWaitFor) {
                 statusChanged.complete(Boolean.TRUE);
@@ -282,7 +274,7 @@ public class TestHandler implements ErrorListener, ConnectionListener {
     }
 
     private void report(String func, Object message) {
-        System.out.println("[" + System.currentTimeMillis() + " TestHandler." + func + "] " + message);
+        System.out.println("[" + System.currentTimeMillis() + " ListenerForTesting." + func + "] " + message);
     }
 
     private final ReentrantLock listLock = new ReentrantLock();

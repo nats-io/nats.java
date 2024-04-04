@@ -190,15 +190,15 @@ public class SlowConsumerTests {
 
     @Test
     public void testSlowSubscriberNotification() throws Exception {
-        TestHandler handler = new TestHandler();
+        ListenerForTesting listener = new ListenerForTesting();
         try (NatsTestServer ts = new NatsTestServer(false);
                 NatsConnection nc = (NatsConnection) Nats.connect(new Options.Builder().
-                                                                    server(ts.getURI()).errorListener(handler).build())) {
+                                                                    server(ts.getURI()).errorListener(listener).build())) {
             
             Subscription sub = nc.subscribe("subject");
             sub.setPendingLimits(1, -1);
 
-            Future<Boolean> waitForSlow = handler.waitForSlow();
+            Future<Boolean> waitForSlow = listener.waitForSlow();
 
             nc.publish("subject", null);
             nc.publish("subject", null);
@@ -209,7 +209,7 @@ public class SlowConsumerTests {
             // Notification is in another thread, wait for it, or fail
             waitForSlow.get(1000, TimeUnit.MILLISECONDS);
 
-            List<Consumer> slow = handler.getSlowConsumers();
+            List<Consumer> slow = listener.getSlowConsumers();
             assertEquals(1, slow.size()); // should only appear once
             assertEquals(sub, slow.get(0));
             slow.clear();
@@ -219,7 +219,7 @@ public class SlowConsumerTests {
 
             assertEquals(0, slow.size()); // no renotifiy
 
-            waitForSlow = handler.waitForSlow();
+            waitForSlow = listener.waitForSlow();
             // Clear the queue, we shoudl become a non-slow consumer
             sub.nextMessage(Duration.ofMillis(1000)); // only 1 to get
 

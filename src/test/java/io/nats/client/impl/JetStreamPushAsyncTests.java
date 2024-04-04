@@ -156,8 +156,8 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
     @Test
     public void testPushAsyncFlowControl() throws Exception {
-        TestHandler testHandler = new TestHandler();
-        Options.Builder ob = new Options.Builder().errorListener(testHandler);
+        ListenerForTesting listenerForTesting = new ListenerForTesting();
+        Options.Builder ob = new Options.Builder().errorListener(listenerForTesting);
 
         runInJsServer(ob, nc -> {
             // Create our JetStream context.
@@ -204,7 +204,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             awaitAndAssert(msgLatch);
 
             assertEquals(MSG_COUNT, count.get());
-            assertFalse(testHandler.getFlowControlProcessedEvents().isEmpty());
+            assertFalse(listenerForTesting.getFlowControlProcessedEvents().isEmpty());
         });
     }
 

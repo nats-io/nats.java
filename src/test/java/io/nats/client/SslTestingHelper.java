@@ -22,7 +22,7 @@ import java.security.KeyStore;
 import java.security.SecureRandom;
 import java.util.Properties;
 
-public class TestSSLUtils {
+public class SslTestingHelper {
     public static String KEYSTORE_PATH = "src/test/resources/keystore.jks";
     public static String TRUSTSTORE_PATH = "src/test/resources/truststore.jks";
     public static String PASSWORD = "password";
@@ -34,10 +34,10 @@ public class TestSSLUtils {
 
     public static Properties createTestSSLProperties() {
         Properties props = new Properties();
-        props.setProperty(Options.PROP_KEYSTORE, TestSSLUtils.KEYSTORE_PATH);
-        props.setProperty(Options.PROP_KEYSTORE_PASSWORD, TestSSLUtils.PASSWORD);
-        props.setProperty(Options.PROP_TRUSTSTORE, TestSSLUtils.TRUSTSTORE_PATH);
-        props.setProperty(Options.PROP_TRUSTSTORE_PASSWORD, TestSSLUtils.PASSWORD);
+        props.setProperty(Options.PROP_KEYSTORE, KEYSTORE_PATH);
+        props.setProperty(Options.PROP_KEYSTORE_PASSWORD, PASSWORD);
+        props.setProperty(Options.PROP_TRUSTSTORE, TRUSTSTORE_PATH);
+        props.setProperty(Options.PROP_TRUSTSTORE_PASSWORD, PASSWORD);
         return props;
     }
 

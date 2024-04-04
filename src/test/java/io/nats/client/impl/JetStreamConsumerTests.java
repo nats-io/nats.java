@@ -214,8 +214,8 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
 
     @Test
     public void testHeartbeatError() throws Exception {
-        TestHandler testHandler = new TestHandler();
-        runInJsServer(testHandler, nc -> {
+        ListenerForTesting listenerForTesting = new ListenerForTesting();
+        runInJsServer(listenerForTesting, nc -> {
             TestingStreamContainer tsc = new TestingStreamContainer(nc);
 
             JetStream js = nc.jetStream();
@@ -226,29 +226,29 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
             PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
             CountDownLatch latch = setupFactory(js);
             JetStreamSubscription sub = js.subscribe(tsc.subject(), pso);
-            validate(sub, testHandler, latch, null);
+            validate(sub, listenerForTesting, latch, null);
 
             latch = setupFactory(js);
             sub = js.subscribe(tsc.subject(), d, m -> {}, false, pso);
-            validate(sub, testHandler, latch, d);
+            validate(sub, listenerForTesting, latch, d);
 
             pso = PushSubscribeOptions.builder().ordered(true).configuration(cc).build();
             latch = setupOrderedFactory(js);
             sub = js.subscribe(tsc.subject(), pso);
-            validate(sub, testHandler, latch, null);
+            validate(sub, listenerForTesting, latch, null);
 
             latch = setupOrderedFactory(js);
             sub = js.subscribe(tsc.subject(), d, m -> {}, false, pso);
-            validate(sub, testHandler, latch, d);
+            validate(sub, listenerForTesting, latch, d);
 
             latch = setupPullFactory(js);
             sub = js.subscribe(tsc.subject(), PullSubscribeOptions.DEFAULT_PULL_OPTS);
             sub.pull(PullRequestOptions.builder(1).idleHeartbeat(100).expiresIn(2000).build());
-            validate(sub, testHandler, latch, null);
+            validate(sub, listenerForTesting, latch, null);
         });
     }
 
-    private static void validate(JetStreamSubscription sub, TestHandler handler, CountDownLatch latch, Dispatcher d) throws InterruptedException {
+    private static void validate(JetStreamSubscription sub, ListenerForTesting listener, CountDownLatch latch, Dispatcher d) throws InterruptedException {
         //noinspection ResultOfMethodCallIgnored
         latch.await(2, TimeUnit.SECONDS);
         if (d == null) {
@@ -258,8 +258,8 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
             d.unsubscribe(sub);
         }
         assertEquals(0, latch.getCount());
-        assertFalse(handler.getHeartbeatAlarms().isEmpty());
-        handler.reset();
+        assertFalse(listener.getHeartbeatAlarms().isEmpty());
+        listener.reset();
     }
 
     private static CountDownLatch setupFactory(JetStream js) {
