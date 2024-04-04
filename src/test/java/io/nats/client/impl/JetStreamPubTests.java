@@ -23,9 +23,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -182,6 +180,38 @@ public class JetStreamPubTests extends JetStreamTestBase {
             msg = NatsMessage.builder().subject(tsc.subject()).build();
             assertFutureJetStreamApiException(js.publishAsync(msg, pox2));
         });
+    }
+
+    @Test
+    public void testMultithreadedPublishAsync() throws Exception {
+        final ExecutorService executorService = Executors.newFixedThreadPool(3);
+        try {
+            jsServer.run(nc -> {
+                TestingStreamContainer tsc = new TestingStreamContainer(nc);
+                final int messagesToPublish = 6;
+                // create a new connection that does not have the inbox dispatcher set
+                try (NatsConnection nc2 = new NatsConnection(nc.getOptions())){
+                    nc2.connect(true);
+                    JetStream js = nc2.jetStream();
+
+                    List<Future<CompletableFuture<PublishAck>>> futures = new ArrayList<>();
+                    for (int i = 0; i < messagesToPublish; i++) {
+                        final Future<CompletableFuture<PublishAck>> submitFuture = executorService.submit(() ->
+                                js.publishAsync(tsc.subject(), dataBytes(1)));
+                        futures.add(submitFuture);
+                    }
+                    // verify all messages were published
+                    for (int i = 0; i < messagesToPublish; i++) {
+                        CompletableFuture<PublishAck> future = futures.get(i).get(200, TimeUnit.MILLISECONDS);
+                        PublishAck pa = future.get(200, TimeUnit.MILLISECONDS);
+                        assertEquals(tsc.stream, pa.getStream());
+                        assertFalse(pa.isDuplicate());
+                    }
+                }
+            });
+        } finally {
+            executorService.shutdownNow();
+        }
     }
 
     private void assertFutureIOException(CompletableFuture<PublishAck> future) {
