@@ -66,32 +66,32 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void testPushBeforeQueueProcessorAndManage() throws Exception {
-        TestHandler handler = new TestHandler();
-        runInJsServer(handler, nc -> {
+        ListenerForTesting listener = new ListenerForTesting();
+        runInJsServer(listener, nc -> {
             NatsJetStreamSubscription sub = genericPushSub(nc);
 
             PushMessageManager pushMgr = getPushManager(nc, push_hb_fc(), sub, false, true, false);
-            testPushBqpAndManage(sub, handler, pushMgr);
+            testPushBqpAndManage(sub, listener, pushMgr);
 
             pushMgr = getPushManager(nc, push_hb_xfc(), sub, false, true, false);
-            testPushBqpAndManage(sub, handler, pushMgr);
+            testPushBqpAndManage(sub, listener, pushMgr);
 
             pushMgr = getPushManager(nc, push_xhb_xfc(), sub, false, true, false);
-            testPushBqpAndManage(sub, handler, pushMgr);
+            testPushBqpAndManage(sub, listener, pushMgr);
 
             pushMgr = getPushManager(nc, push_hb_fc(), sub, false, false, false);
-            testPushBqpAndManage(sub, handler, pushMgr);
+            testPushBqpAndManage(sub, listener, pushMgr);
 
             pushMgr = getPushManager(nc, push_hb_xfc(), sub, false, false, false);
-            testPushBqpAndManage(sub, handler, pushMgr);
+            testPushBqpAndManage(sub, listener, pushMgr);
 
             pushMgr = getPushManager(nc, push_xhb_xfc(), sub, false, false, false);
-            testPushBqpAndManage(sub, handler, pushMgr);
+            testPushBqpAndManage(sub, listener, pushMgr);
         });
     }
 
-    private void testPushBqpAndManage(NatsJetStreamSubscription sub, TestHandler handler, PushMessageManager manager) {
-        handler.reset();
+    private void testPushBqpAndManage(NatsJetStreamSubscription sub, ListenerForTesting listener, PushMessageManager manager) {
+        listener.reset();
         String sid = sub.getSID();
 
         assertTrue(manager.beforeQueueProcessorImpl(getTestJsMessage(1, sid)));
@@ -118,10 +118,10 @@ public class MessageManagerTests extends JetStreamTestBase {
         unhandledCodes.add(999);
 
         sleep(100);
-        List<TestHandler.StatusEvent> list = handler.getUnhandledStatuses();
+        List<ListenerForTesting.StatusEvent> list = listener.getUnhandledStatuses();
         assertEquals(unhandledCodes.size(), list.size());
         for (int x = 0; x < list.size(); x++) {
-            TestHandler.StatusEvent se = list.get(x);
+            ListenerForTesting.StatusEvent se = list.get(x);
             assertSame(sub.getSID(), se.sid);
             assertEquals(unhandledCodes.get(x), se.status.getCode());
         }
@@ -129,22 +129,22 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void testPullBeforeQueueProcessorAndManage() throws Exception {
-        TestHandler handler = new TestHandler();
-        runInJsServer(handler, nc -> {
+        ListenerForTesting listener = new ListenerForTesting();
+        runInJsServer(listener, nc -> {
             NatsJetStreamSubscription sub = genericPullSub(nc);
 
             PullMessageManager pullMgr = getPullManager(nc, sub, true);
             pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).build(), true, null);
-            testPullBqpAndManage(sub, handler, pullMgr);
+            testPullBqpAndManage(sub, listener, pullMgr);
 
             pullMgr = getPullManager(nc, sub, true);
             pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).expiresIn(10000).idleHeartbeat(100).build(), true, null);
-            testPullBqpAndManage(sub, handler, pullMgr);
+            testPullBqpAndManage(sub, listener, pullMgr);
         });
     }
 
-    private void testPullBqpAndManage(NatsJetStreamSubscription sub, TestHandler handler, PullMessageManager manager) {
-        handler.reset();
+    private void testPullBqpAndManage(NatsJetStreamSubscription sub, ListenerForTesting listener, PullMessageManager manager) {
+        listener.reset();
         String sid = sub.getSID();
 
         // only plain heartbeats don't get queued
@@ -181,20 +181,20 @@ public class MessageManagerTests extends JetStreamTestBase {
 
         sleep(100);
 
-        List<TestHandler.StatusEvent> list = handler.getPullStatusWarnings();
+        List<ListenerForTesting.StatusEvent> list = listener.getPullStatusWarnings();
         int[] codes = new int[]{NOT_FOUND_CODE, REQUEST_TIMEOUT_CODE, CONFLICT_CODE, CONFLICT_CODE, CONFLICT_CODE, CONFLICT_CODE};
         assertEquals(6, list.size());
         for (int x = 0; x < list.size(); x++) {
-            TestHandler.StatusEvent se = list.get(x);
+            ListenerForTesting.StatusEvent se = list.get(x);
             assertSame(sub.getSID(), se.sid);
             assertEquals(codes[x], se.status.getCode());
         }
 
-        list = handler.getPullStatusErrors();
+        list = listener.getPullStatusErrors();
         assertEquals(4, list.size());
         codes = new int[]{BAD_REQUEST_CODE, 999, CONFLICT_CODE, CONFLICT_CODE};
         for (int x = 0; x < list.size(); x++) {
-            TestHandler.StatusEvent se = list.get(x);
+            ListenerForTesting.StatusEvent se = list.get(x);
             assertSame(sub.getSID(), se.sid);
             assertEquals(codes[x], se.status.getCode());
         }
@@ -202,71 +202,71 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void testPushManagerHeartbeats() throws Exception {
-        TestHandler handler = new TestHandler();
-        runInJsServer(handler, nc -> {
+        ListenerForTesting listener = new ListenerForTesting();
+        runInJsServer(listener, nc -> {
             PushMessageManager pushMgr = getPushManager(nc, push_xhb_xfc(), null, false, true, false);
             NatsJetStreamSubscription sub = mockSub((NatsConnection)nc, pushMgr);
 
-            handler.reset();
-            handler.prepForHeartbeatAlarm();
+            listener.reset();
+            listener.prepForHeartbeatAlarm();
             pushMgr.startup(sub);
-            TestHandler.HeartbeatAlarmEvent event = handler.waitForHeartbeatAlarm(1000);
+            ListenerForTesting.HeartbeatAlarmEvent event = listener.waitForHeartbeatAlarm(1000);
             assertNull(event);
 
-            handler.reset();
-            handler.prepForHeartbeatAlarm();
+            listener.reset();
+            listener.prepForHeartbeatAlarm();
             pushMgr = getPushManager(nc, push_xhb_xfc(), null, false, false, false);
             sub = mockSub((NatsConnection)nc, pushMgr);
             pushMgr.startup(sub);
-            event = handler.waitForHeartbeatAlarm(1000);
+            event = listener.waitForHeartbeatAlarm(1000);
             assertNull(event);
 
-            handler.reset();
-            handler.prepForHeartbeatAlarm();
+            listener.reset();
+            listener.prepForHeartbeatAlarm();
             PushSubscribeOptions pso = ConsumerConfiguration.builder().idleHeartbeat(100).buildPushSubscribeOptions();
             pushMgr = getPushManager(nc, pso, null, false, true, false);
             sub = mockSub((NatsConnection)nc, pushMgr);
             pushMgr.startup(sub);
-            event = handler.waitForHeartbeatAlarm(1000);
+            event = listener.waitForHeartbeatAlarm(1000);
             assertNotNull(event);
 
-            handler.reset();
-            handler.prepForHeartbeatAlarm();
+            listener.reset();
+            listener.prepForHeartbeatAlarm();
             pushMgr = getPushManager(nc, pso, null, false, false, false);
             sub = mockSub((NatsConnection)nc, pushMgr);
             pushMgr.startup(sub);
-            event = handler.waitForHeartbeatAlarm(1000);
+            event = listener.waitForHeartbeatAlarm(1000);
             assertNotNull(event);
         });
     }
 
     @Test
     public void testPullManagerHeartbeats() throws Exception {
-        TestHandler handler = new TestHandler();
-        runInJsServer(handler, nc -> {
+        ListenerForTesting listener = new ListenerForTesting();
+        runInJsServer(listener, nc -> {
             PullMessageManager pullMgr = getPullManager(nc, null, true);
             NatsJetStreamSubscription sub = mockSub((NatsConnection)nc, pullMgr);
             pullMgr.startup(sub);
             pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).build(), false, null);
-            assertEquals(0, handler.getHeartbeatAlarms().size());
+            assertEquals(0, listener.getHeartbeatAlarms().size());
             assertNull(pullMgr.heartbeatTimer);
 
-            handler.reset();
-            handler.prepForHeartbeatAlarm();
+            listener.reset();
+            listener.prepForHeartbeatAlarm();
             pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).expiresIn(10000).idleHeartbeat(100).build(), false, null);
-            TestHandler.HeartbeatAlarmEvent event = handler.waitForHeartbeatAlarm(1000);
+            ListenerForTesting.HeartbeatAlarmEvent event = listener.waitForHeartbeatAlarm(1000);
             assertNotNull(event);
 
-            handler.reset();
-            handler.prepForHeartbeatAlarm();
+            listener.reset();
+            listener.prepForHeartbeatAlarm();
             pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).expiresIn(10000).idleHeartbeat(100).build(), false, null);
-            event = handler.waitForHeartbeatAlarm(1000);
+            event = listener.waitForHeartbeatAlarm(1000);
             assertNotNull(event);
 
-            handler.reset();
-            handler.prepForHeartbeatAlarm();
+            listener.reset();
+            listener.prepForHeartbeatAlarm();
             pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).build(), false, null);
-            event = handler.waitForHeartbeatAlarm(1000);
+            event = listener.waitForHeartbeatAlarm(1000);
             assertNull(event);
         });
     }

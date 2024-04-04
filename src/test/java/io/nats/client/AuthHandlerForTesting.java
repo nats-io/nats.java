@@ -16,14 +16,14 @@ package io.nats.client;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 
-public class TestAuthHandler implements AuthHandler {
-    private NKey nkey;
+public class AuthHandlerForTesting implements AuthHandler {
+    private final NKey nkey;
 
-    public TestAuthHandler(NKey nkey) {
+    public AuthHandlerForTesting(NKey nkey) {
         this.nkey = nkey;
     }
 
-    public TestAuthHandler() throws Exception {
+    public AuthHandlerForTesting() throws Exception {
         this.nkey = NKey.createUser(null);
     }
 

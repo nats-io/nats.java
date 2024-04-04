@@ -122,6 +122,28 @@ public interface JetStreamManagement {
     ConsumerInfo addOrUpdateConsumer(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException;
 
     /**
+     * Creates a consumer. Must not already exist.
+     * @param streamName name of the stream
+     * @param config the consumer configuration to use.
+     * @return consumer information.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data such as the consumer already exists
+     */
+    ConsumerInfo createConsumer(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException;
+
+    /**
+     * Updates an existing consumer. Must already exist.
+     * @param streamName name of the stream
+     * @param config the consumer configuration to use.
+     * @return consumer information.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data such as the consumer does not already exist
+     */
+    ConsumerInfo updateConsumer(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException;
+
+    /**
      * Deletes a consumer.
      * @param streamName name of the stream
      * @param consumerName the name of the consumer.

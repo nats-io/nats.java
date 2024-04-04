@@ -13,7 +13,7 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.TestSSLUtils;
+import io.nats.client.SslTestingHelper;
 
 import javax.net.ssl.SSLContext;
 
@@ -24,7 +24,7 @@ public class SSLContextFactoryForTesting implements SSLContextFactory {
     public SSLContext createSSLContext(SSLContextFactoryProperties properties) {
         this.properties = properties;
         try {
-            return TestSSLUtils.createTestSSLContext();
+            return SslTestingHelper.createTestSSLContext();
         }
         catch (Exception e) {
             throw new RuntimeException(e);
