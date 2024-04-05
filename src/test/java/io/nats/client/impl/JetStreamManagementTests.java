@@ -252,7 +252,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testAddStreamInvalids() throws Exception {
-        jsServer.run(nc -> {
+        jsServer.run(TestBase::atLeast2_10, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             StreamConfiguration scNoName = StreamConfiguration.builder().build();
