@@ -510,6 +510,17 @@ If you need a snapshot version, you must enable snapshots and change your depend
 
 If you are using the 1.x version of java-nats and don't want to upgrade to 2.0.0 please use ranges in your POM file, java-nats-streaming 1.x is using [1.1, 1.9.9) for this.
 
+### Using GraalVM Example
+
+Important GraalVM configurations are `--initialize-at-run-time=io.nats.client.support.RandomUtils`
+and `--initialize-at-run-time=java.security.SecureRandom`. These will instruct GraalVM to initialize specified classes
+at runtime. So that these instances don't have fixed seeds. GraalVM won't compile without these parameters.
+
+Explore the [nats-graalvm-example](https://github.com/YunaBraska/nats-graalvm-example) repository for a straightforward
+demonstration on creating efficient NATS clients with GraalVM.
+This example leverages the [jNats](https://github.com/nats-io/nats.java) client to connect to a
+[NATS test server](https://github.com/YunaBraska/nats-server), which is included within the project.
+
 ## Basic Usage
 
 Sending and receiving with NATS is as simple as connecting to the nats-server and publishing or subscribing for messages.
