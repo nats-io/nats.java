@@ -266,7 +266,7 @@ public class ValidatorTests {
     }
 
     @Test
-    public void testValidateWildcardKeyRequired() {
+    public void testValidateKvKeyWildcardAllowedRequired() {
         validateKvKeyWildcardAllowedRequired(PLAIN);
         validateKvKeyWildcardAllowedRequired(PLAIN.toUpperCase());
         validateKvKeyWildcardAllowedRequired(HAS_DASH);
@@ -277,7 +277,8 @@ public class ValidatorTests {
         validateKvKeyWildcardAllowedRequired(STAR_NOT_SEGMENT);
         validateKvKeyWildcardAllowedRequired(GT_NOT_SEGMENT);
         validateKvKeyWildcardAllowedRequired("numbers9ok");
-        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(null));
+        String nullKey = null;
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(nullKey));
         assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(HAS_SPACE));
         assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(HAS_DOLLAR));
         assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(HAS_LOW));
@@ -285,6 +286,12 @@ public class ValidatorTests {
         assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(HAS_TIC));
         assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired("colon:isbetween9andA"));
         assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(".starts.with.dot.not.allowed"));
+
+        List<String> nullList = null;
+        //noinspection ConstantValue
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(nullList));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(Collections.singletonList(null)));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(Collections.singletonList(HAS_SPACE)));
     }
 
     @Test
