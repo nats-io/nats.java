@@ -54,8 +54,8 @@ public class ObjectStoreTests extends JetStreamTestBase {
                 .build();
 
             ObjectStoreStatus status = osm.create(osc);
-            validateStatus(status, bucket, desc, metadata);
-            validateStatus(osm.getStatus(bucket), bucket, desc, metadata);
+            validateStatus(status, bucket, desc);
+            validateStatus(osm.getStatus(bucket), bucket, desc);
 
             JetStreamManagement jsm = nc.jetStreamManagement();
             assertNotNull(jsm.getStreamInfo("OBJ_" + bucket));
@@ -68,7 +68,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
             ObjectStore os = nc.objectStore(bucket);
             nc.objectStore(bucket, ObjectStoreOptions.builder(DEFAULT_JS_OPTIONS).build()); // coverage;
 
-            validateStatus(os.getStatus(), bucket, desc, metadata);
+            validateStatus(os.getStatus(), bucket, desc);
 
             // object not found errors
             assertClientError(OsObjectNotFound, () -> os.get("notFound", new ByteArrayOutputStream()));
@@ -159,7 +159,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
         });
     }
 
-    private static void validateStatus(ObjectStoreStatus status, String bucket, String desc, Map<String, String> metadata) {
+    private static void validateStatus(ObjectStoreStatus status, String bucket, String desc) {
         assertEquals(bucket, status.getBucketName());
         assertEquals(desc, status.getDescription());
         assertFalse(status.isSealed());
@@ -229,7 +229,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
         File found = null;
         long foundLen = Long.MAX_VALUE;
         final String classPath = System.getProperty("java.class.path", ".");
-        final String[] classPathElements = classPath.split(System.getProperty("path.separator"));
+        final String[] classPathElements = classPath.split(File.pathSeparator);
         for(final String element : classPathElements){
             File f = new File(element);
             if (f.isFile()) {
