@@ -1,5 +1,30 @@
 # Change Log
 
+## 2.17.5
+
+#### Core
+* Log connect trace server uri when reconnecting #1106 @photizzo
+* Ensure NatsConnection inboxDispatcher is started prior to publishing messages #1109 @nathanschile
+
+#### JetStream
+* Add support for Consumer Create Action #1108 @scottf
+
+#### KV
+* KV Watch Multiple Filters #1113 @scottf
+* KV Watch Multiple Filters Additional Test #1114 @scottf
+
+### Simplification
+
+#### Test
+* Testing Cleanup Only - No Functionality Changes #1110 @scottf
+* Don't run testAddStreamInvalids with server older than 2.10 #1111 @scottf
+
+#### Doc
+* Added graalvm setup example #1112 @YunaBraska
+* Graalvm readme touch-up #1115 @scottf
+
+#### Misc
+
 ## 2.17.4
 
 #### Core
