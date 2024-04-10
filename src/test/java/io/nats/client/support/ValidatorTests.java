@@ -289,9 +289,9 @@ public class ValidatorTests {
 
         List<String> nullList = null;
         //noinspection ConstantValue
-        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(nullList));
-        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(Collections.singletonList(null)));
-        assertThrows(IllegalArgumentException.class, () -> validateKvKeyWildcardAllowedRequired(Collections.singletonList(HAS_SPACE)));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeysWildcardAllowedRequired(nullList));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeysWildcardAllowedRequired(Collections.singletonList(null)));
+        assertThrows(IllegalArgumentException.class, () -> validateKvKeysWildcardAllowedRequired(Collections.singletonList(HAS_SPACE)));
     }
 
     @Test

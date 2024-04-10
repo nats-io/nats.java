@@ -277,6 +277,9 @@ public class TestBase {
         }
     }
 
+    public static String HUB_DOMAIN = "HUB";
+    public static String LEAF_DOMAIN = "LEAF";
+
     public static void runInJsHubLeaf(TwoServerTest twoServerTest) throws Exception {
         int hubPort = NatsTestServer.nextPort();
         int hubLeafPort = NatsTestServer.nextPort();
