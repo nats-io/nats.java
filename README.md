@@ -519,9 +519,9 @@ To inlcude this library with a GraalVM project, there are 2 important configurat
 These will instruct GraalVM to initialize specified classes at runtime, so that these instances don't have fixed seeds. 
 GraalVM won't compile without these parameters.
 
-For a much more thorough discussion of the subject, please visit the  [nats-graalvm-example](https://github.com/YunaBraska/nats-graalvm-example) repository 
+For a much more thorough discussion of the subject, please visit the [nats-graalvm-example](https://github.com/YunaBraska/nats-graalvm-example) repository 
 made by one of our contributors. There is detailed demonstration for creating an efficient NATS clients with GraalVM.
-This example leverages the client to connect to a [NATS test server](https://github.com/YunaBraska/nats-server).
+This example leverages the client to connect to a server.
 
 ## Basic Usage
 
