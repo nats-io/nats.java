@@ -260,8 +260,8 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
 
     @Override
     public NatsKeyValueWatchSubscription watch(List<String> keys, KeyValueWatcher watcher, long fromRevision, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
-        // all watch methods (watch, watch all) delegate to here
-        validateKvKeyWildcardAllowedRequired(keys);
+        // all watch methods (watch, watchAll) delegate to here
+        validateKvKeysWildcardAllowedRequired(keys);
         validateNotNull(watcher, "Watcher is required");
         return new NatsKeyValueWatchSubscription(this, keys, watcher, fromRevision, watchOptions);
     }

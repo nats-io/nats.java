@@ -914,6 +914,8 @@ public class KeyValueTests extends JetStreamTestBase {
         TestKeyValueWatcher gtMetaWatcher = new TestKeyValueWatcher("gtMetaWatcher", true, META_ONLY);
         TestKeyValueWatcher multipleFullWatcher = new TestKeyValueWatcher("multipleFullWatcher", true);
         TestKeyValueWatcher multipleMetaWatcher = new TestKeyValueWatcher("multipleMetaWatcher", true, META_ONLY);
+        TestKeyValueWatcher multipleFullWatcher2 = new TestKeyValueWatcher("multipleFullWatcher2", true);
+        TestKeyValueWatcher multipleMetaWatcher2 = new TestKeyValueWatcher("multipleMetaWatcher2", true, META_ONLY);
         TestKeyValueWatcher key1AfterWatcher = new TestKeyValueWatcher("key1AfterWatcher", false, META_ONLY);
         TestKeyValueWatcher key1AfterIgDelWatcher = new TestKeyValueWatcher("key1AfterIgDelWatcher", false, META_ONLY, IGNORE_DELETE);
         TestKeyValueWatcher key1AfterStartNewWatcher = new TestKeyValueWatcher("key1AfterStartNewWatcher", false, META_ONLY, UPDATES_ONLY);
@@ -926,7 +928,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
         List<String> allKeys = Arrays.asList(TEST_WATCH_KEY_1, TEST_WATCH_KEY_2, TEST_WATCH_KEY_NULL);
 
-        runInJsServer(nc -> {
+        jsServer.run(nc -> {
             _testWatch(nc, key1FullWatcher, key1AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1FullWatcher, key1FullWatcher.watchOptions));
             _testWatch(nc, key1MetaWatcher, key1AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1MetaWatcher, key1MetaWatcher.watchOptions));
             _testWatch(nc, key1StartNewWatcher, key1AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1StartNewWatcher, key1StartNewWatcher.watchOptions));
@@ -943,6 +945,8 @@ public class KeyValueTests extends JetStreamTestBase {
             _testWatch(nc, gtMetaWatcher, allExpecteds, -1, kv -> kv.watch("key.>", gtMetaWatcher, gtMetaWatcher.watchOptions));
             _testWatch(nc, multipleFullWatcher, allExpecteds, -1, kv -> kv.watch(allKeys, multipleFullWatcher, multipleFullWatcher.watchOptions));
             _testWatch(nc, multipleMetaWatcher, allExpecteds, -1, kv -> kv.watch(allKeys, multipleMetaWatcher, multipleMetaWatcher.watchOptions));
+            _testWatch(nc, multipleFullWatcher2, allExpecteds, -1, kv -> kv.watch(String.join(",", allKeys), multipleFullWatcher2, multipleFullWatcher.watchOptions));
+            _testWatch(nc, multipleMetaWatcher2, allExpecteds, -1, kv -> kv.watch(String.join(",", allKeys), multipleMetaWatcher2, multipleMetaWatcher.watchOptions));
             _testWatch(nc, key1AfterWatcher, purgeOnlyExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1AfterWatcher, key1AfterWatcher.watchOptions));
             _testWatch(nc, key1AfterIgDelWatcher, noExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1AfterIgDelWatcher, key1AfterIgDelWatcher.watchOptions));
             _testWatch(nc, key1AfterStartNewWatcher, noExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1AfterStartNewWatcher, key1AfterStartNewWatcher.watchOptions));
@@ -958,7 +962,7 @@ public class KeyValueTests extends JetStreamTestBase {
     private void _testWatch(Connection nc, TestKeyValueWatcher watcher, Object[] expectedKves, long fromRevision, TestWatchSubSupplier supplier) throws Exception {
         KeyValueManagement kvm = nc.keyValueManagement();
 
-        String bucket = watcher.name + "Bucket";
+        String bucket = variant() + watcher.name + "Bucket";
         kvm.create(KeyValueConfiguration.builder()
             .name(bucket)
             .maxHistoryPerKey(10)
@@ -1022,7 +1026,6 @@ public class KeyValueTests extends JetStreamTestBase {
         long lastRevision = -1;
 
         for (KeyValueEntry kve : watcher.entries) {
-
             assertTrue(kve.getCreated().isAfter(lastCreated) || kve.getCreated().isEqual(lastCreated));
             lastCreated = kve.getCreated();
 
@@ -1056,12 +1059,8 @@ public class KeyValueTests extends JetStreamTestBase {
         }
     }
 
-    static final String BUCKET_CREATED_BY_USER_A = "bucketA";
-    static final String BUCKET_CREATED_BY_USER_I = "bucketI";
-
     @Test
     public void testWithAccount() throws Exception {
-
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/kv_account.conf", false)) {
             Options acctA = new Options.Builder().server(ts.getURI()).userInfo("a", "a").build();
             Options acctI = new Options.Builder().server(ts.getURI()).userInfo("i", "i").inboxPrefix("ForI").build();
@@ -1083,35 +1082,37 @@ public class KeyValueTests extends JetStreamTestBase {
                 KeyValueManagement kvmUserIBcktA = connUserI.keyValueManagement(jsOpt_UserI_BucketA_WithPrefix);
                 KeyValueManagement kvmUserIBcktI = connUserI.keyValueManagement(jsOpt_UserI_BucketI_WithPrefix);
 
+                String bucketA = bucket();
                 KeyValueConfiguration kvcA = KeyValueConfiguration.builder()
-                    .name(BUCKET_CREATED_BY_USER_A).storageType(StorageType.Memory).maxHistoryPerKey(64).build();
+                    .name(bucketA).storageType(StorageType.Memory).maxHistoryPerKey(64).build();
 
+                String bucketI = bucket();
                 KeyValueConfiguration kvcI = KeyValueConfiguration.builder()
-                    .name(BUCKET_CREATED_BY_USER_I).storageType(StorageType.Memory).maxHistoryPerKey(64).build();
+                    .name(bucketI).storageType(StorageType.Memory).maxHistoryPerKey(64).build();
 
                 // testing KVM API
-                assertEquals(BUCKET_CREATED_BY_USER_A, kvmUserA.create(kvcA).getBucketName());
-                assertEquals(BUCKET_CREATED_BY_USER_I, kvmUserIBcktI.create(kvcI).getBucketName());
+                assertEquals(bucketA, kvmUserA.create(kvcA).getBucketName());
+                assertEquals(bucketI, kvmUserIBcktI.create(kvcI).getBucketName());
 
-                assertKvAccountBucketNames(kvmUserA.getBucketNames());
-                assertKvAccountBucketNames(kvmUserIBcktI.getBucketNames());
+                assertKvAccountBucketNames(kvmUserA.getBucketNames(), bucketA, bucketI);
+                assertKvAccountBucketNames(kvmUserIBcktI.getBucketNames(), bucketA, bucketI);
 
-                assertEquals(BUCKET_CREATED_BY_USER_A, kvmUserA.getStatus(BUCKET_CREATED_BY_USER_A).getBucketName());
-                assertEquals(BUCKET_CREATED_BY_USER_A, kvmUserIBcktA.getStatus(BUCKET_CREATED_BY_USER_A).getBucketName());
-                assertEquals(BUCKET_CREATED_BY_USER_I, kvmUserA.getStatus(BUCKET_CREATED_BY_USER_I).getBucketName());
-                assertEquals(BUCKET_CREATED_BY_USER_I, kvmUserIBcktI.getStatus(BUCKET_CREATED_BY_USER_I).getBucketName());
+                assertEquals(bucketA, kvmUserA.getStatus(bucketA).getBucketName());
+                assertEquals(bucketA, kvmUserIBcktA.getStatus(bucketA).getBucketName());
+                assertEquals(bucketI, kvmUserA.getStatus(bucketI).getBucketName());
+                assertEquals(bucketI, kvmUserIBcktI.getStatus(bucketI).getBucketName());
 
                 // some more prep
-                KeyValue kv_connA_bucketA = connUserA.keyValue(BUCKET_CREATED_BY_USER_A);
-                KeyValue kv_connA_bucketI = connUserA.keyValue(BUCKET_CREATED_BY_USER_I);
-                KeyValue kv_connI_bucketA = connUserI.keyValue(BUCKET_CREATED_BY_USER_A, jsOpt_UserI_BucketA_WithPrefix);
-                KeyValue kv_connI_bucketI = connUserI.keyValue(BUCKET_CREATED_BY_USER_I, jsOpt_UserI_BucketI_WithPrefix);
+                KeyValue kv_connA_bucketA = connUserA.keyValue(bucketA);
+                KeyValue kv_connA_bucketI = connUserA.keyValue(bucketI);
+                KeyValue kv_connI_bucketA = connUserI.keyValue(bucketA, jsOpt_UserI_BucketA_WithPrefix);
+                KeyValue kv_connI_bucketI = connUserI.keyValue(bucketI, jsOpt_UserI_BucketI_WithPrefix);
 
                 // check the names
-                assertEquals(BUCKET_CREATED_BY_USER_A, kv_connA_bucketA.getBucketName());
-                assertEquals(BUCKET_CREATED_BY_USER_A, kv_connI_bucketA.getBucketName());
-                assertEquals(BUCKET_CREATED_BY_USER_I, kv_connA_bucketI.getBucketName());
-                assertEquals(BUCKET_CREATED_BY_USER_I, kv_connI_bucketI.getBucketName());
+                assertEquals(bucketA, kv_connA_bucketA.getBucketName());
+                assertEquals(bucketA, kv_connI_bucketA.getBucketName());
+                assertEquals(bucketI, kv_connA_bucketI.getBucketName());
+                assertEquals(bucketI, kv_connI_bucketI.getBucketName());
 
                 TestKeyValueWatcher watcher_connA_BucketA = new TestKeyValueWatcher("watcher_connA_BucketA", true);
                 TestKeyValueWatcher watcher_connA_BucketI = new TestKeyValueWatcher("watcher_connA_BucketI", true);
@@ -1154,10 +1155,10 @@ public class KeyValueTests extends JetStreamTestBase {
         }
     }
 
-    private void assertKvAccountBucketNames(List<String> bnames) {
+    private void assertKvAccountBucketNames(List<String> bnames, String bucketA, String bucketI) {
         assertEquals(2, bnames.size());
-        assertTrue(bnames.contains(BUCKET_CREATED_BY_USER_A));
-        assertTrue(bnames.contains(BUCKET_CREATED_BY_USER_I));
+        assertTrue(bnames.contains(bucketA));
+        assertTrue(bnames.contains(bucketI));
     }
 
     private void assertKvAccountKeys(List<String> keys, String key1, String key2) {
@@ -1457,39 +1458,42 @@ public class KeyValueTests extends JetStreamTestBase {
             KeyValueManagement leafKvm = leaf.keyValueManagement();
 
             // Create main KV on HUB
+            String hubBucket = variant();
             KeyValueStatus hubStatus = hubKvm.create(KeyValueConfiguration.builder()
-                .name("TEST")
+                .name(hubBucket)
                 .storageType(StorageType.Memory)
                 .build());
 
-            KeyValue hubKv = hub.keyValue("TEST");
+            KeyValue hubKv = hub.keyValue(hubBucket);
             hubKv.put("key1", "aaa0");
             hubKv.put("key2", "bb0");
             hubKv.put("key3", "c0");
             hubKv.delete("key3");
 
+            String leafBucket = variant();
+            String leafStream = "KV_" + leafBucket;
             leafKvm.create(KeyValueConfiguration.builder()
-                .name("MIRROR")
+                .name(leafBucket)
                 .mirror(Mirror.builder()
-                    .sourceName("TEST")
+                    .sourceName(hubBucket)
                     .domain(null)  // just for coverage!
-                    .domain("HUB") // it will take this since it comes last
+                    .domain(HUB_DOMAIN) // it will take this since it comes last
                     .build())
                 .build());
 
             sleep(200); // make sure things get a chance to propagate
-            StreamInfo si = leaf.jetStreamManagement().getStreamInfo("KV_MIRROR");
+            StreamInfo si = leaf.jetStreamManagement().getStreamInfo(leafStream);
             if (hub.getServerInfo().isSameOrNewerThanVersion("2.9")) {
                 assertTrue(si.getConfiguration().getMirrorDirect());
             }
             assertEquals(3, si.getStreamState().getMsgCount());
 
-            KeyValue leafKv = leaf.keyValue("MIRROR");
+            KeyValue leafKv = leaf.keyValue(leafBucket);
             _testMirror(hubKv, leafKv, 1);
 
             // Bind through leafnode connection but to origin KV.
             KeyValue hubViaLeafKv =
-                leaf.keyValue("TEST", KeyValueOptions.builder().jsDomain("HUB").build());
+                leaf.keyValue(hubBucket, KeyValueOptions.builder().jsDomain(HUB_DOMAIN).build());
             _testMirror(hubKv, hubViaLeafKv, 2);
         });
     }
