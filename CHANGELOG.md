@@ -1,6 +1,11 @@
 # Change Log
 
+## 2.17.6
 ## 2.17.5
+
+2.17.6 was released immediately after 2.17.5. The allowing of a comma delimited list of keys was removed. 
+This is noted since it was technically available for several hours even though it was never publicly announced,
+and will be considered a bug fix.
 
 #### Core
 * Log connect trace server uri when reconnecting #1106 @photizzo
@@ -12,6 +17,7 @@
 #### KV
 * KV Watch Multiple Filters #1113 @scottf
 * KV Watch Multiple Filters Additional Test #1114 @scottf
+* KV Watch Multiple Filters remove comma delimited support #1117
 
 ### Simplification
 
