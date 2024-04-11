@@ -4,7 +4,7 @@
 
 ### A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
-**Current Release**: 2.17.6 &nbsp; **Current Snapshot**: 2.17.7-SNAPSHOT 
+**Current Release**: 2.17.6 &nbsp; **Current Snapshot**: 2.17.7-SNAPSHOT
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
@@ -13,7 +13,12 @@
 [![Build Main Badge](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml/badge.svg?event=push)](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml)
 [![Release Badge](https://github.com/nats-io/nats.java/actions/workflows/build-release.yml/badge.svg?event=release)](https://github.com/nats-io/nats.java/actions/workflows/build-release.yml)
 
-**Check out [NATS by example](https://natsbyexample.com) - An evolving collection of runnable, cross-client reference examples for NATS.**
+The [**API**](https://javadoc.io/doc/io.nats/jnats/latest/index.html) is simple to use and highly performant.
+
+**Check out [NATS by Example](https://natsbyexample.com) - An evolving collection of runnable, cross-client reference examples for NATS.**
+
+There are also many basic examples in the [examples](https://github.com/nats-io/nats.java/tree/main/src/examples/java/io/nats/examples) directory of this repo
+and more simple application examples in the [Java Nats Examples](https://github.com/nats-io/java-nats-examples) repo.
 
 ### Simplification
 
@@ -39,14 +44,6 @@ The Services Framework further streamlines their development by providing observ
 Check out the [ServiceExample](src/examples/java/io/nats/examples/service/ServiceExample.java)
 
 ### Versions Specific Notes
-
-This is version 2.x of the java-nats library.
-
-The API is [simple to use](#listening-for-incoming-messages) and highly [performant](#Benchmarking).
-
-Version 2+ uses a simplified versioning scheme. Any issues will be fixed in the incremental version number. As a major release, the major version has been updated to 2 to allow clients to limit there use of this new API. With the addition of drain() we updated to 2.1, NKey support moved us to 2.2.
-
-Previous versions are still available in the repo.
 
 #### Version 2.17.4 Core Improvements
 
