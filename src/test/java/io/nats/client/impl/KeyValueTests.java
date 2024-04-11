@@ -914,8 +914,6 @@ public class KeyValueTests extends JetStreamTestBase {
         TestKeyValueWatcher gtMetaWatcher = new TestKeyValueWatcher("gtMetaWatcher", true, META_ONLY);
         TestKeyValueWatcher multipleFullWatcher = new TestKeyValueWatcher("multipleFullWatcher", true);
         TestKeyValueWatcher multipleMetaWatcher = new TestKeyValueWatcher("multipleMetaWatcher", true, META_ONLY);
-        TestKeyValueWatcher multipleFullWatcher2 = new TestKeyValueWatcher("multipleFullWatcher2", true);
-        TestKeyValueWatcher multipleMetaWatcher2 = new TestKeyValueWatcher("multipleMetaWatcher2", true, META_ONLY);
         TestKeyValueWatcher key1AfterWatcher = new TestKeyValueWatcher("key1AfterWatcher", false, META_ONLY);
         TestKeyValueWatcher key1AfterIgDelWatcher = new TestKeyValueWatcher("key1AfterIgDelWatcher", false, META_ONLY, IGNORE_DELETE);
         TestKeyValueWatcher key1AfterStartNewWatcher = new TestKeyValueWatcher("key1AfterStartNewWatcher", false, META_ONLY, UPDATES_ONLY);
@@ -956,8 +954,6 @@ public class KeyValueTests extends JetStreamTestBase {
             if (atLeast2_10()) {
                 _testWatch(nc, multipleFullWatcher, allExpecteds, -1, kv -> kv.watch(allKeys, multipleFullWatcher, multipleFullWatcher.watchOptions));
                 _testWatch(nc, multipleMetaWatcher, allExpecteds, -1, kv -> kv.watch(allKeys, multipleMetaWatcher, multipleMetaWatcher.watchOptions));
-                _testWatch(nc, multipleFullWatcher2, allExpecteds, -1, kv -> kv.watch(String.join(",", allKeys), multipleFullWatcher2, multipleFullWatcher.watchOptions));
-                _testWatch(nc, multipleMetaWatcher2, allExpecteds, -1, kv -> kv.watch(String.join(",", allKeys), multipleMetaWatcher2, multipleMetaWatcher.watchOptions));
             }
         });
     }

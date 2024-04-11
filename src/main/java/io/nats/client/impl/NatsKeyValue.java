@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -239,28 +238,27 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
 
     @Override
     public NatsKeyValueWatchSubscription watch(String key, KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
-        if (key.contains(",")) {
-            return watch(Arrays.asList(key.split(",")), watcher, -1, watchOptions);
-        }
-        return watch(Collections.singletonList(key), watcher, -1, watchOptions);
+        validateKvKeyWildcardAllowedRequired(key);
+        validateNotNull(watcher, "Watcher is required");
+        return new NatsKeyValueWatchSubscription(this, Collections.singletonList(key), watcher, -1, watchOptions);
     }
 
     @Override
     public NatsKeyValueWatchSubscription watch(String key, KeyValueWatcher watcher, long fromRevision, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
-        if (key.contains(",")) {
-            return watch(Arrays.asList(key.split(",")), watcher, fromRevision, watchOptions);
-        }
-        return watch(Collections.singletonList(key), watcher, fromRevision, watchOptions);
+        validateKvKeyWildcardAllowedRequired(key);
+        validateNotNull(watcher, "Watcher is required");
+        return new NatsKeyValueWatchSubscription(this, Collections.singletonList(key), watcher, fromRevision, watchOptions);
     }
 
     @Override
     public NatsKeyValueWatchSubscription watch(List<String> keys, KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
-        return watch(keys, watcher, -1, watchOptions);
+        validateKvKeysWildcardAllowedRequired(keys);
+        validateNotNull(watcher, "Watcher is required");
+        return new NatsKeyValueWatchSubscription(this, keys, watcher, -1, watchOptions);
     }
 
     @Override
     public NatsKeyValueWatchSubscription watch(List<String> keys, KeyValueWatcher watcher, long fromRevision, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
-        // all watch methods (watch, watchAll) delegate to here
         validateKvKeysWildcardAllowedRequired(keys);
         validateNotNull(watcher, "Watcher is required");
         return new NatsKeyValueWatchSubscription(this, keys, watcher, fromRevision, watchOptions);
