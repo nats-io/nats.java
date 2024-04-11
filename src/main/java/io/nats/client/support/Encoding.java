@@ -17,7 +17,6 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.Base64;
 
 public abstract class Encoding {
     private Encoding() {}  /* ensures cannot be constructed */
@@ -30,7 +29,7 @@ public abstract class Encoding {
      */
     @Deprecated
     public static byte[] base64Encode(byte[] input) {
-        return Base64.getUrlEncoder().withoutPadding().encode(input);
+        return Base64Utils.getUrlEncoder().withoutPadding().encode(input);
     }
 
     /**
@@ -39,7 +38,7 @@ public abstract class Encoding {
      * @return the encoded byte array
      */
     public static byte[] base64UrlEncode(byte[] input) {
-        return Base64.getUrlEncoder().withoutPadding().encode(input);
+        return Base64Utils.getUrlEncoder().withoutPadding().encode(input);
     }
 
     /**
@@ -66,7 +65,7 @@ public abstract class Encoding {
      * @return the decoded byte array
      */
     public static byte[] base64UrlDecode(byte[] input) {
-        return Base64.getUrlDecoder().decode(input);
+        return Base64Utils.getUrlDecoder().decode(input);
     }
 
     /**

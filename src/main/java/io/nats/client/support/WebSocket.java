@@ -25,7 +25,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,7 +62,7 @@ public class WebSocket extends Socket {
         // been base64-encoded
         byte[] keyBytes = new byte[16];
         new SecureRandom().nextBytes(keyBytes);
-        String key = Base64.getEncoder().encodeToString(keyBytes);
+        String key = Base64Utils.getEncoder().encodeToString(keyBytes);
 
         request.getHeaders()
             .add("Host", host)
@@ -130,7 +129,7 @@ public class WebSocket extends Socket {
         }
         sha1.update(key.getBytes(UTF_8));
         sha1.update("258EAFA5-E914-47DA-95CA-C5AB0DC85B11".getBytes(UTF_8));
-        String acceptKey = Base64.getEncoder().encodeToString(
+        String acceptKey = Base64Utils.getEncoder().encodeToString(
             sha1.digest());
         String gotAcceptKey = headers.get("sec-websocket-accept");
         if (!acceptKey.equals(gotAcceptKey)) {

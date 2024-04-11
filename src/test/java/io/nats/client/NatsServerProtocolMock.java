@@ -13,11 +13,12 @@
 
 package io.nats.client;
 
+import io.nats.client.support.Base64Utils;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -175,7 +176,7 @@ public class NatsServerProtocolMock implements Closeable{
             }
             
             byte[] nonce = "abcdefg".getBytes(StandardCharsets.UTF_8);
-            String encoded = Base64.getUrlEncoder().withoutPadding().encodeToString(nonce);
+            String encoded = Base64Utils.getUrlEncoder().withoutPadding().encodeToString(nonce);
 
             if (this.customInfo != null) {
                 if (customInfoIsFullInfo) {

@@ -18,7 +18,6 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
 
 import static io.nats.client.support.Digester.DEFAULT_DIGEST_ALGORITHM;
 import static io.nats.client.support.Digester.DEFAULT_STRING_ENCODING;
@@ -29,9 +28,9 @@ public final class DigesterTests {
     @Test
     public void testDigester() throws NoSuchAlgorithmException {
         Digester digester1 = new Digester();
-        Digester digester2 = new Digester(Base64.getUrlEncoder());
+        Digester digester2 = new Digester(Base64Utils.getUrlEncoder());
         Digester digester3 = new Digester(DEFAULT_DIGEST_ALGORITHM);
-        Digester digester4 = new Digester(DEFAULT_DIGEST_ALGORITHM, DEFAULT_STRING_ENCODING, Base64.getUrlEncoder());
+        Digester digester4 = new Digester(DEFAULT_DIGEST_ALGORITHM, DEFAULT_STRING_ENCODING, Base64Utils.getUrlEncoder());
 
         String s = "1234567890abcdefghijklmnopqrstuvwxyz~!@#$%^&*()_+1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ~!@#$%^&*()_+";
         byte[] b = s.getBytes(StandardCharsets.UTF_8);

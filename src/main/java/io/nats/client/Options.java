@@ -14,6 +14,7 @@
 package io.nats.client;
 
 import io.nats.client.impl.*;
+import io.nats.client.support.Base64Utils;
 import io.nats.client.support.HttpRequest;
 import io.nats.client.support.NatsConstants;
 import io.nats.client.support.NatsUri;
@@ -2362,7 +2363,7 @@ public class Options {
                 nkey = new char[0];
             }
 
-            String encodedSig = Base64.getUrlEncoder().withoutPadding().encodeToString(sig);
+            String encodedSig = Base64Utils.getUrlEncoder().withoutPadding().encodeToString(sig);
 
             appendOption(connectString, Options.OPTION_NKEY, nkey, true, true);
             appendOption(connectString, Options.OPTION_SIG, encodedSig, true, true);

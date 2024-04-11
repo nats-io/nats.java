@@ -19,15 +19,16 @@ import io.nats.client.ObjectStoreManagement;
 import io.nats.client.api.*;
 import io.nats.client.impl.NatsObjectStoreWatchSubscription;
 import io.nats.client.support.ApiConstants;
+import io.nats.client.support.Base64Utils;
 import io.nats.client.support.JsonValueUtils;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.nio.file.Files;
 import java.time.Duration;
-import java.util.Base64;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -209,10 +210,10 @@ public class ObjectStoreCommand extends Command {
         public void endOfData() {}
     }
 
-    protected void respondDigest(ObjectInfo oi) {
+    protected void respondDigest(ObjectInfo oi) throws UnsupportedEncodingException {
         String digest = oi.getDigest();
         Log.info("RESPOND " + subject + " digest " + digest);
-        byte[] payload = Base64.getUrlDecoder().decode(digest.substring(8));
+        byte[] payload = Base64Utils.getUrlDecoder().decode(digest.substring(8));
         nc.publish(replyTo, payload);
     }
 

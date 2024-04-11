@@ -13,18 +13,18 @@
 
 package io.nats.client.api;
 
+import io.nats.client.support.Base64Utils;
 import io.nats.client.support.ServerVersion;
 import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ServerInfoTests {
     static byte[] nonce = "abcdefg".getBytes(StandardCharsets.UTF_8);
-    static String encoded = Base64.getUrlEncoder().withoutPadding().encodeToString(nonce);
+    static String encoded = Base64Utils.getUrlEncoder().withoutPadding().encodeToString(nonce);
     static String json = ResourceUtils.dataAsString("ServerInfoJson.txt").replace("<encoded>", encoded);
 
     @Test

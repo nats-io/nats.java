@@ -13,6 +13,7 @@
 
 package io.nats.client;
 
+import io.nats.client.support.Base64Utils;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -20,7 +21,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.List;
 
 import static io.nats.client.NKey.removePaddingAndClear;
@@ -519,10 +519,10 @@ public class NKeyTests {
 
         assertEquals(fromSeed.getType(), NKey.Type.USER);
 
-        byte[] nonceData = Base64.getUrlDecoder().decode(nonce);
-        byte[] nonceSig = Base64.getUrlDecoder().decode(nonceEncodedSig);
+        byte[] nonceData = Base64Utils.getUrlDecoder().decode(nonce);
+        byte[] nonceSig = Base64Utils.getUrlDecoder().decode(nonceEncodedSig);
         byte[] seedNonceSig = fromSeed.sign(nonceData);
-        String encodedSeedNonceSig = Base64.getUrlEncoder().withoutPadding().encodeToString(seedNonceSig);
+        String encodedSeedNonceSig = Base64Utils.getUrlEncoder().withoutPadding().encodeToString(seedNonceSig);
 
         assertTrue(Arrays.equals(seedNonceSig, nonceSig));
         assertEquals(nonceEncodedSig, encodedSeedNonceSig);
@@ -533,8 +533,8 @@ public class NKeyTests {
         assertTrue(fromPublicKey.verify(nonceData, seedNonceSig));
 
         byte[] seedSig = fromSeed.sign(data);
-        byte[] sig = Base64.getUrlDecoder().decode(encodedSig);
-        String encodedSeedSig = Base64.getUrlEncoder().withoutPadding().encodeToString(seedSig);
+        byte[] sig = Base64Utils.getUrlDecoder().decode(encodedSig);
+        String encodedSeedSig = Base64Utils.getUrlEncoder().withoutPadding().encodeToString(seedSig);
 
         assertTrue(Arrays.equals(seedSig, sig));
         assertEquals(encodedSig, encodedSeedSig);

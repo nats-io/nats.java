@@ -16,7 +16,6 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
 
 /**
  * This is a utility class for making digesting data.
@@ -26,7 +25,7 @@ public class Digester {
     public static final Charset DEFAULT_STRING_ENCODING = StandardCharsets.UTF_8;
 
     private final Charset stringCharset;
-    private final Base64.Encoder encoder;
+    private final Base64Utils.Encoder encoder;
     private final MessageDigest digest;
     private String digestValue;
 
@@ -34,7 +33,7 @@ public class Digester {
         this(null, null, null);
     }
 
-    public Digester(Base64.Encoder encoder) throws NoSuchAlgorithmException {
+    public Digester(Base64Utils.Encoder encoder) throws NoSuchAlgorithmException {
         this(null, null, encoder);
     }
 
@@ -42,9 +41,9 @@ public class Digester {
         this(digestAlgorithm, null, null);
     }
 
-    public Digester(String digestAlgorithm, Charset stringCharset, Base64.Encoder encoder) throws NoSuchAlgorithmException {
+    public Digester(String digestAlgorithm, Charset stringCharset, Base64Utils.Encoder encoder) throws NoSuchAlgorithmException {
         this.stringCharset = stringCharset == null ? DEFAULT_STRING_ENCODING : stringCharset;
-        this.encoder = encoder == null ? Base64.getUrlEncoder() : encoder;
+        this.encoder = encoder == null ? Base64Utils.getUrlEncoder() : encoder;
         this.digest = MessageDigest.getInstance(
             digestAlgorithm == null ? DEFAULT_DIGEST_ALGORITHM : digestAlgorithm);
     }
