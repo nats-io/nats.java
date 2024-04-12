@@ -397,4 +397,51 @@ public class TLSConnectTests {
         assertEquals("tlsAlgorithm", factory.properties.tlsAlgorithm);
         assertEquals("tlsAlgorithm", factory.properties.getTlsAlgorithm());
     }
+
+    static class SimulateMismatchNatsConnection extends NatsConnection {
+        public SimulateMismatchNatsConnection(Options options) {
+            super(options);
+        }
+
+        @Override
+        void handleInfo(String infoJson) {
+            super.handleInfo(infoJson.replace("\"tls_required\":true", "\"tls_required\":false"));
+        }
+    }
+
+    @SuppressWarnings({"resource"})
+    @Test
+    public void testMismatch() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
+            String servers = ts.getURI();
+
+            // without the mismatch flag throws an exception
+            ListenerForTesting listener = new ListenerForTesting();
+            Options options = new Options.Builder()
+                .server(servers)
+                .maxReconnects(0)
+                .sslContext(SslTestingHelper.createTestSSLContext())
+                .errorListener(listener)
+                .build();
+
+            SimulateMismatchNatsConnection connNoFlag = new SimulateMismatchNatsConnection(options);
+            assertThrows(Exception.class, () -> connNoFlag.connect(false));
+            assertEquals(1, listener.getExceptions().size());
+            assertTrue(listener.getExceptions().get(0).getMessage().contains("SSL connection wanted by client"));
+
+            // with the mismatch flag everything is fine
+            listener.reset();
+            options = new Options.Builder()
+                .server(servers)
+                .maxReconnects(0)
+                .sslContext(SslTestingHelper.createTestSSLContext())
+                .errorListener(listener)
+                .skipSecureMatchCheck()
+                .build();
+
+            SimulateMismatchNatsConnection connWithFlag = new SimulateMismatchNatsConnection(options);
+            connWithFlag.connect(false);
+            standardConnectionWait(connWithFlag);
+        }
+    }
 }

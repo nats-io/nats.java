@@ -458,6 +458,11 @@ public class Options {
      */
     public static final String PROP_TLS_FIRST = PFX + "tls.first";
     /**
+     * Property used to configure to skip checking whether the client and server
+     * match that they should both be secure or both be insecure.
+     */
+    public static final String PROP_SKIP_SECURE_MATCH_CHECK = PFX + "skip.secure.match.check";
+    /**
      * This property is used to enable support for UTF8 subjects. See {@link Builder#supportUTF8Subjects() supportUTF8Subjects()}
      * @deprecated only plain ascii subjects are supported
      */
@@ -601,6 +606,7 @@ public class Options {
     private final boolean discardMessagesWhenOutgoingQueueFull;
     private final boolean ignoreDiscoveredServers;
     private final boolean tlsFirst;
+    private final boolean skipSecureMatchCheck;
     private final boolean useTimeoutException;
     private final boolean useDispatcherWithExecutor;
 
@@ -714,6 +720,7 @@ public class Options {
         private boolean discardMessagesWhenOutgoingQueueFull = DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL;
         private boolean ignoreDiscoveredServers = false;
         private boolean tlsFirst = false;
+        private boolean skipSecureMatchCheck = false;
         private boolean useTimeoutException = false;
         private boolean useDispatcherWithExecutor = false;
         private ServerPool serverPool = null;
@@ -846,6 +853,8 @@ public class Options {
 
             booleanProperty(props, PROP_IGNORE_DISCOVERED_SERVERS, b -> this.ignoreDiscoveredServers = b);
             booleanProperty(props, PROP_TLS_FIRST, b -> this.tlsFirst = b);
+            booleanProperty(props, PROP_SKIP_SECURE_MATCH_CHECK, b -> this.skipSecureMatchCheck = b);
+
             booleanProperty(props, PROP_USE_TIMEOUT_EXCEPTION, b -> this.useTimeoutException = b);
             booleanProperty(props, PROP_USE_DISPATCHER_WITH_EXECUTOR, b -> this.useDispatcherWithExecutor = b);
 
@@ -1577,6 +1586,17 @@ public class Options {
         }
 
         /**
+         * Set to skip checking if the client and server have different requirements for secure connection.
+         * Typically only used when connecting to a secure proxy but the proxy connects to the server insecurely.
+         * Default is not to skip.
+         * @return the Builder for chaining
+         */
+        public Builder skipSecureMatchCheck() {
+            this.skipSecureMatchCheck = true;
+            return this;
+        }
+
+        /**
          * Throw {@link java.util.concurrent.TimeoutException} on timeout instead of {@link java.util.concurrent.CancellationException}?
          * @return the Builder for chaining
          */
@@ -1585,6 +1605,10 @@ public class Options {
             return this;
         }
 
+        /**
+         * Set to use the dispatcher that uses an executor task for delivering each message.
+         * @return the Builder for chaining
+         */
         public Builder useDispatcherWithExecutor() {
             this.useDispatcherWithExecutor = true;
             return this;
@@ -1807,6 +1831,7 @@ public class Options {
 
             this.ignoreDiscoveredServers = o.ignoreDiscoveredServers;
             this.tlsFirst = o.tlsFirst;
+            this.skipSecureMatchCheck = o.skipSecureMatchCheck;
             this.useTimeoutException = o.useTimeoutException;
             this.useDispatcherWithExecutor = o.useDispatcherWithExecutor;
 
@@ -1868,6 +1893,7 @@ public class Options {
 
         this.ignoreDiscoveredServers = b.ignoreDiscoveredServers;
         this.tlsFirst = b.tlsFirst;
+        this.skipSecureMatchCheck = b.skipSecureMatchCheck;
         this.useTimeoutException = b.useTimeoutException;
         this.useDispatcherWithExecutor = b.useDispatcherWithExecutor;
 
@@ -2100,8 +2126,7 @@ public class Options {
     }
 
     /**
-     *
-     * @return true if there is an sslContext for this Options, otherwise false, see {@link Builder#secure() secure()} in the builder doc
+     * @return true if there is an sslContext for Options, otherwise false, see {@link Builder#secure() secure()} in the builder doc
      */
     public boolean isTLSRequired() {
         return tlsFirst || this.sslContext != null;
@@ -2279,11 +2304,19 @@ public class Options {
     }
 
     /**
-     * Get whether to do tls first
+     * Get if the client should do tls first
      * @return the flag
      */
     public boolean isTlsFirst() {
         return tlsFirst;
+    }
+
+    /**
+     * Get if the client should skip secure match check
+     * @return true if the secure match check should be skipped
+     */
+    public boolean isSkipSecureMatchCheck() {
+        return skipSecureMatchCheck;
     }
 
     /**
@@ -2424,6 +2457,7 @@ public class Options {
         _appendOptionEnd(builder, quotes);
     }
 
+    @SuppressWarnings("SameParameterValue")
     private static void appendOption(CharBuffer builder, String key, char[] value, boolean quotes, boolean comma) {
         _appendStart(builder, key, quotes, comma);
         builder.put(value);
@@ -2511,6 +2545,7 @@ public class Options {
         }
     }
 
+    @SuppressWarnings("SameParameterValue")
     private static void longProperty(Properties props, String key, long defaultValue, java.util.function.Consumer<Long> consumer) {
         String value = getPropertyValue(props, key);
         if (value == null) {

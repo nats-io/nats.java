@@ -576,7 +576,7 @@ class NatsConnection implements Connection {
 
     void checkVersionRequirements() throws IOException {
         Options opts = getOptions();
-        ServerInfo info = getInfo();
+        ServerInfo info = getServerInfo();
 
         if (opts.isNoEcho() && info.getProtocolVersion() < 1) {
             throw new IOException("Server does not support no echo.");
@@ -589,7 +589,7 @@ class NatsConnection implements Connection {
             this.dataPort.upgradeToSecure();
         }
         else {
-            ServerInfo serverInfo = getInfo();
+            ServerInfo serverInfo = getServerInfo();
             boolean before2_9_19 = serverInfo.isOlderThanVersion("2.9.19");
 
             boolean isTLSRequired = clientOptions.isTLSRequired();
@@ -602,11 +602,13 @@ class NatsConnection implements Connection {
                 }
                 upgradeRequired = false;
             }
-            if (isTLSRequired && !serverInfo.isTLSRequired()) {
-                throw new IOException("SSL connection wanted by client.");
-            }
-            else if (!isTLSRequired && serverInfo.isTLSRequired()) {
-                throw new IOException("SSL required by server.");
+            if (!clientOptions.isSkipSecureMatchCheck()) {
+                if (isTLSRequired && !serverInfo.isTLSRequired()) {
+                    throw new IOException("SSL connection wanted by client.");
+                }
+                else if (!isTLSRequired && serverInfo.isTLSRequired()) {
+                    throw new IOException("SSL required by server.");
+                }
             }
             if (upgradeRequired) {
                 this.dataPort.upgradeToSecure();
@@ -873,8 +875,9 @@ class NatsConnection implements Connection {
     }
 
     void publishInternal(String subject, String replyTo, Headers headers, byte[] data) {
-        checkIfNeedsHeaderSupport(headers);
-        checkPayloadSize(data);
+        ServerInfo si = getServerInfo();
+        checkIfNeedsHeaderSupport(headers, si);
+        checkPayloadSize(data, si);
 
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
@@ -893,19 +896,23 @@ class NatsConnection implements Connection {
         queueOutgoing(nm);
     }
 
-    private void checkIfNeedsHeaderSupport(Headers headers) {
-        if (headers != null && !headers.isEmpty() && !serverInfo.get().isHeadersSupported()) {
+    private void checkIfNeedsHeaderSupport(Headers headers, ServerInfo si) {
+        if (headers != null && !headers.isEmpty() && !si.isHeadersSupported()) {
             throw new IllegalArgumentException(
-                    "Headers are not supported by the server, version: " + serverInfo.get().getVersion());
+                    "Headers are not supported by the server, version: " + si.getVersion());
         }
     }
 
-    private void checkPayloadSize(byte[] body) {
-        if (options.clientSideLimitChecks() && body != null && body.length > this.getMaxPayload() && this.getMaxPayload() > 0) {
-            throw new IllegalArgumentException(
-                "Message payload size exceed server configuration " + body.length + " vs " + this.getMaxPayload());
+    private void checkPayloadSize(byte[] body, ServerInfo si) {
+        if (options.clientSideLimitChecks() && body != null) {
+            long max = getMaxPayload(si);
+            if (max > 0 && body.length > max) {
+                throw new IllegalArgumentException(
+                    "Message payload size exceed server configuration " + body.length + " vs " + max);
+            }
         }
     }
+
     /**
      * {@inheritDoc}
      */
@@ -1179,7 +1186,7 @@ class NatsConnection implements Connection {
     }
 
     CompletableFuture<Message> requestFutureInternal(String subject, Headers headers, byte[] data, Duration futureTimeout, CancelAction cancelAction) {
-        checkPayloadSize(data);
+        checkPayloadSize(data, getServerInfo());
 
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
@@ -1382,7 +1389,7 @@ class NatsConnection implements Connection {
 
     void sendConnect(NatsUri nuri) throws IOException {
         try {
-            ServerInfo info = this.serverInfo.get();
+            ServerInfo info = getServerInfo();
             // This is changed - we used to use info.isAuthRequired(), but are changing it to
             // better match older versions of the server. It may change again in the future.
             CharBuffer connectOptions = options.buildProtocolConnectOptionsString(
@@ -1551,7 +1558,7 @@ class NatsConnection implements Connection {
         ServerInfo serverInfo = new ServerInfo(infoJson);
         this.serverInfo.set(serverInfo);
 
-        List<String> urls = this.serverInfo.get().getConnectURLs();
+        List<String> urls = serverInfo.getConnectURLs();
         if (urls != null && !urls.isEmpty()) {
             if (serverPool.acceptDiscoveredUrls(urls)) {
                 processConnectionEvent(Events.DISCOVERED_SERVERS);
@@ -1720,7 +1727,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public ServerInfo getServerInfo() {
-        return getInfo();
+        return serverInfo.get();
     }
 
     /**
@@ -1729,15 +1736,11 @@ class NatsConnection implements Connection {
     @Override
     public InetAddress getClientInetAddress() {
         try {
-            return InetAddress.getByName(getInfo().getClientIp());
+            return InetAddress.getByName(getServerInfo().getClientIp());
         }
         catch (Exception e) {
             return null;
         }
-    }
-
-    ServerInfo getInfo() {
-        return this.serverInfo.get();
     }
 
     /**
@@ -1769,14 +1772,13 @@ class NatsConnection implements Connection {
         return this.subscribers.size() + this.dispatchers.size();
     }
 
+    @Override
     public long getMaxPayload() {
-        ServerInfo info = this.serverInfo.get();
+        return getMaxPayload(getServerInfo());
+    }
 
-        if (info == null) {
-            return -1;
-        }
-
-        return info.getMaxPayload();
+    private static long getMaxPayload(ServerInfo info) {
+        return info == null ? -1 : info.getMaxPayload();
     }
 
     /**

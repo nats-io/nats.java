@@ -22,8 +22,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class InfoHandlerTests {
     @Test
@@ -33,16 +32,14 @@ public class InfoHandlerTests {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo)) {
             Connection nc = Nats.connect(ts.getURI());
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
-                assertEquals("myid", ((NatsConnection) nc).getInfo().getServerId(), "got custom info");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertEquals("myid", nc.getServerInfo().getServerId(), "got custom info");
             } finally {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
-
-
 
     @Test
     public void testUnsolicitedInfo() throws IOException, InterruptedException, ExecutionException {
@@ -91,20 +88,18 @@ public class InfoHandlerTests {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(infoCustomizer, customInfo)) {
             Connection nc = Nats.connect(ts.getURI());
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
-                assertEquals("myid", ((NatsConnection) nc).getInfo().getServerId(), "got custom info");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertEquals("myid", nc.getServerInfo().getServerId(), "got custom info");
                 sendInfo.complete(Boolean.TRUE);
 
-                assertTrue(gotPong.get().booleanValue(), "Got pong."); // Server round tripped so we should have new info
-                assertEquals("replacement", ((NatsConnection) nc).getInfo().getServerId(), "got replacement info");
+                assertTrue(gotPong.get(), "Got pong."); // Server round tripped so we should have new info
+                assertEquals("replacement", nc.getServerInfo().getServerId(), "got replacement info");
             } finally {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
-
-
 
     @Test
     public void testLDM() throws IOException, InterruptedException, ExecutionException, TimeoutException {
@@ -162,15 +157,15 @@ public class InfoHandlerTests {
 
             Connection nc = Nats.connect(options);
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
-                assertEquals("myid", ((NatsConnection) nc).getInfo().getServerId(), "got custom info");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertEquals("myid", nc.getServerInfo().getServerId(), "got custom info");
                 sendInfo.complete(Boolean.TRUE);
 
-                assertTrue(gotPong.get().booleanValue(), "Got pong."); // Server round tripped so we should have new info
-                assertEquals("replacement", ((NatsConnection) nc).getInfo().getServerId(), "got replacement info");
+                assertTrue(gotPong.get(), "Got pong."); // Server round tripped so we should have new info
+                assertEquals("replacement", nc.getServerInfo().getServerId(), "got replacement info");
             } finally {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
 
