@@ -198,8 +198,8 @@ public abstract class Encoding {
         int next = 0;
         int bitsLeft = 0;
 
-        for (int i = 0; i < input.length; i++) {
-            int lookup = input[i] - '0';
+        for (char value : input) {
+            int lookup = value - '0';
 
             if (lookup < 0 || lookup >= BASE32_LOOKUP.length) {
                 continue;
@@ -326,7 +326,7 @@ public abstract class Encoding {
      */
     @Deprecated
     public static byte[] base64Encode(byte[] input) {
-        return Base64.getUrlEncoder().withoutPadding().encode(input);
+        return base64UrlEncode(input);
     }
 
     /**
