@@ -34,7 +34,7 @@ public abstract class JwtUtils {
     private JwtUtils() {} /* ensures cannot be constructed */
 
     private static final String ENCODED_CLAIM_HEADER =
-            toBase64Url("{\"typ\":\"JWT\", \"alg\":\"ed25519-nkey\"}");
+        base64UrlEncodeToString("{\"typ\":\"JWT\", \"alg\":\"ed25519-nkey\"}");
 
     private static final long NO_LIMIT = -1;
 
@@ -251,11 +251,11 @@ public abstract class JwtUtils {
         claimJson = claim.toJson();
 
         // all three components (header/body/signature) are base64url encoded
-        String encBody = toBase64Url(claimJson);
+        String encBody = base64UrlEncodeToString(claimJson);
 
         // compute the signature off of header + body (. included on purpose)
         byte[] sig = (ENCODED_CLAIM_HEADER + "." + encBody).getBytes(StandardCharsets.UTF_8);
-        String encSig = toBase64Url(signingKey.sign(sig));
+        String encSig = base64UrlEncodeToString(signingKey.sign(sig));
 
         // append signature to header and body and return it
         return ENCODED_CLAIM_HEADER + "." + encBody + "." + encSig;
@@ -267,7 +267,7 @@ public abstract class JwtUtils {
      * @return the claim body json
      */
     public static String getClaimBody(String jwt) {
-        return fromBase64Url(jwt.split("\\.")[1]);
+        return base64UrlDecodeToString(jwt.split("\\.")[1]);
     }
 
     public static class UserClaim implements JsonSerializable {

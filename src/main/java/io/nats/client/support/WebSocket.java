@@ -25,13 +25,13 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
+import static io.nats.client.support.Encoding.base64BasicEncodeToString;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class WebSocket extends Socket {
@@ -63,7 +63,7 @@ public class WebSocket extends Socket {
         // been base64-encoded
         byte[] keyBytes = new byte[16];
         new SecureRandom().nextBytes(keyBytes);
-        String key = Base64.getEncoder().encodeToString(keyBytes);
+        String key = base64BasicEncodeToString(keyBytes);
 
         request.getHeaders()
             .add("Host", host)
@@ -130,8 +130,7 @@ public class WebSocket extends Socket {
         }
         sha1.update(key.getBytes(UTF_8));
         sha1.update("258EAFA5-E914-47DA-95CA-C5AB0DC85B11".getBytes(UTF_8));
-        String acceptKey = Base64.getEncoder().encodeToString(
-            sha1.digest());
+        String acceptKey = base64BasicEncodeToString(sha1.digest());
         String gotAcceptKey = headers.get("sec-websocket-accept");
         if (!acceptKey.equals(gotAcceptKey)) {
             throw new IllegalStateException(

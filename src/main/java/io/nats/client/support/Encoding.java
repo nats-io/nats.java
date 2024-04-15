@@ -23,15 +23,33 @@ public abstract class Encoding {
     private Encoding() {}  /* ensures cannot be constructed */
 
     /**
+     * base64 encode a byte array to a byte array
+     * @param input the input byte array to encode
+     * @return the encoded byte array
+     */
+    public static byte[] base64BasicEncode(byte[] input) {
+        return Base64.getEncoder().encode(input);
+    }
+
+    /**
+     * base64 encode a byte array to a byte array
+     * @param input the input byte array to encode
+     * @return the encoded byte array
+     */
+    public static String base64BasicEncodeToString(byte[] input) {
+        return Base64.getEncoder().encodeToString(input);
+    }
+
+    /**
      * base64 url encode a byte array to a byte array
      * @param input the input byte array to encode
      * @return the encoded byte array
-     * @deprecated prefer base64UrlEncode
      */
-    @Deprecated
-    public static byte[] base64Encode(byte[] input) {
-        return Base64.getUrlEncoder().withoutPadding().encode(input);
+    public static String base64BasicEncodeToString(String input) {
+        return Base64.getEncoder()
+            .encodeToString(input.getBytes(StandardCharsets.UTF_8));
     }
+
 
     /**
      * base64 url encode a byte array to a byte array
@@ -43,21 +61,50 @@ public abstract class Encoding {
     }
 
     /**
-     * base64 url encode a byte array to a string
+     * base64 url encode a byte array to a byte array
      * @param input the input byte array to encode
-     * @return the encoded string
+     * @return the encoded byte array
      */
-    public static String toBase64Url(byte[] input) {
-        return new String(base64UrlEncode(input));
+    public static String base64UrlEncodeToString(byte[] input) {
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(input);
     }
 
     /**
-     * base64 url encode a string to a string
-     * @param input the input string to encode
-     * @return the encoded string
+     * base64 url encode a byte array to a byte array
+     * @param input the input byte array to encode
+     * @return the encoded byte array
      */
-    public static String toBase64Url(String input) {
-        return new String(base64UrlEncode(input.getBytes(StandardCharsets.US_ASCII)));
+    public static String base64UrlEncodeToString(String input) {
+        return Base64.getUrlEncoder()
+            .withoutPadding()
+            .encodeToString(input.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * base64 decode a byte array
+     * @param input the input byte array to decode
+     * @return the decoded byte array
+     */
+    public static byte[] base64BasicDecode(byte[] input) {
+        return Base64.getDecoder().decode(input);
+    }
+
+    /**
+     * base64 decode a base64 encoded string
+     * @param input the input string to decode
+     * @return the decoded byte array
+     */
+    public static byte[] base64BasicDecode(String input) {
+        return Base64.getDecoder().decode(input);
+    }
+
+    /**
+     * base64 decode a base64 encoded string
+     * @param input the input string to decode
+     * @return the decoded string
+     */
+    public static String base64BasicDecodeToString(String input) {
+        return new String(Base64.getDecoder().decode(input));
     }
 
     /**
@@ -70,12 +117,21 @@ public abstract class Encoding {
     }
 
     /**
-     * get a string from a base64 url encoded byte array
+     * base64 url decode a base64 url encoded string
+     * @param input the input string to decode
+     * @return the decoded byte array
+     */
+    public static byte[] base64UrlDecode(String input) {
+        return Base64.getUrlDecoder().decode(input);
+    }
+
+    /**
+     * base64 url decode a base64 url encoded string
      * @param input the input string to decode
      * @return the decoded string
      */
-    public static String fromBase64Url(String input) {
-        return new String(base64UrlDecode(input.getBytes(StandardCharsets.US_ASCII)));
+    public static String base64UrlDecodeToString(String input) {
+        return new String(Base64.getUrlDecoder().decode(input));
     }
 
     // http://en.wikipedia.org/wiki/Base_32
@@ -170,7 +226,6 @@ public abstract class Encoding {
                 char nextChar = (x == len - 1) ? '\\' : s.charAt(x + 1);
                 switch (nextChar) {
                     case '\\':
-                        ch = '\\';
                         break;
                     case 'b':
                         ch = '\b';
@@ -261,5 +316,49 @@ public abstract class Encoding {
         } catch (UnsupportedEncodingException e) {
             return source;
         }
+    }
+
+    /**
+     * @deprecated Use {@link #base64UrlEncode(byte[])} instead.
+     * base64 url encode a byte array to a byte array
+     * @param input the input byte array to encode
+     * @return the encoded byte array
+     */
+    @Deprecated
+    public static byte[] base64Encode(byte[] input) {
+        return Base64.getUrlEncoder().withoutPadding().encode(input);
+    }
+
+    /**
+     * @deprecated Use {@link #base64UrlEncodeToString(byte[])} instead.
+     * base64 url encode a byte array to a string
+     * @param input the input byte array to encode
+     * @return the encoded string
+     */
+    @Deprecated
+    public static String toBase64Url(byte[] input) {
+        return base64UrlEncodeToString(input);
+    }
+
+    /**
+     * @deprecated Use {@link #base64UrlEncodeToString(String)} instead.
+     * base64 url encode a string to a string
+     * @param input the input string to encode
+     * @return the encoded string
+     */
+    @Deprecated
+    public static String toBase64Url(String input) {
+        return base64UrlEncodeToString(input);
+    }
+
+    /**
+     * @deprecated Use {@link #base64UrlDecodeToString(String)} instead.
+     * get a string from a base64 url encoded byte array
+     * @param input the input string to decode
+     * @return the decoded string
+     */
+    @Deprecated
+    public static String fromBase64Url(String input) {
+        return base64UrlDecodeToString(input);
     }
 }
