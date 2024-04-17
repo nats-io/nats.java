@@ -460,6 +460,9 @@ public class Options {
     /**
      * Property used to configure to skip checking whether the client and server
      * match that they should both be secure or both be insecure.
+     * The use case for this is when there is a proxy between the server and the client,
+     * where the client connects securely to the proxy, but the proxy connects insecurely
+     * to the server.
      */
     public static final String PROP_SKIP_SECURE_MATCH_CHECK = PFX + "skip.secure.match.check";
     /**
