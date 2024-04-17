@@ -602,7 +602,7 @@ class NatsConnection implements Connection {
                 }
                 upgradeRequired = false;
             }
-            if (!clientOptions.isSkipSecureMatchCheck()) {
+            if (!clientOptions.ignoreEndToEndSecurityMismatch()) {
                 if (isTLSRequired && !serverInfo.isTLSRequired()) {
                     throw new IOException("SSL connection wanted by client.");
                 }

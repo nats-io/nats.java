@@ -464,7 +464,7 @@ public class Options {
      * where the client connects securely to the proxy, but the proxy connects insecurely
      * to the server.
      */
-    public static final String PROP_SKIP_SECURE_MATCH_CHECK = PFX + "skip.secure.match.check";
+    public static final String PROP_IGNORE_END_TO_END_SECURITY_MISMATCH = PFX + "ignore.end.to.end.security.mismatch";
     /**
      * This property is used to enable support for UTF8 subjects. See {@link Builder#supportUTF8Subjects() supportUTF8Subjects()}
      * @deprecated only plain ascii subjects are supported
@@ -609,7 +609,7 @@ public class Options {
     private final boolean discardMessagesWhenOutgoingQueueFull;
     private final boolean ignoreDiscoveredServers;
     private final boolean tlsFirst;
-    private final boolean skipSecureMatchCheck;
+    private final boolean ignoreEndToEndSecurityMismatch;
     private final boolean useTimeoutException;
     private final boolean useDispatcherWithExecutor;
 
@@ -723,7 +723,7 @@ public class Options {
         private boolean discardMessagesWhenOutgoingQueueFull = DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL;
         private boolean ignoreDiscoveredServers = false;
         private boolean tlsFirst = false;
-        private boolean skipSecureMatchCheck = false;
+        private boolean ignoreEndToEndSecurityMismatch = false;
         private boolean useTimeoutException = false;
         private boolean useDispatcherWithExecutor = false;
         private ServerPool serverPool = null;
@@ -856,7 +856,7 @@ public class Options {
 
             booleanProperty(props, PROP_IGNORE_DISCOVERED_SERVERS, b -> this.ignoreDiscoveredServers = b);
             booleanProperty(props, PROP_TLS_FIRST, b -> this.tlsFirst = b);
-            booleanProperty(props, PROP_SKIP_SECURE_MATCH_CHECK, b -> this.skipSecureMatchCheck = b);
+            booleanProperty(props, PROP_IGNORE_END_TO_END_SECURITY_MISMATCH, b -> this.ignoreEndToEndSecurityMismatch = b);
 
             booleanProperty(props, PROP_USE_TIMEOUT_EXCEPTION, b -> this.useTimeoutException = b);
             booleanProperty(props, PROP_USE_DISPATCHER_WITH_EXECUTOR, b -> this.useDispatcherWithExecutor = b);
@@ -1594,8 +1594,8 @@ public class Options {
          * Default is not to skip.
          * @return the Builder for chaining
          */
-        public Builder skipSecureMatchCheck() {
-            this.skipSecureMatchCheck = true;
+        public Builder ignoreEndToEndSecurityMismatch() {
+            this.ignoreEndToEndSecurityMismatch = true;
             return this;
         }
 
@@ -1834,7 +1834,7 @@ public class Options {
 
             this.ignoreDiscoveredServers = o.ignoreDiscoveredServers;
             this.tlsFirst = o.tlsFirst;
-            this.skipSecureMatchCheck = o.skipSecureMatchCheck;
+            this.ignoreEndToEndSecurityMismatch = o.ignoreEndToEndSecurityMismatch;
             this.useTimeoutException = o.useTimeoutException;
             this.useDispatcherWithExecutor = o.useDispatcherWithExecutor;
 
@@ -1896,7 +1896,7 @@ public class Options {
 
         this.ignoreDiscoveredServers = b.ignoreDiscoveredServers;
         this.tlsFirst = b.tlsFirst;
-        this.skipSecureMatchCheck = b.skipSecureMatchCheck;
+        this.ignoreEndToEndSecurityMismatch = b.ignoreEndToEndSecurityMismatch;
         this.useTimeoutException = b.useTimeoutException;
         this.useDispatcherWithExecutor = b.useDispatcherWithExecutor;
 
@@ -2318,8 +2318,8 @@ public class Options {
      * Get if the client should skip secure match check
      * @return true if the secure match check should be skipped
      */
-    public boolean isSkipSecureMatchCheck() {
-        return skipSecureMatchCheck;
+    public boolean ignoreEndToEndSecurityMismatch() {
+        return ignoreEndToEndSecurityMismatch;
     }
 
     /**
