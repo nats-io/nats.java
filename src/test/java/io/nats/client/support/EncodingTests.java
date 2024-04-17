@@ -126,6 +126,7 @@ public final class EncodingTests {
 
         byte[] encBytes = Encoding.base64Encode(btxt); //deprecated for base64UrlEncode
         byte[] uencBytes = Encoding.base64UrlEncode(btxt);
+        assertEquals("YmxhaGJsYWg", base64UrlEncodeToString(text));
         assertEquals("YmxhaGJsYWg", new String(encBytes));
         assertEquals("YmxhaGJsYWg", new String(uencBytes));
         assertEquals("YmxhaGJsYWg", toBase64Url(text));   //deprecated
@@ -135,8 +136,9 @@ public final class EncodingTests {
         assertArrayEquals(btxt, base64UrlDecode(uencBytes));
 
         //noinspection deprecation
-        encBytes = Encoding.base64Encode(burl);
+        encBytes = Encoding.base64Encode(burl); //deprecated for base64UrlEncode
         uencBytes = Encoding.base64UrlEncode(burl);
+        assertEquals("aHR0cHM6Ly9uYXRzLmlvLw", base64UrlEncodeToString(surl));
         assertEquals("aHR0cHM6Ly9uYXRzLmlvLw", new String(encBytes));
         assertEquals("aHR0cHM6Ly9uYXRzLmlvLw", new String(uencBytes));
         assertEquals("aHR0cHM6Ly9uYXRzLmlvLw", toBase64Url(surl)); //deprecated
@@ -150,29 +152,29 @@ public final class EncodingTests {
         String data = ResourceUtils.dataAsString("digester_test_bytes_000100.txt");
         String check = ResourceUtils.dataAsString("digester_url_encoded_000100.txt");
         byte[] bytes = data.getBytes(StandardCharsets.UTF_8);
-        String enc = base64UrlEncodeToString(bytes);
-        assertEquals(check, enc);
-        assertArrayEquals(bytes, base64UrlDecode(enc));
+        String benc = base64UrlEncodeToString(bytes);
+        assertEquals(check, benc);
+        assertArrayEquals(bytes, base64UrlDecode(benc));
 
         data = ResourceUtils.dataAsString("digester_test_bytes_001000.txt");
         check = ResourceUtils.dataAsString("digester_url_encoded_001000.txt");
         bytes = data.getBytes(StandardCharsets.UTF_8);
-        enc = base64UrlEncodeToString(bytes);
-        assertEquals(check, enc);
-        assertArrayEquals(bytes, base64UrlDecode(enc));
+        benc = base64UrlEncodeToString(bytes);
+        assertEquals(check, benc);
+        assertArrayEquals(bytes, base64UrlDecode(benc));
 
         data = ResourceUtils.dataAsString("digester_test_bytes_010000.txt");
         check = ResourceUtils.dataAsString("digester_url_encoded_010000.txt");
         bytes = data.getBytes(StandardCharsets.UTF_8);
-        enc = base64UrlEncodeToString(bytes);
-        assertEquals(check, enc);
-        assertArrayEquals(bytes, base64UrlDecode(enc));
+        benc = base64UrlEncodeToString(bytes);
+        assertEquals(check, benc);
+        assertArrayEquals(bytes, base64UrlDecode(benc));
 
         data = ResourceUtils.dataAsString("digester_test_bytes_100000.txt");
         check = ResourceUtils.dataAsString("digester_url_encoded_100000.txt");
         bytes = data.getBytes(StandardCharsets.UTF_8);
-        enc = base64UrlEncodeToString(bytes);
-        assertEquals(check, enc);
-        assertArrayEquals(bytes, base64UrlDecode(enc));
+        benc = base64UrlEncodeToString(bytes);
+        assertEquals(check, benc);
+        assertArrayEquals(bytes, base64UrlDecode(benc));
     }
 }
