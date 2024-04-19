@@ -308,29 +308,29 @@ public class NatsMessageTests extends JetStreamTestBase {
     @Test
     public void testHeadersMutableBeforePublish() throws Exception {
         jsServer.run(connection -> {
-        String subject = subject();
-        Subscription sub = connection.subscribe(subject);
+            String subject = subject();
+            Subscription sub = connection.subscribe(subject);
 
-        Headers h = new Headers();
-        h.put("one", "A");
-        Message m = new NatsMessage(subject, null, h, null);
-        connection.publish(m);
-        Message incoming = sub.nextMessage(1000);
-        assertEquals(1, incoming.getHeaders().size());
+            Headers h = new Headers();
+            h.put("one", "A");
+            Message m = new NatsMessage(subject, null, h, null);
+            connection.publish(m);
+            Message incoming = sub.nextMessage(1000);
+            assertEquals(1, incoming.getHeaders().size());
 
-        // headers are no longer copied, just referenced
-        // so this will affect the message which is the same
-        // as the local copy
-        h.put("two", "B");
-        connection.publish(m);
-        incoming = sub.nextMessage(1000);
-        assertEquals(2, incoming.getHeaders().size());
+            // headers are no longer copied, just referenced
+            // so this will affect the message which is the same
+            // as the local copy
+            h.put("two", "B");
+            connection.publish(m);
+            incoming = sub.nextMessage(1000);
+            assertEquals(2, incoming.getHeaders().size());
 
-        // also if you get the headers from the message
-        m.getHeaders().put("three", "C");
-        connection.publish(m);
-        incoming = sub.nextMessage(1000);
-        assertEquals(3, incoming.getHeaders().size());
+            // also if you get the headers from the message
+            m.getHeaders().put("three", "C");
+            connection.publish(m);
+            incoming = sub.nextMessage(1000);
+            assertEquals(3, incoming.getHeaders().size());
         });
     }
 }
