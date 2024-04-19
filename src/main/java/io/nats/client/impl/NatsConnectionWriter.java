@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.Options;
 import io.nats.client.StatisticsCollector;
+import io.nats.client.support.ByteArrayBuilder;
 
 import java.io.IOException;
 import java.nio.BufferOverflowException;
@@ -125,8 +126,7 @@ class NatsConnectionWriter implements Runnable {
                 // Clear old ping/pong requests
                 this.outgoing.filter((msg) ->
                     msg.isProtocol() &&
-                        (msg.protocolBab.equals(OP_PING_BYTES) || msg.protocolBab.equals(OP_PONG_BYTES)));
-
+                        (msg.getProtocolBab().equals(OP_PING_BYTES) || msg.getProtocolBab().equals(OP_PONG_BYTES)));
             }
             finally {
                 this.startStopLock.unlock();
@@ -162,9 +162,10 @@ class NatsConnectionWriter implements Runnable {
                     }
                 }
 
-                int blen = msg.protocolBab.length();
-                System.arraycopy(msg.protocolBab.internalArray(), 0, sendBuffer, sendPosition, blen);
-                sendPosition += blen;
+                ByteArrayBuilder bab = msg.getProtocolBab();
+                int babLen = bab.length();
+                System.arraycopy(bab.internalArray(), 0, sendBuffer, sendPosition, babLen);
+                sendPosition += babLen;
 
                 sendBuffer[sendPosition++] = CR;
                 sendBuffer[sendPosition++] = LF;

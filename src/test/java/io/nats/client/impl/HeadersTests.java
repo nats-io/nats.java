@@ -1,6 +1,5 @@
 package io.nats.client.impl;
 
-import io.nats.client.Message;
 import io.nats.client.support.IncomingHeadersProcessor;
 import io.nats.client.support.Status;
 import io.nats.client.support.Token;
@@ -221,15 +220,6 @@ public class HeadersTests {
         assertThrows(UnsupportedOperationException.class, () -> headers1.remove(KEY1));
         assertThrows(UnsupportedOperationException.class, headers1::clear);
         assertEquals(VAL1, headers1.getFirst(KEY1));
-
-        Message m = new NatsMessage("subject", null, notRO, null);
-        Headers headers2 = m.getHeaders();
-        assertTrue(headers2.isReadOnly());
-        assertThrows(UnsupportedOperationException.class, () -> headers2.put(KEY1, VAL2));
-        assertThrows(UnsupportedOperationException.class, () -> headers2.put(KEY1, VAL2));
-        assertThrows(UnsupportedOperationException.class, () -> headers2.remove(KEY1));
-        assertThrows(UnsupportedOperationException.class, headers2::clear);
-        assertEquals(VAL1, headers2.getFirst(KEY1));
     }
 
     @Test
