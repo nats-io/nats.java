@@ -836,7 +836,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public void publish(String subject, byte[] body) {
-        publishInternal(subject, null, null, body);
+        publishInternal(subject, null, null, body, true);
     }
 
     /**
@@ -844,7 +844,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public void publish(String subject, Headers headers, byte[] body) {
-        publishInternal(subject, null, headers, body);
+        publishInternal(subject, null, headers, body, true);
     }
 
     /**
@@ -852,7 +852,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public void publish(String subject, String replyTo, byte[] body) {
-        publishInternal(subject, replyTo, null, body);
+        publishInternal(subject, replyTo, null, body, true);
     }
 
     /**
@@ -860,7 +860,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public void publish(String subject, String replyTo, Headers headers, byte[] body) {
-        publishInternal(subject, replyTo, headers, body);
+        publishInternal(subject, replyTo, headers, body, true);
     }
 
     /**
@@ -869,12 +869,15 @@ class NatsConnection implements Connection {
     @Override
     public void publish(Message message) {
         validateNotNull(message, "Message");
-        publishInternal(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData());
+        publishInternal(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), false);
     }
 
-    void publishInternal(String subject, String replyTo, Headers headers, byte[] data) {
-        checkIfNeedsHeaderSupport(headers);
+    void publishInternal(String subject, String replyTo, Headers headers, byte[] data, boolean validateSubRep) {
         checkPayloadSize(data);
+        NatsPublishableMessage npm = new NatsPublishableMessage(subject, replyTo, headers, data, validateSubRep);
+        if (npm.hasHeaders && !serverInfo.get().isHeadersSupported()) {
+            throw new IllegalArgumentException("Headers are not supported by the server, version: " + serverInfo.get().getVersion());
+        }
 
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
@@ -882,22 +885,14 @@ class NatsConnection implements Connection {
             throw new IllegalStateException("Connection is Draining"); // Ok to publish while waiting on subs
         }
 
-        NatsMessage nm = new NatsMessage(subject, replyTo, new Headers(headers), data);
-
         Connection.Status stat = this.status;
         if ((stat == Status.RECONNECTING || stat == Status.DISCONNECTED)
-                && !this.writer.canQueueDuringReconnect(nm)) {
+                && !this.writer.canQueueDuringReconnect(npm)) {
             throw new IllegalStateException(
                     "Unable to queue any more messages during reconnect, max buffer is " + options.getReconnectBufferSize());
         }
-        queueOutgoing(nm);
-    }
 
-    private void checkIfNeedsHeaderSupport(Headers headers) {
-        if (headers != null && !headers.isEmpty() && !serverInfo.get().isHeadersSupported()) {
-            throw new IllegalArgumentException(
-                    "Headers are not supported by the server, version: " + serverInfo.get().getVersion());
-        }
+        queueOutgoing(npm);
     }
 
     private void checkPayloadSize(byte[] body) {
@@ -1099,7 +1094,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public Message request(String subject, byte[] body, Duration timeout) throws InterruptedException {
-        return requestInternal(subject, null, body, timeout, cancelAction);
+        return requestInternal(subject, null, body, timeout, cancelAction, true);
     }
 
     /**
@@ -1107,7 +1102,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public Message request(String subject, Headers headers, byte[] body, Duration timeout) throws InterruptedException {
-        return requestInternal(subject, headers, body, timeout, cancelAction);
+        return requestInternal(subject, headers, body, timeout, cancelAction, true);
     }
 
     /**
@@ -1116,11 +1111,11 @@ class NatsConnection implements Connection {
     @Override
     public Message request(Message message, Duration timeout) throws InterruptedException {
         validateNotNull(message, "Message");
-        return requestInternal(message.getSubject(), message.getHeaders(), message.getData(), timeout, cancelAction);
+        return requestInternal(message.getSubject(), message.getHeaders(), message.getData(), timeout, cancelAction, false);
     }
 
-    Message requestInternal(String subject, Headers headers, byte[] data, Duration timeout, CancelAction cancelAction) throws InterruptedException {
-        CompletableFuture<Message> incoming = requestFutureInternal(subject, headers, data, timeout, cancelAction);
+    Message requestInternal(String subject, Headers headers, byte[] data, Duration timeout, CancelAction cancelAction, boolean validateSubRep) throws InterruptedException {
+        CompletableFuture<Message> incoming = requestFutureInternal(subject, headers, data, timeout, cancelAction, validateSubRep);
         try {
             return incoming.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
         } catch (TimeoutException | ExecutionException | CancellationException e) {
@@ -1133,7 +1128,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public CompletableFuture<Message> request(String subject, byte[] body) {
-        return requestFutureInternal(subject, null, body, null, cancelAction);
+        return requestFutureInternal(subject, null, body, null, cancelAction, true);
     }
 
     /**
@@ -1141,7 +1136,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public CompletableFuture<Message> request(String subject, Headers headers, byte[] body) {
-        return requestFutureInternal(subject, headers, body, null, cancelAction);
+        return requestFutureInternal(subject, headers, body, null, cancelAction, true);
     }
 
     /**
@@ -1149,7 +1144,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public CompletableFuture<Message> requestWithTimeout(String subject, byte[] body, Duration timeout) {
-        return requestFutureInternal(subject, null, body, timeout, cancelAction);
+        return requestFutureInternal(subject, null, body, timeout, cancelAction, true);
     }
 
     /**
@@ -1157,7 +1152,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public CompletableFuture<Message> requestWithTimeout(String subject, Headers headers, byte[] body, Duration timeout) {
-        return requestFutureInternal(subject, headers, body, timeout, cancelAction);
+        return requestFutureInternal(subject, headers, body, timeout, cancelAction, true);
     }
 
     /**
@@ -1166,7 +1161,7 @@ class NatsConnection implements Connection {
     @Override
     public CompletableFuture<Message> requestWithTimeout(Message message, Duration timeout) {
         validateNotNull(message, "Message");
-        return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), timeout, cancelAction);
+        return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), timeout, cancelAction, false);
     }
 
     /**
@@ -1175,10 +1170,10 @@ class NatsConnection implements Connection {
     @Override
     public CompletableFuture<Message> request(Message message) {
         validateNotNull(message, "Message");
-        return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), null, cancelAction);
+        return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), null, cancelAction, false);
     }
 
-    CompletableFuture<Message> requestFutureInternal(String subject, Headers headers, byte[] data, Duration futureTimeout, CancelAction cancelAction) {
+    CompletableFuture<Message> requestFutureInternal(String subject, Headers headers, byte[] data, Duration futureTimeout, CancelAction cancelAction, boolean validateSubRep) {
         checkPayloadSize(data);
 
         if (isClosed()) {
@@ -1230,7 +1225,7 @@ class NatsConnection implements Connection {
             responsesAwaiting.put(sub.getSID(), future);
         }
 
-        publishInternal(subject, responseInbox, headers, data);
+        publishInternal(subject, responseInbox, headers, data, validateSubRep);
         writer.flushBuffer();
         statistics.incrementRequestsSent();
 

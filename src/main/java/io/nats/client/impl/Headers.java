@@ -92,10 +92,13 @@ public class Headers {
 	 *         -or- if any value contains invalid characters
 	 */
 	public Headers add(String key, String... values) {
-		if (values != null) {
-			_add(key, Arrays.asList(values));
+		if (readOnly) {
+			throw new UnsupportedOperationException();
 		}
-		return this;
+		if (values == null || values.length == 0) {
+			return this;
+		}
+		return _add(key, Arrays.asList(values));
 	}
 
 	/**
@@ -109,12 +112,17 @@ public class Headers {
 	 *         -or- if any value contains invalid characters
 	 */
 	public Headers add(String key, Collection<String> values) {
-		_add(key, values);
-		return this;
+		if (readOnly) {
+			throw new UnsupportedOperationException();
+		}
+		if (values == null || values.isEmpty()) {
+			return this;
+		}
+		return _add(key, values);
 	}
 
 	// the add delegate
-	private void _add(String key, Collection<String> values) {
+	private Headers _add(String key, Collection<String> values) {
 		if (values != null) {
 			Checker checked = new Checker(key, values);
 			if (checked.hasValues()) {
@@ -129,6 +137,7 @@ public class Headers {
 				serialized = null; // since the data changed, clear this so it's rebuilt
 			}
 		}
+		return this;
 	}
 
 	/**
@@ -143,10 +152,13 @@ public class Headers {
 	 *         -or- if any value contains invalid characters
 	 */
 	public Headers put(String key, String... values) {
-		if (values != null) {
-			_put(key, Arrays.asList(values));
+		if (readOnly) {
+			throw new UnsupportedOperationException();
 		}
-		return this;
+		if (values == null || values.length == 0) {
+			return this;
+		}
+		return _put(key, Arrays.asList(values));
 	}
 
 	/**
@@ -161,8 +173,13 @@ public class Headers {
 	 *         -or- if any value contains invalid characters
 	 */
 	public Headers put(String key, Collection<String> values) {
-		_put(key, values);
-		return this;
+		if (readOnly) {
+			throw new UnsupportedOperationException();
+		}
+		if (values == null || values.isEmpty()) {
+			return this;
+		}
+		return _put(key, values);
 	}
 
 	/**
@@ -173,14 +190,20 @@ public class Headers {
 	 * @return the Headers object
 	 */
 	public Headers put(Map<String, List<String>> map) {
+		if (readOnly) {
+			throw new UnsupportedOperationException();
+		}
+		if (map == null || map.isEmpty()) {
+			return this;
+		}
 		for (String key : map.keySet() ) {
-			put(key, map.get(key));
+			_put(key, map.get(key));
 		}
 		return this;
 	}
 
-	// the put delegate that all puts call
-	private void _put(String key, Collection<String> values) {
+	// the put delegate
+	private Headers _put(String key, Collection<String> values) {
 		if (key == null || key.isEmpty()) {
 			throw new IllegalArgumentException("Key cannot be null or empty.");
 		}
@@ -195,6 +218,7 @@ public class Headers {
 				serialized = null; // since the data changed, clear this so it's rebuilt
 			}
 		}
+		return this;
 	}
 
 	/**
@@ -203,6 +227,9 @@ public class Headers {
 	 * @param keys the key or keys to remove
 	 */
 	public void remove(String... keys) {
+		if (readOnly) {
+			throw new UnsupportedOperationException();
+		}
 		for (String key : keys) {
 			_remove(key);
 		}
@@ -215,12 +242,16 @@ public class Headers {
 	 * @param keys the key or keys to remove
 	 */
 	public void remove(Collection<String> keys) {
+		if (readOnly) {
+			throw new UnsupportedOperationException();
+		}
 		for (String key : keys) {
 			_remove(key);
 		}
 		serialized = null; // since the data changed, clear this so it's rebuilt
 	}
 
+	// the remove delegate
 	private void _remove(String key) {
 		// if the values had a key, then the data length had a length
 		if (valuesMap.remove(key) != null) {
@@ -250,6 +281,9 @@ public class Headers {
 	 * Removes all the keys The object map will be empty after this call returns.
 	 */
 	public void clear() {
+		if (readOnly) {
+			throw new UnsupportedOperationException();
+		}
 		valuesMap.clear();
 		lengthMap.clear();
 		dataLength = 0;
