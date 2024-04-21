@@ -13,9 +13,11 @@
 
 package io.nats.client.impl;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 
 /**
@@ -103,9 +105,10 @@ public class NatsJetStreamMetaData {
             // not so clever way to separate nanos from seconds
             long tsi = Long.parseLong(parts[streamIndex + 5]);
             long seconds = tsi / NANO_FACTOR;
-            int nanos = (int) (tsi - ((tsi / NANO_FACTOR) * NANO_FACTOR));
-            LocalDateTime ltd = LocalDateTime.ofEpochSecond(seconds, nanos, OffsetDateTime.now().getOffset());
-            timestamp = ZonedDateTime.of(ltd, ZoneId.systemDefault()); // I think this is safe b/c the zone should match local
+            int nanos = (int) (tsi - (seconds * NANO_FACTOR));
+            Instant utcInstant = Instant.ofEpochSecond(seconds, nanos);
+            OffsetDateTime utcOffsetDT = OffsetDateTime.ofInstant(utcInstant, ZoneOffset.UTC);
+            timestamp = utcOffsetDT.atZoneSameInstant(ZoneId.systemDefault());
 
             this.pending = hasPending ? Long.parseLong(parts[streamIndex + 6]) : -1L;
         }
