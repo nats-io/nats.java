@@ -1711,6 +1711,10 @@ public class Options {
                 }
             }
 
+            if (tlsFirst && sslContext == null) {
+                throw new IllegalStateException("SSL context required for tls handshake first");
+            }
+
             if (credentialPath != null) {
                 File file = new File(credentialPath).getAbsoluteFile();
                 authHandler = Nats.credentials(file.toString());
@@ -2102,10 +2106,10 @@ public class Options {
 
     /**
      *
-     * @return true if there is an sslContext for this Options, otherwise false, see {@link Builder#secure() secure()} in the builder doc
+     * @return true if there is an sslContext for these Options, otherwise false, see {@link Builder#secure() secure()} in the builder doc
      */
     public boolean isTLSRequired() {
-        return tlsFirst || this.sslContext != null;
+        return sslContext != null;
     }
 
     /**

@@ -35,6 +35,7 @@ public class ServerInfo {
     private final boolean headersSupported;
     private final boolean authRequired;
     private final boolean tlsRequired;
+    private final boolean tlsAvailable;
     private final long maxPayload;
     private final List<String> connectURLs;
     private final int protocolVersion;
@@ -67,7 +68,8 @@ public class ServerInfo {
         headersSupported = readBoolean(jv, HEADERS);
         authRequired = readBoolean(jv, AUTH_REQUIRED);
         nonce = readBytes(jv, NONCE);
-        tlsRequired = readBoolean(jv, TLS);
+        tlsRequired = readBoolean(jv, TLS_REQUIRED);
+        tlsAvailable = readBoolean(jv, TLS_AVAILABLE);
         lameDuckMode = readBoolean(jv, LAME_DUCK_MODE);
         jetStream = readBoolean(jv, JETSTREAM);
         port = readInteger(jv, PORT, 0);
@@ -119,6 +121,10 @@ public class ServerInfo {
 
     public boolean isTLSRequired() {
         return this.tlsRequired;
+    }
+
+    public boolean isTLSAvailable() {
+        return tlsAvailable;
     }
 
     public long getMaxPayload() {
@@ -181,6 +187,7 @@ public class ServerInfo {
                 ", headersSupported=" + headersSupported +
                 ", authRequired=" + authRequired +
                 ", tlsRequired=" + tlsRequired +
+                ", tlsAvailable=" + tlsAvailable +
                 ", maxPayload=" + maxPayload +
                 ", connectURLs=" + connectURLs +
                 ", protocolVersion=" + protocolVersion +

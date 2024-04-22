@@ -584,36 +584,25 @@ class NatsConnection implements Connection {
     }
 
     void upgradeToSecureIfNeeded(NatsUri nuri) throws IOException {
-        Options clientOptions = getOptions();
-        if (clientOptions.isTlsFirst()) {
-            this.dataPort.upgradeToSecure();
-        }
-        else {
-            ServerInfo serverInfo = getInfo();
-            boolean before2_9_19 = serverInfo.isOlderThanVersion("2.9.19");
-
-            boolean isTLSRequired = clientOptions.isTLSRequired();
-            boolean upgradeRequired = isTLSRequired;
-            if (isTLSRequired && nuri.isWebsocket()) {
-                // We are already communicating over "https" websocket, so
-                // do NOT try to upgrade to secure.
-                if (before2_9_19) {
-                    isTLSRequired = false;
+        // When already communicating over "https" websocket, do NOT try to upgrade to secure.
+        if (!nuri.isWebsocket()) {
+            if (options.isTlsFirst()) {
+                dataPort.upgradeToSecure();
+            }
+            else {
+                ServerInfo serverInfo = getInfo();
+                if (options.isTLSRequired()) {
+                    if (!serverInfo.isTLSRequired() && !serverInfo.isTLSAvailable()) {
+                        throw new IOException("SSL connection wanted by client.");
+                    }
+                    dataPort.upgradeToSecure();
                 }
-                upgradeRequired = false;
-            }
-            if (isTLSRequired && !serverInfo.isTLSRequired()) {
-                throw new IOException("SSL connection wanted by client.");
-            }
-            else if (!isTLSRequired && serverInfo.isTLSRequired()) {
-                throw new IOException("SSL required by server.");
-            }
-            if (upgradeRequired) {
-                this.dataPort.upgradeToSecure();
+                else if (serverInfo.isTLSRequired()) {
+                    throw new IOException("SSL required by server.");
+                }
             }
         }
     }
-
     // Called from reader/writer thread
     void handleCommunicationIssue(Exception io) {
         // If we are connecting or disconnecting, note exception and leave
