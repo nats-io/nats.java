@@ -577,28 +577,39 @@ class NatsConnection implements Connection {
     void checkVersionRequirements() throws IOException {
         Options opts = getOptions();
         ServerInfo info = getInfo();
+
         if (opts.isNoEcho() && info.getProtocolVersion() < 1) {
             throw new IOException("Server does not support no echo.");
         }
     }
 
     void upgradeToSecureIfNeeded(NatsUri nuri) throws IOException {
-        if (options.isTlsFirst()) {
-            dataPort.upgradeToSecure();
+        Options clientOptions = getOptions();
+        if (clientOptions.isTlsFirst()) {
+            this.dataPort.upgradeToSecure();
         }
         else {
             ServerInfo serverInfo = getInfo();
-            if (options.isTLSRequired()) {
-                if (!nuri.isWebsocket()) {
-                    // When already communicating over "https" websocket, do NOT try to upgrade to secure.
-                    if (!serverInfo.isTLSRequired() && !serverInfo.isTLSAvailable()) {
-                        throw new IOException("SSL connection wanted by client.");
-                    }
-                    dataPort.upgradeToSecure();
+            boolean before2_9_19 = serverInfo.isOlderThanVersion("2.9.19");
+
+            boolean isTLSRequired = clientOptions.isTLSRequired();
+            boolean upgradeRequired = isTLSRequired;
+            if (isTLSRequired && nuri.isWebsocket()) {
+                // We are already communicating over "https" websocket, so
+                // do NOT try to upgrade to secure.
+                if (before2_9_19) {
+                    isTLSRequired = false;
                 }
+                upgradeRequired = false;
             }
-            else if (serverInfo.isTLSRequired()) {
+            if (isTLSRequired && !serverInfo.isTLSRequired()) {
+                throw new IOException("SSL connection wanted by client.");
+            }
+            else if (!isTLSRequired && serverInfo.isTLSRequired()) {
                 throw new IOException("SSL required by server.");
+            }
+            if (upgradeRequired) {
+                this.dataPort.upgradeToSecure();
             }
         }
     }

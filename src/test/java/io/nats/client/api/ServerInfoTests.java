@@ -40,7 +40,6 @@ public class ServerInfoTests {
         assertEquals(7777, info.getPort());
         assertTrue(info.isAuthRequired());
         assertTrue(info.isTLSRequired());
-        assertTrue(info.isTLSAvailable());
         assertTrue(info.isHeadersSupported());
         assertEquals(100_000_000_000L, info.getMaxPayload());
         assertEquals(1, info.getProtocolVersion());
