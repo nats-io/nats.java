@@ -22,8 +22,6 @@ import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
 
-import static io.nats.client.impl.MessageManager.ManageResult.MESSAGE;
-
 /**
  * This is a JetStream specific subscription.
  */
@@ -79,24 +77,6 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     void invalidate() {
         manager.shutdown();
         super.invalidate();
-    }
-
-    @Override
-    boolean isDrained() {
-        if (!isDraining()) {
-            return false;
-        }
-
-        // could contain status messages, but those don't count towards being drained
-        if (this.getPendingMessageCount() > 0) {
-            MessageQueue mq = getMessageQueue();
-            for (Message msg : mq.queue) {
-                if (msg == mq.poisonPill) break;
-                // if there's at least one message, we are not drained yet
-                if (manager.manage(msg) == MESSAGE) return false;
-            }
-        }
-        return true;
     }
 
     @Override
