@@ -35,6 +35,7 @@ public class ServerInfo {
     private final boolean headersSupported;
     private final boolean authRequired;
     private final boolean tlsRequired;
+    private final boolean tlsAvailable;
     private final long maxPayload;
     private final List<String> connectURLs;
     private final int protocolVersion;
@@ -67,7 +68,8 @@ public class ServerInfo {
         headersSupported = readBoolean(jv, HEADERS);
         authRequired = readBoolean(jv, AUTH_REQUIRED);
         nonce = readBytes(jv, NONCE);
-        tlsRequired = readBoolean(jv, TLS);
+        tlsRequired = readBoolean(jv, TLS_REQUIRED);
+        tlsAvailable = readBoolean(jv, TLS_AVAILABLE);
         lameDuckMode = readBoolean(jv, LAME_DUCK_MODE);
         jetStream = readBoolean(jv, JETSTREAM);
         port = readInteger(jv, PORT, 0);
@@ -84,7 +86,7 @@ public class ServerInfo {
     }
 
     public String getServerId() {
-        return this.serverId;
+        return serverId;
     }
 
     public String getServerName() {
@@ -92,49 +94,53 @@ public class ServerInfo {
     }
 
     public String getVersion() {
-        return this.version;
+        return version;
     }
 
     public String getGoVersion() {
-        return this.go;
+        return go;
     }
 
     public String getHost() {
-        return this.host;
+        return host;
     }
 
     public int getPort() {
-        return this.port;
+        return port;
     }
 
     public int getProtocolVersion() {
-        return this.protocolVersion;
+        return protocolVersion;
     }
 
-    public boolean isHeadersSupported() { return this.headersSupported; }
+    public boolean isHeadersSupported() { return headersSupported; }
 
     public boolean isAuthRequired() {
-        return this.authRequired;
+        return authRequired;
     }
 
     public boolean isTLSRequired() {
-        return this.tlsRequired;
+        return tlsRequired;
+    }
+
+    public boolean isTLSAvailable() {
+        return tlsAvailable;
     }
 
     public long getMaxPayload() {
-        return this.maxPayload;
+        return maxPayload;
     }
 
     public List<String> getConnectURLs() {
-        return this.connectURLs;
+        return connectURLs;
     }
 
     public byte[] getNonce() {
-        return this.nonce;
+        return nonce;
     }
 
     public boolean isJetStreamAvailable() {
-        return this.jetStream;
+        return jetStream;
     }
 
     public int getClientId() {
@@ -172,24 +178,25 @@ public class ServerInfo {
     @Override
     public String toString() {
         return "ServerInfo{" +
-                "serverId='" + serverId + '\'' +
-                ", serverName='" + serverName + '\'' +
-                ", version='" + version + '\'' +
-                ", go='" + go + '\'' +
-                ", host='" + host + '\'' +
-                ", port=" + port +
-                ", headersSupported=" + headersSupported +
-                ", authRequired=" + authRequired +
-                ", tlsRequired=" + tlsRequired +
-                ", maxPayload=" + maxPayload +
-                ", connectURLs=" + connectURLs +
-                ", protocolVersion=" + protocolVersion +
-                ", nonce=" + Arrays.toString(nonce) +
-                ", lameDuckMode=" + lameDuckMode +
-                ", jetStream=" + jetStream +
-                ", clientId=" + clientId +
-                ", clientIp='" + clientIp + '\'' +
-                ", cluster='" + cluster + '\'' +
-                '}';
+            "serverId='" + serverId + '\'' +
+            ", serverName='" + serverName + '\'' +
+            ", version='" + version + '\'' +
+            ", go='" + go + '\'' +
+            ", host='" + host + '\'' +
+            ", port=" + port +
+            ", headersSupported=" + headersSupported +
+            ", authRequired=" + authRequired +
+            ", tlsRequired=" + tlsRequired +
+            ", tlsAvailable=" + tlsAvailable +
+            ", maxPayload=" + maxPayload +
+            ", connectURLs=" + connectURLs +
+            ", protocolVersion=" + protocolVersion +
+            ", nonce=" + Arrays.toString(nonce) +
+            ", lameDuckMode=" + lameDuckMode +
+            ", jetStream=" + jetStream +
+            ", clientId=" + clientId +
+            ", clientIp='" + clientIp + '\'' +
+            ", cluster='" + cluster + '\'' +
+            '}';
     }
 }

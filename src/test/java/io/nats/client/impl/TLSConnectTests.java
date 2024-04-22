@@ -397,4 +397,96 @@ public class TLSConnectTests {
         assertEquals("tlsAlgorithm", factory.properties.tlsAlgorithm);
         assertEquals("tlsAlgorithm", factory.properties.getTlsAlgorithm());
     }
+
+    private static final int SERVER_INSECURE = 1;
+    private static final int SERVER_TLS_AVAILABLE = 2;
+    private static final int SERVER_TLS_REQUIRED = 3;
+    static class ProxyConnection extends NatsConnection {
+        int serverType;
+
+        public ProxyConnection(String servers, boolean tlsFirst, ErrorListener listener, int serverType) throws Exception {
+            super(makeMiddleman(servers, tlsFirst, listener));
+            this.serverType = serverType;
+        }
+
+        private static Options makeMiddleman(String servers, boolean tlsFirst, ErrorListener listener) throws Exception {
+            Options.Builder builder = new Options.Builder()
+                .server(servers)
+                .maxReconnects(0)
+                .sslContext(SslTestingHelper.createTestSSLContext())
+                .errorListener(listener);
+
+            if (tlsFirst) {
+                builder.tlsFirst();
+            }
+
+            return builder.build();
+        }
+
+        @Override
+        void handleInfo(String infoJson) {
+            switch (serverType) {
+                case SERVER_INSECURE:
+                    super.handleInfo(infoJson.replace(",\"tls_required\":true", "")); break;
+                case SERVER_TLS_AVAILABLE:
+                    super.handleInfo(infoJson.replace("\"tls_required\":true", "\"tls_available\":true")); break;
+                default:
+                    super.handleInfo(infoJson);
+            }
+        }
+    }
+
+    /*
+        1. client tls first      | secure proxy | server insecure      -> connects
+        2. client tls first      | secure proxy | server tls required  -> connects
+        3. client tls first      | secure proxy | server tls available -> connects
+        4. client regular secure | secure proxy | server insecure      -> mismatch exception
+        5. client regular secure | secure proxy | server tls required  -> connects
+        6. client regular secure | secure proxy | server tls available -> connects
+    */
+
+    @Test
+    public void testProxyTlsFirst() throws Exception {
+        if (TestBase.atLeast2_10_3(ensureRunServerInfo())) {
+            try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls_first.conf", false)) {
+                // 1. client tls first | secure proxy | server insecure -> connects
+                ProxyConnection connTI = new ProxyConnection(ts.getURI(), true, null, SERVER_INSECURE);
+                connTI.connect(false);
+                closeConnection(standardConnectionWait(connTI), 1000);
+
+                // 2. client tls first | secure proxy | server tls required -> connects
+                ProxyConnection connTR = new ProxyConnection(ts.getURI(), true, null, SERVER_TLS_REQUIRED);
+                connTR.connect(false);
+                closeConnection(standardConnectionWait(connTR), 1000);
+
+                // 3. client tls first | secure proxy | server tls available -> connects
+                ProxyConnection connTA = new ProxyConnection(ts.getURI(), true, null, SERVER_TLS_AVAILABLE);
+                connTA.connect(false);
+                closeConnection(standardConnectionWait(connTA), 1000);
+            }
+        }
+    }
+
+    @SuppressWarnings({"resource"})
+    @Test
+    public void testProxyNotTlsFirst() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
+            // 4. client regular secure | secure proxy | server insecure -> mismatch exception
+            ListenerForTesting listener = new ListenerForTesting();
+            ProxyConnection connRI = new ProxyConnection(ts.getURI(), false, listener, SERVER_INSECURE);
+            assertThrows(Exception.class, () -> connRI.connect(false));
+            assertEquals(1, listener.getExceptions().size());
+            assertTrue(listener.getExceptions().get(0).getMessage().contains("SSL connection wanted by client"));
+
+            // 5. client regular secure | secure proxy | server tls required  -> connects
+            ProxyConnection connRR = new ProxyConnection(ts.getURI(), false, null, SERVER_TLS_REQUIRED);
+            connRR.connect(false);
+            closeConnection(standardConnectionWait(connRR), 1000);
+
+            // 6. client regular secure | secure proxy | server tls available -> connects
+            ProxyConnection connRA = new ProxyConnection(ts.getURI(), false, null, SERVER_TLS_AVAILABLE);
+            connRA.connect(false);
+            closeConnection(standardConnectionWait(connRA), 1000);
+        }
+    }
 }

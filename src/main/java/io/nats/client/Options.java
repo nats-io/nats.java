@@ -38,6 +38,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.nats.client.support.ApiConstants.TLS_REQUIRED;
 import static io.nats.client.support.Encoding.uriDecode;
 import static io.nats.client.support.NatsConstants.*;
 import static io.nats.client.support.SSLUtils.DEFAULT_TLS_ALGORITHM;
@@ -492,7 +493,7 @@ public class Options {
      * Protocol key {@value}, see
      * {@link Builder#sslContext(SSLContext) sslContext}.
      */
-    static final String OPTION_TLS_REQUIRED = "tls_required";
+    static final String OPTION_TLS_REQUIRED = TLS_REQUIRED;
 
     /**
      * Protocol key {@value}, see {@link Builder#token(String)
@@ -1710,6 +1711,10 @@ public class Options {
                 }
             }
 
+            if (tlsFirst && sslContext == null) {
+                throw new IllegalStateException("SSL context required for tls handshake first");
+            }
+
             if (credentialPath != null) {
                 File file = new File(credentialPath).getAbsoluteFile();
                 authHandler = Nats.credentials(file.toString());
@@ -2101,10 +2106,10 @@ public class Options {
 
     /**
      *
-     * @return true if there is an sslContext for this Options, otherwise false, see {@link Builder#secure() secure()} in the builder doc
+     * @return true if there is an sslContext for these Options, otherwise false, see {@link Builder#secure() secure()} in the builder doc
      */
     public boolean isTLSRequired() {
-        return tlsFirst || this.sslContext != null;
+        return sslContext != null;
     }
 
     /**
