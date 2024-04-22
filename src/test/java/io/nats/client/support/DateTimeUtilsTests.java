@@ -23,6 +23,12 @@ import java.time.ZonedDateTime;
 import static org.junit.jupiter.api.Assertions.*;
 
 public final class DateTimeUtilsTests {
+    
+    @Test
+    public void testParseDateTimeNanos() {
+       assertEquals(1605139610, DateTimeUtils.parseDateTimeNanos("1605139610113260000").toEpochSecond());
+       assertEquals(113261234, DateTimeUtils.parseDateTimeNanos("1605139610113261234").toInstant().getNano());
+    }
 
     @Test
     public void testParseDateTime() {

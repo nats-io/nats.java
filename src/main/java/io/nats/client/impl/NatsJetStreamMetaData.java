@@ -13,19 +13,13 @@
 
 package io.nats.client.impl;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
+import io.nats.client.support.DateTimeUtils;
 import java.time.ZonedDateTime;
 
 /**
  * Jetstream meta data about a message, when applicable.
  */
 public class NatsJetStreamMetaData {
-
-    private static final long NANO_FACTOR = 10_00_000_000;
 
     private final String prefix;
     private final String domain;
@@ -101,16 +95,8 @@ public class NatsJetStreamMetaData {
             delivered = Long.parseLong(parts[streamIndex + 2]);
             streamSeq = Long.parseLong(parts[streamIndex + 3]);
             consumerSeq = Long.parseLong(parts[streamIndex + 4]);
-
-            // not so clever way to separate nanos from seconds
-            long tsi = Long.parseLong(parts[streamIndex + 5]);
-            long seconds = tsi / NANO_FACTOR;
-            int nanos = (int) (tsi - (seconds * NANO_FACTOR));
-            Instant utcInstant = Instant.ofEpochSecond(seconds, nanos);
-            OffsetDateTime utcOffsetDT = OffsetDateTime.ofInstant(utcInstant, ZoneOffset.UTC);
-            timestamp = utcOffsetDT.atZoneSameInstant(ZoneId.systemDefault());
-
-            this.pending = hasPending ? Long.parseLong(parts[streamIndex + 6]) : -1L;
+            timestamp = DateTimeUtils.parseDateTimeNanos(parts[streamIndex + 5]);
+            pending = hasPending ? Long.parseLong(parts[streamIndex + 6]) : -1L;
         }
         catch (Exception e) {
             throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
