@@ -195,6 +195,8 @@ public interface ApiConstants {
     String TIME              = "time";
     String TIMESTAMP         = "ts";
     String TLS               = "tls_required";
+    String TLS_REQUIRED      = TLS;
+    String TLS_AVAILABLE     = "tls_available";
     String TOTAL             = "total";
     String TYPE              = "type";
     String VERSION           = "version";
