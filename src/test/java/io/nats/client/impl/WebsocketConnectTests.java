@@ -197,6 +197,22 @@ public class WebsocketConnectTests extends TestBase {
     }
 
     @Test
+    public void testURISchemeWSSConnectionEnsureTlsFirstHasNoEffect() throws Exception {
+        SSLContext originalDefault = SSLContext.getDefault();
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/wss.conf", false)) {
+            SSLContext.setDefault(SslTestingHelper.createTestSSLContext());
+            Options options = Options.builder()
+                .server(getLocalhostUri("wss", ts.getPort("wss")))
+                .maxReconnects(0)
+                .tlsFirst()
+                .build();
+            assertCanConnect(options);
+        } finally {
+            SSLContext.setDefault(originalDefault);
+        }
+    }
+
+    @Test
     public void testTLSMessageFlow() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/wssverify.conf", false)) {
             SSLContext ctx = SslTestingHelper.createTestSSLContext();
