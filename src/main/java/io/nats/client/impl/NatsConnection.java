@@ -264,13 +264,16 @@ class NatsConnection implements Connection {
         try {
             updateStatus(Status.DISCONNECTED);
             dataPortFuture.cancel(true);
+            dataPortFuture = null;
 
             // Close the current socket and cancel anyone waiting for it
             try {
                 if (dataPort != null) {
                     dataPort.close();
                 }
-            } catch (IOException ignore) {}
+            }
+            catch (IOException ignore) {}
+            finally { dataPort = null; }
 
             // stop i/o
             reader.stop();
