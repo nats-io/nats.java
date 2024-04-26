@@ -157,7 +157,7 @@ class NatsConnection implements Connection {
 
         timeTraceLogger.trace("creating reader and writer");
         this.reader = new NatsConnectionReader(this);
-        this.writer = new NatsConnectionWriter(this, NUID.nextGlobalSequence());
+        this.writer = new NatsConnectionWriter(this);
 
         this.needPing = new AtomicBoolean(true);
 

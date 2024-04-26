@@ -51,10 +51,8 @@ class NatsConnectionWriter implements Runnable {
     private final MessageQueue outgoing;
     private final MessageQueue reconnectOutgoing;
     private final long reconnectBufferSize;
-    private final String name;
 
-    NatsConnectionWriter(NatsConnection connection, String name) {
-        this.name = name + "-" + 1;
+    NatsConnectionWriter(NatsConnection connection) {
         this.connection = connection;
         writerLock = new ReentrantLock();
 
@@ -80,9 +78,6 @@ class NatsConnectionWriter implements Runnable {
     }
 
     NatsConnectionWriter(NatsConnectionWriter sourceWriter) {
-        int at = sourceWriter.name.indexOf("-") + 1;
-        int id = Integer.parseInt(sourceWriter.name.substring(at)) + 1;
-        this.name = sourceWriter.name.substring(0, at) + id;
         this.connection = sourceWriter.connection;
         writerLock = new ReentrantLock();
 
