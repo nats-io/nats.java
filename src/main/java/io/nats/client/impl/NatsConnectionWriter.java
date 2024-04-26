@@ -54,7 +54,7 @@ class NatsConnectionWriter implements Runnable {
 
     NatsConnectionWriter(NatsConnection connection) {
         this.connection = connection;
-        this.writerLock = new ReentrantLock();
+        writerLock = new ReentrantLock();
 
         this.running = new AtomicBoolean(false);
         this.reconnectMode = new AtomicBoolean(false);
@@ -79,7 +79,7 @@ class NatsConnectionWriter implements Runnable {
 
     NatsConnectionWriter(NatsConnectionWriter sourceWriter) {
         this.connection = sourceWriter.connection;
-        this.writerLock = new ReentrantLock();
+        writerLock = new ReentrantLock();
 
         this.running = new AtomicBoolean(false);
         this.reconnectMode = new AtomicBoolean(false);
