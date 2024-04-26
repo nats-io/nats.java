@@ -264,6 +264,7 @@ class NatsConnection implements Connection {
         try {
             updateStatus(Status.DISCONNECTED);
             dataPortFuture.cancel(true);
+
             // Close the current socket and cancel anyone waiting for it
             try {
                 if (dataPort != null) {
@@ -271,6 +272,7 @@ class NatsConnection implements Connection {
                 }
             } catch (IOException ignore) {}
 
+            // stop i/o
             reader.stop();
             writer.stop();
         }
@@ -278,17 +280,23 @@ class NatsConnection implements Connection {
             closeSocketLock.unlock();
         }
 
+        // restart i/o
         reader = new NatsConnectionReader(this);
         writer = new NatsConnectionWriter(writer);
 
         try {
+            // calling connect just starts like a new connection versus reconnect
+            // but we have to manually resubscribe like reconnect once it is connected
             connect(true);
             reSubscribeAfterReconnect();
             processConnectionEvent(Events.RECONNECTED);
         }
-        catch (IOException | InterruptedException e) {
+        catch (IOException e) {
             close(false);
-            throw e;
+        }
+        catch (InterruptedException e) {
+            close(false);
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -539,14 +547,7 @@ class NatsConnection implements Connection {
                     this.timer.schedule(new TimerTask() {
                         public void run() {
                             if (isConnected()) {
-                                try {
-                                    softPing(); // The timer always uses the standard queue
-                                }
-                                catch (Exception e) {
-                                    if (e.getMessage().contains(OUTPUT_QUEUE_IS_FULL)) {
-                                        processException(e);
-                                    }
-                                }
+                                softPing(); // The timer always uses the standard queue
                             }
                         }
                     }, pingMillis, pingMillis);
@@ -645,9 +646,11 @@ class NatsConnection implements Connection {
         // Spawn a thread so we don't have timing issues with
         // waiting on read/write threads
         executor.submit(() -> {
-            try {this.closeSocket(true);
+            try {
+                this.closeSocket(true);
             } catch (InterruptedException e) {
                 processException(e);
+                Thread.currentThread().interrupt();
             }
         });
     }
@@ -658,18 +661,11 @@ class NatsConnection implements Connection {
         // Ensure we close the socket exclusively within one thread.
         closeSocketLock.lock();
         try {
-            if (isDisconnected()) {
-                return;
-            }
-
             boolean wasConnected;
             statusLock.lock();
             try {
                 if (isDisconnectingOrClosed()) {
                     waitForDisconnectOrClose(this.options.getConnectionTimeout());
-                    return;
-                }
-                if (isDisconnected()) {
                     return;
                 }
                 this.disconnecting = true;
@@ -2145,7 +2141,8 @@ class NatsConnection implements Connection {
                 try {
                     this.close(false);// close the connection after the last flush
                 } catch (InterruptedException e) {
-                    this.processException(e);
+                    processException(e);
+                    Thread.currentThread().interrupt();
                 }
                 tracker.complete(false);
             }
