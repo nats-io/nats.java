@@ -40,7 +40,7 @@ class NatsConnectionWriter implements Runnable {
     private final ReentrantLock writerLock;
     private Future<Boolean> stopped;
     private Future<DataPort> dataPortFuture;
-    private DataPort dataPort = null;
+    private DataPort dataPort;
     private final AtomicBoolean running;
     private final AtomicBoolean reconnectMode;
     private final ReentrantLock startStopLock;
@@ -54,7 +54,7 @@ class NatsConnectionWriter implements Runnable {
 
     NatsConnectionWriter(NatsConnection connection) {
         this.connection = connection;
-        writerLock = new ReentrantLock();
+        this.writerLock = new ReentrantLock();
 
         this.running = new AtomicBoolean(false);
         this.reconnectMode = new AtomicBoolean(false);
@@ -79,7 +79,7 @@ class NatsConnectionWriter implements Runnable {
 
     NatsConnectionWriter(NatsConnectionWriter sourceWriter) {
         this.connection = sourceWriter.connection;
-        writerLock = new ReentrantLock();
+        this.writerLock = new ReentrantLock();
 
         this.running = new AtomicBoolean(false);
         this.reconnectMode = new AtomicBoolean(false);
