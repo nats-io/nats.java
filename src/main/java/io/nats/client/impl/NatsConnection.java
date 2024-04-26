@@ -772,11 +772,7 @@ class NatsConnection implements Connection {
         // Stop the error handling and connect executors
         callbackRunner.shutdown();
         try {
-            //noinspection ResultOfMethodCallIgnored
             callbackRunner.awaitTermination(this.options.getConnectionTimeout().toNanos(), TimeUnit.NANOSECONDS);
-        }
-        catch (InterruptedException ie) {
-            // nothing to do, I just don't want to miss work below this
         } finally {
             callbackRunner.shutdownNow();
         }
@@ -826,7 +822,6 @@ class NatsConnection implements Connection {
         }
         cleanUpPongQueue();
 
-        // not sure why stop is called multiple times, see above
         try {
             this.reader.stop().get(10, TimeUnit.SECONDS);
         } catch (Exception ex) {
@@ -1494,9 +1489,7 @@ class NatsConnection implements Connection {
     private static final ProtocolMessage PONG_PROTO = new ProtocolMessage(OP_PONG_BYTES);
 
     void sendPong() {
-        if (!isDisconnected()) {
-            queueInternalOutgoing(new ProtocolMessage(PONG_PROTO));
-        }
+        queueInternalOutgoing(new ProtocolMessage(PONG_PROTO));
     }
 
     // Called by the reader
