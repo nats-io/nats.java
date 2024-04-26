@@ -263,29 +263,31 @@ class NatsConnection implements Connection {
         closeSocketLock.lock();
         try {
             updateStatus(Status.DISCONNECTED);
-            dataPortFuture.cancel(true);
-            dataPortFuture = null;
 
-            // Close the current socket and cancel anyone waiting for it
-            try {
-                if (dataPort != null) {
+            // Close and reset the current data port and future
+            if (dataPortFuture != null) {
+                dataPortFuture.cancel(true);
+                dataPortFuture = null;
+            }
+            if (dataPort != null) {
+                try {
                     dataPort.close();
                 }
+                catch (IOException ignore) {}
+                finally { dataPort = null; }
             }
-            catch (IOException ignore) {}
-            finally { dataPort = null; }
 
             // stop i/o
             reader.stop();
             writer.stop();
+
+            // restart i/o
+            reader = new NatsConnectionReader(this);
+            writer = new NatsConnectionWriter(writer);
         }
         finally {
             closeSocketLock.unlock();
         }
-
-        // restart i/o
-        reader = new NatsConnectionReader(this);
-        writer = new NatsConnectionWriter(writer);
 
         try {
             // calling connect just starts like a new connection versus reconnect
