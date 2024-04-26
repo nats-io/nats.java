@@ -381,9 +381,8 @@ class NatsConnection implements Connection {
 
         reSubscribeAfterReconnect();
 
-        // When the flush returns we are done sending internal messages, so we can
-        // switch to the
-        // non-reconnect queue
+        // When the flush returns we are done sending internal messages,
+        // so we can switch to the non-reconnect queue
         this.writer.setReconnectMode(false);
     }
 
