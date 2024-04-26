@@ -1,3 +1,4 @@
+
 // Copyright 2015-2018 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -50,8 +51,10 @@ class NatsConnectionWriter implements Runnable {
     private final MessageQueue outgoing;
     private final MessageQueue reconnectOutgoing;
     private final long reconnectBufferSize;
+    private final String name;
 
-    NatsConnectionWriter(NatsConnection connection) {
+    NatsConnectionWriter(NatsConnection connection, String name) {
+        this.name = name + "-" + 1;
         this.connection = connection;
         writerLock = new ReentrantLock();
 
@@ -77,6 +80,9 @@ class NatsConnectionWriter implements Runnable {
     }
 
     NatsConnectionWriter(NatsConnectionWriter sourceWriter) {
+        int at = sourceWriter.name.indexOf("-") + 1;
+        int id = Integer.parseInt(sourceWriter.name.substring(at)) + 1;
+        this.name = sourceWriter.name.substring(0, at) + id;
         this.connection = sourceWriter.connection;
         writerLock = new ReentrantLock();
 
@@ -132,7 +138,6 @@ class NatsConnectionWriter implements Runnable {
                 this.startStopLock.unlock();
             }
         }
-
         return this.stopped;
     }
 

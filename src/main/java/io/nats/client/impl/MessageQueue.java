@@ -24,6 +24,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 
 import static io.nats.client.support.NatsConstants.EMPTY_BODY;
+import static io.nats.client.support.NatsConstants.OUTPUT_QUEUE_IS_FULL;
 
 class MessageQueue {
     protected static final int STOPPED = 0;
@@ -132,7 +133,7 @@ class MessageQueue {
                 return this.queue.offer(msg);
             }
             if (!this.offer(msg)) {
-                throw new IllegalStateException("Output queue is full " + queue.size());
+                throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
             }
             this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
             this.length.incrementAndGet();

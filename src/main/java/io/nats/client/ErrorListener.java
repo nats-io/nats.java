@@ -146,7 +146,7 @@ public interface ErrorListener {
      * @param sub the JetStreamSubscription that this occurred on, if applicable
      * @param pairs custom string pairs. I.E. "foo: ", fooObject, "bar-", barObject will be appended
      *              to the message like ", foo: &lt;fooValue&gt;, bar-&lt;barValue&gt;".
-     * @return
+     * @return the message
      */
     default String supplyMessage(String label, Connection conn, Consumer consumer, Subscription sub, Object... pairs) {
         StringBuilder sb = new StringBuilder(label == null ? "" : label);
