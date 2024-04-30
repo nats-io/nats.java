@@ -18,13 +18,21 @@ import java.security.GeneralSecurityException;
 
 public class AuthHandlerForTesting implements AuthHandler {
     private final NKey nkey;
+    private final char[] jwt;
 
     public AuthHandlerForTesting(NKey nkey) {
         this.nkey = nkey;
+        this.jwt = null;
+    }
+
+    public AuthHandlerForTesting(NKey nkey, char[] jwt) {
+        this.nkey = nkey;
+        this.jwt = jwt;
     }
 
     public AuthHandlerForTesting() throws Exception {
         this.nkey = NKey.createUser(null);
+        this.jwt = null;
     }
 
     public NKey getNKey() {
@@ -48,6 +56,6 @@ public class AuthHandlerForTesting implements AuthHandler {
     }
 
     public char[] getJWT() {
-        return null;
+        return this.jwt;
     }
 }

@@ -2371,7 +2371,9 @@ public class Options {
             appendOption(connectString, Options.OPTION_NKEY, nkey, true, true);
             appendOption(connectString, Options.OPTION_SIG, encodedSig, true, true);
             appendOption(connectString, Options.OPTION_JWT, jwt, true, true);
-        } else if (includeAuth) {
+        }
+
+        if (includeAuth) {
             String uriUser = null;
             String uriPass = null;
             String uriToken = null;
