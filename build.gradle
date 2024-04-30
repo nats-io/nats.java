@@ -16,8 +16,9 @@ plugins {
 def jarVersion = "2.17.7"
 
 def isRelease = System.getenv("BUILD_EVENT") == "release"
-def bs = System.getenv("BRANCH_SNAPSHOT")
-def snap = bs == null || bs.equals("") ? "-SNAPSHOT" : "." + bs + "-SNAPSHOT"
+def csn = System.getenv("CUSTOM_SNAPSHOT_NAME");
+def brn = csn == null || csn.equals("") ? System.getenv("BRANCH_REF_NAME") : csn
+def snap = brn == null || brn.equals("") ? "-SNAPSHOT" : "." + brn + "-SNAPSHOT"
 
 // version is the variable the build actually uses.
 version = isRelease ? jarVersion : jarVersion + snap
