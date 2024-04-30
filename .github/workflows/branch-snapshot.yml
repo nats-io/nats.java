@@ -3,10 +3,10 @@ name: Build a Branch Specific Snapshot
 on:
   workflow_dispatch:
     inputs:
-    customSnap:
-      description: 'Custom Snapshot Name'
-      required: false
-      type: string
+      customSnap:
+        description: 'Custom Snapshot Name'
+        required: false
+        type: string
 
 jobs:
   build:
