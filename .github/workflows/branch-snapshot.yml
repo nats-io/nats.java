@@ -2,13 +2,19 @@ name: Build a Branch Specific Snapshot
 
 on:
   workflow_dispatch:
+    inputs:
+    customSnap:
+      description: 'Custom Snapshot Name'
+      required: false
+      type: string
 
 jobs:
   build:
     runs-on: ubuntu-latest
     env:
       BUILD_EVENT: ${{ github.event_name }}
-      BRANCH_SNAPSHOT: ${{ github.ref_name }}
+      BRANCH_REF_NAME: ${{ github.ref_name }}
+      CUSTOM_SNAPSHOT_NAME: ${{ inputs.customSnap }}
       OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
       OSSRH_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
       SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
