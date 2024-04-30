@@ -2349,68 +2349,75 @@ public class Options {
         appendOption(connectString, Options.OPTION_HEADERS, String.valueOf(!this.isNoHeaders()), false, true);
         appendOption(connectString, Options.OPTION_NORESPONDERS, String.valueOf(!this.isNoNoResponders()), false, true);
 
-        if (includeAuth && nonce != null && this.getAuthHandler() != null) {
-            char[] nkey = this.getAuthHandler().getID();
-            byte[] sig = this.getAuthHandler().sign(nonce);
-            char[] jwt = this.getAuthHandler().getJWT();
+        if (includeAuth) {
+            if (nonce != null && this.getAuthHandler() != null) {
+                char[] nkey = this.getAuthHandler().getID();
+                byte[] sig = this.getAuthHandler().sign(nonce);
+                char[] jwt = this.getAuthHandler().getJWT();
 
-            if (sig == null) {
-                sig = new byte[0];
+                if (sig == null) {
+                    sig = new byte[0];
+                }
+
+                if (jwt == null) {
+                    jwt = new char[0];
+                }
+
+                if (nkey == null) {
+                    nkey = new char[0];
+                }
+
+                String encodedSig = Base64.getUrlEncoder().withoutPadding().encodeToString(sig);
+
+                appendOption(connectString, Options.OPTION_NKEY, nkey, true, true);
+                appendOption(connectString, Options.OPTION_SIG, encodedSig, true, true);
+                appendOption(connectString, Options.OPTION_JWT, jwt, true, true);
             }
+            else {
+                String uriUser = null;
+                String uriPass = null;
+                String uriToken = null;
 
-            if (jwt == null) {
-                jwt = new char[0];
-            }
-
-            if (nkey == null) {
-                nkey = new char[0];
-            }
-
-            String encodedSig = Base64.getUrlEncoder().withoutPadding().encodeToString(sig);
-
-            appendOption(connectString, Options.OPTION_NKEY, nkey, true, true);
-            appendOption(connectString, Options.OPTION_SIG, encodedSig, true, true);
-            appendOption(connectString, Options.OPTION_JWT, jwt, true, true);
-        } else if (includeAuth) {
-            String uriUser = null;
-            String uriPass = null;
-            String uriToken = null;
-
-            // Values from URI override options
-            try {
-                URI uri = this.createURIForServer(serverURI);
-                String userInfo = uri.getRawUserInfo();
-                if (userInfo != null) {
-                    int at = userInfo.indexOf(":");
-                    if (at == -1) {
-                        uriToken = uriDecode(userInfo);
-                    }
-                    else {
-                        uriUser = uriDecode(userInfo.substring(0, at));
-                        uriPass = uriDecode(userInfo.substring(at + 1));
+                // Values from URI override options
+                try {
+                    URI uri = this.createURIForServer(serverURI);
+                    String userInfo = uri.getRawUserInfo();
+                    if (userInfo != null) {
+                        int at = userInfo.indexOf(":");
+                        if (at == -1) {
+                            uriToken = uriDecode(userInfo);
+                        }
+                        else {
+                            uriUser = uriDecode(userInfo.substring(0, at));
+                            uriPass = uriDecode(userInfo.substring(at + 1));
+                        }
                     }
                 }
-            } catch(URISyntaxException e) {
-                // the createURIForServer call is the one that potentially throws this
-                // uriUser, uriPass and uriToken will already be null
-            }
+                catch (URISyntaxException e) {
+                    // the createURIForServer call is the one that potentially throws this
+                    // uriUser, uriPass and uriToken will already be null
+                }
 
-            if (uriUser != null) {
-                appendOption(connectString, Options.OPTION_USER, uriUser, true, true);
-            } else if (this.username != null) {
-                appendOption(connectString, Options.OPTION_USER, this.username, true, true);
-            }
+                if (uriUser != null) {
+                    appendOption(connectString, Options.OPTION_USER, uriUser, true, true);
+                }
+                else if (this.username != null) {
+                    appendOption(connectString, Options.OPTION_USER, this.username, true, true);
+                }
 
-            if (uriPass != null) {
-                appendOption(connectString, Options.OPTION_PASSWORD, uriPass, true, true);
-            } else if (this.password != null) {
-                appendOption(connectString, Options.OPTION_PASSWORD, this.password, true, true);
-            }
+                if (uriPass != null) {
+                    appendOption(connectString, Options.OPTION_PASSWORD, uriPass, true, true);
+                }
+                else if (this.password != null) {
+                    appendOption(connectString, Options.OPTION_PASSWORD, this.password, true, true);
+                }
 
-            if (uriToken != null) {
-                appendOption(connectString, Options.OPTION_AUTH_TOKEN, uriToken, true, true);
-            } else if (this.token != null) {
-                appendOption(connectString, Options.OPTION_AUTH_TOKEN, this.token, true, true);
+                if (uriToken != null) {
+                    appendOption(connectString, Options.OPTION_AUTH_TOKEN, uriToken, true, true);
+                }
+                else if (this.token != null) {
+                    appendOption(connectString, Options.OPTION_AUTH_TOKEN, this.token, true, true);
+                }
             }
         }
 
