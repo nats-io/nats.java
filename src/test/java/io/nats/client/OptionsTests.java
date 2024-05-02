@@ -37,7 +37,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import static io.nats.client.Options.DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE;
+import static io.nats.client.Options.*;
 import static io.nats.client.support.NatsConstants.DEFAULT_PORT;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -378,6 +378,19 @@ public class OptionsTests {
             .build();
         assertFalse(o.clientSideLimitChecks());
         assertNotNull(o.getServerPool());
+
+        long minSwt = DEFAULT_CONNECTION_TIMEOUT.toMillis() + MINIMUM_SOCKET_WRITE_TIMEOUT_GT_CONNECTION_TIMEOUT;
+        o = new Options.Builder()
+            .socketWriteTimeout(minSwt)
+            .build();
+        assertEquals(minSwt, o.getSocketWriteTimeout().toMillis());
+
+        assertThrows(IllegalStateException.class, () -> new Options.Builder()
+            .socketWriteTimeout(DEFAULT_CONNECTION_TIMEOUT)
+            .build());
+        assertThrows(IllegalStateException.class, () -> new Options.Builder()
+            .socketWriteTimeout(minSwt - 1)
+            .build());
     }
 
     @Test

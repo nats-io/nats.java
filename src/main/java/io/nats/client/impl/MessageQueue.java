@@ -36,7 +36,7 @@ class MessageQueue {
     protected final AtomicInteger running;
     protected final boolean singleReaderMode;
     protected final LinkedBlockingQueue<NatsMessage> queue;
-    protected final Lock filterLock;
+    protected final Lock editLock;
     protected final int publishHighwaterMark;
     protected final boolean discardWhenFull;
     protected final long offerTimeoutMillis;
@@ -73,7 +73,7 @@ class MessageQueue {
         // The poisonPill is used to stop poll and accumulate when the queue is stopped
         this.poisonPill = new NatsMessage("_poison", null, EMPTY_BODY);
 
-        this.filterLock = new ReentrantLock();
+        editLock = new ReentrantLock();
         
         this.singleReaderMode = singleReaderMode;
         this.requestCleanupInterval = requestCleanupInterval;
@@ -81,8 +81,16 @@ class MessageQueue {
 
     MessageQueue(MessageQueue source) {
         this(source.singleReaderMode, source.publishHighwaterMark, source.discardWhenFull, source.requestCleanupInterval);
-        source.queue.drainTo(queue);
-        length.set(queue.size());
+    }
+
+    void loadFromSourceQueue(MessageQueue source) {
+        editLock.lock();
+        try {
+            source.queue.drainTo(queue);
+            length.set(queue.size());
+        } finally {
+            editLock.unlock();
+        }
     }
 
     private static long calculateOfferTimeoutMillis(Duration requestCleanupInterval) {
@@ -125,7 +133,7 @@ class MessageQueue {
     }
 
     boolean push(NatsMessage msg, boolean internal) {
-        this.filterLock.lock();
+        editLock.lock();
         try {
             // If we aren't running, then we need to obey the filter lock
             // to avoid ordering problems
@@ -139,7 +147,7 @@ class MessageQueue {
             this.length.incrementAndGet();
             return true;
         } finally {
-            this.filterLock.unlock();
+            editLock.unlock();
         }
     }
 
@@ -290,7 +298,7 @@ class MessageQueue {
     }
 
     void filter(Predicate<NatsMessage> p) {
-        this.filterLock.lock();
+        editLock.lock();
         try {
             if (this.isRunning()) {
                 throw new IllegalStateException("Filter is only supported when the queue is paused");
@@ -308,7 +316,7 @@ class MessageQueue {
             }
             this.queue.addAll(newQueue);
         } finally {    
-            this.filterLock.unlock();
+            editLock.unlock();
         }
     }
 }

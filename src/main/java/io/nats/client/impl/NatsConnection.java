@@ -91,6 +91,7 @@ class NatsConnection implements Connection {
     private final AtomicReference<String> lastError;
     private final AtomicReference<CompletableFuture<Boolean>> draining;
     private final AtomicBoolean blockPublishForDrain;
+    private final AtomicBoolean tryingToConnect;
 
     private final ExecutorService callbackRunner;
     private final ExecutorService executor;
@@ -149,6 +150,7 @@ class NatsConnection implements Connection {
         this.pongQueue = new ConcurrentLinkedDeque<>();
         this.draining = new AtomicReference<>();
         this.blockPublishForDrain = new AtomicBoolean();
+        this.tryingToConnect = new AtomicBoolean();
 
         timeTraceLogger.trace("creating executors");
         this.executor = options.getExecutor();
@@ -172,6 +174,18 @@ class NatsConnection implements Connection {
 
     // Connect is only called after creation
     void connect(boolean reconnectOnConnect) throws InterruptedException, IOException {
+        if (!tryingToConnect.get()) {
+            try {
+                tryingToConnect.set(true);
+                connectImpl(reconnectOnConnect);
+            }
+            finally {
+                tryingToConnect.set(false);
+            }
+        }
+    }
+
+    void connectImpl(boolean reconnectOnConnect) throws InterruptedException, IOException {
         if (options.getServers().isEmpty()) {
             throw new IllegalArgumentException("No servers provided in options");
         }
@@ -235,7 +249,7 @@ class NatsConnection implements Connection {
         if (!isConnected() && !isClosed()) {
             if (reconnectOnConnect) {
                 timeTraceLogger.trace("trying to reconnect on connect");
-                reconnect();
+                reconnectImpl();
             }
             else {
                 timeTraceLogger.trace("connection failed, closing to cleanup");
@@ -260,6 +274,20 @@ class NatsConnection implements Connection {
 
     @Override
     public void forceReconnect() throws IOException, InterruptedException {
+        if (!tryingToConnect.get()) {
+            try {
+                tryingToConnect.set(true);
+                forceReconnectImpl();
+            }
+            finally {
+                tryingToConnect.set(false);
+            }
+        }
+    }
+
+    void forceReconnectImpl() throws IOException, InterruptedException {
+        NatsConnectionWriter oldWriter = writer;
+
         closeSocketLock.lock();
         try {
             updateStatus(Status.DISCONNECTED);
@@ -273,17 +301,20 @@ class NatsConnection implements Connection {
                 try {
                     dataPort.close();
                 }
-                catch (IOException ignore) {}
-                finally { dataPort = null; }
+                catch (IOException ignore) {
+                }
+                finally {
+                    dataPort = null;
+                }
             }
 
             // stop i/o
             reader.stop();
             writer.stop();
 
-            // restart i/o
+            // new reader/writer
             reader = new NatsConnectionReader(this);
-            writer = new NatsConnectionWriter(writer);
+            writer = new NatsConnectionWriter(this);
         }
         finally {
             closeSocketLock.unlock();
@@ -292,9 +323,12 @@ class NatsConnection implements Connection {
         try {
             // calling connect just starts like a new connection versus reconnect
             // but we have to manually resubscribe like reconnect once it is connected
-            connect(true);
+            // also, lets assume we never want to try the currently connected server
+            serverPool.connectFailed(currentServer);
+            connectImpl(true);
             reSubscribeAfterReconnect();
             processConnectionEvent(Events.RECONNECTED);
+            writer.loadFromSourceWriter(oldWriter);
         }
         catch (IOException e) {
             close(false);
@@ -305,8 +339,20 @@ class NatsConnection implements Connection {
         }
     }
 
+   void reconnect() throws InterruptedException {
+        if (!tryingToConnect.get()) {
+            try {
+                tryingToConnect.set(true);
+                reconnectImpl();
+            }
+            finally {
+                tryingToConnect.set(false);
+            }
+        }
+    }
+
     // Reconnect can only be called when the connection is disconnected
-    void reconnect() throws InterruptedException {
+    void reconnectImpl() throws InterruptedException {
         if (isClosed()) {
             return;
         }
@@ -551,7 +597,12 @@ class NatsConnection implements Connection {
                     this.timer.schedule(new TimerTask() {
                         public void run() {
                             if (isConnected()) {
-                                softPing(); // The timer always uses the standard queue
+                                try {
+                                    softPing(); // The timer always uses the standard queue
+                                }
+                                catch (Exception e) {
+                                    // it's running in a thread, there is no point throwing here
+                                }
                             }
                         }
                     }, pingMillis, pingMillis);
