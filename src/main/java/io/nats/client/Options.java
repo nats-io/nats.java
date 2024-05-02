@@ -120,8 +120,7 @@ public class Options {
     public static final Duration DEFAULT_SOCKET_WRITE_TIMEOUT = Duration.ofMinutes(1);
 
     /**
-     * Default socket write timeout, see {@link #getSocketWriteTimeout() getSocketWriteTimeout()}.
-     * This property is defined as 1 minute
+     * Constant used for calculating if a socket write timeout is large enough.
      */
     public static final long MINIMUM_SOCKET_WRITE_TIMEOUT_GT_CONNECTION_TIMEOUT = 1000;
 
