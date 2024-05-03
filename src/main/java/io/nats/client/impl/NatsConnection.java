@@ -45,6 +45,9 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 class NatsConnection implements Connection {
 
     public static final double NANOS_PER_SECOND = 1_000_000_000.0;
+    private static final int CONNECT_COMPLETED_SUCCESS = 1;
+    private static final int CONNECT_COMPLETED_WITH_RECONNECT = 2;
+
     private final Options options;
 
     private final StatisticsCollector statistics;
@@ -185,7 +188,7 @@ class NatsConnection implements Connection {
         }
     }
 
-    void connectImpl(boolean reconnectOnConnect) throws InterruptedException, IOException {
+    int connectImpl(boolean reconnectOnConnect) throws InterruptedException, IOException {
         if (options.getServers().isEmpty()) {
             throw new IllegalArgumentException("No servers provided in options");
         }
@@ -249,7 +252,8 @@ class NatsConnection implements Connection {
         if (!isConnected() && !isClosed()) {
             if (reconnectOnConnect) {
                 timeTraceLogger.trace("trying to reconnect on connect");
-                reconnectImpl();
+                reconnectImpl(); // call the impl here otherwise the tryingToConnect guard will block the behavior
+                return CONNECT_COMPLETED_WITH_RECONNECT; // forceReconnect checks this
             }
             else {
                 timeTraceLogger.trace("connection failed, closing to cleanup");
@@ -257,12 +261,9 @@ class NatsConnection implements Connection {
 
                 String err = connectError.get();
                 if (this.isAuthenticationError(err)) {
-                    String msg = "Authentication error connecting to NATS server: " + err;
-                    throw new AuthenticationException(msg);
-                } else {
-                    String msg = "Unable to connect to NATS servers: " + failList;
-                    throw new IOException(msg);
+                    throw new AuthenticationException("Authentication error connecting to NATS server: " + err);
                 }
+                throw new IOException("Unable to connect to NATS servers: " + failList);
             }
         }
         else if (trace) {
@@ -270,6 +271,7 @@ class NatsConnection implements Connection {
             double seconds = ((double) (end - start)) / NANOS_PER_SECOND;
             timeTraceLogger.trace("connect complete in %.3f seconds", seconds);
         }
+        return CONNECT_COMPLETED_SUCCESS; // forceReconnect checks this
     }
 
     @Override
@@ -324,17 +326,19 @@ class NatsConnection implements Connection {
             // calling connect just starts like a new connection versus reconnect
             // but we have to manually resubscribe like reconnect once it is connected
             // also, lets assume we never want to try the currently connected server
-            serverPool.connectFailed(currentServer);
-            connectImpl(true);
-            reSubscribeAfterReconnect();
-            processConnectionEvent(Events.RECONNECTED);
-            writer.loadFromSourceWriter(oldWriter);
+            serverPool.connectFailed(currentServer);       // we don't want to connect to the same server
+            int completed = connectImpl(true);             // do the reconnect logic if connect fails
+            if (completed == CONNECT_COMPLETED_SUCCESS) {  // if we completed with success we have to resubscribe
+                reSubscribeAfterReconnect();               // otherwise this was done by the reconnect logic
+            }
+            writer.loadQueueFromSourceWriter(oldWriter);   // copy the old writer queue
+            processConnectionEvent(Events.RECONNECTED);    // let the user know the reconnect happened
         }
         catch (IOException e) {
-            close(false);
+            // if there is an exception close() will have been called already
         }
         catch (InterruptedException e) {
-            close(false);
+            // if there is an exception close() will have been called already
             Thread.currentThread().interrupt();
         }
     }

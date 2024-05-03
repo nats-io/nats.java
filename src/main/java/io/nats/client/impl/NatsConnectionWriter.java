@@ -77,7 +77,7 @@ class NatsConnectionWriter implements Runnable {
         reconnectBufferSize = options.getReconnectBufferSize();
     }
 
-    void loadFromSourceWriter(NatsConnectionWriter sourceWriter) {
+    void loadQueueFromSourceWriter(NatsConnectionWriter sourceWriter) {
         outgoing.loadFromSourceQueue(sourceWriter.outgoing);
     }
 
