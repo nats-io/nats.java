@@ -122,7 +122,7 @@ public class Options {
     /**
      * Constant used for calculating if a socket write timeout is large enough.
      */
-    public static final long MINIMUM_SOCKET_WRITE_TIMEOUT_GT_CONNECTION_TIMEOUT = 1000;
+    public static final long MINIMUM_SOCKET_WRITE_TIMEOUT_GT_CONNECTION_TIMEOUT = 100;
 
     /**
      * Default server ping interval. The client will send a ping to the server on this interval to insure liveness.
