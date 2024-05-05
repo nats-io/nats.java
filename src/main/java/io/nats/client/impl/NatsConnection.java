@@ -45,8 +45,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 class NatsConnection implements Connection {
 
     public static final double NANOS_PER_SECOND = 1_000_000_000.0;
-    private static final int CONNECT_COMPLETED_SUCCESS = 1;
-    private static final int CONNECT_COMPLETED_WITH_RECONNECT = 2;
 
     private final Options options;
 
@@ -162,7 +160,7 @@ class NatsConnection implements Connection {
 
         timeTraceLogger.trace("creating reader and writer");
         this.reader = new NatsConnectionReader(this);
-        this.writer = new NatsConnectionWriter(this);
+        this.writer = new NatsConnectionWriter(this, null);
 
         this.needPing = new AtomicBoolean(true);
 
@@ -188,7 +186,7 @@ class NatsConnection implements Connection {
         }
     }
 
-    int connectImpl(boolean reconnectOnConnect) throws InterruptedException, IOException {
+    void connectImpl(boolean reconnectOnConnect) throws InterruptedException, IOException {
         if (options.getServers().isEmpty()) {
             throw new IllegalArgumentException("No servers provided in options");
         }
@@ -253,7 +251,6 @@ class NatsConnection implements Connection {
             if (reconnectOnConnect) {
                 timeTraceLogger.trace("trying to reconnect on connect");
                 reconnectImpl(); // call the impl here otherwise the tryingToConnect guard will block the behavior
-                return CONNECT_COMPLETED_WITH_RECONNECT; // forceReconnect checks this
             }
             else {
                 timeTraceLogger.trace("connection failed, closing to cleanup");
@@ -271,7 +268,6 @@ class NatsConnection implements Connection {
             double seconds = ((double) (end - start)) / NANOS_PER_SECOND;
             timeTraceLogger.trace("connect complete in %.3f seconds", seconds);
         }
-        return CONNECT_COMPLETED_SUCCESS; // forceReconnect checks this
     }
 
     @Override
@@ -316,7 +312,7 @@ class NatsConnection implements Connection {
 
             // new reader/writer
             reader = new NatsConnectionReader(this);
-            writer = new NatsConnectionWriter(this);
+            writer = new NatsConnectionWriter(this, writer);
         }
         finally {
             closeSocketLock.unlock();
@@ -327,15 +323,8 @@ class NatsConnection implements Connection {
             // but we have to manually resubscribe like reconnect once it is connected
             // also, lets assume we never want to try the currently connected server
             serverPool.connectFailed(currentServer);       // we don't want to connect to the same server
-            int completed = connectImpl(true);             // do the reconnect logic if connect fails
-            if (completed == CONNECT_COMPLETED_SUCCESS) {  // if we completed with success we have to resubscribe
-                reSubscribeAfterReconnect();               // otherwise this was done by the reconnect logic
-            }
-            writer.loadQueueFromSourceWriter(oldWriter);   // copy the old writer queue
-            processConnectionEvent(Events.RECONNECTED);    // let the user know the reconnect happened
-        }
-        catch (IOException e) {
-            // if there is an exception close() will have been called already
+            reconnectImpl();
+            writer.setReconnectMode(false);
         }
         catch (InterruptedException e) {
             // if there is an exception close() will have been called already
@@ -429,14 +418,6 @@ class NatsConnection implements Connection {
             return;
         }
 
-        reSubscribeAfterReconnect();
-
-        // When the flush returns we are done sending internal messages,
-        // so we can switch to the non-reconnect queue
-        this.writer.setReconnectMode(false);
-    }
-
-    private void reSubscribeAfterReconnect() {
         this.subscribers.forEach((sid, sub) -> {
             if (sub.getDispatcher() == null && !sub.isDraining()) {
                 sendSubscriptionMessage(sub.getSID(), sub.getSubject(), sub.getQueueName(), true);
@@ -456,6 +437,12 @@ class NatsConnection implements Connection {
         }
 
         processConnectionEvent(Events.RESUBSCRIBED);
+
+        processConnectionEvent(Events.RECONNECTED);
+
+        // When the flush returns we are done sending internal messages,
+        // so we can switch to the non-reconnect queue
+        this.writer.setReconnectMode(false);
     }
 
     long timeCheck(long endNanos, String message) throws TimeoutException {
@@ -957,8 +944,7 @@ class NatsConnection implements Connection {
             throw new IllegalStateException("Connection is Draining"); // Ok to publish while waiting on subs
         }
 
-        Connection.Status stat = this.status;
-        if ((stat == Status.RECONNECTING || stat == Status.DISCONNECTED)
+        if ((status == Status.RECONNECTING || status == Status.DISCONNECTED)
                 && !this.writer.canQueueDuringReconnect(npm)) {
             throw new IllegalStateException(
                     "Unable to queue any more messages during reconnect, max buffer is " + options.getReconnectBufferSize());

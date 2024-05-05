@@ -52,12 +52,12 @@ class NatsConnectionWriter implements Runnable {
     private final MessageQueue reconnectOutgoing;
     private final long reconnectBufferSize;
 
-    NatsConnectionWriter(NatsConnection connection) {
+    NatsConnectionWriter(NatsConnection connection, NatsConnectionWriter sourceWriter) {
         this.connection = connection;
         writerLock = new ReentrantLock();
 
         this.running = new AtomicBoolean(false);
-        this.reconnectMode = new AtomicBoolean(false);
+        this.reconnectMode = new AtomicBoolean(sourceWriter != null);
         this.startStopLock = new ReentrantLock();
         this.stopped = new CompletableFuture<>();
         ((CompletableFuture<Boolean>)this.stopped).complete(Boolean.TRUE); // we are stopped on creation
@@ -72,13 +72,13 @@ class NatsConnectionWriter implements Runnable {
             options.isDiscardMessagesWhenOutgoingQueueFull(),
             options.getRequestCleanupInterval());
 
+        if (sourceWriter != null) {
+            outgoing.loadFromSourceQueue(sourceWriter.outgoing);
+        }
+
         // The "reconnect" buffer contains internal messages, and we will keep it unlimited in size
         reconnectOutgoing = new MessageQueue(true, options.getRequestCleanupInterval());
         reconnectBufferSize = options.getReconnectBufferSize();
-    }
-
-    void loadQueueFromSourceWriter(NatsConnectionWriter sourceWriter) {
-        outgoing.loadFromSourceQueue(sourceWriter.outgoing);
     }
 
     // Should only be called if the current thread has exited.
