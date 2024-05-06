@@ -15,9 +15,7 @@ package io.nats.client.support;
 
 import io.nats.client.impl.Headers;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-
+import static io.nats.client.support.Encoding.base64BasicEncodeToString;
 import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsJetStreamConstants.ROLLUP_HDR;
 import static io.nats.client.support.NatsJetStreamConstants.ROLLUP_HDR_SUBJECT;
@@ -59,7 +57,7 @@ public abstract class NatsObjectStoreUtil {
     }
 
     public static String encodeForSubject(String name) {
-        return Base64.getEncoder().encodeToString(name.getBytes(StandardCharsets.UTF_8));
+        return base64BasicEncodeToString(name);
     }
 
     public static Headers getMetaHeaders() {

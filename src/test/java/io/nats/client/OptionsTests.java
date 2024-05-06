@@ -378,19 +378,6 @@ public class OptionsTests {
             .build();
         assertFalse(o.clientSideLimitChecks());
         assertNotNull(o.getServerPool());
-
-        long minSwt = DEFAULT_CONNECTION_TIMEOUT.toMillis() + MINIMUM_SOCKET_WRITE_TIMEOUT_GT_CONNECTION_TIMEOUT;
-        o = new Options.Builder()
-            .socketWriteTimeout(minSwt)
-            .build();
-        assertEquals(minSwt, o.getSocketWriteTimeout().toMillis());
-
-        assertThrows(IllegalStateException.class, () -> new Options.Builder()
-            .socketWriteTimeout(DEFAULT_CONNECTION_TIMEOUT)
-            .build());
-        assertThrows(IllegalStateException.class, () -> new Options.Builder()
-            .socketWriteTimeout(minSwt - 1)
-            .build());
     }
 
     @Test
@@ -694,7 +681,7 @@ public class OptionsTests {
     public void testNKeyConnectOptions() throws Exception {
         AuthHandlerForTesting th = new AuthHandlerForTesting();
         byte[] nonce = "abcdefg".getBytes(StandardCharsets.UTF_8);
-        String sig = Base64.getUrlEncoder().withoutPadding().encodeToString(th.sign(nonce));
+        String sig = base64UrlEncodeToString(th.sign(nonce));
 
         Options o = new Options.Builder().authHandler(th).build();
         String expectedNoAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""

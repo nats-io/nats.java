@@ -33,7 +33,6 @@ import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_ARGUMENT;
 import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_STATE;
-import static io.nats.examples.ExampleUtils.uniqueEnough;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestBase {
@@ -521,8 +520,8 @@ public class TestBase {
     }
 
     public static void assertPubSub(Connection conn) throws InterruptedException {
-        String subject = "sub" + uniqueEnough();
-        String data = "data" + uniqueEnough();
+        String subject = subject();
+        String data = data(null);
         Subscription sub = conn.subscribe(subject);
         conn.publish(subject, data.getBytes());
         Message m = sub.nextMessage(Duration.ofSeconds(2));
