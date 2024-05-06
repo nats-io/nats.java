@@ -2368,7 +2368,6 @@ public class Options {
                     nkey = new char[0];
                 }
 
-                String encodedSig = Base64.getUrlEncoder().withoutPadding().encodeToString(sig);
                 String encodedSig = base64UrlEncodeToString(sig);
 
                 appendOption(connectString, Options.OPTION_NKEY, nkey, true, true);
