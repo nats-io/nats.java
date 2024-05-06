@@ -38,6 +38,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.nats.client.support.Encoding.base64UrlEncodeToString;
 import static io.nats.client.support.Encoding.uriDecode;
 import static io.nats.client.support.NatsConstants.*;
 import static io.nats.client.support.SSLUtils.DEFAULT_TLS_ALGORITHM;
@@ -2367,7 +2368,7 @@ public class Options {
                     nkey = new char[0];
                 }
 
-                String encodedSig = Base64.getUrlEncoder().withoutPadding().encodeToString(sig);
+                String encodedSig = base64UrlEncodeToString(sig);
 
                 appendOption(connectString, Options.OPTION_NKEY, nkey, true, true);
                 appendOption(connectString, Options.OPTION_SIG, encodedSig, true, true);

@@ -21,6 +21,7 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.function.Function;
 
+import static io.nats.client.support.Encoding.base64BasicDecode;
 import static io.nats.client.support.JsonValue.*;
 
 /**
@@ -192,7 +193,7 @@ public abstract class JsonValueUtils {
 
     public static byte[] readBase64(JsonValue jsonValue, String key) {
         String b64 = readString(jsonValue, key);
-        return b64 == null ? null : Base64.getDecoder().decode(b64);
+        return b64 == null ? null : base64BasicDecode(b64);
     }
 
     public static Integer getInteger(JsonValue v) {

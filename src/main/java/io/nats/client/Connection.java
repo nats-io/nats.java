@@ -548,8 +548,8 @@ public interface Connection extends AutoCloseable {
     /**
      * Forces reconnect behavior. Stops the current connection including the reading and writing,
      * copies already queued outgoing messages, and then begins the reconnect logic.
-     * @throws IOException
-     * @throws InterruptedException
+     * @throws IOException the force reconnected fails
+     * @throws InterruptedException if one is thrown, in order to propagate it up
      */
     void forceReconnect() throws IOException, InterruptedException;
 

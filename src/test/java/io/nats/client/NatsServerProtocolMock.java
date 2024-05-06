@@ -16,9 +16,9 @@ package io.nats.client;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
+
+import static io.nats.client.support.Encoding.base64UrlEncodeToString;
 
 /**
  * Handles the begining of the connect sequence, all hard coded, but
@@ -174,8 +174,7 @@ public class NatsServerProtocolMock implements Closeable{
                 }
             }
             
-            byte[] nonce = "abcdefg".getBytes(StandardCharsets.UTF_8);
-            String encoded = Base64.getUrlEncoder().withoutPadding().encodeToString(nonce);
+            String encodedNonce = base64UrlEncodeToString("abcdefg".getBytes());
 
             if (this.customInfo != null) {
                 if (customInfoIsFullInfo) {
@@ -184,7 +183,7 @@ public class NatsServerProtocolMock implements Closeable{
                     writer.write("INFO" + this.separator + customInfo + "\r\n");
                 }
             } else {
-                writer.write("INFO" + this.separator + "{\"server_id\":\"test\", \"version\":\"9.9.99\", \"nonce\":\""+encoded+"\", \"headers\":true}\r\n");
+                writer.write("INFO" + this.separator + "{\"server_id\":\"test\", \"version\":\"9.9.99\", \"nonce\":\""+encodedNonce+"\", \"headers\":true}\r\n");
             }
             writer.flush();
             this.progress = Progress.SENT_INFO;

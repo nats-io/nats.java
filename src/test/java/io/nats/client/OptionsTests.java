@@ -38,6 +38,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static io.nats.client.Options.DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE;
+import static io.nats.client.support.Encoding.base64UrlEncodeToString;
 import static io.nats.client.support.NatsConstants.DEFAULT_PORT;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -681,7 +682,7 @@ public class OptionsTests {
     public void testNKeyConnectOptions() throws Exception {
         AuthHandlerForTesting th = new AuthHandlerForTesting();
         byte[] nonce = "abcdefg".getBytes(StandardCharsets.UTF_8);
-        String sig = Base64.getUrlEncoder().withoutPadding().encodeToString(th.sign(nonce));
+        String sig = base64UrlEncodeToString(th.sign(nonce));
 
         Options o = new Options.Builder().authHandler(th).build();
         String expectedNoAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
