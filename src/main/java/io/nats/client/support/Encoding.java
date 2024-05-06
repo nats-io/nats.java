@@ -50,7 +50,6 @@ public abstract class Encoding {
             .encodeToString(input.getBytes(StandardCharsets.UTF_8));
     }
 
-
     /**
      * base64 url encode a byte array to a byte array
      * @param input the input byte array to encode
