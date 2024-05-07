@@ -70,14 +70,12 @@ class NatsConnectionWriter implements Runnable {
         outgoing = new MessageQueue(true,
             options.getMaxMessagesInOutgoingQueue(),
             options.isDiscardMessagesWhenOutgoingQueueFull(),
-            options.getRequestCleanupInterval());
-
-        if (sourceWriter != null) {
-            outgoing.loadFromSourceQueue(sourceWriter.outgoing);
-        }
+            options.getRequestCleanupInterval(),
+            sourceWriter == null ? null : sourceWriter.outgoing);
 
         // The "reconnect" buffer contains internal messages, and we will keep it unlimited in size
-        reconnectOutgoing = new MessageQueue(true, options.getRequestCleanupInterval());
+        reconnectOutgoing = new MessageQueue(true, options.getRequestCleanupInterval(),
+            sourceWriter == null ? null : sourceWriter.reconnectOutgoing);
         reconnectBufferSize = options.getReconnectBufferSize();
     }
 

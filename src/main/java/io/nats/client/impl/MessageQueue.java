@@ -39,6 +39,7 @@ class MessageQueue {
     protected final Lock editLock;
     protected final int publishHighwaterMark;
     protected final boolean discardWhenFull;
+    protected final long offerLockMillis;
     protected final long offerTimeoutMillis;
     protected final Duration requestCleanupInterval;
 
@@ -48,7 +49,11 @@ class MessageQueue {
     protected final NatsMessage poisonPill;
 
     MessageQueue(boolean singleReaderMode, Duration requestCleanupInterval) {
-        this(singleReaderMode, -1, false, requestCleanupInterval);
+        this(singleReaderMode, -1, false, requestCleanupInterval, null);
+    }
+
+    MessageQueue(boolean singleReaderMode, Duration requestCleanupInterval, MessageQueue source) {
+        this(singleReaderMode, -1, false, requestCleanupInterval, source);
     }
 
     /**
@@ -62,13 +67,18 @@ class MessageQueue {
      * @param requestCleanupInterval is used to figure the offerTimeoutMillis
      */
     MessageQueue(boolean singleReaderMode, int publishHighwaterMark, boolean discardWhenFull, Duration requestCleanupInterval) {
+        this(singleReaderMode, publishHighwaterMark, discardWhenFull, requestCleanupInterval, null);
+    }
+
+    MessageQueue(boolean singleReaderMode, int publishHighwaterMark, boolean discardWhenFull, Duration requestCleanupInterval, MessageQueue source) {
         this.publishHighwaterMark = publishHighwaterMark;
         this.queue = publishHighwaterMark > 0 ? new LinkedBlockingQueue<>(publishHighwaterMark) : new LinkedBlockingQueue<>();
         this.discardWhenFull = discardWhenFull;
         this.running = new AtomicInteger(RUNNING);
         this.sizeInBytes = new AtomicLong(0);
         this.length = new AtomicLong(0);
-        this.offerTimeoutMillis = calculateOfferTimeoutMillis(requestCleanupInterval);
+        this.offerLockMillis = requestCleanupInterval.toMillis();
+        this.offerTimeoutMillis = Math.max(1, requestCleanupInterval.toMillis() * 95 / 100);
 
         // The poisonPill is used to stop poll and accumulate when the queue is stopped
         this.poisonPill = new NatsMessage("_poison", null, EMPTY_BODY);
@@ -77,24 +87,20 @@ class MessageQueue {
         
         this.singleReaderMode = singleReaderMode;
         this.requestCleanupInterval = requestCleanupInterval;
-    }
-
-    MessageQueue(MessageQueue source) {
-        this(source.singleReaderMode, source.publishHighwaterMark, source.discardWhenFull, source.requestCleanupInterval);
-    }
-
-    void loadFromSourceQueue(MessageQueue source) {
-        editLock.lock();
-        try {
-            source.queue.drainTo(queue);
-            length.set(queue.size());
-        } finally {
-            editLock.unlock();
+        
+        if (source != null) {
+            source.drainTo(this);
         }
     }
 
-    private static long calculateOfferTimeoutMillis(Duration requestCleanupInterval) {
-        return Math.max(1, requestCleanupInterval.toMillis() * 95 / 100);
+    void drainTo(MessageQueue target) {
+        editLock.lock();
+        try {
+            queue.drainTo(target.queue);
+            target.length.set(queue.size());
+        } finally {
+            editLock.unlock();
+        }
     }
 
     boolean isSingleReaderMode() {
@@ -133,19 +139,33 @@ class MessageQueue {
     }
 
     boolean push(NatsMessage msg, boolean internal) {
-        editLock.lock();
+        if (!internal && this.discardWhenFull) {
+            return this.queue.offer(msg);
+        }
+        long start = System.currentTimeMillis();
         try {
-            // If we aren't running, then we need to obey the filter lock
-            // to avoid ordering problems
-            if (!internal && this.discardWhenFull) {
-                return this.queue.offer(msg);
+            // try to get the lock, but don't wait forever
+            // assuming that if we are waiting for the lock
+            // another push likely has the lock and
+            if (!editLock.tryLock(offerLockMillis, TimeUnit.MILLISECONDS)) {
+                throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
             }
-            if (!this.offer(msg)) {
+        }
+        catch (InterruptedException e) {
+            return false;
+        }
+
+        long timeoutLeft = Math.min(100, offerTimeoutMillis - (System.currentTimeMillis() - start));
+
+        try {
+            if (!this.queue.offer(msg, timeoutLeft, TimeUnit.MILLISECONDS)) {
                 throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
             }
             this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
             this.length.incrementAndGet();
             return true;
+        } catch (InterruptedException ie) {
+            return false;
         } finally {
             editLock.unlock();
         }
@@ -160,14 +180,6 @@ class MessageQueue {
             this.queue.add(this.poisonPill);
         } catch (IllegalStateException ie) { // queue was full, so we don't really need poison pill
             // ok to ignore this
-        }
-    }
-
-    boolean offer(NatsMessage msg) {
-        try {
-            return this.queue.offer(msg, offerTimeoutMillis, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException ie) {
-            return false;
         }
     }
 
