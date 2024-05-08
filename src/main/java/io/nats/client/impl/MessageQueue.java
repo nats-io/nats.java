@@ -139,9 +139,6 @@ class MessageQueue {
     }
 
     boolean push(NatsMessage msg, boolean internal) {
-        if (!internal && this.discardWhenFull) {
-            return this.queue.offer(msg);
-        }
         long start = System.currentTimeMillis();
         try {
             // try to get the lock, but don't wait forever
@@ -155,9 +152,13 @@ class MessageQueue {
             return false;
         }
 
-        long timeoutLeft = Math.min(100, offerTimeoutMillis - (System.currentTimeMillis() - start));
-
         try {
+            if (!internal && this.discardWhenFull) {
+                return this.queue.offer(msg);
+            }
+
+            long timeoutLeft = Math.min(100, offerTimeoutMillis - (System.currentTimeMillis() - start));
+
             if (!this.queue.offer(msg, timeoutLeft, TimeUnit.MILLISECONDS)) {
                 throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
             }
