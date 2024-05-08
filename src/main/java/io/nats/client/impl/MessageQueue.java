@@ -157,7 +157,7 @@ class MessageQueue {
                 return this.queue.offer(msg);
             }
 
-            long timeoutLeft = Math.min(100, offerTimeoutMillis - (System.currentTimeMillis() - start));
+            long timeoutLeft = Math.max(100, offerTimeoutMillis - (System.currentTimeMillis() - start));
 
             if (!this.queue.offer(msg, timeoutLeft, TimeUnit.MILLISECONDS)) {
                 throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
