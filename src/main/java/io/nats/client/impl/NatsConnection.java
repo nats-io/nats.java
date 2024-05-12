@@ -553,9 +553,6 @@ class NatsConnection implements Connection {
                 statusLock.unlock();
             }
             timeTraceLogger.trace("status updated");
-        } catch (RuntimeException exp) { // runtime exceptions, like illegalArgs
-            processException(exp);
-            throw exp;
         } catch (Exception exp) { // every thing else
             processException(exp);
             try {
@@ -810,13 +807,7 @@ class NatsConnection implements Connection {
     void cleanUpPongQueue() {
         Future<Boolean> b;
         while ((b = pongQueue.poll()) != null) {
-            try {
-                b.cancel(true);
-            } catch (CancellationException e) {
-                if (!b.isDone() && !b.isCancelled()) {
-                    processException(e);
-                }
-            }
+            b.cancel(true);
         }
     }
 
