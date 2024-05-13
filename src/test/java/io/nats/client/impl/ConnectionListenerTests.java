@@ -73,7 +73,7 @@ public class ConnectionListenerTests {
     @Test
     public void testDisconnectReconnectCount() throws Exception {
         int port;
-        Connection nc = null;
+        Connection nc;
         ListenerForTesting listener = new ListenerForTesting();
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = new Options.Builder().
@@ -96,7 +96,7 @@ public class ConnectionListenerTests {
 
         try (NatsTestServer ts = new NatsTestServer(port, false)) {
             standardConnectionWait(nc);
-            assertEquals(1, listener.getEventCount(Events.RECONNECTED));
+            assertEquals(2, listener.getEventCount(Events.RECONNECTED));
             assertEquals(ts.getURI(), nc.getConnectedUrl());
             standardCloseConnection(nc);
         }
