@@ -4,7 +4,7 @@
 
 ### A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
-**Current Release**: 2.17.6 &nbsp; **Current Snapshot**: 2.17.7-SNAPSHOT
+**Current Release**: 2.17.7 &nbsp; **Current Snapshot**: 2.18.0-SNAPSHOT
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
@@ -44,6 +44,18 @@ The Services Framework further streamlines their development by providing observ
 Check out the [ServiceExample](src/examples/java/io/nats/examples/service/ServiceExample.java)
 
 ### Versions Specific Notes
+
+#### Version 2.18.0 (AKA 2.17.7)
+
+2.18.0 attempts to start us on the road to properly [Semantic Version (semver)](https://semver.org/). 
+In the last few patch releases, there were technically things that should cause a minor version bump, 
+but were numbered as a patch.
+
+Even if just one api is newly added, semver requires that we bump the minor version. The `forceReconnect` api
+is an example of one api being added to the Connection interface. It should have resulted in a minor version bump.
+
+Going forward, when a release contains only bug fixes, it's appropriate to simply bump the patch. 
+But if an api is added, even one, then the minor version will be bumped.
 
 #### Version 2.17.4 Core Improvements
 
