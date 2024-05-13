@@ -1,3 +1,4 @@
+
 // Copyright 2015-2018 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,7 +40,7 @@ class NatsConnectionWriter implements Runnable {
     private final ReentrantLock writerLock;
     private Future<Boolean> stopped;
     private Future<DataPort> dataPortFuture;
-    private DataPort dataPort = null;
+    private DataPort dataPort;
     private final AtomicBoolean running;
     private final AtomicBoolean reconnectMode;
     private final ReentrantLock startStopLock;
@@ -51,12 +52,12 @@ class NatsConnectionWriter implements Runnable {
     private final MessageQueue reconnectOutgoing;
     private final long reconnectBufferSize;
 
-    NatsConnectionWriter(NatsConnection connection) {
+    NatsConnectionWriter(NatsConnection connection, NatsConnectionWriter sourceWriter) {
         this.connection = connection;
         writerLock = new ReentrantLock();
 
         this.running = new AtomicBoolean(false);
-        this.reconnectMode = new AtomicBoolean(false);
+        this.reconnectMode = new AtomicBoolean(sourceWriter != null);
         this.startStopLock = new ReentrantLock();
         this.stopped = new CompletableFuture<>();
         ((CompletableFuture<Boolean>)this.stopped).complete(Boolean.TRUE); // we are stopped on creation
@@ -69,32 +70,13 @@ class NatsConnectionWriter implements Runnable {
         outgoing = new MessageQueue(true,
             options.getMaxMessagesInOutgoingQueue(),
             options.isDiscardMessagesWhenOutgoingQueueFull(),
-            options.getRequestCleanupInterval());
+            options.getRequestCleanupInterval(),
+            sourceWriter == null ? null : sourceWriter.outgoing);
 
         // The "reconnect" buffer contains internal messages, and we will keep it unlimited in size
-        reconnectOutgoing = new MessageQueue(true, options.getRequestCleanupInterval());
+        reconnectOutgoing = new MessageQueue(true, options.getRequestCleanupInterval(),
+            sourceWriter == null ? null : sourceWriter.reconnectOutgoing);
         reconnectBufferSize = options.getReconnectBufferSize();
-    }
-
-    NatsConnectionWriter(NatsConnectionWriter sourceWriter) {
-        this.connection = sourceWriter.connection;
-        writerLock = new ReentrantLock();
-
-        this.running = new AtomicBoolean(false);
-        this.reconnectMode = new AtomicBoolean(false);
-        this.startStopLock = new ReentrantLock();
-        this.stopped = new CompletableFuture<>();
-        ((CompletableFuture<Boolean>)this.stopped).complete(Boolean.TRUE); // we are stopped on creation
-
-        int sbl = sourceWriter.sendBufferLength.get();
-        sendBufferLength = new AtomicInteger();
-        sendBuffer = new byte[sbl];
-
-        outgoing = new MessageQueue(sourceWriter.outgoing);
-
-        // The "reconnect" buffer contains internal messages, and we will keep it unlimited in size
-        reconnectOutgoing = new MessageQueue(sourceWriter.reconnectOutgoing);
-        reconnectBufferSize = sourceWriter.reconnectBufferSize;
     }
 
     // Should only be called if the current thread has exited.
@@ -132,7 +114,6 @@ class NatsConnectionWriter implements Runnable {
                 this.startStopLock.unlock();
             }
         }
-
         return this.stopped;
     }
 

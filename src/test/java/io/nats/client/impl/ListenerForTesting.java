@@ -100,9 +100,7 @@ public class ListenerForTesting implements ErrorListener, ConnectionListener {
         try {
             return future.get(timeout, units);
         } catch (TimeoutException | ExecutionException | InterruptedException e) {
-            if (printExceptions) {
-                e.printStackTrace();
-            }
+            maybePrintException("waitForBooleanFuture", e);
             return false;
         }
     }
@@ -111,10 +109,15 @@ public class ListenerForTesting implements ErrorListener, ConnectionListener {
         try {
             return future.get(waitInMillis, TimeUnit.MILLISECONDS);
         } catch (TimeoutException | ExecutionException | InterruptedException e) {
-            if (printExceptions) {
-                e.printStackTrace();
-            }
+            maybePrintException("waitForFuture", e);
             return null;
+        }
+    }
+
+    private void maybePrintException(String label, Exception e) {
+        if (printExceptions) {
+            System.err.print("LFT " + label + ": ");
+            e.printStackTrace();
         }
     }
 
@@ -145,9 +148,7 @@ public class ListenerForTesting implements ErrorListener, ConnectionListener {
             if (verbose) {
                 report("exceptionOccurred",  "conn:" + conn.hashCode() + ", " + exp);
             }
-            if (printExceptions) {
-                exp.printStackTrace();
-            }
+            maybePrintException("exceptionOccurred", exp);
         }
     }
 

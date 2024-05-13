@@ -42,10 +42,12 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
                     out.close();
                 }
                 catch (IOException ignore) {}
-                try {
-                    connection.forceReconnect();
-                }
-                catch (InterruptedException | IOException ignore) {}
+                connection.getExecutor().submit(() -> {
+                    try {
+                        connection.forceReconnect();
+                    }
+                    catch (IOException | InterruptedException ignore) {}
+                });
             }
         }
     }
@@ -80,6 +82,11 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
     public void close() throws IOException {
         try {
             writeWatcherTask.cancel();
+        }
+        catch (Exception ignore) {
+            // don't want this to be passed along
+        }
+        try {
             writeWatcherTimer.cancel();
         }
         catch (Exception ignore) {

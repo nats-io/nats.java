@@ -23,6 +23,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.nats.client.support.NatsConstants.OUTPUT_QUEUE_IS_FULL;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class MessageQueueTests {
@@ -584,7 +585,7 @@ public class MessageQueueTests {
             q.push(msg3);
             fail("Expected " + IllegalStateException.class.getSimpleName());
         } catch (IllegalStateException e) {
-            assertEquals("Output queue is full 2", e.getMessage());
+            assertEquals(OUTPUT_QUEUE_IS_FULL + "2", e.getMessage());
         }
     }
 
