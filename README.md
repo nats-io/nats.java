@@ -57,6 +57,11 @@ is an example of one api being added to the Connection interface. It should have
 Going forward, when a release contains only bug fixes, it's appropriate to simply bump the patch. 
 But if an api is added, even one, then the minor version will be bumped.
 
+##### Force Reconnect
+
+There is a new `Connection` interface api: `void forceReconnect() throws IOException, InterruptedException;`
+If you call this, your connection will be immediately close and the reconnect logic will be executed.
+
 #### Version 2.17.4 Core Improvements
 
 This release was full of core improvements which improve use of more asynchronous behaviors including
