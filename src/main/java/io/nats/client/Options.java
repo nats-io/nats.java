@@ -13,10 +13,7 @@
 
 package io.nats.client;
 
-import io.nats.client.impl.DataPort;
-import io.nats.client.impl.DispatcherFactory;
-import io.nats.client.impl.ErrorListenerLoggerImpl;
-import io.nats.client.impl.SocketDataPort;
+import io.nats.client.impl.*;
 import io.nats.client.support.HttpRequest;
 import io.nats.client.support.NatsConstants;
 import io.nats.client.support.NatsUri;
@@ -35,13 +32,15 @@ import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.nats.client.support.Encoding.base64UrlEncodeToString;
 import static io.nats.client.support.Encoding.uriDecode;
 import static io.nats.client.support.NatsConstants.*;
-import static io.nats.client.support.NatsUri.DEFAULT_NATS_URI;
 import static io.nats.client.support.SSLUtils.DEFAULT_TLS_ALGORITHM;
 import static io.nats.client.support.Validator.*;
 
@@ -114,6 +113,17 @@ public class Options {
      * This property is defined as 2 seconds.
      */
     public static final Duration DEFAULT_CONNECTION_TIMEOUT = Duration.ofSeconds(2);
+
+    /**
+     * Default socket write timeout, see {@link #getSocketWriteTimeout() getSocketWriteTimeout()}.
+     * This property is defined as 1 minute
+     */
+    public static final Duration DEFAULT_SOCKET_WRITE_TIMEOUT = Duration.ofMinutes(1);
+
+    /**
+     * Constant used for calculating if a socket write timeout is large enough.
+     */
+    public static final long MINIMUM_SOCKET_WRITE_TIMEOUT_GT_CONNECTION_TIMEOUT = 100;
 
     /**
      * Default server ping interval. The client will send a ping to the server on this interval to insure liveness.
@@ -234,6 +244,11 @@ public class Options {
     public static final String PROP_ERROR_LISTENER = PFX + "callback.error";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see
+     * {@link Builder#timeTraceLogger(TimeTraceLogger) timeTraceLogger}.
+     */
+    public static final String PROP_TIME_TRACE_LOGGER = PFX + "time.trace";
+    /**
+     * Property used to configure a builder from a Properties object. {@value}, see
      * {@link Builder#statisticsCollector(StatisticsCollector) statisticsCollector}.
      */
     public static final String PROP_STATISTICS_COLLECTOR = PFX + "statisticscollector";
@@ -256,6 +271,11 @@ public class Options {
      * {@link Builder#connectionTimeout(Duration) connectionTimeout}.
      */
     public static final String PROP_CONNECTION_TIMEOUT = PFX + "timeout";
+    /**
+     * Property used to configure a builder from a Properties object. {@value}, see
+     * {@link Builder#socketWriteTimeout(long) socketWriteTimeout}.
+     */
+    public static final String PROP_SOCKET_WRITE_TIMEOUT = PFX + "socket.write.timeout";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see
      * {@link Builder#reconnectBufferSize(long) reconnectBufferSize}.
@@ -409,6 +429,11 @@ public class Options {
      */
     public static final String PROP_DISPATCHER_FACTORY_CLASS = "dispatcher.factory.class";
     /**
+     * Property used to set class name for the SSLContextFactory
+     * {@link Builder#sslContextFactory(SSLContextFactory) sslContextFactory}.
+     */
+    public static final String PROP_SSL_CONTEXT_FACTORY_CLASS = "ssl.context.factory.class";
+    /**
      * Property for the keystore path used to create an SSLContext
      */
     public static final String PROP_KEYSTORE = PFX + "keyStore";
@@ -449,6 +474,11 @@ public class Options {
      * {@link Builder#useTimeoutException()}.
      */
     public static final String PROP_USE_TIMEOUT_EXCEPTION = PFX + "use.timeout.exception";
+    /**
+     * Property used to a dispatcher that dispatches messages via the executor service instead of with a blocking call.
+     * {@link Builder#useDispatcherWithExecutor()}.
+     */
+    public static final String PROP_USE_DISPATCHER_WITH_EXECUTOR = PFX + "use.dispatcher.with.executor";
 
     // ----------------------------------------------------------------------------------------------------
     // PROTOCOL CONNECT OPTION CONSTANTS
@@ -558,6 +588,7 @@ public class Options {
     private final Duration reconnectJitter;
     private final Duration reconnectJitterTls;
     private final Duration connectionTimeout;
+    private final Duration socketWriteTimeout;
     private final Duration pingInterval;
     private final Duration requestCleanupInterval;
     private final int maxPingsOut;
@@ -577,11 +608,13 @@ public class Options {
     private final boolean ignoreDiscoveredServers;
     private final boolean tlsFirst;
     private final boolean useTimeoutException;
+    private final boolean useDispatcherWithExecutor;
 
     private final AuthHandler authHandler;
     private final ReconnectDelayHandler reconnectDelayHandler;
 
     private final ErrorListener errorListener;
+    private final TimeTraceLogger timeTraceLogger;
     private final ConnectionListener connectionListener;
     private final StatisticsCollector statisticsCollector;
     private final String dataPortType;
@@ -659,12 +692,14 @@ public class Options {
         private boolean verbose = false;
         private boolean pedantic = false;
         private SSLContext sslContext = null;
+        private SSLContextFactory sslContextFactory = null;
         private int maxControlLine = DEFAULT_MAX_CONTROL_LINE;
         private int maxReconnect = DEFAULT_MAX_RECONNECT;
         private Duration reconnectWait = DEFAULT_RECONNECT_WAIT;
         private Duration reconnectJitter = DEFAULT_RECONNECT_JITTER;
         private Duration reconnectJitterTls = DEFAULT_RECONNECT_JITTER_TLS;
         private Duration connectionTimeout = DEFAULT_CONNECTION_TIMEOUT;
+        private Duration socketWriteTimeout = DEFAULT_SOCKET_WRITE_TIMEOUT;
         private Duration pingInterval = DEFAULT_PING_INTERVAL;
         private Duration requestCleanupInterval = DEFAULT_REQUEST_CLEANUP_INTERVAL;
         private int maxPingsOut = DEFAULT_MAX_PINGS_OUT;
@@ -686,6 +721,7 @@ public class Options {
         private boolean ignoreDiscoveredServers = false;
         private boolean tlsFirst = false;
         private boolean useTimeoutException = false;
+        private boolean useDispatcherWithExecutor = false;
         private ServerPool serverPool = null;
         private DispatcherFactory dispatcherFactory = null;
 
@@ -693,6 +729,7 @@ public class Options {
         private ReconnectDelayHandler reconnectDelayHandler;
 
         private ErrorListener errorListener = null;
+        private TimeTraceLogger timeTraceLogger = null;
         private ConnectionListener connectionListener = null;
         private StatisticsCollector statisticsCollector = null;
         private String dataPortType = DEFAULT_DATA_PORT_TYPE;
@@ -762,9 +799,11 @@ public class Options {
             charArrayProperty(props, PROP_USERNAME, ca -> this.username = ca);
             charArrayProperty(props, PROP_PASSWORD, ca -> this.password = ca);
             charArrayProperty(props, PROP_TOKEN, ca -> this.token = ca);
+
             booleanProperty(props, PROP_SECURE, b -> this.useDefaultTls = b);
             booleanProperty(props, PROP_OPENTLS, b -> this.useTrustAllTls = b);
 
+            classnameProperty(props, PROP_SSL_CONTEXT_FACTORY_CLASS, o -> this.sslContextFactory = (SSLContextFactory) o);
             stringProperty(props, PROP_KEYSTORE, s -> this.keystore = s);
             charArrayProperty(props, PROP_KEYSTORE_PASSWORD, ca -> this.keystorePassword = ca);
             stringProperty(props, PROP_TRUSTSTORE, s -> this.truststore = s);
@@ -793,6 +832,7 @@ public class Options {
             durationProperty(props, PROP_RECONNECT_JITTER_TLS, DEFAULT_RECONNECT_JITTER_TLS, d -> this.reconnectJitterTls = d);
             longProperty(props, PROP_RECONNECT_BUF_SIZE, DEFAULT_RECONNECT_BUF_SIZE, l -> this.reconnectBufferSize = l);
             durationProperty(props, PROP_CONNECTION_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT, d -> this.connectionTimeout = d);
+            durationProperty(props, PROP_SOCKET_WRITE_TIMEOUT, DEFAULT_SOCKET_WRITE_TIMEOUT, d -> this.socketWriteTimeout = d);
 
             intGtEqZeroProperty(props, PROP_MAX_CONTROL_LINE, DEFAULT_MAX_CONTROL_LINE, i -> this.maxControlLine = i);
             durationProperty(props, PROP_PING_INTERVAL, DEFAULT_PING_INTERVAL, d -> this.pingInterval = d);
@@ -801,6 +841,7 @@ public class Options {
             booleanProperty(props, PROP_USE_OLD_REQUEST_STYLE, b -> this.useOldRequestStyle = b);
 
             classnameProperty(props, PROP_ERROR_LISTENER, o -> this.errorListener = (ErrorListener) o);
+            classnameProperty(props, PROP_TIME_TRACE_LOGGER, o -> this.timeTraceLogger = (TimeTraceLogger) o);
             classnameProperty(props, PROP_CONNECTION_CB, o -> this.connectionListener = (ConnectionListener) o);
             classnameProperty(props, PROP_STATISTICS_COLLECTOR, o -> this.statisticsCollector = (StatisticsCollector) o);
 
@@ -812,6 +853,7 @@ public class Options {
             booleanProperty(props, PROP_IGNORE_DISCOVERED_SERVERS, b -> this.ignoreDiscoveredServers = b);
             booleanProperty(props, PROP_TLS_FIRST, b -> this.tlsFirst = b);
             booleanProperty(props, PROP_USE_TIMEOUT_EXCEPTION, b -> this.useTimeoutException = b);
+            booleanProperty(props, PROP_USE_DISPATCHER_WITH_EXECUTOR, b -> this.useDispatcherWithExecutor = b);
 
             classnameProperty(props, PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, o -> this.serverPool = (ServerPool) o);
             classnameProperty(props, PROP_DISPATCHER_FACTORY_CLASS, o -> this.dispatcherFactory = (DispatcherFactory) o);
@@ -1033,11 +1075,24 @@ public class Options {
         /**
          * Set the SSL context, requires that the server supports TLS connections and
          * the URI specifies TLS.
+         * If provided, the context takes precedence over any other TLS/SSL properties
+         * set in the builder, including the sslContextFactory
          * @param ctx the SSL Context to use for TLS connections
          * @return the Builder for chaining
          */
         public Builder sslContext(SSLContext ctx) {
             this.sslContext = ctx;
+            return this;
+        }
+
+        /**
+         * Set the factory that provides the ssl context. The factory is superseded
+         * by an instance of SSLContext
+         * @param sslContextFactory the SSL Context for use to create a ssl context
+         * @return the Builder for chaining
+         */
+        public Builder sslContextFactory(SSLContextFactory sslContextFactory) {
+            this.sslContextFactory = sslContextFactory;
             return this;
         }
 
@@ -1190,11 +1245,43 @@ public class Options {
          * Set the timeout for connection attempts. Each server in the options is allowed this timeout
          * so if 3 servers are tried with a timeout of 5s the total time could be 15s.
          *
-         * @param time the time to wait
+         * @param connectionTimeout the time to wait
          * @return the Builder for chaining
          */
-        public Builder connectionTimeout(Duration time) {
-            this.connectionTimeout = time;
+        public Builder connectionTimeout(Duration connectionTimeout) {
+            this.connectionTimeout = connectionTimeout;
+            return this;
+        }
+
+        /**
+         * Set the timeout for connection attempts. Each server in the options is allowed this timeout
+         * so if 3 servers are tried with a timeout of 5s the total time could be 15s.
+         *
+         * @param connectionTimeoutMillis the time to wait in milliseconds
+         * @return the Builder for chaining
+         */
+        public Builder connectionTimeout(long connectionTimeoutMillis) {
+            this.connectionTimeout = Duration.ofMillis(connectionTimeoutMillis);
+            return this;
+        }
+
+        /**
+         * Set the timeout to use around socket writes
+         * @param socketWriteTimeoutMillis the timeout milliseconds
+         * @return the Builder for chaining
+         */
+        public Builder socketWriteTimeout(long socketWriteTimeoutMillis) {
+            socketWriteTimeout = Duration.ofMillis(socketWriteTimeoutMillis);
+            return this;
+        }
+
+        /**
+         * Set the timeout to use around socket writes
+         * @param socketWriteTimeout the timeout milliseconds
+         * @return the Builder for chaining
+         */
+        public Builder socketWriteTimeout(Duration socketWriteTimeout) {
+            this.socketWriteTimeout = socketWriteTimeout;
             return this;
         }
 
@@ -1362,6 +1449,16 @@ public class Options {
         }
 
         /**
+         * Set the {@link TimeTraceLogger TimeTraceLogger} to receive trace events related to this connection.
+         * @param logger The new TimeTraceLogger for this connection.
+         * @return the Builder for chaining
+         */
+        public Builder timeTraceLogger(TimeTraceLogger logger) {
+            this.timeTraceLogger = logger;
+            return this;
+        }
+
+        /**
          * Set the {@link ConnectionListener ConnectionListener} to receive asynchronous notifications of disconnect
          * events.
          *
@@ -1506,6 +1603,11 @@ public class Options {
             return this;
         }
 
+        public Builder useDispatcherWithExecutor() {
+            this.useDispatcherWithExecutor = true;
+            return this;
+        }
+
         /**
          * Set the ServerPool implementation for connections to use instead of the default implementation
          * @param serverPool the implementation
@@ -1562,55 +1664,72 @@ public class Options {
                 checkUrisForSecure = false;
             }
 
+            // ssl context can be directly provided, but if it's not
+            // there might be a factory, or just see if we should make it ourselves
             if (sslContext == null) {
-                // ssl context can be directly provided, but if it's not
-                if (keystore != null || truststore != null) {
-                    try {
-                        sslContext = SSLUtils.createSSLContext(keystore, keystorePassword, truststore, truststorePassword, tlsAlgorithm);
-                    }
-                    catch (Exception e) {
-                        throw new IllegalStateException("Unable to create SSL context", e);
-                    }
+                if (sslContextFactory != null) {
+                    sslContext = sslContextFactory.createSSLContext(new SSLContextFactoryProperties.Builder()
+                        .keystore(keystore)
+                        .keystorePassword(keystorePassword)
+                        .truststore(truststore)
+                        .truststorePassword(truststorePassword)
+                        .tlsAlgorithm(tlsAlgorithm)
+                        .build());
                 }
                 else {
-                    // the sslContext has not been requested via keystore/truststore properties
-                    // If we haven't been told to use the default or the trust all context
-                    // and the server isn't the default url, check to see if the server uris
-                    // suggest we need the ssl context.
-                    if (!useDefaultTls && !useTrustAllTls && checkUrisForSecure) {
-                        for (int i = 0; sslContext == null && i < natsServerUris.size(); i++) {
-                            NatsUri natsUri = natsServerUris.get(i);
-                            switch (natsUri.getScheme()) {
-                                case TLS_PROTOCOL:
-                                case SECURE_WEBSOCKET_PROTOCOL:
-                                    useDefaultTls = true;
-                                    break;
-                                case OPENTLS_PROTOCOL:
-                                    useTrustAllTls = true;
-                                    break;
-                            }
-                        }
-                    }
-
-                    // check trust all (open) first, in case they provided both
-                    // PROP_SECURE (secure) and PROP_OPENTLS (opentls)
-                    if (useTrustAllTls) {
+                    if (keystore != null || truststore != null) {
+                        // the user provided keystore/truststore properties, the want us to make the sslContext that way
                         try {
-                            this.sslContext = SSLUtils.createTrustAllTlsContext();
+                            sslContext = SSLUtils.createSSLContext(keystore, keystorePassword, truststore, truststorePassword, tlsAlgorithm);
                         }
-                        catch (GeneralSecurityException e) {
+                        catch (Exception e) {
                             throw new IllegalStateException("Unable to create SSL context", e);
                         }
                     }
-                    else if (useDefaultTls) {
-                        try {
-                            this.sslContext = SSLContext.getDefault();
+                    else {
+                        // the sslContext has not been requested via factory or keystore/truststore properties
+                        // If we haven't been told to use the default or the trust all context
+                        // and the server isn't the default url, check to see if the server uris
+                        // suggest we need the ssl context.
+                        if (!useDefaultTls && !useTrustAllTls && checkUrisForSecure) {
+                            for (int i = 0; sslContext == null && i < natsServerUris.size(); i++) {
+                                NatsUri natsUri = natsServerUris.get(i);
+                                switch (natsUri.getScheme()) {
+                                    case TLS_PROTOCOL:
+                                    case SECURE_WEBSOCKET_PROTOCOL:
+                                        useDefaultTls = true;
+                                        break;
+                                    case OPENTLS_PROTOCOL:
+                                        useTrustAllTls = true;
+                                        break;
+                                }
+                            }
                         }
-                        catch (NoSuchAlgorithmException e) {
-                            throw new IllegalStateException("Unable to create default SSL context", e);
+
+                        // check trust all (open) first, in case they provided both
+                        // PROP_SECURE (secure) and PROP_OPENTLS (opentls)
+                        if (useTrustAllTls) {
+                            try {
+                                this.sslContext = SSLUtils.createTrustAllTlsContext();
+                            }
+                            catch (GeneralSecurityException e) {
+                                throw new IllegalStateException("Unable to create SSL context", e);
+                            }
+                        }
+                        else if (useDefaultTls) {
+                            try {
+                                this.sslContext = SSLContext.getDefault();
+                            }
+                            catch (NoSuchAlgorithmException e) {
+                                throw new IllegalStateException("Unable to create default SSL context", e);
+                            }
                         }
                     }
                 }
+            }
+
+            if (tlsFirst && sslContext == null) {
+                throw new IllegalStateException("SSL context required for tls handshake first");
             }
 
             if (credentialPath != null) {
@@ -1624,6 +1743,38 @@ public class Options {
                     500L, TimeUnit.MILLISECONDS,
                     new SynchronousQueue<>(),
                     new DefaultThreadFactory(threadPrefix));
+            }
+
+            if (socketWriteTimeout == null || socketWriteTimeout.toMillis() < 1) {
+                socketWriteTimeout = null;
+            }
+            else {
+                long swtMin = connectionTimeout.toMillis() + MINIMUM_SOCKET_WRITE_TIMEOUT_GT_CONNECTION_TIMEOUT;
+                if (socketWriteTimeout.toMillis() < swtMin) {
+                    throw new IllegalStateException("Socket Write Timeout must be at least "
+                        + MINIMUM_SOCKET_WRITE_TIMEOUT_GT_CONNECTION_TIMEOUT
+                        + " milliseconds greater than the Connection Timeout");
+                }
+            }
+
+            if (errorListener == null) {
+                errorListener = new ErrorListenerLoggerImpl();
+            }
+
+            if (timeTraceLogger == null) {
+                if (traceConnection) {
+                    timeTraceLogger = (format, args) -> {
+                        String timeStr = DateTimeFormatter.ISO_TIME.format(LocalDateTime.now());
+                        System.out.println("[" + timeStr + "] connect trace: " + String.format(format, args));
+                    };
+                }
+                else {
+                    timeTraceLogger = (f, a) -> {};
+                }
+            }
+            else {
+                // if the dev provided an impl, we assume they meant to time trace the connection
+                traceConnection = true;
             }
 
             return new Options(this);
@@ -1651,6 +1802,7 @@ public class Options {
             this.reconnectJitter = o.reconnectJitter;
             this.reconnectJitterTls = o.reconnectJitterTls;
             this.connectionTimeout = o.connectionTimeout;
+            this.socketWriteTimeout = o.socketWriteTimeout;
             this.pingInterval = o.pingInterval;
             this.requestCleanupInterval = o.requestCleanupInterval;
             this.maxPingsOut = o.maxPingsOut;
@@ -1674,6 +1826,7 @@ public class Options {
             this.reconnectDelayHandler = o.reconnectDelayHandler;
 
             this.errorListener = o.errorListener;
+            this.timeTraceLogger = o.timeTraceLogger;
             this.connectionListener = o.connectionListener;
             this.statisticsCollector = o.statisticsCollector;
             this.dataPortType = o.dataPortType;
@@ -1685,6 +1838,7 @@ public class Options {
             this.ignoreDiscoveredServers = o.ignoreDiscoveredServers;
             this.tlsFirst = o.tlsFirst;
             this.useTimeoutException = o.useTimeoutException;
+            this.useDispatcherWithExecutor = o.useDispatcherWithExecutor;
 
             this.serverPool = o.serverPool;
             this.dispatcherFactory = o.dispatcherFactory;
@@ -1695,13 +1849,8 @@ public class Options {
     // CONSTRUCTOR
     // ----------------------------------------------------------------------------------------------------
     private Options(Builder b) {
-        if (b.natsServerUris.size() == 0) {
-            this.natsServerUris = Collections.singletonList(DEFAULT_NATS_URI);
-        }
-        else {
-            this.natsServerUris = Collections.unmodifiableList(b.natsServerUris);
-        }
-        this.unprocessedServers = b.unprocessedServers;  // exactly how the user gave them
+        this.natsServerUris = Collections.unmodifiableList(b.natsServerUris);
+        this.unprocessedServers = Collections.unmodifiableList(b.unprocessedServers);  // exactly how the user gave them
         this.noRandomize = b.noRandomize;
         this.noResolveHostnames = b.noResolveHostnames;
         this.reportNoResponders = b.reportNoResponders;
@@ -1714,6 +1863,7 @@ public class Options {
         this.reconnectJitter = b.reconnectJitter;
         this.reconnectJitterTls = b.reconnectJitterTls;
         this.connectionTimeout = b.connectionTimeout;
+        this.socketWriteTimeout = b.socketWriteTimeout;
         this.pingInterval = b.pingInterval;
         this.requestCleanupInterval = b.requestCleanupInterval;
         this.maxPingsOut = b.maxPingsOut;
@@ -1736,7 +1886,8 @@ public class Options {
         this.authHandler = b.authHandler;
         this.reconnectDelayHandler = b.reconnectDelayHandler;
 
-        this.errorListener = b.errorListener == null ? new ErrorListenerLoggerImpl() : b.errorListener;
+        this.errorListener = b.errorListener;
+        this.timeTraceLogger = b.timeTraceLogger;
         this.connectionListener = b.connectionListener;
         this.statisticsCollector = b.statisticsCollector;
         this.dataPortType = b.dataPortType;
@@ -1748,6 +1899,7 @@ public class Options {
         this.ignoreDiscoveredServers = b.ignoreDiscoveredServers;
         this.tlsFirst = b.tlsFirst;
         this.useTimeoutException = b.useTimeoutException;
+        this.useDispatcherWithExecutor = b.useDispatcherWithExecutor;
 
         this.serverPool = b.serverPool;
         this.dispatcherFactory = b.dispatcherFactory;
@@ -1784,6 +1936,16 @@ public class Options {
      */
     public ErrorListener getErrorListener() {
         return this.errorListener;
+    }
+
+    /**
+     * If the user provided a TimeTraceLogger, it's returned here.
+     * If the user set traceConnection but did not supply their own, the original time trace logging will occur
+     * If the user did not provide a TimeTraceLogger and did not set traceConnection, this will be a no-op implementation.
+     * @return the time trace logger
+     */
+    public TimeTraceLogger getTimeTraceLogger() {
+        return this.timeTraceLogger;
     }
 
     /**
@@ -1825,10 +1987,20 @@ public class Options {
      * @return the data port described by these options
      */
     public DataPort buildDataPort() {
+        DataPort dp;
         if (dataPortType.equals(DEFAULT_DATA_PORT_TYPE)) {
-            return new SocketDataPort();
+            if (socketWriteTimeout == null) {
+                dp = new SocketDataPort();
+            }
+            else {
+                dp = new SocketDataPortWithWriteTimeout();
+            }
         }
-        return (DataPort) Options.createInstanceOf(dataPortType);
+        else {
+            dp = (DataPort) Options.createInstanceOf(dataPortType);
+        }
+        dp.afterConstruct(this);
+        return dp;
     }
 
     /**
@@ -1943,7 +2115,8 @@ public class Options {
     }
 
     /**
-     * @return should we trace the connection process to system.out
+     * If isTraceConnection is true, the user provided a TimeTraceLogger or manually called traceConnection in the builder
+     * @return should we trace the connection?
      */
     public boolean isTraceConnection() {
         return traceConnection;
@@ -1958,10 +2131,10 @@ public class Options {
 
     /**
      *
-     * @return true if there is an sslContext for this Options, otherwise false, see {@link Builder#secure() secure()} in the builder doc
+     * @return true if there is an sslContext for these Options, otherwise false, see {@link Builder#secure() secure()} in the builder doc
      */
     public boolean isTLSRequired() {
-        return tlsFirst || this.sslContext != null;
+        return sslContext != null;
     }
 
     /**
@@ -2004,6 +2177,13 @@ public class Options {
      */
     public Duration getConnectionTimeout() {
         return connectionTimeout;
+    }
+
+    /**
+     * @return the socketWriteTimeout, see {@link Builder#socketWriteTimeout(long) socketWriteTimeout()} in the builder doc
+     */
+    public Duration getSocketWriteTimeout() {
+        return socketWriteTimeout;
     }
 
     /**
@@ -2144,6 +2324,8 @@ public class Options {
         return useTimeoutException;
     }
 
+    public boolean useDispatcherWithExecutor() { return useDispatcherWithExecutor; }
+
     /**
      * Get the ServerPool implementation. If null, a default implementation is used.
      * @return the ServerPool implementation
@@ -2193,68 +2375,75 @@ public class Options {
         appendOption(connectString, Options.OPTION_HEADERS, String.valueOf(!this.isNoHeaders()), false, true);
         appendOption(connectString, Options.OPTION_NORESPONDERS, String.valueOf(!this.isNoNoResponders()), false, true);
 
-        if (includeAuth && nonce != null && this.getAuthHandler() != null) {
-            char[] nkey = this.getAuthHandler().getID();
-            byte[] sig = this.getAuthHandler().sign(nonce);
-            char[] jwt = this.getAuthHandler().getJWT();
+        if (includeAuth) {
+            if (nonce != null && this.getAuthHandler() != null) {
+                char[] nkey = this.getAuthHandler().getID();
+                byte[] sig = this.getAuthHandler().sign(nonce);
+                char[] jwt = this.getAuthHandler().getJWT();
 
-            if (sig == null) {
-                sig = new byte[0];
+                if (sig == null) {
+                    sig = new byte[0];
+                }
+
+                if (jwt == null) {
+                    jwt = new char[0];
+                }
+
+                if (nkey == null) {
+                    nkey = new char[0];
+                }
+
+                String encodedSig = base64UrlEncodeToString(sig);
+
+                appendOption(connectString, Options.OPTION_NKEY, nkey, true, true);
+                appendOption(connectString, Options.OPTION_SIG, encodedSig, true, true);
+                appendOption(connectString, Options.OPTION_JWT, jwt, true, true);
             }
+            else {
+                String uriUser = null;
+                String uriPass = null;
+                String uriToken = null;
 
-            if (jwt == null) {
-                jwt = new char[0];
-            }
-
-            if (nkey == null) {
-                nkey = new char[0];
-            }
-
-            String encodedSig = Base64.getUrlEncoder().withoutPadding().encodeToString(sig);
-
-            appendOption(connectString, Options.OPTION_NKEY, nkey, true, true);
-            appendOption(connectString, Options.OPTION_SIG, encodedSig, true, true);
-            appendOption(connectString, Options.OPTION_JWT, jwt, true, true);
-        } else if (includeAuth) {
-            String uriUser = null;
-            String uriPass = null;
-            String uriToken = null;
-
-            // Values from URI override options
-            try {
-                URI uri = this.createURIForServer(serverURI);
-                String userInfo = uri.getRawUserInfo();
-                if (userInfo != null) {
-                    int at = userInfo.indexOf(":");
-                    if (at == -1) {
-                        uriToken = uriDecode(userInfo);
-                    }
-                    else {
-                        uriUser = uriDecode(userInfo.substring(0, at));
-                        uriPass = uriDecode(userInfo.substring(at + 1));
+                // Values from URI override options
+                try {
+                    URI uri = this.createURIForServer(serverURI);
+                    String userInfo = uri.getRawUserInfo();
+                    if (userInfo != null) {
+                        int at = userInfo.indexOf(":");
+                        if (at == -1) {
+                            uriToken = uriDecode(userInfo);
+                        }
+                        else {
+                            uriUser = uriDecode(userInfo.substring(0, at));
+                            uriPass = uriDecode(userInfo.substring(at + 1));
+                        }
                     }
                 }
-            } catch(URISyntaxException e) {
-                // the createURIForServer call is the one that potentially throws this
-                // uriUser, uriPass and uriToken will already be null
-            }
+                catch (URISyntaxException e) {
+                    // the createURIForServer call is the one that potentially throws this
+                    // uriUser, uriPass and uriToken will already be null
+                }
 
-            if (uriUser != null) {
-                appendOption(connectString, Options.OPTION_USER, uriUser, true, true);
-            } else if (this.username != null) {
-                appendOption(connectString, Options.OPTION_USER, this.username, true, true);
-            }
+                if (uriUser != null) {
+                    appendOption(connectString, Options.OPTION_USER, uriUser, true, true);
+                }
+                else if (this.username != null) {
+                    appendOption(connectString, Options.OPTION_USER, this.username, true, true);
+                }
 
-            if (uriPass != null) {
-                appendOption(connectString, Options.OPTION_PASSWORD, uriPass, true, true);
-            } else if (this.password != null) {
-                appendOption(connectString, Options.OPTION_PASSWORD, this.password, true, true);
-            }
+                if (uriPass != null) {
+                    appendOption(connectString, Options.OPTION_PASSWORD, uriPass, true, true);
+                }
+                else if (this.password != null) {
+                    appendOption(connectString, Options.OPTION_PASSWORD, this.password, true, true);
+                }
 
-            if (uriToken != null) {
-                appendOption(connectString, Options.OPTION_AUTH_TOKEN, uriToken, true, true);
-            } else if (this.token != null) {
-                appendOption(connectString, Options.OPTION_AUTH_TOKEN, this.token, true, true);
+                if (uriToken != null) {
+                    appendOption(connectString, Options.OPTION_AUTH_TOKEN, uriToken, true, true);
+                }
+                else if (this.token != null) {
+                    appendOption(connectString, Options.OPTION_AUTH_TOKEN, this.token, true, true);
+                }
             }
         }
 

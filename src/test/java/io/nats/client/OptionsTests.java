@@ -38,6 +38,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static io.nats.client.Options.DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE;
+import static io.nats.client.support.Encoding.base64UrlEncodeToString;
 import static io.nats.client.support.NatsConstants.DEFAULT_PORT;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -96,8 +97,8 @@ public class OptionsTests {
         assertEquals(Options.DEFAULT_REQUEST_CLEANUP_INTERVAL, o.getRequestCleanupInterval(),
             "default cleanup interval");
 
-        assertTrue(o.getErrorListener() instanceof ErrorListenerLoggerImpl, "error handler");
-        assertNull(o.getConnectionListener(), "disconnect handler");
+        assertInstanceOf(ErrorListenerLoggerImpl.class, o.getErrorListener(), "error listener");
+        assertNull(o.getConnectionListener(), "disconnect listener");
         assertNull(o.getStatisticsCollector(), "statistics collector");
         assertFalse(o.isOldRequestStyle(), "default oldstyle");
     }
@@ -152,7 +153,7 @@ public class OptionsTests {
 
     @Test
     public void testChainedSecure() throws Exception {
-        SSLContext ctx = TestSSLUtils.createTestSSLContext();
+        SSLContext ctx = SslTestingHelper.createTestSSLContext();
         SSLContext.setDefault(ctx);
         Options o = new Options.Builder().secure().build();
         _testChainedSecure(ctx, o);
@@ -165,7 +166,7 @@ public class OptionsTests {
 
     @Test
     public void testChainedSSLOptions() throws Exception {
-        SSLContext ctx = TestSSLUtils.createTestSSLContext();
+        SSLContext ctx = SslTestingHelper.createTestSSLContext();
         Options o = new Options.Builder().sslContext(ctx).build();
         _testChainedSSLOptions(ctx, o);
         _testChainedSSLOptions(ctx, new Options.Builder(o).build());
@@ -239,15 +240,15 @@ public class OptionsTests {
 
     @Test
     public void testChainedErrorHandler() {
-        TestHandler handler = new TestHandler();
-        Options o = new Options.Builder().errorListener(handler).build();
-        _testChainedErrorHandler(handler, o);
-        _testChainedErrorHandler(handler, new Options.Builder(o).build());
+        ListenerForTesting listener = new ListenerForTesting();
+        Options o = new Options.Builder().errorListener(listener).build();
+        _testChainedErrorListener(listener, o);
+        _testChainedErrorListener(listener, new Options.Builder(o).build());
     }
 
-    private static void _testChainedErrorHandler(TestHandler handler, Options o) {
+    private static void _testChainedErrorListener(ListenerForTesting listener, Options o) {
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
-        assertEquals(handler, o.getErrorListener(), "chained error handler");
+        assertEquals(listener, o.getErrorListener(), "chained error listener");
     }
 
     @Test
@@ -260,8 +261,8 @@ public class OptionsTests {
 
     private static void _testChainedConnectionListener(ConnectionListener cHandler, Options o) {
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
-        assertTrue(o.getErrorListener() instanceof ErrorListenerLoggerImpl, "error handler");
-        assertSame(cHandler, o.getConnectionListener(), "chained connection handler");
+        assertInstanceOf(ErrorListenerLoggerImpl.class, o.getErrorListener(), "error listener");
+        assertSame(cHandler, o.getConnectionListener(), "chained connection listener");
     }
 
     @Test
@@ -274,7 +275,7 @@ public class OptionsTests {
 
     private static void _testChainedStatisticsCollector(StatisticsCollector cHandler, Options o) {
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
-        assertTrue(o.getStatisticsCollector() instanceof TestStatisticsCollector, "statistics collector");
+        assertInstanceOf(TestStatisticsCollector.class, o.getStatisticsCollector(), "statistics collector");
         assertSame(cHandler, o.getStatisticsCollector(), "chained statistics collector");
     }
 
@@ -334,7 +335,7 @@ public class OptionsTests {
     @Test
     public void testPropertiesSSLOptions() throws Exception {
         // don't use default for tests, issues with forcing algorithm exception in other tests break it
-        SSLContext.setDefault(TestSSLUtils.createTestSSLContext());
+        SSLContext.setDefault(SslTestingHelper.createTestSSLContext());
         Properties props = new Properties();
         props.setProperty(Options.PROP_SECURE, "true");
 
@@ -476,7 +477,7 @@ public class OptionsTests {
         assertEquals(1000, o.getPingInterval().toMillis());
         assertNotNull(o.getAuthHandler());
         assertNotNull(o.getServerPool());
-        assertTrue(o.getServerPool() instanceof CoverageServerPool);
+        assertInstanceOf(CoverageServerPool.class, o.getServerPool());
     }
 
     @Test
@@ -583,32 +584,32 @@ public class OptionsTests {
     }
 
     @Test
-    public void testPropertyErrorHandler() {
+    public void testPropertyErrorListener() {
         Properties props = new Properties();
-        props.setProperty(Options.PROP_ERROR_LISTENER, TestHandler.class.getCanonicalName());
+        props.setProperty(Options.PROP_ERROR_LISTENER, ListenerForTesting.class.getCanonicalName());
 
         Options o = new Options.Builder(props).build();
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
-        assertNotNull(o.getErrorListener(), "property error handler");
+        assertNotNull(o.getErrorListener(), "property error listener");
 
         o.getErrorListener().errorOccurred(null, "bad subject");
-        assertEquals(((TestHandler) o.getErrorListener()).getCount(), 1, "property error handler class");
+        assertEquals(((ListenerForTesting) o.getErrorListener()).getCount(), 1, "property error listener class");
     }
 
     @Test
     public void testPropertyConnectionListeners() {
         Properties props = new Properties();
-        props.setProperty(Options.PROP_CONNECTION_CB, TestHandler.class.getCanonicalName());
+        props.setProperty(Options.PROP_CONNECTION_CB, ListenerForTesting.class.getCanonicalName());
 
         Options o = new Options.Builder(props).build();
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
-        assertNotNull(o.getConnectionListener(), "property connection handler");
+        assertNotNull(o.getConnectionListener(), "property connection listener");
 
         o.getConnectionListener().connectionEvent(null, Events.DISCONNECTED);
         o.getConnectionListener().connectionEvent(null, Events.RECONNECTED);
         o.getConnectionListener().connectionEvent(null, Events.CLOSED);
 
-        assertEquals(((TestHandler) o.getConnectionListener()).getCount(), 3, "property connect handler class");
+        assertEquals(((ListenerForTesting) o.getConnectionListener()).getCount(), 3, "property connect listener class");
     }
 
     @Test
@@ -654,7 +655,7 @@ public class OptionsTests {
 
     @Test
     public void testConnectOptionsWithNameAndContext() throws Exception {
-        SSLContext ctx = TestSSLUtils.createTestSSLContext();
+        SSLContext ctx = SslTestingHelper.createTestSSLContext();
         Options o = new Options.Builder().sslContext(ctx).connectionName("c1").build();
         String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\",\"name\":\"c1\""
             + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":true,\"echo\":true,\"headers\":true,\"no_responders\":true}";
@@ -679,9 +680,9 @@ public class OptionsTests {
 
     @Test
     public void testNKeyConnectOptions() throws Exception {
-        TestAuthHandler th = new TestAuthHandler();
+        AuthHandlerForTesting th = new AuthHandlerForTesting();
         byte[] nonce = "abcdefg".getBytes(StandardCharsets.UTF_8);
-        String sig = Base64.getUrlEncoder().withoutPadding().encodeToString(th.sign(nonce));
+        String sig = base64UrlEncodeToString(th.sign(nonce));
 
         Options o = new Options.Builder().authHandler(th).build();
         String expectedNoAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
@@ -695,11 +696,15 @@ public class OptionsTests {
 
     @Test
     public void testDefaultDataPort() {
-        Options o = new Options.Builder().build();
+        Options o = new Options.Builder().socketWriteTimeout(null).build();
         DataPort dataPort = o.buildDataPort();
-
         assertNotNull(dataPort);
-        assertEquals(Options.DEFAULT_DATA_PORT_TYPE, dataPort.getClass().getCanonicalName(), "default dataPort");
+        assertEquals(Options.DEFAULT_DATA_PORT_TYPE, dataPort.getClass().getCanonicalName(), "old default dataPort");
+
+        o = new Options.Builder().build();
+        dataPort = o.buildDataPort();
+        assertNotNull(dataPort);
+        assertEquals(SocketDataPortWithWriteTimeout.class.getCanonicalName(), dataPort.getClass().getCanonicalName(), "new default dataPort");
     }
 
     @Test

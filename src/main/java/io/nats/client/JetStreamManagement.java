@@ -15,6 +15,7 @@ package io.nats.client;
 import io.nats.client.api.*;
 
 import java.io.IOException;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 /**
@@ -121,6 +122,28 @@ public interface JetStreamManagement {
     ConsumerInfo addOrUpdateConsumer(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException;
 
     /**
+     * Creates a consumer. Must not already exist.
+     * @param streamName name of the stream
+     * @param config the consumer configuration to use.
+     * @return consumer information.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data such as the consumer already exists
+     */
+    ConsumerInfo createConsumer(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException;
+
+    /**
+     * Updates an existing consumer. Must already exist.
+     * @param streamName name of the stream
+     * @param config the consumer configuration to use.
+     * @return consumer information.
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data such as the consumer does not already exist
+     */
+    ConsumerInfo updateConsumer(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException;
+
+    /**
      * Deletes a consumer.
      * @param streamName name of the stream
      * @param consumerName the name of the consumer.
@@ -130,6 +153,29 @@ public interface JetStreamManagement {
      * @throws JetStreamApiException the request had an error related to the data, for instance the consumer does not exist.
      */
     boolean deleteConsumer(String streamName, String consumerName) throws IOException, JetStreamApiException;
+
+    /**
+     * Pauses a consumer.
+     * @param streamName name of the stream
+     * @param consumerName the name of the consumer.
+     * @param pauseUntil consumer is paused until this time.
+     * @return ConsumerPauseResponse the pause response
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data, for instance the consumer does not exist.
+     */
+    ConsumerPauseResponse pauseConsumer(String streamName, String consumerName, ZonedDateTime pauseUntil) throws IOException, JetStreamApiException;
+
+    /**
+     * Resumes a paused consumer.
+     * @param streamName name of the stream
+     * @param consumerName the name of the consumer.
+     * @return true if the resume succeeded
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data, for instance the consumer does not exist.
+     */
+    boolean resumeConsumer(String streamName, String consumerName) throws IOException, JetStreamApiException;
 
     /**
      * Gets the info for an existing consumer.

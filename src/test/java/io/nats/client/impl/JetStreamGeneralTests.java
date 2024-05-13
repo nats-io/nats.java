@@ -972,9 +972,53 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
         IllegalStateException ise = assertThrows(IllegalStateException.class, njsm::getJetStreamValidatedConnection);
         assertTrue(ise.getMessage().contains("subscription"));
 
-        njsm.subscription = new NatsSubscription("sid", "sub", "q", null, null);
+        // make a dummy connection so we can make a subscription
+        Options options = Options.builder().build();
+        NatsConnection nc = new NatsConnection(options);
+        njsm.subscription = new NatsSubscription("sid", "sub", "q", nc, null);
+        // remove the connection so we can test the coverage
+        njsm.subscription.connection = null;
         ise = assertThrows(IllegalStateException.class, njsm::getJetStreamValidatedConnection);
         assertTrue(ise.getMessage().contains("connection"));
+    }
+
+    static class TimeCheckLogicLogger implements TimeTraceLogger {
+        public String lastTrace;
+        @Override
+        public void trace(String format, Object... args) {
+            lastTrace = String.format(format, args);
+        }
+    }
+
+    @Test
+    public void testNatsConnectionTimeCheckLogic() {
+        TimeCheckLogicLogger l = new TimeCheckLogicLogger();
+        // make a dummy connection so we can make a subscription
+        Options options = Options.builder()
+            .timeTraceLogger(l)
+            .build();
+        NatsConnection nc = new NatsConnection(options);
+
+        nc.traceTimeCheck("zero", 0);
+        assertEquals("zero, 0 (ns) remaining", l.lastTrace);
+
+        nc.traceTimeCheck("gt 0, lt 1_000_000", 1);
+        assertEquals("gt 0, lt 1_000_000, 1 (ns) remaining", l.lastTrace);
+
+        nc.traceTimeCheck("gt 0, lt 1_000_000_000", 1_000_000);
+        assertEquals("gt 0, lt 1_000_000_000, 1 (ms) remaining", l.lastTrace);
+
+        nc.traceTimeCheck("gt 0, gt 1_000_000_000", 1_100_000_000);
+        assertEquals("gt 0, gt 1_000_000_000, 1.100 (s) remaining", l.lastTrace);
+
+        nc.traceTimeCheck("lt 0, gt -1_000_000", -1);
+        assertEquals("lt 0, gt -1_000_000, 1 (ns) beyond timeout", l.lastTrace);
+
+        nc.traceTimeCheck("lt 0, gt -1_000_000_000", -1_000_000);
+        assertEquals("lt 0, gt -1_000_000_000, 1 (ms) beyond timeout", l.lastTrace);
+
+        nc.traceTimeCheck("lt 0, lt -1_000_000_000", -1_100_000_000);
+        assertEquals("lt 0, lt -1_000_000_000, 1.100 (s) beyond timeout", l.lastTrace);
     }
 
     @Test

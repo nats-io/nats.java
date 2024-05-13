@@ -67,10 +67,10 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
             Headers msgHeaders = msg.getHeaders();
             this.subject = msgHeaders.getLast(NATS_SUBJECT);
             this.data = msg.getData();
-            seq = Long.parseLong(msgHeaders.getFirst(NATS_SEQUENCE));
-            time = DateTimeUtils.parseDateTime(msgHeaders.getFirst(NATS_TIMESTAMP));
-            stream = msgHeaders.getFirst(NATS_STREAM);
-            String temp = msgHeaders.getFirst(NATS_LAST_SEQUENCE);
+            seq = Long.parseLong(msgHeaders.getLast(NATS_SEQUENCE));
+            time = DateTimeUtils.parseDateTime(msgHeaders.getLast(NATS_TIMESTAMP));
+            stream = msgHeaders.getLast(NATS_STREAM);
+            String temp = msgHeaders.getLast(NATS_LAST_SEQUENCE);
             if (temp == null) {
                 lastSeq = -1;
             }

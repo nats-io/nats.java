@@ -15,14 +15,13 @@ package io.nats.client.utils;
 
 import io.nats.client.*;
 import io.nats.client.api.ServerInfo;
+import io.nats.client.impl.ListenerForTesting;
 import io.nats.client.impl.NatsMessage;
-import io.nats.client.impl.TestHandler;
 import io.nats.client.support.NatsJetStreamClientError;
 import org.junit.jupiter.api.function.Executable;
 import org.opentest4j.AssertionFailedError;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
@@ -34,7 +33,6 @@ import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_ARGUMENT;
 import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_STATE;
-import static io.nats.examples.ExampleUtils.uniqueEnough;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestBase {
@@ -76,7 +74,6 @@ public class TestBase {
     public static final long STANDARD_FLUSH_TIMEOUT_MS = 2000;
     public static final long MEDIUM_FLUSH_TIMEOUT_MS = 5000;
     public static final long LONG_TIMEOUT_MS = 15000;
-    public static final long VERY_LONG_TIMEOUT_MS = 20000;
 
     public static String[] BAD_SUBJECTS_OR_QUEUES = new String[] {
         HAS_SPACE, HAS_CR, HAS_LF, HAS_TAB, STARTS_SPACE, ENDS_SPACE, null, EMPTY
@@ -123,6 +120,10 @@ public class TestBase {
 
     public static boolean atLeast2_10_3(ServerInfo si) {
         return si.isSameOrNewerThanVersion("2.10.3");
+    }
+
+    public static boolean atLeast2_11(ServerInfo si) {
+        return si.isNewerVersionThan("2.10.99");
     }
 
     public static void runInServer(InServerTest inServerTest) throws Exception {
@@ -275,6 +276,9 @@ public class TestBase {
         }
     }
 
+    public static String HUB_DOMAIN = "HUB";
+    public static String LEAF_DOMAIN = "LEAF";
+
     public static void runInJsHubLeaf(TwoServerTest twoServerTest) throws Exception {
         int hubPort = NatsTestServer.nextPort();
         int hubLeafPort = NatsTestServer.nextPort();
@@ -339,8 +343,6 @@ public class TestBase {
     public static final String QUEUE = "queue";
     public static final String DURABLE = "durable";
     public static final String NAME = "name";
-    public static final String PUSH_DURABLE = "push-" + DURABLE;
-    public static final String PULL_DURABLE = "pull-" + DURABLE;
     public static final String DELIVER = "deliver";
     public static final String MESSAGE_ID = "mid";
     public static final String BUCKET = "bucket";
@@ -518,8 +520,8 @@ public class TestBase {
     }
 
     public static void assertPubSub(Connection conn) throws InterruptedException {
-        String subject = "sub" + uniqueEnough();
-        String data = "data" + uniqueEnough();
+        String subject = subject();
+        String data = data(null);
         Subscription sub = conn.subscribe(subject);
         conn.publish(subject, data.getBytes());
         Message m = sub.nextMessage(Duration.ofSeconds(2));
@@ -559,21 +561,6 @@ public class TestBase {
         System.out.println(sb.toString());
     }
 
-
-    static class DummyOut extends OutputStream {
-        @Override
-        public void write(byte[] b) throws IOException {
-        }
-
-        @Override
-        public void write(byte[] b, int off, int len) throws IOException {
-        }
-
-        @Override
-        public void write(int b) throws IOException {
-        }
-    }
-
     // ----------------------------------------------------------------------------------------------------
     // flush
     // ----------------------------------------------------------------------------------------------------
@@ -589,20 +576,20 @@ public class TestBase {
         try { conn.flush(timeout); } catch (Exception exp) { /* ignored */ }
     }
 
-    public static void flushAndWait(Connection conn, TestHandler handler, long flushTimeoutMillis, long waitForStatusMillis) {
+    public static void flushAndWait(Connection conn, ListenerForTesting listener, long flushTimeoutMillis, long waitForStatusMillis) {
         flushConnection(conn, flushTimeoutMillis);
-        handler.waitForStatusChange(waitForStatusMillis, TimeUnit.MILLISECONDS);
+        listener.waitForStatusChange(waitForStatusMillis, TimeUnit.MILLISECONDS);
     }
 
-    public static void flushAndWaitLong(Connection conn, TestHandler handler) {
-        flushAndWait(conn, handler, STANDARD_FLUSH_TIMEOUT_MS, LONG_TIMEOUT_MS);
+    public static void flushAndWaitLong(Connection conn, ListenerForTesting listener) {
+        flushAndWait(conn, listener, STANDARD_FLUSH_TIMEOUT_MS, LONG_TIMEOUT_MS);
     }
 
     // ----------------------------------------------------------------------------------------------------
     // connect or wait for a connection
     // ----------------------------------------------------------------------------------------------------
     public static Options.Builder standardOptionsBuilder() {
-        return Options.builder().reportNoResponders().errorListener(new TestHandler());
+        return Options.builder().reportNoResponders().errorListener(new ListenerForTesting());
     }
 
     public static Options.Builder standardOptionsBuilder(String serverURL) {
@@ -629,16 +616,16 @@ public class TestBase {
         return standardConnectionWait( Nats.connect(options) );
     }
 
-    public static Connection standardConnection(Options options, TestHandler handler) throws IOException, InterruptedException {
-        return standardConnectionWait( Nats.connect(options), handler );
+    public static Connection standardConnection(Options options, ListenerForTesting listener) throws IOException, InterruptedException {
+        return standardConnectionWait( Nats.connect(options), listener );
     }
 
-    public static Connection standardConnectionWait(Connection conn, TestHandler handler) {
-        return standardConnectionWait(conn, handler, STANDARD_CONNECTION_WAIT_MS);
+    public static Connection standardConnectionWait(Connection conn, ListenerForTesting listener) {
+        return standardConnectionWait(conn, listener, STANDARD_CONNECTION_WAIT_MS);
     }
 
-    public static Connection standardConnectionWait(Connection conn, TestHandler handler, long millis) {
-        handler.waitForStatusChange(millis, TimeUnit.MILLISECONDS);
+    public static Connection standardConnectionWait(Connection conn, ListenerForTesting listener, long millis) {
+        listener.waitForStatusChange(millis, TimeUnit.MILLISECONDS);
         assertConnected(conn);
         return conn;
     }
@@ -711,10 +698,10 @@ public class TestBase {
         Exception e = assertThrows(Exception.class, executable);
         assertTrue(e.getMessage().contains(error.id()));
         if (error.getKind() == KIND_ILLEGAL_ARGUMENT) {
-            assertTrue(e instanceof IllegalArgumentException);
+            assertInstanceOf(IllegalArgumentException.class, e);
         }
         else if (error.getKind() == KIND_ILLEGAL_STATE) {
-            assertTrue(e instanceof IllegalStateException);
+            assertInstanceOf(IllegalStateException.class, e);
         }
     }
 }

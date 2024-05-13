@@ -124,6 +124,14 @@ public abstract class Validator {
         });
     }
 
+    public static List<String> validateKvKeysWildcardAllowedRequired(List<String> keys) {
+        required(keys, "Key");
+        for (String key : keys) {
+            validateWildcardKvKey(key, "Key", true);
+        }
+        return keys;
+    }
+
     public static String validateKvKeyWildcardAllowedRequired(String s) {
         return validateWildcardKvKey(s, "Key", true);
     }

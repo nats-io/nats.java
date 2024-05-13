@@ -57,7 +57,7 @@ public class IterableConsumerExample {
             }
 
             System.out.println("Starting publish...");
-            ResilientPublisher publisher = ResilientPublisher.newInstanceQuietAndJitter(jsm, STREAM, SUBJECT, MESSAGE_PREFIX, 10);
+            ResilientPublisher publisher = new ResilientPublisher(nc, jsm, STREAM, SUBJECT).basicDataPrefix(MESSAGE_PREFIX).jitter(10);
             Thread pubThread = new Thread(publisher);
             pubThread.start();
 

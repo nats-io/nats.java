@@ -1,5 +1,80 @@
 # Change Log
 
+## 2.17.6
+## 2.17.5
+
+2.17.6 was released immediately after 2.17.5. The allowing of a comma delimited list of keys was removed. 
+This is noted since it was technically available for several hours even though it was never publicly announced,
+and will be considered a bug fix.
+
+#### Core
+* Log connect trace server uri when reconnecting #1106 @photizzo
+* Ensure NatsConnection inboxDispatcher is started prior to publishing messages #1109 @nathanschile
+
+#### JetStream
+* Add support for Consumer Create Action #1108 @scottf
+
+#### KV
+* KV Watch Multiple Filters #1113 @scottf
+* KV Watch Multiple Filters Additional Test #1114 @scottf
+* KV Watch Multiple Filters remove comma delimited support #1117
+
+### Simplification
+
+#### Test
+* Testing Cleanup Only - No Functionality Changes #1110 @scottf
+* Don't run testAddStreamInvalids with server older than 2.10 #1111 @scottf
+
+#### Doc
+* Added graalvm setup example #1112 @YunaBraska
+* Graalvm readme touch-up #1115 @scottf
+
+#### Misc
+
+## 2.17.4
+
+#### Core
+* Fix reconnect() calls close() when simultaneously 'disconnecting' in another thread #1082 @MauriceVanVeen
+* Optional dispatching with executor instead of blocking #1083 @scottf
+* Offer timeout millis no longer hardcoded #1088 @scottf
+* ReentrantLock instead of synchronized #1095 @scottf
+* Force Reconnect API #1100 @scottf
+* SSLContextFactory #1101 @scottf
+
+#### JetStream
+* Implement Consumers Pause #1093 @MauriceVanVeen
+* Make sure Fetch No Wait returns as soon as it gets 404/408 #1096 @scottf
+* Message Info always use last value in the headers. #1099 @scottf
+
+#### KV
+* KV Watch From Revision #1081 @scottf
+* KeyValue atomic delete and purge methods. #1092 @davidmcote
+* KV Transform support. #1098 @scottf
+
+### Simplification
+* Allow simplification fetch to have noWait with or without expires. #1089 @scottf
+
+#### Test
+* Add Test for NUID to handle Sequence and Concurrency #1094 @photizzo
+
+#### Doc
+* upgrade documentation to specify backoff behavior #1078 @imclem
+
+#### Misc
+* Chaos App tuning and additional testing while porting. #1080 @scottf
+
+## 2.17.3
+
+#### Core
+* Socket Data Port with Manual Write Timeout #1064 @scottf
+* Provide implementation instead of empty trust manager check #1066 @scottf
+
+#### Test
+* Reconnect On Connect Unit Test #1062 #1063 @scottf
+
+#### Doc
+* Document Message Immutability Headers Bug #1059 @scottf
+
 ## 2.17.2
 
 Robustness and recovery

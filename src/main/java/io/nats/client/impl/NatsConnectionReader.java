@@ -98,15 +98,22 @@ class NatsConnectionReader implements Runnable {
     // Returns a future that is completed when the thread completes, not when this
     // method does.
     Future<Boolean> stop() {
-        this.running.set(false);
-        if (dataPort != null) {
-            try {
-                dataPort.shutdownInput();
-            } catch (IOException e) {
-                // we don't care, we are shutting down anyway
+        if (running.get()) {
+            running.set(false);
+            if (dataPort != null) {
+                try {
+                    dataPort.shutdownInput();
+                }
+                catch (IOException e) {
+                    // we don't care, we are shutting down anyway
+                }
             }
         }
         return stopped;
+    }
+
+    boolean isRunning() {
+        return running.get();
     }
 
     @Override
@@ -157,7 +164,10 @@ class NatsConnectionReader implements Runnable {
                 }
             }
         } catch (IOException io) {
-            this.connection.handleCommunicationIssue(io);
+            // if already not running, an IOE is not unreasonable in a transition state
+            if (running.get()) {
+                this.connection.handleCommunicationIssue(io);
+            }
         } catch (CancellationException | ExecutionException | InterruptedException ex) {
             // Exit
         } finally {

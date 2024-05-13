@@ -14,7 +14,6 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
-import io.nats.client.api.ServerInfo;
 import io.nats.client.support.Status;
 
 import java.util.logging.Logger;
@@ -22,30 +21,6 @@ import java.util.logging.Logger;
 public class ErrorListenerLoggerImpl implements ErrorListener {
 
     private final static Logger LOGGER = Logger.getLogger(ErrorListenerLoggerImpl.class.getName());
-
-    private String supplyMessage(String label, Connection conn, Consumer consumer, Subscription sub, Object... pairs) {
-        StringBuilder sb = new StringBuilder(label);
-        if (conn != null) {
-            ServerInfo si = conn.getServerInfo();
-            if (si != null) {
-                sb.append(", Connection: ").append(conn.getServerInfo().getClientId());
-            }
-        }
-        if (consumer != null) {
-            sb.append(", Consumer: ").append(consumer.hashCode());
-        }
-        if (sub != null) {
-            sb.append(", Subscription: ").append(sub.hashCode());
-            if (sub instanceof JetStreamSubscription) {
-                JetStreamSubscription jssub = (JetStreamSubscription)sub;
-                sb.append(", Consumer Name: ").append(jssub.getConsumerName());
-            }
-        }
-        for (int x = 0; x < pairs.length; x++) {
-            sb.append(", ").append(pairs[x]).append(pairs[++x]);
-        }
-        return sb.toString();
-    }
 
     /**
      * {@inheritDoc}
@@ -118,5 +93,13 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
     @Override
     public void flowControlProcessed(Connection conn, JetStreamSubscription sub, String id, FlowControlSource source) {
         LOGGER.info(() -> supplyMessage("flowControlProcessed", conn, null, sub, "FlowControlSource:", source));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void socketWriteTimeout(Connection conn) {
+        LOGGER.severe(() -> supplyMessage("socketWriteTimeout", conn, null, null));
     }
 }

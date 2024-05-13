@@ -14,11 +14,18 @@
 package io.nats.client.impl;
 
 import io.nats.client.Connection;
+import io.nats.client.ErrorListener;
 import io.nats.client.NatsTestServer;
+import io.nats.client.Options;
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class AuthAndConnectTests {
@@ -48,6 +55,52 @@ public class AuthAndConnectTests {
             assertClosed(nc);
             nc.reconnect(); // should do nothing
             assertClosed(nc);
+        }
+    }
+
+    /**
+     * Simulates an issue where {@link NatsConnection#closeSocket} is simultaneously called from multiple threads,
+     * and the {@link NatsConnection#reconnect} closes the connection due to overwriting the disconnecting state.
+     */
+    @RepeatedTest(5)
+    public void testNoCloseOnSimultaneouslyClosingSocket() throws Exception {
+        // Use a custom error listener that doesn't log errors, since we'll spam exception messages otherwise.
+        ErrorListener noopErrorListener = new ErrorListener() {
+            @Override
+            public void errorOccurred(Connection conn, String error) {
+                // noop
+            }
+        };
+
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Options options = Options.builder()
+                    .server(ts.getURI())
+                    .maxReconnects(-1)
+                    .reconnectWait(Duration.ZERO)
+                    .errorListener(noopErrorListener)
+                    .build();
+
+            NatsConnection nc = (NatsConnection) standardConnection(options);
+
+            // After we've connected, shut down, so we can attempt reconnecting.
+            ts.shutdown(true);
+
+            final AtomicBoolean running = new AtomicBoolean(true);
+            Thread parallelCommunicationIssues = new Thread(() -> {
+                while (running.get()) {
+                    nc.handleCommunicationIssue(new Exception());
+
+                    // Shortly sleep, to not spam at full speed.
+                    sleep(1);
+                }
+            });
+            parallelCommunicationIssues.start();
+
+            // Wait for some time to allow for reconnection logic to run.
+            Thread.sleep(2000);
+            running.set(false);
+
+            assertNotEquals(Connection.Status.CLOSED, nc.getStatus());
         }
     }
 }

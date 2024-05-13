@@ -61,8 +61,10 @@ public class FetchResilientExample implements Runnable {
             streamReportingThread.start();
 
             // simulating a publisher somewhere else.
-            ResilientPublisher rp = ResilientPublisher.
-                newInstanceReportingAndDelay(jsm, STREAM, SUBJECT, MESSAGE_PREFIX, PUBLISH_DELAY, PUB_REPORT_FREQUENCY);
+            ResilientPublisher rp = new ResilientPublisher(nc, jsm, STREAM, SUBJECT)
+                .basicDataPrefix(MESSAGE_PREFIX)
+                .delay(PUBLISH_DELAY)
+                .reportFrequency(PUB_REPORT_FREQUENCY);
             Thread pubThread = new Thread(rp);
             pubThread.start();
 

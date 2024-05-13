@@ -15,7 +15,7 @@ package io.nats.client;
 
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
-import io.nats.client.impl.TestHandler;
+import io.nats.client.impl.ListenerForTesting;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -32,8 +32,8 @@ public class RequestTests {
     @Test
     public void testRequestNoResponder() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false, true)) {
-            Options optCancel = Options.builder().server(ts.getURI()).errorListener(new TestHandler()).build();
-            Options optReport = Options.builder().server(ts.getURI()).reportNoResponders().errorListener(new TestHandler()).build();
+            Options optCancel = Options.builder().server(ts.getURI()).errorListener(new ListenerForTesting()).build();
+            Options optReport = Options.builder().server(ts.getURI()).reportNoResponders().errorListener(new ListenerForTesting()).build();
             try (Connection ncCancel = standardConnection(optCancel);
                  Connection ncReport = standardConnection(optReport);
             )

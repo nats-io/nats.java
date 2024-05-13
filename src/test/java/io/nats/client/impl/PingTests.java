@@ -58,11 +58,11 @@ public class PingTests {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(pingPongCustomizer)) {
             Connection  nc = Nats.connect(ts.getURI());
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
-                assertTrue(gotPong.get().booleanValue(), "Got pong.");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertTrue(gotPong.get(), "Got pong.");
             } finally {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -75,7 +75,7 @@ public class PingTests {
             StatisticsCollector stats = nc.getNatsStatistics();
 
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 try {
                     Thread.sleep(200); // should get 10+ pings
                 } catch (Exception exp)
@@ -85,7 +85,7 @@ public class PingTests {
                 assertTrue(stats.getPings() > 10, "got pings");
             } finally {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -102,7 +102,7 @@ public class PingTests {
             NatsConnection nc = (NatsConnection) Nats.connect(options);
 
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             } finally {
                 nc.close();
             }
@@ -124,8 +124,9 @@ public class PingTests {
                                             build();
             NatsConnection nc = (NatsConnection) Nats.connect(options);
 
+            //noinspection TryFinallyCanBeTryWithResources
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 nc.sendPing();
                 nc.sendPing();
                 assertNull(nc.sendPing(), "No future returned when past max");
@@ -145,9 +146,10 @@ public class PingTests {
                                                 build();
                 NatsConnection nc = (NatsConnection) Nats.connect(options);
 
+                //noinspection TryFinallyCanBeTryWithResources
                 try {
-                    assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
-                    // fake server so flush will timeout
+                    assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                    // fake server so flush will time out
                     nc.flush(Duration.ofMillis(50));
                 } finally {
                     nc.close();
@@ -159,21 +161,21 @@ public class PingTests {
     @Test
     public void testFlushTimeoutDisconnected() {
         assertThrows(TimeoutException.class, () -> {
-            TestHandler handler = new TestHandler();
+            ListenerForTesting listener = new ListenerForTesting();
             try (NatsTestServer ts = new NatsTestServer(false)) {
-                Options options = new Options.Builder().connectionListener(handler).server(ts.getURI()).build();
+                Options options = new Options.Builder().connectionListener(listener).server(ts.getURI()).build();
                 NatsConnection nc = (NatsConnection) Nats.connect(options);
 
                 try {
-                    assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                    assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                     nc.flush(Duration.ofSeconds(2));
-                    handler.prepForStatusChange(Events.DISCONNECTED);
+                    listener.prepForStatusChange(Events.DISCONNECTED);
                     ts.close();
-                    handler.waitForStatusChange(2, TimeUnit.SECONDS);
+                    listener.waitForStatusChange(2, TimeUnit.SECONDS);
                     nc.flush(Duration.ofSeconds(2));
                 } finally {
                     nc.close();
-                    assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                    assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
                 }
             }
         });
@@ -181,10 +183,10 @@ public class PingTests {
 
     @Test
     public void testPingTimerThroughReconnect() throws Exception {
-        TestHandler handler = new TestHandler();
+        ListenerForTesting listener = new ListenerForTesting();
         try (NatsTestServer ts = new NatsTestServer(false)) {
             try (NatsTestServer ts2 = new NatsTestServer()) {
-                Options options = new Options.Builder().connectionListener(handler).
+                Options options = new Options.Builder().connectionListener(listener).
                                         server(ts.getURI()).
                                         server(ts2.getURI()).
                                         pingInterval(Duration.ofMillis(5)).build();
@@ -201,9 +203,9 @@ public class PingTests {
                     }
                     long pings = stats.getPings();
                     assertTrue(pings > 10, "got pings");
-                    handler.prepForStatusChange(Events.RECONNECTED);
+                    listener.prepForStatusChange(Events.RECONNECTED);
                     ts.close();
-                    handler.waitForStatusChange(5, TimeUnit.SECONDS);
+                    listener.waitForStatusChange(5, TimeUnit.SECONDS);
                     pings = stats.getPings();
                     Thread.sleep(250); // should get more pings
                     assertTrue(stats.getPings() > pings, "more pings");
@@ -227,7 +229,7 @@ public class PingTests {
 
             try {
                 final CompletableFuture<Boolean> done = new CompletableFuture<>();
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
 
                 Dispatcher d = nc.createDispatcher((msg) -> {
                     if (msg.getSubject().equals("done")) {
@@ -245,7 +247,7 @@ public class PingTests {
                     nc.publish("subject", new byte[16]);
                 }
                 long after = stats.getPings();
-                assertTrue(after == b4, "pings hidden");
+                assertEquals(after, b4, "pings hidden");
                 nc.publish("done", new byte[16]);
                 nc.flush(Duration.ofMillis(1000)); // wait for them to go through
                 done.get(500, TimeUnit.MILLISECONDS);

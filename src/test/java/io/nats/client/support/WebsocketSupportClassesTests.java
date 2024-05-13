@@ -26,6 +26,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static io.nats.client.support.WebsocketFrameHeader.OpCode;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -333,9 +334,17 @@ public class WebsocketSupportClassesTests {
                         return tcpSocket.getOutputStream();
                     }
 
+                    final ReentrantLock closeLock = new ReentrantLock();
+
                     @Override
                     public synchronized void close() throws IOException {
-                        tcpSocket.close();
+                        closeLock.lock();
+                        try {
+                            tcpSocket.close();
+                        }
+                        finally {
+                            closeLock.unlock();
+                        }
                     }
 
                     @Override

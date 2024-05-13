@@ -18,12 +18,22 @@ import io.nats.client.Message;
 import io.nats.client.api.*;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class NatsKeyValueWatchSubscription extends NatsWatchSubscription<KeyValueEntry> {
 
-    public NatsKeyValueWatchSubscription(NatsKeyValue kv, String keyPattern, KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException {
-        super(kv.js);
+    public NatsKeyValueWatchSubscription(NatsKeyValue kv, String keyPattern, KeyValueWatcher watcher, long fromRevision, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException {
+        this(kv, Collections.singletonList(keyPattern), watcher, fromRevision, watchOptions);
+    }
 
+    public NatsKeyValueWatchSubscription(NatsKeyValue kv, List<String> keyPatterns, KeyValueWatcher watcher, long fromRevision, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException {
+        super(kv.js);
+        kwWatchInit(kv, keyPatterns, watcher, fromRevision, watchOptions);
+    }
+
+    private void kwWatchInit(NatsKeyValue kv, List<String> keyPatterns, KeyValueWatcher watcher, long fromRevision, KeyValueWatchOption[] watchOptions) throws IOException, JetStreamApiException {
         // figure out the result options
         boolean headersOnly = false;
         boolean ignoreDeletes = false;
@@ -54,6 +64,12 @@ public class NatsKeyValueWatchSubscription extends NatsWatchSubscription<KeyValu
                 }
             };
 
-        finishInit(kv, kv.readSubject(keyPattern), deliverPolicy, headersOnly, handler);
+        // convert each key to a read subject
+        List<String> readSubjects = new ArrayList<>();
+        for (String keyPattern : keyPatterns) {
+            readSubjects.add(kv.readSubject(keyPattern.trim()));
+        }
+
+        finishInit(kv, readSubjects, deliverPolicy, headersOnly, fromRevision, handler);
     }
 }

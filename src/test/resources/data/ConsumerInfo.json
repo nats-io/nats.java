@@ -31,7 +31,8 @@
     "inactive_threshold": 50000000000,
     "backoff": [1000000000, 2000000000, 3000000000],
     "num_replicas": 5,
-    "mem_storage": true
+    "mem_storage": true,
+    "pause_until": "2024-03-02T10:43:32.062847087Z"
   },
   "delivered": {
     "consumer_seq": 1,
@@ -46,6 +47,8 @@
   "num_pending": 24,
   "num_ack_pending": 42,
   "num_redelivered": 42,
+  "paused": true,
+  "pause_remaining": 20000000000,
   "cluster": {
     "name": "clustername",
     "leader": "clusterleader",

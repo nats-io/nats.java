@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.endJson;
@@ -51,7 +52,7 @@ public class Service {
     private final PingResponse pingResponse;
     private final InfoResponse infoResponse;
 
-    private final Object startStopLock;
+    private final ReentrantLock startStopLock;
     private CompletableFuture<Boolean> runningIndicator;
     private ZonedDateTime started;
 
@@ -60,7 +61,7 @@ public class Service {
         conn = b.conn;
         drainTimeout = b.drainTimeout;
         dInternals = new ArrayList<>();
-        startStopLock = new Object();
+        startStopLock = new ReentrantLock();
 
         // set up the service contexts
         // ? do we need an internal dispatcher for any user endpoints
@@ -145,7 +146,8 @@ public class Service {
      * @return a future that can be held to see if another thread called stop
      */
     public CompletableFuture<Boolean> startService() {
-        synchronized (startStopLock) {
+        startStopLock.lock();
+        try {
             if (runningIndicator == null) {
                 runningIndicator = new CompletableFuture<>();
                 for (EndpointContext ctx : serviceContexts.values()) {
@@ -157,6 +159,9 @@ public class Service {
                 started = DateTimeUtils.gmtNow();
             }
             return runningIndicator;
+        }
+        finally {
+            startStopLock.unlock();
         }
     }
 
@@ -197,7 +202,8 @@ public class Service {
      * @param t the optional error cause. If supplied, mark the future that was received from the start method that the service completed exceptionally
      */
     public void stop(boolean drain, Throwable t) {
-        synchronized (startStopLock) {
+        startStopLock.lock();
+        try {
             if (runningIndicator != null) {
                 if (drain) {
                     List<CompletableFuture<Boolean>> futures = new ArrayList<>();
@@ -253,6 +259,9 @@ public class Service {
                 }
                 runningIndicator = null; // we don't need a copy anymore
             }
+        }
+        finally {
+            startStopLock.unlock();
         }
     }
 

@@ -18,6 +18,7 @@ public interface ApiConstants {
     String ACK_FLOOR         = "ack_floor";
     String ACK_POLICY        = "ack_policy";
     String ACK_WAIT          = "ack_wait";
+    String ACTION            = "action";
     String ACTIVE            = "active";
     String ALLOW_ROLLUP_HDRS = "allow_rollup_hdrs";
     String ALLOW_DIRECT      = "allow_direct";
@@ -145,6 +146,9 @@ public interface ApiConstants {
     String OPT_START_SEQ     = "opt_start_seq";
     String OPT_START_TIME    = "opt_start_time";
     String OPTIONS           = "options";
+    String PAUSED            = "paused";
+    String PAUSE_REMAINING   = "pause_remaining";
+    String PAUSE_UNTIL       = "pause_until";
     String PLACEMENT         = "placement";
     String PORT              = "port";
     String PROCESSING_TIME   = "processing_time";
@@ -191,6 +195,8 @@ public interface ApiConstants {
     String TIME              = "time";
     String TIMESTAMP         = "ts";
     String TLS               = "tls_required";
+    String TLS_REQUIRED      = TLS;
+    String TLS_AVAILABLE     = "tls_available";
     String TOTAL             = "total";
     String TYPE              = "type";
     String VERSION           = "version";

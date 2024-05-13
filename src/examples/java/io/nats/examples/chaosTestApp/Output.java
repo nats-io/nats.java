@@ -27,13 +27,14 @@ import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class Output extends JPanel {
     public enum Screen {Left, Main, Console}
 
-    static final Object workLock = new Object();
-    static final Object controlLock = new Object();
-    static final Object debugLock = new Object();
+    static final ReentrantLock workLock = new ReentrantLock();
+    static final ReentrantLock controlLock = new ReentrantLock();
+    static final ReentrantLock debugLock = new ReentrantLock();
 
     static boolean console;
     static boolean work;
@@ -202,7 +203,8 @@ public class Output extends JPanel {
 
     public static void workMessage(String label, String s) {
         if (work) {
-            synchronized (workLock) {
+            workLock.lock();
+            try {
                 if (console) {
                     consoleMessage("WORK", label, s);
                 }
@@ -212,6 +214,9 @@ public class Output extends JPanel {
                 if (workLog != null) {
                     consoleMessage(null, label, s, workLog);
                 }
+            }
+            finally {
+                workLock.unlock();
             }
         }
     }
@@ -225,7 +230,8 @@ public class Output extends JPanel {
     }
 
     public static void controlMessage(String label, String s) {
-        synchronized (controlLock) {
+        controlLock.lock();
+        try {
             if (console) {
                 consoleMessage(controlConsoleAreaLabel, label, s);
             }
@@ -235,6 +241,9 @@ public class Output extends JPanel {
             if (workLog != null) {
                 consoleMessage(null, label, s, controlLog);
             }
+        }
+        finally {
+            controlLock.unlock();
         }
     }
 
@@ -258,7 +267,8 @@ public class Output extends JPanel {
 
     public static void debugMessage(String label, String s) {
         if (debug) {
-            synchronized (debugLock) {
+            debugLock.lock();
+            try {
                 if (console) {
                     consoleMessage("DEBUG", label, s);
                 }
@@ -270,6 +280,9 @@ public class Output extends JPanel {
                 if (debugLog != null) {
                     consoleMessage("DEBUG", label, s + "\n", controlLog);
                 }
+            }
+            finally {
+                debugLock.unlock();
             }
         }
     }
@@ -299,8 +312,8 @@ public class Output extends JPanel {
         consoleMessage("ERROR", label, s, System.out);
     }
 
-    public static void errorMessage(String label, String s, PrintStream out) {
-        consoleMessage("ERROR", label, s, out);
+    public static void fatalMessage(String label, String s) {
+        consoleMessage("FATAL", label, s, System.out);
     }
 
     public static void consoleMessage(String area, String label, String s) {

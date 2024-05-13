@@ -20,6 +20,9 @@ import io.nats.client.api.DeliverPolicy;
 import io.nats.client.api.Watcher;
 
 import java.io.IOException;
+import java.util.List;
+
+import static io.nats.client.api.ConsumerConfiguration.ULONG_UNSET;
 
 public class NatsWatchSubscription<T> implements AutoCloseable {
     private final JetStream js;
@@ -30,29 +33,33 @@ public class NatsWatchSubscription<T> implements AutoCloseable {
         this.js = js;
     }
 
-    protected void finishInit(NatsFeatureBase fb, String subscribeSubject, DeliverPolicy deliverPolicy, boolean headersOnly, WatchMessageHandler<T> handler)
+    protected void finishInit(NatsFeatureBase fb, List<String> subscribeSubjects, DeliverPolicy deliverPolicy, boolean headersOnly, long fromRevision, WatchMessageHandler<T> handler)
         throws IOException, JetStreamApiException
     {
-        if (deliverPolicy == DeliverPolicy.New
-            || fb._getLast(subscribeSubject) == null)
-        {
-            handler.sendEndOfData();
+        if (fromRevision > ULONG_UNSET) {
+            deliverPolicy = DeliverPolicy.ByStartSequence;
+        }
+        else {
+            fromRevision = ULONG_UNSET; // easier on the builder since we aren't starting at a fromRevision
+            if (deliverPolicy == DeliverPolicy.New) {
+                handler.sendEndOfData();
+            }
         }
 
         PushSubscribeOptions pso = PushSubscribeOptions.builder()
             .stream(fb.getStreamName())
             .ordered(true)
-            .configuration(
-                ConsumerConfiguration.builder()
-                    .ackPolicy(AckPolicy.None)
-                    .deliverPolicy(deliverPolicy)
-                    .headersOnly(headersOnly)
-                    .filterSubject(subscribeSubject)
-                    .build())
+            .configuration(ConsumerConfiguration.builder()
+                .ackPolicy(AckPolicy.None)
+                .deliverPolicy(deliverPolicy)
+                .startSequence(fromRevision)
+                .headersOnly(headersOnly)
+                .filterSubjects(subscribeSubjects)
+                .build())
             .build();
 
         dispatcher = (NatsDispatcher) ((NatsJetStream) js).conn.createDispatcher();
-        sub = js.subscribe(subscribeSubject, dispatcher, handler, false, pso);
+        sub = js.subscribe(null, dispatcher, handler, false, pso);
         if (!handler.endOfDataSent) {
             long pending = sub.getConsumerInfo().getCalculatedPending();
             if (pending == 0) {

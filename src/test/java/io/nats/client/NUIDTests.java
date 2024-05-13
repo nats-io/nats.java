@@ -16,6 +16,11 @@ package io.nats.client;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -82,5 +87,94 @@ public class NUIDTests {
                 }
             }
         }
+    }
+
+    @Test
+    public void whenRandomizePrefixCalledDirectlyThenPrefixIsRandomized() {
+        NUID nuid = new NUID();
+        char[] originalPrefix = nuid.getPre().clone();
+        nuid.randomizePrefix();
+
+        // This test ensures that the randomizePrefix method actually modifies the prefix.
+        // Since randomization can potentially lead to the same value by chance, this test might not always detect a failure in randomizePrefix.
+        assertNotEquals(String.valueOf(originalPrefix), String.valueOf(nuid.getPre()));
+    }
+
+    @Test
+    public void whenMultipleThreadsIncrementSequenceThenNoCollisionsOccur() throws InterruptedException {
+        NUID nuid = NUID.getInstance();
+        Set<String> sequences = ConcurrentHashMap.newKeySet();
+        ExecutorService service = Executors.newFixedThreadPool(10);
+
+        // This test checks the thread-safety of nextSequence by generating sequences from multiple threads.
+        // It uses a concurrent set to track unique sequences and expects no duplicates, ensuring thread-safe operation.
+        for (int i = 0; i < 1000; i++) {
+            service.submit(() -> {
+                String seq = nuid.nextSequence();
+                sequences.add(seq);
+            });
+        }
+
+        service.shutdown();
+        service.awaitTermination(1, TimeUnit.MINUTES);
+
+        // All sequences should be unique, verifying no sequence collision occurs when accessed by multiple threads.
+        assertEquals(1000, sequences.size());
+    }
+
+    @Test
+    public void testSequenceRollover() {
+        NUID nuid = new NUID();
+        nuid.setSeq(NUID.maxSeq - 1); // set to one less than max to test rollover
+        String seq1 = nuid.nextSequence(); // this should be the max sequence
+        String seq2 = nuid.nextSequence(); // this should rollover and randomize the prefix
+
+        // Verifies the rollover logic where the sequence number wraps around and the prefix is randomized.
+        assertNotEquals(seq1, seq2, "Sequence should rollover and not be equal after hitting maxSeq");
+    }
+
+    @Test
+    public void testBoundaryCondition() {
+        NUID nuid = new NUID();
+        nuid.setSeq(NUID.maxSeq);
+        String seq1 = nuid.nextSequence(); // this should trigger the randomizePrefix and resetSequential
+
+        // Ensures that boundary conditions are handled correctly by resetting the sequence number when maxSeq is reached.
+        assertNotNull(seq1, "Sequence should not be null after seq has reached maxSeq");
+        assertTrue(nuid.getSeq() < NUID.maxSeq, "Sequence should reset to a value less than maxSeq");
+    }
+
+    @Test
+    public void testSequencePostRollover() {
+        NUID nuid = new NUID();
+        nuid.setSeq(NUID.maxSeq);
+        nuid.nextSequence(); // triggers rollover
+        long oldSeq = nuid.getSeq();
+        nuid.nextSequence();
+
+        // Confirms that sequence numbers continue to increment correctly after a rollover event.
+        assertTrue(nuid.getSeq() > oldSeq, "Sequence should increment after rollover");
+    }
+
+    @Test
+    public void testConcurrency() {
+        NUID nuid = new NUID();
+        Runnable task = () -> {
+            // Verifies that concurrent calls to nextSequence result in correct sequence increments.
+            for (int i = 0; i < 1000; i++) {
+                nuid.nextSequence();
+            }
+        };
+        Thread t1 = new Thread(task);
+        Thread t2 = new Thread(task);
+        t1.start();
+        t2.start();
+        try {
+            t1.join();
+            t2.join();
+        } catch (InterruptedException e) {
+            fail("Threads should not be interrupted during execution");
+        }
+        assertTrue(nuid.getSeq() < NUID.maxSeq, "Sequence should always be less than maxSeq even after concurrent increments");
     }
 }

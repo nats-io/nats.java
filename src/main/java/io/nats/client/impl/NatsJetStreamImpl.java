@@ -81,7 +81,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         return new ConsumerInfo(resp).throwOnHasError();
     }
 
-    ConsumerInfo _createConsumer(String streamName, ConsumerConfiguration config) throws IOException, JetStreamApiException {
+    ConsumerInfo _createConsumer(String streamName, ConsumerConfiguration config, ConsumerCreateRequest.Action action) throws IOException, JetStreamApiException {
         // ConsumerConfiguration validates that name and durable are the same if both are supplied.
         String consumerName = config.getName();
         if (consumerName != null && !consumerCreate290Available) {
@@ -118,14 +118,14 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
             subj = String.format(JSAPI_DURABLE_CREATE, streamName, durable);
         }
 
-        ConsumerCreateRequest ccr = new ConsumerCreateRequest(streamName, config);
+        ConsumerCreateRequest ccr = new ConsumerCreateRequest(streamName, config, action);
         Message resp = makeRequestResponseRequired(subj, ccr.serialize(), jso.getRequestTimeout());
         return new ConsumerInfo(resp).throwOnHasError();
     }
 
     void _createConsumerUnsubscribeOnException(String stream, ConsumerConfiguration cc, NatsJetStreamSubscription sub) throws IOException, JetStreamApiException {
         try {
-            ConsumerInfo ci = _createConsumer(stream, cc);
+            ConsumerInfo ci = _createConsumer(stream, cc, ConsumerCreateRequest.Action.CreateOrUpdate);
             sub.setConsumerName(ci.getName());
         }
         catch (IOException | JetStreamApiException e) {
@@ -236,9 +236,9 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         }
     }
 
-    Message makeInternalRequestResponseRequired(String subject, Headers headers, byte[] data, Duration timeout, CancelAction cancelAction) throws IOException {
+    Message makeInternalRequestResponseRequired(String subject, Headers headers, byte[] data, Duration timeout, CancelAction cancelAction, boolean validateSubRep) throws IOException {
         try {
-            return responseRequired(conn.requestInternal(subject, headers, data, timeout, cancelAction));
+            return responseRequired(conn.requestInternal(subject, headers, data, timeout, cancelAction, validateSubRep));
         } catch (InterruptedException e) {
             throw new IOException(e);
         }

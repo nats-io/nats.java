@@ -21,6 +21,9 @@ import io.nats.client.api.ObjectStoreWatchOption;
 import io.nats.client.api.ObjectStoreWatcher;
 
 import java.io.IOException;
+import java.util.Collections;
+
+import static io.nats.client.api.ConsumerConfiguration.ULONG_UNSET;
 
 public class NatsObjectStoreWatchSubscription extends NatsWatchSubscription<ObjectInfo> {
 
@@ -56,6 +59,6 @@ public class NatsObjectStoreWatchSubscription extends NatsWatchSubscription<Obje
                 }
             };
 
-        finishInit(os, os.rawAllMetaSubject(), deliverPolicy, headersOnly, handler);
+        finishInit(os, Collections.singletonList(os.rawAllMetaSubject()), deliverPolicy, headersOnly, ULONG_UNSET, handler);
     }
 }

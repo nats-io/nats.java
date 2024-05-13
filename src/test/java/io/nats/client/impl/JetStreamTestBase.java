@@ -31,8 +31,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import static io.nats.examples.jetstream.NatsJsUtils.printConsumerInfo;
-import static io.nats.examples.jetstream.NatsJsUtils.printStreamInfo;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamTestBase extends TestBase {
@@ -180,12 +178,6 @@ public class JetStreamTestBase extends TestBase {
 
     public static StreamInfo createDefaultTestStream(JetStreamManagement jsm) throws IOException, JetStreamApiException {
         return createMemoryStream(jsm, STREAM, SUBJECT);
-    }
-
-    public static void debug(JetStreamManagement jsm, int n) throws IOException, JetStreamApiException {
-        System.out.println("\n" + n + ". -------------------------------");
-        printStreamInfo(jsm.getStreamInfo(STREAM));
-        printConsumerInfo(jsm.getConsumerInfo(STREAM, DURABLE));
     }
 
     public static <T extends Throwable> T assertThrowsPrint(Class<T> expectedType, Executable executable) {

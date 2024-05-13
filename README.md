@@ -4,7 +4,7 @@
 
 ### A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
-**Current Release**: 2.17.2 &nbsp; **Current Snapshot**: 2.17.3-SNAPSHOT 
+**Current Release**: 2.18.0 &nbsp; **Current Snapshot**: 2.18.1-SNAPSHOT
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
@@ -13,7 +13,12 @@
 [![Build Main Badge](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml/badge.svg?event=push)](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml)
 [![Release Badge](https://github.com/nats-io/nats.java/actions/workflows/build-release.yml/badge.svg?event=release)](https://github.com/nats-io/nats.java/actions/workflows/build-release.yml)
 
-**Check out [NATS by example](https://natsbyexample.com) - An evolving collection of runnable, cross-client reference examples for NATS.**
+The [**API**](https://javadoc.io/doc/io.nats/jnats/latest/index.html) is simple to use and highly performant.
+
+**Check out [NATS by Example](https://natsbyexample.com) - An evolving collection of runnable, cross-client reference examples for NATS.**
+
+There are also many basic examples in the [examples](https://github.com/nats-io/nats.java/tree/main/src/examples/java/io/nats/examples) directory of this repo
+and more simple application examples in the [Java Nats Examples](https://github.com/nats-io/java-nats-examples) repo.
 
 ### Simplification
 
@@ -40,17 +45,44 @@ Check out the [ServiceExample](src/examples/java/io/nats/examples/service/Servic
 
 ### Versions Specific Notes
 
-This is version 2.x of the java-nats library. This version is a ground up rewrite of the original library. Part of the goal of this re-write was to address the excessive use of threads, we created a Dispatcher construct to allow applications to control thread creation more intentionally. This version also removes all non-JDK runtime dependencies.
+#### Version 2.18.0 (AKA 2.17.7)
 
-The API is [simple to use](#listening-for-incoming-messages) and highly [performant](#Benchmarking).
+2.18.0 attempts to start us on the road to properly [Semantic Version (semver)](https://semver.org/). 
+In the last few patch releases, there were technically things that should cause a minor version bump, 
+but were numbered as a patch.
 
-Version 2+ uses a simplified versioning scheme. Any issues will be fixed in the incremental version number. As a major release, the major version has been updated to 2 to allow clients to limit there use of this new API. With the addition of drain() we updated to 2.1, NKey support moved us to 2.2.
+Even if just one api is newly added, semver requires that we bump the minor version. The `forceReconnect` api
+is an example of one api being added to the Connection interface. It should have resulted in a minor version bump.
 
-The NATS server renamed itself from gnatsd to nats-server around 2.4.4. This and other files try to use the new names, but some underlying code may change over several versions. If you are building yourself, please keep an eye out for issues and report them.
+Going forward, when a release contains only bug fixes, it's appropriate to simply bump the patch. 
+But if an api is added, even one, then the minor version will be bumped.
 
-Version 2.5.0 adds some back pressure to publish calls to alleviate issues when there is a slow network. This may alter performance characteristics of publishing apps, although the total performance is equivalent.
+#### Version 2.17.4 Core Improvements
 
-Previous versions are still available in the repo.
+This release was full of core improvements which improve use of more asynchronous behaviors including
+* removing use of `synchronized` in favor of `ReentrantLock`
+* The ability to have a dispatcher use an executor to dispatch messages instead of the dispatcher thread being blocking to deliver a message.
+
+#### Version 2.17.3 Socket Write Timeout
+
+The client, unless overridden, uses a java.net.Socket for connections. 
+This java.net.Socket implementation does not support a write timeout, so writing data to the socket is a blocking call.
+
+Under some conditions it will block indefinitely, freezing that connection on the client.
+One way this could happen is if the server was too busy to read what was being sent.
+Or, it could be a device, network or connection issue.
+Whatever it is, it blocks the jvm Socket write implementation which _used to_ block us.
+It's rare, but it does happen.
+
+To address this, we now monitor socket writes to ensure they complete within a timeout.
+The timeout is configurable in Options via the builder and `socketWriteTimeout(duration|milliseconds)`.
+The default is 1 minute if you don't set it. 
+You can turn the watching off by setting a null duration or 0 milliseconds.
+
+When the watcher is turned on, a background task watches the write operations and makes sure they complete within the timeout. 
+If a write fails to complete, the task tells the connection to close the socket, which triggers the retry logic.
+There may still be messages in the output queue and messages that were in transit are in an unknown state. 
+Handling disconnections and output queue is left for another discussion.
 
 #### Version 2.17.2 Message Immutability Headers Bug
 
@@ -397,9 +429,9 @@ Replace `{major.minor.patch}` with the correct version in the examples.
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.2/jnats-2.17.2.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.2/jnats-2.17.2.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.4/jnats-2.17.4.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.4/jnats-2.17.4.jar).
 
-The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.2/jnats-2.17.2-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.2/jnats-2.17.2-examples.jar).
+The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.4/jnats-2.17.4-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.17.4/jnats-2.17.4-examples.jar).
 
 To use NKeys, you will need the ed25519 library, which can be downloaded at [https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar).
 
@@ -486,6 +518,19 @@ If you need a snapshot version, you must enable snapshots and change your depend
 ```
 
 If you are using the 1.x version of java-nats and don't want to upgrade to 2.0.0 please use ranges in your POM file, java-nats-streaming 1.x is using [1.1, 1.9.9) for this.
+
+## Integration with GraalVM
+
+To inlcude this library with a GraalVM project, there are 2 important configurations you must use: 
+* `--initialize-at-run-time=io.nats.client.support.RandomUtils`
+* `--initialize-at-run-time=java.security.SecureRandom`. 
+
+These will instruct GraalVM to initialize specified classes at runtime, so that these instances don't have fixed seeds. 
+GraalVM won't compile without these parameters.
+
+For a much more thorough discussion of the subject, please visit the [nats-graalvm-example](https://github.com/YunaBraska/nats-graalvm-example) repository 
+made by one of our contributors. There is detailed demonstration for creating an efficient NATS clients with GraalVM.
+This example leverages the client to connect to a server.
 
 ## Basic Usage
 
@@ -1198,7 +1243,7 @@ The java doc is located in `build/docs` and the example jar is in `build/libs`. 
 
 which will create a folder called `build/reports/jacoco` containing the file `index.html` you can open and use to browse the coverage. Keep in mind we have focused on library test coverage, not coverage for the examples.
 
-Many of the tests run nats-server on a custom port. If nats-server is in your path they should just work, but in cases where it is not, or an IDE running tests has issues with the path you can specify the nats-server location with the environment variable `nats_-_server_path`.
+Many of the tests run nats-server on a custom port. If nats-server is in your path they should just work, but in cases where it is not, or an IDE running tests has issues with the path you can specify the nats-server location with the environment variable `nats_server_path`.
 
 ## TLS Certs
 
