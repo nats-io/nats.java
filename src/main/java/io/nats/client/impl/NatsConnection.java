@@ -880,13 +880,7 @@ class NatsConnection implements Connection {
     void cleanUpPongQueue() {
         Future<Boolean> b;
         while ((b = pongQueue.poll()) != null) {
-            try {
-                b.cancel(true);
-            } catch (CancellationException e) {
-                if (!b.isDone() && !b.isCancelled()) {
-                    processException(e);
-                }
-            }
+            b.cancel(true);
         }
     }
 
