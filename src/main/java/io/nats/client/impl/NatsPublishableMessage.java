@@ -25,10 +25,10 @@ class NatsPublishableMessage extends NatsMessage {
         this.hasHeaders = hasHeaders;
     }
 
-    public NatsPublishableMessage(String subject, String replyTo, Headers headers, byte[] data, boolean validateSubRep) {
+    public NatsPublishableMessage(String subject, String replyTo, Headers headers, byte[] data, boolean validateSubjectAndReply) {
         super(data);
-        this.subject = validateSubRep ? validateSubject(subject, true) : subject;
-        this.replyTo = validateSubRep ? validateReplyTo(replyTo, false) : replyTo;
+        this.subject = validateSubjectAndReply ? validateSubject(subject, true) : subject;
+        this.replyTo = validateSubjectAndReply ? validateReplyTo(replyTo, false) : replyTo;
         if (headers == null || headers.isEmpty()) {
             hasHeaders = false;
         }
