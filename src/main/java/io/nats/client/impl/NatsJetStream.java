@@ -142,29 +142,29 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         return publishAsyncInternal(message.getSubject(), message.getHeaders(), message.getData(), options, null, false);
     }
 
-    private PublishAck publishSyncInternal(String subject, Headers headers, byte[] data, PublishOptions options, boolean validateSubjectAndReply) throws IOException, JetStreamApiException {
+    private PublishAck publishSyncInternal(String subject, Headers headers, byte[] data, PublishOptions options, boolean validateSubRep) throws IOException, JetStreamApiException {
         Headers merged = mergePublishOptions(headers, options);
 
         if (jso.isPublishNoAck()) {
-            conn.publishInternal(subject, null, merged, data, validateSubjectAndReply);
+            conn.publishInternal(subject, null, merged, data, validateSubRep);
             return null;
         }
 
         Duration timeout = options == null ? jso.getRequestTimeout() : options.getStreamTimeout();
 
-        Message resp = makeInternalRequestResponseRequired(subject, merged, data, timeout, CancelAction.COMPLETE, validateSubjectAndReply);
+        Message resp = makeInternalRequestResponseRequired(subject, merged, data, timeout, CancelAction.COMPLETE, validateSubRep);
         return processPublishResponse(resp, options);
     }
 
-    private CompletableFuture<PublishAck> publishAsyncInternal(String subject, Headers headers, byte[] data, PublishOptions options, Duration knownTimeout, boolean validateSubjectAndReply) {
+    private CompletableFuture<PublishAck> publishAsyncInternal(String subject, Headers headers, byte[] data, PublishOptions options, Duration knownTimeout, boolean validateSubRep) {
         Headers merged = mergePublishOptions(headers, options);
 
         if (jso.isPublishNoAck()) {
-            conn.publishInternal(subject, null, merged, data, validateSubjectAndReply);
+            conn.publishInternal(subject, null, merged, data, validateSubRep);
             return null;
         }
 
-        CompletableFuture<Message> future = conn.requestFutureInternal(subject, merged, data, knownTimeout, CancelAction.COMPLETE, validateSubjectAndReply);
+        CompletableFuture<Message> future = conn.requestFutureInternal(subject, merged, data, knownTimeout, CancelAction.COMPLETE, validateSubRep);
 
         return future.thenCompose(resp -> {
             try {
