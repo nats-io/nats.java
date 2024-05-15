@@ -13,7 +13,7 @@ plugins {
     id 'signing'
 }
 
-def jarVersion = "2.17.7"
+def jarVersion = "2.18.1"
 
 def isRelease = System.getenv("BUILD_EVENT") == "release"
 def brn = System.getenv("BRANCH_REF_NAME")

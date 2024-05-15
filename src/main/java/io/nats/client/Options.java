@@ -121,6 +121,11 @@ public class Options {
     public static final Duration DEFAULT_SOCKET_WRITE_TIMEOUT = Duration.ofMinutes(1);
 
     /**
+     * Constant used for calculating if a socket write timeout is large enough.
+     */
+    public static final long MINIMUM_SOCKET_WRITE_TIMEOUT_GT_CONNECTION_TIMEOUT = 100;
+
+    /**
      * Default server ping interval. The client will send a ping to the server on this interval to insure liveness.
      * The server may send pings to the client as well, these are handled automatically by the library,
      * see {@link #getPingInterval() getPingInterval()}.
@@ -1240,11 +1245,23 @@ public class Options {
          * Set the timeout for connection attempts. Each server in the options is allowed this timeout
          * so if 3 servers are tried with a timeout of 5s the total time could be 15s.
          *
-         * @param time the time to wait
+         * @param connectionTimeout the time to wait
          * @return the Builder for chaining
          */
-        public Builder connectionTimeout(Duration time) {
-            this.connectionTimeout = time;
+        public Builder connectionTimeout(Duration connectionTimeout) {
+            this.connectionTimeout = connectionTimeout;
+            return this;
+        }
+
+        /**
+         * Set the timeout for connection attempts. Each server in the options is allowed this timeout
+         * so if 3 servers are tried with a timeout of 5s the total time could be 15s.
+         *
+         * @param connectionTimeoutMillis the time to wait in milliseconds
+         * @return the Builder for chaining
+         */
+        public Builder connectionTimeout(long connectionTimeoutMillis) {
+            this.connectionTimeout = Duration.ofMillis(connectionTimeoutMillis);
             return this;
         }
 
@@ -1728,8 +1745,16 @@ public class Options {
                     new DefaultThreadFactory(threadPrefix));
             }
 
-            if (socketWriteTimeout != null && socketWriteTimeout.toMillis() < 1) {
+            if (socketWriteTimeout == null || socketWriteTimeout.toMillis() < 1) {
                 socketWriteTimeout = null;
+            }
+            else {
+                long swtMin = connectionTimeout.toMillis() + MINIMUM_SOCKET_WRITE_TIMEOUT_GT_CONNECTION_TIMEOUT;
+                if (socketWriteTimeout.toMillis() < swtMin) {
+                    throw new IllegalStateException("Socket Write Timeout must be at least "
+                        + MINIMUM_SOCKET_WRITE_TIMEOUT_GT_CONNECTION_TIMEOUT
+                        + " milliseconds greater than the Connection Timeout");
+                }
             }
 
             if (errorListener == null) {

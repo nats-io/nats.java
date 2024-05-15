@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
+import static io.nats.client.support.NatsConstants.OUTPUT_QUEUE_IS_FULL;
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -744,6 +745,8 @@ public class ReconnectTests {
         ListenerForTesting listener = new ListenerForTesting();
         Options.Builder builder = Options.builder()
             .socketWriteTimeout(5000)
+            .pingInterval(Duration.ofSeconds(1))
+            .maxMessagesInOutgoingQueue(100)
             .dataPortType(SocketDataPortBlockSimulator.class.getCanonicalName())
             .connectionListener(listener)
             .errorListener(listener);
@@ -757,7 +760,6 @@ public class ReconnectTests {
                 NatsRunnerUtils.getNatsLocalhostUri(port1),
                 NatsRunnerUtils.getNatsLocalhostUri(port2)
             };
-            //noinspection resource
             Connection nc = standardConnection(builder.servers(servers).build());
             String subject = subject();
             int connectedPort = nc.getServerInfo().getPort();
@@ -770,12 +772,13 @@ public class ReconnectTests {
                     }
                 }
                 catch (Exception e) {
-                    if (e.getMessage().contains("Output queue is full")) {
+                    if (e.getMessage().contains(OUTPUT_QUEUE_IS_FULL)) {
                         gotOutputQueueIsFull.set(true);
                     }
                 }
             }
             assertNotEquals(connectedPort, nc.getServerInfo().getPort());
+            nc.close();
         }));
 
         assertTrue(gotOutputQueueIsFull.get());

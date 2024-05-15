@@ -74,22 +74,33 @@ public class SocketDataPortBlockSimulator extends SocketDataPort {
     public static AtomicLong SIMULATE_SOCKET_BLOCK = new AtomicLong();
     AtomicLong blocking = new AtomicLong();
     public void write(byte[] src, int toWrite) throws IOException {
-        writeMustBeDoneBy = System.nanoTime() + writeTimeoutNanos;
-        blocking.set(SIMULATE_SOCKET_BLOCK.get());
-        while (blocking.get() > 0) {
-            try {
-                Thread.sleep(100);
-                blocking.addAndGet(-100);
+        try {
+            writeMustBeDoneBy = System.nanoTime() + writeTimeoutNanos;
+            blocking.set(SIMULATE_SOCKET_BLOCK.get());
+            while (blocking.get() > 0) {
+                try {
+                    Thread.sleep(100);
+                    blocking.addAndGet(-100);
+                }
+                catch (InterruptedException ignore) {
+                    return;
+                }
             }
-            catch (InterruptedException ignore) {}
+            out.write(src, 0, toWrite);
         }
-        out.write(src, 0, toWrite);
-        writeMustBeDoneBy = Long.MAX_VALUE;
+        finally {
+            writeMustBeDoneBy = Long.MAX_VALUE;
+        }
     }
 
     public void close() throws IOException {
         try {
             writeWatcherTask.cancel();
+        }
+        catch (Exception ignore) {
+            // don't want this to be passed along
+        }
+        try {
             writeWatcherTimer.cancel();
         }
         catch (Exception ignore) {
