@@ -124,7 +124,7 @@ public class PublishOptions {
 
     /**
      * Creates a builder for the options.
-     * @return the builder.s
+     * @return the builder
      */
     public static Builder builder() {
         return new Builder();

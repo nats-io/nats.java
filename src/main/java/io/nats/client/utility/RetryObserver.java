@@ -13,6 +13,15 @@
 
 package io.nats.client.utility;
 
+/**
+ * The RetryObserver gives an opportunity to inspect an exception
+ * and optionally stop retries before the retry config is exhausted
+ */
 public interface RetryObserver {
+    /**
+     * Inspect the exception to determine if the execute should retry.
+     * @param e the exception that occurred when executing the action.
+     * @return true if the execution should retry (assuming that the retry config is not exhausted)
+     */
     boolean shouldRetry(Exception e);
 }
