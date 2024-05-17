@@ -23,7 +23,7 @@ import static io.nats.client.support.ApiConstants.CLUSTER;
 import static io.nats.client.support.ApiConstants.TAGS;
 import static io.nats.client.support.JsonUtils.*;
 import static io.nats.client.support.JsonValueUtils.readOptionalStringList;
-import static io.nats.client.support.JsonValueUtils.readString;
+import static io.nats.client.support.JsonValueUtils.readStringEmptyAsNull;
 
 /**
  * Placement directives to consider when placing replicas of a stream
@@ -37,7 +37,7 @@ public class Placement implements JsonSerializable {
     }
 
     Placement(JsonValue vPlacement) {
-        this.cluster = readString(vPlacement, CLUSTER);
+        this.cluster = readStringEmptyAsNull(vPlacement, CLUSTER);
         this.tags = readOptionalStringList(vPlacement, TAGS);
     }
 
