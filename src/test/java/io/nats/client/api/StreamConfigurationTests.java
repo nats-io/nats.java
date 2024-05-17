@@ -580,6 +580,9 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     @Test
     public void testPlacement() {
         assertFalse(Placement.builder().build().hasData());
+        assertFalse(Placement.builder().cluster(null).build().hasData());
+        assertFalse(Placement.builder().cluster("").build().hasData());
+        assertFalse(Placement.builder().tags((List<String>)null).build().hasData());
 
         Placement p = Placement.builder().cluster("cluster").build();
         assertEquals("cluster", p.getCluster());
