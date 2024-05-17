@@ -579,7 +579,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
     @Test
     public void testPlacement() {
-        assertThrows(IllegalArgumentException.class, () -> Placement.builder().build());
+        assertFalse(Placement.builder().build().hasData());
 
         Placement p = Placement.builder().cluster("cluster").build();
         assertEquals("cluster", p.getCluster());

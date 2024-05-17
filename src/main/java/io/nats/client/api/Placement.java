@@ -15,7 +15,6 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
-import io.nats.client.support.Validator;
 
 import java.util.Arrays;
 import java.util.List;
@@ -48,8 +47,12 @@ public class Placement implements JsonSerializable {
      * @param tags the list of tags, may be null
      */
     public Placement(String cluster, List<String> tags) {
-        this.cluster = cluster;
-        this.tags = tags == null || tags.size() == 0 ? null : tags;
+        this.cluster = cluster == null || cluster.isEmpty() ? null : cluster;
+        this.tags = tags == null || tags.isEmpty() ? null : tags;
+    }
+
+    public boolean hasData() {
+        return cluster != null || tags != null;
     }
 
     /**
@@ -133,7 +136,6 @@ public class Placement implements JsonSerializable {
          * @return the Placement
          */
         public Placement build() {
-            Validator.required(cluster, "Cluster");
             return new Placement(cluster, tags);
         }
     }

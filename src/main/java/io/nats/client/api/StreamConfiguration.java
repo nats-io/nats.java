@@ -179,7 +179,9 @@ public class StreamConfiguration implements JsonSerializable {
         addField(sb, TEMPLATE_OWNER, templateOwner);
         addField(sb, DISCARD, discardPolicy.toString());
         addFieldAsNanos(sb, DUPLICATE_WINDOW, duplicateWindow);
-        addField(sb, PLACEMENT, placement);
+        if (placement.hasData()) {
+            addField(sb, PLACEMENT, placement);
+        }
         addField(sb, REPUBLISH, republish);
         addField(sb, SUBJECT_TRANSFORM, subjectTransform);
         addField(sb, CONSUMER_LIMITS, consumerLimits);
