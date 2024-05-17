@@ -41,6 +41,7 @@ public class Status {
 
     public static String BATCH_COMPLETED                = "Batch Completed"; // 409 informational
     public static String SERVER_SHUTDOWN                = "Server Shutdown"; // 409 informational with headers
+    public static String LEADERSHIP_CHANGE              = "Leadership Change"; // 409
 
     private final int code;
     private final String message;

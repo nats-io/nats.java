@@ -23,6 +23,7 @@ import org.opentest4j.AssertionFailedError;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -92,6 +93,10 @@ public class TestBase {
 
     public interface TwoServerTest {
         void test(Connection nc1, Connection nc2) throws Exception;
+    }
+
+    public interface ThreeServerTest {
+        void test(Connection nc1, Connection nc2, Connection nc3) throws Exception;
     }
 
     public interface VersionCheck {
@@ -315,6 +320,80 @@ public class TestBase {
             finally {
                 cleanupJs(nchub);
                 cleanupJs(ncleaf);
+            }
+        }
+    }
+
+    public static void runInJsCluster(ThreeServerTest threeServerTest) throws Exception {
+        int port1 = NatsTestServer.nextPort();
+        int port2 = NatsTestServer.nextPort();
+        int port3 = NatsTestServer.nextPort();
+        int listen1 = NatsTestServer.nextPort();
+        int listen2 = NatsTestServer.nextPort();
+        int listen3 = NatsTestServer.nextPort();
+        String path1 = Files.createTempDirectory(variant()).toString().replace("\\", "\\\\");
+        String path2 = Files.createTempDirectory(variant()).toString().replace("\\", "\\\\");
+        String path3 = Files.createTempDirectory(variant()).toString().replace("\\", "\\\\");
+        String cluster = variant();
+        String serverPrefix = variant();
+
+        String[] server1Inserts = new String[] {
+            "jetstream {",
+            "    store_dir=" + path1,
+            "}",
+            "server_name=" + serverPrefix + "1",
+            "cluster {",
+            "  name: " + cluster,
+            "  listen: 127.0.0.1:" + listen1,
+            "  routes: [",
+            "    nats-route://127.0.0.1:" + listen2,
+            "    nats-route://127.0.0.1:" + listen3,
+            "  ]",
+            "}",
+        };
+
+        String[] server2Inserts = new String[] {
+            "jetstream {",
+            "    store_dir=" + path2,
+            "}",
+            "server_name=" + serverPrefix + "2",
+            "cluster {",
+            "  name: " + cluster,
+            "  listen: 127.0.0.1:" + listen2,
+            "  routes: [",
+            "    nats-route://127.0.0.1:" + listen1,
+            "    nats-route://127.0.0.1:" + listen3,
+            "  ]",
+            "}",
+        };
+
+        String[] server3Inserts = new String[] {
+            "jetstream {",
+            "    store_dir=" + path3,
+            "}",
+            "server_name=" + serverPrefix + "3",
+            "cluster {",
+            "  name: " + cluster,
+            "  listen: 127.0.0.1:" + listen3,
+            "  routes: [",
+            "    nats-route://127.0.0.1:" + listen1,
+            "    nats-route://127.0.0.1:" + listen2,
+            "  ]",
+            "}",
+        };
+
+        try (NatsTestServer srv1 = new NatsTestServer(port1, false, true, null, server1Inserts, null);
+             Connection nc1 = standardConnection(srv1.getURI());
+             NatsTestServer srv2 = new NatsTestServer(port2, false, true, null, server2Inserts, null);
+             Connection nc2 = standardConnection(srv2.getURI());
+             NatsTestServer srv3 = new NatsTestServer(port3, false, true, null, server3Inserts, null);
+             Connection nc3 = standardConnection(srv3.getURI())
+        ) {
+            try {
+                threeServerTest.test(nc1, nc2, nc3);
+            }
+            finally {
+                cleanupJs(nc1);
             }
         }
     }
