@@ -587,14 +587,17 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         Placement p = Placement.builder().cluster("cluster").build();
         assertEquals("cluster", p.getCluster());
         assertNull(p.getTags());
+        assertTrue(p.hasData());
 
         p = Placement.builder().cluster("cluster").tags("a", "b").build();
         assertEquals("cluster", p.getCluster());
         assertEquals(2, p.getTags().size());
+        assertTrue(p.hasData());
 
         p = Placement.builder().cluster("cluster").tags(Arrays.asList("a", "b")).build();
         assertEquals("cluster", p.getCluster());
         assertEquals(2, p.getTags().size());
+        assertTrue(p.hasData());
     }
 
     @Test
