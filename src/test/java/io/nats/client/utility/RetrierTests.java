@@ -39,6 +39,14 @@ public class RetrierTests extends JetStreamTestBase {
         assertEquals(1, rc.getAttempts());
         assertArrayEquals(backoffPolicy, rc.getBackoffPolicy());
         assertEquals(1000, rc.getDeadline());
+
+        rc = RetryConfig.builder()
+            .attempts(0)
+            .deadline(0)
+            .build();
+
+        assertEquals(DEFAULT_ATTEMPTS, rc.getAttempts());
+        assertEquals(Long.MAX_VALUE, rc.getDeadline());
     }
 
     interface SyncRetryFunction {
