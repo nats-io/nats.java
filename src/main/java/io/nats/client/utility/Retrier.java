@@ -29,6 +29,7 @@ import static io.nats.client.utility.RetryConfig.DEFAULT_CONFIG;
  * There are also static methods which are use the generic ability that are built specifically for JetStream publishing.
  */
 public class Retrier {
+    private Retrier() {}  /* ensures cannot be constructed */
 
     /**
      * Execute the supplied action with the given retry config.

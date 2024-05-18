@@ -18,12 +18,15 @@ package io.nats.client.utility;
  */
 public class RetryConfig {
 
+    public static final int DEFAULT_ATTEMPTS = 2;
+    public static final long[] DEFAULT_BACKOFF_POLICY = new long[]{250, 250, 500, 500, 3000, 5000};
+
+    // DEV NOTE. DEFAULT_CONFIG MUST BE DECLARED AFTER CONSTANTS BECAUSE
+    // JAVA INITIALIZES STATICS IN THE ORDER DEFINED IN CODE
     /**
-     * The default retry configuration
+     * The default retry configuration.
      */
     public static final RetryConfig DEFAULT_CONFIG = RetryConfig.builder().build();
-
-    public static final int DEFAULT_RETRY_ATTEMPTS = 2;
 
     private final long[] backoffPolicy;
     private final int attempts;
@@ -71,8 +74,8 @@ public class RetryConfig {
      * The builder class for the RetryConfig
      */
     public static class Builder {
-        private long[] backoffPolicy = new long[]{250, 250, 500, 500, 3000, 5000};
-        private int attempts = DEFAULT_RETRY_ATTEMPTS;
+        private long[] backoffPolicy = DEFAULT_BACKOFF_POLICY;
+        private int attempts = DEFAULT_ATTEMPTS;
         private long deadline = Long.MAX_VALUE;
 
         /**
@@ -91,7 +94,7 @@ public class RetryConfig {
          * @return the builder
          */
         public Builder attempts(int attempts) {
-            this.attempts = attempts < 1 ? DEFAULT_RETRY_ATTEMPTS : attempts;
+            this.attempts = attempts < 1 ? DEFAULT_ATTEMPTS : attempts;
             return this;
         }
 
