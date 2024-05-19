@@ -16,6 +16,7 @@ package io.nats.client.utility;
 /**
  * The RetryObserver gives an opportunity to inspect an exception
  * and optionally stop retries before the retry config is exhausted
+ * <p><b>THIS CLASS IS EXPERIMENTAL AND THE API IS SUBJECT TO CHANGE</b></p>
  */
 public interface RetryObserver {
     /**

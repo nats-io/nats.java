@@ -16,6 +16,7 @@ package io.nats.client.utility;
 /**
  * The action to execute with retry.
  * @param <T> The return type of the action
+ * <p><b>THIS CLASS IS EXPERIMENTAL AND THE API IS SUBJECT TO CHANGE</b></p>
  */
 public interface RetryAction<T> {
     /**

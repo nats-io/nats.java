@@ -15,6 +15,8 @@ package io.nats.client.utility;
 
 /**
  * A class to config how retries are executed.
+ * There are also static methods which are use the generic ability that are built specifically for JetStream publishing.
+ * <p><b>THIS CLASS IS EXPERIMENTAL AND THE API IS SUBJECT TO CHANGE</b></p>
  */
 public class RetryConfig {
 
