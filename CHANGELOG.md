@@ -17,7 +17,7 @@
 
 2.18.0 and 2.17.7 are identical.
 
-2.18.0 attempts to start us on the road to properly [Semantic Version (semver)](https://semver.org/). In the last few patch releases, there were technically things that should cause a minor version bump, but were numbered as a patch.
+2.18.0 attempts to start us on the road to properly [Semantic Version (semver)](https://semver.org/). In the last few patch releases, changes that should have been exposed via a minor version bump were numbered as a patch.
 
 Even if just one api is newly added, semver requires that we bump the minor version. The `forceReconnect` api is an example of one api being added to the Connection interface. It should have resulted in a minor version bump.
 
