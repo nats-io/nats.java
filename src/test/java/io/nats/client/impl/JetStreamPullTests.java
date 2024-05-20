@@ -947,20 +947,21 @@ public class JetStreamPullTests extends JetStreamTestBase {
         });
     }
 
-// This just flaps. It's a timing thing? Already spent too much time, IWOMM and it should work as is.
-//    @Test
-//    public void testConsumerDeletedAsyncSub() throws Exception {
-//        testConflictStatus(409, CONSUMER_DELETED, TYPE_ERROR, "2.9.6", (nc, jsm, js, tsc, handler) -> {
-//            jsm.addOrUpdateConsumer(tsc.stream, builder().durable(durable(1)).ackPolicy(AckPolicy.None).build());
-//            Dispatcher d = nc.createDispatcher();
-//            PullSubscribeOptions so = PullSubscribeOptions.bind(tsc.stream, durable(1));
-//            JetStreamSubscription sub = js.subscribe(null, d, m -> {}, so);
-//            sub.pullExpiresIn(1, 30000);
-//            jsm.deleteConsumer(tsc.stream, durable(1));
-//            js.publish(tsc.subject(), null);
-//            return sub;
-//        });
-//    }
+    // This just flaps. It's a timing thing? Already spent too much time, IWOMM and it should work as is.
+    @Test
+    @Disabled
+    public void testConsumerDeletedAsyncSub() throws Exception {
+        testConflictStatus(409, CONSUMER_DELETED, TYPE_ERROR, "2.9.6", (nc, jsm, js, tsc, handler) -> {
+            jsm.addOrUpdateConsumer(tsc.stream, builder().durable(durable(1)).ackPolicy(AckPolicy.None).build());
+            Dispatcher d = nc.createDispatcher();
+            PullSubscribeOptions so = PullSubscribeOptions.bind(tsc.stream, durable(1));
+            JetStreamSubscription sub = js.subscribe(null, d, m -> {}, so);
+            sub.pullExpiresIn(1, 30000);
+            jsm.deleteConsumer(tsc.stream, durable(1));
+            js.publish(tsc.subject(), null);
+            return sub;
+        });
+    }
 
     static class BadPullRequestOptions extends PullRequestOptions {
         public BadPullRequestOptions() {

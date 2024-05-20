@@ -579,19 +579,25 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
     @Test
     public void testPlacement() {
-        assertThrows(IllegalArgumentException.class, () -> Placement.builder().build());
+        assertFalse(Placement.builder().build().hasData());
+        assertFalse(Placement.builder().cluster(null).build().hasData());
+        assertFalse(Placement.builder().cluster("").build().hasData());
+        assertFalse(Placement.builder().tags((List<String>)null).build().hasData());
 
         Placement p = Placement.builder().cluster("cluster").build();
         assertEquals("cluster", p.getCluster());
         assertNull(p.getTags());
+        assertTrue(p.hasData());
 
         p = Placement.builder().cluster("cluster").tags("a", "b").build();
         assertEquals("cluster", p.getCluster());
         assertEquals(2, p.getTags().size());
+        assertTrue(p.hasData());
 
         p = Placement.builder().cluster("cluster").tags(Arrays.asList("a", "b")).build();
         assertEquals("cluster", p.getCluster());
         assertEquals(2, p.getTags().size());
+        assertTrue(p.hasData());
     }
 
     @Test

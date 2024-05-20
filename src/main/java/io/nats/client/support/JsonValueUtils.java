@@ -71,6 +71,10 @@ public abstract class JsonValueUtils {
         return read(jsonValue, key, v -> v == null ? null : v.string);
     }
 
+    public static String readStringEmptyAsNull(JsonValue jsonValue, String key) {
+        return read(jsonValue, key, v -> v == null ? null : (v.string.isEmpty() ? null : v.string));
+    }
+
     public static String readString(JsonValue jsonValue, String key, String dflt) {
         return read(jsonValue, key, v -> v == null ? dflt : v.string);
     }
