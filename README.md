@@ -45,7 +45,7 @@ Check out the [ServiceExample](src/examples/java/io/nats/examples/service/Servic
 
 ### Versions Specific Notes
 
-#### Version 2.18.1 (AKA 2.17.7)
+#### Version 2.18.0 (AKA 2.17.7)
 
 2.18.1 attempts to start us on the road to properly [Semantic Version (semver)](https://semver.org/). 
 In the last few patch releases, there were technically things that should cause a minor version bump, 
