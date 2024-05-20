@@ -694,6 +694,51 @@ public class OptionsTests {
         assertEquals(expectedWithAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", true, nonce).toString(), "auth connect options");
     }
 
+    // Test for auth handler from nkey, option JWT and user info
+    @Test
+    public void testNKeyJWTAndUserInfoOptions() throws Exception {
+        // "jwt" is encoded from:
+        // Header:    {"alg":"HS256"}
+        // Payload:   {"jti":"","iat":2000000000,"iss":"","name":"user_jwt","sub":"","nats":{"pub":{"deny":[">"]},
+        //            "sub":{"deny":[">"]},"subs":-1,"data":-1,"payload":-1,"type":"user","version":2}}
+        String jwt = "eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiIiLCJpYXQiOjIwMDAwMDAwMDAsImlzcyI6IiIsIm5hbWUiOiJ1c2VyX2p3"
+                + "dCIsInN1YiI6IiIsIm5hdHMiOnsicHViIjp7ImRlbnkiOlsiPiJdfSwic3ViIjp7ImRlbnkiOlsiPiJdfSwic3VicyI6LTEsImRh"
+                + "dGEiOi0xLCJwYXlsb2FkIjotMSwidHlwZSI6InVzZXIiLCJ2ZXJzaW9uIjoyfX0";
+        NKey nkey = NKey.createUser(null);
+        String username = "username";
+        String password = "password";
+        AuthHandlerForTesting th = new AuthHandlerForTesting(nkey, jwt.toCharArray());
+        byte[] nonce = "abcdefg".getBytes(StandardCharsets.UTF_8);
+        String sig = Base64.getUrlEncoder().withoutPadding().encodeToString(th.sign(nonce));
+
+        // Assert that no auth and user info is given
+        Options options = new Options.Builder().authHandler(th)
+                .userInfo(username.toCharArray(), password.toCharArray()).build();
+        String expectedWithoutAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
+                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,"
+                + "\"headers\":true,\"no_responders\":true}";
+        String actualWithoutAuth = options
+                .buildProtocolConnectOptionsString("nats://localhost:4222", false, nonce).toString();
+        assertEquals(expectedWithoutAuth, actualWithoutAuth);
+
+        // Assert that auth and user info is given via options
+        String expectedWithAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
+                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,"
+                + "\"headers\":true,\"no_responders\":true,\"nkey\":\"" + new String(th.getID()) + "\",\"sig\":\""
+                + sig + "\",\"jwt\":\"" + jwt + "\",\"user\":\"" + username + "\",\"pass\":\"" + password + "\"}";
+        String actualWithAuthInOptions = options
+                .buildProtocolConnectOptionsString("nats://localhost:4222", true, nonce).toString();
+        assertEquals(expectedWithAuth, actualWithAuthInOptions);
+
+        // Assert that auth is given via options and user info is given via server URI
+        Options optionsWithoutUserInfo = new Options.Builder().authHandler(th).build();
+        String serverUriWithAuth = "nats://" + username + ":" + password + "@localhost:4222";
+        String actualWithAuthInServerUri = optionsWithoutUserInfo
+                .buildProtocolConnectOptionsString(serverUriWithAuth, true, nonce).toString();
+        assertEquals(expectedWithAuth, actualWithAuthInServerUri);
+    }
+
+
     @Test
     public void testDefaultDataPort() {
         Options o = new Options.Builder().socketWriteTimeout(null).build();
