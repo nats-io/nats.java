@@ -438,8 +438,6 @@ class NatsConnection implements Connection {
 
         processConnectionEvent(Events.RESUBSCRIBED);
 
-        processConnectionEvent(Events.RECONNECTED);
-
         // When the flush returns we are done sending internal messages,
         // so we can switch to the non-reconnect queue
         this.writer.setReconnectMode(false);
