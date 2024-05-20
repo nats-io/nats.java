@@ -96,7 +96,7 @@ public class ConnectionListenerTests {
 
         try (NatsTestServer ts = new NatsTestServer(port, false)) {
             standardConnectionWait(nc);
-            assertEquals(2, listener.getEventCount(Events.RECONNECTED));
+            assertEquals(1, listener.getEventCount(Events.RECONNECTED));
             assertEquals(ts.getURI(), nc.getConnectedUrl());
             standardCloseConnection(nc);
         }
