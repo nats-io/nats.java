@@ -284,8 +284,6 @@ class NatsConnection implements Connection {
     }
 
     void forceReconnectImpl() throws IOException, InterruptedException {
-        NatsConnectionWriter oldWriter = writer;
-
         closeSocketLock.lock();
         try {
             updateStatus(Status.DISCONNECTED);
@@ -299,8 +297,7 @@ class NatsConnection implements Connection {
                 try {
                     dataPort.close();
                 }
-                catch (IOException ignore) {
-                }
+                catch (IOException ignore) {}
                 finally {
                     dataPort = null;
                 }
