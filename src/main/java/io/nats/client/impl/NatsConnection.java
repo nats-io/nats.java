@@ -293,18 +293,21 @@ class NatsConnection implements Connection {
                 dataPortFuture.cancel(true);
                 dataPortFuture = null;
             }
+
+            // close the data port as a task so as not to block reconnect
             if (dataPort != null) {
-                try {
-                    dataPort.close();
-                }
-                catch (IOException ignore) {}
-                finally {
-                    dataPort = null;
-                }
+                final DataPort closeMe = dataPort;
+                dataPort = null;
+                executor.submit(() -> {
+                    try {
+                        closeMe.close();
+                    }
+                    catch (IOException ignore) {}
+                });
             }
 
             // stop i/o
-            reader.stop();
+            reader.stop(false);
             writer.stop();
 
             // new reader/writer

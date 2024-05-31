@@ -38,12 +38,15 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
             if (System.nanoTime() > writeMustBeDoneBy) {
                 writeWatcherTimer.cancel(); // we don't need to repeat this
                 connection.executeCallback((c, el) -> el.socketWriteTimeout(c));
-                connection.getExecutor().submit(() -> {
-                    try {
-                        connection.forceReconnect();
-                    }
-                    catch (IOException | InterruptedException ignore) {}
-                });
+                try {
+                    connection.forceReconnect();
+                }
+                catch (IOException e) {
+                    // retry maybe? forceReconnect
+                }
+                catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
             }
         }
     }
