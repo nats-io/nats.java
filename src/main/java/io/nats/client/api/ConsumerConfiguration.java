@@ -15,10 +15,7 @@ package io.nats.client.api;
 
 import io.nats.client.PullSubscribeOptions;
 import io.nats.client.PushSubscribeOptions;
-import io.nats.client.support.ApiConstants;
-import io.nats.client.support.JsonSerializable;
-import io.nats.client.support.JsonUtils;
-import io.nats.client.support.JsonValue;
+import io.nats.client.support.*;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
@@ -118,49 +115,6 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.backoff = cc.backoff == null ? null : new ArrayList<>(cc.backoff);
         this.metadata = cc.metadata == null ? null : new HashMap<>(cc.metadata);
         this.filterSubjects = cc.filterSubjects == null ? null : new ArrayList<>(cc.filterSubjects);
-    }
-
-    ConsumerConfiguration(JsonValue v) {
-        deliverPolicy = DeliverPolicy.get(readString(v, DELIVER_POLICY));
-        ackPolicy = AckPolicy.get(readString(v, ACK_POLICY));
-        replayPolicy = ReplayPolicy.get(readString(v, REPLAY_POLICY));
-
-        description = readString(v, DESCRIPTION);
-        durable = readString(v, DURABLE_NAME);
-        name = readString(v, NAME);
-        deliverSubject = readString(v, DELIVER_SUBJECT);
-        deliverGroup = readString(v, DELIVER_GROUP);
-        sampleFrequency = readString(v, SAMPLE_FREQ);
-        startTime = readDate(v, OPT_START_TIME);
-        ackWait = readNanos(v, ACK_WAIT);
-        idleHeartbeat = readNanos(v, IDLE_HEARTBEAT);
-        maxExpires = readNanos(v, MAX_EXPIRES);
-        inactiveThreshold = readNanos(v, INACTIVE_THRESHOLD);
-
-        startSeq = readLong(v, OPT_START_SEQ);
-        maxDeliver = readInteger(v, MAX_DELIVER);
-        rateLimit = readLong(v, RATE_LIMIT_BPS);
-        maxAckPending = readInteger(v, MAX_ACK_PENDING);
-        maxPullWaiting = readInteger(v, MAX_WAITING);
-        maxBatch = readInteger(v, MAX_BATCH);
-        maxBytes = readInteger(v, MAX_BYTES);
-        numReplicas = readInteger(v, NUM_REPLICAS);
-        pauseUntil = readDate(v, PAUSE_UNTIL);
-
-        flowControl = readBoolean(v, FLOW_CONTROL, null);
-        headersOnly = readBoolean(v, HEADERS_ONLY, null);
-        memStorage = readBoolean(v, MEM_STORAGE, null);
-
-        backoff = readNanosList(v, BACKOFF, true);
-        metadata = readStringStringMap(v, METADATA);
-
-        String tempFs = emptyAsNull(readString(v, FILTER_SUBJECT));
-        if (tempFs == null) {
-            filterSubjects = readOptionalStringList(v, FILTER_SUBJECTS);
-        }
-        else {
-            filterSubjects = Collections.singletonList(tempFs);
-        }
     }
 
     // For the builder
@@ -686,8 +640,14 @@ public class ConsumerConfiguration implements JsonSerializable {
         private Map<String, String> metadata;
         private List<String> filterSubjects;
 
+        /**
+         * Construct the builder
+         */
         public Builder() {}
 
+        /**
+         * Construct the builder and initialize values with the existing ConsumerConfiguration
+         */
         public Builder(ConsumerConfiguration cc) {
             if (cc != null) {
                 this.deliverPolicy = cc.deliverPolicy;
@@ -730,6 +690,61 @@ public class ConsumerConfiguration implements JsonSerializable {
                     this.filterSubjects = new ArrayList<>(cc.filterSubjects);
                 }
             }
+        }
+
+        /**
+         * Construct the builder and initialize values from the json string.
+         */
+        public Builder json(String json) throws JsonParseException {
+            return jsonValue(JsonParser.parse(json));
+        }
+
+        /**
+         * Construct the builder and initialize values from the JsonValue object.
+         */
+        public Builder jsonValue(JsonValue v) {
+            deliverPolicy = DeliverPolicy.get(readString(v, DELIVER_POLICY));
+            ackPolicy = AckPolicy.get(readString(v, ACK_POLICY));
+            replayPolicy = ReplayPolicy.get(readString(v, REPLAY_POLICY));
+
+            description = readString(v, DESCRIPTION);
+            durable = readString(v, DURABLE_NAME);
+            name = readString(v, NAME);
+            deliverSubject = readString(v, DELIVER_SUBJECT);
+            deliverGroup = readString(v, DELIVER_GROUP);
+            sampleFrequency = readString(v, SAMPLE_FREQ);
+            startTime = readDate(v, OPT_START_TIME);
+            ackWait = readNanos(v, ACK_WAIT);
+            idleHeartbeat = readNanos(v, IDLE_HEARTBEAT);
+            maxExpires = readNanos(v, MAX_EXPIRES);
+            inactiveThreshold = readNanos(v, INACTIVE_THRESHOLD);
+
+            startSeq = readLong(v, OPT_START_SEQ);
+            maxDeliver = readInteger(v, MAX_DELIVER);
+            rateLimit = readLong(v, RATE_LIMIT_BPS);
+            maxAckPending = readInteger(v, MAX_ACK_PENDING);
+            maxPullWaiting = readInteger(v, MAX_WAITING);
+            maxBatch = readInteger(v, MAX_BATCH);
+            maxBytes = readInteger(v, MAX_BYTES);
+            numReplicas = readInteger(v, NUM_REPLICAS);
+            pauseUntil = readDate(v, PAUSE_UNTIL);
+
+            flowControl = readBoolean(v, FLOW_CONTROL, null);
+            headersOnly = readBoolean(v, HEADERS_ONLY, null);
+            memStorage = readBoolean(v, MEM_STORAGE, null);
+
+            backoff = readNanosList(v, BACKOFF, true);
+            metadata = readStringStringMap(v, METADATA);
+
+            String tempFs = emptyAsNull(readString(v, FILTER_SUBJECT));
+            if (tempFs == null) {
+                filterSubjects = readOptionalStringList(v, FILTER_SUBJECTS);
+            }
+            else {
+                filterSubjects = Collections.singletonList(tempFs);
+            }
+
+            return this;
         }
 
         /**
@@ -1245,7 +1260,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder metadata(Map<String, String> metadata) {
-            this.metadata = metadata == null || metadata.size() == 0 ? null : new HashMap<>(metadata);
+            this.metadata = metadata == null || metadata.isEmpty() ? null : new HashMap<>(metadata);
             return this;
         }
 

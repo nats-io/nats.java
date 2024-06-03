@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.JsonParseException;
 import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonValue;
 import io.nats.client.utils.TestBase;
@@ -32,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class ConsumerConfigurationTests extends TestBase {
 
     @Test
-    public void testBuilder() {
+    public void testBuilder() throws JsonParseException {
         ZonedDateTime zdt = ZonedDateTime.of(2012, 1, 12, 6, 30, 1, 500, DateTimeUtils.ZONE_ID_GMT);
         Map<String, String> metadata = new HashMap<>();
         metadata.put("meta-foo", "meta-bar");
@@ -74,9 +75,8 @@ public class ConsumerConfigurationTests extends TestBase {
 
         assertNotNull(ccr.getConfig());
 
-        String json = ccr.getConfig().toJson();
-        c = new ConsumerConfiguration(JsonParser.parseUnchecked(json));
-        assertAsBuilt(c, zdt);
+        assertAsBuilt(ConsumerConfiguration.builder().json(ccr.getConfig().toJson()).build(), zdt);
+        assertAsBuilt(ConsumerConfiguration.builder().jsonValue(ccr.getConfig().toJsonValue()).build(), zdt);
 
         assertNotNull(ccr.toString()); // COVERAGE
         assertNotNull(c.toString()); // COVERAGE
@@ -263,7 +263,8 @@ public class ConsumerConfigurationTests extends TestBase {
     @Test
     public void testParsingAndSetters() {
         String json = dataAsString("ConsumerConfiguration.json");
-        ConsumerConfiguration c = new ConsumerConfiguration(JsonParser.parseUnchecked(json));
+        ConsumerConfiguration c = ConsumerConfiguration.builder().jsonValue(JsonParser.parseUnchecked(json)).build();
+
         assertEquals("foo-desc", c.getDescription());
         assertEquals(DeliverPolicy.All, c.getDeliverPolicy());
         assertEquals(AckPolicy.All, c.getAckPolicy());
@@ -297,7 +298,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(1, c.getMetadata().size());
         assertEquals("meta-bar", c.getMetadata().get("meta-foo"));
 
-        assertDefaultCc(new ConsumerConfiguration(JsonValue.EMPTY_MAP));
+        assertDefaultCc(new ConsumerConfiguration(ConsumerConfiguration.builder().jsonValue(JsonValue.EMPTY_MAP).build()));
     }
 
     private static void assertDefaultCc(ConsumerConfiguration c) {
