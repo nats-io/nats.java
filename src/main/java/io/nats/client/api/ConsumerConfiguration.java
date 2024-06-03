@@ -725,7 +725,17 @@ public class ConsumerConfiguration implements JsonSerializable {
             maxPullWaiting(readLong(v, MAX_WAITING));
             maxBatch(readLong(v, MAX_BATCH));
             maxBytes(readLong(v, MAX_BYTES));
-            numReplicas(readInteger(v, NUM_REPLICAS));
+
+            Integer r = readInteger(v, NUM_REPLICAS);
+            if (r != null) {
+                if (r == 0) {
+                    numReplicas = 0;
+                }
+                else {
+                    numReplicas(r);
+                }
+            }
+
             pauseUntil(readDate(v, PAUSE_UNTIL));
 
             Duration idleHeartbeat = readNanos(v, IDLE_HEARTBEAT);
