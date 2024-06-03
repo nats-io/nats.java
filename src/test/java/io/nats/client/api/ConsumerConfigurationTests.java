@@ -13,10 +13,7 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.DateTimeUtils;
-import io.nats.client.support.JsonParser;
-import io.nats.client.support.JsonValue;
-import io.nats.client.support.SerializableConsumerConfiguration;
+import io.nats.client.support.*;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -420,6 +417,19 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Integer.MAX_VALUE, maxPullWaiting);
         assertEquals(Integer.MAX_VALUE, maxBatch);
         assertEquals(Integer.MAX_VALUE, maxBytes);
+    }
+
+    @Test
+    public void testFlowControlIdleHeartbeatFromJson() throws JsonParseException {
+        String fc = "{\"deliver_policy\":\"all\",\"ack_policy\":\"explicit\",\"replay_policy\":\"instant\",\"idle_heartbeat\":5678000000,\"flow_control\":true}";
+        ConsumerConfiguration cc = ConsumerConfiguration.builder().json(fc).build();
+        assertTrue(cc.isFlowControl());
+        assertEquals(Duration.ofMillis(5678), cc.getIdleHeartbeat());
+
+        String hbOnly = "{\"deliver_policy\":\"all\",\"ack_policy\":\"explicit\",\"replay_policy\":\"instant\",\"idle_heartbeat\":5678000000}";
+        cc = ConsumerConfiguration.builder().json(hbOnly).build();
+        assertFalse(cc.isFlowControl());
+        assertEquals(Duration.ofMillis(5678), cc.getIdleHeartbeat());
     }
 }
 

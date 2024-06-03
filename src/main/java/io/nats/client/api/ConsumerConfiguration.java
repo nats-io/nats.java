@@ -703,45 +703,55 @@ public class ConsumerConfiguration implements JsonSerializable {
          * Construct the builder and initialize values from the JsonValue object.
          */
         public Builder jsonValue(JsonValue v) {
-            deliverPolicy = DeliverPolicy.get(readString(v, DELIVER_POLICY));
-            ackPolicy = AckPolicy.get(readString(v, ACK_POLICY));
-            replayPolicy = ReplayPolicy.get(readString(v, REPLAY_POLICY));
+            deliverPolicy(DeliverPolicy.get(readString(v, DELIVER_POLICY)));
+            ackPolicy(AckPolicy.get(readString(v, ACK_POLICY)));
+            replayPolicy(ReplayPolicy.get(readString(v, REPLAY_POLICY)));
 
-            description = readString(v, DESCRIPTION);
-            durable = readString(v, DURABLE_NAME);
-            name = readString(v, NAME);
-            deliverSubject = readString(v, DELIVER_SUBJECT);
-            deliverGroup = readString(v, DELIVER_GROUP);
-            sampleFrequency = readString(v, SAMPLE_FREQ);
-            startTime = readDate(v, OPT_START_TIME);
-            ackWait = readNanos(v, ACK_WAIT);
-            idleHeartbeat = readNanos(v, IDLE_HEARTBEAT);
-            maxExpires = readNanos(v, MAX_EXPIRES);
-            inactiveThreshold = readNanos(v, INACTIVE_THRESHOLD);
+            description(readString(v, DESCRIPTION));
+            durable(readString(v, DURABLE_NAME));
+            name(readString(v, NAME));
+            deliverSubject(readString(v, DELIVER_SUBJECT));
+            deliverGroup(readString(v, DELIVER_GROUP));
+            sampleFrequency(readString(v, SAMPLE_FREQ));
+            startTime(readDate(v, OPT_START_TIME));
+            ackWait(readNanos(v, ACK_WAIT));
+            maxExpires(readNanos(v, MAX_EXPIRES));
+            inactiveThreshold(readNanos(v, INACTIVE_THRESHOLD));
 
-            startSeq = readLong(v, OPT_START_SEQ);
-            maxDeliver = readInteger(v, MAX_DELIVER);
-            rateLimit = readLong(v, RATE_LIMIT_BPS);
-            maxAckPending = readInteger(v, MAX_ACK_PENDING);
-            maxPullWaiting = readInteger(v, MAX_WAITING);
-            maxBatch = readInteger(v, MAX_BATCH);
-            maxBytes = readInteger(v, MAX_BYTES);
-            numReplicas = readInteger(v, NUM_REPLICAS);
-            pauseUntil = readDate(v, PAUSE_UNTIL);
+            startSequence(readLong(v, OPT_START_SEQ));
+            maxDeliver(readLong(v, MAX_DELIVER, INTEGER_UNSET));
+            rateLimit(readLong(v, RATE_LIMIT_BPS));
+            maxAckPending(readLong(v, MAX_ACK_PENDING));
+            maxPullWaiting(readLong(v, MAX_WAITING));
+            maxBatch(readLong(v, MAX_BATCH));
+            maxBytes(readLong(v, MAX_BYTES));
+            numReplicas(readInteger(v, NUM_REPLICAS));
+            pauseUntil(readDate(v, PAUSE_UNTIL));
 
-            flowControl = readBoolean(v, FLOW_CONTROL, null);
-            headersOnly = readBoolean(v, HEADERS_ONLY, null);
-            memStorage = readBoolean(v, MEM_STORAGE, null);
+            Duration idleHeartbeat = readNanos(v, IDLE_HEARTBEAT);
+            if (idleHeartbeat != null) {
+                if (readBoolean(v, FLOW_CONTROL, false)) {
+                    flowControl(idleHeartbeat);
+                }
+                else {
+                    idleHeartbeat(idleHeartbeat);
+                }
+            }
 
-            backoff = readNanosList(v, BACKOFF, true);
-            metadata = readStringStringMap(v, METADATA);
+            headersOnly(readBoolean(v, HEADERS_ONLY, null));
+            memStorage(readBoolean(v, MEM_STORAGE, null));
 
-            String tempFs = emptyAsNull(readString(v, FILTER_SUBJECT));
-            if (tempFs == null) {
-                filterSubjects = readOptionalStringList(v, FILTER_SUBJECTS);
+            //noinspection DataFlowIssue readNanosList with false ensures not null;
+            backoff(readNanosList(v, BACKOFF, false).toArray(new Duration[0]));
+
+            metadata(readStringStringMap(v, METADATA));
+
+            String fs = emptyAsNull(readString(v, FILTER_SUBJECT));
+            if (fs == null) {
+                filterSubjects(readOptionalStringList(v, FILTER_SUBJECTS));
             }
             else {
-                filterSubjects = Collections.singletonList(tempFs);
+                filterSubject(fs);
             }
 
             return this;
