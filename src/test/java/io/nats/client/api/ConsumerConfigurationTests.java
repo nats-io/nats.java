@@ -81,7 +81,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertAsBuilt(ConsumerConfiguration.builder().json(ccr.getConfig().toJson()).build(), zdt);
         assertAsBuilt(ConsumerConfiguration.builder().jsonValue(ccr.getConfig().toJsonValue()).build(), zdt);
 
-        SerializableConsumerConfiguration scc = new SerializableConsumerConfiguration(); // COVERAGE
+        assertDefaultCc(new SerializableConsumerConfiguration().getConsumerConfiguration());
         _testSerializing(new SerializableConsumerConfiguration(builder), zdt);
         _testSerializing(new SerializableConsumerConfiguration(c), zdt);
 
