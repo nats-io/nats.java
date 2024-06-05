@@ -25,6 +25,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -166,15 +167,10 @@ public class SocketDataPort implements DataPort {
     @Override
     public void forceClose() throws IOException {
         try {
-            // If we are here, and are being asked to force close,
-            // there is no need to linger. The dev might have set
-            // their own linger, in which case use theirs,
-            // otherwise set it to 0 for the quickest close
-            if (soLinger < 0) {
-                socket.setSoLinger(true, 0);
-            }
+            // If we are being asked to force close, there is no need to linger.
+            socket.setSoLinger(true, 0);
         }
-        catch (IOException e) {
+        catch (SocketException e) {
             // don't want to fail if I couldn't set linger
         }
         close();
