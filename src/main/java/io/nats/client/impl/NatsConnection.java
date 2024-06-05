@@ -300,7 +300,7 @@ class NatsConnection implements Connection {
                 dataPort = null;
                 executor.submit(() -> {
                     try {
-                        closeMe.close();
+                        closeMe.forceClose();
                     }
                     catch (IOException ignore) {}
                 });

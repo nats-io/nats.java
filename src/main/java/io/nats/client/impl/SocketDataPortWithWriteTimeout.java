@@ -53,6 +53,7 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
 
     @Override
     public void afterConstruct(Options options) {
+        super.afterConstruct(options);
         long writeTimeoutMillis;
         if (options.getSocketWriteTimeout() == null) {
             writeTimeoutMillis = Options.DEFAULT_SOCKET_WRITE_TIMEOUT.toMillis();
