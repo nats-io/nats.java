@@ -13,15 +13,21 @@
 
 package io.nats.client.api;
 
+import io.nats.client.support.*;
+
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonUtils.beginJson;
+import static io.nats.client.support.JsonUtils.endJson;
+import static io.nats.client.support.JsonValueUtils.*;
 import static io.nats.client.support.Validator.emptyAsNull;
 
-public class OrderedConsumerConfiguration {
+public class OrderedConsumerConfiguration implements JsonSerializable {
 
     public static String DEFAULT_FILTER_SUBJECT = ">";
 
@@ -41,6 +47,44 @@ public class OrderedConsumerConfiguration {
         startSequence = ConsumerConfiguration.LONG_UNSET;
         filterSubjects = new ArrayList<>();
         filterSubjects.add(DEFAULT_FILTER_SUBJECT);
+    }
+
+    public OrderedConsumerConfiguration(String json) throws JsonParseException {
+        this(JsonParser.parse(json));
+    }
+
+    public OrderedConsumerConfiguration(JsonValue v) throws JsonParseException {
+        this();
+        List<String> list = readOptionalStringList(v, FILTER_SUBJECTS);
+        if (list != null) {
+            filterSubjects(list);
+        }
+        deliverPolicy(DeliverPolicy.get(readString(v, DELIVER_POLICY)));
+        startSequence(readLong(v, OPT_START_SEQ, ConsumerConfiguration.LONG_UNSET));
+        startTime(readDate(v, OPT_START_TIME));
+        replayPolicy(ReplayPolicy.get(readString(v, REPLAY_POLICY)));
+        headersOnly(readBoolean(v, HEADERS_ONLY, null));
+    }
+
+    /**
+     * Returns a JSON representation of this ordered consumer configuration.
+     * @return json ordered consumer configuration json string
+     */
+    public String toJson() {
+        StringBuilder sb = beginJson();
+        if (filterSubjects != null && !filterSubjects.isEmpty()) {
+            JsonUtils.addStrings(sb, FILTER_SUBJECTS, filterSubjects);
+        }
+        if (deliverPolicy != null) {
+            JsonUtils.addField(sb, DELIVER_POLICY, deliverPolicy.toString());
+        }
+        JsonUtils.addFieldWhenGtZero(sb, OPT_START_SEQ, startSequence);
+        JsonUtils.addField(sb, OPT_START_TIME, startTime);
+        if (replayPolicy != null) {
+            JsonUtils.addField(sb, REPLAY_POLICY, replayPolicy.toString());
+        }
+        JsonUtils.addFldWhenTrue(sb, HEADERS_ONLY, headersOnly);
+        return endJson(sb).toString();
     }
 
     /**

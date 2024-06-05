@@ -15,10 +15,16 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
+import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.SerializableOrderedConsumerConfiguration;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.concurrent.CountDownLatch;
@@ -878,14 +884,16 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testOrderedConsumerBuilder() {
+    public void testOrderedConsumerBuilder() throws IOException, ClassNotFoundException {
         OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration();
-        assertEquals(">", occ.getFilterSubject());
-        assertNull(occ.getDeliverPolicy());
-        assertEquals(ConsumerConfiguration.LONG_UNSET, occ.getStartSequence());
-        assertNull(occ.getStartTime());
-        assertNull(occ.getReplayPolicy());
-        assertNull(occ.getHeadersOnly());
+        check_default_values(occ);
+        check_default_values(roundTripSerialize(occ));
+        check_default_values(new SerializableOrderedConsumerConfiguration().getOrderedConsumerConfiguration()); // coverage
+
+        // coverage
+        SerializableOrderedConsumerConfiguration socc = new SerializableOrderedConsumerConfiguration();
+        socc.setOrderedConsumerConfiguration(occ);
+        check_default_values(socc.getOrderedConsumerConfiguration());
 
         // nulls
         occ = new OrderedConsumerConfiguration()
@@ -893,27 +901,19 @@ public class SimplificationTests extends JetStreamTestBase {
             .deliverPolicy(null)
             .replayPolicy(null)
             .headersOnly(null);
-        assertEquals(">", occ.getFilterSubject());
-        assertNull(occ.getDeliverPolicy());
-        assertEquals(ConsumerConfiguration.LONG_UNSET, occ.getStartSequence());
-        assertNull(occ.getStartTime());
-        assertNull(occ.getReplayPolicy());
-        assertNull(occ.getHeadersOnly());
+        check_default_values(occ);
+        check_default_values(roundTripSerialize(occ));
 
         // values that set to default
         occ = new OrderedConsumerConfiguration()
             .filterSubject("")
             .startSequence(-42)
             .headersOnly(false);
-        assertEquals(">", occ.getFilterSubject());
-        assertNull(occ.getDeliverPolicy());
-        assertEquals(ConsumerConfiguration.LONG_UNSET, occ.getStartSequence());
-        assertNull(occ.getStartTime());
-        assertNull(occ.getReplayPolicy());
-        assertNull(occ.getHeadersOnly());
+        check_default_values(occ);
+        check_default_values(roundTripSerialize(occ));
 
         // values
-        ZonedDateTime zdt = ZonedDateTime.now();
+        ZonedDateTime zdt = DateTimeUtils.toGmt(ZonedDateTime.now());
         occ = new OrderedConsumerConfiguration()
             .filterSubject("fs")
             .deliverPolicy(DeliverPolicy.All)
@@ -921,11 +921,42 @@ public class SimplificationTests extends JetStreamTestBase {
             .startTime(zdt)
             .replayPolicy(ReplayPolicy.Original)
             .headersOnly(true);
+        check_values(occ, zdt);
+        check_values(roundTripSerialize(occ), zdt);
+
+        // COVERAGE
+        socc = new SerializableOrderedConsumerConfiguration();
+        socc.setOrderedConsumerConfiguration(occ);
+        check_values(socc.getOrderedConsumerConfiguration(), zdt);
+    }
+
+    private static void check_default_values(OrderedConsumerConfiguration occ) {
+        assertEquals(">", occ.getFilterSubject());
+        assertNull(occ.getDeliverPolicy());
+        assertEquals(ConsumerConfiguration.LONG_UNSET, occ.getStartSequence());
+        assertNull(occ.getStartTime());
+        assertNull(occ.getReplayPolicy());
+        assertNull(occ.getHeadersOnly());
+    }
+
+    private static void check_values(OrderedConsumerConfiguration occ, ZonedDateTime zdt) {
         assertEquals("fs", occ.getFilterSubject());
         assertEquals(DeliverPolicy.All, occ.getDeliverPolicy());
         assertEquals(42, occ.getStartSequence());
         assertEquals(zdt, occ.getStartTime());
         assertEquals(ReplayPolicy.Original, occ.getReplayPolicy());
         assertTrue(occ.getHeadersOnly());
+    }
+
+    private OrderedConsumerConfiguration roundTripSerialize(OrderedConsumerConfiguration occ) throws IOException, ClassNotFoundException {
+        SerializableOrderedConsumerConfiguration socc = new SerializableOrderedConsumerConfiguration(occ);
+        File f = File.createTempFile("socc", null);
+        ObjectOutputStream oos = new ObjectOutputStream(Files.newOutputStream(f.toPath()));
+        oos.writeObject(socc);
+        oos.flush();
+        oos.close();
+        ObjectInputStream ois = new ObjectInputStream(Files.newInputStream(f.toPath()));
+        socc = (SerializableOrderedConsumerConfiguration) ois.readObject();
+        return socc.getOrderedConsumerConfiguration();
     }
 }

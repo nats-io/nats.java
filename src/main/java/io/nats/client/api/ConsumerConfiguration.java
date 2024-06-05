@@ -157,7 +157,6 @@ public class ConsumerConfiguration implements JsonSerializable {
 
     /**
      * Returns a JSON representation of this consumer configuration.
-     *
      * @return json consumer configuration json string
      */
     public String toJson() {
