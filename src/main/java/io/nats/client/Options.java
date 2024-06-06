@@ -1295,9 +1295,11 @@ public class Options {
 
         /**
          * Set the value of the socket SO LINGER property in seconds.
-         * This feature is built in to library data port implementations.
-         * A value greater than or equal to 0 will call
-         * socket.setSoLinger with true and the timeout value
+         * This feature is used by library data port implementations.
+         * Setting this is a last resort if socket closes are a problem
+         * in your environment, otherwise it's generally not necessary
+         * to set this. The value must be greater than or equal to 0
+         * to have the code call socket.setSoLinger with true and the timeout value
          * @param socketSoLinger the number of seconds to linger
          * @return the Builder for chaining
          */
