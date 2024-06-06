@@ -69,6 +69,7 @@ public interface ApiConstants {
     String ERROR             = "error";
     String ERRORS            = "errors";
     String EXPIRES           = "expires";
+    String EXPIRES_IN        = "expires_in";
     String EXTERNAL          = "external";
     String FILTER            = "filter";
     String FILTER_SUBJECT    = "filter_subject";
@@ -191,6 +192,7 @@ public interface ApiConstants {
     String SUCCESS           = "success";
     String TAGS              = "tags";
     String TEMPLATE_OWNER    = "template_owner";
+    String THRESHOLD_PERCENT = "thresholdPercent";
     String TIERS             = "tiers";
     String TIME              = "time";
     String TIMESTAMP         = "ts";

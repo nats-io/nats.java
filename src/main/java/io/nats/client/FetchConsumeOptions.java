@@ -41,8 +41,6 @@ public class FetchConsumeOptions extends BaseConsumeOptions {
         return bytes;
     }
 
-    public boolean isNoWait() { return noWait; }
-
     public static Builder builder() {
         return new Builder();
     }
@@ -100,6 +98,7 @@ public class FetchConsumeOptions extends BaseConsumeOptions {
          * Set no wait to true
          * @return the builder
          */
+        @Override
         public Builder noWait() {
             this.noWait = true;
             expiresIn = ConsumerConfiguration.LONG_UNSET;
