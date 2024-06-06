@@ -284,8 +284,6 @@ class NatsConnection implements Connection {
     }
 
     void forceReconnectImpl() throws IOException, InterruptedException {
-        NatsConnectionWriter oldWriter = writer;
-
         closeSocketLock.lock();
         try {
             updateStatus(Status.DISCONNECTED);
@@ -295,19 +293,21 @@ class NatsConnection implements Connection {
                 dataPortFuture.cancel(true);
                 dataPortFuture = null;
             }
+
+            // close the data port as a task so as not to block reconnect
             if (dataPort != null) {
-                try {
-                    dataPort.close();
-                }
-                catch (IOException ignore) {
-                }
-                finally {
-                    dataPort = null;
-                }
+                final DataPort closeMe = dataPort;
+                dataPort = null;
+                executor.submit(() -> {
+                    try {
+                        closeMe.forceClose();
+                    }
+                    catch (IOException ignore) {}
+                });
             }
 
             // stop i/o
-            reader.stop();
+            reader.stop(false);
             writer.stop();
 
             // new reader/writer
@@ -628,7 +628,9 @@ class NatsConnection implements Connection {
         } catch (Exception exp) {
             processException(exp);
             try {
-                this.closeSocket(false);
+                // allow force reconnect since this is pretty exceptional,
+                // a connection failure while trying to connect
+                this.closeSocket(false, true);
             } catch (InterruptedException e) {
                 processException(e);
             }
@@ -691,7 +693,9 @@ class NatsConnection implements Connection {
         // waiting on read/write threads
         executor.submit(() -> {
             try {
-                this.closeSocket(true);
+                // any issue that brings us here is pretty serious
+                // so we are comfortable forcing the close
+                this.closeSocket(true, true);
             } catch (InterruptedException e) {
                 processException(e);
                 Thread.currentThread().interrupt();
@@ -701,7 +705,7 @@ class NatsConnection implements Connection {
 
     // Close socket is called when another connect attempt is possible
     // Close is called when the connection should shut down, period
-    void closeSocket(boolean tryReconnectIfConnected) throws InterruptedException {
+    void closeSocket(boolean tryReconnectIfConnected, boolean forceClose) throws InterruptedException {
         // Ensure we close the socket exclusively within one thread.
         closeSocketLock.lock();
         try {
@@ -720,7 +724,7 @@ class NatsConnection implements Connection {
                 statusLock.unlock();
             }
 
-            closeSocketImpl();
+            closeSocketImpl(forceClose);
 
             statusLock.lock();
             try {
@@ -749,10 +753,10 @@ class NatsConnection implements Connection {
      */
     @Override
     public void close() throws InterruptedException {
-        this.close(true);
+        this.close(true, false);
     }
 
-    void close(boolean checkDrainStatus) throws InterruptedException {
+    void close(boolean checkDrainStatus, boolean forceClose) throws InterruptedException {
         statusLock.lock();
         try {
             if (checkDrainStatus && this.isDraining()) {
@@ -779,7 +783,7 @@ class NatsConnection implements Connection {
             this.reconnectWaiter.cancel(true);
         }
 
-        closeSocketImpl();
+        closeSocketImpl(forceClose);
 
         this.dispatchers.forEach((nuid, d) -> d.stop(false));
 
@@ -831,7 +835,7 @@ class NatsConnection implements Connection {
     }
 
     // Should only be called from closeSocket or close
-    void closeSocketImpl() {
+    void closeSocketImpl(boolean forceClose) {
         this.currentServer = null;
 
         // Signal both to stop.
@@ -854,8 +858,13 @@ class NatsConnection implements Connection {
 
         // Close the current socket and cancel anyone waiting for it
         try {
-            if (this.dataPort != null) {
-                this.dataPort.close();
+            if (dataPort != null) {
+                if (forceClose) {
+                    dataPort.forceClose();
+                }
+                else {
+                    dataPort.close();
+                }
             }
 
         } catch (IOException ex) {
@@ -2121,7 +2130,7 @@ class NatsConnection implements Connection {
         try {
             this.flush(timeout); // Flush and wait up to the timeout, if this fails, let the caller know
         } catch (Exception e) {
-            this.close(false);
+            this.close(false, false);
             throw e;
         }
 
@@ -2163,13 +2172,13 @@ class NatsConnection implements Connection {
                     }
                 }
 
-                this.close(false); // close the connection after the last flush
+                this.close(false, false); // close the connection after the last flush
                 tracker.complete(consumers.isEmpty());
             } catch (TimeoutException | InterruptedException e) {
                 this.processException(e);
             } finally {
                 try {
-                    this.close(false);// close the connection after the last flush
+                    this.close(false, false);// close the connection after the last flush
                 } catch (InterruptedException e) {
                     processException(e);
                     Thread.currentThread().interrupt();

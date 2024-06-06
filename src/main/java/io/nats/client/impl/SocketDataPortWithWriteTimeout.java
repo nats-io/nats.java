@@ -39,21 +39,21 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
                 writeWatcherTimer.cancel(); // we don't need to repeat this
                 connection.executeCallback((c, el) -> el.socketWriteTimeout(c));
                 try {
-                    out.close();
+                    connection.forceReconnect();
                 }
-                catch (IOException ignore) {}
-                connection.getExecutor().submit(() -> {
-                    try {
-                        connection.forceReconnect();
-                    }
-                    catch (IOException | InterruptedException ignore) {}
-                });
+                catch (IOException e) {
+                    // retry maybe? forceReconnect
+                }
+                catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
             }
         }
     }
 
     @Override
     public void afterConstruct(Options options) {
+        super.afterConstruct(options);
         long writeTimeoutMillis;
         if (options.getSocketWriteTimeout() == null) {
             writeTimeoutMillis = Options.DEFAULT_SOCKET_WRITE_TIMEOUT.toMillis();

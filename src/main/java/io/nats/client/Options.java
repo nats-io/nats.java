@@ -278,6 +278,11 @@ public class Options {
     public static final String PROP_SOCKET_WRITE_TIMEOUT = PFX + "socket.write.timeout";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see
+     * {@link Builder#socketSoLinger(int) socketSoLinger}.
+     */
+    public static final String PROP_SOCKET_SO_LINGER = PFX + "socket.so.linger";
+    /**
+     * Property used to configure a builder from a Properties object. {@value}, see
      * {@link Builder#reconnectBufferSize(long) reconnectBufferSize}.
      */
     public static final String PROP_RECONNECT_BUF_SIZE = PFX + "reconnect.buffer.size";
@@ -589,6 +594,7 @@ public class Options {
     private final Duration reconnectJitterTls;
     private final Duration connectionTimeout;
     private final Duration socketWriteTimeout;
+    private final int socketSoLinger;
     private final Duration pingInterval;
     private final Duration requestCleanupInterval;
     private final int maxPingsOut;
@@ -700,6 +706,7 @@ public class Options {
         private Duration reconnectJitterTls = DEFAULT_RECONNECT_JITTER_TLS;
         private Duration connectionTimeout = DEFAULT_CONNECTION_TIMEOUT;
         private Duration socketWriteTimeout = DEFAULT_SOCKET_WRITE_TIMEOUT;
+        private int socketSoLinger = -1;
         private Duration pingInterval = DEFAULT_PING_INTERVAL;
         private Duration requestCleanupInterval = DEFAULT_REQUEST_CLEANUP_INTERVAL;
         private int maxPingsOut = DEFAULT_MAX_PINGS_OUT;
@@ -833,6 +840,7 @@ public class Options {
             longProperty(props, PROP_RECONNECT_BUF_SIZE, DEFAULT_RECONNECT_BUF_SIZE, l -> this.reconnectBufferSize = l);
             durationProperty(props, PROP_CONNECTION_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT, d -> this.connectionTimeout = d);
             durationProperty(props, PROP_SOCKET_WRITE_TIMEOUT, DEFAULT_SOCKET_WRITE_TIMEOUT, d -> this.socketWriteTimeout = d);
+            intProperty(props, PROP_SOCKET_SO_LINGER, -1, i -> socketSoLinger = i);
 
             intGtEqZeroProperty(props, PROP_MAX_CONTROL_LINE, DEFAULT_MAX_CONTROL_LINE, i -> this.maxControlLine = i);
             durationProperty(props, PROP_PING_INTERVAL, DEFAULT_PING_INTERVAL, d -> this.pingInterval = d);
@@ -1282,6 +1290,21 @@ public class Options {
          */
         public Builder socketWriteTimeout(Duration socketWriteTimeout) {
             this.socketWriteTimeout = socketWriteTimeout;
+            return this;
+        }
+
+        /**
+         * Set the value of the socket SO LINGER property in seconds.
+         * This feature is used by library data port implementations.
+         * Setting this is a last resort if socket closes are a problem
+         * in your environment, otherwise it's generally not necessary
+         * to set this. The value must be greater than or equal to 0
+         * to have the code call socket.setSoLinger with true and the timeout value
+         * @param socketSoLinger the number of seconds to linger
+         * @return the Builder for chaining
+         */
+        public Builder socketSoLinger(int socketSoLinger) {
+            this.socketSoLinger = socketSoLinger;
             return this;
         }
 
@@ -1757,6 +1780,10 @@ public class Options {
                 }
             }
 
+            if (socketSoLinger < 0) {
+                socketSoLinger = -1;
+            }
+
             if (errorListener == null) {
                 errorListener = new ErrorListenerLoggerImpl();
             }
@@ -1803,6 +1830,7 @@ public class Options {
             this.reconnectJitterTls = o.reconnectJitterTls;
             this.connectionTimeout = o.connectionTimeout;
             this.socketWriteTimeout = o.socketWriteTimeout;
+            this.socketSoLinger = o.socketSoLinger;
             this.pingInterval = o.pingInterval;
             this.requestCleanupInterval = o.requestCleanupInterval;
             this.maxPingsOut = o.maxPingsOut;
@@ -1864,6 +1892,7 @@ public class Options {
         this.reconnectJitterTls = b.reconnectJitterTls;
         this.connectionTimeout = b.connectionTimeout;
         this.socketWriteTimeout = b.socketWriteTimeout;
+        this.socketSoLinger = b.socketSoLinger;
         this.pingInterval = b.pingInterval;
         this.requestCleanupInterval = b.requestCleanupInterval;
         this.maxPingsOut = b.maxPingsOut;
@@ -2184,6 +2213,13 @@ public class Options {
      */
     public Duration getSocketWriteTimeout() {
         return socketWriteTimeout;
+    }
+
+    /**
+     * @return the socket so linger number of seconds, see {@link Builder#socketSoLinger(int) socketSoLinger()} in the builder doc
+     */
+    public int getSocketSoLinger() {
+        return socketSoLinger;
     }
 
     /**
