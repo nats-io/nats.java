@@ -94,13 +94,17 @@ class NatsConnectionReader implements Runnable {
         this.stopped = connection.getExecutor().submit(this, Boolean.TRUE);
     }
 
+    Future<Boolean> stop() {
+        return stop(true);
+    }
+
     // May be called several times on an error.
     // Returns a future that is completed when the thread completes, not when this
     // method does.
-    Future<Boolean> stop() {
+    Future<Boolean> stop(boolean shutdownDataPort) {
         if (running.get()) {
             running.set(false);
-            if (dataPort != null) {
+            if (shutdownDataPort && dataPort != null) {
                 try {
                     dataPort.shutdownInput();
                 }
