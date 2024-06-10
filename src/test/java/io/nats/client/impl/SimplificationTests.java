@@ -15,10 +15,14 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
+import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.SerializableConsumeOptions;
+import io.nats.client.support.SerializableFetchConsumeOptions;
+import io.nats.client.support.SerializableOrderedConsumerConfiguration;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
+import java.io.*;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.concurrent.CountDownLatch;
@@ -460,58 +464,81 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testFetchConsumeOptionsBuilder() {
+    public void testFetchConsumeOptionsBuilder() throws IOException, ClassNotFoundException {
         FetchConsumeOptions fco = FetchConsumeOptions.builder().build();
+        check_default_values(fco);
+        check_default_values(roundTripSerialize(fco));
+
+        // COVERAGE
+        SerializableFetchConsumeOptions sfco = new SerializableFetchConsumeOptions();
+        sfco.setFetchConsumeOptions(fco);
+        check_default_values(sfco.getFetchConsumeOptions());
+
+        // COVERAGE
+        sfco = new SerializableFetchConsumeOptions(FetchConsumeOptions.builder());
+        sfco.setFetchConsumeOptions(fco);
+        check_default_values(sfco.getFetchConsumeOptions());
+
+        fco = FetchConsumeOptions.builder().maxMessages(1000).build();
+        check_values(fco, 1000, 0, DEFAULT_THRESHOLD_PERCENT);
+        check_values(roundTripSerialize(fco), 1000, 0, DEFAULT_THRESHOLD_PERCENT);
+
+        fco = FetchConsumeOptions.builder().maxMessages(1000).thresholdPercent(50).build();
+        check_values(fco, 1000, 0, 50);
+        check_values(roundTripSerialize(fco), 1000, 0, 50);
+
+        fco = FetchConsumeOptions.builder().max(1000, 100).build();
+        check_values(fco, 100, 1000, DEFAULT_THRESHOLD_PERCENT);
+        check_values(roundTripSerialize(fco), 100, 1000, DEFAULT_THRESHOLD_PERCENT);
+
+        fco = FetchConsumeOptions.builder().max(1000, 100).thresholdPercent(50).build();
+        check_values(fco, 100, 1000, 50);
+        check_values(roundTripSerialize(fco), 100, 1000, 50);
+    }
+
+    private static void check_default_values(FetchConsumeOptions fco) {
         assertEquals(DEFAULT_MESSAGE_COUNT, fco.getMaxMessages());
         assertEquals(DEFAULT_EXPIRES_IN_MILLIS, fco.getExpiresInMillis());
         assertEquals(DEFAULT_THRESHOLD_PERCENT, fco.getThresholdPercent());
         assertEquals(0, fco.getMaxBytes());
         assertEquals(DEFAULT_EXPIRES_IN_MILLIS * MAX_IDLE_HEARTBEAT_PERCENT / 100, fco.getIdleHeartbeat());
+    }
 
-        fco = FetchConsumeOptions.builder().maxMessages(1000).build();
-        assertEquals(1000, fco.getMaxMessages());
-        assertEquals(0, fco.getMaxBytes());
-        assertEquals(DEFAULT_THRESHOLD_PERCENT, fco.getThresholdPercent());
+    private static void check_values(FetchConsumeOptions fco, int maxMessages, int maxBytes, int thresholdPercent) throws IOException, ClassNotFoundException {
+        _check_values(fco, maxMessages, maxBytes, thresholdPercent);
+        fco = roundTripSerialize(fco);
+        _check_values(fco, maxMessages, maxBytes, thresholdPercent);
+    }
 
-        fco = FetchConsumeOptions.builder().maxMessages(1000).thresholdPercent(50).build();
-        assertEquals(1000, fco.getMaxMessages());
-        assertEquals(0, fco.getMaxBytes());
-        assertEquals(50, fco.getThresholdPercent());
+    private static void _check_values(FetchConsumeOptions fco, int maxMessages, int maxBytes, int thresholdPercent) {
+        assertEquals(maxMessages, fco.getMaxMessages());
+        assertEquals(maxBytes, fco.getMaxBytes());
+        assertEquals(thresholdPercent, fco.getThresholdPercent());
+    }
 
-        fco = FetchConsumeOptions.builder().max(1000, 100).build();
-        assertEquals(100, fco.getMaxMessages());
-        assertEquals(1000, fco.getMaxBytes());
-        assertEquals(DEFAULT_THRESHOLD_PERCENT, fco.getThresholdPercent());
-
-        fco = FetchConsumeOptions.builder().max(1000, 100).thresholdPercent(50).build();
-        assertEquals(100, fco.getMaxMessages());
-        assertEquals(1000, fco.getMaxBytes());
-        assertEquals(50, fco.getThresholdPercent());
+    private static FetchConsumeOptions roundTripSerialize(FetchConsumeOptions fco) throws IOException, ClassNotFoundException {
+        SerializableFetchConsumeOptions sfco = new SerializableFetchConsumeOptions(fco);
+        sfco = (SerializableFetchConsumeOptions)roundTripSerialize(sfco);
+        return sfco.getFetchConsumeOptions();
     }
 
     @Test
-    public void testConsumeOptionsBuilder() {
+    public void testConsumeOptionsBuilder() throws IOException, ClassNotFoundException {
         ConsumeOptions co = ConsumeOptions.builder().build();
-        assertEquals(DEFAULT_MESSAGE_COUNT, co.getBatchSize());
-        assertEquals(DEFAULT_EXPIRES_IN_MILLIS, co.getExpiresInMillis());
-        assertEquals(DEFAULT_THRESHOLD_PERCENT, co.getThresholdPercent());
-        assertEquals(0, co.getBatchBytes());
-        assertEquals(DEFAULT_EXPIRES_IN_MILLIS * MAX_IDLE_HEARTBEAT_PERCENT / 100, co.getIdleHeartbeat());
+        check_default_values(co);
+        check_default_values(roundTripSerialize(co));
 
         co = ConsumeOptions.builder().batchSize(1000).build();
-        assertEquals(1000, co.getBatchSize());
-        assertEquals(0, co.getBatchBytes());
-        assertEquals(DEFAULT_THRESHOLD_PERCENT, co.getThresholdPercent());
+        check_values(co, 1000, 0, DEFAULT_THRESHOLD_PERCENT);
+        check_values(roundTripSerialize(co), 1000, 0, DEFAULT_THRESHOLD_PERCENT);
 
         co = ConsumeOptions.builder().batchSize(1000).thresholdPercent(50).build();
-        assertEquals(1000, co.getBatchSize());
-        assertEquals(0, co.getBatchBytes());
-        assertEquals(50, co.getThresholdPercent());
+        check_values(co, 1000, 0, 50);
+        check_values(roundTripSerialize(co), 1000, 0, 50);
 
         co = ConsumeOptions.builder().batchBytes(1000).build();
-        assertEquals(DEFAULT_MESSAGE_COUNT_WHEN_BYTES, co.getBatchSize());
-        assertEquals(1000, co.getBatchBytes());
-        assertEquals(DEFAULT_THRESHOLD_PERCENT, co.getThresholdPercent());
+        check_values(co, DEFAULT_MESSAGE_COUNT_WHEN_BYTES, 1000, DEFAULT_THRESHOLD_PERCENT);
+        check_values(roundTripSerialize(co), DEFAULT_MESSAGE_COUNT_WHEN_BYTES, 1000, DEFAULT_THRESHOLD_PERCENT);
 
         co = ConsumeOptions.builder().thresholdPercent(0).build();
         assertEquals(DEFAULT_THRESHOLD_PERCENT, co.getThresholdPercent());
@@ -542,6 +569,26 @@ public class SimplificationTests extends JetStreamTestBase {
 
         assertThrows(IllegalArgumentException.class,
             () -> ConsumeOptions.builder().expiresIn(MIN_EXPIRES_MILLS - 1).build());
+    }
+
+    private static void check_default_values(ConsumeOptions co) throws IOException, ClassNotFoundException {
+        assertEquals(DEFAULT_MESSAGE_COUNT, co.getBatchSize());
+        assertEquals(DEFAULT_EXPIRES_IN_MILLIS, co.getExpiresInMillis());
+        assertEquals(DEFAULT_THRESHOLD_PERCENT, co.getThresholdPercent());
+        assertEquals(0, co.getBatchBytes());
+        assertEquals(DEFAULT_EXPIRES_IN_MILLIS * MAX_IDLE_HEARTBEAT_PERCENT / 100, co.getIdleHeartbeat());
+    }
+
+    private static void check_values(ConsumeOptions co, int batchSize, int batchBytes, int thresholdPercent) throws IOException, ClassNotFoundException {
+        assertEquals(batchSize, co.getBatchSize());
+        assertEquals(batchBytes, co.getBatchBytes());
+        assertEquals(thresholdPercent, co.getThresholdPercent());
+    }
+
+    private static ConsumeOptions roundTripSerialize(ConsumeOptions co) throws IOException, ClassNotFoundException {
+        SerializableConsumeOptions sco = new SerializableConsumeOptions(co);
+        sco = (SerializableConsumeOptions)roundTripSerialize(sco);
+        return sco.getConsumeOptions();
     }
 
     // this sim is different from the other sim b/c next has a new sub every message
@@ -878,14 +925,18 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testOrderedConsumerBuilder() {
+    public void testOrderedConsumerBuilder() throws IOException, ClassNotFoundException {
         OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration();
-        assertEquals(">", occ.getFilterSubject());
-        assertNull(occ.getDeliverPolicy());
-        assertEquals(ConsumerConfiguration.LONG_UNSET, occ.getStartSequence());
-        assertNull(occ.getStartTime());
-        assertNull(occ.getReplayPolicy());
-        assertNull(occ.getHeadersOnly());
+        check_default_values(occ);
+        check_default_values(roundTripSerialize(occ));
+
+        // COVERAGE
+        check_default_values(new SerializableOrderedConsumerConfiguration().getOrderedConsumerConfiguration());
+
+        // COVERAGE
+        SerializableOrderedConsumerConfiguration socc = new SerializableOrderedConsumerConfiguration();
+        socc.setOrderedConsumerConfiguration(occ);
+        check_default_values(socc.getOrderedConsumerConfiguration());
 
         // nulls
         occ = new OrderedConsumerConfiguration()
@@ -893,27 +944,19 @@ public class SimplificationTests extends JetStreamTestBase {
             .deliverPolicy(null)
             .replayPolicy(null)
             .headersOnly(null);
-        assertEquals(">", occ.getFilterSubject());
-        assertNull(occ.getDeliverPolicy());
-        assertEquals(ConsumerConfiguration.LONG_UNSET, occ.getStartSequence());
-        assertNull(occ.getStartTime());
-        assertNull(occ.getReplayPolicy());
-        assertNull(occ.getHeadersOnly());
+        check_default_values(occ);
+        check_default_values(roundTripSerialize(occ));
 
         // values that set to default
         occ = new OrderedConsumerConfiguration()
             .filterSubject("")
             .startSequence(-42)
             .headersOnly(false);
-        assertEquals(">", occ.getFilterSubject());
-        assertNull(occ.getDeliverPolicy());
-        assertEquals(ConsumerConfiguration.LONG_UNSET, occ.getStartSequence());
-        assertNull(occ.getStartTime());
-        assertNull(occ.getReplayPolicy());
-        assertNull(occ.getHeadersOnly());
+        check_default_values(occ);
+        check_default_values(roundTripSerialize(occ));
 
         // values
-        ZonedDateTime zdt = ZonedDateTime.now();
+        ZonedDateTime zdt = DateTimeUtils.toGmt(ZonedDateTime.now());
         occ = new OrderedConsumerConfiguration()
             .filterSubject("fs")
             .deliverPolicy(DeliverPolicy.All)
@@ -921,11 +964,47 @@ public class SimplificationTests extends JetStreamTestBase {
             .startTime(zdt)
             .replayPolicy(ReplayPolicy.Original)
             .headersOnly(true);
+        check_values(occ, zdt);
+        check_values(roundTripSerialize(occ), zdt);
+
+        // COVERAGE
+        socc = new SerializableOrderedConsumerConfiguration();
+        socc.setOrderedConsumerConfiguration(occ);
+        occ = socc.getOrderedConsumerConfiguration();
+        check_values(occ, zdt);
+        check_values(roundTripSerialize(occ), zdt);
+    }
+
+    private static void check_default_values(OrderedConsumerConfiguration occ) {
+        assertEquals(">", occ.getFilterSubject());
+        assertNull(occ.getDeliverPolicy());
+        assertEquals(ConsumerConfiguration.LONG_UNSET, occ.getStartSequence());
+        assertNull(occ.getStartTime());
+        assertNull(occ.getReplayPolicy());
+        assertNull(occ.getHeadersOnly());
+    }
+
+    private static void check_values(OrderedConsumerConfiguration occ, ZonedDateTime zdt) {
         assertEquals("fs", occ.getFilterSubject());
         assertEquals(DeliverPolicy.All, occ.getDeliverPolicy());
         assertEquals(42, occ.getStartSequence());
         assertEquals(zdt, occ.getStartTime());
         assertEquals(ReplayPolicy.Original, occ.getReplayPolicy());
         assertTrue(occ.getHeadersOnly());
+    }
+
+    private static OrderedConsumerConfiguration roundTripSerialize(OrderedConsumerConfiguration occ) throws IOException, ClassNotFoundException {
+        SerializableOrderedConsumerConfiguration socc = new SerializableOrderedConsumerConfiguration(occ);
+        socc = (SerializableOrderedConsumerConfiguration)roundTripSerialize(socc);
+        return socc.getOrderedConsumerConfiguration();
+    }
+
+    private static Object roundTripSerialize(Serializable s) throws IOException, ClassNotFoundException {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            ObjectOutputStream oos = new ObjectOutputStream(baos);
+            oos.writeObject(s);
+            oos.flush();
+            return new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray())).readObject();
+        }
     }
 }

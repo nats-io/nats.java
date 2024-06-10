@@ -13,12 +13,15 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.DateTimeUtils;
-import io.nats.client.support.JsonParser;
-import io.nats.client.support.JsonValue;
+import io.nats.client.support.*;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.HashMap;
@@ -32,12 +35,12 @@ import static org.junit.jupiter.api.Assertions.*;
 public class ConsumerConfigurationTests extends TestBase {
 
     @Test
-    public void testBuilder() {
+    public void testBuilder() throws Exception {
         ZonedDateTime zdt = ZonedDateTime.of(2012, 1, 12, 6, 30, 1, 500, DateTimeUtils.ZONE_ID_GMT);
         Map<String, String> metadata = new HashMap<>();
         metadata.put("meta-foo", "meta-bar");
 
-        ConsumerConfiguration c = ConsumerConfiguration.builder()
+        ConsumerConfiguration.Builder builder = ConsumerConfiguration.builder()
             .ackPolicy(AckPolicy.Explicit)
             .ackWait(Duration.ofSeconds(99)) // duration
             .deliverPolicy(DeliverPolicy.ByStartSequence)
@@ -64,22 +67,23 @@ public class ConsumerConfigurationTests extends TestBase {
             .headersOnly(true)
             .memStorage(true)
             .backoff(1000, 2000, 3000)
-            .metadata(metadata)
-            .build();
+            .metadata(metadata);
 
+        ConsumerConfiguration c = builder.build();
+        assertNotNull(c.toString()); // COVERAGE
         assertAsBuilt(c, zdt);
 
         ConsumerCreateRequest ccr = new ConsumerCreateRequest(STREAM, c);
+        assertNotNull(ccr.toString()); // COVERAGE
         assertEquals(STREAM, ccr.getStreamName());
-
         assertNotNull(ccr.getConfig());
 
-        String json = ccr.getConfig().toJson();
-        c = new ConsumerConfiguration(JsonParser.parseUnchecked(json));
-        assertAsBuilt(c, zdt);
+        assertAsBuilt(ConsumerConfiguration.builder().json(ccr.getConfig().toJson()).build(), zdt);
+        assertAsBuilt(ConsumerConfiguration.builder().jsonValue(ccr.getConfig().toJsonValue()).build(), zdt);
 
-        assertNotNull(ccr.toString()); // COVERAGE
-        assertNotNull(c.toString()); // COVERAGE
+        assertDefaultCc(new SerializableConsumerConfiguration().getConsumerConfiguration());
+        _testSerializing(new SerializableConsumerConfiguration(builder), zdt);
+        _testSerializing(new SerializableConsumerConfiguration(c), zdt);
 
         // flow control idle heartbeat combo
         c = ConsumerConfiguration.builder()
@@ -193,6 +197,17 @@ public class ConsumerConfigurationTests extends TestBase {
         assertClientError(JsConsumerNameDurableMismatch, () -> ConsumerConfiguration.builder().name(NAME).durable(DURABLE).build());
     }
 
+    private void _testSerializing(SerializableConsumerConfiguration scc, ZonedDateTime zdt) throws IOException, ClassNotFoundException {
+        File f = File.createTempFile("scc", null);
+        ObjectOutputStream oos = new ObjectOutputStream(Files.newOutputStream(f.toPath()));
+        oos.writeObject(scc);
+        oos.flush();
+        oos.close();
+        ObjectInputStream ois = new ObjectInputStream(Files.newInputStream(f.toPath()));
+        scc = (SerializableConsumerConfiguration) ois.readObject();
+        assertAsBuilt(scc.getConsumerConfiguration(), zdt);
+    }
+
     private void validateDefault(ConsumerConfiguration cc) {
         assertDefaultCc(cc);
         assertFalse(cc.deliverPolicyWasSet());
@@ -263,7 +278,8 @@ public class ConsumerConfigurationTests extends TestBase {
     @Test
     public void testParsingAndSetters() {
         String json = dataAsString("ConsumerConfiguration.json");
-        ConsumerConfiguration c = new ConsumerConfiguration(JsonParser.parseUnchecked(json));
+        ConsumerConfiguration c = ConsumerConfiguration.builder().jsonValue(JsonParser.parseUnchecked(json)).build();
+
         assertEquals("foo-desc", c.getDescription());
         assertEquals(DeliverPolicy.All, c.getDeliverPolicy());
         assertEquals(AckPolicy.All, c.getAckPolicy());
@@ -297,7 +313,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(1, c.getMetadata().size());
         assertEquals("meta-bar", c.getMetadata().get("meta-foo"));
 
-        assertDefaultCc(new ConsumerConfiguration(JsonValue.EMPTY_MAP));
+        assertDefaultCc(new ConsumerConfiguration(ConsumerConfiguration.builder().jsonValue(JsonValue.EMPTY_MAP).build()));
     }
 
     private static void assertDefaultCc(ConsumerConfiguration c) {
@@ -401,6 +417,19 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Integer.MAX_VALUE, maxPullWaiting);
         assertEquals(Integer.MAX_VALUE, maxBatch);
         assertEquals(Integer.MAX_VALUE, maxBytes);
+    }
+
+    @Test
+    public void testFlowControlIdleHeartbeatFromJson() throws JsonParseException {
+        String fc = "{\"deliver_policy\":\"all\",\"ack_policy\":\"explicit\",\"replay_policy\":\"instant\",\"idle_heartbeat\":5678000000,\"flow_control\":true}";
+        ConsumerConfiguration cc = ConsumerConfiguration.builder().json(fc).build();
+        assertTrue(cc.isFlowControl());
+        assertEquals(Duration.ofMillis(5678), cc.getIdleHeartbeat());
+
+        String hbOnly = "{\"deliver_policy\":\"all\",\"ack_policy\":\"explicit\",\"replay_policy\":\"instant\",\"idle_heartbeat\":5678000000}";
+        cc = ConsumerConfiguration.builder().json(hbOnly).build();
+        assertFalse(cc.isFlowControl());
+        assertEquals(Duration.ofMillis(5678), cc.getIdleHeartbeat());
     }
 }
 

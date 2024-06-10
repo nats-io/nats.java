@@ -1,11 +1,11 @@
 {
   "type": "io.nats.jetstream.api.v1.consumer_info_response",
   "stream_name": "foo-stream",
-  "name": "foo-consumer",
+  "name": "foo-name",
   "created": "2020-11-05T19:33:21.163377Z",
   "ts": "2023-08-29T19:33:21.163377Z",
   "config": {
-    "durable_name": "foo-consumer",
+    "durable_name": "foo-name",
     "deliver_subject": "bar",
     "deliver_policy": "all",
     "ack_policy": "all",
