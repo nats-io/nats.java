@@ -192,7 +192,7 @@ public interface ApiConstants {
     String SUCCESS           = "success";
     String TAGS              = "tags";
     String TEMPLATE_OWNER    = "template_owner";
-    String THRESHOLD_PERCENT = "thresholdPercent";
+    String THRESHOLD_PERCENT = "threshold_percent";
     String TIERS             = "tiers";
     String TIME              = "time";
     String TIMESTAMP         = "ts";

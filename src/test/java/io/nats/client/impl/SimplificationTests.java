@@ -22,11 +22,7 @@ import io.nats.client.support.SerializableOrderedConsumerConfiguration;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.nio.file.Files;
+import java.io.*;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.concurrent.CountDownLatch;
@@ -522,13 +518,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     private static FetchConsumeOptions roundTripSerialize(FetchConsumeOptions fco) throws IOException, ClassNotFoundException {
         SerializableFetchConsumeOptions sfco = new SerializableFetchConsumeOptions(fco);
-        File f = File.createTempFile("sfco", null);
-        ObjectOutputStream oos = new ObjectOutputStream(Files.newOutputStream(f.toPath()));
-        oos.writeObject(sfco);
-        oos.flush();
-        oos.close();
-        ObjectInputStream ois = new ObjectInputStream(Files.newInputStream(f.toPath()));
-        sfco = (SerializableFetchConsumeOptions) ois.readObject();
+        sfco = (SerializableFetchConsumeOptions)roundTripSerialize(sfco);
         return sfco.getFetchConsumeOptions();
     }
 
@@ -597,13 +587,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     private static ConsumeOptions roundTripSerialize(ConsumeOptions co) throws IOException, ClassNotFoundException {
         SerializableConsumeOptions sco = new SerializableConsumeOptions(co);
-        File f = File.createTempFile("sco", null);
-        ObjectOutputStream oos = new ObjectOutputStream(Files.newOutputStream(f.toPath()));
-        oos.writeObject(sco);
-        oos.flush();
-        oos.close();
-        ObjectInputStream ois = new ObjectInputStream(Files.newInputStream(f.toPath()));
-        sco = (SerializableConsumeOptions) ois.readObject();
+        sco = (SerializableConsumeOptions)roundTripSerialize(sco);
         return sco.getConsumeOptions();
     }
 
@@ -1011,13 +995,16 @@ public class SimplificationTests extends JetStreamTestBase {
 
     private static OrderedConsumerConfiguration roundTripSerialize(OrderedConsumerConfiguration occ) throws IOException, ClassNotFoundException {
         SerializableOrderedConsumerConfiguration socc = new SerializableOrderedConsumerConfiguration(occ);
-        File f = File.createTempFile("socc", null);
-        ObjectOutputStream oos = new ObjectOutputStream(Files.newOutputStream(f.toPath()));
-        oos.writeObject(socc);
-        oos.flush();
-        oos.close();
-        ObjectInputStream ois = new ObjectInputStream(Files.newInputStream(f.toPath()));
-        socc = (SerializableOrderedConsumerConfiguration) ois.readObject();
+        socc = (SerializableOrderedConsumerConfiguration)roundTripSerialize(socc);
         return socc.getOrderedConsumerConfiguration();
+    }
+
+    private static Object roundTripSerialize(Serializable s) throws IOException, ClassNotFoundException {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            ObjectOutputStream oos = new ObjectOutputStream(baos);
+            oos.writeObject(s);
+            oos.flush();
+            return new ObjectInputStream(new ByteArrayInputStream(baos.toByteArray())).readObject();
+        }
     }
 }
