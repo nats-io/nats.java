@@ -1,5 +1,15 @@
 # Change Log
 
+## 2.19.0
+### Core
+Improve socket close behavior #1155 @scottf
+
+### Tests
+Additional NKey Tests #1154 @scottf
+
+### Misc
+Experimental Retrier utility removed to its own project/repo #1153 @scottf
+
 ## 2.18.1
 #### Core
 * General Retry Functionality #1145 @scottf
