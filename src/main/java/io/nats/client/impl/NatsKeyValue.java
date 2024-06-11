@@ -27,6 +27,7 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsJetStreamConstants.EXPECTED_LAST_SUB_SEQ_HDR;
@@ -287,6 +288,31 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
             }
         });
         return list;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public LinkedBlockingQueue<KeyResult> consumeKeys() {
+        LinkedBlockingQueue<KeyResult> q = new LinkedBlockingQueue<>();
+        try {
+            visitSubject(readSubject(">"), DeliverPolicy.LastPerSubject, true, false, m -> {
+                KeyValueOperation op = getOperation(m.getHeaders());
+                if (op == KeyValueOperation.PUT) {
+                    q.offer(new KeyResult(new BucketAndKey(m).key));
+                }
+            });
+            q.offer(new KeyResult());
+        }
+        catch (IOException | JetStreamApiException e) {
+            q.offer(new KeyResult(e));
+        }
+        catch (InterruptedException e) {
+            q.offer(new KeyResult(e));
+            Thread.currentThread().interrupt();
+        }
+        return q;
     }
 
     /**

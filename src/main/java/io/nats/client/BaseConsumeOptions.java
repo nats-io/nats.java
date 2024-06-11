@@ -114,19 +114,27 @@ public class BaseConsumeOptions implements JsonSerializable {
             return getThis();
         }
 
+        /**
+         * Initialize values from the json string.
+         * @param json the json string to parse
+         * @return the builder
+         * @throws JsonParseException if the json is invalid
+         */
         public B json(String json) throws JsonParseException {
             return jsonValue(JsonParser.parse(json));
         }
 
         /**
-         * Construct the builder and initialize values from the JsonValue object.
+         * Initialize values from the JsonValue object.
+         * @param jsonValue the json value object
+         * @return the builder
          */
-        public B jsonValue(JsonValue v) {
-            messages(readInteger(v, MESSAGES, -1));
-            bytes(readLong(v, BYTES, -1));
-            expiresIn(readLong(v, EXPIRES_IN, MIN_EXPIRES_MILLS));
-            thresholdPercent(readInteger(v, THRESHOLD_PERCENT, -1));
-            if (readBoolean(v, NO_WAIT, false)) {
+        public B jsonValue(JsonValue jsonValue) {
+            messages(readInteger(jsonValue, MESSAGES, -1));
+            bytes(readLong(jsonValue, BYTES, -1));
+            expiresIn(readLong(jsonValue, EXPIRES_IN, MIN_EXPIRES_MILLS));
+            thresholdPercent(readInteger(jsonValue, THRESHOLD_PERCENT, -1));
+            if (readBoolean(jsonValue, NO_WAIT, false)) {
                 noWait();
             }
             return getThis();
