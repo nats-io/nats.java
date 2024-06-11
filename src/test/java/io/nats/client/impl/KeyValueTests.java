@@ -23,6 +23,8 @@ import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import static io.nats.client.JetStreamOptions.DEFAULT_JS_OPTIONS;
 import static io.nats.client.api.KeyValuePurgeOptions.DEFAULT_THRESHOLD_MILLIS;
@@ -202,6 +204,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // should have exactly these 3 keys
             assertKeys(kv.keys(), byteKey, stringKey, longKey);
+            assertKeys(getKeysFromQueue(kv.consumeKeys()), byteKey, stringKey, longKey);
 
             // purge
             kv.purge(longKey);
@@ -215,6 +218,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // only 2 keys now
             assertKeys(kv.keys(), byteKey, stringKey);
+            assertKeys(getKeysFromQueue(kv.consumeKeys()), byteKey, stringKey);
 
             kv.purge(byteKey);
             byteHistory.clear();
@@ -227,6 +231,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // only 1 key now
             assertKeys(kv.keys(), stringKey);
+            assertKeys(getKeysFromQueue(kv.consumeKeys()), stringKey);
 
             kv.purge(stringKey);
             stringHistory.clear();
@@ -239,6 +244,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // no more keys left
             assertKeys(kv.keys());
+            assertKeys(getKeysFromQueue(kv.consumeKeys()));
 
             // clear things
             KeyValuePurgeOptions kvpo = KeyValuePurgeOptions.builder().deleteMarkersNoThreshold().build();
@@ -387,6 +393,15 @@ public class KeyValueTests extends JetStreamTestBase {
 
             List<String> keys = kv.keys();
             assertEquals(10, keys.size());
+            for (int x = 1; x <= 10; x++) {
+                assertTrue(keys.contains("k" + x));
+            }
+
+            keys = getKeysFromQueue(kv.consumeKeys());
+            assertEquals(10, keys.size());
+            for (int x = 1; x <= 10; x++) {
+                assertTrue(keys.contains("k" + x));
+            }
 
             kv.delete("k1");
             kv.delete("k3");
@@ -395,6 +410,8 @@ public class KeyValueTests extends JetStreamTestBase {
             kv.purge("k9");
 
             keys = kv.keys();
+            assertEquals(5, keys.size());
+            keys = getKeysFromQueue(kv.consumeKeys());
             assertEquals(5, keys.size());
 
             for (int x = 2; x <= 10; x += 2) {
@@ -405,7 +422,46 @@ public class KeyValueTests extends JetStreamTestBase {
             kv.put(keyWithDot, "key has dot");
             KeyValueEntry kve = kv.get(keyWithDot);
             assertEquals(keyWithDot, kve.getKey());
+
+            for (int x = 1; x <= 500; x++) {
+                kv.put("x" + x, x);
+            }
+
+            keys = kv.keys();
+            assertEquals(506, keys.size()); // 506 because there are left over keys from other part of test
+            for (int x = 1; x <= 500; x++) {
+                assertTrue(keys.contains("x" + x));
+            }
+
+            keys = getKeysFromQueue(kv.consumeKeys());
+            assertEquals(506, keys.size());
+            for (int x = 1; x <= 500; x++) {
+                assertTrue(keys.contains("x" + x));
+            }
         });
+    }
+
+    private static List<String> getKeysFromQueue(LinkedBlockingQueue<KeyResult> q) {
+        List<String> keys = new ArrayList<>();
+        try {
+            boolean notDone = true;
+            do {
+                KeyResult r = q.poll(100, TimeUnit.SECONDS);
+                if (r != null) {
+                    if (r.isDone()) {
+                        notDone = false;
+                    }
+                    else {
+                        keys.add(r.getKey());
+                    }
+                }
+            }
+            while (notDone);
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        return keys;
     }
 
     @Test

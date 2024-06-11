@@ -646,6 +646,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         /**
          * Construct the builder and initialize values with the existing ConsumerConfiguration
+         * @param cc the consumer configuration to clone
          */
         public Builder(ConsumerConfiguration cc) {
             if (cc != null) {
@@ -692,40 +693,45 @@ public class ConsumerConfiguration implements JsonSerializable {
         }
 
         /**
-         * Construct the builder and initialize values from the json string.
+         * Initialize values from the json string.
+         * @param json the json string to parse
+         * @return the builder
+         * @throws JsonParseException if the json is invalid
          */
         public Builder json(String json) throws JsonParseException {
             return jsonValue(JsonParser.parse(json));
         }
 
         /**
-         * Construct the builder and initialize values from the JsonValue object.
+         * Initialize values from the JsonValue object.
+         * @param jsonValue the json value object
+         * @return the builder
          */
-        public Builder jsonValue(JsonValue v) {
-            deliverPolicy(DeliverPolicy.get(readString(v, DELIVER_POLICY)));
-            ackPolicy(AckPolicy.get(readString(v, ACK_POLICY)));
-            replayPolicy(ReplayPolicy.get(readString(v, REPLAY_POLICY)));
+        public Builder jsonValue(JsonValue jsonValue) {
+            deliverPolicy(DeliverPolicy.get(readString(jsonValue, DELIVER_POLICY)));
+            ackPolicy(AckPolicy.get(readString(jsonValue, ACK_POLICY)));
+            replayPolicy(ReplayPolicy.get(readString(jsonValue, REPLAY_POLICY)));
 
-            description(readString(v, DESCRIPTION));
-            durable(readString(v, DURABLE_NAME));
-            name(readString(v, NAME));
-            deliverSubject(readString(v, DELIVER_SUBJECT));
-            deliverGroup(readString(v, DELIVER_GROUP));
-            sampleFrequency(readString(v, SAMPLE_FREQ));
-            startTime(readDate(v, OPT_START_TIME));
-            ackWait(readNanos(v, ACK_WAIT));
-            maxExpires(readNanos(v, MAX_EXPIRES));
-            inactiveThreshold(readNanos(v, INACTIVE_THRESHOLD));
+            description(readString(jsonValue, DESCRIPTION));
+            durable(readString(jsonValue, DURABLE_NAME));
+            name(readString(jsonValue, NAME));
+            deliverSubject(readString(jsonValue, DELIVER_SUBJECT));
+            deliverGroup(readString(jsonValue, DELIVER_GROUP));
+            sampleFrequency(readString(jsonValue, SAMPLE_FREQ));
+            startTime(readDate(jsonValue, OPT_START_TIME));
+            ackWait(readNanos(jsonValue, ACK_WAIT));
+            maxExpires(readNanos(jsonValue, MAX_EXPIRES));
+            inactiveThreshold(readNanos(jsonValue, INACTIVE_THRESHOLD));
 
-            startSequence(readLong(v, OPT_START_SEQ));
-            maxDeliver(readLong(v, MAX_DELIVER, INTEGER_UNSET));
-            rateLimit(readLong(v, RATE_LIMIT_BPS));
-            maxAckPending(readLong(v, MAX_ACK_PENDING));
-            maxPullWaiting(readLong(v, MAX_WAITING));
-            maxBatch(readLong(v, MAX_BATCH));
-            maxBytes(readLong(v, MAX_BYTES));
+            startSequence(readLong(jsonValue, OPT_START_SEQ));
+            maxDeliver(readLong(jsonValue, MAX_DELIVER, INTEGER_UNSET));
+            rateLimit(readLong(jsonValue, RATE_LIMIT_BPS));
+            maxAckPending(readLong(jsonValue, MAX_ACK_PENDING));
+            maxPullWaiting(readLong(jsonValue, MAX_WAITING));
+            maxBatch(readLong(jsonValue, MAX_BATCH));
+            maxBytes(readLong(jsonValue, MAX_BYTES));
 
-            Integer r = readInteger(v, NUM_REPLICAS);
+            Integer r = readInteger(jsonValue, NUM_REPLICAS);
             if (r != null) {
                 if (r == 0) {
                     numReplicas = 0;
@@ -735,11 +741,11 @@ public class ConsumerConfiguration implements JsonSerializable {
                 }
             }
 
-            pauseUntil(readDate(v, PAUSE_UNTIL));
+            pauseUntil(readDate(jsonValue, PAUSE_UNTIL));
 
-            Duration idleHeartbeat = readNanos(v, IDLE_HEARTBEAT);
+            Duration idleHeartbeat = readNanos(jsonValue, IDLE_HEARTBEAT);
             if (idleHeartbeat != null) {
-                if (readBoolean(v, FLOW_CONTROL, false)) {
+                if (readBoolean(jsonValue, FLOW_CONTROL, false)) {
                     flowControl(idleHeartbeat);
                 }
                 else {
@@ -747,17 +753,17 @@ public class ConsumerConfiguration implements JsonSerializable {
                 }
             }
 
-            headersOnly(readBoolean(v, HEADERS_ONLY, null));
-            memStorage(readBoolean(v, MEM_STORAGE, null));
+            headersOnly(readBoolean(jsonValue, HEADERS_ONLY, null));
+            memStorage(readBoolean(jsonValue, MEM_STORAGE, null));
 
             //noinspection DataFlowIssue readNanosList with false ensures not null;
-            backoff(readNanosList(v, BACKOFF, false).toArray(new Duration[0]));
+            backoff(readNanosList(jsonValue, BACKOFF, false).toArray(new Duration[0]));
 
-            metadata(readStringStringMap(v, METADATA));
+            metadata(readStringStringMap(jsonValue, METADATA));
 
-            String fs = emptyAsNull(readString(v, FILTER_SUBJECT));
+            String fs = emptyAsNull(readString(jsonValue, FILTER_SUBJECT));
             if (fs == null) {
-                filterSubjects(readOptionalStringList(v, FILTER_SUBJECTS));
+                filterSubjects(readOptionalStringList(jsonValue, FILTER_SUBJECTS));
             }
             else {
                 filterSubject(fs);

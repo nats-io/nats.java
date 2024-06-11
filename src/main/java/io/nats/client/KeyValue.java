@@ -17,6 +17,7 @@ import io.nats.client.impl.NatsKeyValueWatchSubscription;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * Key Value Store Management context for creation and access to key value buckets.
@@ -255,6 +256,13 @@ public interface KeyValue {
      * @throws InterruptedException if the thread is interrupted
      */
     List<String> keys() throws IOException, JetStreamApiException, InterruptedException;
+
+    /**
+     * Get a list of keys in the bucket through a LinkedBlockingQueue.
+     * A KeyResult with isDone being true or an exception signifies there are no
+     * @return the LinkedBlockingQueue from which to poll
+     */
+    LinkedBlockingQueue<KeyResult> consumeKeys();
 
     /**
      * Get the history (list of KeyValueEntry) for a key
