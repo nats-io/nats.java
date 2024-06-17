@@ -290,9 +290,10 @@ public class TestBase {
         int leafPort = NatsTestServer.nextPort();
 
         String[] hubInserts = new String[] {
-            "server_name: HUB",
+            "server_name: " + HUB_DOMAIN,
             "jetstream {",
-            "    domain: HUB",
+            "    store_dir: " + tempJsStoreDir(),
+            "    domain: " + HUB_DOMAIN,
             "}",
             "leafnodes {",
             "  listen = 127.0.0.1:" + hubLeafPort,
@@ -300,9 +301,10 @@ public class TestBase {
         };
 
         String[] leafInserts = new String[] {
-            "server_name: LEAF",
+            "server_name: " + LEAF_DOMAIN,
             "jetstream {",
-            "    domain: LEAF",
+            "    store_dir: " + tempJsStoreDir(),
+            "    domain: " + LEAF_DOMAIN,
             "}",
             "leafnodes {",
             "  remotes = [ { url: \"leaf://127.0.0.1:" + hubLeafPort + "\" } ]",
@@ -331,9 +333,9 @@ public class TestBase {
         int listen1 = NatsTestServer.nextPort();
         int listen2 = NatsTestServer.nextPort();
         int listen3 = NatsTestServer.nextPort();
-        String path1 = Files.createTempDirectory(variant()).toString().replace("\\", "\\\\");
-        String path2 = Files.createTempDirectory(variant()).toString().replace("\\", "\\\\");
-        String path3 = Files.createTempDirectory(variant()).toString().replace("\\", "\\\\");
+        String path1 = tempJsStoreDir();
+        String path2 = tempJsStoreDir();
+        String path3 = tempJsStoreDir();
         String cluster = variant();
         String serverPrefix = variant();
 
@@ -396,6 +398,10 @@ public class TestBase {
                 cleanupJs(nc1);
             }
         }
+    }
+
+    private static String tempJsStoreDir() throws IOException {
+        return Files.createTempDirectory(variant()).toString().replace("\\", "\\\\");
     }
 
     private static void cleanupJs(Connection c)

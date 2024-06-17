@@ -232,8 +232,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
             out.write(data);
         }
         else {
-
-            JetStreamSubscription sub = js.subscribe(pubSubChunkSubject(oi.getNuid()),
+            JetStreamSubscription sub = js.subscribe(rawChunkSubject(oi.getNuid()),
                 PushSubscribeOptions.builder().stream(streamName).ordered(true).build());
 
             Message m = sub.nextMessage(Duration.ofSeconds(1));
