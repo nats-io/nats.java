@@ -225,7 +225,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
     }
 
     @SuppressWarnings("SameParameterValue")
-    private static Object[] getInput(int size) throws IOException {
+    private static Object[] getInput(int size) {
         File found = null;
         long foundLen = Long.MAX_VALUE;
         final String classPath = System.getProperty("java.class.path", ".");
@@ -617,5 +617,60 @@ public class ObjectStoreTests extends JetStreamTestBase {
                 assertEquals(SIZE, oi.getSize());
             }
         }
+    }
+
+    @Test
+    public void testObjectStoreDomains() throws Exception {
+        runInJsHubLeaf((hubNc, leafNc) -> {
+            ObjectStoreManagement hubOsm = hubNc.objectStoreManagement();
+
+            // Create main OS on HUB
+            String hubBucket = bucket();
+            ObjectStoreStatus hubStatus = hubOsm.create(ObjectStoreConfiguration.builder()
+                .name(hubBucket)
+                .storageType(StorageType.Memory)
+                .replicas(1)
+                .build());
+            assertEquals(0, hubStatus.getSize());
+            assertEquals(1, hubStatus.getReplicas());
+
+            ObjectStore hubOs = hubNc.objectStore(hubBucket);
+            ObjectStore leafOs = leafNc.objectStore(hubBucket, ObjectStoreOptions.builder().jsDomain(HUB_DOMAIN).build());
+
+            String objectName = name();
+            ObjectMeta meta = ObjectMeta.builder(objectName)
+                .chunkSize(8 * 1024)
+                .build();
+
+            Object[] input = getInput(4 * 8 * 1024);
+            File file = (File)input[1];
+            InputStream in = Files.newInputStream(file.toPath());
+            hubOs.put(meta, in);
+
+            hubStatus = hubOs.getStatus();
+            assertTrue(hubStatus.getSize() > 0);
+
+            ObjectStoreStatus leafStatus = leafOs.getStatus();
+
+            assertEquals(hubStatus.getBucketName(), leafStatus.getBucketName());
+            assertEquals(hubStatus.getSize(), leafStatus.getSize());
+
+            ObjectInfo hubInfo = hubOs.getInfo(objectName);
+            ObjectInfo leafInfo = leafOs.getInfo(objectName);
+
+            assertEquals(hubInfo.getNuid(), leafInfo.getNuid());
+            assertEquals(hubInfo.getSize(), leafInfo.getSize());
+            assertEquals(hubInfo.getObjectMeta().getObjectName(), leafInfo.getObjectMeta().getObjectName());
+
+            ByteArrayOutputStream hubOut = new ByteArrayOutputStream();
+            ByteArrayOutputStream leafOut = new ByteArrayOutputStream();
+            hubOs.get(objectName, hubOut);
+            leafOs.get(objectName, leafOut);
+
+            byte[] hubBytes = hubOut.toByteArray();
+            byte[] leafBytes = leafOut.toByteArray();
+
+            assertArrayEquals(hubBytes, leafBytes);
+        });
     }
 }
