@@ -625,7 +625,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
             ObjectStoreManagement hubOsm = hubNc.objectStoreManagement();
 
             // Create main OS on HUB
-            String hubBucket = "bckt"; // bucket();
+            String hubBucket = bucket();
             ObjectStoreStatus hubStatus = hubOsm.create(ObjectStoreConfiguration.builder()
                 .name(hubBucket)
                 .storageType(StorageType.Memory)
