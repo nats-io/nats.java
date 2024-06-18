@@ -45,7 +45,7 @@ public class StreamConfiguration implements JsonSerializable {
     private final long maxMsgsPerSubject;
     private final long maxBytes;
     private final Duration maxAge;
-    private final long maxMsgSize;
+    private final int maxMsgSize;
     private final StorageType storageType;
     private final int replicas;
     private final boolean noAck;
@@ -81,7 +81,7 @@ public class StreamConfiguration implements JsonSerializable {
         builder.maxMessagesPerSubject(readLong(v, MAX_MSGS_PER_SUB, -1));
         builder.maxBytes(readLong(v, MAX_BYTES, -1));
         builder.maxAge(readNanos(v, MAX_AGE));
-        builder.maxMsgSize(readLong(v, MAX_MSG_SIZE, -1));
+        builder.maxMsgSize(readInteger(v, MAX_MSG_SIZE, -1));
         builder.replicas(readInteger(v, NUM_REPLICAS, 1));
         builder.noAck(readBoolean(v, NO_ACK));
         builder.templateOwner(readString(v, TEMPLATE_OWNER));
@@ -290,9 +290,19 @@ public class StreamConfiguration implements JsonSerializable {
 
     /**
      * Gets the maximum message size for this stream configuration.
+     * @deprecated the server value is a 32-bit signed value. Use {@link #getMaximumMessageSize()} instead.
      * @return the maximum message size for this stream.
-     */      
+     */
+    @Deprecated
     public long getMaxMsgSize() {
+        return maxMsgSize;
+    }
+
+    /**
+     * Gets the maximum message size for this stream configuration.
+     * @return the maximum message size for this stream.
+     */
+    public int getMaximumMessageSize() {
         return maxMsgSize;
     }
 
@@ -500,7 +510,7 @@ public class StreamConfiguration implements JsonSerializable {
         private long maxMsgsPerSubject = -1;
         private long maxBytes = -1;
         private Duration maxAge = Duration.ZERO;
-        private long maxMsgSize = -1;
+        private int maxMsgSize = -1;
         private StorageType storageType = StorageType.File;
         private int replicas = 1;
         private boolean noAck = false;
@@ -721,11 +731,23 @@ public class StreamConfiguration implements JsonSerializable {
 
         /**
          * Sets the maximum message size in the StreamConfiguration.
+         * @deprecated the server value is a 32-bit signed value. Use {@link #maximumMessageSize(int)} instead.
          * @param maxMsgSize the maximum message size
          * @return Builder
          */
+        @Deprecated
         public Builder maxMsgSize(long maxMsgSize) {
-            this.maxMsgSize = validateMaxMessageSize(maxMsgSize);
+            this.maxMsgSize = (int)validateMaxMessageSize(maxMsgSize);
+            return this;
+        }
+
+        /**
+         * Sets the maximum message size in the StreamConfiguration.
+         * @param maxMsgSize the maximum message size
+         * @return Builder
+         */
+        public Builder maximumMessageSize(int maxMsgSize) {
+            this.maxMsgSize = (int)validateMaxMessageSize(maxMsgSize);
             return this;
         }
 

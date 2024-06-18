@@ -40,10 +40,20 @@ public class KeyValueConfiguration extends FeatureConfiguration {
 
     /**
      * Gets the maximum size for an individual value in the bucket.
+     * @deprecated the server value is a 32-bit signed value. Use {@link #getMaximumValueSize()} instead.
      * @return the maximum size for a value.
-     */      
+     */
+    @Deprecated
     public long getMaxValueSize() {
-        return sc.getMaxMsgSize();
+        return sc.getMaximumMessageSize();
+    }
+
+    /**
+     * Gets the maximum size for an individual value in the bucket.
+     * @return the maximum size for a value.
+     */
+    public int getMaximumValueSize() {
+        return sc.getMaximumMessageSize();
     }
 
     /**
@@ -206,11 +216,23 @@ public class KeyValueConfiguration extends FeatureConfiguration {
 
         /**
          * Sets the maximum size for an individual value in the KeyValueConfiguration.
+         * @deprecated the server value is a 32-bit signed value. Use {@link #maximumValueSize(int)} instead.
          * @param maxValueSize the maximum size for a value
          * @return Builder
          */
+        @Deprecated
         public Builder maxValueSize(long maxValueSize) {
-            scBuilder.maxMsgSize(validateMaxValueSize(maxValueSize));
+            scBuilder.maximumMessageSize((int)validateMaxValueSize(maxValueSize));
+            return this;
+        }
+
+        /**
+         * Sets the maximum size for an individual value in the KeyValueConfiguration.
+         * @param maxValueSize the maximum size for a value
+         * @return Builder
+         */
+        public Builder maximumValueSize(int maxValueSize) {
+            scBuilder.maximumMessageSize((int)validateMaxValueSize(maxValueSize));
             return this;
         }
 
