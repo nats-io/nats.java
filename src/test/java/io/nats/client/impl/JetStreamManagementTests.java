@@ -206,7 +206,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 .subjects(subject(0), subject(1), subject(2))
                 .maxMessages(42)
                 .maxBytes(43)
-                .maxMsgSize(44)
+                .maximumMessageSize(44)
                 .maxAge(Duration.ofDays(100))
                 .discardPolicy(DiscardPolicy.New)
                 .noAck(true)
@@ -279,6 +279,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assert10058(() -> jsm.addStream(StreamConfiguration.builder(sc).maxMessagesPerSubject(1).build()));
             assert10058(() -> jsm.addStream(StreamConfiguration.builder(sc).maxAge(Duration.ofSeconds(1L)).build()));
             assert10058(() -> jsm.addStream(StreamConfiguration.builder(sc).maxMsgSize(1).build()));
+            assert10058(() -> jsm.addStream(StreamConfiguration.builder(sc).maximumMessageSize(1).build()));
             assert10058(() -> jsm.addStream(StreamConfiguration.builder(sc).storageType(StorageType.File).build()));
 
             assert10058(() -> jsm.addStream(StreamConfiguration.builder(sc).noAck(true).build()));

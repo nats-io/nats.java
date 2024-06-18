@@ -81,7 +81,7 @@ public class StreamConfiguration implements JsonSerializable {
         builder.maxMessagesPerSubject(readLong(v, MAX_MSGS_PER_SUB, -1));
         builder.maxBytes(readLong(v, MAX_BYTES, -1));
         builder.maxAge(readNanos(v, MAX_AGE));
-        builder.maxMsgSize(readInteger(v, MAX_MSG_SIZE, -1));
+        builder.maximumMessageSize(readInteger(v, MAX_MSG_SIZE, -1));
         builder.replicas(readInteger(v, NUM_REPLICAS, 1));
         builder.noAck(readBoolean(v, NO_ACK));
         builder.templateOwner(readString(v, TEMPLATE_OWNER));

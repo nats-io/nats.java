@@ -391,7 +391,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
                     .name(streamName)
                     .storageType(StorageType.Memory)
                     .subjects(subject1, subject2)
-                    .maxMsgSize(1000)
+                    .maximumMessageSize(1000)
                     .build()
                 );
 
