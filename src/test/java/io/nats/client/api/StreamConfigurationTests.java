@@ -285,8 +285,8 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxAge(Duration.ofNanos(-1)));
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxAge(-1));
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxMsgSize(0)); // COVERAGE for deprecated
-        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxMsgSize(-2));
-        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxMsgSize((long)Integer.MAX_VALUE + 1));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxMsgSize(-2)); // COVERAGE for deprecated
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxMsgSize((long)Integer.MAX_VALUE + 1)); // COVERAGE for deprecated, TOO LARGE A NUMBER
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maximumMessageSize(0));
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maximumMessageSize(-2));
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().replicas(0));
