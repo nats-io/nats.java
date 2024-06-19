@@ -74,7 +74,7 @@ public class NatsJsManageStreams {
                 // .maxConsumers(...)
                 // .maxBytes(...)
                 // .maxAge(...)
-                // .maxMsgSize(...)
+                // .maximumMessageSize(...)
                 .storageType(StorageType.Memory)
                 // .replicas(...)
                 // .noAck(...)
