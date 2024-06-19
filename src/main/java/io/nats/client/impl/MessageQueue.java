@@ -13,6 +13,8 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.Message;
+
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -30,6 +32,7 @@ class MessageQueue {
     protected static final int STOPPED = 0;
     protected static final int RUNNING = 1;
     protected static final int DRAINING = 2;
+    protected static final String POISON = "_poison";
 
     protected final AtomicLong length;
     protected final AtomicLong sizeInBytes;
@@ -44,9 +47,10 @@ class MessageQueue {
     protected final Duration requestCleanupInterval;
 
     // Poison pill is a graphic, but common term for an item that breaks loops or stop something.
-    // In this class the poisonPill is used to break out of timed waits on the blocking queue.
+    // In this class the poison pill is used to break out of timed waits on the blocking queue.
     // A simple == is used to check if any message in the queue is this message.
-    protected final NatsMessage poisonPill;
+    // /\ /\ /\ /\ which is why it is now a static. It's just a marker anyway.
+    protected static final NatsMessage POISON_PILL = new NatsMessage(POISON, null, EMPTY_BODY);
 
     MessageQueue(boolean singleReaderMode, Duration requestCleanupInterval) {
         this(singleReaderMode, -1, false, requestCleanupInterval, null);
@@ -81,7 +85,7 @@ class MessageQueue {
         this.offerTimeoutMillis = Math.max(1, requestCleanupInterval.toMillis() * 95 / 100);
 
         // The poisonPill is used to stop poll and accumulate when the queue is stopped
-        this.poisonPill = new NatsMessage("_poison", null, EMPTY_BODY);
+//        this.poisonPill = new NatsMessage(POISON, null, EMPTY_BODY);
 
         editLock = new ReentrantLock();
         
@@ -195,7 +199,7 @@ class MessageQueue {
      */
     void poisonTheQueue() {
         try {
-            this.queue.add(this.poisonPill);
+            this.queue.add(POISON_PILL);
         } catch (IllegalStateException ie) { // queue was full, so we don't really need poison pill
             // ok to ignore this
         }
@@ -222,11 +226,11 @@ class MessageQueue {
             }
         }
 
-        if (msg == poisonPill) {
-            return null;
-        }
+        return msg == null || isPoison(msg) ? null : msg;
+    }
 
-        return msg;
+    private boolean isPoison(Message msg) {
+        return msg == POISON_PILL;
     }
 
     NatsMessage pop(Duration timeout) throws InterruptedException {
@@ -286,7 +290,7 @@ class MessageQueue {
 
         while (cursor != null) {
             NatsMessage next = this.queue.peek();
-            if (next != null && next != this.poisonPill) {
+            if (next != null && !isPoison(next)) {
                 long s = next.getSizeInBytes();
 
                 if (maxSize<0 || (size + s) < maxSize) { // keep going

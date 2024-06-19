@@ -321,8 +321,6 @@ class NatsConnection implements Connection {
         try {
             // calling connect just starts like a new connection versus reconnect
             // but we have to manually resubscribe like reconnect once it is connected
-            // also, lets assume we never want to try the currently connected server
-            serverPool.connectFailed(currentServer);       // we don't want to connect to the same server
             reconnectImpl();
             writer.setReconnectMode(false);
         }
