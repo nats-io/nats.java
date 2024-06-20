@@ -84,9 +84,6 @@ class MessageQueue {
         this.offerLockMillis = requestCleanupInterval.toMillis();
         this.offerTimeoutMillis = Math.max(1, requestCleanupInterval.toMillis() * 95 / 100);
 
-        // The poisonPill is used to stop poll and accumulate when the queue is stopped
-//        this.poisonPill = new NatsMessage(POISON, null, EMPTY_BODY);
-
         editLock = new ReentrantLock();
         
         this.singleReaderMode = singleReaderMode;
