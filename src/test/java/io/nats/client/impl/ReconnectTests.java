@@ -716,49 +716,44 @@ public class ReconnectTests {
 
     @Test
     public void testForceReconnect() throws Exception {
-        ListenerForTesting[] listeners = new ListenerForTesting[3];
-        listeners[0] = new ListenerForTesting();
-        listeners[1] = new ListenerForTesting();
-        listeners[2] = new ListenerForTesting();
+        ListenerForTesting listener = new ListenerForTesting();
+        ThreeServerTestOptionsAppender appender = makeOptionsAppender(listener);
 
-        ThreeServerTestOptionsAppender appender = (ix, builder) ->
-            builder.connectionListener(listeners[ix]).errorListener(listeners[ix]);
-
-        runInJsCluster(appender, (nc1, nc2, nc3) -> {
-            _testForceReconnect(nc1, listeners);
+        runInJsCluster(appender, (nc0, nc1, nc2) -> {
+            _testForceReconnect(nc0, listener);
         });
     }
 
     @Test
     public void testForceReconnectWithAccount() throws Exception {
-        ListenerForTesting[] listeners = new ListenerForTesting[3];
-        listeners[0] = new ListenerForTesting();
-        listeners[1] = new ListenerForTesting();
-        listeners[2] = new ListenerForTesting();
-
-        ThreeServerTestOptionsAppender appender = (ix, builder) ->
-            builder.connectionListener(listeners[ix]).errorListener(listeners[ix]);
-
-        runInJsCluster(true, appender, (nc1, nc2, nc3) -> {
-            _testForceReconnect(nc1, listeners);
+        ListenerForTesting listener = new ListenerForTesting();
+        ThreeServerTestOptionsAppender appender = makeOptionsAppender(listener);
+        runInJsCluster(true, appender, (nc0, nc1, nc2) -> {
+            _testForceReconnect(nc0, listener);
         });
 
     }
 
-    private static void _testForceReconnect(Connection nc1, ListenerForTesting[] listeners) throws IOException, InterruptedException {
-        ServerInfo si = nc1.getServerInfo();
+    private static ThreeServerTestOptionsAppender makeOptionsAppender(ListenerForTesting listener) {
+        ThreeServerTestOptionsAppender appender = (ix, builder) -> {
+            if (ix == 0) {
+                builder.connectionListener(listener).ignoreDiscoveredServers().noRandomize();
+            }
+        };
+        return appender;
+    }
+
+    private static void _testForceReconnect(Connection nc0, ListenerForTesting listener) throws IOException, InterruptedException {
+        ServerInfo si = nc0.getServerInfo();
         String connectedServer = si.getServerId();
-        int connectedClientId = si.getClientId();
 
-        nc1.forceReconnect();
-        standardConnectionWait(nc1);
+        nc0.forceReconnect();
+        standardConnectionWait(nc0);
 
-        si = nc1.getServerInfo();
-        if (connectedServer.equals(si.getServerId())) {
-            assertNotEquals(connectedClientId, si.getClientId());
-        }
-        assertTrue(listeners[0].getConnectionEvents().contains(Events.DISCONNECTED));
-        assertTrue(listeners[0].getConnectionEvents().contains(Events.RECONNECTED));
+        si = nc0.getServerInfo();
+        assertNotEquals(connectedServer, si.getServerId());
+        assertTrue(listener.getConnectionEvents().contains(Events.DISCONNECTED));
+        assertTrue(listener.getConnectionEvents().contains(Events.RECONNECTED));
     }
 
 

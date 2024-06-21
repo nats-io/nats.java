@@ -362,9 +362,9 @@ public class TestBase {
         try (NatsTestServer srv1 = new NatsTestServer(port1, false, true, null, server1Inserts, null);
              NatsTestServer srv2 = new NatsTestServer(port2, false, true, null, server2Inserts, null);
              NatsTestServer srv3 = new NatsTestServer(port3, false, true, null, server3Inserts, null);
-             Connection nc1 = standardConnection(makeOptions(0, srv1, account, appender));
-             Connection nc2 = standardConnection(makeOptions(1, srv2, account, appender));
-             Connection nc3 = standardConnection(makeOptions(2, srv3, account, appender))
+             Connection nc1 = standardConnection(makeOptions(0, account, appender, srv1, srv2, srv3));
+             Connection nc2 = standardConnection(makeOptions(1, account, appender, srv2, srv1, srv3));
+             Connection nc3 = standardConnection(makeOptions(2, account, appender, srv3, srv1, srv2))
         ) {
             try {
                 threeServerTest.test(nc1, nc2, nc3);
@@ -403,8 +403,13 @@ public class TestBase {
     }
 
     private static final String USER_SEED = "SUAIUIHFQNVWSMKYGC4E5H5IEQZHHND3DKHTRKZWPCDXB6LXVD5R2KROSA";
-    private static Options makeOptions(int id, NatsTestServer srv, boolean account, ThreeServerTestOptionsAppender appender) {
-        Options.Builder b = Options.builder().server(srv.getURI());
+    private static Options makeOptions(int id, boolean account, ThreeServerTestOptionsAppender appender, NatsTestServer... srvs) {
+        String[] servers = new String[srvs.length];
+        for (int i = 0; i < srvs.length; i++) {
+            NatsTestServer nts = srvs[i];
+            servers[i] = nts.getURI();
+        }
+        Options.Builder b = Options.builder().servers(servers);
         if (account) {
             b.authHandler(Nats.staticCredentials(null, USER_SEED.toCharArray()));
         }
