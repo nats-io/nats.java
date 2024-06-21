@@ -213,7 +213,7 @@ class NatsConnection implements Connection {
 
             // let server pool resolve hostnames, then loop through resolved
             List<NatsUri> resolvedList = resolveHost(cur);
-            while (!resolvedList.isEmpty()) {
+            for (NatsUri resolved : resolvedList) {
                 if (isClosed()) {
                     keepGoing = false;
                     break;
@@ -224,7 +224,6 @@ class NatsConnection implements Connection {
                 updateStatus(Status.CONNECTING);
 
                 timeTraceLogger.trace("trying to connect to %s", cur);
-                NatsUri resolved = resolvedList.remove(0);
                 tryToConnect(cur, resolved, System.nanoTime());
 
                 if (isConnected()) {
@@ -321,8 +320,6 @@ class NatsConnection implements Connection {
         try {
             // calling connect just starts like a new connection versus reconnect
             // but we have to manually resubscribe like reconnect once it is connected
-            // also, lets assume we never want to try the currently connected server
-            serverPool.connectFailed(currentServer);       // we don't want to connect to the same server
             reconnectImpl();
             writer.setReconnectMode(false);
         }
@@ -374,40 +371,36 @@ class NatsConnection implements Connection {
                 // let server list provider resolve hostnames
                 // then loop through resolved
                 List<NatsUri> resolvedList = resolveHost(cur);
-                while (keepGoing && !resolvedList.isEmpty()) {
+                for (NatsUri resolved : resolvedList) {
                     if (isClosed()) {
                         keepGoing = false;
+                        break;
                     }
-                    else {
-                        connectError.set(""); // reset on each loop
-                        if (isDisconnectingOrClosed() || this.isClosing()) {
-                            keepGoing = false;
-                        }
-                        else {
-                            updateStatus(Status.RECONNECTING);
+                    connectError.set(""); // reset on each loop
+                    if (isDisconnectingOrClosed() || this.isClosing()) {
+                        keepGoing = false;
+                        break;
+                    }
+                    updateStatus(Status.RECONNECTING);
 
-                            timeTraceLogger.trace("reconnecting to server %s", cur);
-                            NatsUri resolved = resolvedList.remove(0);
-                            tryToConnect(cur, resolved, System.nanoTime());
+                    timeTraceLogger.trace("reconnecting to server %s", cur);
+                    tryToConnect(cur, resolved, System.nanoTime());
 
-                            if (isConnected()) {
-                                serverPool.connectSucceeded(cur);
-                                statistics.incrementReconnects();
-                                keepGoing = false;
-                            }
-                            else {
-                                serverPool.connectFailed(cur);
-                                String err = connectError.get();
-                                if (this.isAuthenticationError(err)) {
-                                    if (err.equals(this.serverAuthErrors.get(resolved))) {
-                                        keepGoing = false; // double auth error
-                                    }
-                                    else {
-                                        serverAuthErrors.put(resolved, err);
-                                    }
-                                }
-                            }
+                    if (isConnected()) {
+                        serverPool.connectSucceeded(cur);
+                        statistics.incrementReconnects();
+                        keepGoing = false;
+                        break;
+                    }
+
+                    serverPool.connectFailed(cur);
+                    String err = connectError.get();
+                    if (this.isAuthenticationError(err)) {
+                        if (err.equals(this.serverAuthErrors.get(resolved))) {
+                            keepGoing = false; // double auth error
+                            break;
                         }
+                        serverAuthErrors.put(resolved, err);
                     }
                 }
             }

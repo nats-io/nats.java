@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.api.ServerInfo;
 import nats.io.NatsRunnerUtils;
 import org.junit.jupiter.api.Test;
 
@@ -716,29 +717,45 @@ public class ReconnectTests {
     @Test
     public void testForceReconnect() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        Options.Builder builder = Options.builder()
-            .connectionListener(listener)
-            .errorListener(listener);
+        ThreeServerTestOptionsAppender appender = makeOptionsAppender(listener);
 
-        runInJsServer(nc1 -> runInServer(nc2 -> {
-            int port1 = nc1.getServerInfo().getPort();
-            int port2 = nc2.getServerInfo().getPort();
+        runInJsCluster(appender, (nc0, nc1, nc2) -> {
+            _testForceReconnect(nc0, listener);
+        });
+    }
 
-            String[] servers = new String[]{
-                NatsRunnerUtils.getNatsLocalhostUri(port1),
-                NatsRunnerUtils.getNatsLocalhostUri(port2)
-            };
-            //noinspection resource
-            Connection nc = standardConnection(builder.servers(servers).build());
-            int connectedPort = nc.getServerInfo().getPort();
-            nc.forceReconnect();
-            Thread.sleep(3000);
-            assertNotEquals(connectedPort, nc.getServerInfo().getPort());
-        }));
+    @Test
+    public void testForceReconnectWithAccount() throws Exception {
+        ListenerForTesting listener = new ListenerForTesting();
+        ThreeServerTestOptionsAppender appender = makeOptionsAppender(listener);
+        runInJsCluster(true, appender, (nc0, nc1, nc2) -> {
+            _testForceReconnect(nc0, listener);
+        });
 
+    }
+
+    private static ThreeServerTestOptionsAppender makeOptionsAppender(ListenerForTesting listener) {
+        ThreeServerTestOptionsAppender appender = (ix, builder) -> {
+            if (ix == 0) {
+                builder.connectionListener(listener).ignoreDiscoveredServers().noRandomize();
+            }
+        };
+        return appender;
+    }
+
+    private static void _testForceReconnect(Connection nc0, ListenerForTesting listener) throws IOException, InterruptedException {
+        ServerInfo si = nc0.getServerInfo();
+        String connectedServer = si.getServerId();
+
+        nc0.forceReconnect();
+        standardConnectionWait(nc0);
+
+        si = nc0.getServerInfo();
+        assertNotEquals(connectedServer, si.getServerId());
         assertTrue(listener.getConnectionEvents().contains(Events.DISCONNECTED));
         assertTrue(listener.getConnectionEvents().contains(Events.RECONNECTED));
     }
+
 
     @Test
     public void testSocketDataPortTimeout() throws Exception {

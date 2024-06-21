@@ -15,6 +15,7 @@ package io.nats.client;
 
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
+import io.nats.client.api.ServerInfo;
 import io.nats.client.impl.ListenerForTesting;
 import io.nats.client.impl.SimulateSocketDataPortException;
 import org.junit.jupiter.api.Test;
@@ -558,5 +559,48 @@ public class ConnectTests {
                 fail("should have reconnected " + e);
             }
         }
+    }
+
+    @Test
+    public void testRunInJsCluster() throws Exception {
+        ListenerForTesting[] listeners = new ListenerForTesting[3];
+        listeners[0] = new ListenerForTesting();
+        listeners[1] = new ListenerForTesting();
+        listeners[2] = new ListenerForTesting();
+
+        ThreeServerTestOptionsAppender appender = (ix, builder) ->
+            builder.connectionListener(listeners[ix]).errorListener(listeners[ix]);
+
+        runInJsCluster(ConnectTests::validateRunInJsCluster);
+
+        listeners[0] = new ListenerForTesting();
+        listeners[1] = new ListenerForTesting();
+        listeners[2] = new ListenerForTesting();
+
+        runInJsCluster(true, appender, ConnectTests::validateRunInJsCluster);
+    }
+
+    private static void validateRunInJsCluster(Connection nc1, Connection nc2, Connection nc3) throws InterruptedException {
+        Thread.sleep(200);
+        ServerInfo si1 = nc1.getServerInfo();
+        ServerInfo si2 = nc2.getServerInfo();
+        ServerInfo si3 = nc3.getServerInfo();
+        assertEquals(si1.getCluster(), si2.getCluster());
+        assertEquals(si1.getCluster(), si3.getCluster());
+        String port1 = "" + si1.getPort();
+        String port2 = "" + si2.getPort();
+        String port3 = "" + si3.getPort();
+        String urls1 = String.join(",", si1.getConnectURLs());
+        String urls2 = String.join(",", si2.getConnectURLs());
+        String urls3 = String.join(",", si3.getConnectURLs());
+        assertTrue(urls1.contains(port1));
+        assertTrue(urls1.contains(port2));
+        assertTrue(urls1.contains(port3));
+        assertTrue(urls2.contains(port1));
+        assertTrue(urls2.contains(port2));
+        assertTrue(urls2.contains(port3));
+        assertTrue(urls3.contains(port1));
+        assertTrue(urls3.contains(port2));
+        assertTrue(urls3.contains(port3));
     }
 }
