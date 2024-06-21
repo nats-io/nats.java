@@ -342,6 +342,11 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                 if (currentBatchRed == batchSize) {
                     currentBatchRed = 0;
                 }
+            } else {
+            	//We may need to recover if for whatever reason a pull does not return 
+            	//as many messages as expected.
+            	//E.g. after a reconnect
+            	sub.pull(batchSize);
             }
             return msg;
         }
