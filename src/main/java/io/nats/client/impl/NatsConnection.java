@@ -271,10 +271,15 @@ class NatsConnection implements Connection {
 
     @Override
     public void forceReconnect() throws IOException, InterruptedException {
+        forceReconnect(null);
+    }
+
+    @Override
+    public void forceReconnect(ForceReconnectOptions options) throws IOException, InterruptedException {
         if (!tryingToConnect.get()) {
             try {
                 tryingToConnect.set(true);
-                forceReconnectImpl();
+                forceReconnectImpl(options);
             }
             finally {
                 tryingToConnect.set(false);
@@ -282,7 +287,16 @@ class NatsConnection implements Connection {
         }
     }
 
-    void forceReconnectImpl() throws IOException, InterruptedException {
+    void forceReconnectImpl(ForceReconnectOptions options) throws InterruptedException {
+        if (options != null && options.getFlushWait() != null) {
+            try {
+                flush(options.getFlushWait());
+            }
+            catch (TimeoutException e) {
+                // ignore, don't care, too bad;
+            }
+        }
+
         closeSocketLock.lock();
         try {
             updateStatus(Status.DISCONNECTED);
@@ -299,7 +313,12 @@ class NatsConnection implements Connection {
                 dataPort = null;
                 executor.submit(() -> {
                     try {
-                        closeMe.forceClose();
+                        if (options != null && options.isForceClose()) {
+                            closeMe.forceClose();
+                        }
+                        else {
+                            closeMe.close();
+                        }
                     }
                     catch (IOException ignore) {}
                 });

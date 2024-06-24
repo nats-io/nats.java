@@ -1567,7 +1567,7 @@ public class Options {
          * @return the Builder for chaining
          */
         public Builder dataPortType(String dataPortClassName) {
-            this.dataPortType = dataPortClassName;
+            this.dataPortType = dataPortClassName == null ? DEFAULT_DATA_PORT_TYPE : dataPortClassName;
             return this;
         }
 

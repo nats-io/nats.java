@@ -16,7 +16,6 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.api.ServerInfo;
-import nats.io.NatsRunnerUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -33,6 +32,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
+import static io.nats.client.NatsTestServer.getNatsLocalhostUri;
 import static io.nats.client.support.NatsConstants.OUTPUT_QUEUE_IS_FULL;
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -671,7 +671,7 @@ public class ReconnectTests {
     @Test
     public void testReconnectOnConnect() throws Exception {
         int port = NatsTestServer.nextPort();
-        Options options = Options.builder().server(NatsTestServer.getNatsLocalhostUri(port)).build();
+        Options options = Options.builder().server(getNatsLocalhostUri(port)).build();
 
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<Connection> testConn = new AtomicReference<>();
@@ -756,6 +756,125 @@ public class ReconnectTests {
         assertTrue(listener.getConnectionEvents().contains(Events.RECONNECTED));
     }
 
+    @Test
+    public void testForceReconnectQueueBehaviorCheck() throws Exception {
+        runInJsCluster((nc0, nc1, nc2) -> {
+            int pubCount = 1000000;
+            int subscribeTime = 4000;
+            int flushWait = 2500;
+            int port = nc0.getServerInfo().getPort();
+
+            ForceReconnectQueueCheckDataPort.DELAY = 75;
+
+            String subject = subject();
+            ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
+            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, false, 0);
+
+            subject = subject();
+            ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
+            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, false, flushWait);
+
+            subject = subject();
+            ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
+            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, true, 0);
+
+            subject = subject();
+            ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
+            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, true, flushWait);
+        });
+    }
+
+    private static void _testForceReconnectQueueCheck(String subject, int pubCount, int subscribeTime, int port, boolean forceClose, int flushWait) throws InterruptedException {
+        ReconnectQueueCheckSubscriber subscriber = new ReconnectQueueCheckSubscriber(subject, pubCount, port);
+        Thread tsub = new Thread(subscriber);
+        tsub.start();
+
+        ForceReconnectOptions.Builder froBuilder = ForceReconnectOptions.builder();
+        if (flushWait > 0) {
+            froBuilder.flush(flushWait);
+        }
+        if (forceClose) {
+            froBuilder.forceClose();
+        }
+
+        Options options = Options.builder()
+            .server(getNatsLocalhostUri(port))
+            .dataPortType(ForceReconnectQueueCheckDataPort.class.getCanonicalName())
+            .build();
+
+        try (Connection nc = Nats.connect(options)) {
+            for (int x = 1; x <= pubCount; x++) {
+                nc.publish(subject, (x + "").getBytes());
+            }
+
+            nc.forceReconnect(froBuilder.build());
+
+            long maxTime = subscribeTime;
+            while (!subscriber.subscriberDone.get() && maxTime > 0) {
+                //noinspection BusyWait
+                Thread.sleep(50);
+                maxTime -= 50;
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        subscriber.subscriberDone.set(true);
+        tsub.join();
+
+        if (flushWait > 0) {
+            assertEquals(pubCount, subscriber.lastNotSkipped);
+        }
+    }
+
+    static class ReconnectQueueCheckSubscriber implements Runnable {
+        final AtomicBoolean subscriberDone;
+        final String subject;
+        final int pubCount;
+        final int port;
+        boolean completed;
+        int lastNotSkipped;
+        int firstAfterSkip;
+
+        public ReconnectQueueCheckSubscriber(String subject, int pubCount, int port) {
+            this.subscriberDone = new AtomicBoolean(false);
+            this.subject = subject;
+            this.pubCount = pubCount;
+            this.port = port;
+            lastNotSkipped = 0;
+            firstAfterSkip = -1;
+            completed = false;
+        }
+
+        @Override
+        public void run() {
+            Options options = Options.builder().server(getNatsLocalhostUri(port)).build();
+            try (Connection nc = Nats.connect(options)) {
+                Subscription sub = nc.subscribe(subject);
+                while (!subscriberDone.get()) {
+                    Message m = sub.nextMessage(100);
+                    if (m != null) {
+                        String next = "" + (lastNotSkipped + 1);
+                        String md = new String(m.getData());
+                        if (md.equals(next)) {
+                            if (++lastNotSkipped >= pubCount) {
+                                completed = true;
+                                subscriberDone.set(true);
+                            }
+                        }
+                        else {
+                            firstAfterSkip = Integer.parseInt(md);
+                            subscriberDone.set(true);
+                        }
+                    }
+                }
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
 
     @Test
     public void testSocketDataPortTimeout() throws Exception {
@@ -774,8 +893,8 @@ public class ReconnectTests {
             int port2 = nc2.getServerInfo().getPort();
 
             String[] servers = new String[]{
-                NatsRunnerUtils.getNatsLocalhostUri(port1),
-                NatsRunnerUtils.getNatsLocalhostUri(port2)
+                getNatsLocalhostUri(port1),
+                getNatsLocalhostUri(port2)
             };
             Connection nc = standardConnection(builder.servers(servers).build());
             String subject = subject();
