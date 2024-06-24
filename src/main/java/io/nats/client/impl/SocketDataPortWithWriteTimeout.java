@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.ForceReconnectOptions;
 import io.nats.client.Options;
 import io.nats.client.support.NatsUri;
 
@@ -39,10 +40,10 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
                 writeWatcherTimer.cancel(); // we don't need to repeat this
                 connection.executeCallback((c, el) -> el.socketWriteTimeout(c));
                 try {
-                    connection.forceReconnect();
+                    connection.forceReconnect(ForceReconnectOptions.FORCE_CLOSE_INSTANCE);
                 }
                 catch (IOException e) {
-                    // retry maybe? forceReconnect
+                    // retry maybe?
                 }
                 catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
