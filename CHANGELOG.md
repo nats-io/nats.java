@@ -1,5 +1,18 @@
 # Change Log
 
+## 2.19.1
+
+### Core
+* [Bug] Maximum Message Size accepted a long, but should accept an int #1161 @scottf
+* [Bug] Poison pill comparison was failing #1162 @scottf
+* Augmented force reconnect #1165 @scottf
+
+### Object Store
+* Object Store use over leaf-hub domain #1160 @scottf
+
+### Misc
+* Serialization changed, fixed javadocs #1159 @scottf
+
 ## 2.19.0
 ### Core
 Improve socket close behavior #1155 @scottf
