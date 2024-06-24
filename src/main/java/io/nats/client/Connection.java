@@ -547,6 +547,7 @@ public interface Connection extends AutoCloseable {
     /**
      * Forces reconnect behavior. Stops the current connection including the reading and writing,
      * copies already queued outgoing messages, and then begins the reconnect logic.
+     * Does not flush. Does not force close the connection. See {@link #forceReconnect(ForceReconnectOptions)}.
      * @throws IOException the forceReconnect fails
      * @throws InterruptedException the connection is not connected
      */
