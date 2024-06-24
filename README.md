@@ -434,7 +434,7 @@ Replace `{major.minor.patch}` with the correct version in the examples.
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.19.1/jnats-2.19.1.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.11.0/jnats-2.19.1.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.19.1/jnats-2.19.1.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.19.1/jnats-2.19.1.jar).
 
 The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.19.1/jnats-2.19.1-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.19.1/jnats-2.19.1-examples.jar).
 
