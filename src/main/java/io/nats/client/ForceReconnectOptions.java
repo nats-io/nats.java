@@ -51,10 +51,6 @@ public class ForceReconnectOptions {
         return new Builder();
     }
 
-    public static ForceReconnectOptions forceClose() {
-        return FORCE_CLOSE_INSTANCE;
-    }
-
     /**
      * ForceReconnectOptions are created using a Builder.
      */
