@@ -38,8 +38,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.nats.client.support.Encoding.base64UrlEncodeToString;
-import static io.nats.client.support.Encoding.uriDecode;
+import static io.nats.client.support.Encoding.*;
 import static io.nats.client.support.NatsConstants.*;
 import static io.nats.client.support.SSLUtils.DEFAULT_TLS_ALGORITHM;
 import static io.nats.client.support.Validator.*;
@@ -2435,9 +2434,9 @@ public class Options {
 
                 String encodedSig = base64UrlEncodeToString(sig);
 
-                appendOption(connectString, Options.OPTION_NKEY, nkey, true, true);
+                appendOption(connectString, Options.OPTION_NKEY, nkey, true);
                 appendOption(connectString, Options.OPTION_SIG, encodedSig, true, true);
-                appendOption(connectString, Options.OPTION_JWT, jwt, true, true);
+                appendOption(connectString, Options.OPTION_JWT, jwt, true);
             }
 
             String uriUser = null;
@@ -2465,24 +2464,24 @@ public class Options {
             }
 
             if (uriUser != null) {
-                appendOption(connectString, Options.OPTION_USER, uriUser, true, true);
+                appendOption(connectString, Options.OPTION_USER, jsonEncode(uriUser), true, true);
             }
             else if (this.username != null) {
-                appendOption(connectString, Options.OPTION_USER, this.username, true, true);
+                appendOption(connectString, Options.OPTION_USER, jsonEncode(this.username), true, true);
             }
 
             if (uriPass != null) {
-                appendOption(connectString, Options.OPTION_PASSWORD, uriPass, true, true);
+                appendOption(connectString, Options.OPTION_PASSWORD, jsonEncode(uriPass), true, true);
             }
             else if (this.password != null) {
-                appendOption(connectString, Options.OPTION_PASSWORD, this.password, true, true);
+                appendOption(connectString, Options.OPTION_PASSWORD, jsonEncode(this.password), true, true);
             }
 
             if (uriToken != null) {
                 appendOption(connectString, Options.OPTION_AUTH_TOKEN, uriToken, true, true);
             }
             else if (this.token != null) {
-                appendOption(connectString, Options.OPTION_AUTH_TOKEN, this.token, true, true);
+                appendOption(connectString, Options.OPTION_AUTH_TOKEN, this.token, true);
             }
         }
 
@@ -2500,10 +2499,11 @@ public class Options {
         _appendOptionEnd(builder, quotes);
     }
 
-    private static void appendOption(CharBuffer builder, String key, char[] value, boolean quotes, boolean comma) {
-        _appendStart(builder, key, quotes, comma);
+    @SuppressWarnings("SameParameterValue")
+    private static void appendOption(CharBuffer builder, String key, char[] value, boolean comma) {
+        _appendStart(builder, key, true, comma);
         builder.put(value);
-        _appendOptionEnd(builder, quotes);
+        _appendOptionEnd(builder, true);
     }
 
     private static void _appendStart(CharBuffer builder, String key, boolean quotes, boolean comma) {

@@ -270,43 +270,57 @@ public abstract class Encoding {
     public static StringBuilder jsonEncode(StringBuilder sb, String s) {
         int len = s.length();
         for (int x = 0; x < len; x++) {
-            char ch = s.charAt(x);
-            switch (ch) {
-                case '"':
-                    sb.append("\\\"");
-                    break;
-                case '\\':
-                    sb.append("\\\\");
-                    break;
-                case '\b':
-                    sb.append("\\b");
-                    break;
-                case '\f':
-                    sb.append("\\f");
-                    break;
-                case '\n':
-                    sb.append("\\n");
-                    break;
-                case '\r':
-                    sb.append("\\r");
-                    break;
-                case '\t':
-                    sb.append("\\t");
-                    break;
-                case '/':
-                    sb.append("\\/");
-                    break;
-                default:
-                    if (ch < ' ') {
-                        sb.append(String.format("\\u%04x", (int) ch));
-                    }
-                    else {
-                        sb.append(ch);
-                    }
-                    break;
-            }
+            appendChar(sb, s.charAt(x));
         }
         return sb;
+    }
+
+    public static String jsonEncode(char[] chars) {
+        return jsonEncode(new StringBuilder(), chars).toString();
+    }
+
+    public static StringBuilder jsonEncode(StringBuilder sb, char[] chars) {
+        for (char aChar : chars) {
+            appendChar(sb, aChar);
+        }
+        return sb;
+    }
+
+    private static void appendChar(StringBuilder sb, char ch) {
+        switch (ch) {
+            case '"':
+                sb.append("\\\"");
+                break;
+            case '\\':
+                sb.append("\\\\");
+                break;
+            case '\b':
+                sb.append("\\b");
+                break;
+            case '\f':
+                sb.append("\\f");
+                break;
+            case '\n':
+                sb.append("\\n");
+                break;
+            case '\r':
+                sb.append("\\r");
+                break;
+            case '\t':
+                sb.append("\\t");
+                break;
+            case '/':
+                sb.append("\\/");
+                break;
+            default:
+                if (ch < ' ') {
+                    sb.append(String.format("\\u%04x", (int) ch));
+                }
+                else {
+                    sb.append(ch);
+                }
+                break;
+        }
     }
 
     public static String uriDecode(String source) {

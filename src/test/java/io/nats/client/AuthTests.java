@@ -89,6 +89,31 @@ public class AuthTests extends TestBase {
     }
 
     @Test
+    public void testNeedsJsonEncoding() throws Exception {
+        assertNeedsJsonEncoding("\\");
+        assertNeedsJsonEncoding("\b");
+        assertNeedsJsonEncoding("\f");
+        assertNeedsJsonEncoding("\n");
+        assertNeedsJsonEncoding("\r");
+        assertNeedsJsonEncoding("\t");
+        assertNeedsJsonEncoding("/");
+        assertNeedsJsonEncoding("" + (char)1);
+    }
+
+    private static void assertNeedsJsonEncoding(String test) throws Exception {
+        String user = "u" + test + "u";
+        String pass = "p" + test + "p";
+        String[] customArgs = {"--user", "\"" + user + "\"", "--pass", "\"" + pass + "\""};
+        try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
+            // See config file for user/pass
+            Options options = new Options.Builder().server("nats://localhost:" + ts.getPort())
+                .userInfo(user, pass)
+                .maxReconnects(0).build();
+            assertCanConnect(options);
+        }
+    }
+
+    @Test
     public void testUserPassOnReconnect() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
         Connection nc;
