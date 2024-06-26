@@ -96,7 +96,7 @@ public class AuthTests extends TestBase {
         assertNeedsJsonEncoding("\r");
         assertNeedsJsonEncoding("\t");
         assertNeedsJsonEncoding("/");
-        assertNeedsJsonEncoding("" + (char)1);
+        assertNeedsJsonEncoding("" + (char)9);
         assertNeedsJsonEncoding("\\");
     }
 
