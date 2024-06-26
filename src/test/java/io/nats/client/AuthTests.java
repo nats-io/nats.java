@@ -90,7 +90,6 @@ public class AuthTests extends TestBase {
 
     @Test
     public void testNeedsJsonEncoding() throws Exception {
-        assertNeedsJsonEncoding("\\");
         assertNeedsJsonEncoding("\b");
         assertNeedsJsonEncoding("\f");
         assertNeedsJsonEncoding("\n");
@@ -98,6 +97,7 @@ public class AuthTests extends TestBase {
         assertNeedsJsonEncoding("\t");
         assertNeedsJsonEncoding("/");
         assertNeedsJsonEncoding("" + (char)1);
+        assertNeedsJsonEncoding("\\");
     }
 
     private static void assertNeedsJsonEncoding(String test) throws Exception {
