@@ -20,7 +20,21 @@ The [**API**](https://javadoc.io/doc/io.nats/jnats/latest/index.html) is simple 
 There are also many basic examples in the [examples](https://github.com/nats-io/nats.java/tree/main/src/examples/java/io/nats/examples) directory of this repo
 and more simple application examples in the [Java Nats Examples](https://github.com/nats-io/java-nats-examples) repo.
 
-### Simplification
+## Table of Contents
+* [Simplification](#simplification)
+* [Service Framework](#service-framework)
+* [Recent Version Notes](#recent-version-notes)
+* [Installation](#installation)
+* [Basic Usage](#basic-usage)
+* [Connection Options](#connection-options)
+* [JetStream](#jetstream)
+* [Connection Security](#connection-security)
+* [Version Notes](#version-notes)
+* [Benchmarking](#benchmarking)
+* [Building From Source](#building-from-source)
+* [License](#license)
+
+## Simplification
 
 There is a new simplified api that makes working with streams and consumers well, simpler! Simplification is released as of 2.16.14.
 
@@ -33,7 +47,7 @@ Check out the examples:
 * [MessageConsumerExample](src/examples/java/io/nats/examples/jetstream/simple/MessageConsumerExample.java)
 * [NextExample](src/examples/java/io/nats/examples/jetstream/simple/NextExample.java)
 
-### Service Framework
+## Service Framework
 
 The service API allows you to easily build NATS services. The Service Framework is released as of 2.16.14
 
@@ -43,9 +57,9 @@ The Services Framework further streamlines their development by providing observ
 
 Check out the [ServiceExample](src/examples/java/io/nats/examples/service/ServiceExample.java)
 
-### Versions Specific Notes
+## Recent Version Notes
 
-#### Version 2.18.0 (AKA 2.17.7)
+### Version 2.18.0 (AKA 2.17.7)
 
 2.18.0 attempts to start us on the road to properly [Semantic Version (semver)](https://semver.org/). 
 In the last few patch releases, there were technically things that should cause a minor version bump, 
@@ -57,18 +71,26 @@ is an example of one api being added to the Connection interface. It should have
 Going forward, when a release contains only bug fixes, it's appropriate to simply bump the patch. 
 But if an api is added, even one, then the minor version will be bumped.
 
-##### Force Reconnect
+#### Force Reconnect
 
-There is a new `Connection` interface api: `void forceReconnect() throws IOException, InterruptedException;`
-If you call this, your connection will be immediately close and the reconnect logic will be executed.
+There is are new `Connection` interface apis:
+* `void forceReconnect() throws IOException, InterruptedException;`
+* `void forceReconnect(ForceReconnectOptions options) throws IOException, InterruptedException;`
 
-#### Version 2.17.4 Core Improvements
+If you call `forceReconnect`, your connection will be immediately closed and the reconnect logic will be executed.
+
+#### Reverse Proxy Support
+
+This version supports connecting to a reverse proxy securely while the proxy connects to the server insecurely. 
+See the [Reverse Proxy Section](#reverse-proxy) for more details.
+
+### Version 2.17.4 Core Improvements
 
 This release was full of core improvements which improve use of more asynchronous behaviors including
 * removing use of `synchronized` in favor of `ReentrantLock`
 * The ability to have a dispatcher use an executor to dispatch messages instead of the dispatcher thread being blocking to deliver a message.
 
-#### Version 2.17.3 Socket Write Timeout
+### Version 2.17.3 Socket Write Timeout
 
 The client, unless overridden, uses a java.net.Socket for connections. 
 This java.net.Socket implementation does not support a write timeout, so writing data to the socket is a blocking call.
@@ -89,342 +111,8 @@ If a write fails to complete, the task tells the connection to close the socket,
 There may still be messages in the output queue and messages that were in transit are in an unknown state. 
 Handling disconnections and output queue is left for another discussion.
 
-#### Version 2.17.2 Message Immutability Headers Bug
-
-Once a message is created, it is intended to be immutable. 
-Before 2.17.2, the Headers object could be modified (via put, add, remove) after construction,
-either directly with the developer's original Headers object or from the one available via `Message.getHeaders()`.
-This will cause a protocol failure when the message is written to the server, 
-because the protocol size had already been calculated. 
-This calculation is done at construction time because there are multiple places in the workflow 
-that rely on the protocol size, so it must not change once created.
-
-#### Version 2.17.1 Support for TLS First
-
-There is a new connection Option, `tlsFirst` for "TLSHandshakeFirst"
-
-In Server 2.10.3 and later, there is the ability to have TLS Handshake First. 
-The server config will add this:
-
-```text
-tls {
-  ...
-  handshake_first: 300ms
-}
-```
-
-TLS Handshake First is used to instruct the library perform
-the TLS handshake right after the connect and before receiving
-the INFO protocol from the server. If this option is enabled
-but the server is not configured to perform the TLS handshake
-first, the connection will fail.
-
-#### Version 2.17.0: Server 2.10 support.
-The release has support for Server 2.10 features and client validation improvements including:
-
-* Stream and Consumer info timestamps
-* Stream Configuration
-   * Compression Option
-   * Subject Transform
-   * Consumer Limits
-   * First Sequence
-* Multiple Filter Subjects
-* Subject and Queue Name Validation
-
-#### Multiple Filter Subjects
-
-A new  feature is the ability to have multiple filter subjects for any single JetStream consumer.
-
-```java
-ConsumerConfiguration cc = ConsumerConfiguration.builder()
-    ...
-    .filterSubjects("subject1", "subject2")
-    .build();
-```
-
-#### Subject and Queue Name Validation
-
-For subjects, up until now, the client has been very strict when validating subject names for consumer subject filters and subscriptions.
-It only allowed printable ascii characters except for `*`, `>`, `.`, `\\` and `/`. This restriction has been changed to the following:
-* cannot contain spaces \r \n \t
-* cannot start or end with subject token delimiter .
-* cannot have empty segments
-
-This means that UTF characters are now allowed in subjects in this client.
-
-For queue names, there has been inconsistent validation, if any. Queue names now require the same validation as subjects.
-**Important** We realize this may affect existing applications, but need to require consistency across clients.
-
-**Subscribe Subject Validation**
-
-Additionally, for subjects used in subscribe api, applications may start throwing an exception:
-
-```text
-90011 Subject does not match consumer configuration filter
-```
-Let's say you have a stream with subject `foo.>` And you are subscribing to `foo.a`.
-When you don't supply a filter subject on a consumer, it becomes `>`, which means all subjects.
-
-So this is a problem, because you think you are subscribing to `foo.a` but in reality, without this check,
-you will be getting all messages `foo.>` subjects, not just `foo.a`
-
-Validating the subscribe subject against the filter subject is needed to prevent this.
-Unfortunately, this makes existing code throw the `90011` exception.
-
-#### Version 2.16.14: Options properties improvements
-
-In this release, support was added to
-* support properties keys with or without the prefix 'io.nats.client.'
-* allow creation of connections requiring an AuthHandler for JWT to specify the credentials file in a properties files, instead of needing to provide an instance of AuthHandler in code.
-* allow creation of connections requiring an SSL context to specify key and trust store information in a properties files so an SSLContext can be created automatically instead of needing to provide an instance of an SSLContext in code.
-
-For details on the other features, see the "Options" sections
-
-#### Version 2.16.8: Websocket Support
-
-As of version 2.16.8 Websocket (`ws` and `wss`) protocols are supported for connecting to the server.
-For instance, your server bootstrap url might be `ws://my-nats-host:80` or `wss://my-nats-host:443`. 
-
-Your server must be properly configured for websocket, see the NATS.IO docs 
-[WebSocket Configuration Example](https://docs.nats.io/running-a-nats-service/configuration/websocket/websocket_conf)
-for more information.
-
-If you use secure websockets (wss), your connection must be securely configured in the same way you would configure a `tls` connection.  
-
-#### Version 2.16.0: Consumer Create
-
-This release by default will use a new JetStream consumer create API when interacting with nats-server version 2.9.0 or higher. 
-This changes the subjects used by the client to create consumers, which might in some cases require changes in access and import/export configuration.
-The developer can opt out of using this feature by using a custom JetStreamOptions and using it when creating
-JetStream, Key Value and Object Store regular and management contexts.
-
-```java
-JetStreamOptions jso = JetStreamOptions.builder().optOut290ConsumerCreate(true).build();
-
-JetStream js = connection.jetStream(jso);
-JetStreamManagement jsm = connection.jetStreamManagement(jso);
-KeyValue kv = connection.keyValue("bucket", KeyValueOptions.builder(jso).build());
-KeyValueManagement kvm = connection.keyValueManagement(KeyValueOptions.builder(jso).build());
-ObjectStore os = connection.objectStore("bucket", ObjectStoreOptions.builder(jso).build());
-ObjectStoreManagement osm = connection.objectStoreManagement(ObjectStoreOptions.builder(jso).build());
-```
-
-### Options
-
-#### Properties with or without prefix...
-
-The `io.nats.client.` prefix is not required in the properties file anymore. These are now equivalent:
-```properties
-io.nats.client.servers=nats://localhost:4222
-```
-```properties
-servers=nats://localhost:4222
-```
-
-#### Last one wins
-The Options builder allows you to use both properties and code. When it comes to the builder, the last one called wins. 
-This applies to each individual property.
-
-```java
-props.setProperty(Options.PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE, "7000");
-
-o = new Options.Builder()
-   .properties(props)
-   .maxMessagesInOutgoingQueue(6000)
-   .build();
-assertEquals(6000, o.getMaxMessagesInOutgoingQueue());
-
-o = new Options.Builder()
-   .maxMessagesInOutgoingQueue(6000)
-   .properties(props)
-   .build();
-assertEquals(7000, o.getMaxMessagesInOutgoingQueue());
-
-o = new Options.Builder()
-    .maxMessagesInOutgoingQueue(6000)
-    .maxMessagesInOutgoingQueue(8000)
-    .build();
-assertEquals(8000, o.getMaxMessagesInOutgoingQueue());
-```
-
-#### AuthHandler / JWT
-In previous versions the user would have to manually create the AuthHandler and set it in the options
-```java
-AuthHandler ah = Nats.credentials("path/to/my.creds");
-Options options = new Options.Builder()
-    .authHandler(ah)
-    .build();
-```
-
-The developer can now set the file path directly and an AuthHandler will be created:
-```java
-Options options = new Options.Builder()
-    .credentialPath("path/to/my.creds")
-    .build();
-```
-The developer can also set the credential path in a properties file:
-```properties
-io.nats.client.credential.path=path/to/my.creds
-```
-
-#### Options - SSLContext
-
-The Options builder has several options set use or affect creation of an `SSLContext`
-
-```java
-// Provide the SSLContext
-public Builder sslContext(SSLContext ctx)
-
-// Generic SSLContext Creation
-public Builder secure()
-public Builder opentls()
-
-// Custom SSLContext Creation Properties
-public Builder keystore(String keystore)
-public Builder keystorePassword(char[] keystorePassword)
-public Builder truststore(String truststore)
-public Builder truststorePassword(char[] truststorePassword)
-public Builder tlsAlgorithm(String tlsAlgorithm)
-```
-
-There are equivalent properties for these builder methods (except sslContext):
-```properties
-# Generic SSLContext Creation
-io.nats.client.secure=true
-io.nats.client.opentls=true
-
-# Custom SSLContext Creation Properties
-io.nats.client.keyStore=path/to/keystore.jks
-io.nats.client.keyStorePassword=kspassword
-io.nats.client.trustStore=path/to/truststore.jks
-io.nats.client.trustStorePassword=tspassword
-io.nats.client.tls.algorithm=SunX509
-```
-
-When options are built, the SSLContext will be accepted or created in the following order.
-1. If it's directly provided via the builder `sslContext(SSLContext ctx)` method.
-2. If `keyStore` is provided, an SSLContext will be created using all custom properties. If not supplied, the tls algorithm is `SunX509`
-3. If `opentls` is true or any of the bootstrap servers has `opentls` as their scheme, a generic SSLContext will be created that **"trusts all certs"**.
-4. If `secure` is true or any of the bootstrap servers has `tls` or `wss` as their scheme, the `javax.net.ssl.SSLContext.getDefault()` will be used.
-
-#### Options - Properties
-
-| Name                                         | Description                                                                                 |
-|----------------------------------------------|---------------------------------------------------------------------------------------------|
-| io.nats.client.callback.connection           | Property used to configure a connectionListener.                                            |
-| io.nats.client.dataport.type                 | Property used to configure a dataPortType.                                                  |
-| io.nats.client.callback.error                | Property used to configure an errorListener.                                                |
-| io.nats.client.statisticscollector           | Property used to configure the statisticsCollector.                                         |
-| io.nats.client.maxpings                      | Property used to configure maxPingsOut.                                                     |
-| io.nats.client.pinginterval                  | Property used to configure pingInterval.                                                    |
-| io.nats.client.cleanupinterval               | Property used to configure requestCleanupInterval.                                          |
-| io.nats.client.timeout                       | Property used to configure connectionTimeout.                                               |
-| io.nats.client.reconnect.buffer.size         | Property used to configure reconnectBufferSize.                                             |
-| io.nats.client.reconnect.wait                | Property used to configure reconnectWait.                                                   |
-| io.nats.client.reconnect.max                 | Property used to configure maxReconnects.                                                   |
-| io.nats.client.reconnect.jitter              | Property used to configure reconnectJitter.                                                 |
-| io.nats.client.reconnect.jitter.tls          | Property used to configure reconnectJitterTls.                                              |
-| io.nats.client.pedantic                      | Property used to configure pedantic.                                                        |
-| io.nats.client.verbose                       | Property used to configure verbose.                                                         |
-| io.nats.client.noecho                        | Property used to configure noEcho.                                                          |
-| io.nats.client.noheaders                     | Property used to configure noHeaders.                                                       |
-| io.nats.client.name                          | Property used to configure connectionName.                                                  |
-| io.nats.client.nonoresponders                | Property used to configure noNoResponders.                                                  |
-| io.nats.client.norandomize                   | Property used to configure noRandomize.                                                     |
-| io.nats.client.noResolveHostnames            | Property used to configure noResolveHostnames.                                              |
-| io.nats.client.reportNoResponders            | Property used to configure reportNoResponders.                                              |
-| io.nats.clientsidelimitchecks                | Property use to configure clientsidelimitchecks.                                            | 
-| io.nats.client.url                           | Property used to configure server.  The value can be a comma-separated list of server URLs. |
-| io.nats.client.servers                       | Property used to configure servers. The value can be a comma-separated list of server URLs. |
-| io.nats.client.password                      | Property used to configure userinfo password.                                               |
-| io.nats.client.username                      | Property used to configure userinfo username.                                               |
-| io.nats.client.token                         | Property used to configure token.                                                           |
-| io.nats.client.secure                        | See notes above on ssl configruration.                                                      |
-| io.nats.client.opentls                       | See notes above on ssl configruration.                                                      |
-| io.nats.client.outgoingqueue.maxmessages     | Property used to configure maxMessagesInOutgoingQueue.                                      |
-| io.nats.client.outgoingqueue.discardwhenfull | Property used to configure discardMessagesWhenOutgoingQueueFull.                            |
-| use.old.request.style                        | Property used to configure oldRequestStyle.                                                 |
-| max.control.line                             | Property used to configure maxControlLine.                                                  |
-| inbox.prefix                                 | Property used to set the inbox prefix                                                       |
-| ignore.discovered.servers                    | Preferred property used to set whether to ignore discovered servers when connecting.        |
-| servers.pool.implementation.class            | Preferred property used to set class name for ServerPool implementation.                    |
-| io.nats.client.keyStore                      | Property for the keystore path used to create an SSLContext                                 |
-| io.nats.client.keyStorePassword              | Property for the keystore password used to create an SSLContext                             |
-| io.nats.client.trustStore                    | Property for the truststore path used to create an SSLContext                               |
-| io.nats.client.trustStorePassword            | Property for the truststore password used to create an SSLContext                           |
-| io.nats.client.tls.algorithm                 | Property for the algorithm used to create an SSLContext                                     |
-| io.nats.client.credential.path               | Property used to set the path to a credentials file to be used in a FileAuthHandler         |
-
-### SSL/TLS Performance
-
-After recent tests we realized that TLS performance is lower than we would like. After researching the problem and possible solutions we came to a few conclusions:
-
-* TLS performance for the native JDK has not been historically great
-* TLS performance is better in JDK12 than JDK8
-* A small fix to the library in 2.5.1 allows the use of https://github.com/google/conscrypt and https://github.com/wildfly/wildfly-openssl, conscrypt provides the best performance in our tests
-* TLS still comes at a price (1gb/s vs 4gb/s in some tests), but using the JNI libraries can result in a 10x boost in our testing
-* If TLS performance is reasonable for your application we recommend using the j2se implementation for simplicity
-
-To use conscrypt or wildfly, you will need to add the appropriate jars to your class path and create an SSL context manually. This context can be passed to the Options used when creating a connection. The NATSAutoBench example provides a conscrypt flag which can be used to try out the library,  manually including the jar is required.
-
-### OCSP Stapling
-The server supports OCSP stapling. To enable Java to automatically check the stapling 
-when making TLS connections, you must set system properties. Please be aware that this affect the entire JVM,
-so all connections.
-
-These properties can be set from your command line or from your Java code:
-
-```
-System.setProperty("jdk.tls.client.enableStatusRequestExtension", "true");
-System.setProperty("com.sun.net.ssl.checkRevocation", "true");
-```
-
-For more information, see the Oracle Java documentation page on [Client-Driven OCSP and OCSP Stapling](https://docs.oracle.com/javase/8/docs/technotes/guides/security/jsse/ocsp.html)
-
-Also, there is a detailed [OCSP Example](https://github.com/nats-io/java-nats-examples/tree/main/ocsp) that shows how to create SSL contexts enabling OCSP stapling.
-
-### Subject Validation
-
-The current version of this client supports subjects with ASCII printable characters and wildcards when subscribing.
-
-### JetStream Subscribe Subject
-
-With the introduction of simplification, the various original subscribe methods available will eventually be deprecated.
-But since they are available, we need to address the concept of the subscribe subject.
-
-All the subscribe methods take a "subject" as the first parameter. We call this the subscribe subject. 
-The subject could be something like `my.subject` or `my.star.*` or `my.gt.>` or even `>`.
-This parameter is used and validated in different ways depending on the context of the call, 
-including looking up the stream, if stream is not provided via subscribe options.  
-
-The subscribe subject could be used to make a simple subscription. In this case it is required. 
-An ephemeral consumer will be created for that subject, assuming that subject can be looked up in a stream.
-```java
-JetStream js = nc.jetStream();
-JetStreamSubscription sub = subscribe(subject)
-```
-
-If subscribe call has either a PushSubscribeOptions or PullSubscribeOptions that have a ConsumerConfiguration 
-with one or more filter subjects, the subscribe subject is optional since we can use the first filter subject as 
-the subscribe subject.
-
-```java
-PushSubscribeOptions pso = ConsumerConfiguration.builder().filterSubject("my.subject").buildPushSubscribeOptions();
-js.subscribe(null, pso);
-```
-
-The other time you can skip the subject parameter is when you "bind". Since the stream name and consumer name are 
-part of the bind, the subject will be retrieved from the consumer looked-up via the bind stream and consumer name information.
-
-#### On-the-fly Subscribes
-
-On the fly subscribes rely on
-
-### NKey-based Challenge Response Authentication
-
-The NATS server is adding support for a challenge response authentication scheme based on [NKeys](https://github.com/nats-io/nkeys). Version 2.2.0 of
-the Java client supports this scheme via an AuthHandler interface. *Version 2.3.0 replaced several NKey methods that used strings with methods using char[]
-to improve security.*
+### Version Notes for older releases
+See [Version Notes](#version_notes)
 
 ## Installation
 
@@ -524,7 +212,7 @@ If you need a snapshot version, you must enable snapshots and change your depend
 
 If you are using the 1.x version of java-nats and don't want to upgrade to 2.0.0 please use ranges in your POM file, java-nats-streaming 1.x is using [1.1, 1.9.9) for this.
 
-## Integration with GraalVM
+### Integration with GraalVM
 
 To inlcude this library with a GraalVM project, there are 2 important configurations you must use: 
 * `--initialize-at-run-time=io.nats.client.support.RandomUtils`
@@ -613,6 +301,177 @@ The ability to reconnect on  the initial connection failure is _NOT_ an Options 
     // comma-separated list of URLs, all other default options, reconnect on connect
     Connection nc = Nats.connectReconnectOnConnect("nats://myhost:4222,nats://myhost:4223", authHandler);
     ```
+
+#### Clusters & Reconnecting
+
+The Java client will automatically reconnect if it loses its connection the nats-server. If given a single server, the client will keep trying that one. If given a list of servers, the client will rotate between them. When the nats servers are in a cluster, they will tell the client about the other servers, so that in the simplest case a client could connect to one server, learn about the cluster and reconnect to another server if its initial one goes down.
+
+To tell the connection about multiple servers for the initial connection, use the `servers()` method on the options builder, or call `server()` multiple times.
+
+```Java
+String[] serverUrls = {"nats://serverOne:4222", "nats://serverTwo:4222"};
+Options o = new Options.Builder().servers(serverUrls).build();
+```
+Reconnection behavior is controlled via a few options, see the javadoc for the Options.Builder class for specifics on reconnect limits, delays and buffers.
+
+## Connection Options
+
+Connection options are configured using the `Options` class. There is a Builder which uses a fluent interface.
+It can accept `Properties` object or a path to a Properties file.
+
+### Property Names
+
+The `io.nats.client.` prefix is not required in the properties file anymore. These are now equivalent:
+```properties
+io.nats.client.servers=nats://localhost:4222
+```
+```properties
+servers=nats://localhost:4222
+```
+
+### Last one wins
+The Options builder allows you to use both properties and code. When it comes to the builder, the last one called wins.
+This applies to each individual property.
+
+```java
+props.setProperty(Options.PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE, "7000");
+
+o = new Options.Builder()
+   .properties(props)
+   .maxMessagesInOutgoingQueue(6000)
+   .build();
+assertEquals(6000, o.getMaxMessagesInOutgoingQueue());
+
+o = new Options.Builder()
+   .maxMessagesInOutgoingQueue(6000)
+   .properties(props)
+   .build();
+assertEquals(7000, o.getMaxMessagesInOutgoingQueue());
+
+o = new Options.Builder()
+    .maxMessagesInOutgoingQueue(6000)
+    .maxMessagesInOutgoingQueue(8000)
+    .build();
+assertEquals(8000, o.getMaxMessagesInOutgoingQueue());
+```
+
+### Properties
+
+```
+| Name                              | Description                                                                                 
+|-----------------------------------|--------------------------------------------------------------------------------------|
+| callback.connection               | Configure a connectionListener.                                                      |
+| dataport.type                     | Configure a dataPortType.                                                            |
+| callback.error                    | Configure an errorListener.                                                          |
+| time.trace                        | Configura a TimeTraceLogger to receive trace events related to this connection       |
+| statisticscollector               | Configure the statisticsCollector.                                                   |
+| maxpings                          | Configure maxPingsOut.                                                               |
+| pinginterval                      | Configure pingInterval.                                                              |
+| cleanupinterval                   | Configure requestCleanupInterval.                                                    |
+| timeout                           | Configure connectionTimeout.                                                         |
+| socket.write.timeout              | Set the timeout around socket writes, providing support where Java is lacking        | 
+| socket.so.linger                  | Configure the socket SO LINGER property for built in data port implementations       |
+| reconnect.buffer.size             | Configure reconnectBufferSize.                                                       |
+| reconnect.wait                    | Configure reconnectWait.                                                             |
+| reconnect.max                     | Configure maxReconnects.                                                             |
+| reconnect.jitter                  | Configure reconnectJitter.                                                           |
+| reconnect.jitter.tls              | Configure reconnectJitterTls.                                                        |
+| pedantic                          | Configure pedantic.                                                                  |
+| verbose                           | Configure verbose.                                                                   |
+| noecho                            | Configure noEcho.                                                                    |
+| noheaders                         | Configure noHeaders.                                                                 |
+| name                              | Configure connectionName.                                                            |
+| nonoresponders                    | Configure noNoResponders.                                                            |
+| norandomize                       | Configure noRandomize.                                                               |
+| noResolveHostnames                | Configure noResolveHostnames.                                                        |
+| reportNoResponders                | Configure reportNoResponders.                                                        |
+| clientsidelimitchecks             | Configure clientsidelimitchecks.                                                     | 
+| url                               | Configure server.  The value can be a comma-separated list of server URLs.           |
+| servers                           | Configure servers. The value can be a comma-separated list of server URLs.           |
+| password                          | Configure userinfo password.                                                         |
+| username                          | Configure userinfo username.                                                         |
+| token                             | Configure token.                                                                     |
+| secure                            | See notes above on ssl configruration.                                               |
+| opentls                           | See notes above on ssl configruration.                                               |
+| outgoingqueue.maxmessages         | Configure maxMessagesInOutgoingQueue.                                                |
+| outgoingqueue.discardwhenfull     | Configure discardMessagesWhenOutgoingQueueFull.                                      |
+| use.old.request.style             | Configure oldRequestStyle.                                                           |
+| max.control.line                  | Configure maxControlLine.                                                            |
+| inbox.prefix                      | Property used to set the inbox prefix                                                |
+| ignore.discovered.servers         | Preferred property used to set whether to ignore discovered servers when connecting. |
+| servers.pool.implementation.class | Preferred property used to set class name for ServerPool implementation.             |
+| dispatcher.factory.class          | Property used to set class name for the Dispatcher Factory                           |
+| ssl.context.factory.class         | Property used to set class name for the SSLContextFactory                            |
+| keyStore                          | Property for the keystore path used to create an SSLContext                          |
+| keyStorePassword                  | Property for the keystore password used to create an SSLContext                      |
+| trustStore                        | Property for the truststore path used to create an SSLContext                        |
+| trustStorePassword                | Property for the truststore password used to create an SSLContext                    |
+| tls.algorithm                     | Property for the algorithm used to create an SSLContext                              |
+| credential.path                   | Property used to set the path to a credentials file to be used in a FileAuthHandler  |
+| tls.first                         | Property used to set TLS Handshake First behavior                                    |
+| use.timeout.exception             | Instruct the client to throw TimeoutException instead of CancellationException       |
+| use.dispatcher.with.executor      | Instruct dispatchers to dispatch all messages as a task                              |
+```
+
+### AuthHandler and JWT Credentials
+You can manually create the AuthHandler and set it in the options
+```java
+AuthHandler ah = Nats.credentials("path/to/my.creds");
+Options options = new Options.Builder()
+    .authHandler(ah)
+    .build();
+```
+
+or you can now set the file path directly and an AuthHandler will be created:
+```java
+Options options = new Options.Builder()
+    .credentialPath("path/to/my.creds")
+    .build();
+```
+The developer can also set the credential path in a properties file:
+```properties
+io.nats.client.credential.path=path/to/my.creds
+```
+
+### SSLContext
+
+The Options builder has several options set use or affect creation of an `SSLContext`
+
+```java
+// Provide the SSLContext
+public Builder sslContext(SSLContext ctx)
+
+// Generic SSLContext Creation
+public Builder secure()
+public Builder opentls()
+
+// Custom SSLContext Creation Properties
+public Builder keystore(String keystore)
+public Builder keystorePassword(char[] keystorePassword)
+public Builder truststore(String truststore)
+public Builder truststorePassword(char[] truststorePassword)
+public Builder tlsAlgorithm(String tlsAlgorithm)
+```
+
+There are equivalent properties for these builder methods (except sslContext):
+```properties
+# Generic SSLContext Creation
+io.nats.client.secure=true
+io.nats.client.opentls=true
+
+# Custom SSLContext Creation Properties
+io.nats.client.keyStore=path/to/keystore.jks
+io.nats.client.keyStorePassword=kspassword
+io.nats.client.trustStore=path/to/truststore.jks
+io.nats.client.trustStorePassword=tspassword
+io.nats.client.tls.algorithm=SunX509
+```
+
+When options are built, the SSLContext will be accepted or created in the following order.
+1. If it's directly provided via the builder `sslContext(SSLContext ctx)` method.
+2. If `keyStore` is provided, an SSLContext will be created using all custom properties. If not supplied, the tls algorithm is `SunX509`
+3. If `opentls` is true or any of the bootstrap servers has `opentls` as their scheme, a generic SSLContext will be created that **"trusts all certs"**.
+4. If `secure` is true or any of the bootstrap servers has `tls` or `wss` as their scheme, the `javax.net.ssl.SSLContext.getDefault()` will be used.
 
 ### Publishing
 
@@ -707,12 +566,41 @@ There is no limit to the number of contexts used, although normally one would on
 require a single context.  Contexts may be prefixed to be used in conjunction with
 NATS authorization.
 
+#### Subject and Queue Name Validation
+
+For subjects, the client was strict when validating subject names for consumer subject filters and subscriptions.
+It only allowed printable ascii characters except for `*`, `>`, `.`, `\\` and `/`. 
+This restriction has been changed to the following:
+* cannot contain spaces \r \n \t
+* cannot start or end with subject token delimiter .
+* cannot have empty segments
+
+This means that UTF characters are now allowed in subjects in this client.
+
+For queue names, there has been inconsistent validation, if any. Queue names now require the same validation as subjects.
+
+#### Subscribe Subject Validation
+
+Additionally, for subjects used in subscribe api, applications may start throwing an exception:
+
+```text
+90011 Subject does not match consumer configuration filter
+```
+Let's say you have a stream with subject `foo.>` And you are subscribing to `foo.a`.
+When you don't supply a filter subject on a consumer, it becomes `>`, which means all subjects.
+
+So this is a problem, because you think you are subscribing to `foo.a` but in reality, without this check,
+you will be getting all messages `foo.>` subjects, not just `foo.a`
+
+Validating the subscribe subject against the filter subject is needed to prevent this.
+Unfortunately, this makes existing code throw the `90011` exception.
+
 ### Publishing
 
 To publish messages, use the `JetStream.publish(...)` API.  A stream must be established
 before publishing. You can publish in either a synchronous or asynchronous manner.
 
-**Synchronous:**
+#### Synchronous
 
 ```java
 // create a typical NATS message
@@ -756,7 +644,7 @@ pa = js.publish("foo", null, pubOptsBuilder.build());
 
 See `NatsJsPubWithOptionsUseCases.java` in the JetStream examples for a detailed and runnable example.
 
-**Asynchronous:**
+#### Asynchronous
 
 ```java
 List<CompletableFuture<PublishAck>> futures = new ArrayList<>();
@@ -784,15 +672,13 @@ The Message object allows you to set a replyTo, but in publish requests,
 the replyTo is reserved for internal use as the address for the
 server to respond to the client with the PublishAck.
 
-### Subscribing
+### Consuming Messages
 
 There are two methods of subscribing, **Push** and **Pull** with each variety having its own set of options and abilities. 
 
-### Push Subscribing
+#### Asynchronous Push Subscription
 
 Push subscriptions can be synchronous or asynchronous. The server *pushes* messages to the client.
-
-**Asynchronous:**
 
 ```java
 Dispatcher disp = ...;
@@ -813,7 +699,42 @@ js.subscribe("my-subject", disp, handler, autoAck);
 
 See the `NatsJsPushSubWithHandler.java` in the JetStream examples for a detailed and runnable example.
 
-**Synchronous:**
+#### Subscribe Subject
+
+With the introduction of simplification, the various original subscribe methods available will eventually be deprecated.
+But since they are available, we need to address the concept of the subscribe subject.
+
+Consider the example:
+```java
+js.subscribe("my-subject", disp, handler, autoAck);
+```
+
+The subscribe method takes a "subject" as the first parameter. We call this the subscribe subject.
+The subject could be something like `my.subject` or `my.star.*` or `my.gt.>` or even `>`.
+This parameter is used and validated in different ways depending on the context of the call,
+including looking up the stream, if stream is not provided via subscribe options.
+
+The subscribe subject could be used to make a simple subscription. In this case it is required.
+An ephemeral consumer will be created for that subject, assuming that subject can be looked up in a stream.
+
+```java
+JetStream js = nc.jetStream();
+JetStreamSubscription sub = subscribe(subject)
+```
+
+If subscribe call has either a PushSubscribeOptions or PullSubscribeOptions that have a ConsumerConfiguration
+with one or more filter subjects, the subscribe subject is optional since we can use the first filter subject as
+the subscribe subject.
+
+```java
+PushSubscribeOptions pso = ConsumerConfiguration.builder().filterSubject("my.subject").buildPushSubscribeOptions();
+js.subscribe(null, pso);
+```
+
+The other time you can skip the subject parameter is when you "bind". Since the stream name and consumer name are
+part of the bind, the subject will be retrieved from the consumer looked-up via the bind stream and consumer name information.
+
+#### Synchronous Consuming
 
 See `NatsJsPushSub.java` in the JetStream examples for a detailed and runnable example.
 
@@ -829,6 +750,30 @@ nc.flush(Duration.ofSeconds(5));
 Message msg = sub.nextMessage(Duration.ofSeconds(1));
 ```
 
+#### Multiple Filter Subjects
+
+The client has the ability to have multiple filter subjects for any single JetStream consumer. 
+This can only be set up via the Consumer Configuration.
+
+```java
+ConsumerConfiguration cc = ConsumerConfiguration.builder()
+    ...
+    .filterSubjects("subject1", "subject2")
+    .build();
+```
+
+### Message Acknowledgements
+
+There are multiple types of acknowledgements in JetStream:
+
+* `Message.ack()`: Acknowledges a message.
+* `Message.ackSync(Duration)`: Acknowledges a message and waits for a confirmation. When used with deduplications this creates exactly once delivery guarantees (within the deduplication window).  This may significantly impact performance of the system.
+* `Message.nak()`: A negative acknowledgment indicating processing failed and the message should be resent later.
+* `Message.term()`: Never send this message again, regardless of configuration.
+* `Message.inProgress()`:  The message is being processed and reset the redelivery timer in the server.  The message must be acknowledged later when processing is complete.
+
+Note that exactly once delivery guarantee can be achieved by using a consumer with explicit ack mode attached to stream setup with a deduplication window and using the `ackSync` to acknowledge messages.  The guarantee is only valid for the duration of the deduplication window.
+
 ### Pull Subscriptions
 
 Pull subscriptions are always synchronous. The server organizes messages into a batch
@@ -841,7 +786,7 @@ PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
 JetStreamSubscription sub = js.subscribe("subject", pullOptions);
 ```
 
-**Bind:**
+#### Bind
 
 Pull subscriptions allow for binding to existing consumers.
 The best practice is to provide `null` for the subscribe subject, but if you do
@@ -865,7 +810,7 @@ provide it, it must match the consumer subject filter, or you will receive an
         .build();
     ```
 
-**Fetch:**
+#### Fetch
 
 ```java
 List<Message> message = sub.fetch(100, Duration.ofSeconds(1));
@@ -890,7 +835,7 @@ ack all messages in time and can get redeliveries.
 See `NatsJsPullSubFetch.java` and `NatsJsPullSubFetchUseCases.java`
 in the JetStream examples for a detailed and runnable example.
 
-**Iterate:**
+#### Iterate
 
 ```java
         Iterator<Message> iter = sub.iterate(100, Duration.ofSeconds(1));
@@ -915,7 +860,7 @@ and generally is more efficient.
 See `NatsJsPullSubIterate.java` and `NatsJsPullSubIterateUseCases.java`
 in the JetStream examples for a detailed and runnable example.
 
-**Batch Size:**
+#### Batch Size
 
 ```java
 sub.pull(100);
@@ -935,7 +880,7 @@ Once the entire batch size has been filled, you must make another pull request.
 See `NatsJsPullSubBatchSize.java` and `NatsJsPullSubBatchSizeUseCases.java` 
 in the JetStream examples for detailed and runnable example.
 
-**No Wait and Batch Size:**
+#### No Wait and Batch Size
 
 ```java
 sub.pullNoWait(100);
@@ -952,7 +897,7 @@ You must make a pull request every time.
 
 See the `NatsJsPullSubNoWaitUseCases.java` in the JetStream examples for a detailed and runnable example.
 
-**Expires In and Batch Size:**
+#### Expires In and Batch Size
 
 ```java
 sub.pullExpiresIn(100, Duration.ofSeconds(3));
@@ -968,7 +913,7 @@ Once nextMessage returns null, you know your pull is done, and you can make anot
 See `NatsJsPullSubExpire.java` and `NatsJsPullSubExpireUseCases.java`
 in the JetStream examples for detailed and runnable examples.
 
-**Pull Exception Handling:** 
+#### Pull Exception Handling 
 
 ### Ordered Push Subscription Option
 
@@ -993,71 +938,59 @@ You can however set the deliver policy which will be used to start the subscript
 * Consumer creation
 * Object Store operations
 
-| Name                                         | Group | Code  | Description                                                                                                    |
-|----------------------------------------------|-------|-------|----------------------------------------------------------------------------------------------------------------|
-| JsSoDurableMismatch                          | SO    | 90101 | Builder durable must match the consumer configuration durable if both are provided.                            |
-| JsSoDeliverGroupMismatch                     | SO    | 90102 | Builder deliver group must match the consumer configuration deliver group if both are provided.                |
-| JsSoDeliverSubjectMismatch                   | SO    | 90103 | Builder deliver subject must match the consumer configuration deliver subject if both are provided.            |
-| JsSoOrderedNotAllowedWithBind                | SO    | 90104 | Bind is not allowed with an ordered consumer.                                                                  |
-| JsSoOrderedNotAllowedWithDeliverGroup        | SO    | 90105 | Deliver group is not allowed with an ordered consumer.                                                         |
-| JsSoOrderedNotAllowedWithDurable             | SO    | 90106 | Durable is not allowed with an ordered consumer.                                                               |
-| JsSoOrderedNotAllowedWithDeliverSubject      | SO    | 90107 | Deliver subject is not allowed with an ordered consumer.                                                       |
-| JsSoOrderedRequiresAckPolicyNone             | SO    | 90108 | Ordered consumer requires Ack Policy None.                                                                     |
-| JsSoOrderedRequiresMaxDeliverOfOne           | SO    | 90109 | Max deliver is limited to 1 with an ordered consumer.                                                          |
-| JsSoNameMismatch                             | SO    | 90110 | Builder name must match the consumer configuration name if both are provided.                                  |
-| JsSoOrderedMemStorageNotSuppliedOrTrue       | SO    | 90111 | Mem Storage must be true if supplied.                                                                          |
-| JsSoOrderedReplicasNotSuppliedOrOne          | SO    | 90112 | Replicas must be 1 if supplied.                                                                                |
-| JsSoNameOrDurableRequiredForBind             | SO    | 90113 | Name or Durable required for Bind.                                                                             |
-| JsSubPullCantHaveDeliverGroup                | SUB   | 90001 | Pull subscriptions can't have a deliver group.                                                                 |
-| JsSubPullCantHaveDeliverSubject              | SUB   | 90002 | Pull subscriptions can't have a deliver subject.                                                               |
-| JsSubPushCantHaveMaxPullWaiting              | SUB   | 90003 | Push subscriptions cannot supply max pull waiting.                                                             |
-| JsSubQueueDeliverGroupMismatch               | SUB   | 90004 | Queue / deliver group mismatch.                                                                                |
-| JsSubFcHbNotValidPull                        | SUB   | 90005 | Flow Control and/or heartbeat is not valid with a pull subscription.                                           |
-| JsSubFcHbNotValidQueue                       | SUB   | 90006 | Flow Control and/or heartbeat is not valid in queue mode.                                                      |
-| JsSubNoMatchingStreamForSubject              | SUB   | 90007 | No matching streams for subject.                                                                               |
-| JsSubConsumerAlreadyConfiguredAsPush         | SUB   | 90008 | Consumer is already configured as a push consumer.                                                             |
-| JsSubConsumerAlreadyConfiguredAsPull         | SUB   | 90009 | Consumer is already configured as a pull consumer.                                                             |
-| _removed_                                    | SUB   | 90010 |                                                                                                                |
-| JsSubSubjectDoesNotMatchFilter               | SUB   | 90011 | Subject does not match consumer configuration filter.                                                          |
-| JsSubConsumerAlreadyBound                    | SUB   | 90012 | Consumer is already bound to a subscription.                                                                   |
-| JsSubExistingConsumerNotQueue                | SUB   | 90013 | Existing consumer is not configured as a queue / deliver group.                                                |
-| JsSubExistingConsumerIsQueue                 | SUB   | 90014 | Existing consumer is configured as a queue / deliver group.                                                    |
-| JsSubExistingQueueDoesNotMatchRequestedQueue | SUB   | 90015 | Existing consumer deliver group does not match requested queue / deliver group.                                |
-| JsSubExistingConsumerCannotBeModified        | SUB   | 90016 | Existing consumer cannot be modified.                                                                          |
-| JsSubConsumerNotFoundRequiredInBind          | SUB   | 90017 | Consumer not found, required in bind mode.                                                                     |
-| JsSubOrderedNotAllowOnQueues                 | SUB   | 90018 | Ordered consumer not allowed on queues.                                                                        |
-| JsSubPushCantHaveMaxBatch                    | SUB   | 90019 | Push subscriptions cannot supply max batch.                                                                    |
-| JsSubPushCantHaveMaxBytes                    | SUB   | 90020 | Push subscriptions cannot supply max bytes.                                                                    |
-| JsSubPushAsyncCantSetPending                 | SUB   | 90021 | Pending limits must be set directly on the dispatcher.                                                         |
-| JsSubSubjectNeededToLookupStream             | SUB   | 90022 | Subject needed to lookup stream. Provide either a subscribe subject or a ConsumerConfiguration filter subject. |
-| JsConsumerCreate290NotAvailable              | CON   | 90301 | Name field not valid when v2.9.0 consumer create api is not available.                                         |
-| JsConsumerNameDurableMismatch                | CON   | 90302 | Name must match durable if both are supplied.                                                                  |
-| JsMultipleFilterSubjects210NotAvailable      | CON   | 90303 | Multiple filter subjects not available until server version 2.10.0.                                            |
-| OsObjectNotFound                             | OS    | 90201 | The object was not found.                                                                                      |
-| OsObjectIsDeleted                            | OS    | 90202 | The object is deleted.                                                                                         |
-| OsObjectAlreadyExists                        | OS    | 90203 | An object with that name already exists.                                                                       |
-| OsCantLinkToLink                             | OS    | 90204 | A link cannot link to another link.                                                                            |
-| OsGetDigestMismatch                          | OS    | 90205 | Digest does not match meta data.                                                                               |
-| OsGetChunksMismatch                          | OS    | 90206 | Number of chunks does not match meta data.                                                                     |
-| OsGetSizeMismatch                            | OS    | 90207 | Total size does not match meta data.                                                                           |
-| OsGetLinkToBucket                            | OS    | 90208 | Cannot get object, it is a link to a bucket.                                                                   |
-| OsLinkNotAllowOnPut                          | OS    | 90209 | Link not allowed in metadata when putting an object.                                                           |
+```
+| Name                                         | Group-Code| Description                                                                                                    |
+|----------------------------------------------|-----------|----------------------------------------------------------------------------------------------------------------|
+| JsSoDurableMismatch                          | SO-90101  | Builder durable must match the consumer configuration durable if both are provided.                            |
+| JsSoDeliverGroupMismatch                     | SO-90102  | Builder deliver group must match the consumer configuration deliver group if both are provided.                |
+| JsSoDeliverSubjectMismatch                   | SO-90103  | Builder deliver subject must match the consumer configuration deliver subject if both are provided.            |
+| JsSoOrderedNotAllowedWithBind                | SO-90104  | Bind is not allowed with an ordered consumer.                                                                  |
+| JsSoOrderedNotAllowedWithDeliverGroup        | SO-90105  | Deliver group is not allowed with an ordered consumer.                                                         |
+| JsSoOrderedNotAllowedWithDurable             | SO-90106  | Durable is not allowed with an ordered consumer.                                                               |
+| JsSoOrderedNotAllowedWithDeliverSubject      | SO-90107  | Deliver subject is not allowed with an ordered consumer.                                                       |
+| JsSoOrderedRequiresAckPolicyNone             | SO-90108  | Ordered consumer requires Ack Policy None.                                                                     |
+| JsSoOrderedRequiresMaxDeliverOfOne           | SO-90109  | Max deliver is limited to 1 with an ordered consumer.                                                          |
+| JsSoNameMismatch                             | SO-90110  | Builder name must match the consumer configuration name if both are provided.                                  |
+| JsSoOrderedMemStorageNotSuppliedOrTrue       | SO-90111  | Mem Storage must be true if supplied.                                                                          |
+| JsSoOrderedReplicasNotSuppliedOrOne          | SO-90112  | Replicas must be 1 if supplied.                                                                                |
+| JsSoNameOrDurableRequiredForBind             | SO-90113  | Name or Durable required for Bind.                                                                             |
+| JsSubPullCantHaveDeliverGroup                | SUB-90001 | Pull subscriptions can't have a deliver group.                                                                 |
+| JsSubPullCantHaveDeliverSubject              | SUB-90002 | Pull subscriptions can't have a deliver subject.                                                               |
+| JsSubPushCantHaveMaxPullWaiting              | SUB-90003 | Push subscriptions cannot supply max pull waiting.                                                             |
+| JsSubQueueDeliverGroupMismatch               | SUB-90004 | Queue / deliver group mismatch.                                                                                |
+| JsSubFcHbNotValidPull                        | SUB-90005 | Flow Control and/or heartbeat is not valid with a pull subscription.                                           |
+| JsSubFcHbNotValidQueue                       | SUB-90006 | Flow Control and/or heartbeat is not valid in queue mode.                                                      |
+| JsSubNoMatchingStreamForSubject              | SUB-90007 | No matching streams for subject.                                                                               |
+| JsSubConsumerAlreadyConfiguredAsPush         | SUB-90008 | Consumer is already configured as a push consumer.                                                             |
+| JsSubConsumerAlreadyConfiguredAsPull         | SUB-90009 | Consumer is already configured as a pull consumer.                                                             |
+| _removed_                                    | SUB-90010 |                                                                                                                |
+| JsSubSubjectDoesNotMatchFilter               | SUB-90011 | Subject does not match consumer configuration filter.                                                          |
+| JsSubConsumerAlreadyBound                    | SUB-90012 | Consumer is already bound to a subscription.                                                                   |
+| JsSubExistingConsumerNotQueue                | SUB-90013 | Existing consumer is not configured as a queue / deliver group.                                                |
+| JsSubExistingConsumerIsQueue                 | SUB-90014 | Existing consumer is configured as a queue / deliver group.                                                    |
+| JsSubExistingQueueDoesNotMatchRequestedQueue | SUB-90015 | Existing consumer deliver group does not match requested queue / deliver group.                                |
+| JsSubExistingConsumerCannotBeModified        | SUB-90016 | Existing consumer cannot be modified.                                                                          |
+| JsSubConsumerNotFoundRequiredInBind          | SUB-90017 | Consumer not found, required in bind mode.                                                                     |
+| JsSubOrderedNotAllowOnQueues                 | SUB-90018 | Ordered consumer not allowed on queues.                                                                        |
+| JsSubPushCantHaveMaxBatch                    | SUB-90019 | Push subscriptions cannot supply max batch.                                                                    |
+| JsSubPushCantHaveMaxBytes                    | SUB-90020 | Push subscriptions cannot supply max bytes.                                                                    |
+| JsSubPushAsyncCantSetPending                 | SUB-90021 | Pending limits must be set directly on the dispatcher.                                                         |
+| JsSubSubjectNeededToLookupStream             | SUB-90022 | Subject needed to lookup stream. Provide either a subscribe subject or a ConsumerConfiguration filter subject. |
+| JsConsumerCreate290NotAvailable              | CON-90301 | Name field not valid when v2.9.0 consumer create api is not available.                                         |
+| JsConsumerNameDurableMismatch                | CON-90302 | Name must match durable if both are supplied.                                                                  |
+| JsMultipleFilterSubjects210NotAvailable      | CON-90303 | Multiple filter subjects not available until server version 2.10.0.                                            |
+| OsObjectNotFound                             | OS-90201  | The object was not found.                                                                                      |
+| OsObjectIsDeleted                            | OS-90202  | The object is deleted.                                                                                         |
+| OsObjectAlreadyExists                        | OS-90203  | An object with that name already exists.                                                                       |
+| OsCantLinkToLink                             | OS-90204  | A link cannot link to another link.                                                                            |
+| OsGetDigestMismatch                          | OS-90205  | Digest does not match meta data.                                                                               |
+| OsGetChunksMismatch                          | OS-90206  | Number of chunks does not match meta data.                                                                     |
+| OsGetSizeMismatch                            | OS-90207  | Total size does not match meta data.                                                                           |
+| OsGetLinkToBucket                            | OS-90208  | Cannot get object, it is a link to a bucket.                                                                   |
+| OsLinkNotAllowOnPut                          | OS-90209  | Link not allowed in metadata when putting an object.                                                           |
+```
 
-### Message Acknowledgements
-
-There are multiple types of acknowledgements in JetStream:
-
-* `Message.ack()`: Acknowledges a message.
-* `Message.ackSync(Duration)`: Acknowledges a message and waits for a confirmation. When used with deduplications this creates exactly once delivery guarantees (within the deduplication window).  This may significantly impact performance of the system.
-* `Message.nak()`: A negative acknowledgment indicating processing failed and the message should be resent later.
-* `Message.term()`: Never send this message again, regardless of configuration.
-* `Message.inProgress()`:  The message is being processed and reset the redelivery timer in the server.  The message must be acknowledged later when processing is complete.
-
-Note that exactly once delivery guarantee can be achieved by using a consumer with explicit ack mode attached to stream setup with a deduplication window and using the `ackSync` to acknowledge messages.  The guarantee is only valid for the duration of the deduplication window. 
-
-## Advanced Usage
-
-### TLS
+## Connection Security
 
 NATS supports TLS 1.2. The server can be configured to verify client certificates or not. Depending on this setting the client has several options.
 
@@ -1100,19 +1033,167 @@ Also, here are some places in the code that may help
 https://github.com/nats-io/nats.java/blob/main/src/main/java/io/nats/client/support/SSLUtils.java
 https://github.com/nats-io/nats.java/blob/main/src/test/java/io/nats/client/TestSSLUtils.java
 
+### TLS Certs
 
-### Clusters & Reconnecting
+The raw TLS test certs are in [src/test/resources/certs](src/test/resources/certs) and come from the [nats.go](https://github.com/nats-io/nats.go) repository. However, the java client also needs a keystore and truststore.jks files for creating a context. These can be created using:
 
-The Java client will automatically reconnect if it loses its connection the nats-server. If given a single server, the client will keep trying that one. If given a list of servers, the client will rotate between them. When the nats servers are in a cluster, they will tell the client about the other servers, so that in the simplest case a client could connect to one server, learn about the cluster and reconnect to another server if its initial one goes down.
-
-To tell the connection about multiple servers for the initial connection, use the `servers()` method on the options builder, or call `server()` multiple times.
-
-```Java
-String[] serverUrls = {"nats://serverOne:4222", "nats://serverTwo:4222"};
-Options o = new Options.Builder().servers(serverUrls).build();
+```bash
+> cd src/test/resources
+> keytool -keystore truststore.jks -alias CARoot -import -file certs/ca.pem -storepass password -noprompt -storetype pkcs12
+> cat certs/client-key.pem certs/client-cert.pem > combined.pem
+> openssl pkcs12 -export -in combined.pem -out cert.p12
+> keytool -importkeystore -srckeystore cert.p12 -srcstoretype pkcs12 -deststoretype pkcs12 -destkeystore keystore.jks
+> keytool -keystore keystore.jks -alias CARoot -import -file certs/ca.pem -storepass password -noprompt
+> rm cert.p12 combined.pem
 ```
 
-Reconnection behavior is controlled via a few options, see the javadoc for the Options.Builder class for specifics on reconnect limits, delays and buffers.
+### TLS Handshake First
+In Server 2.10.3 and later, there is the ability to have TLS Handshake First.
+
+The server config will contain this:
+
+```text
+tls {
+  ...
+  handshake_first: 300ms
+}
+```
+
+TLS Handshake First is used to instruct the library perform
+the TLS handshake right after the connect and before receiving
+the INFO protocol from the server. If this option is enabled
+but the server is not configured to perform the TLS handshake
+first, the connection will fail.
+
+### Reverse Proxy
+In a reverse proxy configuration, the client connects securely to the reverse proxy
+and the proxy may connect securely or insecurely to the server.
+
+If the proxy connects securely to the server,
+then there is nothing special required to do at all.
+
+But most commonly, the proxy connects insecurely to the server.
+This is where server configuration comes into play.
+You will need to configure the server like so:
+
+```
+tls {}
+allow_non_tls: true
+```
+
+Before this, the client would not connect
+because the server was not requiring tls for the proxy,
+but the client was configured as secure because it was connecting securely to the proxy.
+The client thought that this was a mismatch and would not connect,
+essentially failing fast instead of waiting for the server to reject the connection attempt.
+
+The latest version of the client is able to recognize this server configuration
+and understands that it's okay to connect securely to the proxy regardless of the
+server configuration.
+
+You just have to make sure you can properly connect securely to the proxy
+and that's where the code in this sample comes in.
+
+### NKey-based Challenge Response Authentication
+
+The NATS server is adding support for a challenge response authentication scheme based on [NKeys](https://github.com/nats-io/nkeys). Version 2.2.0 of
+the Java client supports this scheme via an AuthHandler interface. *Version 2.3.0 replaced several NKey methods that used strings with methods using char[] to improve security.*
+
+### OCSP Stapling
+The server supports OCSP stapling. To enable Java to automatically check the stapling
+when making TLS connections, you must set system properties. Please be aware that this affect the entire JVM,
+so all connections.
+
+These properties can be set from your command line or from your Java code:
+
+```
+System.setProperty("jdk.tls.client.enableStatusRequestExtension", "true");
+System.setProperty("com.sun.net.ssl.checkRevocation", "true");
+```
+
+For more information, see the Oracle Java documentation page on [Client-Driven OCSP and OCSP Stapling](https://docs.oracle.com/javase/8/docs/technotes/guides/security/jsse/ocsp.html)
+
+Also, there is a detailed [OCSP Example](https://github.com/nats-io/java-nats-examples/tree/main/ocsp) that shows how to create SSL contexts enabling OCSP stapling.
+
+### SSL/TLS Performance
+
+After recent tests we realized that TLS performance is lower than we would like. After researching the problem and possible solutions we came to a few conclusions:
+
+* TLS performance for the native JDK has not been historically great
+* TLS performance is better in JDK12 than JDK8
+* A small fix to the library in 2.5.1 allows the use of https://github.com/google/conscrypt and https://github.com/wildfly/wildfly-openssl, conscrypt provides the best performance in our tests
+* TLS still comes at a price (1gb/s vs 4gb/s in some tests), but using the JNI libraries can result in a 10x boost in our testing
+* If TLS performance is reasonable for your application we recommend using the j2se implementation for simplicity
+
+To use conscrypt or wildfly, you will need to add the appropriate jars to your class path and create an SSL context manually. This context can be passed to the Options used when creating a connection. The NATSAutoBench example provides a conscrypt flag which can be used to try out the library,  manually including the jar is required.
+
+## Version Notes
+
+### Version 2.17.2 Message Immutability Headers Bug
+
+Once a message is created, it is intended to be immutable.
+Before 2.17.2, the Headers object could be modified (via put, add, remove) after construction,
+either directly with the developer's original Headers object or from the one available via `Message.getHeaders()`.
+This will cause a protocol failure when the message is written to the server,
+because the protocol size had already been calculated.
+This calculation is done at construction time because there are multiple places in the workflow
+that rely on the protocol size, so it must not change once created.
+
+### Version 2.17.1 Support for TLS Handshake First
+
+There is a new connection Option, `tlsFirst` for "TLS Handshake First"
+See the [TLS Handshake First](#tls_handshake_first) for more details.
+
+#### Version 2.17.0: Server 2.10 support.
+The release has support for Server 2.10 features and client validation improvements including:
+
+* Stream and Consumer info timestamps
+* Stream Configuration
+    * Compression Option
+    * Subject Transform
+    * Consumer Limits
+    * First Sequence
+* [Multiple Filter Subjects](#multiple_filter_subjects)
+* [Subject and Queue Name Validation](#subject_and_queue_name_validation)
+* [Subscribe Subject Validation](#subscribe_subject_validation)
+
+### Version 2.16.14: Options properties improvements
+
+In this release, support was added to
+* support properties keys with or without the prefix 'io.nats.client.'
+* allow creation of connections requiring an AuthHandler for JWT to specify the credentials file in a properties files, instead of needing to provide an instance of AuthHandler in code.
+* allow creation of connections requiring an SSL context to specify key and trust store information in a properties files so an SSLContext can be created automatically instead of needing to provide an instance of an SSLContext in code.
+
+For details on the other features, see the "Options" sections
+
+### Version 2.16.8: Websocket Support
+
+As of version 2.16.8 Websocket (`ws` and `wss`) protocols are supported for connecting to the server.
+For instance, your server bootstrap url might be `ws://my-nats-host:80` or `wss://my-nats-host:443`.
+
+Your server must be properly configured for websocket, see the NATS.IO docs
+[WebSocket Configuration Example](https://docs.nats.io/running-a-nats-service/configuration/websocket/websocket_conf)
+for more information.
+
+If you use secure websockets (wss), your connection must be securely configured in the same way you would configure a `tls` connection.
+
+### Version 2.16.0: Consumer Create
+
+This release by default will use a new JetStream consumer create API when interacting with nats-server version 2.9.0 or higher.
+This changes the subjects used by the client to create consumers, which might in some cases require changes in access and import/export configuration.
+The developer can opt out of using this feature by using a custom JetStreamOptions and using it when creating
+JetStream, Key Value and Object Store regular and management contexts.
+
+```java
+JetStreamOptions jso = JetStreamOptions.builder().optOut290ConsumerCreate(true).build();
+
+JetStream js = connection.jetStream(jso);
+JetStreamManagement jsm = connection.jetStreamManagement(jso);
+KeyValue kv = connection.keyValue("bucket", KeyValueOptions.builder(jso).build());
+KeyValueManagement kvm = connection.keyValueManagement(KeyValueOptions.builder(jso).build());
+ObjectStore os = connection.objectStore("bucket", ObjectStoreOptions.builder(jso).build());
+ObjectStoreManagement osm = connection.objectStoreManagement(ObjectStoreOptions.builder(jso).build());
+```
 
 ## Benchmarking
 
@@ -1249,20 +1330,6 @@ The java doc is located in `build/docs` and the example jar is in `build/libs`. 
 which will create a folder called `build/reports/jacoco` containing the file `index.html` you can open and use to browse the coverage. Keep in mind we have focused on library test coverage, not coverage for the examples.
 
 Many of the tests run nats-server on a custom port. If nats-server is in your path they should just work, but in cases where it is not, or an IDE running tests has issues with the path you can specify the nats-server location with the environment variable `nats_server_path`.
-
-## TLS Certs
-
-The raw TLS test certs are in [src/test/resources/certs](src/test/resources/certs) and come from the [nats.go](https://github.com/nats-io/nats.go) repository. However, the java client also needs a keystore and truststore.jks files for creating a context. These can be created using:
-
-```bash
-> cd src/test/resources
-> keytool -keystore truststore.jks -alias CARoot -import -file certs/ca.pem -storepass password -noprompt -storetype pkcs12
-> cat certs/client-key.pem certs/client-cert.pem > combined.pem
-> openssl pkcs12 -export -in combined.pem -out cert.p12
-> keytool -importkeystore -srckeystore cert.p12 -srcstoretype pkcs12 -deststoretype pkcs12 -destkeystore keystore.jks
-> keytool -keystore keystore.jks -alias CARoot -import -file certs/ca.pem -storepass password -noprompt
-> rm cert.p12 combined.pem
-```
 
 ## License
 

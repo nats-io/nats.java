@@ -39,7 +39,7 @@ dependencies {
     implementation 'net.i2p.crypto:eddsa:0.3.0'
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.9.0'
-    testImplementation 'io.nats:jnats-server-runner:1.2.8'
+    testImplementation 'io.nats:jnats-server-runner:2.0.0'
     testImplementation 'nl.jqno.equalsverifier:equalsverifier:3.12.3'
 }
 

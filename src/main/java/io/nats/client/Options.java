@@ -1626,6 +1626,10 @@ public class Options {
             return this;
         }
 
+        /**
+         * Instruct dispatchers to dispatch all messages as a task, instead of directly from dispatcher thread
+         * @return the Builder for chaining
+         */
         public Builder useDispatcherWithExecutor() {
             this.useDispatcherWithExecutor = true;
             return this;
