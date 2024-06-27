@@ -878,7 +878,7 @@ public abstract class JsonUtils {
     @Deprecated
     public static byte[] readBytes(String json, Pattern pattern) {
         String s = readString(json, pattern, null);
-        return s == null ? null : s.getBytes(StandardCharsets.US_ASCII);
+        return s == null ? null : s.getBytes(StandardCharsets.UTF_8);
     }
 
     @Deprecated

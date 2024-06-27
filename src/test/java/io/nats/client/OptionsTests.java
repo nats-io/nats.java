@@ -349,20 +349,18 @@ public class OptionsTests {
         assertNotNull(o.getSslContext(), "property context");
     }
 
-    @SuppressWarnings("deprecation")
     @Test
-    public void testDeprecated() {
-        // supportUTF8Subjects are deprecated and always returns false
+    public void testSupportUTF8Subjects() {
         Options o = new Options.Builder().build();
         assertFalse(o.supportUTF8Subjects());
 
         o = new Options.Builder().supportUTF8Subjects().build();
-        assertFalse(o.supportUTF8Subjects());
+        assertTrue(o.supportUTF8Subjects());
 
         Properties props = new Properties();
         props.setProperty(Options.PROP_UTF8_SUBJECTS, "true");
         o = new Options.Builder(props).build();
-        assertFalse(o.supportUTF8Subjects());
+        assertTrue(o.supportUTF8Subjects());
     }
 
     @Test
