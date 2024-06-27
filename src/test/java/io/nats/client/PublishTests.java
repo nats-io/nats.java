@@ -299,7 +299,7 @@ public class PublishTests {
                     coreReceivedLatchNotSupported.countDown();
                 });
 
-                ncSupported.createDispatcher().subscribe(subject, m -> {
+                dSupported.subscribe(subject, m -> {
                     coreReceivedSubjectWhenSupported.set(m.getSubject());
                     coreReceivedLatchWhenSupported.countDown();
                 });
