@@ -21,6 +21,7 @@ import io.nats.client.utils.ResourceUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
 
 import javax.net.ssl.SSLContext;
 import java.io.BufferedWriter;
@@ -34,6 +35,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.condition.OS.WINDOWS;
 
 public class AuthTests extends TestBase {
 
@@ -86,6 +88,32 @@ public class AuthTests extends TestBase {
         Connection c = Nats.connect(options);
         c.getServerInfo();
         c.close();
+    }
+
+    @Test
+    @EnabledOnOs({ WINDOWS })
+    public void testNeedsJsonEncoding() throws Exception {
+        assertNeedsJsonEncoding("\n");
+        assertNeedsJsonEncoding("\b");
+        assertNeedsJsonEncoding("\f");
+        assertNeedsJsonEncoding("\r");
+        assertNeedsJsonEncoding("\t");
+        assertNeedsJsonEncoding("/");
+        assertNeedsJsonEncoding("" + (char)9);
+        assertNeedsJsonEncoding("\\");
+    }
+
+    private static void assertNeedsJsonEncoding(String test) throws Exception {
+        String user = "u" + test + "u";
+        String pass = "p" + test + "p";
+        String[] customArgs = {"--user", "\"" + user + "\"", "--pass", "\"" + pass + "\""};
+        try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
+            // See config file for user/pass
+            Options options = new Options.Builder().server("nats://localhost:" + ts.getPort())
+                .userInfo(user, pass)
+                .maxReconnects(0).build();
+            assertCanConnect(options);
+        }
     }
 
     @Test
