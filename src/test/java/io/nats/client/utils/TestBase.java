@@ -423,7 +423,7 @@ public class TestBase {
         return Files.createTempDirectory(variant()).toString().replace("\\", "\\\\");  // when on windows this is necessary. unix doesn't have backslash
     }
 
-    private static void cleanupJs(Connection c)
+    public static void cleanupJs(Connection c)
     {
         try {
             JetStreamManagement jsm = c.jetStreamManagement();

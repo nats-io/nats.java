@@ -192,7 +192,7 @@ public abstract class JsonValueUtils {
 
     public static byte[] readBytes(JsonValue jsonValue, String key) {
         String s = readString(jsonValue, key);
-        return s == null ? null : s.getBytes(StandardCharsets.US_ASCII);
+        return s == null ? null : s.getBytes(StandardCharsets.UTF_8);
     }
 
     public static byte[] readBase64(JsonValue jsonValue, String key) {

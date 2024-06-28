@@ -469,9 +469,7 @@ public class Options {
     public static final String PROP_TLS_FIRST = PFX + "tls.first";
     /**
      * This property is used to enable support for UTF8 subjects. See {@link Builder#supportUTF8Subjects() supportUTF8Subjects()}
-     * @deprecated only plain ascii subjects are supported
      */
-    @Deprecated
     public static final String PROP_UTF8_SUBJECTS = "allow.utf8.subjects";
     /**
      * Property used to throw {@link java.util.concurrent.TimeoutException} on timeout instead of {@link java.util.concurrent.CancellationException}.
@@ -608,6 +606,7 @@ public class Options {
     private final boolean noHeaders;
     private final boolean noNoResponders;
     private final boolean clientSideLimitChecks;
+    private final boolean supportUTF8Subjects;
     private final int maxMessagesInOutgoingQueue;
     private final boolean discardMessagesWhenOutgoingQueueFull;
     private final boolean ignoreDiscoveredServers;
@@ -721,6 +720,7 @@ public class Options {
         private boolean noHeaders = false;
         private boolean noNoResponders = false;
         private boolean clientSideLimitChecks = true;
+        private boolean supportUTF8Subjects = false;
         private String inboxPrefix = DEFAULT_INBOX_PREFIX;
         private int maxMessagesInOutgoingQueue = DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE;
         private boolean discardMessagesWhenOutgoingQueueFull = DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL;
@@ -830,6 +830,7 @@ public class Options {
             booleanProperty(props, PROP_NO_HEADERS, b -> this.noHeaders = b);
             booleanProperty(props, PROP_NO_NORESPONDERS, b -> this.noNoResponders = b);
             booleanProperty(props, PROP_CLIENT_SIDE_LIMIT_CHECKS, b -> this.clientSideLimitChecks = b);
+            booleanProperty(props, PROP_UTF8_SUBJECTS, b -> this.supportUTF8Subjects = b);
             booleanProperty(props, PROP_PEDANTIC, b -> this.pedantic = b);
 
             intProperty(props, PROP_MAX_RECONNECT, DEFAULT_MAX_RECONNECT, i -> this.maxReconnect = i);
@@ -987,11 +988,10 @@ public class Options {
          * performance reasons, the Java client defaults to ASCII. You can enable UTF8
          * with this method. The server, written in go, treats byte to string as UTF8 by default
          * and should allow UTF8 subjects, but make sure to test any clients when using them.
-         * @deprecated Plans are to remove allowing utf8mode
          * @return the Builder for chaining
          */
-        @Deprecated
         public Builder supportUTF8Subjects() {
+            this.supportUTF8Subjects = true;
             return this;
         }
 
@@ -1848,6 +1848,7 @@ public class Options {
             this.noHeaders = o.noHeaders;
             this.noNoResponders = o.noNoResponders;
             this.clientSideLimitChecks = o.clientSideLimitChecks;
+            this.supportUTF8Subjects = o.supportUTF8Subjects;
             this.inboxPrefix = o.inboxPrefix;
             this.traceConnection = o.traceConnection;
             this.maxMessagesInOutgoingQueue = o.maxMessagesInOutgoingQueue;
@@ -1910,6 +1911,7 @@ public class Options {
         this.noHeaders = b.noHeaders;
         this.noNoResponders = b.noNoResponders;
         this.clientSideLimitChecks = b.clientSideLimitChecks;
+        this.supportUTF8Subjects = b.supportUTF8Subjects;
         this.inboxPrefix = b.inboxPrefix;
         this.traceConnection = b.traceConnection;
         this.maxMessagesInOutgoingQueue = b.maxMessagesInOutgoingQueue;
@@ -2124,12 +2126,10 @@ public class Options {
     }
 
     /**
-     * @deprecated Plans are to remove allowing utf8mode
      * @return whether utf8 subjects are supported, see {@link Builder#supportUTF8Subjects() supportUTF8Subjects()} in the builder doc.
      */
-    @Deprecated
     public boolean supportUTF8Subjects() {
-        return false;
+        return supportUTF8Subjects;
     }
 
     /**

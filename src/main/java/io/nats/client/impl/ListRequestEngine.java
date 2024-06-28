@@ -49,7 +49,7 @@ class ListRequestEngine extends ApiResponse<ListRequestEngine> {
     }
 
     private byte[] noFilterJson() {
-        return (OFFSET_JSON_START + nextOffset() + "}").getBytes(StandardCharsets.US_ASCII);
+        return (OFFSET_JSON_START + nextOffset() + "}").getBytes(StandardCharsets.UTF_8);
     }
 
     byte[] internalNextJson() {
@@ -62,7 +62,7 @@ class ListRequestEngine extends ApiResponse<ListRequestEngine> {
                 return noFilterJson();
             }
             return (OFFSET_JSON_START + nextOffset()
-                    + ",\"" + fieldName + "\":\"" + filter + "\"}").getBytes(StandardCharsets.US_ASCII);
+                    + ",\"" + fieldName + "\":\"" + filter + "\"}").getBytes(StandardCharsets.UTF_8);
         }
         return null;
     }
