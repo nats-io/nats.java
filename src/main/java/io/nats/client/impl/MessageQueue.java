@@ -167,7 +167,8 @@ class MessageQueue {
             }
         }
         catch (InterruptedException e) {
-            return false;
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
         }
 
         try {
