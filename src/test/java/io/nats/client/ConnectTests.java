@@ -568,8 +568,22 @@ public class ConnectTests {
         listeners[1] = new ListenerForTesting();
         listeners[2] = new ListenerForTesting();
 
-        ThreeServerTestOptionsAppender appender = (ix, builder) ->
-            builder.connectionListener(listeners[ix]).errorListener(listeners[ix]);
+        ThreeServerTestOptions tstOpts = new ThreeServerTestOptions() {
+            @Override
+            public void append(int index, Options.Builder builder) {
+                builder.connectionListener(listeners[index]).errorListener(listeners[index]);
+            }
+
+            @Override
+            public boolean configureAccount() {
+                return true;
+            }
+
+            @Override
+            public boolean includeAllServers() {
+                return true;
+            }
+        };
 
         runInJsCluster(ConnectTests::validateRunInJsCluster);
 
@@ -577,7 +591,7 @@ public class ConnectTests {
         listeners[1] = new ListenerForTesting();
         listeners[2] = new ListenerForTesting();
 
-        runInJsCluster(true, appender, ConnectTests::validateRunInJsCluster);
+        runInJsCluster(tstOpts, ConnectTests::validateRunInJsCluster);
     }
 
     private static void validateRunInJsCluster(Connection nc1, Connection nc2, Connection nc3) throws InterruptedException {
