@@ -717,30 +717,15 @@ public class ReconnectTests {
     @Test
     public void testForceReconnect() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        ThreeServerTestOptionsAppender appender = makeOptionsAppender(listener);
-
-        runInJsCluster(appender, (nc0, nc1, nc2) -> {
-            _testForceReconnect(nc0, listener);
-        });
+        ThreeServerTestOptions tstOpts = makeThreeServerTestOptions(listener, false);
+        runInJsCluster(tstOpts, (nc0, nc1, nc2) -> _testForceReconnect(nc0, listener));
     }
 
     @Test
     public void testForceReconnectWithAccount() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        ThreeServerTestOptionsAppender appender = makeOptionsAppender(listener);
-        runInJsCluster(true, appender, (nc0, nc1, nc2) -> {
-            _testForceReconnect(nc0, listener);
-        });
-
-    }
-
-    private static ThreeServerTestOptionsAppender makeOptionsAppender(ListenerForTesting listener) {
-        ThreeServerTestOptionsAppender appender = (ix, builder) -> {
-            if (ix == 0) {
-                builder.connectionListener(listener).ignoreDiscoveredServers().noRandomize();
-            }
-        };
-        return appender;
+        ThreeServerTestOptions tstOpts = makeThreeServerTestOptions(listener, true);
+        runInJsCluster(tstOpts, (nc0, nc1, nc2) -> _testForceReconnect(nc0, listener));
     }
 
     private static void _testForceReconnect(Connection nc0, ListenerForTesting listener) throws IOException, InterruptedException {
@@ -754,6 +739,27 @@ public class ReconnectTests {
         assertNotEquals(connectedServer, si.getServerId());
         assertTrue(listener.getConnectionEvents().contains(Events.DISCONNECTED));
         assertTrue(listener.getConnectionEvents().contains(Events.RECONNECTED));
+    }
+
+    private static ThreeServerTestOptions makeThreeServerTestOptions(ListenerForTesting listener, final boolean configureAccount) {
+        return new ThreeServerTestOptions() {
+            @Override
+            public void append(int index, Options.Builder builder) {
+                if (index == 0) {
+                    builder.connectionListener(listener).ignoreDiscoveredServers().noRandomize();
+                }
+            }
+
+            @Override
+            public boolean configureAccount() {
+                return configureAccount;
+            }
+
+            @Override
+            public boolean includeAllServers() {
+                return true;
+            }
+        };
     }
 
     @Test
