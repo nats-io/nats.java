@@ -623,47 +623,86 @@ public class ObjectStoreTests extends JetStreamTestBase {
     public void testObjectStoreDomains() throws Exception {
         runInJsHubLeaf((hubNc, leafNc) -> {
             ObjectStoreManagement hubOsm = hubNc.objectStoreManagement();
+            ObjectStoreManagement leafOsm = leafNc.objectStoreManagement(ObjectStoreOptions.builder().jsDomain(HUB_DOMAIN).build());
 
             // Create main OS on HUB
-            String hubBucket = bucket();
+            String bucketName = bucket();
             ObjectStoreStatus hubStatus = hubOsm.create(ObjectStoreConfiguration.builder()
-                .name(hubBucket)
+                .name(bucketName)
                 .storageType(StorageType.Memory)
-                .replicas(1)
                 .build());
             assertEquals(0, hubStatus.getSize());
-            assertEquals(1, hubStatus.getReplicas());
 
-            ObjectStore hubOs = hubNc.objectStore(hubBucket);
-            ObjectStore leafOs = leafNc.objectStore(hubBucket, ObjectStoreOptions.builder().jsDomain(HUB_DOMAIN).build());
+            validateStatus(hubOsm, leafOsm, bucketName);
+
+            ObjectStore hubOs = hubNc.objectStore(bucketName);
+            ObjectStore leafOs = leafNc.objectStore(bucketName, ObjectStoreOptions.builder().jsDomain(HUB_DOMAIN).build());
 
             String objectName = name();
-            ObjectMeta meta = ObjectMeta.builder(objectName)
-                .chunkSize(8 * 1024)
-                .build();
+            ObjectMeta meta = ObjectMeta.builder(objectName).chunkSize(8 * 1024).build();
 
             Object[] input = getInput(4 * 8 * 1024);
             File file = (File)input[1];
+
+            // put from hub
             InputStream in = Files.newInputStream(file.toPath());
             hubOs.put(meta, in);
+            validateStatus(hubOsm, leafOsm, bucketName);
+            validateInfo(hubOs, leafOs, objectName, false);
+            validateGets(hubOs, leafOs, objectName, false);
 
-            hubStatus = hubOs.getStatus();
-            assertTrue(hubStatus.getSize() > 0);
+            // delete from leaf
+            leafOs.delete(objectName);
+            validateStatus(hubOsm, leafOsm, bucketName);
+            validateInfo(hubOs, leafOs, objectName, true);
+            validateGets(hubOs, leafOs, objectName, true);
 
-            ObjectStoreStatus leafStatus = leafOs.getStatus();
+            // put from leaf
+            in = Files.newInputStream(file.toPath());
+            leafOs.put(meta, in);
+            validateStatus(hubOsm, leafOsm, bucketName);
+            validateInfo(hubOs, leafOs, objectName, false);
+            validateGets(hubOs, leafOs, objectName, false);
 
-            assertEquals(hubStatus.getBucketName(), leafStatus.getBucketName());
-            assertEquals(hubStatus.getSize(), leafStatus.getSize());
+            // delete from hub
+            hubOs.delete(objectName);
+            validateStatus(hubOsm, leafOsm, bucketName);
+            validateInfo(hubOs, leafOs, objectName, true);
+            validateGets(hubOs, leafOs, objectName, true);
+        });
+    }
 
-            ObjectInfo hubInfo = hubOs.getInfo(objectName);
-            ObjectInfo leafInfo = leafOs.getInfo(objectName);
+    private static void validateStatus(ObjectStoreManagement hubOsm, ObjectStoreManagement leafOsm, String bucketName) throws IOException, JetStreamApiException {
+        ObjectStoreStatus hubStatus = hubOsm.getStatus(bucketName);
+        ObjectStoreStatus leafStatus = leafOsm.getStatus(bucketName);
+        assertEquals(hubStatus.getSize(), leafStatus.getSize());
+    }
 
+    private static void validateInfo(ObjectStore hubOs, ObjectStore leafOs, String objectName, boolean deleted) throws IOException, JetStreamApiException {
+        ObjectInfo hubInfo = hubOs.getInfo(objectName);
+        ObjectInfo leafInfo = leafOs.getInfo(objectName);
+        if (deleted) {
+            assertNull(hubInfo);
+            assertNull(leafInfo);
+        }
+        else {
             assertEquals(hubInfo.getNuid(), leafInfo.getNuid());
             assertEquals(hubInfo.getSize(), leafInfo.getSize());
             assertEquals(hubInfo.getObjectMeta().getObjectName(), leafInfo.getObjectMeta().getObjectName());
+        }
+    }
 
-            ByteArrayOutputStream hubOut = new ByteArrayOutputStream();
-            ByteArrayOutputStream leafOut = new ByteArrayOutputStream();
+    private static void validateGets(ObjectStore hubOs, ObjectStore leafOs, String objectName, boolean deleted) throws IOException, JetStreamApiException, InterruptedException, NoSuchAlgorithmException {
+        ByteArrayOutputStream hubOut = new ByteArrayOutputStream();
+        ByteArrayOutputStream leafOut = new ByteArrayOutputStream();
+
+        if (deleted) {
+            IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> hubOs.get(objectName, hubOut));
+            assertTrue(e.getMessage().contains("OS-90201"));
+            e = assertThrows(IllegalArgumentException.class, () -> leafOs.get(objectName, hubOut));
+            assertTrue(e.getMessage().contains("OS-90201"));
+        }
+        else {
             hubOs.get(objectName, hubOut);
             leafOs.get(objectName, leafOut);
 
@@ -671,6 +710,6 @@ public class ObjectStoreTests extends JetStreamTestBase {
             byte[] leafBytes = leafOut.toByteArray();
 
             assertArrayEquals(hubBytes, leafBytes);
-        });
+        }
     }
 }
