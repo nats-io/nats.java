@@ -90,7 +90,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
 
     private ObjectInfo publishMeta(ObjectInfo info) throws IOException, JetStreamApiException {
         js.publish(NatsMessage.builder()
-            .subject(pubSubMetaSubject(info.getObjectName()))
+            .subject(rawMetaSubject(info.getObjectName()))
             .headers(getMetaHeaders())
             .data(info.serialize())
             .build()
@@ -111,7 +111,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
         }
 
         String nuid = NUID.nextGlobal();
-        String chunkSubject = pubSubChunkSubject(nuid);
+        String chunkSubject = rawChunkSubject(nuid);
 
         int chunkSize = meta.getObjectMetaOptions().getChunkSize();
         if (chunkSize <= 0) {
