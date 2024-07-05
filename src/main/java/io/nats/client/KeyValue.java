@@ -257,12 +257,18 @@ public interface KeyValue {
      */
     List<String> keys() throws IOException, JetStreamApiException, InterruptedException;
 
+    List<String> keys(String filter) throws IOException, JetStreamApiException, InterruptedException;
+
+    List<String> keys(List<String> filters) throws IOException, JetStreamApiException, InterruptedException;
+
     /**
      * Get a list of keys in the bucket through a LinkedBlockingQueue.
      * A KeyResult with isDone being true or an exception signifies there are no
      * @return the LinkedBlockingQueue from which to poll
      */
     LinkedBlockingQueue<KeyResult> consumeKeys();
+    LinkedBlockingQueue<KeyResult> consumeKeys(String filter);
+    LinkedBlockingQueue<KeyResult> consumeKeys(List<String> filters);
 
     /**
      * Get the history (list of KeyValueEntry) for a key

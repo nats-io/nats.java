@@ -25,11 +25,10 @@ import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonValueUtils.*;
+import static io.nats.client.support.NatsJetStreamConstants.DEFAULT_FILTER_SUBJECT;
 import static io.nats.client.support.Validator.emptyAsNull;
 
 public class OrderedConsumerConfiguration implements JsonSerializable {
-
-    public static String DEFAULT_FILTER_SUBJECT = ">";
 
     private final List<String> filterSubjects;
     private DeliverPolicy deliverPolicy;

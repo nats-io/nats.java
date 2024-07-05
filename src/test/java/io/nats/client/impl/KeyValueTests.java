@@ -38,9 +38,9 @@ public class KeyValueTests extends JetStreamTestBase {
     public void testWorkflow() throws Exception {
         long now = ZonedDateTime.now().toEpochSecond();
 
-        String byteKey = "byteKey" + variant();
-        String stringKey = "stringKey" + variant();
-        String longKey = "longKey" + variant();
+        String byteKey = "key.byte" + variant();
+        String stringKey = "key.string" + variant();
+        String longKey = "key.long" + variant();
         String notFoundKey = "notFound" + variant();
         String byteValue1 = "Byte Value 1";
         String byteValue2 = "Byte Value 2";
@@ -202,9 +202,15 @@ public class KeyValueTests extends JetStreamTestBase {
             status = kvm.getStatus(bucket);
             assertState(status, 8, 9);
 
-            // should have exactly these 3 keys
             assertKeys(kv.keys(), byteKey, stringKey, longKey);
+            assertKeys(kv.keys("key.>"), byteKey, stringKey, longKey);
+            assertKeys(kv.keys(byteKey), byteKey);
+            assertKeys(kv.keys(Arrays.asList(longKey, stringKey)), longKey, stringKey);
+
             assertKeys(getKeysFromQueue(kv.consumeKeys()), byteKey, stringKey, longKey);
+            assertKeys(getKeysFromQueue(kv.consumeKeys("key.>")), byteKey, stringKey, longKey);
+            assertKeys(getKeysFromQueue(kv.consumeKeys(byteKey)), byteKey);
+            assertKeys(getKeysFromQueue(kv.consumeKeys(Arrays.asList(longKey, stringKey))), longKey, stringKey);
 
             // purge
             kv.purge(longKey);
