@@ -38,9 +38,9 @@ public class KeyValueTests extends JetStreamTestBase {
     public void testWorkflow() throws Exception {
         long now = ZonedDateTime.now().toEpochSecond();
 
-        String byteKey = "byteKey" + variant();
-        String stringKey = "stringKey" + variant();
-        String longKey = "longKey" + variant();
+        String byteKey = "key.byte" + variant();
+        String stringKey = "key.string" + variant();
+        String longKey = "key.long" + variant();
         String notFoundKey = "notFound" + variant();
         String byteValue1 = "Byte Value 1";
         String byteValue2 = "Byte Value 2";
@@ -202,9 +202,15 @@ public class KeyValueTests extends JetStreamTestBase {
             status = kvm.getStatus(bucket);
             assertState(status, 8, 9);
 
-            // should have exactly these 3 keys
             assertKeys(kv.keys(), byteKey, stringKey, longKey);
+            assertKeys(kv.keys("key.>"), byteKey, stringKey, longKey);
+            assertKeys(kv.keys(byteKey), byteKey);
+            assertKeys(kv.keys(Arrays.asList(longKey, stringKey)), longKey, stringKey);
+
             assertKeys(getKeysFromQueue(kv.consumeKeys()), byteKey, stringKey, longKey);
+            assertKeys(getKeysFromQueue(kv.consumeKeys("key.>")), byteKey, stringKey, longKey);
+            assertKeys(getKeysFromQueue(kv.consumeKeys(byteKey)), byteKey);
+            assertKeys(getKeysFromQueue(kv.consumeKeys(Arrays.asList(longKey, stringKey))), longKey, stringKey);
 
             // purge
             kv.purge(longKey);
@@ -1645,4 +1651,26 @@ public class KeyValueTests extends JetStreamTestBase {
 //            assertNull(kv2.get(key2));
         });
     }
+
+
+    @Test
+    public void testSubjectFiltersAgainst209OptOut() throws Exception {
+        jsServer.run(nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+
+            String bucket = bucket();
+            kvm.create(KeyValueConfiguration.builder()
+                .name(bucket)
+                .storageType(StorageType.Memory)
+                .build());
+
+            JetStreamOptions jso = JetStreamOptions.builder().optOut290ConsumerCreate(true).build();
+            KeyValueOptions kvo = KeyValueOptions.builder().jetStreamOptions(jso).build();
+            KeyValue kv = nc.keyValue(bucket, kvo);
+            kv.put("one", 1);
+            kv.put("two", 2);
+            assertKeys(kv.keys(Arrays.asList("one", "two")), "one", "two");
+        });
+    }
 }
+

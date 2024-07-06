@@ -258,11 +258,53 @@ public interface KeyValue {
     List<String> keys() throws IOException, JetStreamApiException, InterruptedException;
 
     /**
+     * Get a list of the keys in a bucket filtered by a
+     * subject-like string, for instance "key" or "key.foo.*" or "key.&gt;"
+     * @param filter the subject like key filter
+     * @return List of keys
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws InterruptedException if the thread is interrupted
+     */
+    List<String> keys(String filter) throws IOException, JetStreamApiException, InterruptedException;
+
+    /**
+     * Get a list of the keys in a bucket filtered by
+     * subject-like strings, for instance "aaa.*", "bbb.*;"
+     * @param filters the subject like key filters
+     * @return List of keys
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws InterruptedException if the thread is interrupted
+     */
+    List<String> keys(List<String> filters) throws IOException, JetStreamApiException, InterruptedException;
+
+    /**
      * Get a list of keys in the bucket through a LinkedBlockingQueue.
-     * A KeyResult with isDone being true or an exception signifies there are no
+     * A KeyResult with isDone being true or an exception signifies there are no more keys
      * @return the LinkedBlockingQueue from which to poll
      */
     LinkedBlockingQueue<KeyResult> consumeKeys();
+
+    /**
+     * Get a list of keys in the bucket through a LinkedBlockingQueue filtered by a
+     * subject-like string, for instance "key" or "key.foo.*" or "key.&gt;"
+     * A KeyResult with isDone being true or an exception signifies there are no more keys
+     * @param filter the subject like key filter
+     * @return the LinkedBlockingQueue from which to poll
+     */
+    LinkedBlockingQueue<KeyResult> consumeKeys(String filter);
+
+    /**
+     * Get a list of keys in the bucket through a LinkedBlockingQueue filtered by
+     * subject-like strings, for instance "aaa.*", "bbb.*;"
+     * A KeyResult with isDone being true or an exception signifies there are no more keys
+     * @param filters the subject like key filters
+     * @return the LinkedBlockingQueue from which to poll
+     */
+    LinkedBlockingQueue<KeyResult> consumeKeys(List<String> filters);
 
     /**
      * Get the history (list of KeyValueEntry) for a key
