@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static io.nats.client.support.NatsConstants.GREATER_THAN;
 import static io.nats.client.support.NatsJetStreamClientError.*;
 import static io.nats.client.support.NatsObjectStoreUtil.*;
 
@@ -73,7 +74,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
     }
 
     String rawAllMetaSubject() {
-        return rawMetaPrefix + ">";
+        return rawMetaPrefix + GREATER_THAN;
     }
 
     String pubSubMetaSubject(String name) {

@@ -18,6 +18,7 @@ import io.nats.client.support.JsonSerializable;
 import static io.nats.client.support.ApiConstants.DELETED_DETAILS;
 import static io.nats.client.support.ApiConstants.SUBJECTS_FILTER;
 import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.NatsConstants.GREATER_THAN;
 import static io.nats.client.support.Validator.emptyAsNull;
 
 /**
@@ -110,7 +111,7 @@ public class StreamInfoOptions implements JsonSerializable {
          * @return the builder
          */
         public Builder allSubjects() {
-            this.subjectsFilter = ">";
+            this.subjectsFilter = GREATER_THAN;
             return this;
         }
 

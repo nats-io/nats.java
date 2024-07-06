@@ -38,7 +38,7 @@ public interface NatsConstants {
     String EMPTY = "";
     String CRLF = "\r\n";
     String DOT = ".";
-    String GT = ">";
+    String GREATER_THAN = ">";
     String STAR = "*";
 
     byte TAB = '\t';

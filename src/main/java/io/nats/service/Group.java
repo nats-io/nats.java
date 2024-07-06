@@ -18,6 +18,7 @@ import io.nats.client.support.Validator;
 import java.util.Objects;
 
 import static io.nats.client.support.NatsConstants.DOT;
+import static io.nats.client.support.NatsConstants.GREATER_THAN;
 import static io.nats.client.support.Validator.emptyAsNull;
 
 /**
@@ -38,7 +39,7 @@ public class Group {
             throw new IllegalArgumentException("Group name cannot be null or empty.");
         }
 
-        if (name.contains(">")) {
+        if (name.contains(GREATER_THAN)) {
             throw new IllegalArgumentException("Group name cannot contain '>'.");
         }
 
