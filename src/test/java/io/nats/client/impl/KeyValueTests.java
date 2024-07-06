@@ -1651,4 +1651,26 @@ public class KeyValueTests extends JetStreamTestBase {
 //            assertNull(kv2.get(key2));
         });
     }
+
+
+    @Test
+    public void testSubjectFiltersAgainst209OptOut() throws Exception {
+        jsServer.run(nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+
+            String bucket = bucket();
+            kvm.create(KeyValueConfiguration.builder()
+                .name(bucket)
+                .storageType(StorageType.Memory)
+                .build());
+
+            JetStreamOptions jso = JetStreamOptions.builder().optOut290ConsumerCreate(true).build();
+            KeyValueOptions kvo = KeyValueOptions.builder().jetStreamOptions(jso).build();
+            KeyValue kv = nc.keyValue(bucket, kvo);
+            kv.put("one", 1);
+            kv.put("two", 2);
+            assertKeys(kv.keys(Arrays.asList("one", "two")), "one", "two");
+        });
+    }
 }
+
