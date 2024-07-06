@@ -30,7 +30,9 @@ import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import static io.nats.client.support.NatsConstants.DOT;
-import static io.nats.client.support.NatsJetStreamConstants.*;
+import static io.nats.client.support.NatsConstants.GREATER_THAN;
+import static io.nats.client.support.NatsJetStreamConstants.EXPECTED_LAST_SUB_SEQ_HDR;
+import static io.nats.client.support.NatsJetStreamConstants.JS_WRONG_LAST_SEQUENCE;
 import static io.nats.client.support.NatsKeyValueUtil.*;
 import static io.nats.client.support.Validator.*;
 
@@ -266,12 +268,12 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
 
     @Override
     public NatsKeyValueWatchSubscription watchAll(KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
-        return new NatsKeyValueWatchSubscription(this, Collections.singletonList(">"), watcher, -1, watchOptions);
+        return new NatsKeyValueWatchSubscription(this, Collections.singletonList(GREATER_THAN), watcher, -1, watchOptions);
     }
 
     @Override
     public NatsKeyValueWatchSubscription watchAll(KeyValueWatcher watcher, long fromRevision, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
-        return new NatsKeyValueWatchSubscription(this, Collections.singletonList(">"), watcher, fromRevision, watchOptions);
+        return new NatsKeyValueWatchSubscription(this, Collections.singletonList(GREATER_THAN), watcher, fromRevision, watchOptions);
     }
 
     /**
@@ -279,7 +281,7 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
      */
     @Override
     public List<String> keys() throws IOException, JetStreamApiException, InterruptedException {
-        return _keys(Collections.singletonList(readSubject(DEFAULT_FILTER_SUBJECT)));
+        return _keys(Collections.singletonList(readSubject(GREATER_THAN)));
     }
 
     @Override
@@ -312,7 +314,7 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
      */
     @Override
     public LinkedBlockingQueue<KeyResult> consumeKeys() {
-        return _consumeKeys(Collections.singletonList(readSubject(DEFAULT_FILTER_SUBJECT)));
+        return _consumeKeys(Collections.singletonList(readSubject(GREATER_THAN)));
     }
 
     @Override
