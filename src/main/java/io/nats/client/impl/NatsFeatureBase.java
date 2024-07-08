@@ -79,14 +79,8 @@ public class NatsFeatureBase {
         ConsumerConfiguration.Builder ccb = ConsumerConfiguration.builder()
             .ackPolicy(AckPolicy.None)
             .deliverPolicy(deliverPolicy)
-            .headersOnly(headersOnly);
-
-        if (subjects.size() == 1) {
-            ccb.filterSubject(subjects.get(0));
-        }
-        else {
-            ccb.filterSubjects(subjects);
-        }
+            .headersOnly(headersOnly)
+            .filterSubjects(subjects);
 
         PushSubscribeOptions pso = PushSubscribeOptions.builder()
             .stream(streamName)
