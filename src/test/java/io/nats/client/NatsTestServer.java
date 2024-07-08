@@ -13,9 +13,9 @@
 
 package io.nats.client;
 
-import nats.io.ConsoleOutput;
-import nats.io.NatsRunnerUtils;
-import nats.io.NatsServerRunner;
+import io.nats.ConsoleOutput;
+import io.nats.NatsRunnerUtils;
+import io.nats.NatsServerRunner;
 
 import java.io.IOException;
 import java.util.logging.Level;

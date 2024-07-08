@@ -124,6 +124,14 @@ public abstract class Validator {
         });
     }
 
+    public static List<String> validateKvKeysWildcardAllowedRequired(List<String> keys) {
+        required(keys, "Key");
+        for (String key : keys) {
+            validateWildcardKvKey(key, "Key", true);
+        }
+        return keys;
+    }
+
     public static String validateKvKeyWildcardAllowedRequired(String s) {
         return validateWildcardKvKey(s, "Key", true);
     }
@@ -307,12 +315,20 @@ public abstract class Validator {
         return validateGtZeroOrMinus1(max, "Max Bucket Bytes"); // max bucket bytes is a kv alias to max bytes
     }
 
+    private static long validateMaxMessageSize(long max, String label) {
+        long l = validateGtZeroOrMinus1(max, label);
+        if (l > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException(label + " cannot be larger than " + Integer.MAX_VALUE);
+        }
+        return l;
+    }
+
     public static long validateMaxMessageSize(long max) {
-        return validateGtZeroOrMinus1(max, "Max Message Size");
+        return validateMaxMessageSize(max, "Max Message Size");
     }
 
     public static long validateMaxValueSize(long max) {
-        return validateGtZeroOrMinus1(max, "Max Value Size"); // max value size is a kv alias to max message size
+        return validateMaxMessageSize(max, "Max Value Size"); // max value size is a kv alias to max message size
     }
 
     public static int validateNumberOfReplicas(int replicas) {

@@ -14,12 +14,22 @@
 package io.nats.client;
 
 import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.support.JsonParseException;
+import io.nats.client.support.JsonParser;
+import io.nats.client.support.JsonSerializable;
+import io.nats.client.support.JsonValue;
+
+import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonValueUtils.readBoolean;
+import static io.nats.client.support.JsonValueUtils.readInteger;
+import static io.nats.client.support.JsonValueUtils.readLong;
 
 /**
  * Base Consume Options are provided to customize the way the consume and
  * fetch operate. It is the base class for ConsumeOptions and FetchConsumeOptions.
  */
-public class BaseConsumeOptions {
+public class BaseConsumeOptions implements JsonSerializable {
     public static final int DEFAULT_MESSAGE_COUNT = 500;
     public static final int DEFAULT_MESSAGE_COUNT_WHEN_BYTES = 1_000_000;
     public static final int DEFAULT_THRESHOLD_PERCENT = 25;
@@ -47,11 +57,32 @@ public class BaseConsumeOptions {
 
         // validation handled in builder
         thresholdPercent = b.thresholdPercent;
-        expiresIn = b.expiresIn;
         noWait = b.noWait;
+
+        // if it's not noWait, it must have an expiresIn
+        // we can't check this in the builder because we can't guarantee order
+        // so we always default to LONG_UNSET in the builder and check it here.
+        if (b.expiresIn == ConsumerConfiguration.LONG_UNSET && !noWait) {
+            expiresIn = DEFAULT_EXPIRES_IN_MILLIS;
+        }
+        else {
+            expiresIn = b.expiresIn;
+        }
 
         // calculated
         idleHeartbeat = Math.min(MAX_HEARTBEAT_MILLIS, expiresIn * MAX_IDLE_HEARTBEAT_PERCENT / 100);
+    }
+
+    @Override
+    public String toJson() {
+        StringBuilder sb = beginJson();
+        addField(sb, MESSAGES, messages);
+        addField(sb, BYTES, bytes);
+        addField(sb, EXPIRES_IN, expiresIn);
+        addField(sb, IDLE_HEARTBEAT, idleHeartbeat);
+        addField(sb, THRESHOLD_PERCENT, thresholdPercent);
+        addFldWhenTrue(sb, NO_WAIT, noWait);
+        return endJson(sb).toString();
     }
 
     public long getExpiresInMillis() {
@@ -66,6 +97,10 @@ public class BaseConsumeOptions {
         return thresholdPercent;
     }
 
+    public boolean isNoWait() {
+        return noWait;
+    }
+
     protected static abstract class Builder<B, CO> {
         protected int messages = -1;
         protected long bytes = 0;
@@ -74,6 +109,36 @@ public class BaseConsumeOptions {
         protected boolean noWait = false;
 
         protected abstract B getThis();
+
+        protected B noWait() {
+            return getThis();
+        }
+
+        /**
+         * Initialize values from the json string.
+         * @param json the json string to parse
+         * @return the builder
+         * @throws JsonParseException if the json is invalid
+         */
+        public B json(String json) throws JsonParseException {
+            return jsonValue(JsonParser.parse(json));
+        }
+
+        /**
+         * Initialize values from the JsonValue object.
+         * @param jsonValue the json value object
+         * @return the builder
+         */
+        public B jsonValue(JsonValue jsonValue) {
+            messages(readInteger(jsonValue, MESSAGES, -1));
+            bytes(readLong(jsonValue, BYTES, -1));
+            expiresIn(readLong(jsonValue, EXPIRES_IN, MIN_EXPIRES_MILLS));
+            thresholdPercent(readInteger(jsonValue, THRESHOLD_PERCENT, -1));
+            if (readBoolean(jsonValue, NO_WAIT, false)) {
+                noWait();
+            }
+            return getThis();
+        }
 
         protected B messages(int messages) {
             this.messages = messages < 1 ? -1 : messages;
@@ -96,12 +161,7 @@ public class BaseConsumeOptions {
          */
         public B expiresIn(long expiresInMillis) {
             if (expiresInMillis < 1) { // this is way to clear or reset, just a code guard really
-                if (noWait) {
-                    expiresIn = ConsumerConfiguration.LONG_UNSET;
-                }
-                else {
-                    expiresIn = DEFAULT_EXPIRES_IN_MILLIS;
-                }
+                expiresIn = ConsumerConfiguration.LONG_UNSET;
             }
             else if (expiresInMillis < MIN_EXPIRES_MILLS) {
                 throw new IllegalArgumentException("Expires must be greater than or equal to " + MIN_EXPIRES_MILLS);

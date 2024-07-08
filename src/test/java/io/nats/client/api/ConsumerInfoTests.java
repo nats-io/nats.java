@@ -32,7 +32,7 @@ public class ConsumerInfoTests {
     public void testConsumerInfo() {
         ConsumerInfo ci = new ConsumerInfo(vConsumerInfo);
         assertEquals("foo-stream", ci.getStreamName());
-        assertEquals("foo-consumer", ci.getName());
+        assertEquals("foo-name", ci.getName());
         assertEquals(DateTimeUtils.parseDateTime("2020-11-05T19:33:21.163377Z"), ci.getCreationTime());
         assertEquals(DateTimeUtils.parseDateTime("2023-08-29T19:33:21.163377Z"), ci.getTimestamp());
 
@@ -64,7 +64,7 @@ public class ConsumerInfoTests {
         assertEquals(Duration.ofSeconds(20), ci.getPauseRemaining());
 
         ConsumerConfiguration c = ci.getConsumerConfiguration();
-        assertEquals("foo-consumer", c.getDurable());
+        assertEquals("foo-name", c.getDurable());
         assertEquals("bar", c.getDeliverSubject());
         assertEquals(DeliverPolicy.All, c.getDeliverPolicy());
         assertEquals(AckPolicy.All, c.getAckPolicy());

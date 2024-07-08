@@ -18,13 +18,13 @@ import io.nats.client.utils.ResourceUtils;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 
+import static io.nats.client.support.Encoding.base64UrlEncodeToString;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ServerInfoTests {
     static byte[] nonce = "abcdefg".getBytes(StandardCharsets.UTF_8);
-    static String encoded = Base64.getUrlEncoder().withoutPadding().encodeToString(nonce);
+    static String encoded = base64UrlEncodeToString(nonce);
     static String json = ResourceUtils.dataAsString("ServerInfoJson.txt").replace("<encoded>", encoded);
 
     @Test
@@ -40,6 +40,7 @@ public class ServerInfoTests {
         assertEquals(7777, info.getPort());
         assertTrue(info.isAuthRequired());
         assertTrue(info.isTLSRequired());
+        assertTrue(info.isTLSAvailable());
         assertTrue(info.isHeadersSupported());
         assertEquals(100_000_000_000L, info.getMaxPayload());
         assertEquals(1, info.getProtocolVersion());

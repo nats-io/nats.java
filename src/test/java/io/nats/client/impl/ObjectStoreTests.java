@@ -54,8 +54,8 @@ public class ObjectStoreTests extends JetStreamTestBase {
                 .build();
 
             ObjectStoreStatus status = osm.create(osc);
-            validateStatus(status, bucket, desc, metadata);
-            validateStatus(osm.getStatus(bucket), bucket, desc, metadata);
+            validateStatus(status, bucket, desc);
+            validateStatus(osm.getStatus(bucket), bucket, desc);
 
             JetStreamManagement jsm = nc.jetStreamManagement();
             assertNotNull(jsm.getStreamInfo("OBJ_" + bucket));
@@ -68,7 +68,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
             ObjectStore os = nc.objectStore(bucket);
             nc.objectStore(bucket, ObjectStoreOptions.builder(DEFAULT_JS_OPTIONS).build()); // coverage;
 
-            validateStatus(os.getStatus(), bucket, desc, metadata);
+            validateStatus(os.getStatus(), bucket, desc);
 
             // object not found errors
             assertClientError(OsObjectNotFound, () -> os.get("notFound", new ByteArrayOutputStream()));
@@ -159,7 +159,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
         });
     }
 
-    private static void validateStatus(ObjectStoreStatus status, String bucket, String desc, Map<String, String> metadata) {
+    private static void validateStatus(ObjectStoreStatus status, String bucket, String desc) {
         assertEquals(bucket, status.getBucketName());
         assertEquals(desc, status.getDescription());
         assertFalse(status.isSealed());
@@ -225,11 +225,11 @@ public class ObjectStoreTests extends JetStreamTestBase {
     }
 
     @SuppressWarnings("SameParameterValue")
-    private static Object[] getInput(int size) throws IOException {
+    private static Object[] getInput(int size) {
         File found = null;
         long foundLen = Long.MAX_VALUE;
         final String classPath = System.getProperty("java.class.path", ".");
-        final String[] classPathElements = classPath.split(System.getProperty("path.separator"));
+        final String[] classPathElements = classPath.split(File.pathSeparator);
         for(final String element : classPathElements){
             File f = new File(element);
             if (f.isFile()) {
@@ -616,6 +616,100 @@ public class ObjectStoreTests extends JetStreamTestBase {
                 assertEquals(CHUNKS, oi.getChunks());
                 assertEquals(SIZE, oi.getSize());
             }
+        }
+    }
+
+    @Test
+    public void testObjectStoreDomains() throws Exception {
+        runInJsHubLeaf((hubNc, leafNc) -> {
+            ObjectStoreManagement hubOsm = hubNc.objectStoreManagement();
+            ObjectStoreManagement leafOsm = leafNc.objectStoreManagement(ObjectStoreOptions.builder().jsDomain(HUB_DOMAIN).build());
+
+            // Create main OS on HUB
+            String bucketName = bucket();
+            ObjectStoreStatus hubStatus = hubOsm.create(ObjectStoreConfiguration.builder()
+                .name(bucketName)
+                .storageType(StorageType.Memory)
+                .build());
+            assertEquals(0, hubStatus.getSize());
+
+            validateStatus(hubOsm, leafOsm, bucketName);
+
+            ObjectStore hubOs = hubNc.objectStore(bucketName);
+            ObjectStore leafOs = leafNc.objectStore(bucketName, ObjectStoreOptions.builder().jsDomain(HUB_DOMAIN).build());
+
+            String objectName = name();
+            ObjectMeta meta = ObjectMeta.builder(objectName).chunkSize(8 * 1024).build();
+
+            Object[] input = getInput(4 * 8 * 1024);
+            File file = (File)input[1];
+
+            // put from hub
+            InputStream in = Files.newInputStream(file.toPath());
+            hubOs.put(meta, in);
+            validateStatus(hubOsm, leafOsm, bucketName);
+            validateInfo(hubOs, leafOs, objectName, false);
+            validateGets(hubOs, leafOs, objectName, false);
+
+            // delete from leaf
+            leafOs.delete(objectName);
+            validateStatus(hubOsm, leafOsm, bucketName);
+            validateInfo(hubOs, leafOs, objectName, true);
+            validateGets(hubOs, leafOs, objectName, true);
+
+            // put from leaf
+            in = Files.newInputStream(file.toPath());
+            leafOs.put(meta, in);
+            validateStatus(hubOsm, leafOsm, bucketName);
+            validateInfo(hubOs, leafOs, objectName, false);
+            validateGets(hubOs, leafOs, objectName, false);
+
+            // delete from hub
+            hubOs.delete(objectName);
+            validateStatus(hubOsm, leafOsm, bucketName);
+            validateInfo(hubOs, leafOs, objectName, true);
+            validateGets(hubOs, leafOs, objectName, true);
+        });
+    }
+
+    private static void validateStatus(ObjectStoreManagement hubOsm, ObjectStoreManagement leafOsm, String bucketName) throws IOException, JetStreamApiException {
+        ObjectStoreStatus hubStatus = hubOsm.getStatus(bucketName);
+        ObjectStoreStatus leafStatus = leafOsm.getStatus(bucketName);
+        assertEquals(hubStatus.getSize(), leafStatus.getSize());
+    }
+
+    private static void validateInfo(ObjectStore hubOs, ObjectStore leafOs, String objectName, boolean deleted) throws IOException, JetStreamApiException {
+        ObjectInfo hubInfo = hubOs.getInfo(objectName);
+        ObjectInfo leafInfo = leafOs.getInfo(objectName);
+        if (deleted) {
+            assertNull(hubInfo);
+            assertNull(leafInfo);
+        }
+        else {
+            assertEquals(hubInfo.getNuid(), leafInfo.getNuid());
+            assertEquals(hubInfo.getSize(), leafInfo.getSize());
+            assertEquals(hubInfo.getObjectMeta().getObjectName(), leafInfo.getObjectMeta().getObjectName());
+        }
+    }
+
+    private static void validateGets(ObjectStore hubOs, ObjectStore leafOs, String objectName, boolean deleted) throws IOException, JetStreamApiException, InterruptedException, NoSuchAlgorithmException {
+        ByteArrayOutputStream hubOut = new ByteArrayOutputStream();
+        ByteArrayOutputStream leafOut = new ByteArrayOutputStream();
+
+        if (deleted) {
+            IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> hubOs.get(objectName, hubOut));
+            assertTrue(e.getMessage().contains("OS-90201"));
+            e = assertThrows(IllegalArgumentException.class, () -> leafOs.get(objectName, hubOut));
+            assertTrue(e.getMessage().contains("OS-90201"));
+        }
+        else {
+            hubOs.get(objectName, hubOut);
+            leafOs.get(objectName, leafOut);
+
+            byte[] hubBytes = hubOut.toByteArray();
+            byte[] leafBytes = leafOut.toByteArray();
+
+            assertArrayEquals(hubBytes, leafBytes);
         }
     }
 }

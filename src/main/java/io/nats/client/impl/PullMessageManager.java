@@ -161,7 +161,10 @@ class PullMessageManager extends MessageManager {
             case CONFLICT_CODE:
                 // sometimes just a warning
                 String statMsg = status.getMessage();
-                if (statMsg.startsWith("Exceeded Max")) {
+                if (statMsg.startsWith("Exceeded Max")
+                    || statMsg.equals(SERVER_SHUTDOWN)
+                    || statMsg.equals(LEADERSHIP_CHANGE)
+                ) {
                     if (raiseStatusWarnings) {
                         conn.executeCallback((c, el) -> el.pullStatusWarning(c, sub, status));
                     }
@@ -169,15 +172,15 @@ class PullMessageManager extends MessageManager {
                 }
 
                 if (statMsg.equals(BATCH_COMPLETED) ||
-                    statMsg.equals(MESSAGE_SIZE_EXCEEDS_MAX_BYTES) ||
-                    statMsg.equals(SERVER_SHUTDOWN))
+                    statMsg.equals(MESSAGE_SIZE_EXCEEDS_MAX_BYTES))
                 {
                     return STATUS_TERMINUS;
                 }
                 break;
         }
 
-        // all others are errors
+        // All unknown 409s are errors, since that basically means the client is not aware of them.
+        // These known ones are also errors: "Consumer Deleted" and "Consumer is push based"
         conn.executeCallback((c, el) -> el.pullStatusError(c, sub, status));
         return STATUS_ERROR;
     }

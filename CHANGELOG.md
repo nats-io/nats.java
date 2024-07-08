@@ -1,5 +1,99 @@
 # Change Log
 
+## 2.19.1
+
+### Core
+* [Bug] Maximum Message Size accepted a long, but should accept an int #1161 @scottf
+* [Bug] Poison pill comparison was failing #1162 @scottf
+* Augmented force reconnect #1165 @scottf
+
+### Object Store
+* Object Store use over leaf-hub domain #1160 @scottf
+
+### Misc
+* Serialization changed, fixed javadocs #1159 @scottf
+
+## 2.19.0
+### Core
+Improve socket close behavior #1155 @scottf
+
+### Tests
+Additional NKey Tests #1154 @scottf
+
+### Misc
+Experimental Retrier utility removed to its own project/repo #1153 @scottf
+
+## 2.18.1
+#### Core
+* General Retry Functionality #1145 @scottf
+* Cluster string in Placement is optional. #1150 @scottf
+* Remove duplicate reconnect event #1151 @scottf
+
+#### JetStream
+* Support 409 Leadership Change #1144 @scottf
+
+#### Doc
+* Update docs and comments (MessageQueue, forceReconnect) #1142 @scottf
+
+
+## 2.18.0 / 2.17.7
+
+2.18.0 and 2.17.7 are identical.
+
+2.18.0 attempts to start us on the road to properly [Semantic Version (semver)](https://semver.org/). In the last few patch releases, changes that should have been exposed via a minor version bump were numbered as a patch.
+
+Even if just one api is newly added, semver requires that we bump the minor version. The `forceReconnect` api is an example of one api being added to the Connection interface. It should have resulted in a minor version bump.
+
+Going forward, when a release contains only bug fixes, it's appropriate to simply bump the patch. But if an api is added, even one, then the minor version will be bumped.
+
+
+#### Core
+* Revert headers from being read-only upon message creation #1123 @scottf
+* tls_available support #1127 @scottf
+* Revisit Write Timeout Handling #1128 @scottf
+* Remove rethrowable runtime exception during connection #1137 @ajax-surovskyi-y
+
+#### JetStream
+* Fix #1125 NatsJetStreamMetaData timestamp timezone #1126 @mrmx
+
+#### Doc
+* Update Readme with links to docs and examples. #1119 @scottf
+
+#### Misc
+* Refactor Encoding util for easier replacement of Base64 encoding class #1121 @scottf
+
+
+
+## 2.17.6 / 2.17.5
+
+2.17.6 was released immediately after 2.17.5. The allowing of a comma delimited list of keys was removed. 
+This is noted since it was technically available for several hours even though it was never publicly announced,
+and will be considered a bug fix.
+
+#### Core
+* Log connect trace server uri when reconnecting #1106 @photizzo
+* Ensure NatsConnection inboxDispatcher is started prior to publishing messages #1109 @nathanschile
+
+#### JetStream
+* Add support for Consumer Create Action #1108 @scottf
+
+#### KV
+* KV Watch Multiple Filters #1113 @scottf
+* KV Watch Multiple Filters Additional Test #1114 @scottf
+* KV Watch Multiple Filters remove comma delimited support #1117
+
+### Simplification
+
+#### Test
+* Testing Cleanup Only - No Functionality Changes #1110 @scottf
+* Don't run testAddStreamInvalids with server older than 2.10 #1111 @scottf
+
+#### Doc
+* Added graalvm setup example #1112 @YunaBraska
+* Graalvm readme touch-up #1115 @scottf
+
+#### Misc
+
 ## 2.17.4
 
 #### Core

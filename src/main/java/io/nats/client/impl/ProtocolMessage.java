@@ -16,18 +16,27 @@ package io.nats.client.impl;
 import io.nats.client.support.ByteArrayBuilder;
 
 // ----------------------------------------------------------------------------------------------------
-// Protocol message is a special version of a NatsMessage
+// Protocol message is a special version of a NatsPublishableMessage extends NatsMessage
 // ----------------------------------------------------------------------------------------------------
-class ProtocolMessage extends NatsMessage {
+class ProtocolMessage extends NatsPublishableMessage {
     private static final ByteArrayBuilder EMPTY_BAB = new ByteArrayBuilder();
 
     ProtocolMessage(ByteArrayBuilder babProtocol) {
+        super(false);
         protocolBab = babProtocol;
         sizeInBytes = controlLineLength = protocolBab.length() + 2; // CRLF, protocol doesn't have data
     }
 
     ProtocolMessage(byte[] protocol) {
-        this(protocol == null ? EMPTY_BAB : new ByteArrayBuilder(protocol));
+        super(false);
+        protocolBab = new ByteArrayBuilder(protocol);
+        sizeInBytes = controlLineLength = protocolBab.length() + 2; // CRLF, protocol doesn't have data
+    }
+
+    ProtocolMessage(ProtocolMessage pm) {
+        super(false);
+        protocolBab = pm.protocolBab;
+        sizeInBytes = controlLineLength = pm.sizeInBytes;
     }
 
     @Override
@@ -35,8 +44,8 @@ class ProtocolMessage extends NatsMessage {
         return true;
     }
 
-    ProtocolMessage(ProtocolMessage pm) {
-        protocolBab = pm.protocolBab;
-        sizeInBytes = pm.sizeInBytes;
+    @Override
+    int copyNotEmptyHeaders(int destPosition, byte[] dest) {
+        return 0; // until a protocol messages gets headers, might as well shortcut this.
     }
 }

@@ -27,9 +27,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.time.Duration;
-import java.util.Base64;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+
+import static io.nats.client.support.Encoding.base64UrlDecode;
 
 public class ObjectStoreCommand extends Command {
     final String bucket;
@@ -212,7 +213,7 @@ public class ObjectStoreCommand extends Command {
     protected void respondDigest(ObjectInfo oi) {
         String digest = oi.getDigest();
         Log.info("RESPOND " + subject + " digest " + digest);
-        byte[] payload = Base64.getUrlDecoder().decode(digest.substring(8));
+        byte[] payload = base64UrlDecode(digest.substring(8));
         nc.publish(replyTo, payload);
     }
 

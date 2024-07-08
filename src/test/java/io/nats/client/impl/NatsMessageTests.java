@@ -23,11 +23,9 @@ import java.time.Duration;
 import java.util.List;
 
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
-import static io.nats.client.utils.TestBase.assertByteArraysEqual;
-import static io.nats.client.utils.TestBase.standardConnectionWait;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class NatsMessageTests {
+public class NatsMessageTests extends JetStreamTestBase {
     @Test
     public void testSizeOnProtocolMessage() {
         NatsMessage msg = new ProtocolMessage("PING".getBytes());
@@ -246,26 +244,25 @@ public class NatsMessageTests {
         assertNull(m.getHeaders());
         assertNotNull(m.toString()); // COVERAGE
 
-        ProtocolMessage pm = new ProtocolMessage((byte[])null);
-        assertNotNull(pm.protocolBab);
-        assertEquals(0, pm.protocolBab.length());
+        ProtocolMessage pm = new ProtocolMessage(new byte[0]);
+        assertNotNull(pm.getProtocolBab());
+        assertEquals(0, pm.getProtocolBab().length());
+        assertEquals(2, pm.getSizeInBytes());
+        assertEquals(2, pm.getControlLineLength());
 
         IncomingMessage scm = new IncomingMessage() {};
-        assertNull(scm.protocolBab);
+        assertEquals(0, scm.getSizeInBytes());
+        assertThrows(IllegalStateException.class, scm::getProtocolBab);
         assertThrows(IllegalStateException.class, scm::getProtocolBytes);
         assertThrows(IllegalStateException.class, scm::getControlLineLength);
 
         // coverage coverage coverage
         //noinspection deprecation
         NatsMessage nmCov = new NatsMessage("sub", "reply", null, true);
+        nmCov.calculate();
 
         assertTrue(nmCov.toDetailString().contains("PUB sub reply 0"));
         assertTrue(nmCov.toDetailString().contains("next=No"));
-
-        nmCov.protocolBab = null;
-        nmCov.next = nmCov;
-        assertTrue(nmCov.toDetailString().contains("protocolBytes=null"));
-        assertTrue(nmCov.toDetailString().contains("next=Yes"));
     }
 
     @Test
@@ -306,5 +303,34 @@ public class NatsMessageTests {
                 .subject("test").replyTo("reply").headers(h)
                 .data("data", StandardCharsets.US_ASCII)
                 .build();
+    }
+
+    @Test
+    public void testHeadersMutableBeforePublish() throws Exception {
+        jsServer.run(connection -> {
+            String subject = subject();
+            Subscription sub = connection.subscribe(subject);
+
+            Headers h = new Headers();
+            h.put("one", "A");
+            Message m = new NatsMessage(subject, null, h, null);
+            connection.publish(m);
+            Message incoming = sub.nextMessage(1000);
+            assertEquals(1, incoming.getHeaders().size());
+
+            // headers are no longer copied, just referenced
+            // so this will affect the message which is the same
+            // as the local copy
+            h.put("two", "B");
+            connection.publish(m);
+            incoming = sub.nextMessage(1000);
+            assertEquals(2, incoming.getHeaders().size());
+
+            // also if you get the headers from the message
+            m.getHeaders().put("three", "C");
+            connection.publish(m);
+            incoming = sub.nextMessage(1000);
+            assertEquals(3, incoming.getHeaders().size());
+        });
     }
 }

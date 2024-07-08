@@ -13,20 +13,22 @@
 
 package io.nats.client;
 
+import io.nats.client.api.StreamConfiguration;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.NatsMessage;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.support.NatsConstants.*;
+import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -124,28 +126,28 @@ public class PublishTests {
     }
 
     @Test
-    public void testEmptyPublish() throws IOException, InterruptedException,ExecutionException {
+    public void testEmptyPublish() throws Exception {
         runSimplePublishTest("testsubemptybody", null, null, "");
     }
 
     @Test
-    public void testEmptyByDefaultPublish() throws IOException, InterruptedException,ExecutionException {
+    public void testEmptyByDefaultPublish() throws Exception {
         runSimplePublishTest("testsubemptybody", null, null, null);
     }
 
     @Test
-    public void testNoReplyPublish() throws IOException, InterruptedException,ExecutionException {
+    public void testNoReplyPublish() throws Exception {
         runSimplePublishTest("testsub", null, null, "This is the message.");
     }
 
     @Test
-    public void testReplyToInPublish() throws IOException, InterruptedException,ExecutionException {
+    public void testReplyToInPublish() throws Exception {
         runSimplePublishTest("testsubforreply", "replyTo", null, "This is the message to reply to.");
         runSimplePublishTest("testsubforreply", "replyTo", new Headers().add("key", "value"), "This is the message to reply to.");
     }
 
     private void runSimplePublishTest(String subject, String replyTo, Headers headers, String bodyString)
-            throws IOException, InterruptedException,ExecutionException {
+            throws Exception {
         CompletableFuture<Boolean> gotPub = new CompletableFuture<>();
         AtomicReference<String> hdrProto  = new AtomicReference<>("");
         AtomicReference<String> body  = new AtomicReference<>("");
@@ -157,7 +159,7 @@ public class PublishTests {
 
         NatsServerProtocolMock.Customizer receiveMessageCustomizer = (ts, r,w) -> {
             String pubLine;
-            String headerLine;
+            StringBuilder headerLine;
             String bodyLine;
             
             System.out.println("*** Mock Server @" + ts.getPort() + " waiting for " + proto + " ...");
@@ -165,13 +167,13 @@ public class PublishTests {
                 pubLine = r.readLine();
                 if (hPub) {
                     // the version \r\n, each header \r\n, then separator \r\n
-                    headerLine = r.readLine() + "\r\n";
+                    headerLine = new StringBuilder(r.readLine()).append("\r\n");
                     while (headerLine.length() < hdrlen) {
-                        headerLine = headerLine + r.readLine() + "\r\n";
+                        headerLine.append(r.readLine()).append("\r\n");
                     }
                 }
                 else {
-                    headerLine = "";
+                    headerLine = new StringBuilder();
                 }
                 bodyLine = r.readLine(); // Ignores encoding, but ok for test
             } catch(Exception e) {
@@ -182,7 +184,7 @@ public class PublishTests {
             if (pubLine.startsWith(proto)) {
                 System.out.println("*** Mock Server @" + ts.getPort() + " got " + proto + " ...");
                 protocol.set(pubLine);
-                hdrProto.set(headerLine);
+                hdrProto.set(headerLine.toString());
                 body.set(bodyLine);
                 gotPub.complete(Boolean.TRUE);
             }
@@ -192,7 +194,7 @@ public class PublishTests {
              Connection nc = standardConnection(ts.getURI())) {
 
             byte[] bodyBytes;
-            if (bodyString == null || bodyString.length() == 0) {
+            if (bodyString == null || bodyString.isEmpty()) {
                 bodyBytes = EMPTY_BODY;
                 bodyString = "";
             }
@@ -260,5 +262,75 @@ public class PublishTests {
             fail("Expecting IllegalArgumentException");
         }
         catch (IllegalArgumentException ignore) {}
+    }
+
+    @Test
+    public void testUtf8Subjects() throws Exception {
+        String subject = dataAsLines("utf8-test-strings.txt").get(0);
+        String jsSubject = variant() + "-" + subject; // just to have a different;
+
+        AtomicReference<String> coreReceivedSubjectNotSupported = new AtomicReference<>();
+        AtomicReference<String> coreReceivedSubjectWhenSupported = new AtomicReference<>();
+        AtomicReference<String> jsReceivedSubjectNotSupported = new AtomicReference<>();
+        AtomicReference<String> jsReceivedSubjectWhenSupported = new AtomicReference<>();
+        CountDownLatch coreReceivedLatchNotSupported = new CountDownLatch(1);
+        CountDownLatch coreReceivedLatchWhenSupported = new CountDownLatch(1);
+        CountDownLatch jsReceivedLatchNotSupported = new CountDownLatch(1);
+        CountDownLatch jsReceivedLatchWhenSupported = new CountDownLatch(1);
+
+        try (NatsTestServer ts = new NatsTestServer(false, true);
+             Connection ncNotSupported = standardConnection(standardOptionsBuilder(ts.getURI()).build());
+             Connection ncSupported = standardConnection(standardOptionsBuilder(ts.getURI()).supportUTF8Subjects().build()))
+        {
+            try {
+                ncNotSupported.jetStreamManagement().addStream(
+                    StreamConfiguration.builder()
+                        .name(stream())
+                        .subjects(jsSubject)
+                        .build());
+                JetStream jsNotSupported = ncNotSupported.jetStream();
+                JetStream jsSupported = ncNotSupported.jetStream();
+
+                Dispatcher dNotSupported = ncNotSupported.createDispatcher();
+                Dispatcher dSupported = ncSupported.createDispatcher();
+
+                dNotSupported.subscribe(subject, m -> {
+                    coreReceivedSubjectNotSupported.set(m.getSubject());
+                    coreReceivedLatchNotSupported.countDown();
+                });
+
+                dSupported.subscribe(subject, m -> {
+                    coreReceivedSubjectWhenSupported.set(m.getSubject());
+                    coreReceivedLatchWhenSupported.countDown();
+                });
+
+                jsNotSupported.subscribe(jsSubject, dNotSupported, m -> {
+                    jsReceivedSubjectNotSupported.set(m.getSubject());
+                    jsReceivedLatchNotSupported.countDown();
+                }, false);
+
+                jsSupported.subscribe(jsSubject, dSupported, m -> {
+                    jsReceivedSubjectWhenSupported.set(m.getSubject());
+                    jsReceivedLatchWhenSupported.countDown();
+                }, false);
+
+                ncNotSupported.publish(subject, null); // demonstrates that publishing always does utf8
+                jsSupported.publish(jsSubject, null);
+
+                assertTrue(coreReceivedLatchNotSupported.await(1, TimeUnit.SECONDS));
+                assertTrue(coreReceivedLatchWhenSupported.await(1, TimeUnit.SECONDS));
+                assertTrue(jsReceivedLatchNotSupported.await(1, TimeUnit.SECONDS));
+                assertTrue(jsReceivedLatchWhenSupported.await(1, TimeUnit.SECONDS));
+
+                assertNotEquals(subject, coreReceivedSubjectNotSupported.get());
+                assertEquals(subject, coreReceivedSubjectWhenSupported.get());
+                assertNotEquals(jsSubject, jsReceivedSubjectNotSupported.get());
+                assertEquals(jsSubject, jsReceivedSubjectWhenSupported.get());
+
+            }
+            finally {
+                cleanupJs(ncSupported);
+            }
+        }
     }
 }

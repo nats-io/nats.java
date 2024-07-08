@@ -28,8 +28,7 @@ public interface JetStream {
     /**
      * Send a message to the specified subject and waits for a response from
      * Jetstream. The default publish options will be used.
-     * The message body <strong>will not</strong> be copied. The expected
-     * usage with string content is something like:
+     * The expected usage with string content is something like:
      *
      * <pre>
      * nc = Nats.connect()
@@ -51,8 +50,7 @@ public interface JetStream {
     /**
      * Send a message to the specified subject and waits for a response from
      * Jetstream. The default publish options will be used.
-     * The message body <strong>will not</strong> be copied. The expected
-     * usage with string content is something like:
+     * The expected usage with string content is something like:
      *
      * <pre>
      * nc = Nats.connect()
@@ -77,8 +75,7 @@ public interface JetStream {
 
     /**
      * Send a message to the specified subject and waits for a response from
-     * Jetstream. The message body <strong>will not</strong> be copied. The expected
-     * usage with string content is something like:
+     * Jetstream. The expected usage with string content is something like:
      *
      * <pre>
      * nc = Nats.connect()
@@ -102,8 +99,7 @@ public interface JetStream {
 
     /**
      * Send a message to the specified subject and waits for a response from
-     * Jetstream. The message body <strong>will not</strong> be copied. The expected
-     * usage with string content is something like:
+     * Jetstream. The expected usage with string content is something like:
      *
      * <pre>
      * nc = Nats.connect()
@@ -130,8 +126,7 @@ public interface JetStream {
     /**
      * Send a message to the specified subject and waits for a response from
      * Jetstream. The default publish options will be used.
-     * The message body <strong>will not</strong> be copied. The expected
-     * usage with string content is something like:
+     * The expected usage with string content is something like:
      *
      * <pre>
      * nc = Nats.connect()
@@ -158,8 +153,7 @@ public interface JetStream {
 
     /**
      * Send a message to the specified subject and waits for a response from
-     * Jetstream. The message body <strong>will not</strong> be copied. The expected
-     * usage with string content is something like:
+     * Jetstream. The expected usage with string content is something like:
      *
      * <pre>
      * nc = Nats.connect()
@@ -188,8 +182,7 @@ public interface JetStream {
     /**
      * Send a message to the specified subject but does not wait for a response from
      * Jetstream. The default publish options will be used.
-     * The message body <strong>will not</strong> be copied. The expected
-     * usage with string content is something like:
+     * The expected usage with string content is something like:
      *
      * <pre>
      * nc = Nats.connect()
@@ -214,8 +207,7 @@ public interface JetStream {
     /**
      * Send a message to the specified subject but does not wait for a response from
      * Jetstream. The default publish options will be used.
-     * The message body <strong>will not</strong> be copied. The expected
-     * usage with string content is something like:
+     * The expected usage with string content is something like:
      *
      * <pre>
      * nc = Nats.connect()
@@ -241,8 +233,7 @@ public interface JetStream {
 
     /**
      * Send a message to the specified subject but does not wait for a response from
-     * Jetstream. The message body <strong>will not</strong> be copied. The expected
-     * usage with string content is something like:
+     * Jetstream. The expected usage with string content is something like:
      *
      * <pre>
      * nc = Nats.connect()
@@ -267,8 +258,7 @@ public interface JetStream {
 
     /**
      * Send a message to the specified subject but does not wait for a response from
-     * Jetstream. The message body <strong>will not</strong> be copied. The expected
-     * usage with string content is something like:
+     * Jetstream. The expected usage with string content is something like:
      *
      * <pre>
      * nc = Nats.connect()
@@ -296,8 +286,7 @@ public interface JetStream {
     /**
      * Send a message to the specified subject but does not wait for a response from
      * Jetstream. The default publish options will be used.
-     * The message body <strong>will not</strong> be copied. The expected
-     * usage with string content is something like:
+     * The expected usage with string content is something like:
      *
      * <pre>
      * nc = Nats.connect()
@@ -323,8 +312,7 @@ public interface JetStream {
 
     /**
      * Send a message to the specified subject but does not wait for a response from
-     * Jetstream. The message body <strong>will not</strong> be copied. The expected
-     * usage with string content is something like:
+     * Jetstream. The expected usage with string content is something like:
      *
      * <pre>
      * nc = Nats.connect()

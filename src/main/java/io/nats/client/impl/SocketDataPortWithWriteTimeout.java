@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.ForceReconnectOptions;
 import io.nats.client.Options;
 import io.nats.client.support.NatsUri;
 
@@ -39,19 +40,21 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
                 writeWatcherTimer.cancel(); // we don't need to repeat this
                 connection.executeCallback((c, el) -> el.socketWriteTimeout(c));
                 try {
-                    out.close();
+                    connection.forceReconnect(ForceReconnectOptions.FORCE_CLOSE_INSTANCE);
                 }
-                catch (IOException ignore) {}
-                try {
-                    connection.forceReconnect();
+                catch (IOException e) {
+                    // retry maybe?
                 }
-                catch (InterruptedException | IOException ignore) {}
+                catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
             }
         }
     }
 
     @Override
     public void afterConstruct(Options options) {
+        super.afterConstruct(options);
         long writeTimeoutMillis;
         if (options.getSocketWriteTimeout() == null) {
             writeTimeoutMillis = Options.DEFAULT_SOCKET_WRITE_TIMEOUT.toMillis();
@@ -80,6 +83,11 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
     public void close() throws IOException {
         try {
             writeWatcherTask.cancel();
+        }
+        catch (Exception ignore) {
+            // don't want this to be passed along
+        }
+        try {
             writeWatcherTimer.cancel();
         }
         catch (Exception ignore) {

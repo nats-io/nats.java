@@ -14,6 +14,8 @@
 package io.nats.client.impl;
 
 import io.nats.client.Message;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -52,9 +54,13 @@ public class NatsJetStreamMetaDataTests extends JetStreamTestBase {
         assertEquals(2, meta.streamSequence());
         assertEquals(3, meta.consumerSequence());
 
-        assertEquals(2020, meta.timestamp().getYear());
-        assertEquals(6, meta.timestamp().getMinute());
-        assertEquals(113260000, meta.timestamp().getNano());
+        ZonedDateTime localTs = meta.timestamp();
+        assertEquals(2020, localTs.getYear());
+        assertEquals(6, localTs.getMinute());
+        assertEquals(113260000, localTs.getNano());
+        
+        ZonedDateTime utcTs = localTs.withZoneSameInstant(ZoneId.of("UTC"));
+        assertEquals(0, utcTs.getHour());
 
         assertEquals(hasPending ? 4L : -1L, meta.pendingCount());
 

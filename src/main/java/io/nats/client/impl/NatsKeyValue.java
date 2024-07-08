@@ -25,9 +25,12 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import static io.nats.client.support.NatsConstants.DOT;
+import static io.nats.client.support.NatsConstants.GREATER_THAN;
 import static io.nats.client.support.NatsJetStreamConstants.EXPECTED_LAST_SUB_SEQ_HDR;
 import static io.nats.client.support.NatsJetStreamConstants.JS_WRONG_LAST_SEQUENCE;
 import static io.nats.client.support.NatsKeyValueUtil.*;
@@ -239,26 +242,38 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
     public NatsKeyValueWatchSubscription watch(String key, KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
         validateKvKeyWildcardAllowedRequired(key);
         validateNotNull(watcher, "Watcher is required");
-        return new NatsKeyValueWatchSubscription(this, key, watcher, -1, watchOptions);
+        return new NatsKeyValueWatchSubscription(this, Collections.singletonList(key), watcher, -1, watchOptions);
     }
 
     @Override
     public NatsKeyValueWatchSubscription watch(String key, KeyValueWatcher watcher, long fromRevision, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
         validateKvKeyWildcardAllowedRequired(key);
         validateNotNull(watcher, "Watcher is required");
-        return new NatsKeyValueWatchSubscription(this, key, watcher, fromRevision, watchOptions);
+        return new NatsKeyValueWatchSubscription(this, Collections.singletonList(key), watcher, fromRevision, watchOptions);
+    }
+
+    @Override
+    public NatsKeyValueWatchSubscription watch(List<String> keys, KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
+        validateKvKeysWildcardAllowedRequired(keys);
+        validateNotNull(watcher, "Watcher is required");
+        return new NatsKeyValueWatchSubscription(this, keys, watcher, -1, watchOptions);
+    }
+
+    @Override
+    public NatsKeyValueWatchSubscription watch(List<String> keys, KeyValueWatcher watcher, long fromRevision, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
+        validateKvKeysWildcardAllowedRequired(keys);
+        validateNotNull(watcher, "Watcher is required");
+        return new NatsKeyValueWatchSubscription(this, keys, watcher, fromRevision, watchOptions);
     }
 
     @Override
     public NatsKeyValueWatchSubscription watchAll(KeyValueWatcher watcher, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
-        validateNotNull(watcher, "Watcher is required");
-        return new NatsKeyValueWatchSubscription(this, ">", watcher, -1, watchOptions);
+        return new NatsKeyValueWatchSubscription(this, Collections.singletonList(GREATER_THAN), watcher, -1, watchOptions);
     }
 
     @Override
     public NatsKeyValueWatchSubscription watchAll(KeyValueWatcher watcher, long fromRevision, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException, InterruptedException {
-        validateNotNull(watcher, "Watcher is required");
-        return new NatsKeyValueWatchSubscription(this, ">", watcher, fromRevision, watchOptions);
+        return new NatsKeyValueWatchSubscription(this, Collections.singletonList(GREATER_THAN), watcher, fromRevision, watchOptions);
     }
 
     /**
@@ -266,14 +281,75 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
      */
     @Override
     public List<String> keys() throws IOException, JetStreamApiException, InterruptedException {
+        return _keys(Collections.singletonList(readSubject(GREATER_THAN)));
+    }
+
+    @Override
+    public List<String> keys(String filter) throws IOException, JetStreamApiException, InterruptedException {
+        return _keys(Collections.singletonList(readSubject(filter)));
+    }
+
+    @Override
+    public List<String> keys(List<String> filters) throws IOException, JetStreamApiException, InterruptedException {
+        List<String> readSubjectFilters = new ArrayList<>(filters.size());
+        for (String f : filters) {
+            readSubjectFilters.add(readSubject(f));
+        }
+        return _keys(readSubjectFilters);
+    }
+
+    private List<String> _keys(List<String> readSubjectFilters) throws IOException, JetStreamApiException, InterruptedException {
         List<String> list = new ArrayList<>();
-        visitSubject(readSubject(">"), DeliverPolicy.LastPerSubject, true, false, m -> {
+        visitSubject(readSubjectFilters, DeliverPolicy.LastPerSubject, true, false, m -> {
             KeyValueOperation op = getOperation(m.getHeaders());
             if (op == KeyValueOperation.PUT) {
                 list.add(new BucketAndKey(m).key);
             }
         });
         return list;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public LinkedBlockingQueue<KeyResult> consumeKeys() {
+        return _consumeKeys(Collections.singletonList(readSubject(GREATER_THAN)));
+    }
+
+    @Override
+    public LinkedBlockingQueue<KeyResult> consumeKeys(String filter) {
+        return _consumeKeys(Collections.singletonList(readSubject(filter)));
+    }
+
+    @Override
+    public LinkedBlockingQueue<KeyResult> consumeKeys(List<String> filters) {
+        List<String> readSubjectFilters = new ArrayList<>(filters.size());
+        for (String f : filters) {
+            readSubjectFilters.add(readSubject(f));
+        }
+        return _consumeKeys(readSubjectFilters);
+    }
+
+    private LinkedBlockingQueue<KeyResult> _consumeKeys(List<String> readSubjectFilters) {
+        LinkedBlockingQueue<KeyResult> q = new LinkedBlockingQueue<>();
+        try {
+            visitSubject(readSubjectFilters, DeliverPolicy.LastPerSubject, true, false, m -> {
+                KeyValueOperation op = getOperation(m.getHeaders());
+                if (op == KeyValueOperation.PUT) {
+                    q.offer(new KeyResult(new BucketAndKey(m).key));
+                }
+            });
+            q.offer(new KeyResult());
+        }
+        catch (IOException | JetStreamApiException e) {
+            q.offer(new KeyResult(e));
+        }
+        catch (InterruptedException e) {
+            q.offer(new KeyResult(e));
+            Thread.currentThread().interrupt();
+        }
+        return q;
     }
 
     /**

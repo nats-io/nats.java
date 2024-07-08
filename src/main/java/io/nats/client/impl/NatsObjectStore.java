@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static io.nats.client.support.NatsConstants.GREATER_THAN;
 import static io.nats.client.support.NatsJetStreamClientError.*;
 import static io.nats.client.support.NatsObjectStoreUtil.*;
 
@@ -73,7 +74,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
     }
 
     String rawAllMetaSubject() {
-        return rawMetaPrefix + ">";
+        return rawMetaPrefix + GREATER_THAN;
     }
 
     String pubSubMetaSubject(String name) {
@@ -90,7 +91,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
 
     private ObjectInfo publishMeta(ObjectInfo info) throws IOException, JetStreamApiException {
         js.publish(NatsMessage.builder()
-            .subject(pubSubMetaSubject(info.getObjectName()))
+            .subject(rawMetaSubject(info.getObjectName()))
             .headers(getMetaHeaders())
             .data(info.serialize())
             .build()
@@ -111,7 +112,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
         }
 
         String nuid = NUID.nextGlobal();
-        String chunkSubject = pubSubChunkSubject(nuid);
+        String chunkSubject = rawChunkSubject(nuid);
 
         int chunkSize = meta.getObjectMetaOptions().getChunkSize();
         if (chunkSize <= 0) {
@@ -232,8 +233,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
             out.write(data);
         }
         else {
-
-            JetStreamSubscription sub = js.subscribe(pubSubChunkSubject(oi.getNuid()),
+            JetStreamSubscription sub = js.subscribe(rawChunkSubject(oi.getNuid()),
                 PushSubscribeOptions.builder().stream(streamName).ordered(true).build());
 
             Message m = sub.nextMessage(Duration.ofSeconds(1));

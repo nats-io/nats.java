@@ -21,6 +21,7 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.function.Function;
 
+import static io.nats.client.support.Encoding.base64BasicDecode;
 import static io.nats.client.support.JsonValue.*;
 
 /**
@@ -68,6 +69,10 @@ public abstract class JsonValueUtils {
 
     public static String readString(JsonValue jsonValue, String key) {
         return read(jsonValue, key, v -> v == null ? null : v.string);
+    }
+
+    public static String readStringEmptyAsNull(JsonValue jsonValue, String key) {
+        return read(jsonValue, key, v -> v == null ? null : (v.string.isEmpty() ? null : v.string));
     }
 
     public static String readString(JsonValue jsonValue, String key, String dflt) {
@@ -187,12 +192,12 @@ public abstract class JsonValueUtils {
 
     public static byte[] readBytes(JsonValue jsonValue, String key) {
         String s = readString(jsonValue, key);
-        return s == null ? null : s.getBytes(StandardCharsets.US_ASCII);
+        return s == null ? null : s.getBytes(StandardCharsets.UTF_8);
     }
 
     public static byte[] readBase64(JsonValue jsonValue, String key) {
         String b64 = readString(jsonValue, key);
-        return b64 == null ? null : Base64.getDecoder().decode(b64);
+        return b64 == null ? null : base64BasicDecode(b64);
     }
 
     public static Integer getInteger(JsonValue v) {

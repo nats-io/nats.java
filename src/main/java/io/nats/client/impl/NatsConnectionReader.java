@@ -94,13 +94,17 @@ class NatsConnectionReader implements Runnable {
         this.stopped = connection.getExecutor().submit(this, Boolean.TRUE);
     }
 
+    Future<Boolean> stop() {
+        return stop(true);
+    }
+
     // May be called several times on an error.
     // Returns a future that is completed when the thread completes, not when this
     // method does.
-    Future<Boolean> stop() {
+    Future<Boolean> stop(boolean shutdownDataPort) {
         if (running.get()) {
             running.set(false);
-            if (dataPort != null) {
+            if (shutdownDataPort && dataPort != null) {
                 try {
                     dataPort.shutdownInput();
                 }
@@ -479,7 +483,7 @@ class NatsConnectionReader implements Runnable {
                         replyTo = null;
                     }
 
-                    if(subject==null || subject.length() == 0 || sid==null || sid.length() == 0 || lengthChars==null) {
+                    if (subject == null || subject.isEmpty() || sid == null || sid.isEmpty() || lengthChars == null) {
                         throw new IllegalStateException("Bad MSG control line, missing required fields");
                     }
 
@@ -523,7 +527,7 @@ class NatsConnectionReader implements Runnable {
                         totLen = parseLength(hdrLenOrTotLen);
                     }
 
-                    if(hSubject==null || hSubject.length() == 0 || hSid==null || hSid.length() == 0) {
+                    if(hSubject==null || hSubject.isEmpty() || hSid==null || hSid.isEmpty()) {
                         throw new IllegalStateException("Bad HMSG control line, missing required fields");
                     }
 

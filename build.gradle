@@ -13,11 +13,11 @@ plugins {
     id 'signing'
 }
 
-def jarVersion = "2.17.5"
+def jarVersion = "2.19.2"
 
 def isRelease = System.getenv("BUILD_EVENT") == "release"
-def bs = System.getenv("BRANCH_SNAPSHOT")
-def snap = bs == null || bs.equals("") ? "-SNAPSHOT" : "." + bs + "-SNAPSHOT"
+def brn = System.getenv("BRANCH_REF_NAME")
+def snap = brn == null || brn.equals("") ? "-SNAPSHOT" : "." + brn + "-SNAPSHOT"
 
 // version is the variable the build actually uses.
 version = isRelease ? jarVersion : jarVersion + snap
@@ -39,7 +39,7 @@ dependencies {
     implementation 'net.i2p.crypto:eddsa:0.3.0'
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.9.0'
-    testImplementation 'io.nats:jnats-server-runner:1.2.8'
+    testImplementation 'io.nats:jnats-server-runner:2.0.0'
     testImplementation 'nl.jqno.equalsverifier:equalsverifier:3.12.3'
 }
 

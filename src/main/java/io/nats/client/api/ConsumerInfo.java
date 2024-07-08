@@ -49,7 +49,7 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
 
     public ConsumerInfo(JsonValue vConsumerInfo) {
         super(vConsumerInfo);
-        this.configuration = new ConsumerConfiguration(readObject(jv, CONFIG));
+        this.configuration = ConsumerConfiguration.builder().jsonValue(readObject(jv, CONFIG)).build();
 
         stream = readString(jv, STREAM_NAME);
         name = readString(jv, NAME);

@@ -25,6 +25,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -42,9 +43,15 @@ public class SocketDataPort implements DataPort {
     protected int port;
     protected Socket socket;
     protected boolean isSecure = false;
+    protected int soLinger;
 
     protected InputStream in;
     protected OutputStream out;
+
+    @Override
+    public void afterConstruct(Options options) {
+        soLinger = options.getSocketSoLinger();
+    }
 
     @Override
     public void connect(String serverURI, NatsConnection conn, long timeoutNanos) throws IOException {
@@ -75,6 +82,9 @@ public class SocketDataPort implements DataPort {
             socket.setReceiveBufferSize(2 * 1024 * 1024);
             socket.setSendBufferSize(2 * 1024 * 1024);
             socket.connect(new InetSocketAddress(host, port), (int) timeout);
+            if (soLinger > -1) {
+                socket.setSoLinger(true, soLinger);
+            }
 
             if (isWebsocketScheme(nuri.getScheme())) {
                 if (SECURE_WEBSOCKET_PROTOCOL.equalsIgnoreCase(nuri.getScheme())) {
@@ -152,6 +162,18 @@ public class SocketDataPort implements DataPort {
 
     public void close() throws IOException {
         socket.close();
+    }
+
+    @Override
+    public void forceClose() throws IOException {
+        try {
+            // If we are being asked to force close, there is no need to linger.
+            socket.setSoLinger(true, 0);
+        }
+        catch (SocketException e) {
+            // don't want to fail if I couldn't set linger
+        }
+        close();
     }
 
     public void flush() throws IOException {

@@ -52,5 +52,9 @@ public interface DataPort {
 
     void close() throws IOException;
 
+    default void forceClose() throws IOException {
+        close();
+    }
+
     void flush() throws IOException;
 }

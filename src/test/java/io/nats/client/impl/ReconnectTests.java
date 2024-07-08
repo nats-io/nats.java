@@ -15,7 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
-import nats.io.NatsRunnerUtils;
+import io.nats.client.api.ServerInfo;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -32,6 +32,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
+import static io.nats.client.NatsTestServer.getNatsLocalhostUri;
+import static io.nats.client.support.NatsConstants.OUTPUT_QUEUE_IS_FULL;
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -669,7 +671,7 @@ public class ReconnectTests {
     @Test
     public void testReconnectOnConnect() throws Exception {
         int port = NatsTestServer.nextPort();
-        Options options = Options.builder().server(NatsTestServer.getNatsLocalhostUri(port)).build();
+        Options options = Options.builder().server(getNatsLocalhostUri(port)).build();
 
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<Connection> testConn = new AtomicReference<>();
@@ -715,28 +717,169 @@ public class ReconnectTests {
     @Test
     public void testForceReconnect() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        Options.Builder builder = Options.builder()
-            .connectionListener(listener)
-            .errorListener(listener);
+        ThreeServerTestOptions tstOpts = makeThreeServerTestOptions(listener, false);
+        runInJsCluster(tstOpts, (nc0, nc1, nc2) -> _testForceReconnect(nc0, listener));
+    }
 
-        runInJsServer(nc1 -> runInServer(nc2 -> {
-            int port1 = nc1.getServerInfo().getPort();
-            int port2 = nc2.getServerInfo().getPort();
+    @Test
+    public void testForceReconnectWithAccount() throws Exception {
+        ListenerForTesting listener = new ListenerForTesting();
+        ThreeServerTestOptions tstOpts = makeThreeServerTestOptions(listener, true);
+        runInJsCluster(tstOpts, (nc0, nc1, nc2) -> _testForceReconnect(nc0, listener));
+    }
 
-            String[] servers = new String[]{
-                NatsRunnerUtils.getNatsLocalhostUri(port1),
-                NatsRunnerUtils.getNatsLocalhostUri(port2)
-            };
-            //noinspection resource
-            Connection nc = standardConnection(builder.servers(servers).build());
-            int connectedPort = nc.getServerInfo().getPort();
-            nc.forceReconnect();
-            Thread.sleep(3000);
-            assertNotEquals(connectedPort, nc.getServerInfo().getPort());
-        }));
+    private static void _testForceReconnect(Connection nc0, ListenerForTesting listener) throws IOException, InterruptedException {
+        ServerInfo si = nc0.getServerInfo();
+        String connectedServer = si.getServerId();
 
+        nc0.forceReconnect();
+        standardConnectionWait(nc0);
+
+        si = nc0.getServerInfo();
+        assertNotEquals(connectedServer, si.getServerId());
         assertTrue(listener.getConnectionEvents().contains(Events.DISCONNECTED));
         assertTrue(listener.getConnectionEvents().contains(Events.RECONNECTED));
+    }
+
+    private static ThreeServerTestOptions makeThreeServerTestOptions(ListenerForTesting listener, final boolean configureAccount) {
+        return new ThreeServerTestOptions() {
+            @Override
+            public void append(int index, Options.Builder builder) {
+                if (index == 0) {
+                    builder.connectionListener(listener).ignoreDiscoveredServers().noRandomize();
+                }
+            }
+
+            @Override
+            public boolean configureAccount() {
+                return configureAccount;
+            }
+
+            @Override
+            public boolean includeAllServers() {
+                return true;
+            }
+        };
+    }
+
+    @Test
+    public void testForceReconnectQueueBehaviorCheck() throws Exception {
+        runInJsCluster((nc0, nc1, nc2) -> {
+            int pubCount = 1000000;
+            int subscribeTime = 4000;
+            int flushWait = 2500;
+            int port = nc0.getServerInfo().getPort();
+
+            ForceReconnectQueueCheckDataPort.DELAY = 75;
+
+            String subject = subject();
+            ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
+            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, false, 0);
+
+            subject = subject();
+            ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
+            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, false, flushWait);
+
+            subject = subject();
+            ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
+            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, true, 0);
+
+            subject = subject();
+            ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
+            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, true, flushWait);
+        });
+    }
+
+    private static void _testForceReconnectQueueCheck(String subject, int pubCount, int subscribeTime, int port, boolean forceClose, int flushWait) throws InterruptedException {
+        ReconnectQueueCheckSubscriber subscriber = new ReconnectQueueCheckSubscriber(subject, pubCount, port);
+        Thread tsub = new Thread(subscriber);
+        tsub.start();
+
+        ForceReconnectOptions.Builder froBuilder = ForceReconnectOptions.builder();
+        if (flushWait > 0) {
+            froBuilder.flush(flushWait);
+        }
+        if (forceClose) {
+            froBuilder.forceClose();
+        }
+
+        Options options = Options.builder()
+            .server(getNatsLocalhostUri(port))
+            .dataPortType(ForceReconnectQueueCheckDataPort.class.getCanonicalName())
+            .build();
+
+        try (Connection nc = Nats.connect(options)) {
+            for (int x = 1; x <= pubCount; x++) {
+                nc.publish(subject, (x + "").getBytes());
+            }
+
+            nc.forceReconnect(froBuilder.build());
+
+            long maxTime = subscribeTime;
+            while (!subscriber.subscriberDone.get() && maxTime > 0) {
+                //noinspection BusyWait
+                Thread.sleep(50);
+                maxTime -= 50;
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        subscriber.subscriberDone.set(true);
+        tsub.join();
+
+        if (flushWait > 0) {
+            assertEquals(pubCount, subscriber.lastNotSkipped);
+        }
+    }
+
+    static class ReconnectQueueCheckSubscriber implements Runnable {
+        final AtomicBoolean subscriberDone;
+        final String subject;
+        final int pubCount;
+        final int port;
+        boolean completed;
+        int lastNotSkipped;
+        int firstAfterSkip;
+
+        public ReconnectQueueCheckSubscriber(String subject, int pubCount, int port) {
+            this.subscriberDone = new AtomicBoolean(false);
+            this.subject = subject;
+            this.pubCount = pubCount;
+            this.port = port;
+            lastNotSkipped = 0;
+            firstAfterSkip = -1;
+            completed = false;
+        }
+
+        @Override
+        public void run() {
+            Options options = Options.builder().server(getNatsLocalhostUri(port)).build();
+            try (Connection nc = Nats.connect(options)) {
+                Subscription sub = nc.subscribe(subject);
+                while (!subscriberDone.get()) {
+                    Message m = sub.nextMessage(100);
+                    if (m != null) {
+                        String next = "" + (lastNotSkipped + 1);
+                        String md = new String(m.getData());
+                        if (md.equals(next)) {
+                            if (++lastNotSkipped >= pubCount) {
+                                completed = true;
+                                subscriberDone.set(true);
+                            }
+                        }
+                        else {
+                            firstAfterSkip = Integer.parseInt(md);
+                            subscriberDone.set(true);
+                        }
+                    }
+                }
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     @Test
@@ -744,6 +887,8 @@ public class ReconnectTests {
         ListenerForTesting listener = new ListenerForTesting();
         Options.Builder builder = Options.builder()
             .socketWriteTimeout(5000)
+            .pingInterval(Duration.ofSeconds(1))
+            .maxMessagesInOutgoingQueue(100)
             .dataPortType(SocketDataPortBlockSimulator.class.getCanonicalName())
             .connectionListener(listener)
             .errorListener(listener);
@@ -754,10 +899,9 @@ public class ReconnectTests {
             int port2 = nc2.getServerInfo().getPort();
 
             String[] servers = new String[]{
-                NatsRunnerUtils.getNatsLocalhostUri(port1),
-                NatsRunnerUtils.getNatsLocalhostUri(port2)
+                getNatsLocalhostUri(port1),
+                getNatsLocalhostUri(port2)
             };
-            //noinspection resource
             Connection nc = standardConnection(builder.servers(servers).build());
             String subject = subject();
             int connectedPort = nc.getServerInfo().getPort();
@@ -770,12 +914,13 @@ public class ReconnectTests {
                     }
                 }
                 catch (Exception e) {
-                    if (e.getMessage().contains("Output queue is full")) {
+                    if (e.getMessage().contains(OUTPUT_QUEUE_IS_FULL)) {
                         gotOutputQueueIsFull.set(true);
                     }
                 }
             }
             assertNotEquals(connectedPort, nc.getServerInfo().getPort());
+            nc.close();
         }));
 
         assertTrue(gotOutputQueueIsFull.get());

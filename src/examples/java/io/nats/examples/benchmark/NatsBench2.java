@@ -27,6 +27,8 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static io.nats.client.support.NatsConstants.OUTPUT_QUEUE_IS_FULL;
+
 /**
  * A utility class for measuring NATS performance, similar to the version in go
  * and node. The various tradeoffs to make this code act/work like the other
@@ -279,7 +281,7 @@ public class NatsBench2 {
                             nc.publish(subject, payload);
                             success = true;
                         } catch (IllegalStateException ex) {
-                            if (ex.getMessage().contains("Output queue is full")) {
+                            if (ex.getMessage().contains(OUTPUT_QUEUE_IS_FULL)) {
                                 success = false; 
                                 Thread.sleep(1000);
                             } else {

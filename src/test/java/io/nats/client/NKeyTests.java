@@ -15,17 +15,17 @@ package io.nats.client;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.List;
 
 import static io.nats.client.NKey.removePaddingAndClear;
-import static io.nats.client.support.Encoding.base32Decode;
-import static io.nats.client.support.Encoding.base32Encode;
+import static io.nats.client.support.Encoding.*;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -519,12 +519,12 @@ public class NKeyTests {
 
         assertEquals(fromSeed.getType(), NKey.Type.USER);
 
-        byte[] nonceData = Base64.getUrlDecoder().decode(nonce);
-        byte[] nonceSig = Base64.getUrlDecoder().decode(nonceEncodedSig);
+        byte[] nonceData = base64UrlDecode(nonce);
+        byte[] nonceSig = base64UrlDecode(nonceEncodedSig);
         byte[] seedNonceSig = fromSeed.sign(nonceData);
-        String encodedSeedNonceSig = Base64.getUrlEncoder().withoutPadding().encodeToString(seedNonceSig);
+        String encodedSeedNonceSig = base64UrlEncodeToString(seedNonceSig);
 
-        assertTrue(Arrays.equals(seedNonceSig, nonceSig));
+        assertArrayEquals(seedNonceSig, nonceSig);
         assertEquals(nonceEncodedSig, encodedSeedNonceSig);
 
         assertTrue(fromSeed.verify(nonceData, nonceSig));
@@ -533,10 +533,10 @@ public class NKeyTests {
         assertTrue(fromPublicKey.verify(nonceData, seedNonceSig));
 
         byte[] seedSig = fromSeed.sign(data);
-        byte[] sig = Base64.getUrlDecoder().decode(encodedSig);
-        String encodedSeedSig = Base64.getUrlEncoder().withoutPadding().encodeToString(seedSig);
+        byte[] sig = base64UrlDecode(encodedSig);
+        String encodedSeedSig = base64UrlEncodeToString(seedSig);
 
-        assertTrue(Arrays.equals(seedSig, sig));
+        assertArrayEquals(seedSig, sig);
         assertEquals(encodedSig, encodedSeedSig);
 
         assertTrue(fromSeed.verify(data, sig));
@@ -545,13 +545,13 @@ public class NKeyTests {
         assertTrue(fromPublicKey.verify(data, seedSig));
 
         // Make sure generation is the same
-        assertTrue(Arrays.equals(fromSeed.getSeed(), seed));
-        assertTrue(Arrays.equals(fromSeed.getPublicKey(), publicKey));
-        assertTrue(Arrays.equals(fromSeed.getPrivateKey(), privateKey));
+        assertArrayEquals(fromSeed.getSeed(), seed);
+        assertArrayEquals(fromSeed.getPublicKey(), publicKey);
+        assertArrayEquals(fromSeed.getPrivateKey(), privateKey);
 
         DecodedSeed decoded = NKey.decodeSeed(seed);
         char[] encodedSeed = NKey.encodeSeed(NKey.Type.fromPrefix(decoded.prefix), decoded.bytes);
-        assertTrue(Arrays.equals(encodedSeed, seed));
+        assertArrayEquals(encodedSeed, seed);
     }
 
     @Test
@@ -589,12 +589,43 @@ public class NKeyTests {
     }
 
     @Test
-    public void testClear() throws Exception {
+    public void testClear() {
         assertThrows(IllegalArgumentException.class, () -> {
             NKey key = NKey.createServer(null);
             key.clear();
             key.getPrivateKey();
 
         }, "Invalid encoding");
+    }
+
+    @Test
+    public void testPublicKeyFromSeed() throws Exception {
+        // using nsc generated seeds for testing
+        NKey pk = NKey.fromSeed("SOAELH6NJCEK4HST5644G4HK7TOAFZGRRJHNM4EUKUY7PPNDLIKO5IH4JM".toCharArray());
+        assertEquals("ODPWIBQJVIQ42462QAFI2RKJC4RZHCQSIVPRDDHWFCJAP52NRZK6Z2YC", new String(pk.getPublicKey()));
+
+        pk = NKey.fromSeed("SAANWFZ3JINNPERWT3ALE45U7GYT2ZDW6GJUIVPDKUF6GKAX6AISZJMAS4".toCharArray());
+        assertEquals("AATEJXG7UX4HFJ6ZPRTP22P6OYZER36YYD3GVBOVW7QHLU32P4QFFTZJ", new String(pk.getPublicKey()));
+
+        pk = NKey.fromSeed("SUAGDLNBWI2SGHDRYBHD63NH5FGZSVJUW2J7GAJZXWANQFLDW6G5SXZESU".toCharArray());
+        assertEquals("UBICBTHDKQRB4LIYA6BMIJ7EA2G7YS7FIWMMVKZJE6M3HS5IVCOLKDY2", new String(pk.getPublicKey()));
+    }
+
+    @Test
+    public void testFromPublicKey() throws Exception {
+        _testFromPublicKey("SUAHBVFYZF3DIEO4UIHIZMJICVLURLBM5JJPK7GSVGP2QUC3NZ323BRE6A", "UCM5BG6AAZSEGREBCLG7PG4GFQNJABSAVIXC6VWS7TDHZFPIYFVYHIDG");
+        _testFromPublicKey("SAADARCQJ3JA737Z443YNAZBNJNTFP7YNAF4QFUXKTBFBS4KAVK55DGSOQ", "AD2HQTUKOPBUGOPHA6KFRE6ZW5TH43D7P7E56OAQBZQLW2ECMNML6MVA");
+        _testFromPublicKey("SNAH645525YA4PNXHWWS46VNXXQTYAXOPKGHXYAHXZZ43XTDDG2ZQAX7LY", "NBZCD2OSMSDRVYCAI77HUN6A2WNDWNT2DMVVEW66DHNWCDXVOUWRCCK7");
+        _testFromPublicKey("SOAF5OP7UPK6XJCMNRYEJRET6YQSOE3FD4I4ERSN6WKHLYUC5AQDCOAFVY", "OA6SJACXYP2QGNLU4QYLJTVRVZPCZEEUNO2UQOVNGXYUPUJJHCVZIZQ2");
+        _testFromPublicKey("SCAP4LGVURDWVL37AZIM5O47UKANFI6FKBY77HMYF55CKW2XFKLNUBTTFE", "CAO36T42KFA2LMIZ6YHJKPQEJWT5ULYSV633FWBCEJ7MREZPHHC56BSC");
+    }
+
+    private static void _testFromPublicKey(String userEncodedSeed, String userEncodedPubKey) throws GeneralSecurityException, IOException {
+        NKey fromSeed = NKey.fromSeed(userEncodedSeed.toCharArray());
+        NKey fromKey = NKey.fromPublicKey(fromSeed.getPublicKey());
+
+        assertArrayEquals(fromSeed.getPublicKey(), fromKey.getPublicKey());
+        assertArrayEquals(userEncodedPubKey.toCharArray(), fromSeed.getPublicKey());
+        assertArrayEquals(userEncodedPubKey.toCharArray(), fromKey.getPublicKey());
     }
 }

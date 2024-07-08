@@ -73,7 +73,7 @@ public class ConnectionListenerTests {
     @Test
     public void testDisconnectReconnectCount() throws Exception {
         int port;
-        Connection nc = null;
+        Connection nc;
         ListenerForTesting listener = new ListenerForTesting();
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = new Options.Builder().

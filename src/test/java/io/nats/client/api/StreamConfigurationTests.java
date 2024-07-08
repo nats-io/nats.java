@@ -164,7 +164,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             .maxMessagesPerSubject(testSc.getMaxMsgsPerSubject())
             .maxBytes(testSc.getMaxBytes())
             .maxAge(testSc.getMaxAge())
-            .maxMsgSize(testSc.getMaxMsgSize())
+            .maximumMessageSize(testSc.getMaximumMessageSize())
             .storageType(testSc.getStorageType())
             .replicas(testSc.getReplicas())
             .noAck(testSc.getNoAck())
@@ -284,8 +284,11 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxBytes(-2));
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxAge(Duration.ofNanos(-1)));
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxAge(-1));
-        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxMsgSize(0));
-        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxMsgSize(-2));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxMsgSize(0)); // COVERAGE for deprecated
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxMsgSize(-2)); // COVERAGE for deprecated
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxMsgSize((long)Integer.MAX_VALUE + 1)); // COVERAGE for deprecated, TOO LARGE A NUMBER
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maximumMessageSize(0));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maximumMessageSize(-2));
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().replicas(0));
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().replicas(6));
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().duplicateWindow(Duration.ofNanos(-1)));
@@ -488,7 +491,8 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(732, sc.getMaxBytes());
         assertEquals(Duration.ofNanos(43000000000L), sc.getMaxAge());
         assertEquals(Duration.ofNanos(42000000000L), sc.getDuplicateWindow());
-        assertEquals(734, sc.getMaxMsgSize());
+        assertEquals(734, sc.getMaxMsgSize()); // COVERAGE for deprecated
+        assertEquals(734, sc.getMaximumMessageSize());
         assertEquals(StorageType.Memory, sc.getStorageType());
         assertSame(DiscardPolicy.New, sc.getDiscardPolicy());
 
@@ -579,19 +583,25 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
     @Test
     public void testPlacement() {
-        assertThrows(IllegalArgumentException.class, () -> Placement.builder().build());
+        assertFalse(Placement.builder().build().hasData());
+        assertFalse(Placement.builder().cluster(null).build().hasData());
+        assertFalse(Placement.builder().cluster("").build().hasData());
+        assertFalse(Placement.builder().tags((List<String>)null).build().hasData());
 
         Placement p = Placement.builder().cluster("cluster").build();
         assertEquals("cluster", p.getCluster());
         assertNull(p.getTags());
+        assertTrue(p.hasData());
 
         p = Placement.builder().cluster("cluster").tags("a", "b").build();
         assertEquals("cluster", p.getCluster());
         assertEquals(2, p.getTags().size());
+        assertTrue(p.hasData());
 
         p = Placement.builder().cluster("cluster").tags(Arrays.asList("a", "b")).build();
         assertEquals("cluster", p.getCluster());
         assertEquals(2, p.getTags().size());
+        assertTrue(p.hasData());
     }
 
     @Test

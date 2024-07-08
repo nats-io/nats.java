@@ -38,6 +38,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static io.nats.client.Options.DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE;
+import static io.nats.client.support.Encoding.base64UrlEncodeToString;
 import static io.nats.client.support.NatsConstants.DEFAULT_PORT;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -348,20 +349,18 @@ public class OptionsTests {
         assertNotNull(o.getSslContext(), "property context");
     }
 
-    @SuppressWarnings("deprecation")
     @Test
-    public void testDeprecated() {
-        // supportUTF8Subjects are deprecated and always returns false
+    public void testSupportUTF8Subjects() {
         Options o = new Options.Builder().build();
         assertFalse(o.supportUTF8Subjects());
 
         o = new Options.Builder().supportUTF8Subjects().build();
-        assertFalse(o.supportUTF8Subjects());
+        assertTrue(o.supportUTF8Subjects());
 
         Properties props = new Properties();
         props.setProperty(Options.PROP_UTF8_SUBJECTS, "true");
         o = new Options.Builder(props).build();
-        assertFalse(o.supportUTF8Subjects());
+        assertTrue(o.supportUTF8Subjects());
     }
 
     @Test
@@ -681,7 +680,7 @@ public class OptionsTests {
     public void testNKeyConnectOptions() throws Exception {
         AuthHandlerForTesting th = new AuthHandlerForTesting();
         byte[] nonce = "abcdefg".getBytes(StandardCharsets.UTF_8);
-        String sig = Base64.getUrlEncoder().withoutPadding().encodeToString(th.sign(nonce));
+        String sig = base64UrlEncodeToString(th.sign(nonce));
 
         Options o = new Options.Builder().authHandler(th).build();
         String expectedNoAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
@@ -692,6 +691,51 @@ public class OptionsTests {
         assertEquals(expectedNoAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, nonce).toString(), "no auth connect options");
         assertEquals(expectedWithAuth, o.buildProtocolConnectOptionsString("nats://localhost:4222", true, nonce).toString(), "auth connect options");
     }
+
+    // Test for auth handler from nkey, option JWT and user info
+    @Test
+    public void testNKeyJWTAndUserInfoOptions() throws Exception {
+        // "jwt" is encoded from:
+        // Header:    {"alg":"HS256"}
+        // Payload:   {"jti":"","iat":2000000000,"iss":"","name":"user_jwt","sub":"","nats":{"pub":{"deny":[">"]},
+        //            "sub":{"deny":[">"]},"subs":-1,"data":-1,"payload":-1,"type":"user","version":2}}
+        String jwt = "eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiIiLCJpYXQiOjIwMDAwMDAwMDAsImlzcyI6IiIsIm5hbWUiOiJ1c2VyX2p3"
+                + "dCIsInN1YiI6IiIsIm5hdHMiOnsicHViIjp7ImRlbnkiOlsiPiJdfSwic3ViIjp7ImRlbnkiOlsiPiJdfSwic3VicyI6LTEsImRh"
+                + "dGEiOi0xLCJwYXlsb2FkIjotMSwidHlwZSI6InVzZXIiLCJ2ZXJzaW9uIjoyfX0";
+        NKey nkey = NKey.createUser(null);
+        String username = "username";
+        String password = "password";
+        AuthHandlerForTesting th = new AuthHandlerForTesting(nkey, jwt.toCharArray());
+        byte[] nonce = "abcdefg".getBytes(StandardCharsets.UTF_8);
+        String sig = Base64.getUrlEncoder().withoutPadding().encodeToString(th.sign(nonce));
+
+        // Assert that no auth and user info is given
+        Options options = new Options.Builder().authHandler(th)
+                .userInfo(username.toCharArray(), password.toCharArray()).build();
+        String expectedWithoutAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
+                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,"
+                + "\"headers\":true,\"no_responders\":true}";
+        String actualWithoutAuth = options
+                .buildProtocolConnectOptionsString("nats://localhost:4222", false, nonce).toString();
+        assertEquals(expectedWithoutAuth, actualWithoutAuth);
+
+        // Assert that auth and user info is given via options
+        String expectedWithAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
+                + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,"
+                + "\"headers\":true,\"no_responders\":true,\"nkey\":\"" + new String(th.getID()) + "\",\"sig\":\""
+                + sig + "\",\"jwt\":\"" + jwt + "\",\"user\":\"" + username + "\",\"pass\":\"" + password + "\"}";
+        String actualWithAuthInOptions = options
+                .buildProtocolConnectOptionsString("nats://localhost:4222", true, nonce).toString();
+        assertEquals(expectedWithAuth, actualWithAuthInOptions);
+
+        // Assert that auth is given via options and user info is given via server URI
+        Options optionsWithoutUserInfo = new Options.Builder().authHandler(th).build();
+        String serverUriWithAuth = "nats://" + username + ":" + password + "@localhost:4222";
+        String actualWithAuthInServerUri = optionsWithoutUserInfo
+                .buildProtocolConnectOptionsString(serverUriWithAuth, true, nonce).toString();
+        assertEquals(expectedWithAuth, actualWithAuthInServerUri);
+    }
+
 
     @Test
     public void testDefaultDataPort() {

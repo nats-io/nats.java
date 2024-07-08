@@ -25,7 +25,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static io.nats.client.support.NatsConstants.GT;
+import static io.nats.client.support.NatsConstants.GREATER_THAN;
 import static io.nats.client.support.NatsJetStreamClientError.JsConsumerCreate290NotAvailable;
 import static io.nats.client.support.NatsJetStreamClientError.JsMultipleFilterSubjects210NotAvailable;
 import static io.nats.client.support.NatsRequestCompletableFuture.CancelAction;
@@ -104,7 +104,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
                 consumerName = durable == null ? generateConsumerName() : durable;
             }
             String fs = config.getFilterSubject(); // we've already determined not multiple so this gives us 1 or null
-            if (fs == null || fs.equals(GT)) {
+            if (fs == null || fs.equals(GREATER_THAN)) {
                 subj = String.format(JSAPI_CONSUMER_CREATE_V290, streamName, consumerName);
             }
             else {
@@ -236,9 +236,9 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         }
     }
 
-    Message makeInternalRequestResponseRequired(String subject, Headers headers, byte[] data, Duration timeout, CancelAction cancelAction) throws IOException {
+    Message makeInternalRequestResponseRequired(String subject, Headers headers, byte[] data, Duration timeout, CancelAction cancelAction, boolean validateSubRep) throws IOException {
         try {
-            return responseRequired(conn.requestInternal(subject, headers, data, timeout, cancelAction));
+            return responseRequired(conn.requestInternal(subject, headers, data, timeout, cancelAction, validateSubRep));
         } catch (InterruptedException e) {
             throw new IOException(e);
         }

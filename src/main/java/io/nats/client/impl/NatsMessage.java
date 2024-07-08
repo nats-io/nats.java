@@ -37,7 +37,6 @@ public class NatsMessage implements Message {
     protected String subject;
     protected String replyTo;
     protected byte[] data;
-    protected boolean utf8mode;
     protected Headers headers;
 
     // incoming specific : subject, replyTo, data and these fields
@@ -45,11 +44,11 @@ public class NatsMessage implements Message {
     protected int controlLineLength;
 
     // protocol specific : just this field
-    protected ByteArrayBuilder protocolBab;
+    ByteArrayBuilder protocolBab;
 
     // housekeeping
-    protected int sizeInBytes = -1;
-    protected int headerLen = 0;
+    protected int sizeInBytes;
+    protected int headerLen;
     protected int dataLen;
 
     protected NatsSubscription subscription;
@@ -70,16 +69,14 @@ public class NatsMessage implements Message {
         dataLen = this.data.length;
     }
 
-    @Deprecated // Plans are to remove allowing utf8-mode
+    @Deprecated // utf8-mode is ignored
     public NatsMessage(String subject, String replyTo, byte[] data, boolean utf8mode) {
         this(subject, replyTo, null, data);
-        this.utf8mode = utf8mode;
     }
 
-    @Deprecated // Plans are to remove allowing utf8-mode
+    @Deprecated // utf8-mode is ignored
     public NatsMessage(String subject, String replyTo, Headers headers, byte[] data, boolean utf8mode) {
         this(subject, replyTo, headers, data);
-        this.utf8mode = utf8mode;
     }
 
     public NatsMessage(String subject, String replyTo, byte[] data) {
@@ -90,41 +87,46 @@ public class NatsMessage implements Message {
         this(data);
         this.subject = validateSubject(subject, true);
         this.replyTo = validateReplyTo(replyTo, false);
-        this.headers = readOnlyOf(headers);
-        this.utf8mode = false;
-        finishConstruct();
+        this.headers = headers;
     }
 
     public NatsMessage(Message message) {
         this(message.getData());
         this.subject = message.getSubject();
         this.replyTo = message.getReplyTo();
-        this.headers = readOnlyOf(message.getHeaders());
-        this.utf8mode = message.isUtf8mode();
-        finishConstruct();
+        this.headers = message.getHeaders();
     }
 
-    private static Headers readOnlyOf(Headers headers) {
-        if (headers == null || headers.isReadOnly()) {
-            return headers;
-        }
-        return new Headers(headers, true, null);
+    // ----------------------------------------------------------------------------------------------------
+    // Client and Message Internal Methods
+    // ----------------------------------------------------------------------------------------------------
+    boolean isProtocol() {
+        return false; // overridden in NatsMessage.ProtocolMessage
     }
 
-    protected void finishConstruct() {
+    private static final Headers EMPTY_READ_ONLY = new Headers(null, true, null);
+
+    protected void calculate() {
         int replyToLen = replyTo == null ? 0 : replyTo.length();
 
-        if (headers != null && !headers.isEmpty()) {
-            headerLen = headers.serializedLength();
-        }
-        else {
+        // headers get frozen (read only) at this point
+        if (headers == null) {
             headerLen = 0;
         }
+        else if (headers.isEmpty()) {
+            headers = EMPTY_READ_ONLY;
+            headerLen = 0;
+        }
+        else {
+            headers = headers.isReadOnly() ? headers : new Headers(headers, true, null);
+            headerLen = headers.serializedLength();
+        }
+
         int headerAndDataLen = headerLen + dataLen;
 
         // initialize the builder with a reasonable length, preventing resize in 99.9% of the cases
         // 32 for misc + subject length doubled in case of utf8 mode + replyToLen + totLen (headerLen + dataLen)
-        ByteArrayBuilder bab = new ByteArrayBuilder(32 + (subject.length() * 2) + replyToLen + headerAndDataLen);
+        ByteArrayBuilder bab = new ByteArrayBuilder(32 + (subject.length() * 2) + replyToLen + headerAndDataLen, UTF_8);
 
         // protocol come first
         if (headerLen > 0) {
@@ -155,23 +157,37 @@ public class NatsMessage implements Message {
         sizeInBytes = controlLineLength + headerAndDataLen + 2; // The 2nd CRLFs
     }
 
-    // ----------------------------------------------------------------------------------------------------
-    // Client and Message Internal Methods
-    // ----------------------------------------------------------------------------------------------------
+    ByteArrayBuilder getProtocolBab() {
+        calculate();
+        return protocolBab;
+    }
+
     long getSizeInBytes() {
+        calculate();
         return sizeInBytes;
     }
 
-    boolean isProtocol() {
-        return false; // overridden in NatsMessage.ProtocolMessage
-    }
-
     byte[] getProtocolBytes() {
+        calculate();
         return protocolBab.toByteArray();
     }
 
     int getControlLineLength() {
+        calculate();
         return controlLineLength;
+    }
+
+    /**
+     * @param destPosition the position index in destination byte array to start
+     * @param dest is the byte array to write to
+     * @return the length of the header
+     */
+    int copyNotEmptyHeaders(int destPosition, byte[] dest) {
+        calculate();
+        if (headerLen > 0) {
+            return headers.serializeToArray(destPosition, dest);
+        }
+        return 0;
     }
 
     void setSubscription(NatsSubscription sub) {
@@ -215,18 +231,6 @@ public class NatsMessage implements Message {
     @Override
     public String getReplyTo() {
         return replyTo;
-    }
-
-    /**
-     * @param destPosition the position index in destination byte array to start
-     * @param dest the byte array to write to
-     * @return the length of the header
-     */
-    int copyNotEmptyHeaders(int destPosition, byte[] dest) {
-        if (headers != null && !headers.isEmpty()) {
-            return headers.serializeToArray(destPosition, dest);
-        }
-        return 0;
     }
 
     /**
@@ -274,7 +278,7 @@ public class NatsMessage implements Message {
      */
     @Override
     public boolean isUtf8mode() {
-        return utf8mode;
+        return false;
     }
 
     /**
@@ -386,7 +390,6 @@ public class NatsMessage implements Message {
                 "\n  subject='" + subject + '\'' +
                 "\n  replyTo='" + replyToString() + '\'' +
                 "\n  data=" + dataToString() +
-                "\n  utf8mode=" + utf8mode +
                 "\n  headers=" + headersToString() +
                 "\n  sid='" + sid + '\'' +
                 "\n  protocolBytes=" + protocolBytesToString() +
@@ -403,7 +406,6 @@ public class NatsMessage implements Message {
     }
 
     private String dataToString() {
-
         if (data.length == 0) {
             return "<no data>";
         }
@@ -444,7 +446,6 @@ public class NatsMessage implements Message {
         private String replyTo;
         private Headers headers;
         private byte[] data;
-        private boolean utf8mode;
 
         /**
          * Set the subject
@@ -524,7 +525,6 @@ public class NatsMessage implements Message {
          */
         @Deprecated
         public Builder utf8mode(final boolean utf8mode) {
-            this.utf8mode = utf8mode;
             return this;
         }
 
@@ -534,7 +534,7 @@ public class NatsMessage implements Message {
          * @return the {@code NatsMessage}
          */
         public NatsMessage build() {
-            return new NatsMessage(subject, replyTo, headers, data, utf8mode);
+            return new NatsMessage(subject, replyTo, headers, data);
         }
     }
 }

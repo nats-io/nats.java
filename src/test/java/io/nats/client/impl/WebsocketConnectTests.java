@@ -13,12 +13,12 @@
 
 package io.nats.client.impl;
 
+import io.nats.NatsServerRunner;
 import io.nats.client.*;
 import io.nats.client.support.HttpRequest;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
 import io.nats.client.utils.RunProxy;
 import io.nats.client.utils.TestBase;
-import nats.io.NatsServerRunner;
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
@@ -189,6 +189,22 @@ public class WebsocketConnectTests extends TestBase {
             Options options = Options.builder()
                 .server(getLocalhostUri("wss", ts.getPort("wss")))
                 .maxReconnects(0)
+                .build();
+            assertCanConnect(options);
+        } finally {
+            SSLContext.setDefault(originalDefault);
+        }
+    }
+
+    @Test
+    public void testURISchemeWSSConnectionEnsureTlsFirstHasNoEffect() throws Exception {
+        SSLContext originalDefault = SSLContext.getDefault();
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/wss.conf", false)) {
+            SSLContext.setDefault(SslTestingHelper.createTestSSLContext());
+            Options options = Options.builder()
+                .server(getLocalhostUri("wss", ts.getPort("wss")))
+                .maxReconnects(0)
+                .tlsFirst()
                 .build();
             assertCanConnect(options);
         } finally {
