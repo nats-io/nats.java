@@ -16,7 +16,9 @@ package io.nats.client.api;
 import io.nats.client.support.JsonValue;
 
 import java.time.ZonedDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonValueUtils.*;
@@ -34,6 +36,7 @@ public class StreamState {
     private final List<Subject> subjects;
     private final List<Long> deletedStreamSequences;
     private final LostStreamData lostStreamData;
+    private final Map<String, Long> subjectMap;
 
     StreamState(JsonValue vStreamState) {
         msgs = readLong(vStreamState, MESSAGES, 0);
@@ -48,6 +51,11 @@ public class StreamState {
         subjects = Subject.listOf(readValue(vStreamState, SUBJECTS));
         deletedStreamSequences = readLongList(vStreamState, DELETED);
         lostStreamData = LostStreamData.optionalInstance(readValue(vStreamState, LOST));
+
+        subjectMap = new HashMap<>();
+        for (Subject s : subjects) {
+            subjectMap.put(s.getName(), s.getCount());
+        }
     }
 
     /**
@@ -122,12 +130,20 @@ public class StreamState {
     }
 
     /**
-     * Get a list of the Subject objects. May be null if the Stream Info request did not ask for subjects
-     * or if there are no subjects.
+     * Get a list of the Subject objects. May be empty, for instance
+     * if the Stream Info request did not ask for subjects or if there are no subjects.
      * @return the list of subjects
      */
     public List<Subject> getSubjects() {
         return subjects;
+    }
+
+    /**
+     * Get a map of subjects instead of a list of Subject objects.
+     * @return the map
+     */
+    public Map<String, Long> getSubjectMap() {
+        return subjectMap;
     }
 
     /**
