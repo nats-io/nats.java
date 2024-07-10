@@ -403,6 +403,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(0, si.getStreamState().getSubjects().size());
             assertEquals(0, si.getStreamState().getDeletedCount());
             assertEquals(0, si.getStreamState().getDeleted().size());
+            assertTrue(si.getStreamState().getSubjectMap().isEmpty());
 
             if (nc.getServerInfo().isOlderThanVersion("2.10")) {
                 assertNull(si.getTimestamp());
@@ -427,6 +428,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(0, si.getStreamState().getSubjects().size());
             assertEquals(5, si.getStreamState().getDeletedCount());
             assertEquals(0, si.getStreamState().getDeleted().size());
+            assertTrue(si.getStreamState().getSubjectMap().isEmpty());
 
             si = jsm.getStreamInfo(stream, StreamInfoOptions.builder().allSubjects().deletedDetails().build());
             assertEquals(stream, si.getConfiguration().getName());
@@ -448,6 +450,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             Subject sf = map.get(subjectIx5 + ".bar");
             assertNotNull(sf);
             assertEquals(6, sf.getCount());
+            assertEquals(6, si.getStreamState().getSubjectMap().size());
 
             for (PublishAck pa : packs) {
                 assertTrue(si.getStreamState().getDeleted().contains(pa.getSeqno()));
