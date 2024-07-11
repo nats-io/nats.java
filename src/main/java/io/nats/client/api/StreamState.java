@@ -36,7 +36,7 @@ public class StreamState {
     private final List<Subject> subjects;
     private final List<Long> deletedStreamSequences;
     private final LostStreamData lostStreamData;
-    private final Map<String, Long> subjectMap;
+    private Map<String, Long> subjectMap;
 
     StreamState(JsonValue vStreamState) {
         msgs = readLong(vStreamState, MESSAGES, 0);
@@ -51,11 +51,6 @@ public class StreamState {
         subjects = Subject.listOf(readValue(vStreamState, SUBJECTS));
         deletedStreamSequences = readLongList(vStreamState, DELETED);
         lostStreamData = LostStreamData.optionalInstance(readValue(vStreamState, LOST));
-
-        subjectMap = new HashMap<>();
-        for (Subject s : subjects) {
-            subjectMap.put(s.getName(), s.getCount());
-        }
     }
 
     /**
@@ -143,6 +138,13 @@ public class StreamState {
      * @return the map
      */
     public Map<String, Long> getSubjectMap() {
+        // lazy load this only if they ask for it as a map
+        if (subjectMap == null) {
+            subjectMap = new HashMap<>();
+            for (Subject s : subjects) {
+                subjectMap.put(s.getName(), s.getCount());
+            }
+        }
         return subjectMap;
     }
 
