@@ -37,7 +37,7 @@ public class Subject implements Comparable<Subject> {
         return list;
     }
 
-    private Subject(String name, long count) {
+    public Subject(String name, long count) {
         this.name = name;
         this.count = count;
     }

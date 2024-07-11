@@ -16,6 +16,7 @@ package io.nats.client.api;
 import io.nats.client.support.JsonValue;
 
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,13 +49,20 @@ public class StreamState {
         lastTime = readDate(vStreamState, LAST_TS);
         subjectCount = readLong(vStreamState, NUM_SUBJECTS, 0);
         deletedCount = readLong(vStreamState, NUM_DELETED, 0);
-        subjects = Subject.listOf(readValue(vStreamState, SUBJECTS));
         deletedStreamSequences = readLongList(vStreamState, DELETED);
         lostStreamData = LostStreamData.optionalInstance(readValue(vStreamState, LOST));
 
+        subjects = new ArrayList<>();
         subjectMap = new HashMap<>();
-        for (Subject s : subjects) {
-            subjectMap.put(s.getName(), s.getCount());
+        JsonValue vSubjects = readValue(vStreamState, SUBJECTS);
+        if (vSubjects != null && vSubjects.map != null) {
+            for (String subject : vSubjects.map.keySet()) {
+                Long count = getLong(vSubjects.map.get(subject));
+                if (count != null) {
+                    subjects.add(new Subject(subject, count));
+                    subjectMap.put(subject, count);
+                }
+            }
         }
     }
 
