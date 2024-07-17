@@ -47,7 +47,7 @@ public class KeyValueTests extends JetStreamTestBase {
         String stringValue1 = "String Value 1";
         String stringValue2 = "String Value 2";
 
-        jsServer.run(nc -> {
+        jsServer.run(TestBase::atLeast2_10, nc -> {
             // get the kv management context
             KeyValueManagement kvm = nc.keyValueManagement();
             nc.keyValueManagement(KeyValueOptions.builder(DEFAULT_JS_OPTIONS).build()); // coverage
