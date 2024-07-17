@@ -1655,7 +1655,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testSubjectFiltersAgainst209OptOut() throws Exception {
-        jsServer.run(nc -> {
+        jsServer.run(TestBase::atLeast2_10, nc -> {
             KeyValueManagement kvm = nc.keyValueManagement();
 
             String bucket = bucket();
