@@ -34,6 +34,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -2603,12 +2604,23 @@ public class Options {
             consumer.accept(defaultValue);
         }
         else {
-            int ms = Integer.parseInt(value);
-            if (ms < 0) {
-                consumer.accept(defaultValue);
+            try {
+                Duration d = Duration.parse(value);
+                if (d.toNanos() < 0) {
+                    consumer.accept(defaultValue);
+                }
+                else {
+                    consumer.accept(d);
+                }
             }
-            else {
-                consumer.accept(Duration.ofMillis(ms));
+            catch (DateTimeParseException pe) {
+                int ms = Integer.parseInt(value);
+                if (ms < 0) {
+                    consumer.accept(defaultValue);
+                }
+                else {
+                    consumer.accept(Duration.ofMillis(ms));
+                }
             }
         }
     }
