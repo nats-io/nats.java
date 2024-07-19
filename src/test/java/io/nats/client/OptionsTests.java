@@ -280,6 +280,56 @@ public class OptionsTests {
     }
 
     @Test
+    public void testDurationProperties() {
+        // test millis
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_RECONNECT_WAIT, "" + (15 * MINUTE));
+        props.setProperty(Options.PROP_RECONNECT_JITTER, "" + (2 * DAY + 3 * HOUR + 4 * MINUTE));
+        props.setProperty(Options.PROP_RECONNECT_JITTER_TLS, "" + DAY);
+        props.setProperty(Options.PROP_CONNECTION_TIMEOUT, "42000");
+        props.setProperty(Options.PROP_SOCKET_WRITE_TIMEOUT, "42123");
+        props.setProperty(Options.PROP_PING_INTERVAL, "20345");
+        props.setProperty(Options.PROP_CLEANUP_INTERVAL, "" + (10 * HOUR));
+        _testDurationProperties(new Options.Builder(props).build());
+
+        // test duration strings
+        props = new Properties();
+        props.setProperty(Options.PROP_RECONNECT_WAIT, "PT15M");
+        props.setProperty(Options.PROP_RECONNECT_JITTER, "P2DT3H4M");
+        props.setProperty(Options.PROP_RECONNECT_JITTER_TLS, "P1D");
+        props.setProperty(Options.PROP_CONNECTION_TIMEOUT, "PT42S");
+        props.setProperty(Options.PROP_SOCKET_WRITE_TIMEOUT, "PT42.123S");
+        props.setProperty(Options.PROP_PING_INTERVAL, "PT20.345S");
+        props.setProperty(Options.PROP_CLEANUP_INTERVAL, "PT10H");
+        _testDurationProperties(new Options.Builder(props).build());
+
+        // test negative value gives default
+        props = new Properties();
+        props.setProperty(Options.PROP_RECONNECT_WAIT, "-1");
+        Options o = new Options.Builder(props).build();
+        assertEquals(2000, o.getReconnectWait().toMillis());
+
+        // test parse error
+        Properties px1 = new Properties();
+        px1.setProperty(Options.PROP_RECONNECT_WAIT, "A");
+        assertThrows(NumberFormatException.class, () -> new Options.Builder(px1).build());
+    }
+
+    private static final long MINUTE = 1000 * 60;
+    private static final long HOUR = MINUTE * 60;
+    private static final long DAY = HOUR * 24;
+
+    private static void _testDurationProperties(Options o) {
+        assertEquals(15 * MINUTE, o.getReconnectWait().toMillis());
+        assertEquals(2 * DAY + 3 * HOUR + 4 * MINUTE, o.getReconnectJitter().toMillis());
+        assertEquals(DAY, o.getReconnectJitterTls().toMillis());
+        assertEquals(42000, o.getConnectionTimeout().toMillis());
+        assertEquals(42123, o.getSocketWriteTimeout().toMillis());
+        assertEquals(20345, o.getPingInterval().toMillis());
+        assertEquals(10 * HOUR, o.getRequestCleanupInterval().toMillis());
+    }
+
+    @Test
     public void testPropertiesBooleanBuilder() {
         Properties props = new Properties();
         props.setProperty(Options.PROP_VERBOSE, "true");
