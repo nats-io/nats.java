@@ -78,4 +78,9 @@ public interface ServerPool {
      * @return the flag
      */
     boolean hasSecureServer();
+
+    /**
+     * Randomly shuffle list of servers, so that `nextServer` returns arbitrary server from pool
+     */
+    void shuffle();
 }

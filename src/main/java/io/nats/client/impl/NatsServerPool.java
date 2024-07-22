@@ -298,6 +298,11 @@ public class NatsServerPool implements ServerPool {
         return hasSecureServer;
     }
 
+    @Override
+    public void shuffle() {
+        Collections.shuffle(entryList, ThreadLocalRandom.current());
+    }
+
     protected int findEquivalent(List<NatsUri> list, NatsUri toFind) {
         for (int i = 0; i < list.size(); i++) {
             NatsUri nuri = list.get(i);

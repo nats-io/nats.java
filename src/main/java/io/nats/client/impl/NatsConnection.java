@@ -336,6 +336,9 @@ class NatsConnection implements Connection {
             closeSocketLock.unlock();
         }
 
+        if (options != null && options.isFairServerDistribution()) {
+            serverPool.shuffle();
+        }
         try {
             // calling connect just starts like a new connection versus reconnect
             // but we have to manually resubscribe like reconnect once it is connected

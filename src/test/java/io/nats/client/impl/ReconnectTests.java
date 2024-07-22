@@ -722,6 +722,30 @@ public class ReconnectTests {
     }
 
     @Test
+    void testForceReconnectWithFairDistribution() throws Exception {
+        ListenerForTesting listener = new ListenerForTesting();
+        ThreeServerTestOptions tstOpts = makeThreeServerTestOptions(listener, false);
+        runInJsCluster(tstOpts, (nc0, nc1, nc2) -> {
+            for (int i = 0; i < 10; i++) {
+                listener.getConnectionEvents().clear();
+                ServerInfo si = nc0.getServerInfo();
+                String connectedServer = si.getServerId();
+
+                nc0.forceReconnect(ForceReconnectOptions.builder().fairServerDistribution().build());
+                standardConnectionWait(nc0);
+
+                si = nc0.getServerInfo();
+                assertTrue(listener.getConnectionEvents().contains(Events.DISCONNECTED));
+                assertTrue(listener.getConnectionEvents().contains(Events.RECONNECTED));
+                if (connectedServer.equals(si.getServerId())) {
+                    return;
+                }
+            }
+            fail("Expected that client will reconnect to the same server at least once");
+        });
+    }
+
+    @Test
     public void testForceReconnectWithAccount() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
         ThreeServerTestOptions tstOpts = makeThreeServerTestOptions(listener, true);
@@ -774,23 +798,24 @@ public class ReconnectTests {
 
             String subject = subject();
             ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
-            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, false, 0);
+            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, false, true, 0);
 
             subject = subject();
             ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
-            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, false, flushWait);
+            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, false, false, flushWait);
 
             subject = subject();
             ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
-            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, true, 0);
+            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, true, false, 0);
 
             subject = subject();
             ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
-            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, true, flushWait);
+            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, true, true, flushWait);
         });
     }
 
-    private static void _testForceReconnectQueueCheck(String subject, int pubCount, int subscribeTime, int port, boolean forceClose, int flushWait) throws InterruptedException {
+    private static void _testForceReconnectQueueCheck(String subject, int pubCount, int subscribeTime, int port,
+                                                      boolean forceClose, boolean fairDistribution, int flushWait) throws InterruptedException {
         ReconnectQueueCheckSubscriber subscriber = new ReconnectQueueCheckSubscriber(subject, pubCount, port);
         Thread tsub = new Thread(subscriber);
         tsub.start();
@@ -801,6 +826,9 @@ public class ReconnectTests {
         }
         if (forceClose) {
             froBuilder.forceClose();
+        }
+        if (fairDistribution) {
+            froBuilder.fairServerDistribution();
         }
 
         ReconnectQueueCheckConnectionListener listener = new ReconnectQueueCheckConnectionListener();

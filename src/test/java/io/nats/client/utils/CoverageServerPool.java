@@ -64,4 +64,8 @@ public class CoverageServerPool implements ServerPool {
     public boolean hasSecureServer() {
         return false;
     }
+
+    @Override
+    public void shuffle() {
+    }
 }

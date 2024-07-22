@@ -24,15 +24,21 @@ public class ForceReconnectOptions {
     public static final ForceReconnectOptions FORCE_CLOSE_INSTANCE = ForceReconnectOptions.builder().forceClose().build();
 
     private final boolean forceClose;
+    private final boolean fairServerDistribution;
     private final Duration flushWait;
 
     private ForceReconnectOptions(Builder b) {
         this.forceClose = b.forceClose;
         this.flushWait = b.flushWait;
+        this.fairServerDistribution = b.fairServerDistribution;
     }
 
     public boolean isForceClose() {
         return forceClose;
+    }
+
+    public boolean isFairServerDistribution() {
+        return fairServerDistribution;
     }
 
     public boolean isFlush() {
@@ -56,6 +62,7 @@ public class ForceReconnectOptions {
      */
     public static class Builder {
         boolean forceClose = false;
+        boolean fairServerDistribution = false;
         Duration flushWait;
 
         /**
@@ -65,6 +72,17 @@ public class ForceReconnectOptions {
 
         public Builder forceClose() {
             this.forceClose = true;
+            return this;
+        }
+
+        /**
+         * When disabled, client will never try to force reconnect to currently connected server.
+         * If enabled, list of available servers will be shuffled, so ServerPool#nextServer might return currently
+         * connected server.
+         * @return the builder
+         */
+        public Builder fairServerDistribution() {
+            this.fairServerDistribution = true;
             return this;
         }
 
