@@ -29,13 +29,13 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class NatsServerPool implements ServerPool {
 
-    private final ReentrantLock listLock;
-    private List<ServerPoolEntry> entryList;
-    private Options options;
-    private int maxConnectAttempts;
-    private NatsUri lastConnected;
-    private boolean hasSecureServer;
-    private String defaultScheme;
+    protected final ReentrantLock listLock;
+    protected List<ServerPoolEntry> entryList;
+    protected Options options;
+    protected int maxConnectAttempts;
+    protected NatsUri lastConnected;
+    protected boolean hasSecureServer;
+    protected String defaultScheme;
 
     public NatsServerPool() {
         listLock = new ReentrantLock();
@@ -148,7 +148,7 @@ public class NatsServerPool implements ServerPool {
         }
     }
 
-    private void afterListChanged() {
+    protected void afterListChanged() {
         // 1. randomize if needed and allowed
         if (entryList.size() > 1 && !options.isNoRandomize()) {
             Collections.shuffle(entryList, ThreadLocalRandom.current());
@@ -298,7 +298,7 @@ public class NatsServerPool implements ServerPool {
         return hasSecureServer;
     }
 
-    private int findEquivalent(List<NatsUri> list, NatsUri toFind) {
+    protected int findEquivalent(List<NatsUri> list, NatsUri toFind) {
         for (int i = 0; i < list.size(); i++) {
             NatsUri nuri = list.get(i);
             if (nuri.equivalent(toFind)) {
