@@ -1047,6 +1047,26 @@ The raw TLS test certs are in [src/test/resources/certs](src/test/resources/cert
 > rm cert.p12 combined.pem
 ```
 
+### TLS client versus server checks
+
+When creating a connection, client TLS behavior is set while creating options.
+The client assumes TLS is requested if there is an SSLContext instance in the options. 
+There are two ways one exists:
+1. The user directly supplied one 
+2. A default one was created since one was not supplied, but a supplied server url has a secure protocol such as `tls`, `wss` or `opentls`
+
+If there is a mismatch, an IOException will be thrown during connect.
+
+| server config | client options    | result                                       |
+|---------------|-------------------|----------------------------------------------|
+| required      | tls not requested | mismatch, "SSL required by server."          | 
+| available     | tls not requested | ok                                           |    
+| neither       | tls not requested | ok                                           |   
+| required      | tls requested     | ok                                           |
+| available     | tls requested     | ok                                           |
+| neither       | tls requested     | mismatch, "SSL connection wanted by client." |     
+
+
 ### TLS Handshake First
 In Server 2.10.3 and later, there is the ability to have TLS Handshake First.
 
