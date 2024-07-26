@@ -126,6 +126,11 @@ public class Options {
     public static final long MINIMUM_SOCKET_WRITE_TIMEOUT_GT_CONNECTION_TIMEOUT = 100;
 
     /**
+     * Constant used for calculating if a socket read timeout is large enough.
+     */
+    public static final long MINIMUM_SOCKET_READ_TIMEOUT_GT_CONNECTION_TIMEOUT = 100;
+
+    /**
      * Default server ping interval. The client will send a ping to the server on this interval to insure liveness.
      * The server may send pings to the client as well, these are handled automatically by the library,
      * see {@link #getPingInterval() getPingInterval()}.
@@ -271,6 +276,11 @@ public class Options {
      * {@link Builder#connectionTimeout(Duration) connectionTimeout}.
      */
     public static final String PROP_CONNECTION_TIMEOUT = PFX + "timeout";
+    /**
+     * Property used to configure a builder from a Properties object. {@value}, see
+     * {@link Builder#socketReadTimeoutMillis(int) socketReadTimeoutMillis}.
+     */
+    public static final String PROP_SOCKET_READ_TIMEOUT_MS = PFX + "socket.read.timeout.ms";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see
      * {@link Builder#socketWriteTimeout(long) socketWriteTimeout}.
@@ -591,6 +601,7 @@ public class Options {
     private final Duration reconnectJitter;
     private final Duration reconnectJitterTls;
     private final Duration connectionTimeout;
+    private final int socketReadTimeoutMillis;
     private final Duration socketWriteTimeout;
     private final int socketSoLinger;
     private final Duration pingInterval;
@@ -704,6 +715,7 @@ public class Options {
         private Duration reconnectJitter = DEFAULT_RECONNECT_JITTER;
         private Duration reconnectJitterTls = DEFAULT_RECONNECT_JITTER_TLS;
         private Duration connectionTimeout = DEFAULT_CONNECTION_TIMEOUT;
+        private int socketReadTimeoutMillis = 0;
         private Duration socketWriteTimeout = DEFAULT_SOCKET_WRITE_TIMEOUT;
         private int socketSoLinger = -1;
         private Duration pingInterval = DEFAULT_PING_INTERVAL;
@@ -840,6 +852,7 @@ public class Options {
             durationProperty(props, PROP_RECONNECT_JITTER_TLS, DEFAULT_RECONNECT_JITTER_TLS, d -> this.reconnectJitterTls = d);
             longProperty(props, PROP_RECONNECT_BUF_SIZE, DEFAULT_RECONNECT_BUF_SIZE, l -> this.reconnectBufferSize = l);
             durationProperty(props, PROP_CONNECTION_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT, d -> this.connectionTimeout = d);
+            intProperty(props, PROP_SOCKET_READ_TIMEOUT_MS, -1, i -> this.socketReadTimeoutMillis = i);
             durationProperty(props, PROP_SOCKET_WRITE_TIMEOUT, DEFAULT_SOCKET_WRITE_TIMEOUT, d -> this.socketWriteTimeout = d);
             intProperty(props, PROP_SOCKET_SO_LINGER, -1, i -> socketSoLinger = i);
 
@@ -1274,6 +1287,16 @@ public class Options {
         }
 
         /**
+         * Set the timeout to use around socket reads
+         * @param socketReadTimeoutMillis the timeout milliseconds
+         * @return the Builder for chaining
+         */
+        public Builder socketReadTimeoutMillis(int socketReadTimeoutMillis) {
+            this.socketReadTimeoutMillis = socketReadTimeoutMillis;
+            return this;
+        }
+
+        /**
          * Set the timeout to use around socket writes
          * @param socketWriteTimeoutMillis the timeout milliseconds
          * @return the Builder for chaining
@@ -1285,7 +1308,7 @@ public class Options {
 
         /**
          * Set the timeout to use around socket writes
-         * @param socketWriteTimeout the timeout milliseconds
+         * @param socketWriteTimeout the timeout duration
          * @return the Builder for chaining
          */
         public Builder socketWriteTimeout(Duration socketWriteTimeout) {
@@ -1311,7 +1334,7 @@ public class Options {
         /**
          * Set the interval between attempts to pings the server. These pings are automated,
          * and capped by {@link #maxPingsOut(int) maxPingsOut()}. As of 2.4.4 the library
-         * may way up to 2 * time to send a ping. Incoming traffic from the server can postpone
+         * may wait up to 2 * time to send a ping. Incoming traffic from the server can postpone
          * the next ping to avoid pings taking up bandwidth during busy messaging.
          * Keep in mind that a ping requires a round trip to the server. Setting this value to a small
          * number can result in quick failures due to maxPingsOut being reached, these failures will
@@ -1323,7 +1346,7 @@ public class Options {
          * @return the Builder for chaining
          */
         public Builder pingInterval(Duration time) {
-            this.pingInterval = time;
+            this.pingInterval = time == null ? DEFAULT_PING_INTERVAL : time;
             return this;
         }
 
@@ -1772,6 +1795,15 @@ public class Options {
                     new DefaultThreadFactory(threadPrefix));
             }
 
+            if (socketReadTimeoutMillis > 0) {
+                long srtMin = pingInterval.toMillis() + MINIMUM_SOCKET_WRITE_TIMEOUT_GT_CONNECTION_TIMEOUT;
+                if (socketReadTimeoutMillis < srtMin) {
+                    throw new IllegalStateException("Socket Read Timeout must be at least "
+                        + MINIMUM_SOCKET_READ_TIMEOUT_GT_CONNECTION_TIMEOUT
+                        + " milliseconds greater than the Ping Interval");
+                }
+            }
+
             if (socketWriteTimeout == null || socketWriteTimeout.toMillis() < 1) {
                 socketWriteTimeout = null;
             }
@@ -1833,6 +1865,7 @@ public class Options {
             this.reconnectJitter = o.reconnectJitter;
             this.reconnectJitterTls = o.reconnectJitterTls;
             this.connectionTimeout = o.connectionTimeout;
+            this.socketReadTimeoutMillis = o.socketReadTimeoutMillis;
             this.socketWriteTimeout = o.socketWriteTimeout;
             this.socketSoLinger = o.socketSoLinger;
             this.pingInterval = o.pingInterval;
@@ -1896,6 +1929,7 @@ public class Options {
         this.reconnectJitter = b.reconnectJitter;
         this.reconnectJitterTls = b.reconnectJitterTls;
         this.connectionTimeout = b.connectionTimeout;
+        this.socketReadTimeoutMillis = b.socketReadTimeoutMillis;
         this.socketWriteTimeout = b.socketWriteTimeout;
         this.socketSoLinger = b.socketSoLinger;
         this.pingInterval = b.pingInterval;
@@ -2213,7 +2247,14 @@ public class Options {
     }
 
     /**
-     * @return the socketWriteTimeout, see {@link Builder#socketWriteTimeout(long) socketWriteTimeout()} in the builder doc
+     * @return the socketReadTimeoutMillis, see {@link Builder#socketReadTimeoutMillis(int) socketReadTimeoutMillis} in the builder doc
+     */
+    public int getSocketReadTimeoutMillis() {
+        return socketReadTimeoutMillis;
+    }
+
+    /**
+     * @return the socketWriteTimeout, see {@link Builder#socketWriteTimeout(long) socketWriteTimeout} in the builder doc
      */
     public Duration getSocketWriteTimeout() {
         return socketWriteTimeout;
