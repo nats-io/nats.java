@@ -37,7 +37,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import static io.nats.client.Options.DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE;
+import static io.nats.client.Options.*;
 import static io.nats.client.support.Encoding.base64UrlEncodeToString;
 import static io.nats.client.support.NatsConstants.DEFAULT_PORT;
 import static org.junit.jupiter.api.Assertions.*;
@@ -93,7 +93,7 @@ public class OptionsTests {
 
         assertEquals(Options.DEFAULT_RECONNECT_WAIT, o.getReconnectWait(), "default reconnect wait");
         assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, o.getConnectionTimeout(), "default connection timeout");
-        assertEquals(Options.DEFAULT_PING_INTERVAL, o.getPingInterval(), "default ping interval");
+        assertEquals(DEFAULT_PING_INTERVAL, o.getPingInterval(), "default ping interval");
         assertEquals(Options.DEFAULT_REQUEST_CLEANUP_INTERVAL, o.getRequestCleanupInterval(),
             "default cleanup interval");
 
@@ -599,7 +599,7 @@ public class OptionsTests {
         assertEquals(Options.DEFAULT_MAX_CONTROL_LINE, o.getMaxControlLine(), "default max control line");
         assertEquals(Options.DEFAULT_RECONNECT_WAIT, o.getReconnectWait(), "default reconnect wait");
         assertEquals(Options.DEFAULT_CONNECTION_TIMEOUT, o.getConnectionTimeout(), "default connection timeout");
-        assertEquals(Options.DEFAULT_PING_INTERVAL, o.getPingInterval(), "default ping interval");
+        assertEquals(DEFAULT_PING_INTERVAL, o.getPingInterval(), "default ping interval");
         assertEquals(Options.DEFAULT_REQUEST_CLEANUP_INTERVAL, o.getRequestCleanupInterval(),
             "default cleanup interval");
         assertEquals(DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE, o.getMaxMessagesInOutgoingQueue(),
@@ -798,6 +798,17 @@ public class OptionsTests {
         dataPort = o.buildDataPort();
         assertNotNull(dataPort);
         assertEquals(SocketDataPortWithWriteTimeout.class.getCanonicalName(), dataPort.getClass().getCanonicalName(), "new default dataPort");
+    }
+
+    @Test
+    public void testTimeoutValidations() {
+        assertThrows(IllegalStateException.class, () -> Options.builder()
+            .socketReadTimeoutMillis((int)DEFAULT_PING_INTERVAL.toMillis())
+            .build());
+
+        assertThrows(IllegalStateException.class, () -> Options.builder()
+            .socketWriteTimeout(DEFAULT_CONNECTION_TIMEOUT)
+            .build());
     }
 
     @Test

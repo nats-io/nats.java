@@ -716,7 +716,7 @@ public class Options {
         private Duration reconnectJitterTls = DEFAULT_RECONNECT_JITTER_TLS;
         private Duration connectionTimeout = DEFAULT_CONNECTION_TIMEOUT;
         private int socketReadTimeoutMillis = 0;
-        private Duration socketWriteTimeout = null;
+        private Duration socketWriteTimeout = DEFAULT_SOCKET_WRITE_TIMEOUT;
         private int socketSoLinger = -1;
         private Duration pingInterval = DEFAULT_PING_INTERVAL;
         private Duration requestCleanupInterval = DEFAULT_REQUEST_CLEANUP_INTERVAL;
@@ -853,7 +853,7 @@ public class Options {
             longProperty(props, PROP_RECONNECT_BUF_SIZE, DEFAULT_RECONNECT_BUF_SIZE, l -> this.reconnectBufferSize = l);
             durationProperty(props, PROP_CONNECTION_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT, d -> this.connectionTimeout = d);
             intProperty(props, PROP_SOCKET_READ_TIMEOUT_MS, -1, i -> this.socketReadTimeoutMillis = i);
-            durationProperty(props, PROP_SOCKET_WRITE_TIMEOUT, null, d -> this.socketWriteTimeout = d);
+            durationProperty(props, PROP_SOCKET_WRITE_TIMEOUT, DEFAULT_SOCKET_WRITE_TIMEOUT, d -> this.socketWriteTimeout = d);
             intProperty(props, PROP_SOCKET_SO_LINGER, -1, i -> socketSoLinger = i);
 
             intGtEqZeroProperty(props, PROP_MAX_CONTROL_LINE, DEFAULT_MAX_CONTROL_LINE, i -> this.maxControlLine = i);
@@ -1334,7 +1334,7 @@ public class Options {
         /**
          * Set the interval between attempts to pings the server. These pings are automated,
          * and capped by {@link #maxPingsOut(int) maxPingsOut()}. As of 2.4.4 the library
-         * may way up to 2 * time to send a ping. Incoming traffic from the server can postpone
+         * may wait up to 2 * time to send a ping. Incoming traffic from the server can postpone
          * the next ping to avoid pings taking up bandwidth during busy messaging.
          * Keep in mind that a ping requires a round trip to the server. Setting this value to a small
          * number can result in quick failures due to maxPingsOut being reached, these failures will
@@ -1346,7 +1346,7 @@ public class Options {
          * @return the Builder for chaining
          */
         public Builder pingInterval(Duration time) {
-            this.pingInterval = time;
+            this.pingInterval = time == null ? DEFAULT_PING_INTERVAL : time;
             return this;
         }
 
@@ -1796,11 +1796,11 @@ public class Options {
             }
 
             if (socketReadTimeoutMillis > 0) {
-                long swtMin = connectionTimeout.toMillis() + MINIMUM_SOCKET_READ_TIMEOUT_GT_CONNECTION_TIMEOUT;
-                if (socketReadTimeoutMillis < swtMin) {
+                long srtMin = pingInterval.toMillis() + MINIMUM_SOCKET_WRITE_TIMEOUT_GT_CONNECTION_TIMEOUT;
+                if (socketReadTimeoutMillis < srtMin) {
                     throw new IllegalStateException("Socket Read Timeout must be at least "
                         + MINIMUM_SOCKET_READ_TIMEOUT_GT_CONNECTION_TIMEOUT
-                        + " milliseconds greater than the Connection Timeout");
+                        + " milliseconds greater than the Ping Interval");
                 }
             }
 
