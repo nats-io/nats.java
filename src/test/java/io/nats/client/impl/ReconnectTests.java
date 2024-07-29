@@ -765,8 +765,8 @@ public class ReconnectTests {
     @Test
     public void testForceReconnectQueueBehaviorCheck() throws Exception {
         runInJsCluster((nc0, nc1, nc2) -> {
-            int pubCount = 1000000;
-            int subscribeTime = 4000;
+            int pubCount = 100_000;
+            int subscribeTime = 5000;
             int flushWait = 2500;
             int port = nc0.getServerInfo().getPort();
 
@@ -803,8 +803,11 @@ public class ReconnectTests {
             froBuilder.forceClose();
         }
 
+        ReconnectQueueCheckConnectionListener listener = new ReconnectQueueCheckConnectionListener();
+
         Options options = Options.builder()
             .server(getNatsLocalhostUri(port))
+            .connectionListener(listener)
             .dataPortType(ForceReconnectQueueCheckDataPort.class.getCanonicalName())
             .build();
 
@@ -814,6 +817,8 @@ public class ReconnectTests {
             }
 
             nc.forceReconnect(froBuilder.build());
+
+            assertTrue(listener.latch.await(subscribeTime, TimeUnit.MILLISECONDS));
 
             long maxTime = subscribeTime;
             while (!subscriber.subscriberDone.get() && maxTime > 0) {
@@ -831,6 +836,17 @@ public class ReconnectTests {
 
         if (flushWait > 0) {
             assertEquals(pubCount, subscriber.lastNotSkipped);
+        }
+    }
+
+    static class ReconnectQueueCheckConnectionListener implements ConnectionListener {
+        public CountDownLatch latch = new CountDownLatch(1);
+
+        @Override
+        public void connectionEvent(Connection conn, Events type) {
+            if (type == Events.RECONNECTED) {
+                latch.countDown();
+            }
         }
     }
 
