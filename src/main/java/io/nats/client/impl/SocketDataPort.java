@@ -85,6 +85,9 @@ public class SocketDataPort implements DataPort {
             if (soLinger > -1) {
                 socket.setSoLinger(true, soLinger);
             }
+            if (options.getSocketReadTimeoutMillis() > 0) {
+                socket.setSoTimeout(options.getSocketReadTimeoutMillis());
+            }
 
             if (isWebsocketScheme(nuri.getScheme())) {
                 if (SECURE_WEBSOCKET_PROTOCOL.equalsIgnoreCase(nuri.getScheme())) {
