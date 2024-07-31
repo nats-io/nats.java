@@ -584,7 +584,7 @@ public interface Connection extends AutoCloseable {
     /**
      * Get a stream context for a specific stream
      * <p><b>Recommended:</b> {@link StreamContext StreamContext} and {@link ConsumerContext ConsumerContext} are the preferred way to interact with existing streams and consume from streams. 
-     * {@link JetStreamManagement JetStreamManagement} should be used to create streams and consumers. {@link ConsumerContext.consume ConsumerContext.consume()} supports both push and pull consumers transparently.
+     * {@link JetStreamManagement JetStreamManagement} should be used to create streams and consumers. {@link ConsumerContext#consume ConsumerContext.consume()} supports both push and pull consumers transparently.
      * 
      * <pre>
      * nc = Nats.connect();
@@ -593,7 +593,7 @@ public interface Connection extends AutoCloseable {
 	 * // Or directly: 
 	 * // ConsumerContext consumerContext = nc.getConsumerContext("my-stream", "my-consumer"); 
 	 * consumerContext.consume(
-	 *      	msg -> {
+	 *      	msg -&gt; {
 	 *             System.out.println("   Received " + msg.getSubject());
 	 *             msg.ack();
 	 *           });

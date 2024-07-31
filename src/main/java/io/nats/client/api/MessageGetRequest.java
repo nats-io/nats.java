@@ -44,6 +44,8 @@ public class MessageGetRequest implements JsonSerializable {
 
     /**
      * @deprecated use static method forSequence with .serialize instead
+     * @param sequence start sequence
+     * @return rendered output
      */
     @Deprecated
     public static byte[] seqBytes(long sequence) {
@@ -52,6 +54,8 @@ public class MessageGetRequest implements JsonSerializable {
 
     /**
      * @deprecated use static method lastForSubject with .serialize instead
+     * @param subject filter subject
+     * @return rendered output
      */
     @Deprecated
     public static byte[] lastBySubjectBytes(String subject) {
@@ -60,6 +64,8 @@ public class MessageGetRequest implements JsonSerializable {
 
     /**
      * @deprecated use static method forSequence instead
+     * 
+     * @param sequence start sequence number
      */
     @Deprecated
     public MessageGetRequest(long sequence) {
@@ -68,6 +74,8 @@ public class MessageGetRequest implements JsonSerializable {
 
     /**
      * @deprecated use static method lastForSubject instead
+     * 
+     * @param lastBySubject filter subject
      */
     @Deprecated
     public MessageGetRequest(String lastBySubject) {
