@@ -263,16 +263,16 @@ public class Headers {
 	/**
 	 * Returns the number of keys (case-sensitive) in the header.
 	 *
-	 * @return the number of keys
+	 * @return the number of header entries
 	 */
 	public int size() {
 		return valuesMap.size();
 	}
 
 	/**
-	 * Returns trtruethis map contains no keys.
+	 * Returns ture if map contains no keys.
 	 *
-	 * @return true if this map contains no keys
+	 * @return true if there are no headers
 	 */
 	public boolean isEmpty() {
 		return valuesMap.isEmpty();
@@ -342,7 +342,7 @@ public class Headers {
 	 * Returns a {@link List} view of the values for the specific (case-sensitive) key.
 	 * Will be {@code null} if the key is not found.
 	 *
-	 * @param key get entry by key
+	 * @param key the key whose associated value is to be returned
 	 * @return a read-only list of the values for the case-sensitive key.
 	 */
 	public List<String> get(String key) {
@@ -353,7 +353,7 @@ public class Headers {
 	/**
 	 * Returns the first value for the specific (case-sensitive) key.
 	 * Will be {@code null} if the key is not found.
-	 * @param key get entry by key
+	 * @param key the key whose associated value is to be returned
 	 * @return the first value for the case-sensitive key.
 	 */
 	public String getFirst(String key) {
@@ -365,7 +365,7 @@ public class Headers {
 	 * Returns the last value for the specific (case-sensitive) key.
 	 * Will be {@code null} if the key is not found.
 	 *
-	 * @param key get entry by key
+	 * @param key the key whose associated value is to be returned
 	 * @return the last value for the case-sensitive key.
 	 */
 	public String getLast(String key) {
@@ -377,7 +377,7 @@ public class Headers {
 	 * Returns a {@link List} view of the values for the specific (case-insensitive) key.
 	 * Will be {@code null} if the key is not found.
 	 *
-	 * @param key get entry by key
+	 * @param key the key whose associated value is to be returned
 	 * @return a read-only list of the values for the case-insensitive key.
 	 */
 	public List<String> getIgnoreCase(String key) {
@@ -451,8 +451,9 @@ public class Headers {
 
 	/**
 	 * @deprecated
-	 * Appends the serialized bytes to the builder.
-	 * 
+	 * Used for unit testing.
+     * Appends the serialized bytes to the builder. 
+     * 
 	 * @param bab the ByteArrayBuilder to append
 	 * @return the builder
 	 */
