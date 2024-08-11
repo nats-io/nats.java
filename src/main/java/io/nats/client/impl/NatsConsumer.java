@@ -112,7 +112,7 @@ abstract class NatsConsumer implements Consumer {
 
     /**
      * @return the number of messages dropped from this consumer, since the last
-     *         call to {@link @clearDroppedCount}.
+     *         call to {@link #clearDroppedCount}.
      */
     public long getDroppedCount() {
         return this.droppedMessages.get();

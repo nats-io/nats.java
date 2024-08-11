@@ -45,6 +45,10 @@ public interface DataPort {
     /**
      * NOTE: the buffer will be modified if communicating over websockets and
      * the toWrite is greater than 1432.
+     * 
+     * @param src output byte[]
+     * @param toWrite number of bytes to write
+     * @throws IOException any IO error on the underlaying connection
      */
     void write(byte[] src, int toWrite) throws IOException;
 

@@ -106,8 +106,9 @@ public class Headers {
 	 * If the key is not present, sets the specified values for the key.
 	 * null values are ignored. If all values are null, the key is not added or updated.
 	 *
-	 * @param key the key
-	 * @return the Headers object
+	 * @param key the entry key
+	 * @param values a list of values to the entry
+	 * @return the Header object
 	 * @throws IllegalArgumentException if the key is null or empty or contains invalid characters
 	 *         -or- if any value contains invalid characters
 	 */
@@ -262,16 +263,16 @@ public class Headers {
 	/**
 	 * Returns the number of keys (case-sensitive) in the header.
 	 *
-	 * @return the number of keys
+	 * @return the number of header entries
 	 */
 	public int size() {
 		return valuesMap.size();
 	}
 
 	/**
-	 * Returns <tt>true</tt> if this map contains no keys.
+	 * Returns ture if map contains no keys.
 	 *
-	 * @return <tt>true</tt> if this map contains no keys
+	 * @return true if there are no headers
 	 */
 	public boolean isEmpty() {
 		return valuesMap.isEmpty();
@@ -291,20 +292,20 @@ public class Headers {
 	}
 
 	/**
-	 * Returns <tt>true</tt> if key (case-sensitive) is present (has values)
+	 * Returns true if key (case-sensitive) is present (has values)
 	 *
 	 * @param key key whose presence is to be tested
-	 * @return <tt>true</tt> if the key (case-sensitive) is present (has values)
+	 * @return true if the key (case-sensitive) is present (has values)
 	 */
 	public boolean containsKey(String key) {
 		return valuesMap.containsKey(key);
 	}
 
 	/**
-	 * Returns <tt>true</tt> if key (case-insensitive) is present (has values)
+	 * Returns true if key (case-insensitive) is present (has values)
 	 *
 	 * @param key exact key whose presence is to be tested
-	 * @return <tt>true</tt> if the key (case-insensitive) is present (has values)
+	 * @return true if the key (case-insensitive) is present (has values)
 	 */
 	public boolean containsKeyIgnoreCase(String key) {
 		for (String k : valuesMap.keySet()) {
@@ -341,6 +342,7 @@ public class Headers {
 	 * Returns a {@link List} view of the values for the specific (case-sensitive) key.
 	 * Will be {@code null} if the key is not found.
 	 *
+	 * @param key the key whose associated value is to be returned
 	 * @return a read-only list of the values for the case-sensitive key.
 	 */
 	public List<String> get(String key) {
@@ -351,7 +353,7 @@ public class Headers {
 	/**
 	 * Returns the first value for the specific (case-sensitive) key.
 	 * Will be {@code null} if the key is not found.
-	 *
+	 * @param key the key whose associated value is to be returned
 	 * @return the first value for the case-sensitive key.
 	 */
 	public String getFirst(String key) {
@@ -363,6 +365,7 @@ public class Headers {
 	 * Returns the last value for the specific (case-sensitive) key.
 	 * Will be {@code null} if the key is not found.
 	 *
+	 * @param key the key whose associated value is to be returned
 	 * @return the last value for the case-sensitive key.
 	 */
 	public String getLast(String key) {
@@ -374,6 +377,7 @@ public class Headers {
 	 * Returns a {@link List} view of the values for the specific (case-insensitive) key.
 	 * Will be {@code null} if the key is not found.
 	 *
+	 * @param key the key whose associated value is to be returned
 	 * @return a read-only list of the values for the case-insensitive key.
 	 */
 	public List<String> getIgnoreCase(String key) {
@@ -447,7 +451,10 @@ public class Headers {
 
 	/**
 	 * @deprecated
-	 * Appends the serialized bytes to the builder.
+	 * Used for unit testing.
+     * Appends the serialized bytes to the builder. 
+     * 
+	 * @param bab the ByteArrayBuilder to append
 	 * @return the builder
 	 */
 	@Deprecated
