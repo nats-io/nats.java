@@ -1,5 +1,37 @@
 # Change Log
 
+## 2.20.0
+
+### Core
+* CONNECT username and password need json encoding #1168 @scottf
+* UTF subject support #1169 @scottf
+* Handle InterruptedException when obtaining the lock to queue a message. #1170 @scottf
+* Handle duration string when accepting duration properties #1183 @scottf
+* Make NatsServerPool extendable #1185 @scottf
+* Allow user to set socket read timeout option #1188 @scottf
+
+### JetStream
+* Stream state subjects as a map #1177 @scottf
+* Stream state more efficient loading of subjects #1179 @scottf
+
+### Key Value
+* Add filtering to KV keys methods #1173 @scottf
+* Add filtering to KV keys methods - Use greater than constant #1174 @scottf
+* Add filtering to KV keys methods - remove unnecessary optimization #1175 @scottf
+
+### Object Store
+* Object Store use over leaf-hub domain part 2 #1172 @scottf
+
+### Unit Testing
+* Test implementation dependency update #1167 @scottf
+* Improve cluster testing support #1171 @scottf
+* Change test to run against 2.10 or later #1180 #1181 @scottf
+* Flapper Reconnect test fix #1189 @scottf
+
+### Project Management
+* Switch to Eclipse Temurin and add SDKMan for local dev #1176 @artur-ciocanu
+* Allowing building main on workflow_dispatch #1186 @scottf
+
 ## 2.19.1
 
 ### Core
