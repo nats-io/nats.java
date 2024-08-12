@@ -28,25 +28,26 @@ import java.util.concurrent.CompletableFuture;
  * 
  * <h3>Basic usage</h3>
  * 
- * <p>{@link #publish(String, byte[]) JetStream.Publish} will send a message on the specified subject as a Req/Rep waiting for acknowledgement. 
- * An error will be received if no stream is litetning on said subject.
- * 
- * <p>{@link Connection#publish(String, byte[]) Connection.Publish} can be used as well to send to a stream on a subject, but no confirmation or error will come back. 
- * Use non acknowledged publish with caution as it is easy to overwhelm Jetstream this way.
+ * <p>{@link #publish(String, byte[]) JetStream.Publish} will send a message on the specified subject, waiting for acknowledgement. 
+ * A  <b>503 No responders</b> error will be received if no stream is listening on said subject.
  * 
  * <p>{@link #publishAsync(String, byte[]) PublishAsync} will not wait for acknowledgement but return a {@link CompletableFuture CompletableFuture}, 
  * which can be checked for acknowledgement at a later point.
  * 
- * <p> Use {@link #getStreamContext(String ) getStreamContext(String)} for <b>consuming/subscribing</b> messages from Jetstream. 
+ * <p> Use {@link #getStreamContext(String ) getStreamContext(String)} to access a simplified API for <b>consuming/subscribing</b> messages from Jetstream. 
  * It is <b>recommened</b> to manage consumers explicitely through {@link StreamContext StreamContext} or {@link JetStreamManagement JetStreamManagement}
  * 
- * <p>{@link #subscribe(String)} is a convenience method for implicitely creating a consumer on a stream and receiving messages. 
- * This is simpler but eventually more prone to configuration errors than the {@link ConsumerContext ConsumerContext} based subscription. We recommend to manage consumers explcitely.
+ * <p>{@link #subscribe(String)} is a convenience method for implicitly creating a consumer on a stream and receiving messages. This method should be used for ephemeral (not durable) conusmers. 
+ * It can create a named durable consumers though Options, but we prefer to avoid creating durable consumers implictly. 
+ * It is <b>recommened</b> to manage consumers explicitely through {@link StreamContext StreamContext} or {@link JetStreamManagement JetStreamManagement}
+ *  
+ *  {@link ConsumerContext ConsumerContext} based subscription. 
  * 
- * <h3>Creating Streams, consumer and publishing</h3>
+ * <h3>Recommended usage for creating streams, consumers, publish and listen on a stream</h3>
  * <pre>
  *  io.nats.client.Connection nc = Nats.connect();
- *		
+ *	
+ *  //Setting up a stream and a consumer	
  *  JetStreamManagement jsm = nc.jetStreamManagement();
  *  StreamConfiguration sc = StreamConfiguration.builder()
  *    .name("my-stream")
@@ -62,25 +63,31 @@ import java.util.concurrent.CompletableFuture;
  *		
  *  jsm.createConsumer("my-stream", consumerConfig);
  *    	
+ *  //Listening and publishing  
  *  io.nats.client.JetStream js = nc.jetStream();
  *  ConsumerContext consumerContext = js.getConsumerContext("my-stream", "my-consumer"); 
- *	consumerContext.consume(
+ *  MessageConsumer mc = consumerContext.consume(
  *    msg -&gt; {
  *      System.out.println("   Received " + msg.getSubject());
  *      msg.ack();
  *    });
  *    	
  *  js.publish("foo.joe", "Hello World".getBytes());
+ *  
+ *  //Wait a moment, then stop the MessageConsumer
+ *  Thread.sleep(3000);
+ *  mc.stop();
+ *  
  *  </pre>
  *  
- *	<h3>Asynchronous publishing</h3>
+ *	<h3>Recommended usage of asynchronous publishing</h3>
  *  
  *  Jetstream messages can be published asynchronously, returning a CompletableFuture. 
  *  Note that you need to check the Future eventually otherwise the delivery guarantee is the same a regular {@link Connection#publish(String, byte[]) Connection.Publish} 
  *  
  *  <p>We are publishing a batch of 100 messages and check for completion afterwards.
  * 
- * <pre>
+ *  <pre>
  *  int COUNT = 100;
  *  java.util.concurrent.CompletableFuture&lt;?&gt;[] acks = new java.util.concurrent.CompletableFuture&lt;?&gt;[COUNT];
  * 
@@ -88,6 +95,7 @@ import java.util.concurrent.CompletableFuture;
  *    acks[i] = js.publishAsync("foo.joe", ("Hello "+i).getBytes());
  *  }
  *    	
+ *  //Acknowledgments may arrive out of sequence, but CompletableFuture is handling this for us.
  *  for( int i=0; i&lt;COUNT; i++ ) {
  *    try {
  *      acks[i].get();
@@ -95,6 +103,8 @@ import java.util.concurrent.CompletableFuture;
  *      //Retry or handle error
  *    }
  *  }
+ *  
+ *  //Now we may send anther batch
  * 
  * </pre>
  * 
