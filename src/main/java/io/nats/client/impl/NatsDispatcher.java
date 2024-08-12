@@ -106,6 +106,8 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
                                 handler.onMessage(msg);
                             } catch (Exception exp) {
                                 connection.processException(exp);
+                            } catch (Error err) {
+                                connection.processException(new Exception(err));
                             }
 
                             if (sub.reachedUnsubLimit()) {

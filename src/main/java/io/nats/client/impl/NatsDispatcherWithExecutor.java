@@ -48,6 +48,8 @@ class NatsDispatcherWithExecutor extends NatsDispatcher {
                                     finalHandler.onMessage(msg);
                                 } catch (Exception exp) {
                                     connection.processException(exp);
+                                } catch (Error err) {
+                                    connection.processException(new Exception(err));
                                 }
 
                                 if (sub.reachedUnsubLimit()) {
