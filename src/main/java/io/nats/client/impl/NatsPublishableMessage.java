@@ -13,8 +13,6 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.support.ByteArrayBuilder;
-
 import static io.nats.client.support.Validator.validateReplyTo;
 import static io.nats.client.support.Validator.validateSubject;
 
@@ -25,56 +23,28 @@ class NatsPublishableMessage extends NatsMessage {
         this.hasHeaders = hasHeaders;
     }
 
-    public NatsPublishableMessage(String subject, String replyTo, Headers headers, byte[] data, boolean validateSubRep) {
+    public NatsPublishableMessage(String subject, String replyTo, Headers headers, byte[] data, boolean validateSubjectAndReplyTo) {
         super(data);
-        this.subject = validateSubRep ? validateSubject(subject, true) : subject;
-        this.replyTo = validateSubRep ? validateReplyTo(replyTo, false) : replyTo;
+        if (validateSubjectAndReplyTo) {
+            this.subject = validateSubject(subject, true);
+            this.replyTo = validateReplyTo(replyTo, false);
+        }
+        else {
+            this.subject = subject;
+            this.replyTo = replyTo;
+        }
         if (headers == null || headers.isEmpty()) {
             hasHeaders = false;
         }
         else {
             hasHeaders = true;
-            headers = headers.isReadOnly() ? headers : new Headers(headers, true, null);
+            this.headers = headers.isReadOnly() ? headers : new Headers(headers, true, null);
         }
-        this.headers = new Headers(headers, false, null);
-        calculate();
+        super.calculate();
     }
 
     @Override
-    ByteArrayBuilder getProtocolBab() {
-        // compared to base class, skips calling calculate()
-        return protocolBab;
-    }
-
-    @Override
-    long getSizeInBytes() {
-        // compared to base class, skips calling calculate()
-        return sizeInBytes;
-    }
-
-    @Override
-    byte[] getProtocolBytes() {
-        // compared to base class, skips calling calculate()
-        return protocolBab.toByteArray();
-    }
-
-    @Override
-    int getControlLineLength() {
-        // compared to base class, skips calling calculate()
-        return controlLineLength;
-    }
-
-    /**
-     * @param destPosition the position index in destination byte array to start
-     * @param dest is the byte array to write to
-     * @return the length of the header
-     */
-    @Override
-    int copyNotEmptyHeaders(int destPosition, byte[] dest) {
-        // compared to base class, skips calling calculate()
-        if (headerLen > 0) {
-            return headers.serializeToArray(destPosition, dest);
-        }
-        return 0;
+    protected void calculate() {
+        // it's already done in the constructor
     }
 }

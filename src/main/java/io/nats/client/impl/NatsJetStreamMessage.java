@@ -99,7 +99,7 @@ class NatsJetStreamMessage extends IncomingMessage {
     @Override
     public NatsJetStreamMetaData metaData() {
         if (this.jsMetaData == null) {
-            this.jsMetaData = new NatsJetStreamMetaData(this);
+            this.jsMetaData = new NatsJetStreamMetaData(replyTo, true);
         }
         return this.jsMetaData;
     }

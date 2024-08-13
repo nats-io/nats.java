@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.support.DateTimeUtils;
+
 import java.time.ZonedDateTime;
 
 /**
@@ -54,13 +55,17 @@ public class NatsJetStreamMetaData {
      */
 
     public NatsJetStreamMetaData(NatsMessage natsMessage) {
-        if (!natsMessage.isJetStream()) {
-            throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
+        this(natsMessage.getReplyTo(), natsMessage.isJetStream());
+    }
+
+    NatsJetStreamMetaData(String replyTo, boolean isJetStream) {
+        if (!isJetStream) {
+            throw new IllegalArgumentException(notAJetStreamMessage(replyTo));
         }
 
-        String[] parts = natsMessage.getReplyTo().split("\\.");
+        String[] parts = replyTo.split("\\.");
         if (parts.length < 8 || !"ACK".equals(parts[1])) {
-            throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
+            throw new IllegalArgumentException(notAJetStreamMessage(replyTo));
         }
 
         int streamIndex;
@@ -82,7 +87,7 @@ public class NatsJetStreamMetaData {
             hasDomainAndHash = true;
         }
         else {
-            throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
+            throw new IllegalArgumentException(notAJetStreamMessage(replyTo));
         }
 
         try {
@@ -99,7 +104,7 @@ public class NatsJetStreamMetaData {
             pending = hasPending ? Long.parseLong(parts[streamIndex + 6]) : -1L;
         }
         catch (Exception e) {
-            throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
+            throw new IllegalArgumentException(notAJetStreamMessage(replyTo));
         }
     }
 
