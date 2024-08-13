@@ -326,12 +326,12 @@ class NatsConnection implements Connection {
 
             // stop i/o
             try {
-                this.reader.stop(false).get(10, TimeUnit.SECONDS);
+                this.reader.stop(false).get(100, TimeUnit.MILLISECONDS);
             } catch (Exception ex) {
                 processException(ex);
             }
             try {
-                this.writer.stop().get(10, TimeUnit.SECONDS);
+                this.writer.stop().get(100, TimeUnit.MILLISECONDS);
             } catch (Exception ex) {
                 processException(ex);
             }
