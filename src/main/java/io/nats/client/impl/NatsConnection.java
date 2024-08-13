@@ -712,19 +712,13 @@ class NatsConnection implements Connection {
         // Spawn a thread so we don't have timing issues with
         // waiting on read/write threads
         executor.submit(() -> {
-            if (!tryingToConnect.get()) {
-                try {
-                    tryingToConnect.set(true);
-
-                    // any issue that brings us here is pretty serious
-                    // so we are comfortable forcing the close
-                    this.closeSocket(true, true);
-                } catch (InterruptedException e) {
-                    processException(e);
-                    Thread.currentThread().interrupt();
-                } finally {
-                    tryingToConnect.set(false);
-                }
+            try {
+                // any issue that brings us here is pretty serious
+                // so we are comfortable forcing the close
+                this.closeSocket(true, true);
+            } catch (InterruptedException e) {
+                processException(e);
+                Thread.currentThread().interrupt();
             }
         });
     }
