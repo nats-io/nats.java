@@ -880,7 +880,11 @@ class NatsConnection implements Connection {
             //
         }
 
-        this.dataPortFuture.cancel(true);
+        // Close and reset the current data port and future
+        if (dataPortFuture != null) {
+            dataPortFuture.cancel(true);
+            dataPortFuture = null;
+        }
 
         // Close the current socket and cancel anyone waiting for it
         try {
