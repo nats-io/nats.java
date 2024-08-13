@@ -325,8 +325,16 @@ class NatsConnection implements Connection {
             }
 
             // stop i/o
-            reader.stop(false);
-            writer.stop();
+            try {
+                this.reader.stop(false).get(10, TimeUnit.SECONDS);
+            } catch (Exception ex) {
+                processException(ex);
+            }
+            try {
+                this.writer.stop().get(10, TimeUnit.SECONDS);
+            } catch (Exception ex) {
+                processException(ex);
+            }
 
             // new reader/writer
             reader = new NatsConnectionReader(this);
@@ -704,13 +712,19 @@ class NatsConnection implements Connection {
         // Spawn a thread so we don't have timing issues with
         // waiting on read/write threads
         executor.submit(() -> {
-            try {
-                // any issue that brings us here is pretty serious
-                // so we are comfortable forcing the close
-                this.closeSocket(true, true);
-            } catch (InterruptedException e) {
-                processException(e);
-                Thread.currentThread().interrupt();
+            if (!tryingToConnect.get()) {
+                try {
+                    tryingToConnect.set(true);
+
+                    // any issue that brings us here is pretty serious
+                    // so we are comfortable forcing the close
+                    this.closeSocket(true, true);
+                } catch (InterruptedException e) {
+                    processException(e);
+                    Thread.currentThread().interrupt();
+                } finally {
+                    tryingToConnect.set(false);
+                }
             }
         });
     }
