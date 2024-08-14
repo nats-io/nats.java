@@ -765,7 +765,7 @@ class NatsConnection implements Connection {
             if (isClosing()) { // isClosing() means we are in the close method or were asked to be
                 close();
             } else if (wasConnected && tryReconnectIfConnected) {
-                reconnect();
+                reconnectImpl(); // call the impl here otherwise the tryingToConnect guard will block the behavior
             }
         } finally {
             closeSocketLock.unlock();
