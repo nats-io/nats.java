@@ -18,7 +18,7 @@ import io.nats.client.support.DateTimeUtils;
 import java.time.ZonedDateTime;
 
 /**
- * Jetstream meta data about a message, when applicable.
+ * Jetstream Metadata about a message, when applicable.
  */
 public class NatsJetStreamMetaData {
 
@@ -55,17 +55,13 @@ public class NatsJetStreamMetaData {
      */
 
     public NatsJetStreamMetaData(NatsMessage natsMessage) {
-        this(natsMessage.getReplyTo(), natsMessage.isJetStream());
-    }
-
-    NatsJetStreamMetaData(String replyTo, boolean isJetStream) {
-        if (!isJetStream) {
-            throw new IllegalArgumentException(notAJetStreamMessage(replyTo));
+        if (!natsMessage.isJetStream()) {
+            throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
         }
 
-        String[] parts = replyTo.split("\\.");
+        String[] parts = natsMessage.getReplyTo().split("\\.");
         if (parts.length < 8 || !"ACK".equals(parts[1])) {
-            throw new IllegalArgumentException(notAJetStreamMessage(replyTo));
+            throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
         }
 
         int streamIndex;
@@ -87,7 +83,7 @@ public class NatsJetStreamMetaData {
             hasDomainAndHash = true;
         }
         else {
-            throw new IllegalArgumentException(notAJetStreamMessage(replyTo));
+            throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
         }
 
         try {
@@ -104,7 +100,7 @@ public class NatsJetStreamMetaData {
             pending = hasPending ? Long.parseLong(parts[streamIndex + 6]) : -1L;
         }
         catch (Exception e) {
-            throw new IllegalArgumentException(notAJetStreamMessage(replyTo));
+            throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
         }
     }
 
