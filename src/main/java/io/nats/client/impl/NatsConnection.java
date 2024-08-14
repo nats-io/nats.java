@@ -326,12 +326,12 @@ class NatsConnection implements Connection {
 
             // stop i/o
             try {
-                this.reader.stop(false).get(10, TimeUnit.SECONDS);
+                this.reader.stop(false).get(100, TimeUnit.MILLISECONDS);
             } catch (Exception ex) {
                 processException(ex);
             }
             try {
-                this.writer.stop().get(10, TimeUnit.SECONDS);
+                this.writer.stop().get(100, TimeUnit.MILLISECONDS);
             } catch (Exception ex) {
                 processException(ex);
             }
@@ -765,7 +765,7 @@ class NatsConnection implements Connection {
             if (isClosing()) { // isClosing() means we are in the close method or were asked to be
                 close();
             } else if (wasConnected && tryReconnectIfConnected) {
-                reconnect();
+                reconnectImpl(); // call the impl here otherwise the tryingToConnect guard will block the behavior
             }
         } finally {
             closeSocketLock.unlock();
@@ -880,7 +880,11 @@ class NatsConnection implements Connection {
             //
         }
 
-        this.dataPortFuture.cancel(true);
+        // Close and reset the current data port and future
+        if (dataPortFuture != null) {
+            dataPortFuture.cancel(true);
+            dataPortFuture = null;
+        }
 
         // Close the current socket and cancel anyone waiting for it
         try {
