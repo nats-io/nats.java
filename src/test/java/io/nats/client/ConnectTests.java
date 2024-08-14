@@ -617,4 +617,17 @@ public class ConnectTests {
         assertTrue(urls3.contains(port2));
         assertTrue(urls3.contains(port3));
     }
+
+    // https://github.com/nats-io/nats.java/issues/1201
+    @Test
+    void testLowConnectionTimeoutResultsInIOException() {
+        Options options = Options.builder()
+                .connectionTimeout(Duration.ZERO)
+                .build();
+
+        assertThrows(IOException.class, () -> {
+            Connection nc = Nats.connect(options);
+            nc.close();
+        });
+    }
 }
