@@ -681,6 +681,14 @@ class NatsConnection implements Connection {
                 dataPort.upgradeToSecure();
             }
             else {
+                // server    | client options      | result
+                // --------- | ------------------- | --------
+                // required  | not isTLSRequired() | mismatch
+                // available | not isTLSRequired() | ok
+                // neither   | not isTLSRequired() | ok
+                // required  | isTLSRequired()     | ok
+                // available | isTLSRequired()     | ok
+                // neither   | isTLSRequired()     | mismatch
                 ServerInfo serverInfo = getInfo();
                 if (options.isTLSRequired()) {
                     if (!serverInfo.isTLSRequired() && !serverInfo.isTLSAvailable()) {
