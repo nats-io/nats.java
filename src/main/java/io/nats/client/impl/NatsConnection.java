@@ -325,8 +325,16 @@ class NatsConnection implements Connection {
             }
 
             // stop i/o
-            reader.stop(false);
-            writer.stop();
+            try {
+                this.reader.stop(false).get(100, TimeUnit.MILLISECONDS);
+            } catch (Exception ex) {
+                processException(ex);
+            }
+            try {
+                this.writer.stop().get(100, TimeUnit.MILLISECONDS);
+            } catch (Exception ex) {
+                processException(ex);
+            }
 
             // new reader/writer
             reader = new NatsConnectionReader(this);
@@ -712,13 +720,19 @@ class NatsConnection implements Connection {
         // Spawn a thread so we don't have timing issues with
         // waiting on read/write threads
         executor.submit(() -> {
-            try {
-                // any issue that brings us here is pretty serious
-                // so we are comfortable forcing the close
-                this.closeSocket(true, true);
-            } catch (InterruptedException e) {
-                processException(e);
-                Thread.currentThread().interrupt();
+            if (!tryingToConnect.get()) {
+                try {
+                    tryingToConnect.set(true);
+
+                    // any issue that brings us here is pretty serious
+                    // so we are comfortable forcing the close
+                    this.closeSocket(true, true);
+                } catch (InterruptedException e) {
+                    processException(e);
+                    Thread.currentThread().interrupt();
+                } finally {
+                    tryingToConnect.set(false);
+                }
             }
         });
     }
@@ -759,7 +773,7 @@ class NatsConnection implements Connection {
             if (isClosing()) { // isClosing() means we are in the close method or were asked to be
                 close();
             } else if (wasConnected && tryReconnectIfConnected) {
-                reconnect();
+                reconnectImpl(); // call the impl here otherwise the tryingToConnect guard will block the behavior
             }
         } finally {
             closeSocketLock.unlock();
@@ -874,7 +888,11 @@ class NatsConnection implements Connection {
             //
         }
 
-        this.dataPortFuture.cancel(true);
+        // Close and reset the current data port and future
+        if (dataPortFuture != null) {
+            dataPortFuture.cancel(true);
+            dataPortFuture = null;
+        }
 
         // Close the current socket and cancel anyone waiting for it
         try {

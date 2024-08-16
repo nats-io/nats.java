@@ -571,6 +571,8 @@ public interface Connection extends AutoCloseable {
 
     /**
      * Get a stream context for a specific stream.
+     * 
+     * <p><b>Recommended:</b> See {@link #getStreamContext(String, JetStreamOptions) getStreamContext(String, JetStreamOptions)} 
      * @param streamName the stream for the context
      * @return a StreamContext instance.
      * @throws IOException covers various communication issues with the NATS
@@ -580,7 +582,23 @@ public interface Connection extends AutoCloseable {
     StreamContext getStreamContext(String streamName) throws IOException, JetStreamApiException;
 
     /**
-     * Get a stream context for a specific stream.
+     * Get a stream context for a specific stream
+     * <p><b>Recommended:</b> {@link StreamContext StreamContext} and {@link ConsumerContext ConsumerContext} are the preferred way to interact with existing streams and consume from streams. 
+     * {@link JetStreamManagement JetStreamManagement} should be used to create streams and consumers. {@link ConsumerContext#consume ConsumerContext.consume()} supports both push and pull consumers transparently.
+     * 
+     * <pre>
+     * nc = Nats.connect();
+	 * StreamContext streamContext = nc.getStreamContext("my-stream");
+	 * ConsumerContext consumerContext = streamContext.getConsumerContext("my-consumer");
+	 * // Or directly: 
+	 * // ConsumerContext consumerContext = nc.getConsumerContext("my-stream", "my-consumer"); 
+	 * consumerContext.consume(
+	 *      	msg -&gt; {
+	 *             System.out.println("   Received " + msg.getSubject());
+	 *             msg.ack();
+	 *           });
+	   </pre>         
+     * 
      * @param streamName the stream for the context
      * @param options JetStream options.
      * @return a StreamContext instance.
@@ -593,6 +611,9 @@ public interface Connection extends AutoCloseable {
     /**
      * Get a consumer context for a specific named stream and specific named consumer.
      * Verifies that the stream and consumer exist.
+     * 
+     * <p><b>Recommended:</b> See {@link #getStreamContext(String, JetStreamOptions) getStreamContext(String, JetStreamOptions)} 
+     * 
      * @param streamName the name of the stream
      * @param consumerName the name of the consumer
      * @return a ConsumerContext object
@@ -605,6 +626,9 @@ public interface Connection extends AutoCloseable {
     /**
      * Get a consumer context for a specific named stream and specific named consumer.
      * Verifies that the stream and consumer exist.
+     * 
+     * <p><b>Recommended:</b> See {@link #getStreamContext(String, JetStreamOptions) getStreamContext(String, JetStreamOptions)} 
+     * 
      * @param streamName the name of the stream
      * @param consumerName the name of the consumer
      * @param options JetStream options.

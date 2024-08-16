@@ -397,7 +397,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
     /**
      * {@inheritDoc}
      *
-     * @return
+     * @return returs the new status info of the object store
      */
     @Override
     public ObjectStoreStatus seal() throws IOException, JetStreamApiException {
