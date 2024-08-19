@@ -200,12 +200,10 @@ class NatsConnectionWriter implements Runnable {
                     sendMessageBatch(msg, dataPort, stats);
                 }
 
-                try {
-                    if (flushBuffer.get()) {
-                        flushBuffer.set(false);
-                        dataPort.flush();
-                    }
-                } catch (Exception ignore) {}
+                if (flushBuffer.get()) {
+                    flushBuffer.set(false);
+                    dataPort.flush();
+                }
             }
         } catch (IOException | BufferOverflowException io) {
             // if already not running, an IOE is not unreasonable in a transition state
