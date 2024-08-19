@@ -174,13 +174,6 @@ class NatsConnectionWriter implements Runnable {
             dataPort.write(sendBuffer, sendPosition);
         }
 
-        try {
-            if (flushBuffer.get()) {
-                dataPort.flush();
-                flushBuffer.set(false);
-            }
-        } catch (Exception ignore) {}
-
         connection.getNatsStatistics().registerWrite(sendPosition);
     }
 
@@ -203,11 +196,16 @@ class NatsConnectionWriter implements Runnable {
                     msg = this.outgoing.accumulate(sendBufferLength.get(), maxAccumulate, waitForMessage);
                 }
 
-                if (msg == null) { // Make sure we are still running
-                    continue;
+                if (msg != null) {
+                    sendMessageBatch(msg, dataPort, stats);
                 }
 
-                sendMessageBatch(msg, dataPort, stats);
+                try {
+                    if (flushBuffer.get()) {
+                        flushBuffer.set(false);
+                        dataPort.flush();
+                    }
+                } catch (Exception ignore) {}
             }
         } catch (IOException | BufferOverflowException io) {
             // if already not running, an IOE is not unreasonable in a transition state
