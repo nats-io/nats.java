@@ -539,8 +539,8 @@ public interface Connection extends AutoCloseable {
     String createInbox();
 
     /**
-     * Immediately flushes the underlying connection buffer if the connection is valid.
-     * @throws IOException the connection flush fails
+     * Flushes the underlying connection buffer the next chance it gets if the connection is valid.
+     * @throws IOException not applicable even though it's part of the signature due to implementation change
      */
     void flushBuffer() throws IOException;
 
