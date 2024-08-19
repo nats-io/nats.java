@@ -1323,7 +1323,6 @@ class NatsConnection implements Connection {
         }
 
         publishInternal(subject, responseInbox, headers, data, validateSubRep);
-        writer.flushBuffer();
         statistics.incrementRequestsSent();
 
         return future;
