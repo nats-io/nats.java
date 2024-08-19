@@ -765,28 +765,30 @@ public class ReconnectTests {
     @Test
     public void testForceReconnectQueueBehaviorCheck() throws Exception {
         runInJsCluster((nc0, nc1, nc2) -> {
-            int pubCount = 100_000;
-            int subscribeTime = 5000;
-            int flushWait = 2500;
-            int port = nc0.getServerInfo().getPort();
+            if (atLeast2_9_0(nc0)) {
+                int pubCount = 100_000;
+                int subscribeTime = 5000;
+                int flushWait = 2500;
+                int port = nc0.getServerInfo().getPort();
 
-            ForceReconnectQueueCheckDataPort.DELAY = 75;
+                ForceReconnectQueueCheckDataPort.DELAY = 75;
 
-            String subject = subject();
-            ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
-            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, false, 0);
+                String subject = subject();
+                ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
+                _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, false, 0);
 
-            subject = subject();
-            ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
-            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, false, flushWait);
+                subject = subject();
+                ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
+                _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, false, flushWait);
 
-            subject = subject();
-            ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
-            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, true, 0);
+                subject = subject();
+                ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
+                _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, true, 0);
 
-            subject = subject();
-            ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
-            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, true, flushWait);
+                subject = subject();
+                ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
+                _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, true, flushWait);
+            }
         });
     }
 

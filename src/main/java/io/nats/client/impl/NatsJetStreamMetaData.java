@@ -14,10 +14,11 @@
 package io.nats.client.impl;
 
 import io.nats.client.support.DateTimeUtils;
+
 import java.time.ZonedDateTime;
 
 /**
- * Jetstream meta data about a message, when applicable.
+ * Jetstream Metadata about a message, when applicable.
  */
 public class NatsJetStreamMetaData {
 
