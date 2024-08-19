@@ -582,7 +582,7 @@ public class MessageManagerTests extends JetStreamTestBase {
         }
 
         @Override
-        void publishInternal(String subject, String replyTo, Headers headers, byte[] data, boolean validate) {
+        void publishInternal(String subject, String replyTo, Headers headers, byte[] data, boolean validate, boolean flushImmediatelyAfterPublish) {
             fcSubject = subject;
             ++pubCount;
         }

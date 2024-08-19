@@ -146,7 +146,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         Headers merged = mergePublishOptions(headers, options);
 
         if (jso.isPublishNoAck()) {
-            conn.publishInternal(subject, null, merged, data, validateSubjectAndReplyTo);
+            conn.publishInternal(subject, null, merged, data, validateSubjectAndReplyTo, false);
             return null;
         }
 
@@ -160,7 +160,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         Headers merged = mergePublishOptions(headers, options);
 
         if (jso.isPublishNoAck()) {
-            conn.publishInternal(subject, null, merged, data, validateSubjectAndReplyTo);
+            conn.publishInternal(subject, null, merged, data, validateSubjectAndReplyTo, false);
             return null;
         }
 

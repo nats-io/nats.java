@@ -258,7 +258,7 @@ class MessageQueue {
     // Only works in single reader mode, because we want to maintain order.
     // accumulate reads off the concurrent queue one at a time, so if multiple
     // readers are present, you could get out of order message delivery.
-    NatsMessage accumulate(long maxSize, long maxMessages, Duration timeout)
+    NatsPublishableMessage accumulate(long maxSize, long maxMessagesToAccumulate, Duration timeout)
             throws InterruptedException {
 
         if (!this.singleReaderMode) {
@@ -269,7 +269,7 @@ class MessageQueue {
             return null;
         }
 
-        NatsMessage msg = this.poll(timeout);
+        NatsPublishableMessage msg = (NatsPublishableMessage)this.poll(timeout);
 
         if (msg == null) {
             return null;
@@ -277,30 +277,33 @@ class MessageQueue {
 
         long size = msg.getSizeInBytes();
 
-        if (maxMessages <= 1 || size >= maxSize) {
+        if (maxMessagesToAccumulate <= 1 || size >= maxSize) {
             this.sizeInBytes.addAndGet(-size);
             this.length.decrementAndGet();
             return msg;
         }
 
         long count = 1;
-        NatsMessage cursor = msg;
+        NatsPublishableMessage cursor = msg;
 
-        while (cursor != null) {
-            NatsMessage next = this.queue.peek();
+        while (true) {
+            NatsPublishableMessage next = (NatsPublishableMessage)this.queue.peek();
             if (next != null && !isPoison(next)) {
                 long s = next.getSizeInBytes();
-
-                if (maxSize<0 || (size + s) < maxSize) { // keep going
+                if (maxSize < 0 || (size + s) < maxSize) { // keep going
                     size += s;
                     count++;
-                    
-                    cursor.next = this.queue.poll();
-                    cursor = cursor.next;
 
-                    if (count == maxMessages) {
+                    this.queue.poll(); // we need to get the message out of the queue b/c we only peeked
+                    cursor.next = next;
+                    if (next.flushImmediatelyAfterPublish) {
+                        // if we are going to flush, then don't accumulate more
                         break;
                     }
+                    if (count == maxMessagesToAccumulate) {
+                        break;
+                    }
+                    cursor = cursor.next;
                 } else { // One more is too far
                     break;
                 }

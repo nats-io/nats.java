@@ -18,13 +18,17 @@ import static io.nats.client.support.Validator.validateSubject;
 
 class NatsPublishableMessage extends NatsMessage {
     final boolean hasHeaders;
+    final boolean flushImmediatelyAfterPublish;
+    NatsPublishableMessage next; // for linked list
 
     public NatsPublishableMessage(boolean hasHeaders) {
         this.hasHeaders = hasHeaders;
+        flushImmediatelyAfterPublish = false;
     }
 
-    public NatsPublishableMessage(String subject, String replyTo, Headers headers, byte[] data, boolean validateSubjectAndReplyTo) {
+    public NatsPublishableMessage(String subject, String replyTo, Headers headers, byte[] data, boolean validateSubjectAndReplyTo, boolean flushImmediatelyAfterPublish) {
         super(data);
+        this.flushImmediatelyAfterPublish = flushImmediatelyAfterPublish;
         if (validateSubjectAndReplyTo) {
             this.subject = validateSubject(subject, true);
             this.replyTo = validateReplyTo(replyTo, false);
