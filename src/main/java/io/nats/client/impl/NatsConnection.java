@@ -1322,7 +1322,7 @@ class NatsConnection implements Connection {
             responsesAwaiting.put(sub.getSID(), future);
         }
 
-        publishInternal(subject, responseInbox, headers, data, validateSubRep);
+        publishInternal(subject, responseInbox, headers, data, validateSubjectAndReplyTo);
         statistics.incrementRequestsSent();
 
         return future;
