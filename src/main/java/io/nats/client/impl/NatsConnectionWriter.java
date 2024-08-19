@@ -200,8 +200,7 @@ class NatsConnectionWriter implements Runnable {
                     sendMessageBatch(msg, dataPort, stats);
                 }
 
-                if (flushBuffer.get()) {
-                    flushBuffer.set(false);
+                if (flushBuffer.getAndSet(false)) {
                     dataPort.flush();
                 }
             }
