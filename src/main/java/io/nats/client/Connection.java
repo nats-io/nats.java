@@ -540,7 +540,7 @@ public interface Connection extends AutoCloseable {
 
     /**
      * Immediately flushes the underlying connection buffer if the connection is valid.
-     * @throws IOException the connection flush fails
+     * @throws IOException if the connection flush fails
      */
     void flushBuffer() throws IOException;
 

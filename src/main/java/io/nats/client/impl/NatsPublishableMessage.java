@@ -18,8 +18,6 @@ import static io.nats.client.support.Validator.validateSubject;
 
 class NatsPublishableMessage extends NatsMessage {
     final boolean hasHeaders;
-    final boolean flushImmediatelyAfterPublish;
-    NatsPublishableMessage next; // for linked list
 
     public NatsPublishableMessage(boolean hasHeaders) {
         this.hasHeaders = hasHeaders;

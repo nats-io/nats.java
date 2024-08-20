@@ -53,6 +53,11 @@ public class NatsMessage implements Message {
 
     protected NatsSubscription subscription;
 
+    // for accumulate
+    protected NatsMessage next;
+    protected boolean flushImmediatelyAfterPublish;
+
+    // ack tracking
     protected AckType lastAck;
 
     // ----------------------------------------------------------------------------------------------------
@@ -394,7 +399,8 @@ public class NatsMessage implements Message {
                 "\n  sizeInBytes=" + sizeInBytes +
                 "\n  headerLen=" + headerLen +
                 "\n  dataLen=" + dataLen +
-                "\n  subscription=" + subscription;
+                "\n  subscription=" + subscription +
+                "\n  next=" + nextToString();
 
     }
 
@@ -421,6 +427,10 @@ public class NatsMessage implements Message {
 
     private String protocolBytesToString() {
         return protocolBab == null ? null : protocolBab.toString();
+    }
+
+    private String nextToString() {
+        return next == null ? "No" : "Yes";
     }
 
     // ----------------------------------------------------------------------------------------------------

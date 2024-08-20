@@ -206,7 +206,7 @@ class MessageQueue {
 
     NatsMessage poll(Duration timeout) throws InterruptedException {
         NatsMessage msg = null;
-        
+
         if (timeout == null || this.isDraining()) { // try immediately
             msg = this.queue.poll();
         } else {
@@ -248,7 +248,7 @@ class MessageQueue {
 
         return msg;
     }
-    
+
     // Waits up to the timeout to try to accumulate multiple messages
     // Use the next field to read the entire set accumulated.
     // maxSize and maxMessages are both checked and if either is exceeded
@@ -259,8 +259,8 @@ class MessageQueue {
     // Only works in single reader mode, because we want to maintain order.
     // accumulate reads off the concurrent queue one at a time, so if multiple
     // readers are present, you could get out of order message delivery.
-    NatsPublishableMessage accumulate(long maxSize, long maxMessagesToAccumulate, Duration timeout)
-            throws InterruptedException {
+    NatsMessage accumulate(long maxSize, long maxMessagesToAccumulate, Duration timeout)
+        throws InterruptedException {
 
         if (!this.singleReaderMode) {
             throw new IllegalStateException("Accumulate is only supported in single reader mode.");
@@ -270,7 +270,7 @@ class MessageQueue {
             return null;
         }
 
-        NatsPublishableMessage msg = (NatsPublishableMessage)this.poll(timeout);
+        NatsMessage msg = this.poll(timeout);
 
         if (msg == null) {
             return null;
@@ -285,10 +285,10 @@ class MessageQueue {
         }
 
         long count = 1;
-        NatsPublishableMessage cursor = msg;
+        NatsMessage cursor = msg;
 
         while (true) {
-            NatsPublishableMessage next = (NatsPublishableMessage)this.queue.peek();
+            NatsMessage next = this.queue.peek();
             if (next != null && !isPoison(next)) {
                 long s = next.getSizeInBytes();
                 if (maxSize < 0 || (size + s) < maxSize) { // keep going
@@ -351,7 +351,7 @@ class MessageQueue {
                 cursor = this.queue.poll();
             }
             this.queue.addAll(newQueue);
-        } finally {    
+        } finally {
             editLock.unlock();
         }
     }

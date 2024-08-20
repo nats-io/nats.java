@@ -1658,7 +1658,7 @@ class NatsConnection implements Connection {
         }
     }
 
-    void queueOutgoing(NatsPublishableMessage msg) {
+    void queueOutgoing(NatsMessage msg) {
         if (msg.getControlLineLength() > this.options.getMaxControlLine()) {
             throw new IllegalArgumentException("Control line is too long");
         }
@@ -1667,7 +1667,7 @@ class NatsConnection implements Connection {
         }
     }
 
-    void queueInternalOutgoing(NatsPublishableMessage msg) {
+    void queueInternalOutgoing(NatsMessage msg) {
         if (msg.getControlLineLength() > this.options.getMaxControlLine()) {
             throw new IllegalArgumentException("Control line is too long");
         }

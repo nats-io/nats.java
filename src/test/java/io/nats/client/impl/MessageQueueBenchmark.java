@@ -22,7 +22,7 @@ public class MessageQueueBenchmark {
     
     public static void main(String args[]) throws InterruptedException {
         int msgCount = 10_000_000;
-        ProtocolMessage[] msgs = new ProtocolMessage[msgCount];
+        NatsMessage[] msgs = new NatsMessage[msgCount];
         long start, end;
 
         System.out.printf("Running benchmarks with %s messages.\n", NumberFormat.getInstance().format(msgCount));
@@ -191,7 +191,7 @@ public class MessageQueueBenchmark {
                 go3.get();
                 int remaining = msgCount;
                 while (remaining > 0) {
-                    NatsPublishableMessage cursor = pushAccumulateThreadQueue.accumulate(10_000, 100, Duration.ofMillis(500));
+                    NatsMessage cursor = pushAccumulateThreadQueue.accumulate(10_000, 100, Duration.ofMillis(500));
                     while (cursor != null) {
                         remaining--;
                         cursor = cursor.next;

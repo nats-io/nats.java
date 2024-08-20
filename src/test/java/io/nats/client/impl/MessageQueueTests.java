@@ -272,7 +272,7 @@ public class MessageQueueTests {
         assertNotNull(msg);
     }
 
-    private void checkCount(NatsPublishableMessage first, int expected) {
+    private void checkCount(NatsMessage first, int expected) {
         while (expected > 0) {
             assertNotNull(first);
             first = first.next;
@@ -289,7 +289,7 @@ public class MessageQueueTests {
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
-        NatsPublishableMessage msg = q.accumulate(100,3,null);
+        NatsMessage msg = q.accumulate(100,3,null);
         checkCount(msg, 3);
 
         msg = q.accumulate(100, 3, null); // should only get the last one
@@ -305,7 +305,7 @@ public class MessageQueueTests {
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
-        NatsPublishableMessage msg = q.accumulate(100,2,null);
+        NatsMessage msg = q.accumulate(100,2,null);
         checkCount(msg, 2);
 
         msg = q.accumulate(100, 2, null);
@@ -323,7 +323,7 @@ public class MessageQueueTests {
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
-        NatsPublishableMessage msg = q.accumulate(20,100,null); // each one is 6 so 20 should be 3 messages
+        NatsMessage msg = q.accumulate(20,100,null); // each one is 6 so 20 should be 3 messages
         checkCount(msg, 3);
 
         msg = q.accumulate(20,100, null); // should only get the last one
@@ -339,7 +339,7 @@ public class MessageQueueTests {
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
-        NatsPublishableMessage msg = q.accumulate(14,100,null); // each one is 6 so 14 should be 2 messages
+        NatsMessage msg = q.accumulate(14,100,null); // each one is 6 so 14 should be 2 messages
         checkCount(msg, 2);
 
         msg = q.accumulate(14,100, null);
@@ -356,10 +356,10 @@ public class MessageQueueTests {
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
         q.push(new ProtocolMessage(PING));
-        NatsPublishableMessage msg = q.accumulate(100,3,null);
+        NatsMessage msg = q.accumulate(100,3,null);
         checkCount(msg, 3);
 
-        msg = (NatsPublishableMessage)q.popNow();
+        msg = q.popNow();
         checkCount(msg, 1);
 
         msg = q.accumulate(100, 3, null); // should be empty
@@ -389,7 +389,7 @@ public class MessageQueueTests {
 
 
         while (count.get() < msgCount && (tries > 0 || sent.get() < msgCount)) {
-            NatsPublishableMessage msg = q.accumulate(5000, 10, Duration.ofMillis(5000));
+            NatsMessage msg = q.accumulate(5000, 10, Duration.ofMillis(5000));
 
             while (msg != null) {
                 count.incrementAndGet();
@@ -462,9 +462,9 @@ public class MessageQueueTests {
         String subject = "subj";
         String replyTo = "reply";
         Headers h = new Headers().add("Content-Type", "text/plain");
-        NatsPublishableMessage msg1 = new NatsPublishableMessage(subject, null, h, new byte[8], false, false);
-        NatsPublishableMessage msg2 = new NatsPublishableMessage(subject, null, h, new byte[16], false, false);
-        NatsPublishableMessage msg3 = new NatsPublishableMessage(subject, replyTo, h, new byte[16], false, false);
+        NatsMessage msg1 = new NatsMessage(subject, null, h, new byte[8]);
+        NatsMessage msg2 = new NatsMessage(subject, null, h, new byte[16]);
+        NatsMessage msg3 = new NatsMessage(subject, replyTo, h, new byte[16]);
         long expected = 0;
 
         assertEquals(64, msg1.getSizeInBytes());

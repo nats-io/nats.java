@@ -121,7 +121,7 @@ class NatsConnectionWriter implements Runnable {
         return running.get();
     }
 
-    void sendMessageBatch(NatsPublishableMessage msg, DataPort dataPort, StatisticsCollector stats) throws IOException {
+    void sendMessageBatch(NatsMessage msg, DataPort dataPort, StatisticsCollector stats) throws IOException {
         writerLock.lock();
         try {
             int sendPosition = 0;
@@ -195,7 +195,7 @@ class NatsConnectionWriter implements Runnable {
             int maxAccumulate = Options.MAX_MESSAGES_IN_NETWORK_BUFFER;
 
             while (this.running.get()) {
-                NatsPublishableMessage msg;
+                NatsMessage msg;
                 if (this.reconnectMode.get()) {
                     msg = this.reconnectOutgoing.accumulate(sendBufferLength.get(), maxAccumulate, reconnectWait);
                 }
