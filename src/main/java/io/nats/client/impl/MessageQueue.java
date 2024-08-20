@@ -259,7 +259,7 @@ class MessageQueue {
     // Only works in single reader mode, because we want to maintain order.
     // accumulate reads off the concurrent queue one at a time, so if multiple
     // readers are present, you could get out of order message delivery.
-    NatsMessage accumulate(long maxSize, long maxMessagesToAccumulate, Duration timeout)
+    NatsMessage accumulate(long maxBytesToAccumulate, long maxMessagesToAccumulate, Duration timeout)
         throws InterruptedException {
 
         if (!this.singleReaderMode) {
@@ -278,7 +278,7 @@ class MessageQueue {
 
         long size = msg.getSizeInBytes();
 
-        if (maxMessagesToAccumulate <= 1 || size >= maxSize) {
+        if (maxMessagesToAccumulate <= 1 || size >= maxBytesToAccumulate) {
             this.sizeInBytes.addAndGet(-size);
             this.length.decrementAndGet();
             return msg;
@@ -291,7 +291,7 @@ class MessageQueue {
             NatsMessage next = this.queue.peek();
             if (next != null && !isPoison(next)) {
                 long s = next.getSizeInBytes();
-                if (maxSize < 0 || (size + s) < maxSize) { // keep going
+                if (maxBytesToAccumulate < 0 || (size + s) < maxBytesToAccumulate) { // keep going
                     size += s;
                     count++;
 

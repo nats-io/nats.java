@@ -186,21 +186,20 @@ class NatsConnectionWriter implements Runnable {
 
     @Override
     public void run() {
-        Duration waitForMessage = Duration.ofMinutes(2); // This can be long since no one is sending
-        Duration reconnectWait = Duration.ofMillis(1); // This should be short, since we are trying to get the reconnect through
+        Duration outgoingTimeout = Duration.ofMinutes(2); // This can be long since no one is sending
+        Duration reconnectTimeout = Duration.ofMillis(1); // This should be short, since we are trying to get the reconnect through
 
         try {
             dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
             StatisticsCollector stats = this.connection.getNatsStatistics();
-            int maxAccumulate = Options.MAX_MESSAGES_IN_NETWORK_BUFFER;
 
             while (this.running.get()) {
                 NatsMessage msg;
                 if (this.reconnectMode.get()) {
-                    msg = this.reconnectOutgoing.accumulate(sendBufferLength.get(), maxAccumulate, reconnectWait);
+                    msg = this.reconnectOutgoing.accumulate(sendBufferLength.get(), Options.MAX_MESSAGES_IN_NETWORK_BUFFER, reconnectTimeout);
                 }
                 else {
-                    msg = this.outgoing.accumulate(sendBufferLength.get(), maxAccumulate, waitForMessage);
+                    msg = this.outgoing.accumulate(sendBufferLength.get(), Options.MAX_MESSAGES_IN_NETWORK_BUFFER, outgoingTimeout);
                 }
                 if (msg != null) {
                     sendMessageBatch(msg, dataPort, stats);
