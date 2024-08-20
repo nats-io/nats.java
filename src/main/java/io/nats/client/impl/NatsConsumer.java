@@ -221,6 +221,7 @@ abstract class NatsConsumer implements Consumer {
                 this.cleanUpAfterDrain();
             } catch (InterruptedException e) {
                 this.connection.processException(e);
+                Thread.currentThread().interrupt();
             } finally {
                 tracker.complete(this.isDrained());
             }
