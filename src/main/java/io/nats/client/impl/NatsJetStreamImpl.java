@@ -232,6 +232,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         try {
             return responseRequired(conn.request(prependPrefix(subject), bytes, timeout));
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new IOException(e);
         }
     }
@@ -240,6 +241,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         try {
             return responseRequired(conn.requestInternal(subject, headers, data, timeout, cancelAction, validateSubjectAndReplyTo));
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new IOException(e);
         }
     }

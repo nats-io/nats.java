@@ -172,8 +172,11 @@ class NatsConnectionReader implements Runnable {
             if (running.get()) {
                 this.connection.handleCommunicationIssue(io);
             }
-        } catch (CancellationException | ExecutionException | InterruptedException ex) {
+        } catch (CancellationException | ExecutionException ex) {
             // Exit
+        } catch (InterruptedException ex) {
+            // Exit
+            Thread.currentThread().interrupt();
         } finally {
             this.running.set(false);
             // Clear the buffers, since they are only used inside this try/catch
