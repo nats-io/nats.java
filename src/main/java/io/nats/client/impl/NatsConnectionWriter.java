@@ -187,7 +187,7 @@ class NatsConnectionWriter implements Runnable {
     @Override
     public void run() {
         Duration outgoingTimeout = Duration.ofMinutes(2); // This can be long since no one is sending
-        Duration reconnectTimeout = Duration.ofMillis(1); // This should be short, since we are trying to get the reconnect through
+        Duration reconnectTimeout = Duration.ofMillis(100); // This should be short, since we are trying to get the reconnect through
 
         try {
             dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
