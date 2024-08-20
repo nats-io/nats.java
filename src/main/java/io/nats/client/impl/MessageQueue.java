@@ -206,7 +206,7 @@ class MessageQueue {
 
     NatsMessage poll(Duration timeout) throws InterruptedException {
         NatsMessage msg = null;
-        
+
         if (timeout == null || this.isDraining()) { // try immediately
             msg = this.queue.poll();
         } else {
@@ -248,7 +248,7 @@ class MessageQueue {
 
         return msg;
     }
-    
+
     // Waits up to the timeout to try to accumulate multiple messages
     // Use the next field to read the entire set accumulated.
     // maxSize and maxMessages are both checked and if either is exceeded
@@ -259,8 +259,8 @@ class MessageQueue {
     // Only works in single reader mode, because we want to maintain order.
     // accumulate reads off the concurrent queue one at a time, so if multiple
     // readers are present, you could get out of order message delivery.
-    NatsMessage accumulate(long maxSize, long maxMessages, Duration timeout)
-            throws InterruptedException {
+    NatsMessage accumulate(long maxBytesToAccumulate, long maxMessagesToAccumulate, Duration timeout)
+        throws InterruptedException {
 
         if (!this.singleReaderMode) {
             throw new IllegalStateException("Accumulate is only supported in single reader mode.");
@@ -278,7 +278,7 @@ class MessageQueue {
 
         long size = msg.getSizeInBytes();
 
-        if (maxMessages <= 1 || size >= maxSize) {
+        if (maxMessagesToAccumulate <= 1 || size >= maxBytesToAccumulate) {
             this.sizeInBytes.addAndGet(-size);
             this.length.decrementAndGet();
             return msg;
@@ -287,21 +287,24 @@ class MessageQueue {
         long count = 1;
         NatsMessage cursor = msg;
 
-        while (cursor != null) {
+        while (true) {
             NatsMessage next = this.queue.peek();
             if (next != null && !isPoison(next)) {
                 long s = next.getSizeInBytes();
-
-                if (maxSize<0 || (size + s) < maxSize) { // keep going
+                if (maxBytesToAccumulate < 0 || (size + s) < maxBytesToAccumulate) { // keep going
                     size += s;
                     count++;
-                    
-                    cursor.next = this.queue.poll();
-                    cursor = cursor.next;
 
-                    if (count == maxMessages) {
+                    this.queue.poll(); // we need to get the message out of the queue b/c we only peeked
+                    cursor.next = next;
+                    if (next.flushImmediatelyAfterPublish) {
+                        // if we are going to flush, then don't accumulate more
                         break;
                     }
+                    if (count == maxMessagesToAccumulate) {
+                        break;
+                    }
+                    cursor = cursor.next;
                 } else { // One more is too far
                     break;
                 }
@@ -348,7 +351,7 @@ class MessageQueue {
                 cursor = this.queue.poll();
             }
             this.queue.addAll(newQueue);
-        } finally {    
+        } finally {
             editLock.unlock();
         }
     }

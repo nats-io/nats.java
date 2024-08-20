@@ -21,10 +21,12 @@ class NatsPublishableMessage extends NatsMessage {
 
     public NatsPublishableMessage(boolean hasHeaders) {
         this.hasHeaders = hasHeaders;
+        flushImmediatelyAfterPublish = false;
     }
 
-    public NatsPublishableMessage(String subject, String replyTo, Headers headers, byte[] data, boolean validateSubjectAndReplyTo) {
+    public NatsPublishableMessage(String subject, String replyTo, Headers headers, byte[] data, boolean validateSubjectAndReplyTo, boolean flushImmediatelyAfterPublish) {
         super(data);
+        this.flushImmediatelyAfterPublish = flushImmediatelyAfterPublish;
         if (validateSubjectAndReplyTo) {
             this.subject = validateSubject(subject, true);
             this.replyTo = validateReplyTo(replyTo, false);

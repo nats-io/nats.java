@@ -19,7 +19,6 @@ import io.nats.client.support.ByteArrayBuilder;
 // Protocol message is a special version of a NatsPublishableMessage extends NatsMessage
 // ----------------------------------------------------------------------------------------------------
 class ProtocolMessage extends NatsPublishableMessage {
-    private static final ByteArrayBuilder EMPTY_BAB = new ByteArrayBuilder();
 
     ProtocolMessage(ByteArrayBuilder babProtocol) {
         super(false);

@@ -62,8 +62,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
         String publishSubject = js.prependPrefix(String.format(JSAPI_CONSUMER_MSG_NEXT, stream, consumerName));
         String pullSubject = getSubject().replace("*", Long.toString(this.pullSubjectIdHolder.incrementAndGet()));
         manager.startPullRequest(pullSubject, pullRequestOptions, raiseStatusWarnings, pullManagerObserver);
-        connection.publish(publishSubject, pullSubject, pullRequestOptions.serialize());
-        connection.lenientFlushBuffer();
+        connection.publishInternal(publishSubject, pullSubject, null, pullRequestOptions.serialize(), true, true);
         return pullSubject;
     }
 

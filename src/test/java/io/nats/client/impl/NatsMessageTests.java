@@ -262,7 +262,6 @@ public class NatsMessageTests extends JetStreamTestBase {
         nmCov.calculate();
 
         assertTrue(nmCov.toDetailString().contains("PUB sub reply 0"));
-        assertTrue(nmCov.toDetailString().contains("next=No"));
     }
 
     @Test

@@ -935,7 +935,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public void publish(String subject, byte[] body) {
-        publishInternal(subject, null, null, body, true);
+        publishInternal(subject, null, null, body, true, false);
     }
 
     /**
@@ -943,7 +943,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public void publish(String subject, Headers headers, byte[] body) {
-        publishInternal(subject, null, headers, body, true);
+        publishInternal(subject, null, headers, body, true, false);
     }
 
     /**
@@ -951,7 +951,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public void publish(String subject, String replyTo, byte[] body) {
-        publishInternal(subject, replyTo, null, body, true);
+        publishInternal(subject, replyTo, null, body, true, false);
     }
 
     /**
@@ -959,7 +959,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public void publish(String subject, String replyTo, Headers headers, byte[] body) {
-        publishInternal(subject, replyTo, headers, body, true);
+        publishInternal(subject, replyTo, headers, body, true, false);
     }
 
     /**
@@ -968,12 +968,12 @@ class NatsConnection implements Connection {
     @Override
     public void publish(Message message) {
         validateNotNull(message, "Message");
-        publishInternal(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), false);
+        publishInternal(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), false, false);
     }
 
-    void publishInternal(String subject, String replyTo, Headers headers, byte[] data, boolean validateSubjectAndReplyTo) {
+    void publishInternal(String subject, String replyTo, Headers headers, byte[] data, boolean validateSubjectAndReplyTo, boolean flushImmediatelyAfterPublish) {
         checkPayloadSize(data);
-        NatsPublishableMessage npm = new NatsPublishableMessage(subject, replyTo, headers, data, validateSubjectAndReplyTo);
+        NatsPublishableMessage npm = new NatsPublishableMessage(subject, replyTo, headers, data, validateSubjectAndReplyTo, flushImmediatelyAfterPublish);
         if (npm.hasHeaders && !serverInfo.get().isHeadersSupported()) {
             throw new IllegalArgumentException("Headers are not supported by the server, version: " + serverInfo.get().getVersion());
         }
@@ -1108,7 +1108,7 @@ class NatsConnection implements Connection {
         }
         bab.append(SP).append(sid);
 
-        NatsMessage subMsg = new ProtocolMessage(bab);
+        ProtocolMessage subMsg = new ProtocolMessage(bab);
 
         if (treatAsInternal) {
             queueInternalOutgoing(subMsg);
@@ -1323,7 +1323,7 @@ class NatsConnection implements Connection {
             responsesAwaiting.put(sub.getSID(), future);
         }
 
-        publishInternal(subject, responseInbox, headers, data, validateSubjectAndReplyTo);
+        publishInternal(subject, responseInbox, headers, data, validateSubjectAndReplyTo, true);
         statistics.incrementRequestsSent();
 
         return future;
@@ -2254,15 +2254,6 @@ class NatsConnection implements Connection {
             throw new IllegalStateException("Connection is not active.");
         }
         writer.flushBuffer();
-    }
-
-    void lenientFlushBuffer()  {
-        try {
-            writer.flushBuffer();
-        }
-        catch (Exception e) {
-            // ignore
-        }
     }
 
     /**

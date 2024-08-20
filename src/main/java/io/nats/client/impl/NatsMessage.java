@@ -53,8 +53,11 @@ public class NatsMessage implements Message {
 
     protected NatsSubscription subscription;
 
-    NatsMessage next; // for linked list
+    // for accumulate
+    protected NatsMessage next;
+    protected boolean flushImmediatelyAfterPublish;
 
+    // ack tracking
     protected AckType lastAck;
 
     // ----------------------------------------------------------------------------------------------------
