@@ -653,6 +653,7 @@ class NatsConnection implements Connection {
                 this.closeSocket(false, true);
             } catch (InterruptedException e) {
                 processException(e);
+                Thread.currentThread().interrupt();
             }
         } finally {
             statusLock.lock();
@@ -1516,7 +1517,11 @@ class NatsConnection implements Connection {
         catch (ExecutionException e) {
             throw new IOException(e.getCause());
         }
-        catch (InterruptedException | TimeoutException e) {
+        catch (TimeoutException e) {
+            throw new IOException(e);
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new IOException(e);
         }
     }
@@ -2211,8 +2216,11 @@ class NatsConnection implements Connection {
 
                 this.close(false, false); // close the connection after the last flush
                 tracker.complete(consumers.isEmpty());
-            } catch (TimeoutException | InterruptedException e) {
+            } catch (TimeoutException e) {
                 this.processException(e);
+            } catch (InterruptedException e) {
+                this.processException(e);
+                Thread.currentThread().interrupt();
             } finally {
                 try {
                     this.close(false, false);// close the connection after the last flush

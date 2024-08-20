@@ -69,6 +69,7 @@ class NatsDispatcherWithExecutor extends NatsDispatcher {
             if (this.running.get()){
                 this.connection.processException(exp);
             } //otherwise we did it
+            Thread.currentThread().interrupt();
         }
         finally {
             this.running.set(false);

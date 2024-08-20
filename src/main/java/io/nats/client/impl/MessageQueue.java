@@ -185,6 +185,7 @@ class MessageQueue {
             this.length.incrementAndGet();
             return true;
         } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
             return false;
         } finally {
             editLock.unlock();
