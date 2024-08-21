@@ -176,6 +176,8 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
             }
         }
         catch (InterruptedException e) {
+            // nextMessageInternal failed. By not throwing
+            // this gives them the messages already added to the list
             Thread.currentThread().interrupt();
         }
         return messages;
@@ -199,6 +201,8 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
             }
         }
         catch (InterruptedException ignore) {
+            // nextMessageInternal failed. By not throwing
+            // this gives them the messages already added to the list
             Thread.currentThread().interrupt();
         }
         return messages;
@@ -275,7 +279,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                         return false;
                     }
 
-                    if (buffered.size() == 0) {
+                    if (buffered.isEmpty()) {
                         msg = _nextUnmanaged(timeout, pullSubject);
                         if (msg == null) {
                             done = true;
@@ -292,6 +296,9 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                 catch (InterruptedException e) {
                     msg = null;
                     done = true;
+                    // _nextUnmanaged failed
+                    // there still could be messages in the buffer
+                    // no good choice here
                     Thread.currentThread().interrupt();
                     return false;
                 }

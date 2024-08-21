@@ -165,13 +165,7 @@ class MessageQueue {
             if (!editLock.tryLock(offerLockMillis, TimeUnit.MILLISECONDS)) {
                 throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
             }
-        }
-        catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
-        }
 
-        try {
             if (!internal && this.discardWhenFull) {
                 return this.queue.offer(msg);
             }
@@ -184,10 +178,12 @@ class MessageQueue {
             this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
             this.length.incrementAndGet();
             return true;
-        } catch (InterruptedException ie) {
+        }
+        catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return false;
-        } finally {
+        }
+        finally {
             editLock.unlock();
         }
     }
