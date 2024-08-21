@@ -128,7 +128,7 @@ class NatsConnectionReader implements Runnable {
             this.gotCR = false;
             this.opPos = 0;
 
-            while (this.running.get()) {
+            while (running.get() && !Thread.interrupted()) {
                 this.bufferPosition = 0;
                 int bytesRead = dataPort.read(this.buffer, 0, this.buffer.length);
 

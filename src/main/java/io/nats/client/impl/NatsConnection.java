@@ -2178,20 +2178,17 @@ class NatsConnection implements Connection {
         // Wait for the timeout or the pending count to go to 0
         executor.submit(() -> {
             try {
-                Instant now = Instant.now();
-
-                while (timeout == null || timeout.equals(Duration.ZERO)
-                        || Duration.between(start, now).compareTo(timeout) < 0) {
+                long stop = (timeout == null || timeout.equals(Duration.ZERO))
+                    ? Long.MAX_VALUE
+                    : System.nanoTime() + timeout.toNanos();
+                while (System.nanoTime() < stop && !Thread.interrupted())
+                {
                     consumers.removeIf(NatsConsumer::isDrained);
-
                     if (consumers.isEmpty()) {
                         break;
                     }
-
                     //noinspection BusyWait
                     Thread.sleep(1); // Sleep 1 milli
-
-                    now = Instant.now();
                 }
 
                 // Stop publishing
@@ -2201,16 +2198,13 @@ class NatsConnection implements Connection {
                 if (timeout == null || timeout.equals(Duration.ZERO)) {
                     this.flush(Duration.ZERO);
                 } else {
-                    now = Instant.now();
-
+                    Instant now = Instant.now();
                     Duration passed = Duration.between(start, now);
                     Duration newTimeout = timeout.minus(passed);
-
                     if (newTimeout.toNanos() > 0) {
                         this.flush(newTimeout);
                     }
                 }
-
                 this.close(false, false); // close the connection after the last flush
                 tracker.complete(consumers.isEmpty());
             } catch (TimeoutException e) {

@@ -193,7 +193,7 @@ class NatsConnectionWriter implements Runnable {
             dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
             StatisticsCollector stats = this.connection.getNatsStatistics();
 
-            while (this.running.get()) {
+            while (running.get() && !Thread.interrupted()) {
                 NatsMessage msg;
                 if (this.reconnectMode.get()) {
                     msg = this.reconnectOutgoing.accumulate(sendBufferLength.get(), Options.MAX_MESSAGES_IN_NETWORK_BUFFER, reconnectTimeout);
