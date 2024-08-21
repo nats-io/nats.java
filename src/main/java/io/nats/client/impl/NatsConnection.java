@@ -320,19 +320,22 @@ class NatsConnection implements Connection {
                             closeMe.close();
                         }
                     }
-                    catch (IOException ignore) {}
+                    catch (IOException ignore) {
+                    }
                 });
             }
 
             // stop i/o
             try {
                 this.reader.stop(false).get(100, TimeUnit.MILLISECONDS);
-            } catch (Exception ex) {
+            }
+            catch (Exception ex) {
                 processException(ex);
             }
             try {
                 this.writer.stop().get(100, TimeUnit.MILLISECONDS);
-            } catch (Exception ex) {
+            }
+            catch (Exception ex) {
                 processException(ex);
             }
 
@@ -344,19 +347,13 @@ class NatsConnection implements Connection {
             closeSocketLock.unlock();
         }
 
-        try {
-            // calling connect just starts like a new connection versus reconnect
-            // but we have to manually resubscribe like reconnect once it is connected
-            reconnectImpl();
-            writer.setReconnectMode(false);
-        }
-        catch (InterruptedException e) {
-            // if there is an exception close() will have been called already
-            Thread.currentThread().interrupt();
-        }
+        // calling connect just starts like a new connection versus reconnect
+        // but we have to manually resubscribe like reconnect once it is connected
+        reconnectImpl();
+        writer.setReconnectMode(false);
     }
 
-   void reconnect() throws InterruptedException {
+    void reconnect() throws InterruptedException {
         if (!tryingToConnect.get()) {
             try {
                 tryingToConnect.set(true);

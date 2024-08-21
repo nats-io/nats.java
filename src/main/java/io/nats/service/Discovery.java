@@ -186,7 +186,9 @@ public class Discovery {
             }
         }
         catch (InterruptedException e) {
+            // conn.request interrupted means data is not retrieved
             Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
         }
         return null;
     }
@@ -215,7 +217,11 @@ public class Discovery {
             }
         }
         catch (InterruptedException e) {
+            // sub.nextMessage was fetching one message
+            // and data is not completely read
+            // so it seems like this is an error condition
             Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
         }
         finally {
             try {

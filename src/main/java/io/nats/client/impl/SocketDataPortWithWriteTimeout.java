@@ -47,6 +47,7 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
                 }
                 catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
+                    // This task is going to re-run anyway, so no point in throwing
                 }
             }
         }
