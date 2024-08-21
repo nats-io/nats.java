@@ -205,17 +205,15 @@ abstract class NatsConsumer implements Consumer {
         // draining
         connection.getExecutor().submit(() -> {
             try {
-                Instant now = Instant.now();
-
-                while (timeout == null || timeout.equals(Duration.ZERO)
-                        || Duration.between(start, now).compareTo(timeout) < 0) {
+                long stop = (timeout == null || timeout.equals(Duration.ZERO))
+                    ? Long.MAX_VALUE
+                    : System.nanoTime() + timeout.toNanos();
+                while (System.nanoTime() < stop && !Thread.interrupted()) {
                     if (this.isDrained()) {
                         break;
                     }
-
+                    //noinspection BusyWait
                     Thread.sleep(1); // Sleep 1 milli
-
-                    now = Instant.now();
                 }
 
                 this.cleanUpAfterDrain();

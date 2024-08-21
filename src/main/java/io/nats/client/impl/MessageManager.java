@@ -149,7 +149,7 @@ abstract class MessageManager {
 
         @Override
         public void run() {
-            if (alive.get()) {
+            if (alive.get() && !Thread.interrupted()) {
                 long sinceLast = System.currentTimeMillis() - lastMsgReceived.get();
                 if (alive.get() && sinceLast > alarmPeriodSetting) {
                     handleHeartbeatError();

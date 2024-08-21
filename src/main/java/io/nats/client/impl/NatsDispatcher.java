@@ -84,10 +84,8 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
     public void run() {
         try {
-            while (this.running.get()) { // start
-
+            while (running.get() && !Thread.interrupted()) {
                 NatsMessage msg = this.incoming.pop(this.waitForMessage);
-
                 if (msg != null) {
                     NatsSubscription sub = msg.getNatsSubscription();
                     if (sub != null && sub.isActive()) {
