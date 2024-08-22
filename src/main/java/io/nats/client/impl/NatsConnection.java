@@ -1143,9 +1143,11 @@ class NatsConnection implements Connection {
 
     void cleanResponses(boolean closing) {
         ArrayList<String> toRemove = new ArrayList<>();
+        boolean wasInterrupted = false;
 
-        responsesAwaiting.forEach((key, future) -> {
+        for (Map.Entry<String, NatsRequestCompletableFuture> entry : responsesAwaiting.entrySet()) {
             boolean remove = false;
+            NatsRequestCompletableFuture future = entry.getValue();
             if (future.hasExceededTimeout()) {
                 remove = true;
                 future.cancelTimedOut();
@@ -1158,25 +1160,39 @@ class NatsConnection implements Connection {
                 // done should have already been removed, not sure if
                 // this even needs checking, but it won't hurt
                 remove = true;
+                try {
+                    future.get();
+                }
+                catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    // we might have collected some entries already, but were interrupted
+                    // break out so we finish as quick as possible
+                    // cleanResponses will be called again anyway
+                    wasInterrupted = true;
+                    break;
+                }
+                catch (ExecutionException ignore) {}
             }
 
             if (remove) {
-                toRemove.add(key);
+                toRemove.add(entry.getKey());
                 statistics.decrementOutstandingRequests();
             }
-        });
-
-        for (String token : toRemove) {
-            responsesAwaiting.remove(token);
         }
 
-        if (advancedTracking) {
+        for (String key : toRemove) {
+            responsesAwaiting.remove(key);
+        }
+
+        if (advancedTracking && !wasInterrupted) {
             toRemove.clear(); // just reuse this
-            responsesRespondedTo.forEach((key, future) -> {
+            for (Map.Entry<String, NatsRequestCompletableFuture> entry : responsesRespondedTo.entrySet()) {
+                NatsRequestCompletableFuture future = entry.getValue();
                 if (future.hasExceededTimeout()) {
-                    toRemove.add(key);
+                    toRemove.add(entry.getKey());
+                    future.cancelTimedOut();
                 }
-            });
+            }
 
             for (String token : toRemove) {
                 responsesRespondedTo.remove(token);
