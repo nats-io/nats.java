@@ -739,4 +739,24 @@ public class RequestTests extends TestBase {
         assertEquals(0, s.getDroppedCount());
         assertEquals(0, s.getReconnects());
     }
+
+    @Test
+    public void testCancelledFutureMustNotErrorOnCleanResponses() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Options options = Options.builder()
+                    .server(ts.getURI())
+                    .noNoResponders()
+                    .requestCleanupInterval(Duration.ofSeconds(10))
+                    .build();
+            NatsConnection nc = (NatsConnection) Nats.connect(options);
+
+            NatsRequestCompletableFuture future = (NatsRequestCompletableFuture) nc.request("request", null);
+            future.cancelClosing();
+
+            // Future is already cancelled, collecting it shouldn't result in an exception being thrown.
+            assertDoesNotThrow(() -> {
+                nc.cleanResponses(false);
+            });
+        }
+    }
 }
