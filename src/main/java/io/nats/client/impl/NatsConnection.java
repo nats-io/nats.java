@@ -1171,7 +1171,7 @@ class NatsConnection implements Connection {
                     wasInterrupted = true;
                     break;
                 }
-                catch (Exception ignore) {}
+                catch (Throwable ignore) {}
             }
 
             if (remove) {
