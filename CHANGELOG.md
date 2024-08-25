@@ -1,5 +1,27 @@
 # Change Log
 
+## 2.20.2
+
+### Core
+* Publishing plus immediate flush #1211 @scottf
+* When interrupted call interrupt #1212 @MauriceVanVeen
+* Interrupt fine tuning #1214 @scottf
+* Run loops check the interrupted flag #1215 @scottf
+* Tuning futures used for internal tracking #1216 @scottf
+* Fix cleanResponses must handle cleaning up cancelled future #1218 @MauriceVanVeen
+
+## 2.20.1
+
+### Core
+* Catch errors in Dispatchers and log #1200 @MauriceVanVeen
+* During forceReconnect, ensure reader/writer is stopped before continuing #1203 @MauriceVanVeen @scottf
+* While handleCommunicationIssue, closeSocket should use reconnect impl otherwise tryingToConnect will guard #1206 @MauriceVanVeen  @scottf
+* Remove redundant writer.flushBuffer() call #1207 @MauriceVanVeen
+
+### Documentation
+* Jetstream Usage #1193 @roeschter
+* Recommended (new) APIs and more example code #1191 @roeschter
+
 ## 2.20.0
 
 ### Core
