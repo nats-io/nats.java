@@ -164,7 +164,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             return null;
         }
 
-        CompletableFuture<Message> future = conn.requestFutureInternal(subject, merged, data, knownTimeout, CancelAction.COMPLETE, validateSubjectAndReplyTo);
+        CompletableFuture<Message> future = conn.requestFutureInternal(subject, merged, data, knownTimeout, CancelAction.COMPLETE, validateSubjectAndReplyTo, false);
 
         return future.thenCompose(resp -> {
             try {
