@@ -1240,7 +1240,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public CompletableFuture<Message> request(String subject, byte[] body) {
-        return requestFutureInternal(subject, null, body, null, cancelAction, true, false);
+        return requestFutureInternal(subject, null, body, null, cancelAction, true, true);
     }
 
     /**
@@ -1248,7 +1248,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public CompletableFuture<Message> request(String subject, Headers headers, byte[] body) {
-        return requestFutureInternal(subject, headers, body, null, cancelAction, true, false);
+        return requestFutureInternal(subject, headers, body, null, cancelAction, true, true);
     }
 
     /**
