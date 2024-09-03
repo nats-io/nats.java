@@ -20,6 +20,8 @@ import java.util.List;
 
 /**
  * JetStream Management context for creation and access to streams and consumers in NATS.
+ * <p> Using JetStream Management is the <b>recommended</b> way of managing Jetstream resources. 
+ * <p> Basic usage examples can be found in {@link JetStream JetStream} 
  */
 public interface JetStreamManagement {
 

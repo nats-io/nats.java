@@ -39,9 +39,8 @@ import java.util.concurrent.CompletableFuture;
  * 
  * <p>{@link #subscribe(String)} is a convenience method for implicitly creating a consumer on a stream and receiving messages. This method should be used for ephemeral (not durable) conusmers. 
  * It can create a named durable consumers though Options, but we prefer to avoid creating durable consumers implictly. 
- * It is <b>recommened</b> to manage consumers explicitely through {@link StreamContext StreamContext} or {@link JetStreamManagement JetStreamManagement}
+ * It is <b>recommened</b> to manage consumers explicitely through {@link StreamContext StreamContext} and {@link ConsumerContext ConsumerContext} or {@link JetStreamManagement JetStreamManagement}
  *  
- *  {@link ConsumerContext ConsumerContext} based subscription. 
  * 
  * <h3>Recommended usage for creating streams, consumers, publish and listen on a stream</h3>
  * <pre>
@@ -562,7 +561,7 @@ public interface JetStream {
      * Get a stream context for a specific named stream. Verifies that the stream exists.
      * 
      * <p><b>Recommended usage:</b> {@link StreamContext StreamContext} and {@link ConsumerContext ConsumerContext} are the preferred way to interact with existing streams and consume from streams. 
-     * {@link JetStreamManagement JetStreamManagement} should be used to create streams and consumers. {@link ConsumerContext#consume ConsumerContext.consume()} supports both push and pull consumers transparently.
+     * {@link JetStreamManagement JetStreamManagement} should be used to create streams and consumers. Note that {@link ConsumerContext#consume ConsumerContext.consume()} only supports both pull consumers.
      * 
      * <pre>
      *  nc = Nats.connect();
@@ -589,7 +588,7 @@ public interface JetStream {
 
     /**
      * Get a consumer context for a specific named stream and specific named consumer.
-     * 
+     * <p> Note that ConsumerContext expects a <b>pull consumer</b>.
      * <p><b>Recommended usage:</b> See {@link #getStreamContext(String) getStreamContext(String)} 
      * 
      * Verifies that the stream and consumer exist.
@@ -598,7 +597,7 @@ public interface JetStream {
      * @return a ConsumerContext object
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
-     * @throws JetStreamApiException the request had an error related to the data
+     * @throws JetStreamApiException the request had an error related to the data. E.g. if the consumerName does not represent a pull consumer.
      */
-    ConsumerContext getConsumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException;
+	ConsumerContext getConsumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException;
 }

@@ -16,7 +16,8 @@ package io.nats.client;
 import java.time.Duration;
 
 /**
- * This interface provides push like ability for a pull consumer. Was the pre-cursor to simplified consume.
+ * This interface provides a simple iterative access to a pull consumer. 
+ * <p>Note: This interface is superseded by  {@link ConsumerContext ConsumerContext}. For examples for <b>recommended usage</b> see {@link JetStream JetStream}.
  */
 public interface JetStreamReader {
     /**

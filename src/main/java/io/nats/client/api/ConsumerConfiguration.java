@@ -13,6 +13,8 @@
 
 package io.nats.client.api;
 
+import io.nats.client.Connection;
+import io.nats.client.JetStream;
 import io.nats.client.PullSubscribeOptions;
 import io.nats.client.PushSubscribeOptions;
 import io.nats.client.support.*;
@@ -30,8 +32,10 @@ import static io.nats.client.support.Validator.*;
 
 /**
  * The ConsumerConfiguration class specifies the configuration for creating a JetStream consumer on the client and
- * if necessary the server.
+ * if necessary the server. 
  * Options are created using a ConsumerConfiguration.Builder.
+ * <p>ConsumerConfiguration is intended to be used with  {@link io.nats.client.JetStreamManagement#createConsumer(String, ConsumerConfiguration) JetStreamManagement.createConsumer()}.
+ * <P> By default this will create a <b>pull consumer</b> unless {@link ConsumerConfiguration.Builder#deliverSubject(String) ConsumerConfiguration.Builder.deliverSubject(String) } is set. 
  */
 public class ConsumerConfiguration implements JsonSerializable {
     @Deprecated
@@ -816,6 +820,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         /**
          * Sets the subject to deliver messages to.
+         * <p> By setting the deliverySubject this configuration will create a <b>push consumer</b>. When left empty or set to NULL a pull consumer will be created. 
          * @param subject the subject.
          * @return the builder
          */

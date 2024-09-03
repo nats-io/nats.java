@@ -20,8 +20,17 @@ import java.util.Map;
  * Represents the Ack Policy of a consumer
  */
 public enum AckPolicy {
+	/**
+     * Messages are acknowledged as soon as the server sends them. Clients do not need to ack.
+     */
     None("none"),
+    /**
+     * All messages with a sequence number less than the message acked are also acknowledged. E.g. reading a batch of messages 1 .. 100. Ack on message 100 will acknowledge 1 .. 99 as well.
+     */
     All("all"),
+    /**
+     * Each message must be acknowledged individually. Message can be acked out of sequence and create gaps of unacknowledged messages in the consumer.
+     */
     Explicit("explicit");
 
     private String policy;
