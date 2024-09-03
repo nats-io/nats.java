@@ -597,7 +597,7 @@ public interface JetStream {
      * @return a ConsumerContext object
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
-     * @throws JetStreamApiException the request had an error related to the data. E.g. if the consumerName does not represent a pull consumer.
+     * @throws JetStreamApiException the request had an error related to the data.
      */
 	ConsumerContext getConsumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException;
 }
