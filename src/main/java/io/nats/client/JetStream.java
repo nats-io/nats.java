@@ -25,75 +25,75 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * JetStream context for access to streams and consumers in NATS.
- * 
+ *
  * <h3>Basic usage</h3>
- * 
- * <p>{@link #publish(String, byte[]) JetStream.Publish} will send a message on the specified subject, waiting for acknowledgement. 
+ *
+ * <p>{@link #publish(String, byte[]) JetStream.Publish} will send a message on the specified subject, waiting for acknowledgement.
  * A  <b>503 No responders</b> error will be received if no stream is listening on said subject.
- * 
- * <p>{@link #publishAsync(String, byte[]) PublishAsync} will not wait for acknowledgement but return a {@link CompletableFuture CompletableFuture}, 
+ *
+ * <p>{@link #publishAsync(String, byte[]) PublishAsync} will not wait for acknowledgement but return a {@link CompletableFuture CompletableFuture},
  * which can be checked for acknowledgement at a later point.
- * 
- * <p> Use {@link #getStreamContext(String ) getStreamContext(String)} to access a simplified API for <b>consuming/subscribing</b> messages from Jetstream. 
+ *
+ * <p> Use {@link #getStreamContext(String ) getStreamContext(String)} to access a simplified API for <b>consuming/subscribing</b> messages from Jetstream.
  * It is <b>recommened</b> to manage consumers explicitely through {@link StreamContext StreamContext} or {@link JetStreamManagement JetStreamManagement}
- * 
- * <p>{@link #subscribe(String)} is a convenience method for implicitly creating a consumer on a stream and receiving messages. This method should be used for ephemeral (not durable) conusmers. 
- * It can create a named durable consumers though Options, but we prefer to avoid creating durable consumers implictly. 
+ *
+ * <p>{@link #subscribe(String)} is a convenience method for implicitly creating a consumer on a stream and receiving messages. This method should be used for ephemeral (not durable) conusmers.
+ * It can create a named durable consumers though Options, but we prefer to avoid creating durable consumers implictly.
  * It is <b>recommened</b> to manage consumers explicitely through {@link StreamContext StreamContext} and {@link ConsumerContext ConsumerContext} or {@link JetStreamManagement JetStreamManagement}
- *  
- * 
+ *
+ *
  * <h3>Recommended usage for creating streams, consumers, publish and listen on a stream</h3>
  * <pre>
  *  io.nats.client.Connection nc = Nats.connect();
- *	
- *  //Setting up a stream and a consumer	
+ *
+ *  //Setting up a stream and a consumer
  *  JetStreamManagement jsm = nc.jetStreamManagement();
  *  StreamConfiguration sc = StreamConfiguration.builder()
  *    .name("my-stream")
  *    .storageType(StorageType.File)
  *    .subjects("foo.*", "bar.*")
  *    .build();
- *      
+ *
  *  jsm.addStream(sc);
- *       
+ *
  *  ConsumerConfiguration consumerConfig = ConsumerConfiguration.builder()
  *    .durable("my-consumer")
  *    .build();
- *		
+ *
  *  jsm.createConsumer("my-stream", consumerConfig);
- *    	
- *  //Listening and publishing  
+ *
+ *  //Listening and publishing
  *  io.nats.client.JetStream js = nc.jetStream();
- *  ConsumerContext consumerContext = js.getConsumerContext("my-stream", "my-consumer"); 
+ *  ConsumerContext consumerContext = js.getConsumerContext("my-stream", "my-consumer");
  *  MessageConsumer mc = consumerContext.consume(
  *    msg -&gt; {
  *      System.out.println("   Received " + msg.getSubject());
  *      msg.ack();
  *    });
- *    	
+ *
  *  js.publish("foo.joe", "Hello World".getBytes());
- *  
+ *
  *  //Wait a moment, then stop the MessageConsumer
  *  Thread.sleep(3000);
  *  mc.stop();
- *  
+ *
  *  </pre>
- *  
+ *
  *	<h3>Recommended usage of asynchronous publishing</h3>
- *  
- *  Jetstream messages can be published asynchronously, returning a CompletableFuture. 
- *  Note that you need to check the Future eventually otherwise the delivery guarantee is the same a regular {@link Connection#publish(String, byte[]) Connection.Publish} 
- *  
+ *
+ *  Jetstream messages can be published asynchronously, returning a CompletableFuture.
+ *  Note that you need to check the Future eventually otherwise the delivery guarantee is the same a regular {@link Connection#publish(String, byte[]) Connection.Publish}
+ *
  *  <p>We are publishing a batch of 100 messages and check for completion afterwards.
- * 
+ *
  *  <pre>
  *  int COUNT = 100;
  *  java.util.concurrent.CompletableFuture&lt;?&gt;[] acks = new java.util.concurrent.CompletableFuture&lt;?&gt;[COUNT];
- * 
+ *
  *  for( int i=0; i&lt;COUNT; i++ ) {
  *    acks[i] = js.publishAsync("foo.joe", ("Hello "+i).getBytes());
  *  }
- *    	
+ *
  *  //Acknowledgments may arrive out of sequence, but CompletableFuture is handling this for us.
  *  for( int i=0; i&lt;COUNT; i++ ) {
  *    try {
@@ -102,11 +102,11 @@ import java.util.concurrent.CompletableFuture;
  *      //Retry or handle error
  *    }
  *  }
- *  
+ *
  *  //Now we may send anther batch
- * 
+ *
  * </pre>
- * 
+ *
  */
 public interface JetStream {
 
@@ -544,7 +544,7 @@ public interface JetStream {
 
     /**
      * Create an asynchronous subscription to the specified subject in the mode of pull, with additional options.
-     * 
+     *
      * @param subscribeSubject The subject to subscribe to
      *                         Can be null or empty when the options have a ConsumerConfiguration that supplies a filter subject.
      * @param dispatcher The dispatcher to handle this subscription
@@ -559,25 +559,25 @@ public interface JetStream {
 
     /**
      * Get a stream context for a specific named stream. Verifies that the stream exists.
-     * 
-     * <p><b>Recommended usage:</b> {@link StreamContext StreamContext} and {@link ConsumerContext ConsumerContext} are the preferred way to interact with existing streams and consume from streams. 
+     *
+     * <p><b>Recommended usage:</b> {@link StreamContext StreamContext} and {@link ConsumerContext ConsumerContext} are the preferred way to interact with existing streams and consume from streams.
      * {@link JetStreamManagement JetStreamManagement} should be used to create streams and consumers. Note that {@link ConsumerContext#consume ConsumerContext.consume()} only supports both pull consumers.
-     * 
+     *
      * <pre>
      *  nc = Nats.connect();
      *  Jetstream js = nc.jetStream();
 	 *  StreamContext streamContext = js.getStreamContext("my-stream");
 	 *  ConsumerContext consumerContext = streamContext.getConsumerContext("my-consumer");
-	 *  // Or 
-	 *  // ConsumerContext consumerContext = js.getConsumerContext("my-stream", "my-consumer"); 
+	 *  // Or
+	 *  // ConsumerContext consumerContext = js.getConsumerContext("my-stream", "my-consumer");
 	 *  consumerContext.consume(
 	 *    msg -&gt; {
 	 *      System.out.println("   Received " + msg.getSubject());
 	 *      msg.ack();
 	 *    });
-	 *  </pre>        
-     * 
-     * 
+	 *  </pre>
+     *
+     *
      * @param streamName the name of the stream
      * @return a StreamContext object
      * @throws IOException covers various communication issues with the NATS
@@ -589,8 +589,8 @@ public interface JetStream {
     /**
      * Get a consumer context for a specific named stream and specific named consumer.
      * <p> Note that ConsumerContext expects a <b>pull consumer</b>.
-     * <p><b>Recommended usage:</b> See {@link #getStreamContext(String) getStreamContext(String)} 
-     * 
+     * <p><b>Recommended usage:</b> See {@link #getStreamContext(String) getStreamContext(String)}
+     *
      * Verifies that the stream and consumer exist.
      * @param streamName the name of the stream
      * @param consumerName the name of the consumer

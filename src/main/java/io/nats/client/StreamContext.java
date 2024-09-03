@@ -21,7 +21,7 @@ import java.util.List;
 /**
  * The Stream Context provide a set of operations for managing the stream
  * and its contents and for managing consumers.
- * <p> For basic usage examples see {@link JetStream JetStream} 
+ * <p> For basic usage examples see {@link JetStream JetStream}
  */
 public interface StreamContext {
     /**

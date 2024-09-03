@@ -18,7 +18,7 @@ import java.time.Duration;
 
 /**
  * The Consumer Context provides a convenient interface around a defined JetStream Consumer
- * <p> Note: ConsumerContext requires a <b>pull consumer</b>. 
+ * <p> Note: ConsumerContext requires a <b>pull consumer</b>.
  */
 public interface BaseConsumerContext {
     /**
