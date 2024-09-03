@@ -32,12 +32,7 @@ public class Error implements JsonSerializable {
     static Error optionalInstance(JsonValue vError) {
         return vError == null ? null : new Error(vError);
     }
-    
-    public static Error instance(int code, String description) {
-        return new Error(code, NOT_SET, description);
-    }
-    
- 
+
     Error(JsonValue jv) {
         this.jv = jv;
     }

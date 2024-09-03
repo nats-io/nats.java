@@ -47,11 +47,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
     private final AtomicReference<Dispatcher> defaultDispatcher;
     private final AtomicReference<NatsMessageConsumerBase> lastConsumer;
 
-    /*
-     * Only called from the internal implementation.
-     * <p> 
-     */
-    NatsConsumerContext(NatsStreamContext sc, ConsumerInfo unorderedConsumerInfo, OrderedConsumerConfiguration orderedCc) throws JetStreamApiException {
+    NatsConsumerContext(NatsStreamContext sc, ConsumerInfo unorderedConsumerInfo, OrderedConsumerConfiguration orderedCc) {
         stateLock = new ReentrantLock();
         streamCtx = sc;
         cachedConsumerInfo = new AtomicReference<>();
@@ -60,13 +56,6 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         defaultDispatcher = new AtomicReference<>();
         lastConsumer = new AtomicReference<>();
         if (unorderedConsumerInfo != null) {
-        	if (unorderedConsumerInfo != null) {
-                //Fail fast on push consumers as all operation on ConsumerContext expect a pull consumer.
-                //If we don't fail fast, calls to consume() or iterat() will hang with the server returning: code=409, message='Consumer is push based'
-                ConsumerConfiguration consumerConfig = unorderedConsumerInfo.getConsumerConfiguration();
-                if ( consumerConfig.getDeliverSubject() != null )
-                    throw new JetStreamApiException(io.nats.client.api.Error.instance(409, "Consumer is push based. ConsumerContext only supports pull consumers."));
-        	}
             ordered = false;
             originalOrderedCc = null;
             subscribeSubject = null;

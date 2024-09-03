@@ -975,28 +975,6 @@ public class SimplificationTests extends JetStreamTestBase {
         check_values(roundTripSerialize(occ), zdt);
     }
 
-    
-    @Test
-    public void testConsumerContextRejectsPush() throws Exception {
-        jsServer.run(TestBase::atLeast2_9_1, nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            JetStream js = nc.jetStream();
-
-            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
-            jsPublish(js, tsc.subject(), 4);
-
-            String name = name();
-
-            // Pre define a consumer - set delivery subject to make it a push consumer
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(name).deliverSubject("delivery_"+name).build();
-            jsm.addOrUpdateConsumer(tsc.stream, cc);
-
-            // Consumer[Context]
-            assertThrows(JetStreamApiException.class, () -> js.getConsumerContext(tsc.stream, name)); // Push consumer not allowed
-            
-        });
-    }
-    
     private static void check_default_values(OrderedConsumerConfiguration occ) {
         assertEquals(">", occ.getFilterSubject());
         assertNull(occ.getDeliverPolicy());
