@@ -33,15 +33,13 @@ import java.util.concurrent.CompletableFuture;
  *
  * <p>{@link #publishAsync(String, byte[]) PublishAsync} will not wait for acknowledgement but return a {@link CompletableFuture CompletableFuture},
  * which can be checked for acknowledgement at a later point.
- * 
- * <p> Use {@link #getStreamContext(String ) getStreamContext(String)} to access a simplified API for <b>consuming/subscribing</b> messages from Jetstream. 
+ *
+ * <p> Use {@link #getStreamContext(String ) getStreamContext(String)} to access a simplified API for <b>consuming/subscribing</b> messages from Jetstream.
  * It is <b>recommened</b> to manage consumers explicitly through {@link StreamContext StreamContext} or {@link JetStreamManagement JetStreamManagement}
- * 
- * <p>{@link #subscribe(String)} is a convenience method for implicitly creating a consumer on a stream and receiving messages. This method should be used for ephemeral (not durable) conusmers. 
- * It can create a named durable consumers though Options, but we prefer to avoid creating durable consumers implictly. 
- * It is <b>recommened</b> to manage consumers explicitly through {@link StreamContext StreamContext} or {@link JetStreamManagement JetStreamManagement}
- *  
- *  {@link ConsumerContext ConsumerContext} based subscription. 
+ *
+ * <p>{@link #subscribe(String)} is a convenience method for implicitly creating a consumer on a stream and receiving messages. This method should be used for ephemeral (not durable) conusmers.
+ * It can create a named durable consumers though Options, but we prefer to avoid creating durable consumers implictly.
+ * It is <b>recommened</b> to manage consumers explicitly through {@link StreamContext StreamContext} and {@link ConsumerContext ConsumerContext} or {@link JetStreamManagement JetStreamManagement}
  *
  * <h3>Recommended usage for creating streams, consumers, publish and listen on a stream</h3>
  * <pre>
