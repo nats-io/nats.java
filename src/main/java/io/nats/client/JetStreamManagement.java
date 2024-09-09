@@ -20,6 +20,8 @@ import java.util.List;
 
 /**
  * JetStream Management context for creation and access to streams and consumers in NATS.
+ * <p> Using JetStream Management is the <b>recommended</b> way of managing Jetstream resources.
+ * <p> Basic usage examples can be found in {@link JetStream JetStream}
  */
 public interface JetStreamManagement {
 
@@ -219,7 +221,7 @@ public interface JetStreamManagement {
 
     /**
      * Get a list of stream names that have subjects matching the subject filter.
-     * 
+     *
      * @param subjectFilter the subject. Wildcards are allowed.
      * @return The list of stream names matching the subject filter. May be empty, will not be null.
      * @throws IOException covers various communication issues with the NATS
