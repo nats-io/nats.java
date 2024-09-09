@@ -21,6 +21,7 @@ import java.util.List;
 /**
  * The Stream Context provide a set of operations for managing the stream
  * and its contents and for managing consumers.
+ * <p> For basic usage examples see {@link JetStream JetStream}
  */
 public interface StreamContext {
     /**
@@ -74,21 +75,23 @@ public interface StreamContext {
     /**
      * Get a consumer context for the context's stream and specific named consumer.
      * Verifies that the consumer exists.
+     * <p> Note that ConsumerContext expects a <b>pull consumer</b>.
      * @param consumerName the name of the consumer
      * @return a ConsumerContext object
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
-     * @throws JetStreamApiException the request had an error related to the data
+     * @throws JetStreamApiException the request had an error related to the data.
      */
     ConsumerContext getConsumerContext(String consumerName) throws IOException, JetStreamApiException;
 
     /**
      * Management function to create or update a consumer on this stream.
+     * <p> Note that ConsumerContext expects a <b>pull consumer</b>.
      * @param config the consumer configuration to use.
      * @return a ConsumerContext object
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
-     * @throws JetStreamApiException the request had an error related to the data
+     * @throws JetStreamApiException the request had an error related to the data.
      */
     ConsumerContext createOrUpdateConsumer(ConsumerConfiguration config) throws IOException, JetStreamApiException;
 
