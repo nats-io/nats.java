@@ -41,7 +41,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
             nc.objectStoreManagement(ObjectStoreOptions.builder(DEFAULT_JS_OPTIONS).build()); // coverage
 
             Map<String, String> metadata = new HashMap<>();
-            metadata.put("meta-foo", "meta-bar");
+            metadata.put(META_KEY, META_VALUE);
 
             String bucket = bucket();
             String desc = variant();
@@ -174,10 +174,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
         assertEquals("JetStream", status.getBackingStore());
         assertNotNull(status.toString()); // coverage
 
-        if (atLeast2_10()) {
-            assertEquals(1, status.getMetadata().size());
-            assertEquals("meta-bar", status.getMetadata().get("meta-foo"));
-        }
+        assertMetaData(status.getMetadata());
     }
 
     @SuppressWarnings("SameParameterValue")

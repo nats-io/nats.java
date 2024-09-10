@@ -23,7 +23,7 @@
   "allow_rollup_hdrs": true,
   "allow_direct": true,
   "mirror_direct": true,
-  "metadata":{"meta-foo":"meta-bar"},
+  "metadata":{"meta-test-key":"meta-test-valeu"},
   "first_seq": 82942,
   "placement": {
     "cluster": "clstr",

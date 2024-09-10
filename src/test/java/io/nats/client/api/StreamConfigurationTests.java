@@ -150,7 +150,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         // copy constructor
         validate(StreamConfiguration.builder(testSc).build(), false);
 
-        Map<String, String> metaData = new HashMap<>(); metaData.put("meta-foo", "meta-bar");
+        Map<String, String> metaData = new HashMap<>(); metaData.put(META_KEY, META_VALUE);
 
         // builder
         StreamConfiguration.Builder builder = StreamConfiguration.builder()
@@ -543,7 +543,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             validateSource(sc.getSources().get(1), 1, zdt);
 
             assertEquals(1, sc.getMetadata().size());
-            assertEquals("meta-bar", sc.getMetadata().get("meta-foo"));
+            assertEquals(META_VALUE, sc.getMetadata().get(META_KEY));
             assertEquals(82942, sc.getFirstSequence());
 
             assertSame(S2, sc.getCompressionOption());

@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Supplier;
@@ -69,6 +70,9 @@ public class TestBase {
     public static final String HAS_BACK_SLASH = "has\\back\\slash";
     public static final String HAS_EQUALS     = "has=equals";
     public static final String HAS_TIC        = "has`tic";
+
+    public static final String META_KEY = "meta-foo";
+    public static final String META_VALUE = "meta-bar";
 
     public static final long STANDARD_CONNECTION_WAIT_MS = 5000;
     public static final long LONG_CONNECTION_WAIT_MS = 7500;
@@ -122,7 +126,7 @@ public class TestBase {
     }
 
     public static boolean atLeast2_10() {
-        return RUN_SERVER_INFO.isNewerVersionThan("2.9.99");
+        return atLeast2_10(RUN_SERVER_INFO);
     }
 
     public static boolean atLeast2_10(ServerInfo si) {
@@ -133,8 +137,20 @@ public class TestBase {
         return si.isSameOrNewerThanVersion("2.10.3");
     }
 
+    public static boolean atLeast2_11() {
+        return atLeast2_11(RUN_SERVER_INFO);
+    }
+
     public static boolean atLeast2_11(ServerInfo si) {
         return si.isNewerVersionThan("2.10.99");
+    }
+
+    public static boolean before2_11() {
+        return before2_11(RUN_SERVER_INFO);
+    }
+
+    public static boolean before2_11(ServerInfo si) {
+        return si.isOlderThanVersion("2.11");
     }
 
     public static void runInServer(InServerTest inServerTest) throws Exception {
@@ -813,6 +829,22 @@ public class TestBase {
         }
         else if (error.getKind() == KIND_ILLEGAL_STATE) {
             assertInstanceOf(IllegalStateException.class, e);
+        }
+    }
+
+    public static void assertMetaData(Map<String, String> metadata) {
+        if (atLeast2_10()) {
+            if (before2_11()) {
+                assertEquals(1, metadata.size());
+            }
+            else {
+                assertTrue(metadata.size() > 1);
+            }
+            assertEquals(META_VALUE, metadata.get(META_KEY));
+        }
+        else {
+            assertNotNull(metadata);
+            assertEquals(0, metadata.size());
         }
     }
 }
