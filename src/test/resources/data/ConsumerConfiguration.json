@@ -26,5 +26,5 @@
   "backoff": [1000000000, 2000000000, 3000000000],
   "num_replicas": 5,
   "mem_storage": true,
-  "metadata":{"meta-test-key":"meta-test-valeu"}
+  "metadata":{"meta-test-key":"meta-test-value"}
 }

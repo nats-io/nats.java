@@ -45,9 +45,9 @@ public class TestBase {
     public static final String STARTS_WITH_DOT     = ".starts-with-dot";
     public static final String ENDS_WITH_DOT       = "ends-with-dot.";
     public static final String ENDS_WITH_DOT_SPACE = "ends-with-space. ";
-    public static final String ENDS_WITH_CR       = "ends-with-space.\r";
-    public static final String ENDS_WITH_LF       = "ends-with-space.\n";
-    public static final String ENDS_WITH_TAB      = "ends-with-space.\t";
+    public static final String ENDS_WITH_CR        = "ends-with-space.\r";
+    public static final String ENDS_WITH_LF        = "ends-with-space.\n";
+    public static final String ENDS_WITH_TAB       = "ends-with-space.\t";
     public static final String STAR_NOT_SEGMENT    = "star*not*segment";
     public static final String GT_NOT_SEGMENT      = "gt>not>segment";
     public static final String EMPTY_SEGMENT       = "blah..blah";
@@ -71,8 +71,8 @@ public class TestBase {
     public static final String HAS_EQUALS     = "has=equals";
     public static final String HAS_TIC        = "has`tic";
 
-    public static final String META_KEY = "meta-foo";
-    public static final String META_VALUE = "meta-bar";
+    public static final String META_KEY   = "meta-test-key";
+    public static final String META_VALUE = "meta-test-value";
 
     public static final long STANDARD_CONNECTION_WAIT_MS = 5000;
     public static final long LONG_CONNECTION_WAIT_MS = 7500;
