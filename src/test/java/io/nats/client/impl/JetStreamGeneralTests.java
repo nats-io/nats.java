@@ -806,7 +806,6 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     public void testSubscribeDurableConsumerMustMatch() throws Exception {
         jsServer.run(nc -> {
             JetStream js = nc.jetStream();
-            JetStreamManagement jsm = nc.jetStreamManagement();
 
             String stream = stream();
             String subject = subject();
@@ -879,7 +878,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             Map<String, String> metadataA = new HashMap<>(); metadataA.put("a", "A");
             Map<String, String> metadataB = new HashMap<>(); metadataB.put("b", "B");
 
-            if (nc.getServerInfo().isNewerVersionThan("2.9.99")) {
+            if (atLeast2_10()) {
                 // metadata server null versus new not null
                 nc.jetStreamManagement().addOrUpdateConsumer(stream, pushDurableBuilder(subject, uname, deliver).build());
                 changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).metadata(metadataA), "metadata");
@@ -891,8 +890,10 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 // metadata server not null versus new not null but different
                 changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).metadata(metadataB), "metadata");
 
-                // metadata server not null versus new not null and same
-                changeOkPush(js, subject, pushDurableBuilder(subject, uname, deliver).metadata(metadataA));
+                if (before2_11()) {
+                    // metadata server not null versus new not null and same
+                    changeOkPush(js, subject, pushDurableBuilder(subject, uname, deliver).metadata(metadataA));
+                }
             }
         });
     }
