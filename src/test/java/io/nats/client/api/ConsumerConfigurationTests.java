@@ -38,7 +38,7 @@ public class ConsumerConfigurationTests extends TestBase {
     public void testBuilder() throws Exception {
         ZonedDateTime zdt = ZonedDateTime.of(2012, 1, 12, 6, 30, 1, 500, DateTimeUtils.ZONE_ID_GMT);
         Map<String, String> metadata = new HashMap<>();
-        metadata.put("meta-foo", "meta-bar");
+        metadata.put(META_KEY, META_VALUE);
 
         ConsumerConfiguration.Builder builder = ConsumerConfiguration.builder()
             .ackPolicy(AckPolicy.Explicit)
@@ -272,7 +272,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Duration.ofSeconds(2), c.getBackoff().get(1));
         assertEquals(Duration.ofSeconds(3), c.getBackoff().get(2));
         assertEquals(1, c.getMetadata().size());
-        assertEquals("meta-bar", c.getMetadata().get("meta-foo"));
+        assertEquals(META_VALUE, c.getMetadata().get(META_KEY));
     }
 
     @Test
@@ -311,7 +311,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Duration.ofSeconds(2), c.getBackoff().get(1));
         assertEquals(Duration.ofSeconds(3), c.getBackoff().get(2));
         assertEquals(1, c.getMetadata().size());
-        assertEquals("meta-bar", c.getMetadata().get("meta-foo"));
+        assertEquals(META_VALUE, c.getMetadata().get(META_KEY));
 
         assertDefaultCc(new ConsumerConfiguration(ConsumerConfiguration.builder().jsonValue(JsonValue.EMPTY_MAP).build()));
     }

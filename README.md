@@ -13,12 +13,13 @@
 [![Build Main Badge](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml/badge.svg?event=push)](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml)
 [![Release Badge](https://github.com/nats-io/nats.java/actions/workflows/build-release.yml/badge.svg?event=release)](https://github.com/nats-io/nats.java/actions/workflows/build-release.yml)
 
-The [**API**](https://javadoc.io/doc/io.nats/jnats/latest/index.html) is simple to use and highly performant.
 
-**Check out [NATS by Example](https://natsbyexample.com) - An evolving collection of runnable, cross-client reference examples for NATS.**
+### Examples and other documentation...
 
-There are also many basic examples in the [examples](https://github.com/nats-io/nats.java/tree/main/src/examples/java/io/nats/examples) directory of this repo
-and more simple application examples in the [Java Nats Examples](https://github.com/nats-io/java-nats-examples) repo.
+1. [**Java API Docs**](https://javadoc.io/doc/io.nats/jnats/latest/index.html) - the latest Java API docs.
+1. [**NATS by Example**](https://natsbyexample.com) - An evolving collection of runnable, cross-client reference examples for NATS.
+1. The [**examples directory**](https://github.com/nats-io/nats.java/tree/main/src/examples/java/io/nats/examples) covers basic api use.
+1. The [**Java Nats Examples**](https://github.com/nats-io/java-nats-examples) github repo, a collection of simple use case examples.
 
 ## Table of Contents
 * [Simplification](#simplification)

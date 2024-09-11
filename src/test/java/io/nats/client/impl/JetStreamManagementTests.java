@@ -107,7 +107,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     @Test
     public void testStreamMetadata() throws Exception {
         jsServer.run(nc -> {
-            Map<String, String> metaData = new HashMap<>(); metaData.put("meta-foo", "meta-bar");
+            Map<String, String> metaData = new HashMap<>(); metaData.put(META_KEY, META_VALUE);
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             StreamConfiguration sc = StreamConfiguration.builder()
@@ -119,14 +119,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             StreamInfo si = jsm.addStream(sc);
             assertNotNull(si.getConfiguration());
-            sc = si.getConfiguration();
-            if (nc.getServerInfo().isSameOrNewerThanVersion("2.10")) {
-                assertEquals(1, sc.getMetadata().size());
-                assertEquals("meta-bar", sc.getMetadata().get("meta-foo"));
-            }
-            else {
-                assertNull(sc.getMetadata());
-            }
+            assertMetaData(si.getConfiguration().getMetadata());
         });
     }
 
@@ -1009,7 +1002,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     @Test
     public void testConsumerMetadata() throws Exception {
         jsServer.run(nc -> {
-            Map<String, String> metaData = new HashMap<>(); metaData.put("meta-foo", "meta-bar");
+            Map<String, String> metaData = new HashMap<>(); metaData.put(META_KEY, META_VALUE);
             JetStreamManagement jsm = nc.jetStreamManagement();
             TestingStreamContainer tsc = new TestingStreamContainer(jsm);
 
@@ -1019,14 +1012,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 .build();
 
             ConsumerInfo ci = jsm.addOrUpdateConsumer(tsc.stream, cc);
-            if (nc.getServerInfo().isSameOrNewerThanVersion("2.10")) {
-                assertEquals(1, ci.getConsumerConfiguration().getMetadata().size());
-                assertEquals("meta-bar", ci.getConsumerConfiguration().getMetadata().get("meta-foo"));
-            }
-            else {
-                assertNotNull(ci.getConsumerConfiguration().getMetadata());
-                assertEquals(0, ci.getConsumerConfiguration().getMetadata().size());
-            }
+            assertMetaData(ci.getConsumerConfiguration().getMetadata());
         });
     }
 
