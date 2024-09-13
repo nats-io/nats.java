@@ -106,7 +106,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testStreamMetadata() throws Exception {
-        jsServer.run(nc -> {
+        jsServer.run(TestBase::atLeast2_9_0, nc -> {
             Map<String, String> metaData = new HashMap<>(); metaData.put(META_KEY, META_VALUE);
             JetStreamManagement jsm = nc.jetStreamManagement();
 
