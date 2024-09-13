@@ -113,6 +113,10 @@ public class TestBase {
         boolean runTest(ServerInfo si);
     }
 
+    public static boolean atLeast2_9_0() {
+        return atLeast2_9_0(RUN_SERVER_INFO);
+    }
+
     public static boolean atLeast2_9_0(Connection nc) {
         return atLeast2_9_0(nc.getServerInfo());
     }
@@ -842,7 +846,7 @@ public class TestBase {
             }
             assertEquals(META_VALUE, metadata.get(META_KEY));
         }
-        else {
+        else if (atLeast2_9_0() ){
             assertNotNull(metadata);
             assertEquals(0, metadata.size());
         }
