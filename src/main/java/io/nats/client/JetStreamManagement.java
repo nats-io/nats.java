@@ -283,6 +283,17 @@ public interface JetStreamManagement {
     MessageInfo getFirstMessage(String streamName, String subject) throws IOException, JetStreamApiException;
 
     /**
+     * Get MessageInfo for the first message created at or after the start time.
+     * @param streamName the name of the stream.
+     * @param startTime the start time to get the first message for.
+     * @return The MessageInfo
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    MessageInfo getFirstMessage(String streamName, ZonedDateTime startTime) throws IOException, JetStreamApiException;
+
+    /**
      * Get MessageInfo for the message of the message sequence
      * is equal to or greater the requested sequence for the subject.
      * @param streamName the name of the stream.
