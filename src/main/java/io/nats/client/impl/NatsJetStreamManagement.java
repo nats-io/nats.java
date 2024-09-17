@@ -277,6 +277,14 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
      * {@inheritDoc}
      */
     @Override
+    public MessageInfo getMessage(String streamName, MessageGetRequest messageGetRequest) throws IOException, JetStreamApiException {
+        return _getMessage(streamName, messageGetRequest);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public MessageInfo getLastMessage(String streamName, String subject) throws IOException, JetStreamApiException {
         return _getMessage(streamName, MessageGetRequest.lastForSubject(subject));
     }
