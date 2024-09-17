@@ -1294,6 +1294,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         assertMessageInfo(tsc, 0, 1, jsm.getFirstMessage(tsc.stream, tsc.subject(0)), beforeCreated);
         assertMessageInfo(tsc, 1, 2, jsm.getFirstMessage(tsc.stream, tsc.subject(1)), beforeCreated);
         assertMessageInfo(tsc, 0, 1, jsm.getFirstMessage(tsc.stream, beforeCreated), beforeCreated);
+        assertMessageInfo(tsc, 1, 2, jsm.getFirstMessage(tsc.stream, beforeCreated, tsc.subject(1)), beforeCreated);
 
         assertMessageInfo(tsc, 0, 1, jsm.getNextMessage(tsc.stream, 1, tsc.subject(0)), beforeCreated);
         assertMessageInfo(tsc, 1, 2, jsm.getNextMessage(tsc.stream, 1, tsc.subject(1)), beforeCreated);
@@ -1304,13 +1305,6 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         assertMessageInfo(tsc, 0, 5, jsm.getNextMessage(tsc.stream, 5, tsc.subject(0)), beforeCreated);
         assertMessageInfo(tsc, 1, 6, jsm.getNextMessage(tsc.stream, 5, tsc.subject(1)), beforeCreated);
 
-        assertMessageInfo(tsc, 0, 1, jsm.getMessage(tsc.stream, MessageGetRequest.builder().sequence(1).build()), beforeCreated);
-        assertMessageInfo(tsc, 0, 1, jsm.getMessage(tsc.stream, MessageGetRequest.builder().nextBySubject(tsc.subject(0)).build()), beforeCreated);
-        assertMessageInfo(tsc, 0, 5, jsm.getMessage(tsc.stream, MessageGetRequest.builder().lastBySubject(tsc.subject(0)).build()), beforeCreated);
-        assertMessageInfo(tsc, 0, 1, jsm.getMessage(tsc.stream, MessageGetRequest.builder().startTime(beforeCreated).build()), beforeCreated);
-        assertMessageInfo(tsc, 1, 2, jsm.getMessage(tsc.stream, MessageGetRequest.builder().startTime(beforeCreated).nextBySubject(tsc.subject(1)).build()), beforeCreated);
-
-        assertStatus(10003, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(tsc.stream, MessageGetRequest.builder().build())));
         assertStatus(10003, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(tsc.stream, -1)));
         assertStatus(10003, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(tsc.stream, 0)));
         assertStatus(10003, assertThrows(JetStreamApiException.class, () -> jsm.getFirstMessage(tsc.stream, DEFAULT_TIME)));

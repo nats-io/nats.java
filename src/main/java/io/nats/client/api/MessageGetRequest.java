@@ -30,23 +30,27 @@ public class MessageGetRequest implements JsonSerializable {
     private final ZonedDateTime startTime;
 
     public static MessageGetRequest forSequence(long sequence) {
-        return builder().sequence(sequence).build();
+        return new MessageGetRequest(sequence, null, null, null);
     }
 
     public static MessageGetRequest lastForSubject(String subject) {
-        return builder().lastBySubject(subject).build();
+        return new MessageGetRequest(-1, subject, null, null);
     }
 
     public static MessageGetRequest firstForSubject(String subject) {
-        return builder().nextBySubject(subject).build();
+        return new MessageGetRequest(-1, null, subject, null);
     }
 
     public static MessageGetRequest firstForStartTime(ZonedDateTime startTime) {
-        return builder().startTime(startTime).build();
+        return new MessageGetRequest(-1, null, null, startTime);
+    }
+
+    public static MessageGetRequest firstForStartTimeAndSubject(ZonedDateTime startTime, String subject) {
+        return new MessageGetRequest(-1, null, subject, startTime);
     }
 
     public static MessageGetRequest nextForSubject(long sequence, String subject) {
-        return builder().sequence(sequence).nextBySubject(subject).build();
+        return new MessageGetRequest(sequence, null, subject, null);
     }
 
     /**
@@ -76,7 +80,7 @@ public class MessageGetRequest implements JsonSerializable {
      */
     @Deprecated
     public MessageGetRequest(long sequence) {
-        this(builder().sequence(sequence));
+        this(sequence, null, null, null);
     }
 
     /**
@@ -86,14 +90,14 @@ public class MessageGetRequest implements JsonSerializable {
      */
     @Deprecated
     public MessageGetRequest(String lastBySubject) {
-        this(builder().lastBySubject(lastBySubject));
+        this(-1, lastBySubject, null, null);
     }
 
-    private MessageGetRequest(Builder b) {
-        this.sequence = b.sequence;
-        this.lastBySubject = b.lastBySubject;
-        this.nextBySubject = b.nextBySubject;
-        this.startTime = b.startTime;
+    private MessageGetRequest(long sequence, String lastBySubject, String nextBySubject, ZonedDateTime startTime) {
+        this.sequence = sequence;
+        this.lastBySubject = lastBySubject;
+        this.nextBySubject = nextBySubject;
+        this.startTime = startTime;
     }
 
     public long getSequence() {
@@ -128,104 +132,5 @@ public class MessageGetRequest implements JsonSerializable {
         addField(sb, NEXT_BY_SUBJECT, nextBySubject);
         addField(sb, START_TIME, startTime);
         return endJson(sb).toString();
-    }
-
-    /**
-     * Creates a builder for the options.
-     * @return a {@link MessageGetRequest} builder
-     */
-    public static Builder builder() {
-        return new Builder();
-    }
-
-    /**
-     * Creates a builder for the options.
-     * @param req the {@link MessageGetRequest}
-     * @return a {@link MessageGetRequest} builder
-     */
-    public static Builder builder(MessageGetRequest req) {
-        return req == null ? new Builder() : new Builder(req);
-    }
-
-    public static class Builder {
-        private long sequence = -1;
-        private String lastBySubject = null;
-        private String nextBySubject = null;
-        private ZonedDateTime startTime = null;
-
-        /**
-         * Construct the builder
-         */
-        public Builder() {}
-
-        /**
-         * Construct the builder and initialize values with the existing {@link MessageGetRequest}
-         * @param req the {@link MessageGetRequest} to clone
-         */
-        public Builder(MessageGetRequest req) {
-            if (req == null) {
-                return;
-            }
-
-            this.sequence = req.sequence;
-            this.lastBySubject = req.lastBySubject;
-            this.nextBySubject = req.nextBySubject;
-            this.startTime = req.startTime;
-        }
-
-        /**
-         * Get a message with the exact sequence.
-         * Or when combined with other settings, where message sequence >= provided sequence.
-         *
-         * @param sequence which matches one message in a stream, or used as a minimum sequence for filtering
-         * @return Builder
-         */
-        public Builder sequence(long sequence) {
-            this.sequence = sequence;
-            return this;
-        }
-
-        /**
-         * Get the last message by specified subject.
-         *
-         * @param lastBySubject the subject to get the last message for
-         * @return Builder
-         */
-        public Builder lastBySubject(String lastBySubject) {
-            this.lastBySubject = lastBySubject;
-            return this;
-        }
-
-        /**
-         * Get the next message by specified subject.
-         * Either the first message when not combined with sequence,
-         * or a next message where message sequence >= provided sequence.
-         *
-         * @param nextBySubject the subject to get the first/next message for
-         * @return Builder
-         */
-        public Builder nextBySubject(String nextBySubject) {
-            this.nextBySubject = nextBySubject;
-            return this;
-        }
-
-        /**
-         * Get message at or after the specified start time.
-         *
-         * @param startTime the minimum start time of the returned message
-         * @return Builder
-         */
-        public Builder startTime(ZonedDateTime startTime) {
-            this.startTime = startTime;
-            return this;
-        }
-
-        /**
-         * Builds the {@link MessageGetRequest} with this configuration.
-         * @return MessageGetRequest
-         */
-        public MessageGetRequest build() {
-            return new MessageGetRequest(this);
-        }
     }
 }

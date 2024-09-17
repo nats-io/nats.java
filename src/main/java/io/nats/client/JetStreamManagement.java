@@ -261,17 +261,6 @@ public interface JetStreamManagement {
     MessageInfo getMessage(String streamName, long seq) throws IOException, JetStreamApiException;
 
     /**
-     * Get MessageInfo for the message matching the {@link MessageGetRequest}.
-     * @param streamName the name of the stream.
-     * @param messageGetRequest the {@link MessageGetRequest} to get a message
-     * @return The MessageInfo
-     * @throws IOException covers various communication issues with the NATS
-     *         server such as timeout or interruption
-     * @throws JetStreamApiException the request had an error related to the data
-     */
-    MessageInfo getMessage(String streamName, MessageGetRequest messageGetRequest) throws IOException, JetStreamApiException;
-
-    /**
      * Get MessageInfo for the last message of the subject.
      * @param streamName the name of the stream.
      * @param subject the subject to get the last message for.
@@ -303,6 +292,18 @@ public interface JetStreamManagement {
      * @throws JetStreamApiException the request had an error related to the data
      */
     MessageInfo getFirstMessage(String streamName, ZonedDateTime startTime) throws IOException, JetStreamApiException;
+
+    /**
+     * Get MessageInfo for the first message created at or after the start time matching the subject.
+     * @param streamName the name of the stream.
+     * @param startTime the start time to get the first message for.
+     * @param subject the subject to get the first message for.
+     * @return The MessageInfo
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    MessageInfo getFirstMessage(String streamName, ZonedDateTime startTime, String subject) throws IOException, JetStreamApiException;
 
     /**
      * Get MessageInfo for the message of the message sequence
