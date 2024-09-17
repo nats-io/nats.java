@@ -28,7 +28,7 @@ public class StabilityPub {
             "\nUsage: java -cp <classpath> StabilityPub [server] <subject> <msgSize>"
                     + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n";
 
-    public static void main(String args[]) {
+    public static void main(String[] args) {
         String subject;
         String server;
         int msgSize;

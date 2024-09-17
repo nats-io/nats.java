@@ -278,10 +278,8 @@ public abstract class Nats {
      *                           failure
      * 
      * @throws IllegalArgumentException if no connection listener is set in the options
-     * @throws InterruptedException if the current thread is interrupted
      */
-    public static void connectAsynchronously(Options options, boolean reconnectOnConnect)
-            throws InterruptedException {
+    public static void connectAsynchronously(Options options, boolean reconnectOnConnect) {
 
         if (options.getConnectionListener() == null) {
             throw new IllegalArgumentException("Connection Listener required in connectAsynchronously");

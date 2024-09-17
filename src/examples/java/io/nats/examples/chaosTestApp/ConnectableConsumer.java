@@ -37,7 +37,7 @@ public abstract class ConnectableConsumer implements ConnectionListener {
     protected String durableName;
     protected String label;
 
-    public ConnectableConsumer(CommandLine cmd, String initials, ConsumerKind consumerKind) throws IOException, InterruptedException, JetStreamApiException {
+    public ConnectableConsumer(CommandLine cmd, String initials, ConsumerKind consumerKind) throws IOException, InterruptedException {
         this.cmd = cmd;
         lastReceivedSequence = new AtomicLong(0);
         this.consumerKind = consumerKind;

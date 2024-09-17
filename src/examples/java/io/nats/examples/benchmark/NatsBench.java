@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * boilerplate.
  */
 public class NatsBench {
-    final BlockingQueue<Throwable> errorQueue = new LinkedBlockingQueue<Throwable>();
+    final BlockingQueue<Throwable> errorQueue = new LinkedBlockingQueue<>();
 
     // Default test values
     private int numMsgs = 5_000_000;
@@ -68,7 +68,7 @@ public class NatsBench {
             + "    -tls                            Set the secure flag on the SSL context to true (false)\n"
             + "    -stats                          Track and print out internal statistics (false)\n";
 
-    public NatsBench(String[] args) throws Exception {
+    public NatsBench(String[] args) {
         if (args == null || args.length < 1) {
             usage();
             return;
@@ -76,7 +76,7 @@ public class NatsBench {
         parseArgs(args);
     }
 
-    public NatsBench(Properties properties) throws NoSuchAlgorithmException {
+    public NatsBench(Properties properties) {
         urls = properties.getProperty("bench.nats.servers", urls);
         secure = Boolean.parseBoolean(properties.getProperty("bench.nats.secure", Boolean.toString(secure)));
         numMsgs = Integer.parseInt(properties.getProperty("bench.nats.msg.count", Integer.toString(numMsgs)));
@@ -115,7 +115,7 @@ public class NatsBench {
             builder.turnOnAdvancedStats();
         }
 
-        /**
+        /*
          * The conscrypt flag is provided for testing with the conscrypt jar. Using it
          * through reflection is deprecated but allows the library to ship without a
          * dependency. Using conscrypt should only require the jar plus the flag. For
@@ -405,7 +405,7 @@ public class NatsBench {
     }
 
     private void parseArgs(String[] args) {
-        List<String> argList = new ArrayList<String>(Arrays.asList(args));
+        List<String> argList = new ArrayList<>(Arrays.asList(args));
 
         subject = argList.get(argList.size() - 1);
         argList.remove(argList.size() - 1);

@@ -36,7 +36,7 @@ class NatsConnectionReader implements Runnable {
         PARSE_PROTO,
         GATHER_HEADERS,
         GATHER_DATA
-    };
+    }
 
     private final NatsConnection connection;
 

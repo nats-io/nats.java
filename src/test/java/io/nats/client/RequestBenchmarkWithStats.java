@@ -15,6 +15,7 @@ package io.nats.client;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
@@ -23,7 +24,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 
 public class RequestBenchmarkWithStats {
-    public static void main(String args[]) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException {
         int threads = 1;
         int msgsPerThread = 5_000_000;
         int messageSize = 256;
@@ -41,9 +42,7 @@ public class RequestBenchmarkWithStats {
         System.out.println("###");
 
         byte[] body = new byte[messageSize];
-        for (int i = 0; i < messageSize; i++) {
-            body[i] = 1;
-        }
+        Arrays.fill(body, (byte) 1);
 
         try {
             Options o = new Options.Builder().
@@ -143,7 +142,7 @@ public class RequestBenchmarkWithStats {
             System.out.println("####################################");
             System.out.println("### Dispatcher connection stats ####");
             System.out.println("####################################");
-            System.out.println("");
+            System.out.println();
             System.out.print(handlerC.getStatistics().toString());
         } catch (Exception ex) {
             System.out.println("Exception running benchmark.");

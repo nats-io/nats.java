@@ -31,7 +31,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.report;
 /**
  * This example will demonstrate simplified fetch that is resilient
  * HOW TO TEST
- * 1. Set up and run a simple cluster. See https://github.com/nats-io/java-nats-examples/tree/main/example-cluster-config
+ * 1. Set up and run a simple cluster. See <a href="https://github.com/nats-io/java-nats-examples/tree/main/example-cluster-config">https://github.com/nats-io/java-nats-examples/tree/main/example-cluster-config</a>
  * 2. Run this program, watch the output for some time
  * 3. Kill the server that is the leader, let it stay down for a short time or a long time
  * 4. See the output showing things aren't running.

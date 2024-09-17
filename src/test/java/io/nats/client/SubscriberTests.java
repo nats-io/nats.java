@@ -18,7 +18,6 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeoutException;
 
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -162,7 +161,7 @@ public class SubscriberTests {
     }
 
     @Test
-    public void testQueueSubscribers() throws Exception, TimeoutException {
+    public void testQueueSubscribers() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
                     Connection nc = Nats.connect(ts.getURI())) {
             standardConnectionWait(nc);

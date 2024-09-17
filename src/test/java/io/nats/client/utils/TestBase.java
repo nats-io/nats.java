@@ -80,7 +80,7 @@ public class TestBase {
     public static final long MEDIUM_FLUSH_TIMEOUT_MS = 5000;
     public static final long LONG_TIMEOUT_MS = 15000;
 
-    public static String[] BAD_SUBJECTS_OR_QUEUES = new String[] {
+    public static final String[] BAD_SUBJECTS_OR_QUEUES = new String[] {
         HAS_SPACE, HAS_CR, HAS_LF, HAS_TAB, STARTS_SPACE, ENDS_SPACE, null, EMPTY
     };
 
@@ -269,7 +269,7 @@ public class TestBase {
 
         @Override
         public void close() throws Exception {
-            try { nc.close(); } catch (Exception ignore) {};
+            try { nc.close(); } catch (Exception ignore) {}
             super.close();
         }
 
@@ -685,7 +685,7 @@ public class TestBase {
             }
             sb.append(o);
         }
-        System.out.println(sb.toString());
+        System.out.println(sb);
     }
 
     // ----------------------------------------------------------------------------------------------------

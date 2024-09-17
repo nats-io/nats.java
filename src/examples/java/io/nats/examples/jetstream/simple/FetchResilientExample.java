@@ -26,7 +26,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.*;
 /**
  * This example will demonstrate simplified fetch that is resilient
  * HOW TO TEST
- * 1. Set up and run a simple cluster. See https://github.com/nats-io/java-nats-examples/tree/main/example-cluster-config
+ * 1. Set up and run a simple cluster. See <a href="https://github.com/nats-io/java-nats-examples/tree/main/example-cluster-config">https://github.com/nats-io/java-nats-examples/tree/main/example-cluster-config</a>
  * 2. Run this program, watch the output for some time
  * 3. Kill the server that is the leader, let it stay down for a short time or a long time
  * 4. See the output showing things aren't running.
@@ -44,13 +44,19 @@ public class FetchResilientExample implements Runnable {
     static final long STREAM_REPORT_FREQUENCY = 30000;
 
     static String SERVER = "nats://localhost:4222";
+    public final AtomicBoolean keepGoing = new AtomicBoolean(true);
+    private final ConsumerContext cc;
+    private long reportAt = 0;
+    public FetchResilientExample(ConsumerContext cc) {
+        this.cc = cc;
+    }
 
     public static void main(String[] args) {
         Options options = Options.builder().server(SERVER)
-            .connectionListener((c, t) -> {
-                report("Connection: " + c.getServerInfo().getPort() + " " + t);
-            })
-            .build();
+                .connectionListener((c, t) -> {
+                    report("Connection: " + c.getServerInfo().getPort() + " " + t);
+                })
+                .build();
 
         try (Connection nc = Nats.connect(options)) {
             final JetStreamManagement jsm = nc.jetStreamManagement();
@@ -62,9 +68,9 @@ public class FetchResilientExample implements Runnable {
 
             // simulating a publisher somewhere else.
             ResilientPublisher rp = new ResilientPublisher(nc, jsm, STREAM, SUBJECT)
-                .basicDataPrefix(MESSAGE_PREFIX)
-                .delay(PUBLISH_DELAY)
-                .reportFrequency(PUB_REPORT_FREQUENCY);
+                    .basicDataPrefix(MESSAGE_PREFIX)
+                    .delay(PUBLISH_DELAY)
+                    .reportFrequency(PUB_REPORT_FREQUENCY);
             Thread pubThread = new Thread(rp);
             pubThread.start();
 
@@ -72,34 +78,23 @@ public class FetchResilientExample implements Runnable {
 
             StreamContext sc = js.getStreamContext(STREAM);
             ConsumerContext cc = sc.createOrUpdateConsumer(
-                ConsumerConfiguration.builder()
-                    .durable(CONSUMER_NAME)
-                    .filterSubject(SUBJECT)
-                    .build());
+                    ConsumerConfiguration.builder()
+                            .durable(CONSUMER_NAME)
+                            .filterSubject(SUBJECT)
+                            .build());
 
             FetchResilientExample example = new FetchResilientExample(cc);
             Thread consumeThread = new Thread(example);
             consumeThread.start();
 
             consumeThread.join(); // just letting this run
-        }
-        catch (IOException ioe) {
+        } catch (IOException ioe) {
             // problem making the connection or
-        }
-        catch (InterruptedException e) {
+        } catch (InterruptedException e) {
             // thread interruption in the body of the example
-        }
-        catch (JetStreamApiException e) {
+        } catch (JetStreamApiException e) {
             // some api exception
         }
-    }
-
-    public final AtomicBoolean keepGoing = new AtomicBoolean(true);
-    private final ConsumerContext cc;
-    private long reportAt = 0;
-
-    public FetchResilientExample(ConsumerContext cc) {
-        this.cc = cc;
     }
 
     public void stop() {
@@ -121,8 +116,7 @@ public class FetchResilientExample implements Runnable {
                     m.ack();
                     m = fc.nextMessage();
                 }
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 // do we care if the autocloseable FetchConsumer errors on close?
                 // probably not, but maybe log it.
             }
@@ -135,8 +129,7 @@ public class FetchResilientExample implements Runnable {
                 }
                 //noinspection BusyWait
                 Thread.sleep(10);
-            }
-            catch (InterruptedException e) {
+            } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
         }

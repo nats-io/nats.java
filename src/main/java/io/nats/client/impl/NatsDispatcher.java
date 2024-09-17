@@ -304,7 +304,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
             return this;
         }
 
-        if (subject == null || subject.length() == 0) {
+        if (subject == null || subject.isEmpty()) {
             throw new IllegalArgumentException("Subject is required in unsubscribe");
         }
 

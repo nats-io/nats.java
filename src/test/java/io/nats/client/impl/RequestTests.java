@@ -48,7 +48,7 @@ public class RequestTests extends TestBase {
             Future<Message> incoming = nc.request("subject", null);
             Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
-            assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+            assertEquals(0, nc.getStatistics().getOutstandingRequests());
             assertNotNull(msg);
             assertEquals(0, msg.getData().length);
             assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
@@ -56,7 +56,7 @@ public class RequestTests extends TestBase {
             incoming = nc.request("subject", new Headers().put("foo", "bar"), null);
             msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
-            assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+            assertEquals(0, nc.getStatistics().getOutstandingRequests());
             assertNotNull(msg);
             assertEquals(0, msg.getData().length);
             assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
@@ -119,7 +119,7 @@ public class RequestTests extends TestBase {
             Future<Message> incoming = nc.request("subject", null);
             Message msg = incoming.get(5000, TimeUnit.MILLISECONDS);
 
-            assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+            assertEquals(0, nc.getStatistics().getOutstandingRequests());
             assertNotNull(msg);
             assertEquals(0, msg.getData().length);
             assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
@@ -138,7 +138,7 @@ public class RequestTests extends TestBase {
 
             Message msg = nc.request("subject", null, Duration.ofMillis(1000));
 
-            assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+            assertEquals(0, nc.getStatistics().getOutstandingRequests());
             assertNotNull(msg);
             assertEquals(0, msg.getData().length);
             assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
@@ -158,7 +158,7 @@ public class RequestTests extends TestBase {
                 Future<Message> incoming = nc.request("subject", new byte[11]);
                 Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
-                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                assertEquals(0, nc.getStatistics().getOutstandingRequests());
                 assertNotNull(msg);
                 assertEquals(7, msg.getData().length);
                 assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
@@ -251,7 +251,7 @@ public class RequestTests extends TestBase {
             Future<Message> incoming = nc.request("subject", null);
             Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
-            assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+            assertEquals(0, nc.getStatistics().getOutstandingRequests());
             assertNotNull(msg);
             assertEquals(0, msg.getData().length);
             assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
@@ -272,7 +272,7 @@ public class RequestTests extends TestBase {
                 assertThrows(TimeoutException.class,
                         () -> nc.request("subject", null).get(100, TimeUnit.MILLISECONDS));
 
-                assertEquals(1, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                assertEquals(1, nc.getStatistics().getOutstandingRequests());
             } finally {
                 nc.close();
                 assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
@@ -299,7 +299,7 @@ public class RequestTests extends TestBase {
                 Thread.sleep(2 * cleanupInterval + Options.DEFAULT_CONNECTION_TIMEOUT.toMillis());
 
                 assertTrue(future.isCompletedExceptionally());
-                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                assertEquals(0, nc.getStatistics().getOutstandingRequests());
 
             } finally {
                 nc.close();
@@ -336,7 +336,7 @@ public class RequestTests extends TestBase {
 
                 Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
-                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                assertEquals(0, nc.getStatistics().getOutstandingRequests());
                 assertNotNull(msg);
                 assertEquals(0, msg.getData().length);
                 assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
@@ -345,7 +345,7 @@ public class RequestTests extends TestBase {
 
                 msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
-                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                assertEquals(0, nc.getStatistics().getOutstandingRequests());
                 assertNotNull(msg);
                 assertEquals(0, msg.getData().length);
                 assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
@@ -405,7 +405,7 @@ public class RequestTests extends TestBase {
                 assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 assertThrows(CancellationException.class, () -> nc.request("subject", null).get(100, TimeUnit.MILLISECONDS));
 
-                assertEquals(0, ((NatsStatistics) nc.getStatistics()).getOutstandingRequests());
+                assertEquals(0, nc.getStatistics().getOutstandingRequests());
             } finally {
                 nc.close();
                 assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
@@ -424,7 +424,7 @@ public class RequestTests extends TestBase {
             try {
                 assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 assertThrows(CancellationException.class, () -> nc.requestWithTimeout("subject", null, Duration.ofMillis(100)).get(100, TimeUnit.MILLISECONDS));
-                assertEquals(0, ((NatsStatistics) nc.getStatistics()).getOutstandingRequests());
+                assertEquals(0, nc.getStatistics().getOutstandingRequests());
             } finally {
                 nc.close();
                 assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
@@ -446,7 +446,7 @@ public class RequestTests extends TestBase {
 
                 assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 assertThrows(TimeoutException.class, () -> nc.requestWithTimeout("subject", null, Duration.ofMillis(100)).get(100, TimeUnit.MILLISECONDS));
-                assertEquals(1, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                assertEquals(1, nc.getStatistics().getOutstandingRequests());
 
             } finally {
                 nc.close();
@@ -496,7 +496,7 @@ public class RequestTests extends TestBase {
                 long timeout = 10 * cleanupInterval;
 
                 sleep(sleep);
-                assertTrueByTimeout(timeout, () -> ((NatsStatistics)nc.getStatistics()).getOutstandingRequests() == 0);
+                assertTrueByTimeout(timeout, () -> nc.getStatistics().getOutstandingRequests() == 0);
 
                 // Make sure it is still running
                 incoming = nc.request("subject", null);
@@ -507,7 +507,7 @@ public class RequestTests extends TestBase {
                 incoming.cancel(true);
 
                 sleep(sleep);
-                assertTrueByTimeout(timeout, () -> ((NatsStatistics)nc.getStatistics()).getOutstandingRequests() == 0);
+                assertTrueByTimeout(timeout, () -> nc.getStatistics().getOutstandingRequests() == 0);
             } finally {
                 nc.close();
                 assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
@@ -542,7 +542,7 @@ public class RequestTests extends TestBase {
                 }
 
                 assertTrue((end-start) > 2 * cleanupInterval * 1_000_000);
-                assertTrue(0 >= ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                assertTrue(0 >= nc.getStatistics().getOutstandingRequests());
             } finally {
                 nc.close();
                 assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
@@ -574,7 +574,7 @@ public class RequestTests extends TestBase {
                         assertEquals(1, msg.getData().length);
                     }
         
-                    assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                    assertEquals(0, nc.getStatistics().getOutstandingRequests());
                 } finally {
                     nc.close();
                     assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
@@ -596,7 +596,7 @@ public class RequestTests extends TestBase {
                 Future<Message> incoming = nc.request("subject", null);
                 Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
-                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                assertEquals(0, nc.getStatistics().getOutstandingRequests());
                 assertNotNull(msg);
                 assertEquals(0, msg.getData().length);
                 assertEquals(msg.getSubject().indexOf('.'), msg.getSubject().lastIndexOf('.'));
@@ -634,7 +634,7 @@ public class RequestTests extends TestBase {
                     exp.printStackTrace();
                 }
 
-                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                assertEquals(0, nc.getStatistics().getOutstandingRequests());
                 assertNotNull(msg);
                 assertEquals(messageSize, msg.getData().length);
             } finally {
@@ -726,7 +726,7 @@ public class RequestTests extends TestBase {
         assertTrue(ftot.useTimeoutException());
         ftot.cancelTimedOut();
         ExecutionException ee = assertThrows(ExecutionException.class, ftot::get);
-        assertTrue(ee.getCause() instanceof TimeoutException);
+        assertInstanceOf(TimeoutException.class, ee.getCause());
     }
 
     @Test

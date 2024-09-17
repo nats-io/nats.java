@@ -44,8 +44,8 @@ public class Benchmark extends Sample {
     public Benchmark(String name, String runId) {
         this.name = name;
         this.runId = runId;
-        this.subChannel = new LinkedBlockingQueue<Sample>();
-        this.pubChannel = new LinkedBlockingQueue<Sample>();
+        this.subChannel = new LinkedBlockingQueue<>();
+        this.pubChannel = new LinkedBlockingQueue<>();
     }
 
     public final void addPubSample(Sample sample) {
@@ -60,10 +60,10 @@ public class Benchmark extends Sample {
      * Closes this benchmark and calculates totals and times.
      */
     public final void close() {
-        while (subChannel.size() > 0) {
+        while (!subChannel.isEmpty()) {
             subs.addSample(subChannel.poll());
         }
-        while (pubChannel.size() > 0) {
+        while (!pubChannel.isEmpty()) {
             pubs.addSample(pubChannel.poll());
         }
 

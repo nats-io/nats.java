@@ -22,10 +22,10 @@ import java.util.Properties;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-public class PublishOptionsTests extends TestBase {
+class PublishOptionsTests extends TestBase {
 
     @Test
-    public void testBuilder() {
+    void testBuilder() {
         PublishOptions.Builder builder = PublishOptions.builder();
         PublishOptions po = builder.build();
         assertEquals(PublishOptions.UNSET_STREAM, po.getStream(), "default stream");
@@ -70,7 +70,7 @@ public class PublishOptionsTests extends TestBase {
     }
 
     @Test
-    public void testProperties() {
+    void testProperties() {
         Properties p = new Properties();
         p.setProperty(PublishOptions.PROP_PUBLISH_TIMEOUT, "PT20M");
         p.setProperty(PublishOptions.PROP_STREAM_NAME, STREAM);

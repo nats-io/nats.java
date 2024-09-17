@@ -78,7 +78,7 @@ public class JsPublishInRoundsBench {
                 for (int x = 0; x < a.roundSize; x++) {
                     futures.add(js.publishAsync(m));
                 }
-                while (futures.size() > 0) {
+                while (!futures.isEmpty()) {
                     List<CompletableFuture<PublishAck>> notDone = new ArrayList<>();
                     for (CompletableFuture<PublishAck> f : futures) {
                         if (f.isDone()) {

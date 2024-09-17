@@ -21,8 +21,7 @@ import org.junit.jupiter.api.Test;
 import java.nio.charset.StandardCharsets;
 
 import static io.nats.client.utils.ResourceUtils.resourceAsString;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AuthHandlerTests {
 
@@ -32,7 +31,7 @@ public class AuthHandlerTests {
     @Test
     public void testCredsFile() throws Exception {
         AuthHandler auth = Nats.credentials("src/test/resources/jwt_nkey/test.creds");
-        assertTrue(auth instanceof FileAuthHandler);
+        assertInstanceOf(FileAuthHandler.class, auth);
         NKey key = NKey.fromSeed(SEED.toCharArray());
         byte[] test = "hello world".getBytes(StandardCharsets.UTF_8);
 
@@ -47,7 +46,7 @@ public class AuthHandlerTests {
         String creds = resourceAsString("jwt_nkey/test.creds");
 
         AuthHandler auth = Nats.staticCredentials(creds.getBytes(StandardCharsets.UTF_8));
-        assertTrue(auth instanceof MemoryAuthHandler);
+        assertInstanceOf(MemoryAuthHandler.class, auth);
         NKey key = NKey.fromSeed(SEED.toCharArray());
         byte[] test = "hello world".getBytes(StandardCharsets.UTF_8);
 

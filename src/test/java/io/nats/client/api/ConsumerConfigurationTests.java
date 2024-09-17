@@ -378,7 +378,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(ULONG_UNSET, ConsumerConfiguration.normalizeUlong(-1L));
 
         //noinspection ConstantConditions
-        assertNull(ConsumerConfiguration.normalize((Duration) null));
+        assertNull(ConsumerConfiguration.normalize(null));
         assertEquals(Duration.ofNanos(1), ConsumerConfiguration.normalize(Duration.ofNanos(1)));
         assertEquals(DURATION_UNSET, ConsumerConfiguration.normalize(DURATION_UNSET));
         assertEquals(DURATION_UNSET, ConsumerConfiguration.normalize(Duration.ZERO));

@@ -82,7 +82,7 @@ public class NatsJsPullSubFetch {
                 List<Message> list = sub.fetch(10, Duration.ofSeconds(1));
                 for (Message m : list) {
                     red++; // process message
-                    System.out.println("" + red + ". " + m);
+                    System.out.println(red + ". " + m);
                     m.ack();
                 }
             }

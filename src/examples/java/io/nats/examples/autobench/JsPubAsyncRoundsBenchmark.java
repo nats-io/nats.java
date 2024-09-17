@@ -70,7 +70,7 @@ public class JsPubAsyncRoundsBenchmark extends AutoBenchmark {
                     for (long l = 0; l < thisRound; l++) {
                         futures.add(js.publishAsync(subject, payload));
                     }
-                    while (futures.size() > 0) {
+                    while (!futures.isEmpty()) {
                         List<CompletableFuture<PublishAck>> notDone = new ArrayList<>((int)roundSize);
                         for (CompletableFuture<PublishAck> f : futures) {
                             if (!f.isDone()) {

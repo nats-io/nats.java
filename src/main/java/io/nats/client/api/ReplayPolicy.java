@@ -23,7 +23,7 @@ public enum ReplayPolicy {
     Instant("instant"),
     Original("original");
 
-    private String policy;
+    private final String policy;
 
     ReplayPolicy(String p) {
         this.policy = p;

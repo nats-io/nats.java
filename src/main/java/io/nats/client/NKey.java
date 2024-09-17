@@ -232,9 +232,7 @@ public class NKey {
         char[] withoutPad = new char[i+1];
         System.arraycopy(withPad, 0, withoutPad, 0, withoutPad.length);
 
-        for (int j=0;j<withPad.length;j++) {
-            withPad[j] = '\0';
-        }
+        Arrays.fill(withPad, '\0');
 
         return withoutPad;
     }
@@ -366,9 +364,9 @@ public class NKey {
 
     /**
      * Create an Account NKey from the provided random number generator.
-     *
+     * <p>
      * If no random is provided, SecureRandom() will be used to create one.
-     *
+     * <p>
      * The new NKey contains the private seed, which should be saved in a secure location.
      *
      * @param random A secure random provider
@@ -384,9 +382,9 @@ public class NKey {
 
     /**
      * Create an Cluster NKey from the provided random number generator.
-     *
+     * <p>
      * If no random is provided, SecureRandom() will be used to create one.
-     *
+     * <p>
      * The new NKey contains the private seed, which should be saved in a secure location.
      *
      * @param random A secure random provider
@@ -402,9 +400,9 @@ public class NKey {
 
     /**
      * Create an Operator NKey from the provided random number generator.
-     *
+     * <p>
      * If no random is provided, SecureRandom() will be used to create one.
-     *
+     * <p>
      * The new NKey contains the private seed, which should be saved in a secure location.
      *
      * @param random A secure random provider
@@ -420,9 +418,9 @@ public class NKey {
 
     /**
      * Create a Server NKey from the provided random number generator.
-     *
+     * <p>
      * If no random is provided, SecureRandom() will be used to create one.
-     *
+     * <p>
      * The new NKey contains the private seed, which should be saved in a secure location.
      *
      * @param random A secure random provider
@@ -438,9 +436,9 @@ public class NKey {
 
     /**
      * Create a User NKey from the provided random number generator.
-     *
+     * <p>
      * If no random is provided, SecureRandom() will be used to create one.
-     *
+     * <p>
      * The new NKey contains the private seed, which should be saved in a secure location.
      *
      * @param random A secure random provider
@@ -535,14 +533,14 @@ public class NKey {
     /**
      * The seed or private key per the Ed25519 spec, encoded with encodeSeed.
      */
-    private char[] privateKeyAsSeed;
+    private final char[] privateKeyAsSeed;
 
     /**
      * The public key, maybe null. Used for public only NKeys.
      */
-    private char[] publicKey;
+    private final char[] publicKey;
 
-    private Type type;
+    private final Type type;
 
     private NKey(Type t, char[] publicKey, char[] privateKey) {
         this.type = t;
@@ -553,7 +551,7 @@ public class NKey {
     /**
      * Clear the seed and public key char arrays by filling them
      * with random bytes then zero-ing them out.
-     *
+     * <p>
      * The nkey is unusable after this operation.
      */
     public void clear() {

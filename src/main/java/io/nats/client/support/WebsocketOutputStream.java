@@ -27,14 +27,14 @@ public class WebsocketOutputStream extends OutputStream {
     /**
      * Minimize fragmenting, by using a 1440 buffer size. This buffer is used to
      * store the websocket header + payload for the first write.
-     *
+     * <p>
      * We are using this size since a typical MTU for ethernet is 1500 and the
      * TCP/IPv6 header consumes 60 bytes, thus by using 1440 we should minimize
      * the need for further fragmentation at the lower layers and yet minimize
      * the overhead associated with the fact that a write to the Socket (which
      * has NO_DELAY set on it) results in a single TCP/IPv6 datagram which has
      * a 60 byte overhead.
-     *
+     * <p>
      * Note that the effective payload is less due to the websocket frame overhead:
      * 4 bytes header/length + 4 bytes masking. Which would be a payload
      * size of 1432. This means any write which is larger than 1432 will be

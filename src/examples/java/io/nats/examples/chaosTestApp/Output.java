@@ -63,7 +63,7 @@ public class Output extends JPanel {
         String fontName = Font.MONOSPACED;
         GraphicsEnvironment localEnv;
         localEnv= GraphicsEnvironment.getLocalGraphicsEnvironment();
-        String allfonts[] = localEnv.getAvailableFontFamilyNames();
+        String[] allfonts = localEnv.getAvailableFontFamilyNames();
         for (String allfont : allfonts) {
             if (allfont.equals("JetBrains Mono")) {
                 fontName = allfont;

@@ -13,8 +13,6 @@
 
 package io.nats.client.api;
 
-import io.nats.client.Connection;
-import io.nats.client.JetStream;
 import io.nats.client.PullSubscribeOptions;
 import io.nats.client.PushSubscribeOptions;
 import io.nats.client.support.*;

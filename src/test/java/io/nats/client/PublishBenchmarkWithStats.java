@@ -15,12 +15,13 @@ package io.nats.client;
 
 import java.text.NumberFormat;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 
 
 public class PublishBenchmarkWithStats {
-    public static void main(String args[]) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException {
         int threads = 1;
         int msgsPerThread = 5_000_000;
         int messageSize = 256;
@@ -36,9 +37,7 @@ public class PublishBenchmarkWithStats {
         System.out.println("###");
         byte[] body = new byte[messageSize];
 
-        for(int i=0; i<messageSize; i++) {
-            body[i] = 1;
-        }
+        Arrays.fill(body, (byte) 1);
 
         try {
             Options options = new Options.Builder().server(Options.DEFAULT_URL).turnOnAdvancedStats().build();

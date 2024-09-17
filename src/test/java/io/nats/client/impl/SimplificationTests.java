@@ -283,7 +283,7 @@ public class SimplificationTests extends JetStreamTestBase {
             // coverage
             IterableConsumer consumer = consumerContext.iterate(ConsumeOptions.DEFAULT_CONSUME_OPTIONS);
             consumer.close();
-            assertThrows(IllegalArgumentException.class, () -> consumerContext.iterate((ConsumeOptions)null));
+            assertThrows(IllegalArgumentException.class, () -> consumerContext.iterate(null));
         });
     }
 

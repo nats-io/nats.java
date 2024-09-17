@@ -64,7 +64,7 @@ public final class NUID {
 
     /**
      * The default NUID constructor.
-     * 
+     * <p>
      * Relies on the OS Default instance of SecureRandom.
      * 
      * @throws IllegalStateException
@@ -73,7 +73,7 @@ public final class NUID {
      */
     public NUID() {
         nextLock = new ReentrantLock();
-        // Generate a cryto random int, 0 <= val < max to seed pseudorandom
+        // Generate a crypto random int, 0 <= val < max to seed pseudorandom
         seq = nextLong(PRAND, maxSeq);
         inc = minInc + nextLong(PRAND, maxInc - minInc);
         pre = new char[preLen];
@@ -166,7 +166,7 @@ public final class NUID {
      * called automatically when we exhaust the sequential range.
      */
 
-    final void randomizePrefix() {
+    void randomizePrefix() {
         byte[] cb = new byte[preLen];
 
         // Use SecureRandom for prefix only

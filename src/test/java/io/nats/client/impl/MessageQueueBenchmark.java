@@ -20,7 +20,7 @@ import java.util.concurrent.CompletableFuture;
 public class MessageQueueBenchmark {
     static final Duration REQUEST_CLEANUP_INTERVAL = Duration.ofSeconds(5);
     
-    public static void main(String args[]) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException {
         int msgCount = 10_000_000;
         NatsMessage[] msgs = new NatsMessage[msgCount];
         long start, end;

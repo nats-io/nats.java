@@ -95,7 +95,7 @@ public class InfoHandlerTests {
                 assertEquals("myid", ((NatsConnection) nc).getInfo().getServerId(), "got custom info");
                 sendInfo.complete(Boolean.TRUE);
 
-                assertTrue(gotPong.get().booleanValue(), "Got pong."); // Server round tripped so we should have new info
+                assertTrue(gotPong.get(), "Got pong."); // Server round tripped so we should have new info
                 assertEquals("replacement", ((NatsConnection) nc).getInfo().getServerId(), "got replacement info");
             } finally {
                 nc.close();
@@ -166,7 +166,7 @@ public class InfoHandlerTests {
                 assertEquals("myid", ((NatsConnection) nc).getInfo().getServerId(), "got custom info");
                 sendInfo.complete(Boolean.TRUE);
 
-                assertTrue(gotPong.get().booleanValue(), "Got pong."); // Server round tripped so we should have new info
+                assertTrue(gotPong.get(), "Got pong."); // Server round tripped so we should have new info
                 assertEquals("replacement", ((NatsConnection) nc).getInfo().getServerId(), "got replacement info");
             } finally {
                 nc.close();

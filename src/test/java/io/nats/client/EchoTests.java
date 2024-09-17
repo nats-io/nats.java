@@ -65,7 +65,7 @@ public class EchoTests {
         try (NatsTestServer ts = new NatsTestServer()) {
             Options options = new Options.Builder().server(ts.getURI()).noReconnect().build();
             try (Connection nc1 = Nats.connect(options);
-                    Connection nc2 = Nats.connect(options);) {
+                    Connection nc2 = Nats.connect(options)) {
 
                 // Echo is on so both sub should get messages from both pub
                 Subscription sub1 = nc1.subscribe("test");
@@ -97,7 +97,7 @@ public class EchoTests {
         try (NatsTestServer ts = new NatsTestServer()) {
             Options options = new Options.Builder().server(ts.getURI()).noEcho().noReconnect().build();
             try (Connection nc1 = Nats.connect(options);
-                    Connection nc2 = Nats.connect(options);) {
+                    Connection nc2 = Nats.connect(options)) {
 
                 // Echo is on so both sub should get messages from both pub
                 Subscription sub1 = nc1.subscribe("test");

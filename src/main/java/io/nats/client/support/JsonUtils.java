@@ -109,7 +109,7 @@ public abstract class JsonUtils {
      * @param json raw json
      */
     public static void addRawJson(StringBuilder sb, String fname, String json) {
-        if (json != null && json.length() > 0) {
+        if (json != null && !json.isEmpty()) {
             sb.append(Q);
             jsonEncode(sb, fname);
             sb.append(QCOLON);
@@ -125,7 +125,7 @@ public abstract class JsonUtils {
      * @param value field value
      */
     public static void addField(StringBuilder sb, String fname, String value) {
-        if (value != null && value.length() > 0) {
+        if (value != null && !value.isEmpty()) {
             sb.append(Q);
             jsonEncode(sb, fname);
             sb.append(QCOLONQ);
@@ -291,7 +291,7 @@ public abstract class JsonUtils {
     }
 
     public static void addField(StringBuilder sb, String fname, Map<String, String> map) {
-        if (map != null && map.size() > 0) {
+        if (map != null && !map.isEmpty()) {
             addField(sb, fname, instance(map));
         }
     }
@@ -347,7 +347,7 @@ public abstract class JsonUtils {
      * @param strings field value
      */
     public static void addStrings(StringBuilder sb, String fname, List<String> strings) {
-        if (strings != null && strings.size() > 0) {
+        if (strings != null && !strings.isEmpty()) {
             _addStrings(sb, fname, strings);
         }
     }
@@ -379,7 +379,7 @@ public abstract class JsonUtils {
      * @param durations list of durations
      */
     public static void addDurations(StringBuilder sb, String fname, List<Duration> durations) {
-        if (durations != null && durations.size() > 0) {
+        if (durations != null && !durations.isEmpty()) {
             _addList(sb, fname, durations, (sbs, dur) -> sbs.append(dur.toNanos()));
         }
     }
@@ -401,7 +401,7 @@ public abstract class JsonUtils {
     }
 
     public static void addField(StringBuilder sb, String fname, Headers headers) {
-        if (headers != null && headers.size() > 0) {
+        if (headers != null && !headers.isEmpty()) {
             sb.append(Q);
             jsonEncode(sb, fname);
             sb.append("\":{");
@@ -777,7 +777,7 @@ public abstract class JsonUtils {
         String[] raw = arrayString.split(",");
         for (String s : raw) {
             String cleaned = s.trim().replace("\"", "");
-            if (cleaned.length() > 0) {
+            if (!cleaned.isEmpty()) {
                 list.add(jsonDecode(cleaned));
             }
         }

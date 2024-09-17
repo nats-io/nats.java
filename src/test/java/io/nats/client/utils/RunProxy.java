@@ -145,7 +145,7 @@ public class RunProxy implements Runnable {
                 System.err.println("Premature close...");
                 return null;
             }
-            if ("".equals(line)) {
+            if (line.isEmpty()) {
                 break;
             }
         }

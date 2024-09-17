@@ -635,7 +635,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     @Test
     public void testConsumerLimits() {
         ConsumerLimits cl = ConsumerLimits.builder().build();
-        assertEquals(null, cl.getInactiveThreshold());
+        assertNull(cl.getInactiveThreshold());
         assertEquals(INTEGER_UNSET, cl.getMaxAckPending());
 
         cl = ConsumerLimits.builder().inactiveThreshold(Duration.ofMillis(0)).build();

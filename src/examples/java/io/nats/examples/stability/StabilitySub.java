@@ -26,7 +26,7 @@ public class StabilitySub {
             "\nUsage: java -cp <classpath> StabilitySub [server] <subject>"
                     + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n";
 
-    public static void main(String args[]) {
+    public static void main(String[] args) {
         String subject;
         String server;
         long nullCount = 0;

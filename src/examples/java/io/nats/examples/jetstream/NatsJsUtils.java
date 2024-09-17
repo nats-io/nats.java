@@ -343,7 +343,7 @@ public class NatsJsUtils {
         }
 
         if (verbose) {
-            System.out.println(messages.size() == 0 ? " No messages available <-" : " <- ");
+            System.out.println(messages.isEmpty() ? " No messages available <-" : " <- ");
         }
 
         return messages;

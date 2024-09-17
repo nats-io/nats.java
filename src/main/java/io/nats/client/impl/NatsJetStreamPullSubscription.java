@@ -247,7 +247,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
             return new Iterator<Message>() {
                 @Override
                 public boolean hasNext() {
-                    return buffered.size() > 0;
+                    return !buffered.isEmpty();
                 }
 
                 @Override

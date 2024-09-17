@@ -37,10 +37,10 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.condition.OS.WINDOWS;
 
-public class AuthTests extends TestBase {
+class AuthTests extends TestBase {
 
     @Test
-    public void testUserPass() throws Exception {
+    void testUserPass() throws Exception {
         String[] customArgs = { "--user", "stephen", "--pass", "password" };
         try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
             // See config file for user/pass
@@ -51,7 +51,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testEncodedPassword() throws Exception {
+    void testEncodedPassword() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/encoded_pass.conf", false)) {
             int port = ts.getPort();
             assertEncoded("space%20space", port);
@@ -92,7 +92,7 @@ public class AuthTests extends TestBase {
 
     @Test
     @EnabledOnOs({ WINDOWS })
-    public void testNeedsJsonEncoding() throws Exception {
+    void testNeedsJsonEncoding() throws Exception {
         assertNeedsJsonEncoding("\n");
         assertNeedsJsonEncoding("\b");
         assertNeedsJsonEncoding("\f");
@@ -117,7 +117,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testUserPassOnReconnect() throws Exception {
+    void testUserPassOnReconnect() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
         Connection nc;
         Subscription sub;
@@ -159,7 +159,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testUserBCryptPass() throws Exception {
+    void testUserBCryptPass() throws Exception {
         /*
          * go run mkpasswd.go -p password: password bcrypt hash:
          * $2a$11$1oJy/wZYNTxr9jNwMNwS3eUGhBpHT3On8CL9o7ey89mpgo88VG6ba
@@ -175,7 +175,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testUserPassInURL() throws Exception {
+    void testUserPassInURL() throws Exception {
         String[] customArgs = { "--user", "stephen", "--pass", "password" };
         try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
             // See config file for user/pass
@@ -186,7 +186,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testUserPassInURLOnReconnect() throws Exception {
+    void testUserPassInURLOnReconnect() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
         int port;
         Connection nc = null;
@@ -228,7 +228,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testUserPassInURLClusteredWithDifferentUser() throws Exception {
+    void testUserPassInURLClusteredWithDifferentUser() throws Exception {
         String[] customArgs1 = { "--user", "stephen", "--pass", "password" };
         String[] customArgs2 = { "--user", "alberto", "--pass", "casadecampo" };
         ListenerForTesting listener = new ListenerForTesting();
@@ -250,7 +250,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testUserPassInURLWithFallback() throws Exception {
+    void testUserPassInURLWithFallback() throws Exception {
         String[] customArgs1 = { "--user", "stephen", "--pass", "password" };
         String[] customArgs2 = { "--user", "alberto", "--pass", "casadecampo" };
         ListenerForTesting listener = new ListenerForTesting();
@@ -274,7 +274,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testTokenInURLClusteredWithDifferentUser() throws Exception {
+    void testTokenInURLClusteredWithDifferentUser() throws Exception {
         String[] customArgs1 = { "--auth", "token_one" };
         String[] customArgs2 = { "--auth", "token_two" };
         ListenerForTesting listener = new ListenerForTesting();
@@ -298,7 +298,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testTokenInURLWithFallback() throws Exception {
+    void testTokenInURLWithFallback() throws Exception {
         String[] customArgs1 = { "--auth", "token_one" };
         String[] customArgs2 = { "--auth", "token_two" };
         ListenerForTesting listener = new ListenerForTesting();
@@ -323,7 +323,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testToken() throws Exception {
+    void testToken() throws Exception {
         String[] customArgs = { "--auth", "derek" };
         try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
             // See config file for user/pass
@@ -334,7 +334,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testTokenInURL() throws Exception {
+    void testTokenInURL() throws Exception {
         String[] customArgs = { "--auth", "alberto" };
         try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
             // See config file for user/pass
@@ -345,7 +345,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testBadUserBadPass() {
+    void testBadUserBadPass() {
         assertThrows(AuthenticationException.class, () -> {
             String[] customArgs = { "--user", "stephen", "--pass", "password" };
             try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
@@ -358,7 +358,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testMissingUserPass() {
+    void testMissingUserPass() {
         assertThrows(AuthenticationException.class, () -> {
             String[] customArgs = { "--user", "wally", "--pass", "password" };
             try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
@@ -370,7 +370,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testBadToken() {
+    void testBadToken() {
         assertThrows(AuthenticationException.class, () -> {
             String[] customArgs = { "--auth", "colin" };
             try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
@@ -383,7 +383,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testMissingToken() {
+    void testMissingToken() {
         assertThrows(AuthenticationException.class, () -> {
             String[] customArgs = { "--auth", "ivan" };
             try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
@@ -418,7 +418,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testNKeyAuth() throws Exception {
+    void testNKeyAuth() throws Exception {
         NKey theKey = NKey.createUser(null);
         assertNotNull(theKey);
 
@@ -432,7 +432,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testStaticNKeyAuth() throws Exception {
+    void testStaticNKeyAuth() throws Exception {
         NKey theKey = NKey.createUser(null);
         assertNotNull(theKey);
 
@@ -453,7 +453,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testJWTAuthWithCredsFile() throws Exception {
+    void testJWTAuthWithCredsFile() throws Exception {
         // manual auth handler or credential path
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/operator.conf", false)) {
             Options options = new Options.Builder().server(ts.getURI()).maxReconnects(0)
@@ -483,7 +483,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testWsJWTAuthWithCredsFile() throws Exception {
+    void testWsJWTAuthWithCredsFile() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/ws_operator.conf", false)) {
             String uri = ts.getLocalhostUri("ws");
             Options options = new Options.Builder().server(uri).maxReconnects(0)
@@ -501,7 +501,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testWssJWTAuthWithCredsFile() throws Exception {
+    void testWssJWTAuthWithCredsFile() throws Exception {
         SSLContext ctx = SslTestingHelper.createTestSSLContext();
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/wss_operator.conf", false)) {
             String uri = ts.getLocalhostUri("wss");
@@ -512,7 +512,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testStaticJWTAuth() throws Exception {
+    void testStaticJWTAuth() throws Exception {
         // from src/test/resources/jwt_nkey/user.creds
         String jwt = "eyJ0eXAiOiJqd3QiLCJhbGciOiJlZDI1NTE5In0.eyJqdGkiOiI3UE1GTkc0R1c1WkE1NEg3N09TUUZKNkJNQURaSUQ2NTRTVk1XMkRFQVZINVIyUVU0MkhBIiwiaWF0IjoxNTY1ODg5ODk4LCJpc3MiOiJBQUhWU0k1NVlQTkJRWjVQN0Y2NzZDRkFPNFBIQlREWUZRSUVHVEtMUVRJUEVZUEZEVEpOSEhPNCIsIm5hbWUiOiJkZW1vIiwic3ViIjoiVUMzT01MSlhUWVBZN0ZUTVVZNUNaNExHRVdRSTNZUzZKVFZXU0VGRURBMk9MTEpZSVlaVFo3WTMiLCJ0eXBlIjoidXNlciIsIm5hdHMiOnsicHViIjp7fSwic3ViIjp7fX19.ROSJ7D9ETt9c8ZVHxsM4_FU2dBRLh5cNfb56MxPQth74HAxxtGMl0nn-9VVmWjXgFQn4JiIbwrGfFDBRMzxsAA";
         String nkey = "SUAFYHVVQVOIDOOQ4MTOCTLGNZCJ5PZ4HPV5WAPROGTEIOF672D3R7GBY4";
@@ -525,7 +525,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testBadAuthHandler() {
+    void testBadAuthHandler() {
         assertThrows(IOException.class, () -> {
             NKey theKey = NKey.createUser(null);
             assertNotNull(theKey);
@@ -543,7 +543,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testReconnectWithAuth() throws Exception {
+    void testReconnectWithAuth() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
 
         // Connect should fail on ts2
@@ -567,7 +567,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testCloseOnReconnectWithSameError() throws Exception {
+    void testCloseOnReconnectWithSameError() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
 
         // Connect should fail on ts1
@@ -590,7 +590,7 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testThatAuthErrorIsCleared() throws Exception {
+    void testThatAuthErrorIsCleared() throws Exception {
         // Connect should fail on ts1
         try (NatsTestServer ts1 = new NatsTestServer("src/test/resources/operator_noacct.conf", false);
              NatsTestServer ts2 = new NatsTestServer("src/test/resources/operator.conf", false)) {
@@ -640,29 +640,29 @@ public class AuthTests extends TestBase {
     }
 
     @Test
-    public void testReconnectAfterExpiration() throws Exception {
+    void testReconnectAfterExpiration() throws Exception {
         _testReconnectAfter("user authentication expired");
     }
 
     @Test
-    public void testReconnectAfterRevoked() throws Exception {
+    void testReconnectAfterRevoked() throws Exception {
         _testReconnectAfter("user authentication revoked");
     }
 
     @Test
-    public void testReconnectAfterAuthorizationViolation() throws Exception {
+    void testReconnectAfterAuthorizationViolation() throws Exception {
         _testReconnectAfter("authorization violation");
     }
 
     @Test
-    public void testReconnectAfterAccountAuthenticationExpired() throws Exception {
+    void testReconnectAfterAccountAuthenticationExpired() throws Exception {
         _testReconnectAfter("account authentication expired");
     }
 
     private static void _testReconnectAfter(String errText) throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
 
-        CompletableFuture<Boolean> f = new CompletableFuture<Boolean>();
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
 
         NatsServerProtocolMock.Customizer timeoutCustomizer = (ts, r, w) -> {
             f.join(); // wait until we are ready
@@ -702,7 +702,7 @@ public class AuthTests extends TestBase {
 
     @Disabled("This test flaps on CI, it must be that environment")
     @Test
-    public void testRealUserAuthenticationExpired() throws Exception {
+    void testRealUserAuthenticationExpired() throws Exception {
         CountDownLatch cdlConnected = new CountDownLatch(1);
         CountDownLatch cdlDisconnected = new CountDownLatch(1);
         CountDownLatch cdlReconnected = new CountDownLatch(1);

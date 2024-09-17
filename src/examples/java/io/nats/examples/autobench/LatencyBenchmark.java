@@ -43,7 +43,7 @@ public class LatencyBenchmark extends AutoBenchmark {
         this.lcsv = lcsv;
     }
 
-    public void execute(Options connectOptions) throws InterruptedException {
+    public void execute(Options connectOptions) {
         byte[] payload = createPayload();
         String subject = getSubject();
 
@@ -240,7 +240,7 @@ public class LatencyBenchmark extends AutoBenchmark {
         measurements.sort(Long::compareTo);
 
         if (size % 2 == 1) {
-            return measurements.get(middle).longValue();
+            return measurements.get(middle);
         } else {
             double low = measurements.get(middle-1).doubleValue() / 2.0;
             double high = measurements.get(middle).doubleValue() / 2.0;

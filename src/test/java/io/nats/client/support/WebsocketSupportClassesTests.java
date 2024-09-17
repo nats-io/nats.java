@@ -259,7 +259,7 @@ public class WebsocketSupportClassesTests {
 
     @FunctionalInterface
     interface OutputStreamWrite {
-        public void write(OutputStream out) throws IOException;
+        void write(OutputStream out) throws IOException;
     }
 
     private void testWithWriter(OutputStreamWrite writer, String msgStartsWith) throws Exception {

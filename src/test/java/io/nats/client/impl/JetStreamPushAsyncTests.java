@@ -327,7 +327,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
         public List<Message> messages = new ArrayList<>();
 
         @Override
-        public void onMessage(Message msg) throws InterruptedException {
+        public void onMessage(Message msg) {
             messages.add(msg);
         }
     }

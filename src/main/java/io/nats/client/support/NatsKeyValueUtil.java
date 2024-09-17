@@ -21,7 +21,7 @@ import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsJetStreamConstants.ROLLUP_HDR;
 import static io.nats.client.support.NatsJetStreamConstants.ROLLUP_HDR_SUBJECT;
 
-public abstract class NatsKeyValueUtil {
+public final class NatsKeyValueUtil {
 
     private NatsKeyValueUtil() {} /* ensures cannot be constructed */
 
