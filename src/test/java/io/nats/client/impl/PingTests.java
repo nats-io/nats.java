@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class PingTests {
     @Test
-    public void testHandlingPing() throws Exception,ExecutionException {
+    public void testHandlingPing() throws Exception {
         CompletableFuture<Boolean> gotPong = new CompletableFuture<>();
 
         NatsServerProtocolMock.Customizer pingPongCustomizer = (ts, r,w) -> {
@@ -220,7 +220,7 @@ public class PingTests {
 
 
     @Test
-    public void testMessagesDelayPings() throws Exception, ExecutionException, TimeoutException {
+    public void testMessagesDelayPings() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = new Options.Builder().server(ts.getURI()).
                                     pingInterval(Duration.ofMillis(200)).build();

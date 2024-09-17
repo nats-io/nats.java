@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Implements a benchmark more like the .net client that loops over a number
  * of scenarios benchmarking each one. This class hard codes most settings to minimize
  * boilerplate and focus on the nats client code (plus measurement).
- * 
+ * <p>
  * Each benchmark is implemented in its own class, and this main class just builds instances
  * and runs them.
  */
@@ -62,7 +62,7 @@ public class NatsAutoBench {
                                                     connectionTimeout(Duration.ofSeconds(1)).
                                                     noReconnect();
 
-            /**
+            /*
              * The conscrypt flag is provided for testing with the conscrypt jar. Using it through reflection is
              * deprecated but allows the library to ship without a dependency. Using conscrypt should only require the
              * jar plus the flag. For example, to run after building locally and using the test cert files:

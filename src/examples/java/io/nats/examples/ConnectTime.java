@@ -19,7 +19,7 @@ import java.time.Duration;
 
 /**
  * This example will demonstrate how to build a listener that will track connect time.
- *
+ * <p>
  * Usage: java ConnectTime [server]
  *   Use tls:// or opentls:// to require tls, via the Default SSLContext
  *   Set the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.

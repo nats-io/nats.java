@@ -33,7 +33,7 @@ import static io.nats.client.Options.PROP_SSL_CONTEXT_FACTORY_CLASS;
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class TLSConnectTests {
+class TLSConnectTests {
 
     private String convertToProtocol(String proto, NatsTestServer... servers) {
         StringBuilder sb = new StringBuilder();
@@ -82,7 +82,7 @@ public class TLSConnectTests {
     }
 
     @Test
-    public void testSimpleTLSConnection() throws Exception {
+    void testSimpleTLSConnection() throws Exception {
         //System.setProperty("javax.net.debug", "all");
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
             String servers = ts.getURI();
@@ -94,7 +94,7 @@ public class TLSConnectTests {
     }
 
     @Test
-    public void testSimpleTlsFirstConnection() throws Exception {
+    void testSimpleTlsFirstConnection() throws Exception {
         if (TestBase.atLeast2_10_3(ensureRunServerInfo())) {
             try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls_first.conf", false)) {
                 String servers = ts.getURI();
@@ -110,7 +110,7 @@ public class TLSConnectTests {
     }
 
     @Test
-    public void testSimpleUrlTLSConnection() throws Exception {
+    void testSimpleUrlTLSConnection() throws Exception {
         //System.setProperty("javax.net.debug", "all");
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
             String servers = convertToProtocol("tls", ts);
@@ -122,7 +122,7 @@ public class TLSConnectTests {
     }
 
     @Test
-    public void testMultipleUrlTLSConnectionSetContext() throws Exception {
+    void testMultipleUrlTLSConnectionSetContext() throws Exception {
         //System.setProperty("javax.net.debug", "all");
         try (NatsTestServer server1 = new NatsTestServer("src/test/resources/tls.conf", false);
              NatsTestServer server2 = new NatsTestServer("src/test/resources/tls.conf", false);
@@ -136,7 +136,7 @@ public class TLSConnectTests {
     }
 
     @Test
-    public void testSimpleIPTLSConnection() throws Exception {
+    void testSimpleIPTLSConnection() throws Exception {
         //System.setProperty("javax.net.debug", "all");
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
             String servers = "127.0.0.1:" + ts.getPort();
@@ -148,7 +148,7 @@ public class TLSConnectTests {
     }
 
     @Test
-    public void testVerifiedTLSConnection() throws Exception {
+    void testVerifiedTLSConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
             String servers = ts.getURI();
             assertCanConnectAndPubSub(createTestOptionsManually(servers));
@@ -159,7 +159,7 @@ public class TLSConnectTests {
     }
 
     @Test
-    public void testOpenTLSConnection() throws Exception {
+    void testOpenTLSConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
             String servers = ts.getURI();
             Options options = new Options.Builder()
@@ -178,7 +178,7 @@ public class TLSConnectTests {
     }
 
     @Test
-    public void testURISchemeTLSConnection() throws Exception {
+    void testURISchemeTLSConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
             String servers = "tls://localhost:"+ts.getPort();
             assertCanConnectAndPubSub(createTestOptionsManually(servers));
@@ -189,7 +189,7 @@ public class TLSConnectTests {
     }
 
     @Test
-    public void testURISchemeIPTLSConnection() throws Exception {
+    void testURISchemeIPTLSConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
             String servers = "tls://127.0.0.1:"+ts.getPort();
             assertCanConnectAndPubSub(createTestOptionsManually(servers));
@@ -200,7 +200,7 @@ public class TLSConnectTests {
     }
 
     @Test
-    public void testURISchemeOpenTLSConnection() throws Exception {
+    void testURISchemeOpenTLSConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
             String servers = convertToProtocol("opentls", ts);
             Options options = new Options.Builder()
@@ -219,7 +219,7 @@ public class TLSConnectTests {
     }
 
     @Test
-    public void testMultipleUrlOpenTLSConnection() throws Exception {
+    void testMultipleUrlOpenTLSConnection() throws Exception {
         //System.setProperty("javax.net.debug", "all");
         try (NatsTestServer server1 = new NatsTestServer("src/test/resources/tls.conf", false);
              NatsTestServer server2 = new NatsTestServer("src/test/resources/tls.conf", false);
@@ -241,7 +241,7 @@ public class TLSConnectTests {
     }
 
     @Test
-    public void testTLSMessageFlow() throws Exception {
+    void testTLSMessageFlow() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
             SSLContext ctx = SslTestingHelper.createTestSSLContext();
             int msgCount = 100;
@@ -268,7 +268,7 @@ public class TLSConnectTests {
     }
 
     @Test
-    public void testTLSOnReconnect() throws InterruptedException, Exception {
+    void testTLSOnReconnect() throws Exception {
         Connection nc;
         ListenerForTesting listener = new ListenerForTesting();
         int port = NatsTestServer.nextPort();
@@ -301,7 +301,7 @@ public class TLSConnectTests {
     }
 
     @Test
-    public void testDisconnectOnUpgrade() {
+    void testDisconnectOnUpgrade() {
         assertThrows(IOException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
                 SSLContext ctx = SslTestingHelper.createTestSSLContext();
@@ -317,7 +317,7 @@ public class TLSConnectTests {
     }
 
     @Test
-    public void testServerSecureClientNotMismatch() {
+    void testServerSecureClientNotMismatch() {
         assertThrows(IOException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
                 Options options = new Options.Builder().
@@ -330,7 +330,7 @@ public class TLSConnectTests {
     }
 
     @Test
-    public void testClientSecureServerNotMismatch() {
+    void testClientSecureServerNotMismatch() {
         assertThrows(IOException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer()) {
                 SSLContext ctx = SslTestingHelper.createTestSSLContext();
@@ -345,7 +345,7 @@ public class TLSConnectTests {
     }
 
     @Test
-    public void testClientServerCertMismatch() {
+    void testClientServerCertMismatch() {
         AtomicReference<Exception> listenedException = new AtomicReference<>();
         ErrorListener el = new ErrorListener() {
             @Override
@@ -373,7 +373,7 @@ public class TLSConnectTests {
     }
 
     @Test
-    public void testSSLContextFactoryPropertiesPassOnCorrectly() throws NoSuchAlgorithmException {
+    void testSSLContextFactoryPropertiesPassOnCorrectly() throws NoSuchAlgorithmException {
         SSLContextFactoryForTesting factory = new SSLContextFactoryForTesting();
         new Options.Builder()
             .sslContextFactory(factory)
@@ -446,7 +446,7 @@ public class TLSConnectTests {
     */
 
     @Test
-    public void testProxyTlsFirst() throws Exception {
+    void testProxyTlsFirst() throws Exception {
         if (TestBase.atLeast2_10_3(ensureRunServerInfo())) {
             try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls_first.conf", false)) {
                 // 1. client tls first | secure proxy | server insecure -> connects
@@ -468,7 +468,7 @@ public class TLSConnectTests {
     }
 
     @Test
-    public void testProxyNotTlsFirst() throws Exception {
+    void testProxyNotTlsFirst() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
             // 4. client regular secure | secure proxy | server insecure -> mismatch exception
             ListenerForTesting listener = new ListenerForTesting();

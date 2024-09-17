@@ -87,7 +87,7 @@ public class NatsJsPullSubBatchSize {
                 while (m != null) {
                     if (m.isJetStream()) {
                         red++; // process message
-                        System.out.println("" + red + ". " + m);
+                        System.out.println(red + ". " + m);
                         m.ack();
                     }
                     m = sub.nextMessage(Duration.ofMillis(100)); // other messages should already be on the client

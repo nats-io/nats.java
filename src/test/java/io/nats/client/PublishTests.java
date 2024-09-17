@@ -32,9 +32,9 @@ import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class PublishTests {
+class PublishTests {
     @Test
-    public void throwsIfClosedOnPublish() {
+    void throwsIfClosedOnPublish() {
         assertThrows(IllegalStateException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
@@ -46,7 +46,7 @@ public class PublishTests {
     }
 
     @Test
-    public void throwsIfClosedOnFlush() {
+    void throwsIfClosedOnFlush() {
         assertThrows(TimeoutException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
@@ -58,7 +58,7 @@ public class PublishTests {
     }
 
     @Test
-    public void testThrowsWithoutSubject() {
+    void testThrowsWithoutSubject() {
         assertThrows(IllegalArgumentException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
@@ -69,7 +69,7 @@ public class PublishTests {
     }
 
     @Test
-    public void testThrowsIfTooBig() throws Exception {
+    void testThrowsIfTooBig() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/max_payload.conf", false, false))
         {
             Connection nc = Nats.connect(ts.getURI());
@@ -108,7 +108,7 @@ public class PublishTests {
     }
 
     @Test
-    public void testThrowsIfheadersNotSupported() {
+    void testThrowsIfheadersNotSupported() {
         assertThrows(IllegalArgumentException.class, () -> {
             String customInfo = "{\"server_id\":\"test\", \"version\":\"9.9.99\"}";
 
@@ -126,22 +126,22 @@ public class PublishTests {
     }
 
     @Test
-    public void testEmptyPublish() throws Exception {
+    void testEmptyPublish() throws Exception {
         runSimplePublishTest("testsubemptybody", null, null, "");
     }
 
     @Test
-    public void testEmptyByDefaultPublish() throws Exception {
+    void testEmptyByDefaultPublish() throws Exception {
         runSimplePublishTest("testsubemptybody", null, null, null);
     }
 
     @Test
-    public void testNoReplyPublish() throws Exception {
+    void testNoReplyPublish() throws Exception {
         runSimplePublishTest("testsub", null, null, "This is the message.");
     }
 
     @Test
-    public void testReplyToInPublish() throws Exception {
+    void testReplyToInPublish() throws Exception {
         runSimplePublishTest("testsubforreply", "replyTo", null, "This is the message to reply to.");
         runSimplePublishTest("testsubforreply", "replyTo", new Headers().add("key", "value"), "This is the message to reply to.");
     }
@@ -234,7 +234,7 @@ public class PublishTests {
     }
 
     @Test
-    public void testMaxPayload() throws Exception {
+    void testMaxPayload() throws Exception {
         runInServer(standardOptionsBuilder().noReconnect(), nc -> {
             int maxPayload = (int)nc.getServerInfo().getMaxPayload();
             nc.publish("mptest", new byte[maxPayload-1]);
@@ -265,7 +265,7 @@ public class PublishTests {
     }
 
     @Test
-    public void testUtf8Subjects() throws Exception {
+    void testUtf8Subjects() throws Exception {
         String subject = dataAsLines("utf8-test-strings.txt").get(0);
         String jsSubject = variant() + "-" + subject; // just to have a different;
 

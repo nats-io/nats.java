@@ -96,7 +96,7 @@ public class WebSocket extends Socket {
             if (null == line) {
                 throw new IllegalStateException("Expected HTTP header to not exceed " + MAX_LINE_LEN);
             }
-            if ("".equals(line)) {
+            if (line.isEmpty()) {
                 break;
             }
             int colon = line.indexOf(':');

@@ -49,7 +49,7 @@ public class NatsServerProtocolMock implements Closeable{
     }
 
     public interface Customizer {
-        public void customizeTest(NatsServerProtocolMock ts, BufferedReader reader, PrintWriter writer);
+        void customizeTest(NatsServerProtocolMock ts, BufferedReader reader, PrintWriter writer);
     }
 
     private int port;
@@ -105,7 +105,7 @@ public class NatsServerProtocolMock implements Closeable{
     private void start() {
         this.progress = Progress.NO_CLIENT;
         this.waitForIt = new CompletableFuture<>();
-        Thread t = new Thread(() -> {accept();});
+        Thread t = new Thread(this::accept);
         t.start();
         try {
             Thread.sleep(100);

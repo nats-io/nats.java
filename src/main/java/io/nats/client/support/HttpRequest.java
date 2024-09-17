@@ -21,15 +21,15 @@ import static io.nats.client.support.NatsConstants.CRLF;
 
 /**
  * Encapsulate an HttpRequest, in Java 11 we could use this class:
- * https://docs.oracle.com/en/java/javase/11/docs/api/java.net.http/java/net/http/HttpRequest.html
- * 
+ * <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.net.http/java/net/http/HttpRequest.html">https://docs.oracle.com/en/java/javase/11/docs/api/java.net.http/java/net/http/HttpRequest.html</a>
+ * <p>
  * ...but we want to support older JVMs.
  */
 public class HttpRequest {
+    private final Headers headers = new Headers();
     private String method = "GET";
     private String uri = "/";
     private String version = "1.1";
-    private final Headers headers = new Headers();
 
     /**
      * @return the attached http headers, defaults to GET
@@ -48,7 +48,7 @@ public class HttpRequest {
     /**
      * Note that no validation is performed, but the method is trimmed of whitespace
      * and converted to all upper case.
-     * 
+     *
      * @param method is the new request method to use.
      * @return this for method chaining.
      */
@@ -62,7 +62,7 @@ public class HttpRequest {
 
     /**
      * This is the RAW URI, you may need to perform URL decoding the result.
-     * 
+     *
      * @return the "path" of the URI (in the RFC this is the request-URI)
      */
     public String getURI() {
@@ -72,7 +72,7 @@ public class HttpRequest {
     /**
      * This sets the RAW URI, you may need to perform URL encoding before passing
      * into this method.
-     * 
+     *
      * @param uri is the new "path" of the URI to use.
      * @return this for method chaining.
      */
@@ -94,7 +94,7 @@ public class HttpRequest {
     /**
      * Note that no validation is performed on the version. Probably only makes
      * sense to use "0.9", "1.0", "1.1", or "2".
-     * 
+     *
      * @param version is the new HTTP version to use.
      * @return this for method chaining.
      */

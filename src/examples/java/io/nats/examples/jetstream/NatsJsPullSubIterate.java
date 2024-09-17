@@ -83,7 +83,7 @@ public class NatsJsPullSubIterate {
                 while (iter.hasNext()) {
                     Message m = iter.next();
                     red++; // process message
-                    System.out.println("" + red + ". " + m);
+                    System.out.println(red + ". " + m);
                     m.ack();
                 }
             }

@@ -794,7 +794,7 @@ public class KeyValueTests extends JetStreamTestBase {
         for (int x = 0; x < apiHistory.size(); x++) {
             Object o = manualHistory.get(x);
             if (o instanceof KeyValueOperation) {
-                assertEquals((KeyValueOperation)o, apiHistory.get(x).getOperation());
+                assertEquals(o, apiHistory.get(x).getOperation());
             }
             else {
                 assertKvEquals((KeyValueEntry)o, apiHistory.get(x));
@@ -1461,7 +1461,7 @@ public class KeyValueTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testMirrorSourceBuilderPrefixConversion() throws Exception {
+    public void testMirrorSourceBuilderPrefixConversion() {
         String bucket = bucket();
         String name = variant();
         String kvName = "KV_" + name;

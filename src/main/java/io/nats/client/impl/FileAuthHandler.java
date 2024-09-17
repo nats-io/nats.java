@@ -22,6 +22,7 @@ import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 
 class FileAuthHandler implements AuthHandler {
     private String jwtFile;
@@ -121,9 +122,7 @@ class FileAuthHandler implements AuthHandler {
             for (int i=0; i<chars.capacity();i++) {
                 chars.put('\0');
             }
-            for (int i=0;i<data.length;i++) {
-                data[i] = 0;
-            }
+            Arrays.fill(data, (byte) 0);
         } else {
             byte[] data = Files.readAllBytes(Paths.get(this.nkeyFile));
             ByteBuffer bb = ByteBuffer.wrap(data);
@@ -134,9 +133,7 @@ class FileAuthHandler implements AuthHandler {
             for (int i=0; i<chars.capacity();i++) {
                 chars.put('\0');
             }
-            for (int i=0;i<data.length;i++) {
-                data[i] = 0;
-            }
+            Arrays.fill(data, (byte) 0);
         }
 
         return keyChars;
@@ -211,9 +208,7 @@ class FileAuthHandler implements AuthHandler {
                 chars.put('\0');
             }
             bb.clear();
-            for (int i=0;i<data.length;i++) {
-                data[i] = 0;
-            }
+            Arrays.fill(data, (byte) 0);
 
             return jwtChars;
         } catch (Exception exp) {

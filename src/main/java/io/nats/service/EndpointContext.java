@@ -60,7 +60,7 @@ class EndpointContext {
         started = DateTimeUtils.gmtNow();
     }
 
-    public void onMessage(Message msg) throws InterruptedException {
+    public void onMessage(Message msg) {
         long start = System.nanoTime();
         ServiceMessage smsg = new ServiceMessage(msg);
         try {

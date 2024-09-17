@@ -169,12 +169,12 @@ public class JwtUtilsTests {
     public void issueUserJWTSuccessCustom() throws Exception {
         UserClaim userClaim = new UserClaim("ACXZRALIL22WRETDRXYKOYDB7XC3E7MBSVUSUMFACO6OM5VPRNFMOOO6")
             .pub(new Permission()
-                .allow(new String[] {"pub-allow-subject"})
-                .deny(new String[] {"pub-deny-subject"}))
+                .allow("pub-allow-subject")
+                .deny("pub-deny-subject"))
             .sub(new Permission()
-                .allow(new String[] {"sub-allow-subject"})
-                .deny(new String[] {"sub-deny-subject"}))
-            .tags(new String[]{"tag1", "tag\\two"});
+                .allow("sub-allow-subject")
+                .deny("sub-deny-subject"))
+            .tags("tag1", "tag\\two");
 
         String jwt = issueUserJWT(SIGNING_KEY, new String(USER_KEY.getPublicKey()), "custom", null, 1633043378, userClaim);
         String claimBody = getClaimBody(jwt);

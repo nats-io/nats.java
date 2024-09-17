@@ -98,7 +98,7 @@ public class NKeyTests {
         DecodedSeed decoded = NKey.decodeSeed(encoded);
 
         assertEquals(NKey.Type.fromPrefix(decoded.prefix), NKey.Type.ACCOUNT);
-        assertTrue(Arrays.equals(bytes, decoded.bytes));
+        assertArrayEquals(bytes, decoded.bytes);
     }
 
     @Test
@@ -109,19 +109,19 @@ public class NKeyTests {
 
         char[] encoded = NKey.encode(NKey.Type.ACCOUNT, bytes);
         byte[] decoded = NKey.decode(NKey.Type.ACCOUNT, encoded, false);
-        assertTrue(Arrays.equals(bytes, decoded));
+        assertArrayEquals(bytes, decoded);
 
         encoded = NKey.encode(NKey.Type.USER, bytes);
         decoded = NKey.decode(NKey.Type.USER, encoded, false);
-        assertTrue(Arrays.equals(bytes, decoded));
+        assertArrayEquals(bytes, decoded);
 
         encoded = NKey.encode(NKey.Type.SERVER, bytes);
         decoded = NKey.decode(NKey.Type.SERVER, encoded, false);
-        assertTrue(Arrays.equals(bytes, decoded));
+        assertArrayEquals(bytes, decoded);
 
         encoded = NKey.encode(NKey.Type.CLUSTER, bytes);
         decoded = NKey.decode(NKey.Type.CLUSTER, encoded, false);
-        assertTrue(Arrays.equals(bytes, decoded));
+        assertArrayEquals(bytes, decoded);
     }
 
     @Test
@@ -437,8 +437,8 @@ public class NKeyTests {
         char[] seed = theKey.getSeed();
         assertEquals(NKey.fromSeed(seed), NKey.fromSeed(seed));
         assertEquals(NKey.fromSeed(seed).hashCode(), NKey.fromSeed(seed).hashCode());
-        assertTrue(Arrays.equals(NKey.fromSeed(seed).getPublicKey(), NKey.fromSeed(seed).getPublicKey()));
-        assertTrue(Arrays.equals(NKey.fromSeed(seed).getPrivateKey(), NKey.fromSeed(seed).getPrivateKey()));
+        assertArrayEquals(NKey.fromSeed(seed).getPublicKey(), NKey.fromSeed(seed).getPublicKey());
+        assertArrayEquals(NKey.fromSeed(seed).getPrivateKey(), NKey.fromSeed(seed).getPrivateKey());
 
         assertTrue(seed[0] == 'S' && seed[1] == 'A');
 

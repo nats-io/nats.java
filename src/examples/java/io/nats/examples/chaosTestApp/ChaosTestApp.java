@@ -53,7 +53,7 @@ public class ChaosTestApp {
 //            + " --logdir c:\\temp"
     ).split(" ");
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
 
         args = MANUAL_ARGS; // comment out for real command line
 

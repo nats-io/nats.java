@@ -23,10 +23,10 @@ import java.security.SecureRandom;
 import java.util.Properties;
 
 public class SslTestingHelper {
-    public static String KEYSTORE_PATH = "src/test/resources/keystore.jks";
-    public static String TRUSTSTORE_PATH = "src/test/resources/truststore.jks";
-    public static String PASSWORD = "password";
-    public static char[] PASSWORD_CHARS = PASSWORD.toCharArray();
+    public static final String KEYSTORE_PATH = "src/test/resources/keystore.jks";
+    public static final String TRUSTSTORE_PATH = "src/test/resources/truststore.jks";
+    public static final String PASSWORD = "password";
+    public static final char[] PASSWORD_CHARS = PASSWORD.toCharArray();
 
     public static KeyStore loadKeystore(String path) throws Exception {
         return SSLUtils.loadKeystore(path, PASSWORD_CHARS);

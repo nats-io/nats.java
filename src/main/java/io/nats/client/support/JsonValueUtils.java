@@ -54,7 +54,7 @@ public abstract class JsonValueUtils {
 
     public static Map<String, String> readStringStringMap(JsonValue jv, String key) {
         JsonValue o = readObject(jv, key);
-        if (o.type == Type.MAP && o.map.size() > 0) {
+        if (o.type == Type.MAP && !o.map.isEmpty()) {
             Map<String, String> temp = new HashMap<>();
             for (String k : o.map.keySet()) {
                 String value = readString(o, k);
@@ -265,7 +265,7 @@ public abstract class JsonValueUtils {
         }
         if (o instanceof String) {
             String s = ((String)o).trim();
-            return s.length() == 0 ? new JsonValue() : new JsonValue(s);
+            return s.isEmpty() ? new JsonValue() : new JsonValue(s);
         }
         if (o instanceof Boolean) {
             return new JsonValue((Boolean)o);

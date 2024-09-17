@@ -53,7 +53,7 @@ public interface JetStreamSubscription extends Subscription {
 
     /**
      * Initiate pull in noWait mode with the specified batch size.
-     *
+     * <p>
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
      * ! Primitive API for ADVANCED use only, officially not supported. Prefer fetch, iterate or reader.
      *

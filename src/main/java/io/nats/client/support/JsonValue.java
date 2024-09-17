@@ -22,7 +22,7 @@ import static io.nats.client.support.JsonUtils.*;
 public class JsonValue implements JsonSerializable {
 
     public enum Type {
-        STRING, BOOL, INTEGER, LONG, DOUBLE, FLOAT, BIG_DECIMAL, BIG_INTEGER, MAP, ARRAY, NULL;
+        STRING, BOOL, INTEGER, LONG, DOUBLE, FLOAT, BIG_DECIMAL, BIG_INTEGER, MAP, ARRAY, NULL
     }
 
     private static final char QUOTE = '"';

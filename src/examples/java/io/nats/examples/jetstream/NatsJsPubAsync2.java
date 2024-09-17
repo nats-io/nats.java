@@ -23,8 +23,6 @@ import io.nats.examples.ExampleArgs;
 import io.nats.examples.ExampleUtils;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.*;
 
 /**

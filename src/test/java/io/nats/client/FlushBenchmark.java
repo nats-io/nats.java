@@ -17,7 +17,7 @@ import java.text.NumberFormat;
 
 
 public class FlushBenchmark {
-    public static void main(String args[]) throws InterruptedException {
+    public static void main(String[] args) {
         int flushes = 100_000;
 
         System.out.println("###");

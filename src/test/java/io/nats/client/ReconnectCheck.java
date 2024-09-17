@@ -18,12 +18,12 @@ public class ReconnectCheck {
             long receivedId = Long.parseLong(new String(m.getData()));
 
             if (receivedId < lastReceivedId) {
-                System.out.println(String.format("##### Tid: %d, Received stale data: got %d, last received %d", Thread.currentThread().getId(), receivedId, lastReceivedId));
+                System.out.printf("##### Tid: %d, Received stale data: got %d, last received %d%n", Thread.currentThread().getId(), receivedId, lastReceivedId);
             }
             lastReceivedId = receivedId;
 
             if (received++ % 1_000_000 == 0) {
-                System.out.println(String.format("Tid: %d, Received %d messages", Thread.currentThread().getId(), received));
+                System.out.printf("Tid: %d, Received %d messages%n", Thread.currentThread().getId(), received);
             }
         });
 
@@ -35,7 +35,7 @@ public class ReconnectCheck {
             for (int i = 0; i < 100_000; i++) {
                 natsOut.publish("foo", ("" + id++).getBytes());
                 if (published++ % 1_000_000 == 0) {
-                    System.out.println(String.format("Tid: %d, Published %d messages.", Thread.currentThread().getId(), published));
+                    System.out.printf("Tid: %d, Published %d messages.%n", Thread.currentThread().getId(), published);
                 }
             }
             Thread.sleep(1);
@@ -49,22 +49,21 @@ public class ReconnectCheck {
                 .connectionTimeout(Duration.ofSeconds(5));
         natsOptions.pingInterval(Duration.ofMillis(100));
         natsOptions.connectionListener((conn, e) ->
-                System.out.println(String.format("Tid: %d, %s, NATS: connection event - %s, connected url: %s. servers: %s ", Thread.currentThread().getId(), name, e, conn.getConnectedUrl(), conn.getServers())
-        ));
+                System.out.printf("Tid: %d, %s, NATS: connection event - %s, connected url: %s. servers: %s %n", Thread.currentThread().getId(), name, e, conn.getConnectedUrl(), conn.getServers()));
         natsOptions.errorListener(new ErrorListener() {
             @Override
             public void slowConsumerDetected(Connection conn, Consumer consumer) {
-                System.out.println(String.format("Tid: %d, %s, %s: Slow Consumer", Thread.currentThread().getId(), name, conn.getConnectedUrl()));
+                System.out.printf("Tid: %d, %s, %s: Slow Consumer%n", Thread.currentThread().getId(), name, conn.getConnectedUrl());
             }
 
             @Override
             public void exceptionOccurred(Connection conn, Exception exp) {
-                System.out.println(String.format("Tid: %d, %s, Nats '%s' exception: %s", Thread.currentThread().getId(), name, conn.getConnectedUrl(), exp.toString()));
+                System.out.printf("Tid: %d, %s, Nats '%s' exception: %s%n", Thread.currentThread().getId(), name, conn.getConnectedUrl(), exp.toString());
             }
 
             @Override
             public void errorOccurred(Connection conn, String error) {
-                System.out.println(String.format("Tid: %d, %s, Nats '%s': Error %s", Thread.currentThread().getId(), name, conn.getConnectedUrl(), error.toString()));
+                System.out.printf("Tid: %d, %s, Nats '%s': Error %s%n", Thread.currentThread().getId(), name, conn.getConnectedUrl(), error);
             }
         });
 

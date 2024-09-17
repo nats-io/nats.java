@@ -334,7 +334,7 @@ public class DispatcherTests {
             Message msg = msgFuture.get(500, TimeUnit.MILLISECONDS);
             assertNotNull(msg);
 
-            assertEquals(2, ((NatsStatistics)(nc.getStatistics())).getFlushCounter());
+            assertEquals(2, nc.getStatistics().getFlushCounter());
         }
     }
 
@@ -576,7 +576,7 @@ public class DispatcherTests {
                         Connection nc = Nats.connect(ts.getURI())) {
                 Dispatcher d = nc.createDispatcher((msg) -> {});
                 d.subscribe(null);
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -589,7 +589,7 @@ public class DispatcherTests {
                 Dispatcher d = nc.createDispatcher((msg) -> {});
 
                 d.subscribe("");
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -601,7 +601,7 @@ public class DispatcherTests {
                         Connection nc = Nats.connect(ts.getURI())) {
                 Dispatcher d = nc.createDispatcher((msg) -> {});
                 d.subscribe("subject", "");
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -613,7 +613,7 @@ public class DispatcherTests {
                         Connection nc = Nats.connect(ts.getURI())) {
                 Dispatcher d = nc.createDispatcher((msg) -> {});
                 d.subscribe(null, "quque");
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -625,7 +625,7 @@ public class DispatcherTests {
                         Connection nc = Nats.connect(ts.getURI())) {
                 Dispatcher d = nc.createDispatcher((msg) -> {});
                 d.subscribe("", "quque");
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -637,7 +637,7 @@ public class DispatcherTests {
                         Connection nc = Nats.connect(ts.getURI())) {
                 nc.close();
                 nc.createDispatcher((msg) -> {});
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -650,20 +650,20 @@ public class DispatcherTests {
                 Dispatcher d = nc.createDispatcher((msg) -> {});
                 nc.close();
                 d.subscribe("subject");
-                assertFalse(true);
+                fail();
             }
         });
     }
 
     @Test
-    public void testThrowOnSubscribeWhenClosed() throws IOException, InterruptedException, TimeoutException {
+    public void testThrowOnSubscribeWhenClosed() {
         assertThrows(IllegalStateException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
                 Dispatcher d = nc.createDispatcher((msg) -> {});
                 nc.closeDispatcher(d);
                 d.subscribe("foo");
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -677,7 +677,7 @@ public class DispatcherTests {
                 d.subscribe("foo");
                 nc.closeDispatcher(d);
                 d.unsubscribe("foo");
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -690,7 +690,7 @@ public class DispatcherTests {
                 Dispatcher d = nc.createDispatcher((msg) -> {});
                 nc.closeDispatcher(d);
                 nc.closeDispatcher(d);
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -703,7 +703,7 @@ public class DispatcherTests {
                 Dispatcher d = nc.createDispatcher((msg) -> {});
                 nc.close();
                 nc.closeDispatcher(d);
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -821,7 +821,7 @@ public class DispatcherTests {
                         Connection nc = Nats.connect(ts.getURI())) {
                 Dispatcher d = nc.createDispatcher((msg) -> {});
                 d.subscribe("", (msg) -> {});
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -833,7 +833,7 @@ public class DispatcherTests {
                         Connection nc = Nats.connect(ts.getURI())) {
                 Dispatcher d = nc.createDispatcher((msg) -> {});
                 d.subscribe("test", (MessageHandler)null);
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -844,8 +844,8 @@ public class DispatcherTests {
             try (NatsTestServer ts = new NatsTestServer(false);
                         Connection nc = Nats.connect(ts.getURI())) {
                 Dispatcher d = nc.createDispatcher((msg) -> {});
-                d.subscribe("test", "queue", (MessageHandler)null);
-                assertFalse(true);
+                d.subscribe("test", "queue", null);
+                fail();
             }
         });
     }
@@ -857,7 +857,7 @@ public class DispatcherTests {
                         Connection nc = Nats.connect(ts.getURI())) {
                 Dispatcher d = nc.createDispatcher((msg) -> {});
                 d.subscribe("subject", "", (msg) -> {});
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -869,7 +869,7 @@ public class DispatcherTests {
                         Connection nc = Nats.connect(ts.getURI())) {
                 Dispatcher d = nc.createDispatcher((msg) -> {});
                 d.subscribe(null, "quque", (msg) -> {});
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -881,7 +881,7 @@ public class DispatcherTests {
                         Connection nc = Nats.connect(ts.getURI())) {
                 Dispatcher d = nc.createDispatcher((msg) -> {});
                 d.subscribe("", "quque", (msg) -> {});
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -893,7 +893,7 @@ public class DispatcherTests {
                         Connection nc = Nats.connect(ts.getURI())) {
                 Dispatcher d = nc.createDispatcher((msg) -> {});
                 d.unsubscribe("");
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -907,7 +907,7 @@ public class DispatcherTests {
                 Subscription sub = d.subscribe("subject", (msg) -> {});
                 nc.closeDispatcher(d);
                 d.unsubscribe(sub);
-                assertFalse(true);
+                fail();
             }
         });
     }
@@ -920,7 +920,7 @@ public class DispatcherTests {
                 Dispatcher d = nc.createDispatcher((msg) -> {});
                 Subscription sub2 = nc.subscribe("test");
                 d.unsubscribe(sub2);
-                assertFalse(true);
+                fail();
             }
         });
     }

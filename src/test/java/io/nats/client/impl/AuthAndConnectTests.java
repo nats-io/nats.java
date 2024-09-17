@@ -25,7 +25,6 @@ import org.junit.jupiter.api.Test;
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class AuthAndConnectTests {

@@ -15,21 +15,23 @@ package io.nats.client.api;
 public class KeyResult {
 
     private final String key;
-    private final Exception e;
+    private final Exception exception;
 
     public KeyResult() {
-        this.key = null;
-        this.e = null;
+        this(null, null);
     }
 
     public KeyResult(String key) {
-        this.key = key;
-        this.e = null;
+        this(key, null);
     }
 
-    public KeyResult(Exception e) {
-        this.key = null;
-        this.e = e;
+    public KeyResult(Exception exception) {
+        this(null, exception);
+    }
+
+    private KeyResult(String key, Exception exception) {
+        this.key = key;
+        this.exception = exception;
     }
 
     public String getKey() {
@@ -37,7 +39,7 @@ public class KeyResult {
     }
 
     public Exception getException() {
-        return e;
+        return exception;
     }
 
     public boolean isKey() {
@@ -45,7 +47,7 @@ public class KeyResult {
     }
 
     public boolean isException() {
-        return e != null;
+        return exception != null;
     }
 
     public boolean isDone() {

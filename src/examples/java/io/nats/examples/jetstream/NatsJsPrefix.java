@@ -26,7 +26,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.printStreamInfo;
 
 /**
  * This example will demonstrate connecting on an account that uses a custom prefix.
- *
+ * <p>
  * Server configuration (prefix.conf)
  * <pre>
  * port: 4222

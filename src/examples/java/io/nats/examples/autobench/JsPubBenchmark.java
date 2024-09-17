@@ -26,7 +26,7 @@ public class JsPubBenchmark extends AutoBenchmark {
     private static final Map<String, String> SAVED_SUBJECTS = new HashMap<>();
 
     public static String getKey(long messageCount, long messageSize) {
-        return "" + messageCount + "x" + messageSize;
+        return messageCount + "x" + messageSize;
     }
 
     public static String getStream(long messageCount, long messageSize) {

@@ -103,7 +103,7 @@ public interface Connection extends AutoCloseable {
          * The {@code Connection} is currently connecting to a server for the first
          * time.
          */
-        CONNECTING;
+        CONNECTING
     }
 
     /**

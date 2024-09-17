@@ -73,10 +73,8 @@ public abstract class ThrottledBenchmark extends AutoBenchmark {
      * become slow consumers. The addition of this code was motivated by the asymetry in the java library between
      * publishers and subscribers, especially if UTF-8 subjects are enabled.
      * @param nc the connection
-     * @throws InterruptedException
      */
-	void adjustAndSleep(Connection nc) throws InterruptedException {
-
+	void adjustAndSleep(Connection nc) {
         long count = sent.incrementAndGet();
 
         if (this.targetPubRate <= 0) {

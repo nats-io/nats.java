@@ -35,7 +35,7 @@ public class Stan {
             + "Messages to stan.exit will cause stan to go away, if they contain the data \"confirm\".\n" 
             + "The server name help will print this message.\n";
 
-    public static void main(String args[]) {
+    public static void main(String[] args) {
         String server = "help";
 
         if (args.length == 1) {

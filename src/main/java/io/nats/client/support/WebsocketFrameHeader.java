@@ -25,7 +25,7 @@ public class WebsocketFrameHeader {
         PONG(10),
         UNKNOWN(0x10);
 
-        private int code;
+        private final int code;
 
         OpCode(int code) {
             this.code = code;

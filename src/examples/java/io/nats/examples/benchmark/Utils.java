@@ -47,10 +47,10 @@ public final class Utils {
      *
      * @param numMsgs    the total number of messages
      * @param numClients the total number of clients
-     * @return an array of message counts
+     * @return a {@link List} of message counts
      */
     public static List<Integer> msgsPerClient(int numMsgs, int numClients) {
-        List<Integer> counts = new ArrayList<Integer>(numClients);
+        List<Integer> counts = new ArrayList<>(numClients);
         if (numClients == 0 || numMsgs == 0) {
             return counts;
         }

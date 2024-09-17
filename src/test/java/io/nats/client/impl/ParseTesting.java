@@ -29,7 +29,7 @@ public class ParseTesting {
             + "\"auth_required\":false" + "," + "\"port\": 7777" + "," + "\"max_payload\":100000000000" + ","
             + "\"connect_urls\":[\"one\", \"two\"]" + "}";
 
-    public static void main(String args[]) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException {
         int iterations = 1_000_000;
 
         System.out.println("###");

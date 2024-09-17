@@ -22,7 +22,6 @@ import static io.nats.client.support.ApiConstants.PAUSE_REMAINING;
 import static io.nats.client.support.ApiConstants.PAUSE_UNTIL;
 import static io.nats.client.support.JsonValueUtils.readBoolean;
 import static io.nats.client.support.JsonValueUtils.readDate;
-import static io.nats.client.support.JsonValueUtils.readLong;
 import static io.nats.client.support.JsonValueUtils.readNanos;
 
 public class ConsumerPauseResponse extends ApiResponse<ConsumerPauseResponse> {

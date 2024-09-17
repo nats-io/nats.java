@@ -87,7 +87,7 @@ public class NatsJsPubAsync {
                 futures.add(js.publishAsync(msg));
             }
 
-            while (futures.size() > 0) {
+            while (!futures.isEmpty()) {
                 CompletableFuture<PublishAck> f = futures.remove(0);
                 if (f.isDone()) {
                     try {

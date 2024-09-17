@@ -37,7 +37,7 @@ import static io.nats.client.support.NatsConstants.OUTPUT_QUEUE_IS_FULL;
  * boilerplate.
  */
 public class NatsBench2 {
-    final BlockingQueue<Throwable> errorQueue = new LinkedBlockingQueue<Throwable>();
+    final BlockingQueue<Throwable> errorQueue = new LinkedBlockingQueue<>();
 
     // Default test values
     private int numMsgs = 5_000_000;
@@ -136,7 +136,7 @@ public class NatsBench2 {
             builder.turnOnAdvancedStats();
         }
 
-        /**
+        /*
          * The conscrypt flag is provided for testing with the conscrypt jar. Using it
          * through reflection is deprecated but allows the library to ship without a
          * dependency. Using conscrypt should only require the jar plus the flag. For
@@ -276,7 +276,7 @@ public class NatsBench2 {
 
                     boolean success = false ;
                     
-                    for (int idx = 5; idx < 10 && success == false; idx++) {
+                    for (int idx = 5; idx < 10 && !success; idx++) {
                         try {
                             nc.publish(subject, payload);
                             success = true;
@@ -446,7 +446,7 @@ public class NatsBench2 {
     }
 
     private void parseArgs(String[] args) {
-        List<String> argList = new ArrayList<String>(Arrays.asList(args));
+        List<String> argList = new ArrayList<>(Arrays.asList(args));
 
         subject = argList.get(argList.size() - 1);
         argList.remove(argList.size() - 1);

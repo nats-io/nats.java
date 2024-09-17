@@ -190,7 +190,7 @@ public class NatsJsPullSubMultipleWorkers {
         public void run() {
             while (allReceived.get() < exArgs.msgCount) {
                 List<Message> messages = sub.fetch(5, 500);
-                while (messages != null && messages.size() > 0) {
+                while (messages != null && !messages.isEmpty()) {
                     for (Message msg : messages) {
                         thisReceived++;
                         allReceived.incrementAndGet();

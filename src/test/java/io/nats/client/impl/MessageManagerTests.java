@@ -414,7 +414,7 @@ public class MessageManagerTests extends JetStreamTestBase {
             return (PushMessageManager)mm;
         }
         return null;
-    };
+    }
 
     private void _received_time_no(JetStream js, JetStreamManagement jsm, String stream, String subject, JetStreamSubscription sub) throws IOException, JetStreamApiException, InterruptedException {
         js.publish(subject, dataBytes(0));

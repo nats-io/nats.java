@@ -14,15 +14,11 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
-import io.nats.client.support.JsonUtils;
+
 import java.time.ZonedDateTime;
 
-import static io.nats.client.support.ApiConstants.CONFIG;
 import static io.nats.client.support.ApiConstants.PAUSE_UNTIL;
-import static io.nats.client.support.ApiConstants.STREAM_NAME;
-import static io.nats.client.support.JsonUtils.addField;
-import static io.nats.client.support.JsonUtils.beginJson;
-import static io.nats.client.support.JsonUtils.endJson;
+import static io.nats.client.support.JsonUtils.*;
 
 /**
  * Object used to make a request to pause a consumer. Used Internally

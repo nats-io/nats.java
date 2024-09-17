@@ -382,7 +382,7 @@ public class MessageQueueTests {
                 for (int j=0;j<msgPerThread;j++) {
                     q.push(new ProtocolMessage(PING));
                     sent.incrementAndGet();
-                };
+                }
             });
             t.start();
         }
@@ -484,7 +484,7 @@ public class MessageQueueTests {
     }
 
     @Test
-    public void testFilterTail() throws InterruptedException, UnsupportedEncodingException {
+    public void testFilterTail() throws InterruptedException {
         MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         NatsMessage msg1 = new ProtocolMessage(ONE);
         NatsMessage msg2 = new ProtocolMessage(TWO);
@@ -508,7 +508,7 @@ public class MessageQueueTests {
     }
 
     @Test
-    public void testFilterHead() throws InterruptedException, UnsupportedEncodingException {
+    public void testFilterHead() throws InterruptedException {
         MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         NatsMessage msg1 = new ProtocolMessage(ONE);
         NatsMessage msg2 = new ProtocolMessage(TWO);
@@ -532,7 +532,7 @@ public class MessageQueueTests {
     }
 
     @Test
-    public void testFilterMiddle() throws InterruptedException, UnsupportedEncodingException {
+    public void testFilterMiddle() throws InterruptedException{
         MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         NatsMessage msg1 = new ProtocolMessage(ONE);
         NatsMessage msg2 = new ProtocolMessage(TWO);

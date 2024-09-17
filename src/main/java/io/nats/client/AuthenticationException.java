@@ -18,7 +18,7 @@ import java.io.IOException;
 /**
  * AuthenticationException is used when the connect process fails due to an authentication
  * problem.
- * 
+ * <p>
  * The exception will not include the authentication tokens, but as a subclass
  * of IOException allows the client to distinguish an IO problem from an
  * authentication problem.

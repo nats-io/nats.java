@@ -20,7 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 class SampleGroup extends Sample {
-    private final List<Sample> samples = new ArrayList<Sample>();
+    private final List<Sample> samples = new ArrayList<>();
 
     SampleGroup(SampleGroup... groups) {
         for (SampleGroup g : groups) {

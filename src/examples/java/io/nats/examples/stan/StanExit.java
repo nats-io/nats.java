@@ -27,7 +27,7 @@ public class StanExit {
             "\nUsage: java StanExit [server]"
             + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n";
 
-    public static void main(String args[]) {
+    public static void main(String[] args) {
         String server = "help";
 
         if (args.length == 1) {

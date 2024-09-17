@@ -228,9 +228,9 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             Dispatcher d = nc.createDispatcher();
 
             js.subscribe(tsc.subject(), (PushSubscribeOptions)null);
-            js.subscribe(tsc.subject(), null, (PushSubscribeOptions)null); // queue name is not required, just a weird way to call this api
-            js.subscribe(tsc.subject(), d, m -> {}, false, (PushSubscribeOptions)null);
-            js.subscribe(tsc.subject(), null, d, m -> {}, false, (PushSubscribeOptions)null); // queue name is not required, just a weird way to call this api
+            js.subscribe(tsc.subject(), null, null); // queue name is not required, just a weird way to call this api
+            js.subscribe(tsc.subject(), d, m -> {}, false, null);
+            js.subscribe(tsc.subject(), null, d, m -> {}, false, null); // queue name is not required, just a weird way to call this api
 
             PushSubscribeOptions pso = ConsumerConfiguration.builder().filterSubject(tsc.subject()).buildPushSubscribeOptions();
             js.subscribe(null, pso);
@@ -248,9 +248,9 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, (PushSubscribeOptions)null));
             assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, (PushSubscribeOptions)null));
-            assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, null, (PushSubscribeOptions)null));
-            assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, d, m -> {}, false, (PushSubscribeOptions)null));
-            assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, null, d, m -> {}, false, (PushSubscribeOptions)null));
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, null, null));
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, d, m -> {}, false, null));
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, null, d, m -> {}, false, null));
 
             PullSubscribeOptions lso = ConsumerConfiguration.builder().filterSubject(tsc.subject()).buildPullSubscribeOptions();
             js.subscribe(null, lso);
@@ -261,7 +261,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, d, m -> {}, lsoF));
 
             assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, (PullSubscribeOptions)null));
-            assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, d, m -> {}, (PullSubscribeOptions)null));
+            assertThrows(IllegalArgumentException.class, () -> js.subscribe(null, d, m -> {}, null));
         });
     }
 

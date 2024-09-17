@@ -48,7 +48,7 @@ public class NatsStatisticsTests {
             String str = nc.getStatistics().toString();
             assertNotNull(msg);
             assertNotNull(str);
-            assertTrue(str.length() > 0);
+            assertFalse(str.isEmpty());
             assertTrue(str.contains("### Connection ###"));
             assertTrue(str.contains("Socket Writes"));
         }

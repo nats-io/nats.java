@@ -6,7 +6,6 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -65,7 +64,7 @@ public class RawTCPLatencyTest {
         }
     }
 
-    private static void runClient() throws SocketException, IOException {
+    private static void runClient() throws IOException {
         Socket socket = new Socket();
         socket.setTcpNoDelay(true);
         socket.setReceiveBufferSize(2 * 1024 * 1024);

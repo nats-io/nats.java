@@ -13,10 +13,7 @@
 
 package io.nats.client;
 
-import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.PublishAck;
-import io.nats.client.api.StorageType;
-import io.nats.client.api.StreamConfiguration;
 import io.nats.client.impl.Headers;
 
 import java.io.IOException;

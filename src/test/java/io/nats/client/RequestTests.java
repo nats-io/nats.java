@@ -24,23 +24,22 @@ import java.util.concurrent.ExecutionException;
 
 import static io.nats.client.utils.TestBase.standardConnection;
 import static io.nats.client.utils.TestBase.subject;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
-public class RequestTests {
+class RequestTests {
 
     @Test
-    public void testRequestNoResponder() throws Exception {
+    void testRequestNoResponder() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false, true)) {
             Options optCancel = Options.builder().server(ts.getURI()).errorListener(new ListenerForTesting()).build();
             Options optReport = Options.builder().server(ts.getURI()).reportNoResponders().errorListener(new ListenerForTesting()).build();
             try (Connection ncCancel = standardConnection(optCancel);
-                 Connection ncReport = standardConnection(optReport);
+                 Connection ncReport = standardConnection(optReport)
             )
             {
                 assertThrows(CancellationException.class, () -> ncCancel.request(subject(999), null).get());
                 ExecutionException ee = assertThrows(ExecutionException.class, () -> ncReport.request(subject(999), null).get());
-                assertTrue(ee.getCause() instanceof JetStreamStatusException);
+                assertInstanceOf(JetStreamStatusException.class, ee.getCause());
                 assertTrue(ee.getMessage().contains("503 No Responders Available For Request"));
 
                 ncCancel.jetStreamManagement().addStream(

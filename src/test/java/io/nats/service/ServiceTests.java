@@ -196,7 +196,7 @@ public class ServiceTests extends JetStreamTestBase {
                 Discovery discovery = new Discovery(clientNc, 500, 5);
 
                 // ping discovery
-                Verifier pingVerifier = (expected, response) -> assertTrue(response instanceof PingResponse);
+                Verifier pingVerifier = (expected, response) -> assertInstanceOf(PingResponse.class, response);
                 verifyDiscovery(discovery.ping(), pingVerifier, pingResponse1, pingResponse2);
                 verifyDiscovery(discovery.ping(SERVICE_NAME_1), pingVerifier, pingResponse1);
                 verifyDiscovery(discovery.ping(SERVICE_NAME_2), pingVerifier, pingResponse2);
@@ -206,7 +206,7 @@ public class ServiceTests extends JetStreamTestBase {
 
                 // info discovery
                 Verifier infoVerifier = (expected, response) -> {
-                    assertTrue(response instanceof InfoResponse);
+                    assertInstanceOf(InfoResponse.class, response);
                     InfoResponse exp = (InfoResponse) expected;
                     InfoResponse r = (InfoResponse) response;
                     assertEquals(exp.getDescription(), r.getDescription());
@@ -221,7 +221,7 @@ public class ServiceTests extends JetStreamTestBase {
 
                 // stats discovery
                 Verifier statsVerifier = (expected, response) -> {
-                    assertTrue(response instanceof StatsResponse);
+                    assertInstanceOf(StatsResponse.class, response);
                     StatsResponse exp = (StatsResponse) expected;
                     StatsResponse sr = (StatsResponse) response;
                     assertEquals(exp.getStarted(), sr.getStarted());

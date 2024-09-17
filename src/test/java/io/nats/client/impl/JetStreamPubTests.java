@@ -216,14 +216,14 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
     private void assertFutureIOException(CompletableFuture<PublishAck> future) {
         ExecutionException ee = assertThrows(ExecutionException.class, future::get);
-        assertTrue(ee.getCause() instanceof RuntimeException);
-        assertTrue(ee.getCause().getCause() instanceof IOException);
+        assertInstanceOf(RuntimeException.class, ee.getCause());
+        assertInstanceOf(IOException.class, ee.getCause().getCause());
     }
 
     private void assertFutureJetStreamApiException(CompletableFuture<PublishAck> future) {
         ExecutionException ee = assertThrows(ExecutionException.class, future::get);
-        assertTrue(ee.getCause() instanceof RuntimeException);
-        assertTrue(ee.getCause().getCause() instanceof JetStreamApiException);
+        assertInstanceOf(RuntimeException.class, ee.getCause());
+        assertInstanceOf(JetStreamApiException.class, ee.getCause().getCause());
     }
 
     @Test

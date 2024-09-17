@@ -25,7 +25,7 @@ import java.time.Duration;
 /**
  * This example will demonstrate the ability to publish to a stream with either
  * the JetStream.publish(...) or with core Connection.publish(...)
- *
+ * <p>
  * The difference lies in the whether it's important to your application to receive
  * a publish ack and whether or not you want to set publish expectations.
  */
