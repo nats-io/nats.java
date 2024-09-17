@@ -173,26 +173,57 @@ public class MessageGetRequest implements JsonSerializable {
             this.startTime = req.startTime;
         }
 
+        /**
+         * Get a message with the exact sequence.
+         * Or when combined with other settings, where message sequence >= provided sequence.
+         *
+         * @param sequence which matches one message in a stream, or used as a minimum sequence for filtering
+         * @return Builder
+         */
         public Builder sequence(long sequence) {
             this.sequence = sequence;
             return this;
         }
 
+        /**
+         * Get the last message by specified subject.
+         *
+         * @param lastBySubject the subject to get the last message for
+         * @return Builder
+         */
         public Builder lastBySubject(String lastBySubject) {
             this.lastBySubject = lastBySubject;
             return this;
         }
 
+        /**
+         * Get the next message by specified subject.
+         * Either the first message when not combined with sequence,
+         * or a next message where message sequence >= provided sequence.
+         *
+         * @param nextBySubject the subject to get the first/next message for
+         * @return Builder
+         */
         public Builder nextBySubject(String nextBySubject) {
             this.nextBySubject = nextBySubject;
             return this;
         }
 
+        /**
+         * Get message at or after the specified start time.
+         *
+         * @param startTime the minimum start time of the returned message
+         * @return Builder
+         */
         public Builder startTime(ZonedDateTime startTime) {
             this.startTime = startTime;
             return this;
         }
 
+        /**
+         * Builds the {@link MessageGetRequest} with this configuration.
+         * @return MessageGetRequest
+         */
         public MessageGetRequest build() {
             return new MessageGetRequest(this);
         }
