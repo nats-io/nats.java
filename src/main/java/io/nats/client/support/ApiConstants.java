@@ -126,6 +126,7 @@ public interface ApiConstants {
     String MTIME             = "mtime";
     String MIRROR            = "mirror";
     String MSGS              = "msgs";
+    String MULTI_LAST        = "multi_last";
     String NAME              = "name";
     String NEXT_BY_SUBJECT   = "next_by_subj";
     String NO_ACK            = "no_ack";
@@ -202,5 +203,7 @@ public interface ApiConstants {
     String TLS_AVAILABLE     = "tls_available";
     String TOTAL             = "total";
     String TYPE              = "type";
+    String UP_TO_SEQ         = "up_to_seq";
+    String UP_TO_TIME        = "up_to_time";
     String VERSION           = "version";
 }

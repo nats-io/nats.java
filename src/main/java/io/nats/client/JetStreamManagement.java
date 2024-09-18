@@ -17,6 +17,7 @@ import io.nats.client.api.*;
 import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * JetStream Management context for creation and access to streams and consumers in NATS.
@@ -323,6 +324,20 @@ public interface JetStreamManagement {
      * @throws JetStreamApiException the request had an error related to the data
      */
     MessageInfo getNextMessage(String streamName, long seq, String subject) throws IOException, JetStreamApiException;
+
+    /**
+     * Request a batch of messages using a {@link MessageBatchGetRequest}.
+     * <p>
+     * This API is currently EXPERIMENTAL and is subject to change.
+     *
+     * @param streamName the name of the stream
+     * @param messageBatchGetRequest the request details
+     * @param consumer the handler used to process messages in the batch
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    void getMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, Consumer<MessageBatchInfo> consumer) throws IOException, JetStreamApiException;
 
     /**
      * Deletes a message, overwriting the message data with garbage

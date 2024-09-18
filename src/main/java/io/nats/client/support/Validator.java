@@ -383,6 +383,13 @@ public abstract class Validator {
         return i;
     }
 
+    public static long validateGtZero(long l, String label) {
+        if (l < 1) {
+            throw new IllegalArgumentException(label + " must be greater than zero");
+        }
+        return l;
+    }
+
     public static long validateGtZeroOrMinus1(long l, String label) {
         if (zeroOrLtMinus1(l)) {
             throw new IllegalArgumentException(label + " must be greater than zero or -1 for unlimited");

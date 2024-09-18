@@ -23,11 +23,12 @@ import org.junit.jupiter.api.function.Executable;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static io.nats.client.support.DateTimeUtils.DEFAULT_TIME;
 import static io.nats.client.support.DateTimeUtils.ZONE_ID_GMT;
@@ -1547,5 +1548,143 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             ci = jsmPre290.createConsumer(stream4, cc4);
             assertEquals(fs1, ci.getConsumerConfiguration().getFilterSubject());
         });
+    }
+
+    @Test
+    public void testBatchDirectGet() throws Exception {
+        jsServer.run(TestBase::atLeast2_11, nc -> {
+            JetStream js = nc.jetStream();
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            TestingStreamContainer tsc = new TestingStreamContainer(nc);
+            assertFalse(tsc.si.getConfiguration().getAllowDirect());
+
+            List<String> expected = Arrays.asList("foo", "bar", "baz");
+            for (String data : expected) {
+                js.publish(tsc.subject(), data.getBytes(StandardCharsets.UTF_8));
+            }
+
+            List<MessageBatchInfo> batch = new ArrayList<>();
+            Consumer<MessageBatchInfo> handler = batch::add;
+
+            // Stream doesn't have AllowDirect enabled, will error.
+            assertThrows(IllegalArgumentException.class, () -> {
+                MessageBatchGetRequest request = MessageBatchGetRequest.builder().build();
+                jsm.getMessageBatch(tsc.stream, request, handler);
+            });
+
+            // Enable AllowDirect.
+            StreamConfiguration sc = StreamConfiguration.builder(tsc.si.getConfiguration()).allowDirect(true).build();
+            StreamInfo si = jsm.updateStream(sc);
+            assertTrue(si.getConfiguration().getAllowDirect());
+
+            MessageBatchGetRequest request = MessageBatchGetRequest.builder()
+                    .batch(2)
+                    .subject(tsc.subject())
+                    .build();
+
+            // First batch gets first two messages.
+            jsm.getMessageBatch(tsc.stream, request, handler);
+            MessageBatchInfo last = batch.get(batch.size() - 1);
+            assertEquals(1, last.getNumPending());
+            assertEquals(2, last.getSeq());
+            assertEquals(1, last.getLastSeq());
+
+            // Second batch gets last message.
+            request = MessageBatchGetRequest.builder(request)
+                    .sequence(last.getSeq() + 1)
+                    .build();
+            jsm.getMessageBatch(tsc.stream, request, handler);
+
+            List<String> actual = batch.stream().map(m -> new String(m.getData())).collect(Collectors.toList());
+            assertEquals(expected, actual);
+
+            last = batch.get(batch.size() - 1);
+            assertEquals(0, last.getNumPending());
+            assertEquals(3, last.getSeq());
+            assertEquals(-1, last.getLastSeq());
+        });
+    }
+
+    @Test
+    public void testBatchDirectGetMultiLast() throws Exception {
+        jsServer.run(TestBase::atLeast2_11, nc -> {
+            JetStream js = nc.jetStream();
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            String stream = stream();
+            jsm.addStream(StreamConfiguration.builder()
+                    .name(stream)
+                    .subjects(stream + ".a.>")
+                    .allowDirect(true)
+                    .build());
+
+            String subjectAFoo = stream + ".a.foo";
+            String subjectABar = stream + ".a.bar";
+            String subjectABaz = stream + ".a.baz";
+            js.publish(subjectAFoo, "foo".getBytes(StandardCharsets.UTF_8));
+            js.publish(subjectABar, "bar".getBytes(StandardCharsets.UTF_8));
+            js.publish(subjectABaz, "baz".getBytes(StandardCharsets.UTF_8));
+
+            List<String> keys = new ArrayList<>();
+            Consumer<MessageBatchInfo> handler = msg -> keys.add(msg.getSubject());
+
+            MessageBatchGetRequest request = MessageBatchGetRequest.builder()
+                    .multiLastForSubjects(subjectAFoo, subjectABaz)
+                    .build();
+
+            // First batch gets first two messages.
+            jsm.getMessageBatch(stream, request, handler);
+            assertEquals(2, keys.size());
+            assertEquals(subjectAFoo, keys.get(0));
+            assertEquals(subjectABaz, keys.get(1));
+        });
+    }
+
+    @Test
+    public void testBatchDirectGetBuilder() {
+        // Default timeout
+        assertEquals(Duration.ofSeconds(5), MessageBatchGetRequest.builder().build().getTimeout());
+
+        // Request options.
+        MessageBatchGetRequest requestOptions = MessageBatchGetRequest.builder()
+                .timeout(Duration.ofSeconds(1))
+                .maxBytes(1234)
+                .batch(2)
+                .build();
+        assertEquals(Duration.ofSeconds(1), requestOptions.getTimeout());
+        assertEquals(1234, requestOptions.getMaxBytes());
+        assertEquals(2, requestOptions.getBatch());
+        assertEquals("{\"batch\":2,\"max_bytes\":1234}", requestOptions.toJson());
+
+        // Batch direct get - simple
+        ZonedDateTime time = Instant.EPOCH.atZone(ZoneOffset.UTC);
+        MessageBatchGetRequest simple = MessageBatchGetRequest.builder()
+                .sequence(1)
+                .startTime(time)
+                .subject("subject")
+                .build();
+        assertEquals(1, simple.getSequence());
+        assertEquals(time, simple.getStartTime());
+        assertEquals("subject", simple.getSubject());
+        assertEquals("{\"seq\":1,\"start_time\":\"1970-01-01T00:00:00.000000000Z\",\"next_by_subj\":\"subject\"}", simple.toJson());
+
+        // Batch direct get - multi last
+        List<String> multiLastFor = Collections.singletonList("multi.last");
+        MessageBatchGetRequest multiLast = MessageBatchGetRequest.builder()
+                .multiLastForSubjects("multi.last")
+                .upToSequence(1)
+                .upToTime(time)
+                .build();
+        assertEquals(Collections.singletonList("multi.last"), multiLast.getMultiLastForSubjects());
+        assertEquals(1, multiLast.getUpToSequence());
+        assertEquals(time, multiLast.getUpToTime());
+        assertEquals("{\"multi_last\":[\"multi.last\"],\"up_to_seq\":1,\"up_to_time\":\"1970-01-01T00:00:00.000000000Z\"}", multiLast.toJson());
+
+        MessageBatchGetRequest multiLastAlternative = MessageBatchGetRequest.builder()
+                .multiLastForSubjects(multiLastFor)
+                .build();
+        assertEquals(multiLastFor, multiLastAlternative.getMultiLastForSubjects());
+        assertEquals("{\"multi_last\":[\"multi.last\"]}", multiLastAlternative.toJson());
     }
 }
