@@ -349,7 +349,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
      * {@inheritDoc}
      */
     @Override
-    public void getMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, Consumer<MessageBatchInfo> consumer) throws IOException, JetStreamApiException {
+    public void getMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, Consumer<MessageInfo> consumer) throws IOException, JetStreamApiException {
         validateNotNull(messageBatchGetRequest, "Message Batch Get Request");
 
         if (!directBatchGet211Available) {
@@ -387,8 +387,8 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
                     throw JsDirectBatchGet211NotAvailable.instance();
                 }
 
-                MessageBatchInfo messageBatchInfo = new MessageBatchInfo(msg);
-                consumer.accept(messageBatchInfo);
+                MessageInfo messageInfo = new MessageInfo(msg, streamName, true);
+                consumer.accept(messageInfo);
                 timeLeft = maxTimeMillis - (System.currentTimeMillis() - start);
             }
         }

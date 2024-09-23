@@ -1564,8 +1564,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 js.publish(tsc.subject(), data.getBytes(StandardCharsets.UTF_8));
             }
 
-            List<MessageBatchInfo> batch = new ArrayList<>();
-            Consumer<MessageBatchInfo> handler = batch::add;
+            List<MessageInfo> batch = new ArrayList<>();
+            Consumer<MessageInfo> handler = batch::add;
 
             // Stream doesn't have AllowDirect enabled, will error.
             assertThrows(IllegalArgumentException.class, () -> {
@@ -1585,7 +1585,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             // First batch gets first two messages.
             jsm.getMessageBatch(tsc.stream, request, handler);
-            MessageBatchInfo last = batch.get(batch.size() - 1);
+            MessageInfo last = batch.get(batch.size() - 1);
             assertEquals(1, last.getNumPending());
             assertEquals(2, last.getSeq());
             assertEquals(1, last.getLastSeq());
@@ -1602,7 +1602,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             last = batch.get(batch.size() - 1);
             assertEquals(0, last.getNumPending());
             assertEquals(3, last.getSeq());
-            assertEquals(-1, last.getLastSeq());
+            assertEquals(0, last.getLastSeq());
         });
     }
 
@@ -1627,7 +1627,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             js.publish(subjectABaz, "baz".getBytes(StandardCharsets.UTF_8));
 
             List<String> keys = new ArrayList<>();
-            Consumer<MessageBatchInfo> handler = msg -> keys.add(msg.getSubject());
+            Consumer<MessageInfo> handler = msg -> keys.add(msg.getSubject());
 
             MessageBatchGetRequest request = MessageBatchGetRequest.builder()
                     .multiLastForSubjects(subjectAFoo, subjectABaz)
