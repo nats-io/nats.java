@@ -181,7 +181,7 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
     public String toString() {
         StringBuilder sb = JsonUtils.beginJsonPrefixed("\"MessageInfo\":");
         JsonUtils.addField(sb, "direct", direct);
-        JsonUtils.addField(sb, "error", getError());
+        JsonUtils.addField(sb, ERROR, getError());
         JsonUtils.addField(sb, SUBJECT, subject);
         JsonUtils.addField(sb, SEQ, seq);
         if (data == null) {
@@ -192,7 +192,7 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
         }
         JsonUtils.addField(sb, TIME, time);
         JsonUtils.addField(sb, STREAM, stream);
-        JsonUtils.addField(sb, "last_seq", lastSeq);
+        JsonUtils.addField(sb, LAST_SEQ, lastSeq);
         JsonUtils.addField(sb, NUM_PENDING, numPending);
         JsonUtils.addField(sb, SUBJECT, subject);
         JsonUtils.addField(sb, HDRS, headers);
