@@ -27,7 +27,6 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.*;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static io.nats.client.support.DateTimeUtils.DEFAULT_TIME;
@@ -1565,7 +1564,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             }
 
             List<MessageInfo> batch = new ArrayList<>();
-            Consumer<MessageInfo> handler = batch::add;
+            MessageInfoHandler handler = batch::add;
 
             // Stream doesn't have AllowDirect enabled, will error.
             assertThrows(IllegalArgumentException.class, () -> {
@@ -1627,7 +1626,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             js.publish(subjectABaz, "baz".getBytes(StandardCharsets.UTF_8));
 
             List<String> keys = new ArrayList<>();
-            Consumer<MessageInfo> handler = msg -> keys.add(msg.getSubject());
+            MessageInfoHandler handler = msg -> keys.add(msg.getSubject());
 
             MessageBatchGetRequest request = MessageBatchGetRequest.builder()
                     .multiLastForSubjects(subjectAFoo, subjectABaz)

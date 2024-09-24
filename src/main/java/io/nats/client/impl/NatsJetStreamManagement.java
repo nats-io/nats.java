@@ -21,9 +21,7 @@ import io.nats.client.support.Status;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
-import java.util.Iterator;
 import java.util.List;
-import java.util.function.Consumer;
 
 import static io.nats.client.support.NatsJetStreamClientError.JsAllowDirectRequired;
 import static io.nats.client.support.NatsJetStreamClientError.JsDirectBatchGet211NotAvailable;
@@ -349,7 +347,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
      * {@inheritDoc}
      */
     @Override
-    public void getMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, Consumer<MessageInfo> consumer) throws IOException, JetStreamApiException {
+    public void getMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException {
         validateNotNull(messageBatchGetRequest, "Message Batch Get Request");
 
         if (!directBatchGet211Available) {
@@ -388,7 +386,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
                 }
 
                 MessageInfo messageInfo = new MessageInfo(msg, streamName, true);
-                consumer.accept(messageInfo);
+                handler.onMessageInfo(messageInfo);
                 timeLeft = maxTimeMillis - (System.currentTimeMillis() - start);
             }
         }
