@@ -1563,13 +1563,10 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 js.publish(tsc.subject(), data.getBytes(StandardCharsets.UTF_8));
             }
 
-            List<MessageInfo> batch = new ArrayList<>();
-            MessageInfoHandler handler = batch::add;
-
             // Stream doesn't have AllowDirect enabled, will error.
             assertThrows(IllegalArgumentException.class, () -> {
                 MessageBatchGetRequest request = MessageBatchGetRequest.builder().build();
-                jsm.getMessageBatch(tsc.stream, request, handler);
+                jsm.getMessageBatch(tsc.stream, request);
             });
 
             // Enable AllowDirect.
@@ -1583,7 +1580,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     .build();
 
             // First batch gets first two messages.
-            jsm.getMessageBatch(tsc.stream, request, handler);
+            List<MessageInfo> batch = new ArrayList<>(jsm.getMessageBatch(tsc.stream, request));
             MessageInfo last = batch.get(batch.size() - 1);
             assertEquals(1, last.getNumPending());
             assertEquals(2, last.getSeq());
@@ -1593,7 +1590,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             request = MessageBatchGetRequest.builder(request)
                     .sequence(last.getSeq() + 1)
                     .build();
-            jsm.getMessageBatch(tsc.stream, request, handler);
+            batch.addAll(jsm.getMessageBatch(tsc.stream, request));
 
             List<String> actual = batch.stream().map(m -> new String(m.getData())).collect(Collectors.toList());
             assertEquals(expected, actual);
@@ -1625,15 +1622,14 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             js.publish(subjectABar, "bar".getBytes(StandardCharsets.UTF_8));
             js.publish(subjectABaz, "baz".getBytes(StandardCharsets.UTF_8));
 
-            List<String> keys = new ArrayList<>();
-            MessageInfoHandler handler = msg -> keys.add(msg.getSubject());
-
             MessageBatchGetRequest request = MessageBatchGetRequest.builder()
                     .multiLastForSubjects(subjectAFoo, subjectABaz)
                     .build();
 
-            // First batch gets first two messages.
-            jsm.getMessageBatch(stream, request, handler);
+            List<String> keys = new ArrayList<>();
+            for (MessageInfo info : jsm.getMessageBatch(stream, request)) {
+                keys.add(info.getSubject());
+            }
             assertEquals(2, keys.size());
             assertEquals(subjectAFoo, keys.get(0));
             assertEquals(subjectABaz, keys.get(1));

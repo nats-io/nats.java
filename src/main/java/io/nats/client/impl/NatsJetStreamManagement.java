@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import static io.nats.client.support.NatsJetStreamClientError.JsAllowDirectRequired;
 import static io.nats.client.support.NatsJetStreamClientError.JsDirectBatchGet211NotAvailable;
@@ -347,8 +348,10 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
      * {@inheritDoc}
      */
     @Override
-    public void getMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException {
+    public LinkedBlockingQueue<MessageInfo> getMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException {
         validateNotNull(messageBatchGetRequest, "Message Batch Get Request");
+
+        LinkedBlockingQueue<MessageInfo> q = new LinkedBlockingQueue<>();
 
         if (!directBatchGet211Available) {
             throw JsDirectBatchGet211NotAvailable.instance();
@@ -377,7 +380,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
                     if (status.getCode() < 200 || status.getCode() > 299) {
                         throw new JetStreamApiException(Error.convert(msg.getStatus()));
                     }
-                    return;
+                    return q;
                 }
 
                 Headers headers = msg.getHeaders();
@@ -386,7 +389,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
                 }
 
                 MessageInfo messageInfo = new MessageInfo(msg, streamName, true);
-                handler.onMessageInfo(messageInfo);
+                q.add(messageInfo);
                 timeLeft = maxTimeMillis - (System.currentTimeMillis() - start);
             }
         }
