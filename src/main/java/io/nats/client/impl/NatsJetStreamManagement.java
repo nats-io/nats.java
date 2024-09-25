@@ -352,7 +352,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
     public List<MessageInfo> fetchMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException {
         validateMessageBatchGetRequest(streamName, messageBatchGetRequest);
         List<MessageInfo> results = new ArrayList<>();
-        _consumeMessageBatch(streamName, messageBatchGetRequest, msg -> {
+        _gatherMessageBatch(streamName, messageBatchGetRequest, msg -> {
             if (msg != MessageInfo.EOD) {
                 results.add(msg);
             }
@@ -367,7 +367,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
     public LinkedBlockingQueue<MessageInfo> iterateMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException {
         validateMessageBatchGetRequest(streamName, messageBatchGetRequest);
         final LinkedBlockingQueue<MessageInfo> q = new LinkedBlockingQueue<>();
-        conn.getOptions().getExecutor().submit(() -> _consumeMessageBatch(streamName, messageBatchGetRequest, q::add));
+        conn.getOptions().getExecutor().submit(() -> _gatherMessageBatch(streamName, messageBatchGetRequest, q::add));
         return q;
     }
 
@@ -375,12 +375,12 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
      * {@inheritDoc}
      */
     @Override
-    public void consumeMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException {
+    public void gatherMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException {
         validateMessageBatchGetRequest(streamName, messageBatchGetRequest);
-        _consumeMessageBatch(streamName, messageBatchGetRequest, handler);
+        _gatherMessageBatch(streamName, messageBatchGetRequest, handler);
     }
 
-    public void _consumeMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) {
+    public void _gatherMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) {
         Subscription sub = null;
         try {
             String replyTo = conn.createInbox();

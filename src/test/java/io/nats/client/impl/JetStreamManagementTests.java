@@ -1575,7 +1575,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             // Stream doesn't have AllowDirect enabled, will error.
             assertThrows(IllegalArgumentException.class, () -> {
                 MessageBatchGetRequest request = MessageBatchGetRequest.builder().build();
-                jsm.consumeMessageBatch(tsc.stream, request, handler);
+                jsm.gatherMessageBatch(tsc.stream, request, handler);
             });
 
             // Enable AllowDirect.
@@ -1589,7 +1589,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 hasError.compareAndSet(false, msg.hasError());
             };
             MessageBatchGetRequest request = MessageBatchGetRequest.builder().build();
-            jsm.consumeMessageBatch(tsc.stream, request, errorHandler);
+            jsm.gatherMessageBatch(tsc.stream, request, errorHandler);
             assertTrue(hasError.get());
 
             // First batch gets first two messages.
@@ -1597,7 +1597,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     .batch(2)
                     .subject(tsc.subject())
                     .build();
-            jsm.consumeMessageBatch(tsc.stream, request, handler);
+            jsm.gatherMessageBatch(tsc.stream, request, handler);
             MessageInfo last = batch.get(batch.size() - 1);
             assertEquals(1, last.getNumPending());
             assertEquals(2, last.getSeq());
@@ -1607,7 +1607,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             request = MessageBatchGetRequest.builder(request)
                     .sequence(last.getSeq() + 1)
                     .build();
-            jsm.consumeMessageBatch(tsc.stream, request, handler);
+            jsm.gatherMessageBatch(tsc.stream, request, handler);
 
             List<String> actual = batch.stream().map(m -> new String(m.getData())).collect(Collectors.toList());
             assertEquals(expected, actual);
@@ -1651,7 +1651,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     batch.add(msg);
                 }
             };
-            jsm.consumeMessageBatch(tsc.stream, request, handler);
+            jsm.gatherMessageBatch(tsc.stream, request, handler);
             assertEquals(3, batch.size());
             MessageInfo last = batch.get(batch.size() - 1);
             assertEquals(0, last.getNumPending());
@@ -1714,7 +1714,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     keys.add(msg.getSubject());
                 }
             };
-            jsm.consumeMessageBatch(stream, request, handler);
+            jsm.gatherMessageBatch(stream, request, handler);
             assertEquals(2, keys.size());
             assertEquals(subjectAFoo, keys.get(0));
             assertEquals(subjectABaz, keys.get(1));

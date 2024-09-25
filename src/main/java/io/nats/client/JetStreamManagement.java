@@ -365,7 +365,7 @@ public interface JetStreamManagement {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    void consumeMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException;
+    void gatherMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException;
 
     /**
      * Deletes a message, overwriting the message data with garbage
