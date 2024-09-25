@@ -27,6 +27,8 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static io.nats.client.support.DateTimeUtils.DEFAULT_TIME;
@@ -1563,10 +1565,17 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 js.publish(tsc.subject(), data.getBytes(StandardCharsets.UTF_8));
             }
 
+            List<MessageInfo> batch = new ArrayList<>();
+            MessageInfoHandler handler = msg -> {
+                if (!msg.hasError() && msg != MessageInfo.EOD) {
+                    batch.add(msg);
+                }
+            };
+
             // Stream doesn't have AllowDirect enabled, will error.
             assertThrows(IllegalArgumentException.class, () -> {
                 MessageBatchGetRequest request = MessageBatchGetRequest.builder().build();
-                jsm.getMessageBatch(tsc.stream, request);
+                jsm.consumeMessageBatch(tsc.stream, request, handler);
             });
 
             // Enable AllowDirect.
@@ -1574,13 +1583,21 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             StreamInfo si = jsm.updateStream(sc);
             assertTrue(si.getConfiguration().getAllowDirect());
 
-            MessageBatchGetRequest request = MessageBatchGetRequest.builder()
+            // Empty request errors.
+            AtomicBoolean hasError = new AtomicBoolean();
+            MessageInfoHandler errorHandler = msg -> {
+                hasError.compareAndSet(false, msg.hasError());
+            };
+            MessageBatchGetRequest request = MessageBatchGetRequest.builder().build();
+            jsm.consumeMessageBatch(tsc.stream, request, errorHandler);
+            assertTrue(hasError.get());
+
+            // First batch gets first two messages.
+            request = MessageBatchGetRequest.builder()
                     .batch(2)
                     .subject(tsc.subject())
                     .build();
-
-            // First batch gets first two messages.
-            List<MessageInfo> batch = new ArrayList<>(jsm.getMessageBatch(tsc.stream, request));
+            jsm.consumeMessageBatch(tsc.stream, request, handler);
             MessageInfo last = batch.get(batch.size() - 1);
             assertEquals(1, last.getNumPending());
             assertEquals(2, last.getSeq());
@@ -1590,7 +1607,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             request = MessageBatchGetRequest.builder(request)
                     .sequence(last.getSeq() + 1)
                     .build();
-            batch.addAll(jsm.getMessageBatch(tsc.stream, request));
+            jsm.consumeMessageBatch(tsc.stream, request, handler);
 
             List<String> actual = batch.stream().map(m -> new String(m.getData())).collect(Collectors.toList());
             assertEquals(expected, actual);
@@ -1599,6 +1616,71 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(0, last.getNumPending());
             assertEquals(3, last.getSeq());
             assertEquals(0, last.getLastSeq());
+        });
+    }
+
+    @Test
+    public void testBatchDirectGetAlternatives() throws Exception {
+        jsServer.run(TestBase::atLeast2_11, nc -> {
+            JetStream js = nc.jetStream();
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            TestingStreamContainer tsc = new TestingStreamContainer(nc);
+            assertFalse(tsc.si.getConfiguration().getAllowDirect());
+
+            // Enable AllowDirect.
+            StreamConfiguration sc = StreamConfiguration.builder(tsc.si.getConfiguration()).allowDirect(true).build();
+            StreamInfo si = jsm.updateStream(sc);
+            assertTrue(si.getConfiguration().getAllowDirect());
+
+            List<String> expected = Arrays.asList("foo", "bar", "baz");
+            for (String data : expected) {
+                js.publish(tsc.subject(), data.getBytes(StandardCharsets.UTF_8));
+            }
+
+            // Request stays the same for all options.
+            MessageBatchGetRequest request = MessageBatchGetRequest.builder()
+                    .batch(3)
+                    .subject(tsc.subject())
+                    .build();
+
+            // Get using handler.
+            List<MessageInfo> batch = new ArrayList<>();
+            MessageInfoHandler handler = msg -> {
+                if (!msg.hasError() && msg != MessageInfo.EOD) {
+                    batch.add(msg);
+                }
+            };
+            jsm.consumeMessageBatch(tsc.stream, request, handler);
+            assertEquals(3, batch.size());
+            MessageInfo last = batch.get(batch.size() - 1);
+            assertEquals(0, last.getNumPending());
+            assertEquals(3, last.getSeq());
+            assertEquals(2, last.getLastSeq());
+
+            // Get using queue.
+            batch.clear();
+            LinkedBlockingQueue<MessageInfo> queue = jsm.iterateMessageBatch(tsc.stream, request);
+            MessageInfo msg;
+            while ((msg = queue.take()) != MessageInfo.EOD) {
+                if (!msg.hasError()) {
+                    batch.add(msg);
+                }
+            }
+            assertEquals(3, batch.size());
+            last = batch.get(batch.size() - 1);
+            assertEquals(0, last.getNumPending());
+            assertEquals(3, last.getSeq());
+            assertEquals(2, last.getLastSeq());
+
+            // Get using fetch.
+            batch.clear();
+            batch.addAll(jsm.fetchMessageBatch(tsc.stream, request));
+            assertEquals(3, batch.size());
+            last = batch.get(batch.size() - 1);
+            assertEquals(0, last.getNumPending());
+            assertEquals(3, last.getSeq());
+            assertEquals(2, last.getLastSeq());
         });
     }
 
@@ -1627,9 +1709,12 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     .build();
 
             List<String> keys = new ArrayList<>();
-            for (MessageInfo info : jsm.getMessageBatch(stream, request)) {
-                keys.add(info.getSubject());
-            }
+            MessageInfoHandler handler = msg -> {
+                if (!msg.hasError() && msg != MessageInfo.EOD) {
+                    keys.add(msg.getSubject());
+                }
+            };
+            jsm.consumeMessageBatch(stream, request, handler);
             assertEquals(2, keys.size());
             assertEquals(subjectAFoo, keys.get(0));
             assertEquals(subjectABaz, keys.get(1));

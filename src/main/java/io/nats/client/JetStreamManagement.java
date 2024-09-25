@@ -332,12 +332,40 @@ public interface JetStreamManagement {
      *
      * @param streamName the name of the stream
      * @param messageBatchGetRequest the request details
-     * @return queue that will be populated with {@link MessageInfo}
+     * @return a list containing {@link MessageInfo}
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    LinkedBlockingQueue<MessageInfo> getMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException;
+    List<MessageInfo> fetchMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException;
+
+    /**
+     * Request a batch of messages using a {@link MessageBatchGetRequest}.
+     * <p>
+     * This API is currently EXPERIMENTAL and is subject to change.
+     *
+     * @param streamName the name of the stream
+     * @param messageBatchGetRequest the request details
+     * @return a queue used to asynchronously receive {@link MessageInfo}
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    LinkedBlockingQueue<MessageInfo> iterateMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException;
+
+    /**
+     * Request a batch of messages using a {@link MessageBatchGetRequest}.
+     * <p>
+     * This API is currently EXPERIMENTAL and is subject to change.
+     *
+     * @param streamName the name of the stream
+     * @param messageBatchGetRequest the request details
+     * @param handler the handler used for receiving {@link MessageInfo}
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    void consumeMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException;
 
     /**
      * Deletes a message, overwriting the message data with garbage

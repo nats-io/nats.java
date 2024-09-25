@@ -32,6 +32,11 @@ import static io.nats.client.support.NatsJetStreamConstants.*;
  */
 public class MessageInfo extends ApiResponse<MessageInfo> {
 
+    /**
+     * Message returned as a response in {@link MessageBatchGetRequest} to signal end of data.
+     */
+    public static final MessageInfo EOD = new MessageInfo(null, false);
+
     private final boolean direct;
     private final String subject;
     private final long seq;
@@ -50,6 +55,25 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
     @Deprecated
     public MessageInfo(Message msg) {
         this(msg, null, false);
+    }
+
+    /**
+     * Create a Message Info
+     * This signature is public for testing purposes and is not intended to be used externally.
+     * @param error the error
+     * @param direct true if the object is being created from a get direct api call instead of the standard get message
+     */
+    public MessageInfo(Error error, boolean direct) {
+        super(error);
+        this.direct = direct;
+        subject = null;
+        data = null;
+        seq = -1;
+        time = null;
+        headers = null;
+        stream = null;
+        lastSeq = -1;
+        numPending = -1;
     }
 
     /**
