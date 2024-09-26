@@ -15,6 +15,6 @@ package io.nats.RequestMany;
 
 import io.nats.client.Message;
 
-public interface RmGatherer {
+public interface RequestManyHandler {
     boolean gather(Message message);
 }

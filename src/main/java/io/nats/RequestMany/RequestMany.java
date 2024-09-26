@@ -53,7 +53,7 @@ public class RequestMany {
 
     public static class Builder {
         private final Connection conn;
-        private long totalWaitTimeNanos = DEFAULT_TOTAL_WAIT_TIME_MS;
+        private long totalWaitTimeNanos = DEFAULT_TOTAL_WAIT_TIME_MS * NANOS_PER_MILLI;
         private long maxStallNanos = MAX_MILLIS * NANOS_PER_MILLI;
         private long maxResponses = Long.MAX_VALUE;
 
@@ -71,7 +71,7 @@ public class RequestMany {
             return this;
         }
 
-        private long toNanos(long millis) {
+        private static long toNanos(long millis) {
             return millis < 1 || millis > MAX_MILLIS ? MAX_NANOS : millis * NANOS_PER_MILLI;
         }
 
@@ -118,11 +118,11 @@ public class RequestMany {
         return q;
     }
 
-    public void gather(String subject, byte[] payload, RmGatherer consumer) {
+    public void gather(String subject, byte[] payload, RequestManyHandler consumer) {
         gather(subject, null, payload, consumer);
     }
 
-    public void gather(String subject, Headers headers, byte[] payload, RmGatherer rmc) {
+    public void gather(String subject, Headers headers, byte[] payload, RequestManyHandler rmc) {
         Subscription sub = null;
         try {
             String replyTo = conn.createInbox();
