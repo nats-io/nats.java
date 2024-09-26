@@ -13,8 +13,6 @@
 
 package io.nats.RequestMany;
 
-import io.nats.client.Message;
-
 public interface RequestManyHandler {
-    boolean gather(Message message);
+    boolean gather(RequestManyMessage message);
 }

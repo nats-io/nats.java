@@ -17,14 +17,12 @@ import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
 import io.nats.client.impl.Headers;
-import io.nats.client.impl.NatsMessage;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import static io.nats.client.support.NatsConstants.EMPTY_BODY;
 import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
 
 /**
@@ -85,44 +83,41 @@ public class RequestMany {
         }
     }
 
-    public List<Message> fetch(String subject, byte[] payload) {
+    public List<RequestManyMessage> fetch(String subject, byte[] payload) {
         return fetch(subject, null, payload);
     }
 
-    public List<Message> fetch(String subject, Headers headers, byte[] payload) {
-        List<Message> results = new ArrayList<>();
-        gather(subject, headers, payload, msg -> {
-            if (msg != EOD) {
-                results.add(msg);
-            }
+    public List<RequestManyMessage> fetch(String subject, Headers headers, byte[] payload) {
+        List<RequestManyMessage> results = new ArrayList<>();
+        gather(subject, headers, payload, rmm -> {
+            results.add(rmm);
             return true;
         });
         return results;
     }
 
-    @SuppressWarnings("DataFlowIssue")
-    public static final Message EOD = new NatsMessage("EOD", null, EMPTY_BODY);
-
-    public LinkedBlockingQueue<Message> iterate(String subject, byte[] payload) {
+    public LinkedBlockingQueue<RequestManyMessage> iterate(String subject, byte[] payload) {
         return iterate(subject, null, payload);
     }
 
-    public LinkedBlockingQueue<Message> iterate(String subject, Headers headers, byte[] payload) {
-        final LinkedBlockingQueue<Message> q = new LinkedBlockingQueue<>();
+    public LinkedBlockingQueue<RequestManyMessage> iterate(String subject, Headers headers, byte[] payload) {
+        final LinkedBlockingQueue<RequestManyMessage> q = new LinkedBlockingQueue<>();
         conn.getOptions().getExecutor().submit(() -> {
-            gather(subject, headers, payload, msg -> {
-                q.add(msg);
+            gather(subject, headers, payload, rmm -> {
+                q.add(rmm);
                 return true;
             });
         });
         return q;
     }
 
-    public void gather(String subject, byte[] payload, RequestManyHandler consumer) {
-        gather(subject, null, payload, consumer);
+    public void gather(String subject, byte[] payload, RequestManyHandler handler) {
+        gather(subject, null, payload, handler);
     }
 
-    public void gather(String subject, Headers headers, byte[] payload, RequestManyHandler rmc) {
+    public void gather(String subject, Headers headers, byte[] payload, RequestManyHandler handler) {
+        RequestManyMessage eod = RequestManyMessage.EOD;
+
         Subscription sub = null;
         try {
             String replyTo = conn.createInbox();
@@ -136,7 +131,14 @@ public class RequestMany {
             while (timeLeftNanos > 0) {
                 Message msg = sub.nextMessage(Duration.ofNanos(timeoutNanos));
                 timeLeftNanos = totalWaitTimeNanos - (System.nanoTime() - start);
-                if (msg == null || !rmc.gather(msg) || --resultsLeft < 1) {
+                if (msg == null) {
+                    return;
+                }
+                if (msg.isStatusMessage()) {
+                    eod = new RequestManyMessage(msg);
+                    return;
+                }
+                if (!handler.gather(new RequestManyMessage(msg)) || --resultsLeft < 1) {
                     return;
                 }
                 timeoutNanos = Math.min(timeLeftNanos, maxStallNanos); // subsequent times we wait the shortest of the time left vs the max stall
@@ -147,7 +149,7 @@ public class RequestMany {
             throw new RuntimeException(e);
         }
         finally {
-            rmc.gather(EOD);
+            handler.gather(eod);
             try {
                 //noinspection DataFlowIssue
                 sub.unsubscribe();

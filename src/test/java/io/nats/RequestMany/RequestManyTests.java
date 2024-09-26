@@ -2,22 +2,48 @@ package io.nats.RequestMany;
 
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
-import io.nats.client.Message;
 import io.nats.client.NUID;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.RequestMany.RequestMany.DEFAULT_TOTAL_WAIT_TIME_MS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class RequestManyTests extends TestBase {
+
+    enum Last{ Normal, Status, Ex }
+
+    private void assertMessages(int regularMessages, Last last, List<RequestManyMessage> list) {
+        assertEquals(regularMessages + 1, list.size());
+        for (int x = 0; x < regularMessages; x++) {
+            assertTrue(list.get(x).isRegularMessage());
+        }
+        RequestManyMessage lastRmm = list.get(regularMessages);
+        switch (last) {
+            case Normal: assertTrue(lastRmm.isNormalEndOfData()); break;
+            case Status: assertTrue(lastRmm.isStatusMessage()); break;
+            case Ex: assertTrue(lastRmm.isException()); break;
+        }
+    }
+
+    @Test
+    public void testNoRespondersGather() throws Exception {
+        runInServer(nc -> {
+            String subject = subject();
+            RequestMany rm = maxResponseRequest(nc);
+            TestRequestManyHandler handler = new TestRequestManyHandler();
+            rm.gather(subject, null, handler);
+            assertTrue(handler.eodReceived.await(3, TimeUnit.SECONDS));
+            assertMessages(0, Last.Status, handler.list);
+        });
+    }
 
     private static RequestMany maxResponseRequest(Connection nc) {
         return RequestMany.builder(nc).maxResponses(3).build();
@@ -28,9 +54,8 @@ public class RequestManyTests extends TestBase {
         runInServer(nc -> {
             try (Replier replier = new Replier(nc, 5)) {
                 RequestMany rm = maxResponseRequest(nc);
-                List<Message> list = rm.fetch(replier.subject, null);
-                assertEquals(3, list.size());
-                assertTrue(replier.latch.await(1, TimeUnit.SECONDS));
+                List<RequestManyMessage> list = rm.fetch(replier.subject, null);
+                assertMessages(3, Last.Normal, list);
             }
         });
     }
@@ -40,15 +65,17 @@ public class RequestManyTests extends TestBase {
         runInServer(nc -> {
             try (Replier replier = new Replier(nc, 5)) {
                 RequestMany rm = maxResponseRequest(nc);
-                LinkedBlockingQueue<Message> it = rm.iterate(replier.subject, null);
-                int count = 0;
-                Message m = it.poll(DEFAULT_TOTAL_WAIT_TIME_MS, TimeUnit.MILLISECONDS);
-                while (m != null && m != RequestMany.EOD) {
-                    count++;
+                LinkedBlockingQueue<RequestManyMessage> it = rm.iterate(replier.subject, null);
+                List<RequestManyMessage> list = new ArrayList<>();
+                RequestManyMessage m = it.poll(DEFAULT_TOTAL_WAIT_TIME_MS, TimeUnit.MILLISECONDS);
+                while (m != null) {
+                    list.add(m);
+                    if (m.isEndOfData()) {
+                        break;
+                    }
                     m = it.poll(DEFAULT_TOTAL_WAIT_TIME_MS, TimeUnit.MILLISECONDS);
                 }
-                assertEquals(3, count);
-                assertTrue(replier.latch.await(DEFAULT_TOTAL_WAIT_TIME_MS, TimeUnit.MILLISECONDS));
+                assertMessages(3, Last.Normal, list);
             }
         });
     }
@@ -61,8 +88,7 @@ public class RequestManyTests extends TestBase {
                 TestRequestManyHandler handler = new TestRequestManyHandler();
                 rm.gather(replier.subject, null, handler);
                 assertTrue(handler.eodReceived.await(3, TimeUnit.SECONDS));
-                assertEquals(3, handler.msgReceived.get());
-                assertTrue(replier.latch.await(1, TimeUnit.SECONDS));
+                assertMessages(3, Last.Normal, handler.list);
              }
         });
     }
@@ -89,17 +115,16 @@ public class RequestManyTests extends TestBase {
         });
     }
 
-    private static void _testMaxWaitTimeFetch(Connection nc, long wait) throws Exception {
+    private void _testMaxWaitTimeFetch(Connection nc, long wait) throws Exception {
         try (Replier replier = new Replier(nc, 1, wait + 200, 1)) {
             RequestMany rm = maxWaitTimeRequest(nc, wait);
 
             long start = System.currentTimeMillis();
-            List<Message> list = rm.fetch(replier.subject, null);
+            List<RequestManyMessage> list = rm.fetch(replier.subject, null);
             long elapsed = System.currentTimeMillis() - start;
 
             assertTrue(elapsed > wait);
-            assertEquals(1, list.size());
-            assertTrue(replier.latch.await(1, TimeUnit.SECONDS));
+            assertMessages(1, Last.Normal, list);
         }
     }
 
@@ -109,16 +134,15 @@ public class RequestManyTests extends TestBase {
             try (Replier replier = new Replier(nc, 1, 1200, 1)) {
                 RequestMany rm = maxWaitTimeRequest(nc);
 
-                LinkedBlockingQueue<Message> it = rm.iterate(replier.subject, null);
+                LinkedBlockingQueue<RequestManyMessage> it = rm.iterate(replier.subject, null);
                 int received = 0;
-                Message m = it.poll(DEFAULT_TOTAL_WAIT_TIME_MS, TimeUnit.MILLISECONDS);
-                while (m != null && m != RequestMany.EOD) {
+                RequestManyMessage m = it.poll(DEFAULT_TOTAL_WAIT_TIME_MS, TimeUnit.MILLISECONDS);
+                while (m != null && !m.isEndOfData()) {
                     received++;
                     m = it.poll(DEFAULT_TOTAL_WAIT_TIME_MS, TimeUnit.MILLISECONDS);
                 }
 
                 assertEquals(1, received);
-                assertTrue(replier.latch.await(1, TimeUnit.SECONDS));
             }
         });
     }
@@ -136,8 +160,7 @@ public class RequestManyTests extends TestBase {
                 long elapsed = System.currentTimeMillis() - start;
 
                 assertTrue(elapsed > DEFAULT_TOTAL_WAIT_TIME_MS && elapsed < (DEFAULT_TOTAL_WAIT_TIME_MS * 2));
-                assertEquals(1, handler.msgReceived.get());
-                assertTrue(replier.latch.await(1, TimeUnit.SECONDS));
+                assertMessages(1, Last.Normal, handler.list);
             }
         });
     }
@@ -147,15 +170,13 @@ public class RequestManyTests extends TestBase {
     // ----------------------------------------------------------------------------------------------------
     static class TestRequestManyHandler implements RequestManyHandler {
         public final CountDownLatch eodReceived = new CountDownLatch(1);
-        public final AtomicInteger msgReceived = new AtomicInteger();
+        public List<RequestManyMessage> list = new ArrayList<>();
 
         @Override
-        public boolean gather(Message m) {
-            if (m == RequestMany.EOD) {
+        public boolean gather(RequestManyMessage rmm) {
+            list.add(rmm);
+            if (rmm.isEndOfData()) {
                 eodReceived.countDown();
-            }
-            else {
-                msgReceived.incrementAndGet();
             }
             return true;
         }
@@ -164,7 +185,6 @@ public class RequestManyTests extends TestBase {
     static class Replier implements AutoCloseable {
         final Dispatcher dispatcher;
         public final String subject;
-        public final CountDownLatch latch;
 
         public Replier(final Connection nc, final int count) {
             this(nc, count, -1, -1);
@@ -172,18 +192,15 @@ public class RequestManyTests extends TestBase {
 
         public Replier(final Connection nc, final int count, final long pause, final int count2) {
             this.subject = NUID.nextGlobalSequence();
-            latch = new CountDownLatch(count + (pause > 0 ? count2 : 0));
 
             dispatcher = nc.createDispatcher(m -> {
                 for (int x = 0; x < count; x++) {
                     nc.publish(m.getReplyTo(), null);
-                    latch.countDown();
                 }
                 if (pause > 0) {
                     sleep(pause);
                     for (int x = 0; x < count2; x++) {
                         nc.publish(m.getReplyTo(), null);
-                        latch.countDown();
                     }
                 }
             });
