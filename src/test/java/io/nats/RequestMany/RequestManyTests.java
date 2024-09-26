@@ -18,18 +18,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class RequestManyTests extends TestBase {
 
-    enum Last{ Normal, Status, Ex }
+    enum Last{ Normal, Status, Ex, None }
 
     private void assertMessages(int regularMessages, Last last, List<RequestManyMessage> list) {
-        assertEquals(regularMessages + 1, list.size());
         for (int x = 0; x < regularMessages; x++) {
             assertTrue(list.get(x).isRegularMessage());
         }
-        RequestManyMessage lastRmm = list.get(regularMessages);
-        switch (last) {
-            case Normal: assertTrue(lastRmm.isNormalEndOfData()); break;
-            case Status: assertTrue(lastRmm.isStatusMessage()); break;
-            case Ex: assertTrue(lastRmm.isException()); break;
+        if (last == Last.None) {
+            assertEquals(regularMessages, list.size());
+        }
+        else {
+            assertEquals(regularMessages + 1, list.size());
+            RequestManyMessage lastRmm = list.get(regularMessages);
+            switch (last) {
+                case Normal: assertTrue(lastRmm.isNormalEndOfData()); break;
+                case Status: assertTrue(lastRmm.isStatusMessage()); break;
+                case Ex: assertTrue(lastRmm.isException()); break;
+            }
         }
     }
 
@@ -37,7 +42,7 @@ public class RequestManyTests extends TestBase {
     public void testNoRespondersGather() throws Exception {
         runInServer(nc -> {
             String subject = subject();
-            RequestMany rm = maxResponseRequest(nc);
+            RequestMany rm = maxResponsesRequest(nc);
             TestRequestManyHandler handler = new TestRequestManyHandler();
             rm.gather(subject, null, handler);
             assertTrue(handler.eodReceived.await(3, TimeUnit.SECONDS));
@@ -45,26 +50,51 @@ public class RequestManyTests extends TestBase {
         });
     }
 
-    private static RequestMany maxResponseRequest(Connection nc) {
+    @Test
+    public void testNoRespondersFetch() throws Exception {
+        runInServer(nc -> {
+            String subject = subject();
+            RequestMany rm = maxResponsesRequest(nc);
+            TestRequestManyHandler handler = new TestRequestManyHandler();
+            rm.gather(subject, null, handler);
+            assertTrue(handler.eodReceived.await(3, TimeUnit.SECONDS));
+            assertMessages(0, Last.Status, handler.list);
+        });
+    }
+
+    private static RequestMany maxResponsesRequest(Connection nc) {
         return RequestMany.builder(nc).maxResponses(3).build();
     }
 
     @Test
-    public void testMaxResponseFetch() throws Exception {
+    public void testMaxResponsesGather() throws Exception {
         runInServer(nc -> {
             try (Replier replier = new Replier(nc, 5)) {
-                RequestMany rm = maxResponseRequest(nc);
-                List<RequestManyMessage> list = rm.fetch(replier.subject, null);
-                assertMessages(3, Last.Normal, list);
+                RequestMany rm = maxResponsesRequest(nc);
+                TestRequestManyHandler handler = new TestRequestManyHandler();
+                rm.gather(replier.subject, null, handler);
+                assertTrue(handler.eodReceived.await(3, TimeUnit.SECONDS));
+                assertMessages(3, Last.Normal, handler.list);
             }
         });
     }
 
     @Test
-    public void testMaxResponseIterate() throws Exception {
+    public void testMaxResponsesFetch() throws Exception {
         runInServer(nc -> {
             try (Replier replier = new Replier(nc, 5)) {
-                RequestMany rm = maxResponseRequest(nc);
+                RequestMany rm = maxResponsesRequest(nc);
+                List<RequestManyMessage> list = rm.fetch(replier.subject, null);
+                assertMessages(3, Last.None, list);
+            }
+        });
+    }
+
+    @Test
+    public void testMaxResponsesIterate() throws Exception {
+        runInServer(nc -> {
+            try (Replier replier = new Replier(nc, 5)) {
+                RequestMany rm = maxResponsesRequest(nc);
                 LinkedBlockingQueue<RequestManyMessage> it = rm.iterate(replier.subject, null);
                 List<RequestManyMessage> list = new ArrayList<>();
                 RequestManyMessage m = it.poll(DEFAULT_TOTAL_WAIT_TIME_MS, TimeUnit.MILLISECONDS);
@@ -80,19 +110,6 @@ public class RequestManyTests extends TestBase {
         });
     }
 
-    @Test
-    public void testMaxResponseGather() throws Exception {
-        runInServer(nc -> {
-            try (Replier replier = new Replier(nc, 5)) {
-                RequestMany rm = maxResponseRequest(nc);
-                TestRequestManyHandler handler = new TestRequestManyHandler();
-                rm.gather(replier.subject, null, handler);
-                assertTrue(handler.eodReceived.await(3, TimeUnit.SECONDS));
-                assertMessages(3, Last.Normal, handler.list);
-             }
-        });
-    }
-
     private static RequestMany maxWaitTimeRequest(Connection nc) {
         return RequestMany.builder(nc).build();
     }
@@ -102,30 +119,46 @@ public class RequestManyTests extends TestBase {
     }
 
     @Test
-    public void testMaxWaitTimeFetchDefault() throws Exception {
+    public void testMaxWaitTimeGather() throws Exception {
         runInServer(nc -> {
-            _testMaxWaitTimeFetch(nc, DEFAULT_TOTAL_WAIT_TIME_MS);
+            try (Replier replier = new Replier(nc, 1, 1200, 1)) {
+                RequestMany rm = maxWaitTimeRequest(nc);
+
+                TestRequestManyHandler handler = new TestRequestManyHandler();
+                long start = System.currentTimeMillis();
+                rm.gather(replier.subject, null, handler);
+                assertTrue(handler.eodReceived.await(DEFAULT_TOTAL_WAIT_TIME_MS * 3 / 2, TimeUnit.MILLISECONDS));
+                long elapsed = System.currentTimeMillis() - start;
+
+                assertTrue(elapsed > DEFAULT_TOTAL_WAIT_TIME_MS && elapsed < (DEFAULT_TOTAL_WAIT_TIME_MS * 2));
+                assertMessages(1, Last.Normal, handler.list);
+            }
         });
     }
 
     @Test
-    public void testMaxWaitTimeFetchCustom() throws Exception {
-        runInServer(nc -> {
-            _testMaxWaitTimeFetch(nc, 500);
-        });
+    public void testMaxWaitTimeFetchDefault() throws Exception {
+        _testMaxWaitTimeFetch(DEFAULT_TOTAL_WAIT_TIME_MS);
     }
 
-    private void _testMaxWaitTimeFetch(Connection nc, long wait) throws Exception {
-        try (Replier replier = new Replier(nc, 1, wait + 200, 1)) {
-            RequestMany rm = maxWaitTimeRequest(nc, wait);
+    @Test
+    public void testMaxWaitTimeFetchCustom() throws Exception {
+        _testMaxWaitTimeFetch(500);
+    }
 
-            long start = System.currentTimeMillis();
-            List<RequestManyMessage> list = rm.fetch(replier.subject, null);
-            long elapsed = System.currentTimeMillis() - start;
+    private void _testMaxWaitTimeFetch(long wait) throws Exception {
+        runInServer(nc -> {
+            try (Replier replier = new Replier(nc, 1, wait + 200, 1)) {
+                RequestMany rm = maxWaitTimeRequest(nc, wait);
 
-            assertTrue(elapsed > wait);
-            assertMessages(1, Last.Normal, list);
-        }
+                long start = System.currentTimeMillis();
+                List<RequestManyMessage> list = rm.fetch(replier.subject, null);
+                long elapsed = System.currentTimeMillis() - start;
+
+                assertTrue(elapsed > wait);
+                assertMessages(1, Last.None, list);
+            }
+        });
     }
 
     @Test
@@ -143,24 +176,6 @@ public class RequestManyTests extends TestBase {
                 }
 
                 assertEquals(1, received);
-            }
-        });
-    }
-
-    @Test
-    public void testMaxWaitTimeGather() throws Exception {
-        runInServer(nc -> {
-            try (Replier replier = new Replier(nc, 1, 1200, 1)) {
-                RequestMany rm = maxWaitTimeRequest(nc);
-
-                TestRequestManyHandler handler = new TestRequestManyHandler();
-                long start = System.currentTimeMillis();
-                rm.gather(replier.subject, null, handler);
-                assertTrue(handler.eodReceived.await(DEFAULT_TOTAL_WAIT_TIME_MS * 3 / 2, TimeUnit.MILLISECONDS));
-                long elapsed = System.currentTimeMillis() - start;
-
-                assertTrue(elapsed > DEFAULT_TOTAL_WAIT_TIME_MS && elapsed < (DEFAULT_TOTAL_WAIT_TIME_MS * 2));
-                assertMessages(1, Last.Normal, handler.list);
             }
         });
     }

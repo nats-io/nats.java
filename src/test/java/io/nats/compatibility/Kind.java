@@ -29,7 +29,7 @@ public enum Kind {
                 return os;
             }
         }
-        System.err.println("Unknown kind: " + text);
+        System.err.println("Unknown endKind: " + text);
         System.exit(-7);
         return null;
     }

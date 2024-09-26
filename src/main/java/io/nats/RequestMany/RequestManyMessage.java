@@ -17,7 +17,7 @@ import io.nats.client.Message;
 import io.nats.client.impl.StatusMessage;
 
 public class RequestManyMessage {
-    public static final RequestManyMessage EOD = new RequestManyMessage((Exception)null);
+    public static final RequestManyMessage NORMAL_EOD = new RequestManyMessage((Exception)null);
 
     private final Message message;
     private final Exception exception;

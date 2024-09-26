@@ -90,7 +90,9 @@ public class RequestMany {
     public List<RequestManyMessage> fetch(String subject, Headers headers, byte[] payload) {
         List<RequestManyMessage> results = new ArrayList<>();
         gather(subject, headers, payload, rmm -> {
-            results.add(rmm);
+            if (!rmm.isNormalEndOfData()) {
+                results.add(rmm);
+            }
             return true;
         });
         return results;
@@ -116,7 +118,7 @@ public class RequestMany {
     }
 
     public void gather(String subject, Headers headers, byte[] payload, RequestManyHandler handler) {
-        RequestManyMessage eod = RequestManyMessage.EOD;
+        RequestManyMessage eod = RequestManyMessage.NORMAL_EOD; // the default end of data will be a normal end of data (vs status or exception)
 
         Subscription sub = null;
         try {
@@ -125,31 +127,52 @@ public class RequestMany {
             conn.publish(subject, replyTo, headers, payload);
 
             long resultsLeft = maxResponses;
-            long start = System.nanoTime();
             long timeLeftNanos = totalWaitTimeNanos;
             long timeoutNanos = totalWaitTimeNanos; // first time we wait the whole timeout
+
+            long start = System.nanoTime();
             while (timeLeftNanos > 0) {
                 Message msg = sub.nextMessage(Duration.ofNanos(timeoutNanos));
+
+                // we calculate this here so it does not consider any of our or the handler's processing time.
                 timeLeftNanos = totalWaitTimeNanos - (System.nanoTime() - start);
+
                 if (msg == null) {
-                    return;
+                    return; // timeout indicates we are done. Uses the default eod
                 }
                 if (msg.isStatusMessage()) {
                     eod = new RequestManyMessage(msg);
+                    return; // status is terminal. Uses the status eod
+                }
+                if (!handler.gather(new RequestManyMessage(msg))) {
+                    eod = null; // they already know it's the end, the prevents them from getting an eod at all
                     return;
                 }
-                if (!handler.gather(new RequestManyMessage(msg)) || --resultsLeft < 1) {
-                    return;
+                if (--resultsLeft < 1) {
+                    return; // We got the count, we are done. Uses the default eod
                 }
+
                 timeoutNanos = Math.min(timeLeftNanos, maxStallNanos); // subsequent times we wait the shortest of the time left vs the max stall
             }
+
+            // if it fell through, the last operation went over time. Fine, just use the default eod
+        }
+        catch (RuntimeException r) {
+            eod = new RequestManyMessage(r);
+            throw r;
         }
         catch (InterruptedException e) {
+            eod = new RequestManyMessage(e);
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }
         finally {
-            handler.gather(eod);
+            try {
+                if (eod != null) {
+                    handler.gather(eod);
+                }
+            }
+            catch (Exception ignore) {}
             try {
                 //noinspection DataFlowIssue
                 sub.unsubscribe();
