@@ -76,9 +76,15 @@ public class RequestManyTests extends TestBase {
     }
 
     @Test
-    public void testMaxWaitTimeFetch() throws Exception {
+    public void testMaxWaitTimeFetchDefault() throws Exception {
         runInServer(nc -> {
             _testMaxWaitTimeFetch(nc, DEFAULT_TOTAL_WAIT_TIME_MS);
+        });
+    }
+
+    @Test
+    public void testMaxWaitTimeFetchCustom() throws Exception {
+        runInServer(nc -> {
             _testMaxWaitTimeFetch(nc, 500);
         });
     }
