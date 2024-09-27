@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.RequestMany;
+package io.nats.requestMany;
 
 import io.nats.client.Connection;
 import io.nats.client.Message;
@@ -26,23 +26,42 @@ import java.util.concurrent.LinkedBlockingQueue;
 import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
 
 /**
- * The RequestMany is
+ * RequestMany is EXPERIMENTAL
  */
 public class RequestMany {
-    public static final long DEFAULT_TOTAL_WAIT_TIME_MS = 1000;
-    private static final long MAX_MILLIS = Long.MAX_VALUE / NANOS_PER_MILLI; // so went I go to get millis it does not overflow
-    private static final long MAX_NANOS = MAX_MILLIS * NANOS_PER_MILLI; // so went I go to get millis it does not overflow
+    public static final long MAX_MILLIS = Long.MAX_VALUE / NANOS_PER_MILLI; // so when I go to get millis it does not overflow
+    public static final long MAX_NANOS = MAX_MILLIS * NANOS_PER_MILLI;      // "
 
     private final Connection conn;
     private final long totalWaitTimeNanos;
     private final long maxStallNanos;
     private final long maxResponses;
 
+    @Override
+    public String toString() {
+        String ms = maxStallNanos == MAX_NANOS ? ", <no stall>" : ", maxStall=" + maxStallNanos / NANOS_PER_MILLI;
+        String mr = maxResponses == Long.MAX_VALUE ? ", <no max>" : ", maxResponses=" + maxResponses;
+        return "RequestMany: totalWaitTime=" + totalWaitTimeNanos / NANOS_PER_MILLI + ms + mr;
+    }
+
+    // builder accepts millis then converts to nanos since we prefer to use nanos internally
     public RequestMany(Builder b) {
         this.conn = b.conn;
         this.totalWaitTimeNanos = b.totalWaitTimeNanos;
         this.maxStallNanos = b.maxStallNanos;
         this.maxResponses = b.maxResponses;
+    }
+
+    public long getTotalWaitTime() {
+        return totalWaitTimeNanos / NANOS_PER_MILLI;
+    }
+
+    public long getMaxStall() {
+        return maxStallNanos / NANOS_PER_MILLI;
+    }
+
+    public long getMaxResponses() {
+        return maxResponses;
     }
 
     public static Builder builder(Connection conn) {
@@ -51,12 +70,13 @@ public class RequestMany {
 
     public static class Builder {
         private final Connection conn;
-        private long totalWaitTimeNanos = DEFAULT_TOTAL_WAIT_TIME_MS * NANOS_PER_MILLI;
-        private long maxStallNanos = MAX_MILLIS * NANOS_PER_MILLI;
-        private long maxResponses = Long.MAX_VALUE;
+        private Long totalWaitTimeNanos;
+        private Long maxStallNanos;
+        private long maxResponses;
 
         public Builder(Connection conn) {
             this.conn = conn;
+            maxResponses = Long.MAX_VALUE;
         }
 
         public Builder totalWaitTime(long totalWaitTimeMillis) {
@@ -79,16 +99,30 @@ public class RequestMany {
         }
 
         public RequestMany build() {
+            // totalWaitTimeNanos must have a value
+            if (totalWaitTimeNanos == null) {
+                totalWaitTimeNanos = conn.getOptions().getConnectionTimeout().toNanos();
+
+                // if they also didn't set this, default is 10 percent
+                if (maxStallNanos == null) {
+                    maxStallNanos = totalWaitTimeNanos / 10;
+                }
+            }
+            else if (maxStallNanos == null) {
+                // if they had set totalWaitTimeNanos but not maxStallNanos
+                // treat it as not supplied
+                maxStallNanos = MAX_NANOS;
+            }
             return new RequestMany(this);
         }
     }
 
-    public List<RequestManyMessage> fetch(String subject, byte[] payload) {
+    public List<RmMessage> fetch(String subject, byte[] payload) {
         return fetch(subject, null, payload);
     }
 
-    public List<RequestManyMessage> fetch(String subject, Headers headers, byte[] payload) {
-        List<RequestManyMessage> results = new ArrayList<>();
+    public List<RmMessage> fetch(String subject, Headers headers, byte[] payload) {
+        List<RmMessage> results = new ArrayList<>();
         gather(subject, headers, payload, rmm -> {
             if (!rmm.isNormalEndOfData()) {
                 results.add(rmm);
@@ -98,12 +132,12 @@ public class RequestMany {
         return results;
     }
 
-    public LinkedBlockingQueue<RequestManyMessage> iterate(String subject, byte[] payload) {
+    public LinkedBlockingQueue<RmMessage> iterate(String subject, byte[] payload) {
         return iterate(subject, null, payload);
     }
 
-    public LinkedBlockingQueue<RequestManyMessage> iterate(String subject, Headers headers, byte[] payload) {
-        final LinkedBlockingQueue<RequestManyMessage> q = new LinkedBlockingQueue<>();
+    public LinkedBlockingQueue<RmMessage> iterate(String subject, Headers headers, byte[] payload) {
+        final LinkedBlockingQueue<RmMessage> q = new LinkedBlockingQueue<>();
         conn.getOptions().getExecutor().submit(() -> {
             gather(subject, headers, payload, rmm -> {
                 q.add(rmm);
@@ -113,14 +147,15 @@ public class RequestMany {
         return q;
     }
 
-    public void gather(String subject, byte[] payload, RequestManyHandler handler) {
+    public void gather(String subject, byte[] payload, RmHandler handler) {
         gather(subject, null, payload, handler);
     }
 
-    public void gather(String subject, Headers headers, byte[] payload, RequestManyHandler handler) {
-        RequestManyMessage eod = RequestManyMessage.NORMAL_EOD; // the default end of data will be a normal end of data (vs status or exception)
-
+    public void gather(String subject, Headers headers, byte[] payload, RmHandler handler) {
         Subscription sub = null;
+
+        // the default end of data will be a normal end of data (vs status or exception)
+        RmMessage eod = RmMessage.NORMAL_EOD;
         try {
             String replyTo = conn.createInbox();
             sub = conn.subscribe(replyTo);
@@ -132,37 +167,45 @@ public class RequestMany {
 
             long start = System.nanoTime();
             while (timeLeftNanos > 0) {
+                // java sub next message returns null on timeout
                 Message msg = sub.nextMessage(Duration.ofNanos(timeoutNanos));
 
-                // we calculate this here so it does not consider any of our or the handler's processing time.
+                // we calculate this here so it does not consider any of our own or the handler's processing time.
+                // I don't know if this is right. Maybe we should time including the handler.
                 timeLeftNanos = totalWaitTimeNanos - (System.nanoTime() - start);
 
                 if (msg == null) {
-                    return; // timeout indicates we are done. Uses the default eod
+                    // timeout indicates we are done. uses the default EOD
+                    return;
                 }
                 if (msg.isStatusMessage()) {
-                    eod = new RequestManyMessage(msg);
-                    return; // status is terminal. Uses the status eod
+                    // status is terminal. Uses the status EOD so the user can see what happened.
+                    eod = new RmMessage(msg);
+                    return;
                 }
-                if (!handler.gather(new RequestManyMessage(msg))) {
-                    eod = null; // they already know it's the end, the prevents them from getting an eod at all
+                if (!handler.gather(new RmMessage(msg))) {
+                    // they already know it's the end, the prevents them from getting an EOD at all
+                    // I'm pretty sure this is right.
+                    eod = null;
                     return;
                 }
                 if (--resultsLeft < 1) {
-                    return; // We got the count, we are done. Uses the default eod
+                    // ee got the count, we are done. Uses the default EOD
+                    return;
                 }
 
-                timeoutNanos = Math.min(timeLeftNanos, maxStallNanos); // subsequent times we wait the shortest of the time left vs the max stall
+                // subsequent times we wait the shortest of the time left vs the max stall
+                timeoutNanos = Math.min(timeLeftNanos, maxStallNanos);
             }
 
-            // if it fell through, the last operation went over time. Fine, just use the default eod
+            // if it fell through, the last operation went over time. Fine, just use the default EOD
         }
         catch (RuntimeException r) {
-            eod = new RequestManyMessage(r);
+            eod = new RmMessage(r);
             throw r;
         }
         catch (InterruptedException e) {
-            eod = new RequestManyMessage(e);
+            eod = new RmMessage(e);
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         }

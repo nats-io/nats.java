@@ -11,8 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.RequestMany;
+package io.nats.requestMany;
 
-public interface RequestManyHandler {
-    boolean gather(RequestManyMessage message);
+public interface RmHandler {
+    boolean gather(RmMessage message);
 }

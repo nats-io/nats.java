@@ -11,31 +11,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.RequestMany;
+package io.nats.requestMany;
 
 import io.nats.client.Message;
 import io.nats.client.impl.StatusMessage;
 
-public class RequestManyMessage {
-    public static final RequestManyMessage NORMAL_EOD = new RequestManyMessage((Exception)null);
+import java.util.concurrent.atomic.AtomicLong;
+
+public class RmMessage {
+    public static AtomicLong ID_MAKER = new AtomicLong();
+
+    public static final RmMessage NORMAL_EOD = new RmMessage();
 
     private final Message message;
     private final Exception exception;
-    private final boolean isRegularMessage;
-    private final boolean isStatusMessage;
+    private final long id;
 
-    RequestManyMessage(Message m) {
+    RmMessage(Message m) {
         message = m;
         exception = null;
-        isStatusMessage = m != null && m.isStatusMessage();
-        isRegularMessage = m != null && !isStatusMessage;
+        id = ID_MAKER.incrementAndGet();
     }
 
-    RequestManyMessage(Exception e) {
+    RmMessage(Exception e) {
         message = null;
         exception = e;
-        isStatusMessage = false;
-        isRegularMessage = false;
+        id = ID_MAKER.incrementAndGet();
+    }
+
+    private RmMessage() {
+        message = null;
+        exception = null;
+        id = 0;
     }
 
     public Message getMessage() {
@@ -43,19 +50,19 @@ public class RequestManyMessage {
     }
 
     public StatusMessage getStatusMessage() {
-        return isStatusMessage ? (StatusMessage)message : null;
+        return isStatusMessage() ? (StatusMessage)message : null;
     }
 
     public Exception getException() {
         return exception;
     }
 
-    public boolean isRegularMessage() {
-        return isRegularMessage;
+    public boolean isDataMessage() {
+        return message != null && !isStatusMessage();
     }
 
     public boolean isStatusMessage() {
-        return isStatusMessage;
+        return message != null && message.isStatusMessage();
     }
 
     public boolean isException() {
@@ -63,7 +70,7 @@ public class RequestManyMessage {
     }
 
     public boolean isEndOfData() {
-        return message == null || isStatusMessage || exception != null;
+        return message == null || isStatusMessage() || exception != null;
     }
 
     public boolean isNormalEndOfData() {
@@ -71,6 +78,14 @@ public class RequestManyMessage {
     }
 
     public boolean isAbnormalEndOfData() {
-        return isStatusMessage || exception != null;
+        return isStatusMessage() || exception != null;
+    }
+
+    @Override
+    public String toString() {
+        return "Rmm{id=" + id +
+            ", message=" + message +
+            ", exception=" + exception +
+            '}';
     }
 }
