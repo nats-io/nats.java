@@ -76,19 +76,17 @@ public class RequestMany {
      * <li>the default total wait time is the connections options timeout</li>
      * <li>the default stall time is 1/10 of the default total wait time.</li>
      * </ul>
-     * <p>
      * <p>Total Wait Time
      * <ul>
      * <li>if you set total wait time, but not stall, stall defaults don't use stall</li>
      * </ul>
-     * <p>
-     * Max Stall
+     * <p>Max Stall
      * <ul>
      * <li>if you set max stall to a value between 1 and MAX_MILLIS inclusive, max stall is that value</li>
      * <li>if you set max stall to an invalid value, it's like clearing it to default behavior</li>
      * </ul>
-     * <p>
-     * <ul> Max Responses
+     * <p>Max Responses
+     * <ul>
      * if you set max responses to a value greater than 0, max responses is that value</li>
      * if you set max responses to an invalid value, max responses is Long.MAX_VALUE</li>
      * </ul>
