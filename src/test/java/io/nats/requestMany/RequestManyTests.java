@@ -13,6 +13,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
+import static io.nats.requestMany.RequestMany.MAX_MILLIS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -56,20 +57,24 @@ public class RequestManyTests extends TestBase {
 
     enum Last{ Normal, Status, Ex, None }
 
+    private static RequestMany.Builder builder() {
+        return RequestMany.builder(NC);
+    }
+
     private static RequestMany noResponsesRequestMany() {
-        return RequestMany.builder(NC).build();
+        return builder().build();
     }
 
     private static RequestMany maxResponsesRequestMany() {
-        return RequestMany.builder(NC).maxResponses(MAX_RESPONSES).totalWaitTime(TEST_TWT).build();
+        return builder().maxResponses(MAX_RESPONSES).totalWaitTime(TEST_TWT).build();
     }
 
     private static RequestMany totalWaitTimeRequestMany() {
-        return RequestMany.builder(NC).totalWaitTime(TEST_TWT).build();
+        return builder().totalWaitTime(TEST_TWT).build();
     }
 
     private static RequestMany stallRequestMany() {
-        return RequestMany.builder(NC).maxStall(STALL_WAIT).totalWaitTime(TEST_TWT).build();
+        return builder().maxStall(STALL_WAIT).totalWaitTime(TEST_TWT).build();
     }
 
     private void assertMessages(int regularMessages, Last last, List<RmMessage> list) {
@@ -228,6 +233,43 @@ public class RequestManyTests extends TestBase {
             assertMessages(1, Last.Normal, result.list);
             assertTrue(result.elapsed <= TEST_TWT);
         }
+    }
+
+    @Test
+    public void testBuilder() {
+        // if you don't set total wait time or stall, both default.
+        // the default total wait time is the connections options timeout
+        // the default stall time is 1/10 of the default total wait time.
+        assertBuilder(-1, -1, -1, builder().build());
+        assertBuilder(-1, -1, -1, builder().totalWaitTime(0).build());
+        assertBuilder(-1, -1, -1, builder().totalWaitTime(-1).build());
+        assertBuilder(-1, -1, -1, builder().totalWaitTime(MAX_MILLIS + 1).build());
+
+        // if you set total wait time, but not stall, stall defaults to don't use stall
+        assertBuilder(1000, MAX_MILLIS, -1, builder().totalWaitTime(1000).build());
+        assertBuilder(MAX_MILLIS, MAX_MILLIS, -1, builder().totalWaitTime(MAX_MILLIS).build());
+
+        // if you set max stall to a value between 1 and MAX_MILLIS inclusive, max stall is that value
+        assertBuilder(-1, 1, -1, builder().maxStall(1).build());
+        assertBuilder(-1, MAX_MILLIS, -1, builder().maxStall(MAX_MILLIS).build());
+
+        // if you set max stall to an invalid value, it's like clearing it to default behavior
+        assertBuilder(-1, -1, -1, builder().maxStall(0).build());
+        assertBuilder(-1, -1, -1, builder().maxStall(-1).build());
+        assertBuilder(-1, -1, -1, builder().maxStall(MAX_MILLIS + 1).build());
+
+        // if you set max responses to a value greater than 0, max responses is that value
+        assertBuilder(-1, -1, 10, builder().maxResponses(10).build());
+
+        // if you set max responses to an invalid value, max responses is Long.MAX_VALUE
+        assertBuilder(-1, -1, -1, builder().maxResponses(0).build());
+        assertBuilder(-1, -1, -1, builder().maxResponses(-1).build());
+    }
+
+    private void assertBuilder(long exTo, long exStall, long exResp, RequestMany rm) {
+        assertEquals(exTo == -1 ? Options.DEFAULT_CONNECTION_TIMEOUT.toMillis() : exTo, rm.getTotalWaitTime());
+        assertEquals(exStall == -1 ? Options.DEFAULT_CONNECTION_TIMEOUT.toMillis() / 10 : exStall, rm.getMaxStall());
+        assertEquals(exResp == -1 ? Long.MAX_VALUE : exResp, rm.getMaxResponses());
     }
 
     // ----------------------------------------------------------------------------------------------------

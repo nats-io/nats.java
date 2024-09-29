@@ -83,9 +83,18 @@ public class RmMessage {
 
     @Override
     public String toString() {
-        return "Rmm{id=" + id +
-            ", message=" + message +
-            ", exception=" + exception +
-            '}';
+        if (isEndOfData()) {
+            if (isNormalEndOfData()) {
+                return "RMM EOD, Normal";
+            }
+            if (isStatusMessage()){
+                return "RMM EOD, Abnormal: " + message;
+            }
+            return "RMM EOD, Abnormal: " + exception;
+        }
+        if (message.getData() == null || message.getData().length == 0) {
+            return "RMM Data Message: Empty Payload";
+        }
+        return "RMM Data Message: " + new String(message.getData());
     }
 }

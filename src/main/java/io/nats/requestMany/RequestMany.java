@@ -68,6 +68,30 @@ public class RequestMany {
         return new Builder(conn);
     }
 
+    /**
+     * Builder for Request Many
+     * <p>Default Behavior
+     * <ul>
+     * <li>if you don't set total wait time or stall, both default.</li>
+     * <li>the default total wait time is the connections options timeout</li>
+     * <li>the default stall time is 1/10 of the default total wait time.</li>
+     * </ul>
+     * </p><p>Total Wait Time
+     * <ul>
+     * <li>if you set total wait time, but not stall, stall defaults don't use stall</li>
+     * </ul>
+     * </p><p>Max Stall
+     * <ul>
+     * <li>if you set max stall to a value between 1 and MAX_MILLIS inclusive, max stall is that value</li>
+     * <li>if you set max stall to an invalid value, it's like clearing it to default behavior</li>
+     * </ul>
+     * </p><p>
+     * <ul> Max Responses
+     * if you set max responses to a value greater than 0, max responses is that value</li>
+     * if you set max responses to an invalid value, max responses is Long.MAX_VALUE</li>
+     * </ul>
+     * </p>
+     */
     public static class Builder {
         private final Connection conn;
         private Long totalWaitTimeNanos;
@@ -76,25 +100,42 @@ public class RequestMany {
 
         public Builder(Connection conn) {
             this.conn = conn;
-            maxResponses = Long.MAX_VALUE;
+            maxResponses(-1);
         }
 
+        /**
+         * Set the total wait time millis. Less than 1 clears it to default behavior
+         * @param totalWaitTimeMillis the total time to wait for all responses
+         * @return the builder
+         */
         public Builder totalWaitTime(long totalWaitTimeMillis) {
             totalWaitTimeNanos = toNanos(totalWaitTimeMillis);
             return this;
         }
 
+        /**
+         * The timeout for receiving responses other than the first
+         * Stall is provided since typically the first response takes the longest to
+         * come into the client since subsequent ones usually follow very quickly
+         * @param maxStallMillis the max stall
+         * @return the builder
+         */
         public Builder maxStall(long maxStallMillis) {
             maxStallNanos = toNanos(maxStallMillis);
             return this;
         }
 
-        private static long toNanos(long millis) {
-            return millis < 1 || millis > MAX_MILLIS ? MAX_NANOS : millis * NANOS_PER_MILLI;
+        private static Long toNanos(long millis) {
+            return millis < 1 || millis > MAX_MILLIS ? null : millis * NANOS_PER_MILLI;
         }
 
+        /**
+         * The maximum number of responses to get
+         * @param maxResponses the max number of responses
+         * @return the builder
+         */
         public Builder maxResponses(long maxResponses) {
-            this.maxResponses = maxResponses;
+            this.maxResponses = maxResponses < 1 ? Long.MAX_VALUE : maxResponses;
             return this;
         }
 

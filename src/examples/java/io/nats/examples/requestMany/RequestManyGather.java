@@ -17,13 +17,13 @@ import io.nats.client.*;
 import io.nats.requestMany.RequestMany;
 import io.nats.requestMany.RmMessage;
 
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Iterate returns immediately with an unbounded queue, then runs on an executor thread
+ * Gather sends all messages to a handler.
  */
-public class RequestManyIterate {
+public class RequestManyGather {
     static final String RESPOND_SUBJECT = "rsvp";
     static final int RESPONDERS = 3;
 
@@ -41,13 +41,11 @@ public class RequestManyIterate {
             // The default request is to get as many in the default time period
             System.out.println("Default Connection Timeout: " + connTimeout + "\n");
 
-            // On an iterate...
+            // On a gather...
             // If there was an exceptional reason for the completion,
             // an RmMessage with a status message or exception
             // and will be the last message added to the queue.
             // If there was no exception reason, a RmMessage.NORMAL_EOD will be added to the queue
-            // ...
-            // So for iterate, we should poll the queue until there is any EOD.
 
             // We haven't started any responders yet so this will return with a Status 503
             // The good news is that a 503 (or any status or exception)
@@ -57,20 +55,12 @@ public class RequestManyIterate {
             System.out.println("A. Expect 1 EOD Status message. ");
             System.out.println("   " + rm);
 
-            int ix = 0;
+            List<RmMessage> list = new ArrayList<>();
             long start = System.currentTimeMillis();
-            LinkedBlockingQueue<RmMessage> q = rm.iterate(RESPOND_SUBJECT, null);
-            while (true) {
-                RmMessage rmm = q.poll(100, TimeUnit.MILLISECONDS);
-                if (rmm != null) {
-                    report(ix++, rmm);
-                    if (rmm.isEndOfData()) {
-                        break;
-                    }
-                }
-            }
+            rm.gather(RESPOND_SUBJECT, null, list::add);
             long elapsed = System.currentTimeMillis() - start;
-            System.out.println("   Count: " + ix + ", Elapsed: " + elapsed + " ms");
+            report(list);
+            System.out.println("   Count: " + list.size() + ", Elapsed: " + elapsed + " ms");
 
             // start a responder simulator. Each message it gets it will respond n times
             Dispatcher dispatcher = nc.createDispatcher(m -> {
@@ -88,20 +78,12 @@ public class RequestManyIterate {
             System.out.println("\nB. Expect " + RESPONDERS + " data messages and 1 EOD in slightly more than " + (connTimeout / 10) + " ms.");
             System.out.println("   " + rm);
 
-            ix = 0;
+            list.clear();
             start = System.currentTimeMillis();
-            q = rm.iterate(RESPOND_SUBJECT, null);
-            while (true) {
-                RmMessage rmm = q.poll(100, TimeUnit.MILLISECONDS);
-                if (rmm != null) {
-                    report(ix++, rmm);
-                    if (rmm.isEndOfData()) {
-                        break;
-                    }
-                }
-            }
+            rm.gather(RESPOND_SUBJECT, null, list::add);
             elapsed = System.currentTimeMillis() - start;
-            System.out.println("   Count: " + ix + ", Elapsed: " + elapsed + " ms");
+            report(list);
+            System.out.println("   Count: " + list.size() + ", Elapsed: " + elapsed + " ms");
 
             // Maybe you always want to wait the full 1 second.
             // Maybe there could be slow (busy?) responders but you still want to hear from them.
@@ -109,44 +91,32 @@ public class RequestManyIterate {
             System.out.println("\nC. Expect " + RESPONDERS + " data messages and 1 EOD in slightly more than 1000 ms.");
             System.out.println("   " + rm);
 
-            ix = 0;
+            list.clear();
             start = System.currentTimeMillis();
-            q = rm.iterate(RESPOND_SUBJECT, null);
-            while (true) {
-                RmMessage rmm = q.poll(100, TimeUnit.MILLISECONDS);
-                if (rmm != null) {
-                    report(ix++, rmm);
-                    if (rmm.isEndOfData()) {
-                        break;
-                    }
-                }
-            }
+            rm.gather(RESPOND_SUBJECT, null, list::add);
             elapsed = System.currentTimeMillis() - start;
-            System.out.println("   Count: " + ix + ", Elapsed: " + elapsed + " ms");
+            report(list);
+            System.out.println("   Count: " + list.size() + ", Elapsed: " + elapsed + " ms");
 
             // Maybe you just want the first 2. Also limit the time. No slowpoke responders allowed!
             rm = RequestMany.builder(nc).totalWaitTime(1000).maxResponses(2).build();
             System.out.println("\nD. Expect 2 data messages and 1 EOD very quickly.");
             System.out.println("   " + rm);
 
-            ix = 0;
+            list.clear();
             start = System.currentTimeMillis();
-            q = rm.iterate(RESPOND_SUBJECT, null);
-            while (true) {
-                RmMessage rmm = q.poll(100, TimeUnit.MILLISECONDS);
-                if (rmm != null) {
-                    report(ix++, rmm);
-                    if (rmm.isEndOfData()) {
-                        break;
-                    }
-                }
-            }
+            rm.gather(RESPOND_SUBJECT, null, list::add);
             elapsed = System.currentTimeMillis() - start;
-            System.out.println("   Count: " + ix + ", Elapsed: " + elapsed + " ms");
+
+            report(list);
+            System.out.println("   Count: " + list.size() + ", Elapsed: " + elapsed + " ms");
         }
     }
 
-    private static void report(int ix, RmMessage rmm) {
-        System.out.println("   " + ix + ". " + rmm);
+    private static void report(List<RmMessage> list) {
+        for (int x = 0; x < list.size(); x++) {
+            RmMessage rmm = list.get(x);
+            System.out.println("   "  + x + ". " + rmm);
+        }
     }
 }

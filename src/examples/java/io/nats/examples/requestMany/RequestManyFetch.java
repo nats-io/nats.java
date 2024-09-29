@@ -20,11 +20,10 @@ import io.nats.requestMany.RmMessage;
 import java.util.List;
 
 /**
- * The "Default" will get as many responses as it can in
- * the connection options timeout time (default is 2 seconds)
+ * Fetch is a blocking call that will return when the request many is complete.
  */
 public class RequestManyFetch {
-    static final String REQUEST_SUBJECT = "req";
+    static final String RESPOND_SUBJECT = "rsvp";
     static final int RESPONDERS = 3;
 
     public static void main(String[] args) throws Exception {
@@ -36,12 +35,12 @@ public class RequestManyFetch {
 
         try (Connection nc = Nats.connect(options)) {
 
-            long ctMs = nc.getOptions().getConnectionTimeout().toMillis();
+            long connTimeout = nc.getOptions().getConnectionTimeout().toMillis();
 
             // The default request is to get as many in the default time period
-            System.out.println("Default Connection Timeout: " + ctMs);
+            System.out.println("Default Connection Timeout: " + connTimeout + "\n");
 
-            // The builder needs your connection...we don't set any custom options though
+            // The builder needs your connection...we don't set any custom options yet
             RequestMany rm = RequestMany.builder(nc).build();
 
             // On a fetch, if there was an exceptional reason for the completion,
@@ -51,16 +50,15 @@ public class RequestManyFetch {
             // The good news is that a 503 (or any status or exception)
             // will short circuit and return quickly.
             long start = System.currentTimeMillis();
-            List<RmMessage> list = rm.fetch(REQUEST_SUBJECT, null);
+            List<RmMessage> list = rm.fetch(RESPOND_SUBJECT, null);
             long elapsed = System.currentTimeMillis() - start;
 
             // We should expect exactly 1 message since we know it's no responders.
             RmMessage r = list.get(0);
-            System.out.println("A. Expect 1 status message. ");
+            System.out.println("A. Expect 1 EOD Status message. ");
             System.out.println("   " + rm);
+            report(list);
             System.out.println("   Count: " + list.size() + ", Elapsed: " + elapsed + " ms");
-            System.out.println("   0. statusMessage ? " + r.isStatusMessage()
-                + ", Message: " + r.getStatusMessage());
 
             // start a responder simulator. Each message it gets it will respond n times
             Dispatcher dispatcher = nc.createDispatcher(m -> {
@@ -68,57 +66,52 @@ public class RequestManyFetch {
                     nc.publish(m.getReplyTo(), ("R" + x).getBytes());
                 }
             });
-            dispatcher.subscribe(REQUEST_SUBJECT);
+            dispatcher.subscribe(RESPOND_SUBJECT);
 
             // It's okay to reuse the RequestMany object, and
             // since it's connection is its r state, it can be used in parallel.
             start = System.currentTimeMillis();
-            list = rm.fetch(REQUEST_SUBJECT, null);
+            list = rm.fetch(RESPOND_SUBJECT, null);
             elapsed = System.currentTimeMillis() - start;
 
             // The default options contain a stall timeout of 1/10 of the connection timeout.
-            // So this should return pretty fast, not the entire
-            System.out.println("\nB. Expect " + RESPONDERS + " data messages in slightly more than " + (ctMs / 10) + " ms.");
+            // So this should return pretty fast
+            System.out.println("\nB. Expect " + RESPONDERS + " data messages in slightly more than " + (connTimeout / 10) + " ms.");
             System.out.println("   " + rm);
+            report(list);
             System.out.println("   Count: " + list.size() + ", Elapsed: " + elapsed + " ms");
-            for (int i = 0; i < list.size(); i++) {
-                RmMessage rmm = list.get(i);
-                System.out.println("   " + i + ". dataMessage ? " + rmm.isDataMessage()
-                    + ", Message: " + new String(rmm.getMessage().getData()));
-            }
 
             // Maybe you always want to wait the full 1 second.
             // Maybe there could be slow (busy?) responders but you still want to hear from them.
             rm = RequestMany.builder(nc).totalWaitTime(1000).build();
 
             start = System.currentTimeMillis();
-            list = rm.fetch(REQUEST_SUBJECT, null);
+            list = rm.fetch(RESPOND_SUBJECT, null);
             elapsed = System.currentTimeMillis() - start;
 
             System.out.println("\nC. Expect " + RESPONDERS + " data messages in slightly more than 1000 ms.");
             System.out.println("   " + rm);
+            report(list);
             System.out.println("   Count: " + list.size() + ", Elapsed: " + elapsed + " ms");
-            for (int i = 0; i < list.size(); i++) {
-                RmMessage rmm = list.get(i);
-                System.out.println("   " + i + ". dataMessage ? " + rmm.isDataMessage()
-                    + ", Message: " + new String(rmm.getMessage().getData()));
-            }
 
             // Maybe you just want the first 2. Also limit the time. No slowpoke responders allowed!
             rm = RequestMany.builder(nc).totalWaitTime(1000).maxResponses(2).build();
 
             start = System.currentTimeMillis();
-            list = rm.fetch(REQUEST_SUBJECT, null);
+            list = rm.fetch(RESPOND_SUBJECT, null);
             elapsed = System.currentTimeMillis() - start;
 
-            System.out.println("\nD. Expect the max of 2 happens quickly.");
+            System.out.println("\nD. Expect 2 data messages very quickly.");
             System.out.println("   " + rm);
+            report(list);
             System.out.println("   Count: " + list.size() + ", Elapsed: " + elapsed + " ms");
-            for (int i = 0; i < list.size(); i++) {
-                RmMessage rmm = list.get(i);
-                System.out.println("   " + i + ". dataMessage ? " + rmm.isDataMessage()
-                    + ", Message: " + new String(rmm.getMessage().getData()));
-            }
+        }
+    }
+
+    private static void report(List<RmMessage> list) {
+        for (int x = 0; x < list.size(); x++) {
+            RmMessage rmm = list.get(x);
+            System.out.println("   "  + x + ". " + rmm);
         }
     }
 }
