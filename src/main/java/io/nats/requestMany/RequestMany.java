@@ -17,7 +17,6 @@ import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.Subscription;
 import io.nats.client.impl.Headers;
-import io.nats.client.support.Debug;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -61,7 +60,6 @@ public class RequestMany {
         this.totalWaitTimeNanos = b.totalWaitTimeNanos;
         this.maxStallNanos = b.maxStallNanos;
         this.maxResponses = b.maxResponses;
-        Debug.info("RM", this);
     }
 
     /**
