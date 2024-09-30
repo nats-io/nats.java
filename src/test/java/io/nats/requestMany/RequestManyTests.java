@@ -70,7 +70,7 @@ public class RequestManyTests extends TestBase {
     }
 
     private static RequestMany totalWaitTimeRequestMany() {
-        return builder().totalWaitTime(TEST_TWT).build();
+        return builder().totalWaitTime(TEST_TWT).maxStall(MAX_MILLIS).build();
     }
 
     private static RequestMany stallRequestMany() {
@@ -245,9 +245,9 @@ public class RequestManyTests extends TestBase {
         assertBuilder(-1, -1, -1, builder().totalWaitTime(-1).build());
         assertBuilder(-1, -1, -1, builder().totalWaitTime(MAX_MILLIS + 1).build());
 
-        // if you set total wait time, but not stall, stall defaults to don't use stall
-        assertBuilder(1000, MAX_MILLIS, -1, builder().totalWaitTime(1000).build());
-        assertBuilder(MAX_MILLIS, MAX_MILLIS, -1, builder().totalWaitTime(MAX_MILLIS).build());
+        // if you set total wait time, but not stall, stall defaults 1/10th of total wait time
+        assertBuilder(1000, 100, -1, builder().totalWaitTime(1000).build());
+        assertBuilder(MAX_MILLIS, MAX_MILLIS / 10, -1, builder().totalWaitTime(MAX_MILLIS).build());
 
         // if you set max stall to a value between 1 and MAX_MILLIS inclusive, max stall is that value
         assertBuilder(-1, 1, -1, builder().maxStall(1).build());
