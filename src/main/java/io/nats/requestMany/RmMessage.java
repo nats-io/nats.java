@@ -19,7 +19,7 @@ import io.nats.client.impl.StatusMessage;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class RmMessage {
-    public static AtomicLong ID_MAKER = new AtomicLong();
+    private static final AtomicLong ID_MAKER = new AtomicLong();
 
     public static final RmMessage NORMAL_EOD = new RmMessage();
 
@@ -43,6 +43,10 @@ public class RmMessage {
         message = null;
         exception = null;
         id = 0;
+    }
+
+    public long getId() {
+        return id;
     }
 
     public Message getMessage() {

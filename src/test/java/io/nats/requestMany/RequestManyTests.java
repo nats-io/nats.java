@@ -1,6 +1,7 @@
 package io.nats.requestMany;
 
 import io.nats.client.*;
+import io.nats.client.impl.NatsMessage;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -11,11 +12,12 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.nats.client.impl.NatsMessageTests.createStatusMessage;
 import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
 import static io.nats.requestMany.RequestMany.MAX_MILLIS;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class RequestManyTests extends TestBase {
 
@@ -236,7 +238,17 @@ public class RequestManyTests extends TestBase {
     }
 
     @Test
-    public void testBuilder() {
+    public void testSentinel() throws Exception {
+        try (Responder responder = new Responder(MAX_RESPONSES_RESPONDERS)) {
+            RequestMany rm = totalWaitTimeRequestMany();
+            AtomicInteger count = new AtomicInteger();
+            rm.gather(responder.subject, null, rmm -> count.incrementAndGet() < 2);
+            assertEquals(2, count.get());
+        }
+    }
+
+    @Test
+    public void testRequestManyBuilder() {
         // if you don't set total wait time or stall, both default.
         // the default total wait time is the connections options timeout
         // the default stall time is 1/10 of the default total wait time.
@@ -270,6 +282,87 @@ public class RequestManyTests extends TestBase {
         assertEquals(exTo == -1 ? Options.DEFAULT_CONNECTION_TIMEOUT.toMillis() : exTo, rm.getTotalWaitTime());
         assertEquals(exStall == -1 ? Options.DEFAULT_CONNECTION_TIMEOUT.toMillis() / 10 : exStall, rm.getMaxStall());
         assertEquals(exResp == -1 ? Long.MAX_VALUE : exResp, rm.getMaxResponses());
+        String s = rm.toString();
+        if (exStall == MAX_MILLIS) {
+            assertTrue(s.contains("<no stall>"));
+        }
+        else {
+            assertTrue(s.contains("maxStall"));
+        }
+        if (exResp == -1) {
+            assertTrue(s.contains("<no max>"));
+        }
+        else {
+            assertTrue(s.contains("maxResponses"));
+        }
+    }
+
+    @Test
+    public void testRmMessageConstruction() {
+        Message m = NatsMessage.builder().subject("foo").build();
+        RmMessage rmm = new RmMessage(m);
+        assertTrue(rmm.isDataMessage());
+        assertFalse(rmm.isStatusMessage());
+        assertFalse(rmm.isException());
+        assertFalse(rmm.isEndOfData());
+        assertFalse(rmm.isNormalEndOfData());
+        assertFalse(rmm.isAbnormalEndOfData());
+        assertTrue(rmm.toString().contains("Data Message"));
+        assertTrue(rmm.toString().contains("Empty Payload"));
+        assertNotNull(rmm.getMessage());
+        assertNull(rmm.getStatusMessage());
+        assertNull(rmm.getException());
+
+        m = NatsMessage.builder().subject("foo").data(new byte[1]).build();
+        rmm = new RmMessage(m);
+        assertTrue(rmm.isDataMessage());
+        assertFalse(rmm.isStatusMessage());
+        assertFalse(rmm.isException());
+        assertFalse(rmm.isEndOfData());
+        assertFalse(rmm.isNormalEndOfData());
+        assertFalse(rmm.isAbnormalEndOfData());
+        assertTrue(rmm.toString().contains("Data Message"));
+        assertFalse(rmm.toString().contains("Empty Payload"));
+        assertNotNull(rmm.getMessage());
+        assertNull(rmm.getStatusMessage());
+        assertNull(rmm.getException());
+
+        m = createStatusMessage();
+        rmm = new RmMessage(m);
+        assertFalse(rmm.isDataMessage());
+        assertTrue(rmm.isStatusMessage());
+        assertFalse(rmm.isException());
+        assertTrue(rmm.isEndOfData());
+        assertFalse(rmm.isNormalEndOfData());
+        assertTrue(rmm.isAbnormalEndOfData());
+        assertTrue(rmm.toString().contains("Abnormal"));
+        assertNotNull(rmm.getMessage());
+        assertNotNull(rmm.getStatusMessage());
+        assertNull(rmm.getException());
+
+        rmm = new RmMessage(new Exception());
+        assertFalse(rmm.isDataMessage());
+        assertFalse(rmm.isStatusMessage());
+        assertTrue(rmm.isException());
+        assertTrue(rmm.isEndOfData());
+        assertFalse(rmm.isNormalEndOfData());
+        assertTrue(rmm.isAbnormalEndOfData());
+        assertTrue(rmm.toString().contains("Abnormal"));
+        assertNull(rmm.getMessage());
+        assertNull(rmm.getStatusMessage());
+        assertNotNull(rmm.getException());
+
+        rmm = new RmMessage((Message)null);
+        assertFalse(rmm.isDataMessage());
+        assertFalse(rmm.isStatusMessage());
+        assertFalse(rmm.isException());
+        assertTrue(rmm.isEndOfData());
+        assertTrue(rmm.isNormalEndOfData());
+        assertFalse(rmm.isAbnormalEndOfData());
+        assertTrue(rmm.toString().contains("Normal"));
+        assertNull(rmm.getMessage());
+        assertNull(rmm.getStatusMessage());
+        assertNull(rmm.getException());
     }
 
     // ----------------------------------------------------------------------------------------------------

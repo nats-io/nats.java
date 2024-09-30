@@ -278,6 +278,16 @@ public class NatsMessageTests extends JetStreamTestBase {
 
     @Test
     public void testFactoryProducesStatusMessage() {
+        Message m = createStatusMessage();
+        assertTrue(m.isStatusMessage());
+        assertNotNull(m.getStatus());
+        assertEquals(503, m.getStatus().getCode());
+        assertNotNull(m.getStatus().toString());
+        StatusMessage sm = (StatusMessage)m;
+        assertNotNull(sm.toString());
+    }
+
+    public static Message createStatusMessage() {
         IncomingHeadersProcessor incomingHeadersProcessor =
                 new IncomingHeadersProcessor("NATS/1.0 503 No Responders\r\n".getBytes());
         IncomingMessageFactory factory =
@@ -286,12 +296,7 @@ public class NatsMessageTests extends JetStreamTestBase {
         factory.setData(null); // coverage
 
         Message m = factory.getMessage();
-        assertTrue(m.isStatusMessage());
-        assertNotNull(m.getStatus());
-        assertEquals(503, m.getStatus().getCode());
-        assertNotNull(m.getStatus().toString());
-        StatusMessage sm = (StatusMessage)m;
-        assertNotNull(sm.toString());
+        return m;
     }
 
     private NatsMessage testMessage() {
