@@ -26,7 +26,17 @@ import java.util.concurrent.LinkedBlockingQueue;
 import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
 
 /**
- * RequestMany is EXPERIMENTAL
+ * This class is EXPERIMENTAL, meaning it's api is subject to change.
+ * The core Connection api provides the ability to make a request, but
+ * only supports return ing the first response. The Request Many interface
+ * provides the ability to receive multiple responses from a single request.
+ * <p>This can support patterns like scatter-gather (getting responses from multiple
+ * responders) or getting a multipart message from a single responder (without streaming)
+ * <p>Responses generally all get to the client at about the same time.
+ * Waiting until the first one lands will take most of the time.
+ * Subsequent ones are generally coming at about the same time so queue up
+ * in the client, and we don't want to wait to long after receiving the first
+ * message, but also allow for some stragglers.
  */
 public class RequestMany {
     public static final long MAX_MILLIS = Long.MAX_VALUE / NANOS_PER_MILLI; // so when I go to get millis it does not overflow
@@ -52,14 +62,26 @@ public class RequestMany {
         this.maxResponses = b.maxResponses;
     }
 
+    /**
+     * The total amount of time to wait for messages regardless of other configuration
+     * @return the total wait time
+     */
     public long getTotalWaitTime() {
         return totalWaitTimeNanos / NANOS_PER_MILLI;
     }
 
+    /**
+     * The amount of time to wait on messages other than the first
+     * @return the max stall
+     */
     public long getMaxStall() {
         return maxStallNanos / NANOS_PER_MILLI;
     }
 
+    /**
+     * The maximum number of messages to wait for
+     * @return then maximum number of responses
+     */
     public long getMaxResponses() {
         return maxResponses;
     }
@@ -87,8 +109,8 @@ public class RequestMany {
      * </ul>
      * <p>Max Responses
      * <ul>
-     * if you set max responses to a value greater than 0, max responses is that value</li>
-     * if you set max responses to an invalid value, max responses is Long.MAX_VALUE</li>
+     * <li>if you set max responses to a value greater than 0, max responses is that value</li>
+     * <li>if you set max responses to an invalid value, max responses is Long.MAX_VALUE</li>
      * </ul>
      */
     public static class Builder {
@@ -103,8 +125,9 @@ public class RequestMany {
         }
 
         /**
-         * Set the total wait time millis. Less than 1 clears it to default behavior
-         * @param totalWaitTimeMillis the total time to wait for all responses
+         * Set the total amount of time to wait for messages regardless of other configuration
+         * Less than 1 clears it to default behavior, setting it to the connection request timeout
+         * @param totalWaitTimeMillis the total time to wait
          * @return the builder
          */
         public Builder totalWaitTime(long totalWaitTimeMillis) {
@@ -113,9 +136,7 @@ public class RequestMany {
         }
 
         /**
-         * The timeout for receiving responses other than the first
-         * Stall is provided since typically the first response takes the longest to
-         * come into the client since subsequent ones usually follow very quickly
+         * The amount of time to wait on messages other than the first.
          * @param maxStallMillis the max stall
          * @return the builder
          */
@@ -142,16 +163,9 @@ public class RequestMany {
             // totalWaitTimeNanos must have a value
             if (totalWaitTimeNanos == null) {
                 totalWaitTimeNanos = conn.getOptions().getConnectionTimeout().toNanos();
-
-                // if they also didn't set this, default is 10 percent
-                if (maxStallNanos == null) {
-                    maxStallNanos = totalWaitTimeNanos / 10;
-                }
             }
-            else if (maxStallNanos == null) {
-                // if they had set totalWaitTimeNanos but not maxStallNanos
-                // treat it as not supplied
-                maxStallNanos = MAX_NANOS;
+            if (maxStallNanos == null) {
+                maxStallNanos = totalWaitTimeNanos / 10;
             }
             return new RequestMany(this);
         }
