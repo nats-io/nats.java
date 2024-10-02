@@ -42,6 +42,8 @@ public class RequestMany {
     private static final long MAX_MILLIS = Long.MAX_VALUE / NANOS_PER_MILLI; // so when I go to get millis it does not overflow
     private static final long MAX_NANOS = MAX_MILLIS * NANOS_PER_MILLI;      // "
 
+    public static final long DEFAULT_SENTINEL_STRATEGY_TOTAL_WAIT = Duration.ofMinutes(10).toMillis();
+
     private final Connection conn;
     private final long totalWaitTimeNanos;
     private final long stallNanos;
@@ -111,7 +113,7 @@ public class RequestMany {
      * @return the builder
      */
     public static RequestMany wait(Connection conn) {
-        return wait(conn, getDefaultTimeout(conn));
+        return wait(conn, -1);
     }
 
     /**
@@ -131,7 +133,7 @@ public class RequestMany {
      * @return the builder
      */
     public static RequestMany stall(Connection conn) {
-        return stall(conn, getDefaultTimeout(conn));
+        return stall(conn, -1);
     }
 
     /**
@@ -142,6 +144,9 @@ public class RequestMany {
      * @return the builder
      */
     public static RequestMany stall(Connection conn, long totalWaitTimeMillis) {
+        if (totalWaitTimeMillis < 1) {
+            totalWaitTimeMillis = getDefaultTimeout(conn);
+        }
         return new Builder(conn).totalWaitTime(totalWaitTimeMillis).stallTime(totalWaitTimeMillis / 10).build();
     }
 
@@ -153,7 +158,7 @@ public class RequestMany {
      * @return the builder
      */
     public static RequestMany maxResponses(Connection conn, long maxResponses) {
-        return maxResponses(conn, getDefaultTimeout(conn), maxResponses);
+        return maxResponses(conn, -1, maxResponses);
     }
 
     /**
@@ -169,24 +174,36 @@ public class RequestMany {
     }
 
     /**
-     * Get a RequestMany that waits a 1 minute
-     * and automatically makes a stall time of 10 percent of the total wait time
+     * Get a RequestMany that
+     * <ul>
+     * <li>Never waits more than 10 minutes for the entire process to complete. This is mostly for safety</li>
+     * <li>Never waits more than the standard connection timeout for any message after the first.</li>
+     * <li>Waits for the standard sentinel message to indicate the request is finished</li>
+     * </ul>
      * @param conn the connection since a connection is required
      * @return the builder
      */
     public static RequestMany standardSentinel(Connection conn) {
-        return standardSentinel(conn, getDefaultTimeout(conn));
+        return standardSentinel(conn, DEFAULT_SENTINEL_STRATEGY_TOTAL_WAIT);
     }
 
     /**
-     * Get a RequestMany that waits a max total wait time
-     * and automatically makes a stall time of 10 percent of the total wait time
+     * Get a RequestMany that
+     * <ul>
+     * <li>Never waits more than the total wait time for the entire process to complete.</li>
+     * <li>Never waits more than the the lessor of 1/10th of the total wait time or the standard connection timeout, for any message after the first.</li>
+     * <li>Waits for the standard sentinel message to indicate the request is finished</li>
+     * </ul>
      * @param conn the connection since a connection is required
      * @param totalWaitTimeMillis the total time to wait
      * @return the builder
      */
     public static RequestMany standardSentinel(Connection conn, long totalWaitTimeMillis) {
-        return new Builder(conn).totalWaitTime(totalWaitTimeMillis).standardSentinel().build();
+        return new Builder(conn)
+            .totalWaitTime(totalWaitTimeMillis)
+            .stallTime(Math.min(getDefaultTimeout(conn), totalWaitTimeMillis / 10))
+            .standardSentinel()
+            .build();
     }
 
     private static long getDefaultTimeout(Connection conn) {

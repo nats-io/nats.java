@@ -15,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 
 import static io.nats.client.impl.NatsMessageTests.createStatusMessage;
 import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
+import static io.nats.requestMany.RequestMany.DEFAULT_SENTINEL_STRATEGY_TOTAL_WAIT;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class RequestManyTests extends TestBase {
@@ -310,26 +311,57 @@ public class RequestManyTests extends TestBase {
 
     @Test
     public void testRequestManyBuilder() {
-        assertBuilder(-1, -1, -1, builder().build());
-        assertBuilder(1000, -1, -1, builder().totalWaitTime(1000).build());
-        assertBuilder(MAX_MILLIS, -1, -1, builder().totalWaitTime(MAX_MILLIS).build());
-        assertBuilder(MAX_MILLIS, -1, -1, builder().totalWaitTime(MAX_MILLIS + 1).build());
-        assertBuilder(-1, -1, -1, builder().totalWaitTime(0).build());
-        assertBuilder(-1, -1, -1, builder().totalWaitTime(-1).build());
+        // totalWaitTime
+        assertBuilder(-1, -1, -1, false, builder().build());
+        assertBuilder(1000, -1, -1, false, builder().totalWaitTime(1000).build());
+        assertBuilder(MAX_MILLIS, -1, -1, false, builder().totalWaitTime(MAX_MILLIS).build());
+        assertBuilder(MAX_MILLIS, -1, -1, false, builder().totalWaitTime(MAX_MILLIS + 1).build());
+        assertBuilder(-1, -1, -1, false, builder().totalWaitTime(0).build());
+        assertBuilder(-1, -1, -1, false, builder().totalWaitTime(-1).build());
 
-        assertBuilder(-1, 1, -1, builder().stallTime(1).build());
-        assertBuilder(-1, MAX_MILLIS, -1, builder().stallTime(MAX_MILLIS).build());
-        assertBuilder(-1, MAX_MILLIS, -1, builder().stallTime(MAX_MILLIS + 1).build());
-        assertBuilder(-1, -1, -1, builder().stallTime(0).build());
-        assertBuilder(-1, -1, -1, builder().stallTime(-1).build());
+        // wait strategy
+        assertBuilder(-1, -1, -1, false, RequestMany.wait(NC));
+        assertBuilder(1000, -1, -1, false, RequestMany.wait(NC, 1000));
+        assertBuilder(MAX_MILLIS, -1, -1, false, RequestMany.wait(NC, MAX_MILLIS));
+        assertBuilder(MAX_MILLIS, -1, -1, false, RequestMany.wait(NC, MAX_MILLIS + 1));
+        assertBuilder(-1, -1, -1, false, RequestMany.wait(NC, 0));
+        assertBuilder(-1, -1, -1, false, RequestMany.wait(NC, -1));
 
-        assertBuilder(-1, -1, 1, builder().maxResponses(1).build());
-        assertBuilder(-1, -1, Long.MAX_VALUE, builder().maxResponses(Long.MAX_VALUE).build());
-        assertBuilder(-1, -1, -1, builder().maxResponses(0).build());
-        assertBuilder(-1, -1, -1, builder().maxResponses(-1).build());
+        // stallTime
+        assertBuilder(-1, 1, -1, false, builder().stallTime(1).build());
+        assertBuilder(-1, MAX_MILLIS, -1, false, builder().stallTime(MAX_MILLIS).build());
+        assertBuilder(-1, MAX_MILLIS, -1, false, builder().stallTime(MAX_MILLIS + 1).build());
+        assertBuilder(-1, -1, -1, false, builder().stallTime(0).build());
+        assertBuilder(-1, -1, -1, false, builder().stallTime(-1).build());
+
+        // stall strategy
+        assertBuilder(-1, DEFAULT_TIMEOUT / 10, -1, false, RequestMany.stall(NC));
+        assertBuilder(MAX_MILLIS, MAX_MILLIS / 10, -1, false, RequestMany.stall(NC, MAX_MILLIS));
+        assertBuilder(MAX_MILLIS, MAX_MILLIS / 10, -1, false, RequestMany.stall(NC, MAX_MILLIS + 1));
+        assertBuilder(-1, DEFAULT_TIMEOUT / 10, -1, false, RequestMany.stall(NC, 0));
+        assertBuilder(-1, DEFAULT_TIMEOUT / 10, -1, false, RequestMany.stall(NC, -1));
+
+        // maxResponse
+        assertBuilder(-1, -1, 1, false, builder().maxResponses(1).build());
+        assertBuilder(-1, -1, Long.MAX_VALUE, false, builder().maxResponses(Long.MAX_VALUE).build());
+        assertBuilder(-1, -1, -1, false, builder().maxResponses(0).build());
+        assertBuilder(-1, -1, -1, false, builder().maxResponses(-1).build());
+
+        // maxResponse strategy
+        assertBuilder(-1, -1, 1, false, RequestMany.maxResponses(NC, 1));
+        assertBuilder(-1, -1, Long.MAX_VALUE, false, RequestMany.maxResponses(NC, Long.MAX_VALUE));
+        assertBuilder(-1, -1, -1, false, RequestMany.maxResponses(NC, 0));
+        assertBuilder(-1, -1, -1, false, RequestMany.maxResponses(NC, -1));
+
+        // standardSentinel
+        assertBuilder(-1, -1, -1, true, builder().standardSentinel().build());
+
+        // standardSentinel strategy
+        assertBuilder(DEFAULT_SENTINEL_STRATEGY_TOTAL_WAIT, DEFAULT_TIMEOUT, -1, true, RequestMany.standardSentinel(NC));
+        assertBuilder(MAX_MILLIS, DEFAULT_TIMEOUT, -1, true, RequestMany.standardSentinel(NC, MAX_MILLIS));
     }
 
-    private void assertBuilder(long exTo, long exStall, long exResp, RequestMany rm) {
+    private void assertBuilder(long exTo, long exStall, long exResp, boolean stdSentinel, RequestMany rm) {
         assertEquals(exTo == -1 ? Options.DEFAULT_CONNECTION_TIMEOUT.toMillis() : exTo, rm.getTotalWaitTime());
         assertEquals(exStall, rm.getStallTime());
         assertEquals(exResp, rm.getMaxResponses());
@@ -346,7 +378,9 @@ public class RequestManyTests extends TestBase {
         else {
             assertTrue(s.contains("maxResponses"));
         }
+        assertEquals(stdSentinel, rm.isStandardSentinel());
     }
+
 
     @Test
     public void testRmMessageConstruction() {
