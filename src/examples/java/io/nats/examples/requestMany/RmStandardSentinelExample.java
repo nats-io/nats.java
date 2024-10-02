@@ -65,7 +65,7 @@ public class RmStandardSentinelExample {
             System.out.println("\nIterate, Expect " + MESSAGES_BEFORE_SENTINEL + " data messages and EOD.");
             int ix = 0;
             start = System.currentTimeMillis();
-            LinkedBlockingQueue<RmMessage> q = rm.iterate(RESPOND_SUBJECT, "rqst".getBytes());
+            LinkedBlockingQueue<RmMessage> q = rm.queue(RESPOND_SUBJECT, "rqst".getBytes());
             while (true) {
                 RmMessage rmm = q.poll(100, TimeUnit.MILLISECONDS);
                 if (rmm != null) {

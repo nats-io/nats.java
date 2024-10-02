@@ -147,7 +147,9 @@ public class RequestMany {
         if (totalWaitTimeMillis < 1) {
             totalWaitTimeMillis = getDefaultTimeout(conn);
         }
-        return new Builder(conn).totalWaitTime(totalWaitTimeMillis).stallTime(totalWaitTimeMillis / 10).build();
+        return new Builder(conn).totalWaitTime(totalWaitTimeMillis)
+            .stallTime(Math.min(getDefaultTimeout(conn), totalWaitTimeMillis / 10))
+            .build();
     }
 
     /**
@@ -170,7 +172,9 @@ public class RequestMany {
      * @return the builder
      */
     public static RequestMany maxResponses(Connection conn, long totalWaitTimeMillis, long maxResponses) {
-        return new Builder(conn).totalWaitTime(totalWaitTimeMillis).maxResponses(maxResponses).build();
+        return new Builder(conn).totalWaitTime(totalWaitTimeMillis)
+            .maxResponses(maxResponses)
+            .build();
     }
 
     /**
@@ -313,11 +317,11 @@ public class RequestMany {
         return results;
     }
 
-    public LinkedBlockingQueue<RmMessage> iterate(String subject, byte[] payload) {
-        return iterate(subject, null, payload);
+    public LinkedBlockingQueue<RmMessage> queue(String subject, byte[] payload) {
+        return queue(subject, null, payload);
     }
 
-    public LinkedBlockingQueue<RmMessage> iterate(String subject, Headers headers, byte[] payload) {
+    public LinkedBlockingQueue<RmMessage> queue(String subject, Headers headers, byte[] payload) {
         final LinkedBlockingQueue<RmMessage> q = new LinkedBlockingQueue<>();
         conn.getOptions().getExecutor().submit(() -> {
             request(subject, headers, payload, rmm -> {

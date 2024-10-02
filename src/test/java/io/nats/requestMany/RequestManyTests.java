@@ -97,8 +97,8 @@ public class RequestManyTests extends TestBase {
         return result;
     }
 
-    private static Result _iterate(RequestMany rm, String subject) throws InterruptedException {
-        LinkedBlockingQueue<RmMessage> it = rm.iterate(subject, null);
+    private static Result _queue(RequestMany rm, String subject) throws InterruptedException {
+        LinkedBlockingQueue<RmMessage> it = rm.queue(subject, null);
         Result result = new Result();
         long start = System.nanoTime();
         long stop = start + (DEFAULT_TIMEOUT * NANOS_PER_MILLI);
@@ -133,9 +133,9 @@ public class RequestManyTests extends TestBase {
     }
     
     @Test
-    public void testNoRespondersIterate() throws Exception {
+    public void testNoRespondersQueue() throws Exception {
         RequestMany rm = builder().build();
-        Result result = _iterate(rm, subject());
+        Result result = _queue(rm, subject());
         assertMessages(0, Last.Status, result.list);
         assertTrue(result.elapsed < SHORT_CIRCUIT_TIME);
     }
@@ -162,10 +162,10 @@ public class RequestManyTests extends TestBase {
     }
 
     @Test
-    public void testMaxWaitIterate() throws Exception {
+    public void testMaxWaitQueue() throws Exception {
         try (Responder responder = new Responder(1, MAX_WAIT_PAUSE, 1)) {
             RequestMany rm = builder().totalWaitTime(TEST_TWT).build();
-            Result result = _iterate(rm, responder.subject);
+            Result result = _queue(rm, responder.subject);
             assertMessages(1, Last.Normal, result.list);
             assertTrue(result.elapsed >= TEST_TWT);
         }
@@ -198,15 +198,15 @@ public class RequestManyTests extends TestBase {
     }
 
     @Test
-    public void testStallIterate() throws Exception {
+    public void testStallQueue() throws Exception {
         try (Responder responder = new Responder(1, STALL_PAUSE, 1)) {
             RequestMany rm = builder().stallTime(STALL_WAIT).build();
-            Result result = _iterate(rm, responder.subject);
+            Result result = _queue(rm, responder.subject);
             assertMessages(1, Last.Normal, result.list);
             assertTrue(result.elapsed <= DEFAULT_TIMEOUT);
 
             rm = RequestMany.stall(NC);
-            result = _iterate(rm, responder.subject);
+            result = _queue(rm, responder.subject);
             assertMessages(1, Last.Normal, result.list);
             assertTrue(result.elapsed <= DEFAULT_TIMEOUT);
         }
@@ -239,15 +239,15 @@ public class RequestManyTests extends TestBase {
     }
 
     @Test
-    public void testMaxResponsesIterate() throws Exception {
+    public void testMaxResponsesQueue() throws Exception {
         try (Responder responder = new Responder(MAX_RESPONSES_RESPONDERS)) {
             RequestMany rm = builder().maxResponses(MAX_RESPONSES).build();
-            Result result = _iterate(rm, responder.subject);
+            Result result = _queue(rm, responder.subject);
             assertMessages(MAX_RESPONSES, Last.Normal, result.list);
             assertTrue(result.elapsed < SHORT_CIRCUIT_TIME);
 
             rm = RequestMany.maxResponses(NC, MAX_RESPONSES);
-            result = _iterate(rm, responder.subject);
+            result = _queue(rm, responder.subject);
             assertMessages(MAX_RESPONSES, Last.Normal, result.list);
             assertTrue(result.elapsed < SHORT_CIRCUIT_TIME);
         }
@@ -282,15 +282,15 @@ public class RequestManyTests extends TestBase {
     }
 
     @Test
-    public void testSentinelIterate() throws Exception {
+    public void testSentinelQueue() throws Exception {
         try (Responder responder = new Responder(2, true)) {
             RequestMany rm = builder().standardSentinel().build();
-            Result result = _iterate(rm, responder.subject);
+            Result result = _queue(rm, responder.subject);
             assertMessages(2, Last.Normal, result.list);
             assertTrue(result.elapsed <= DEFAULT_TIMEOUT);
 
             rm = RequestMany.standardSentinel(NC);
-            result = _iterate(rm, responder.subject);
+            result = _queue(rm, responder.subject);
             assertMessages(2, Last.Normal, result.list);
             assertTrue(result.elapsed <= DEFAULT_TIMEOUT);
         }
