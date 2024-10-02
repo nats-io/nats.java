@@ -39,85 +39,179 @@ import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
  * message, but also allow for some stragglers.
  */
 public class RequestMany {
-    public static final long MAX_MILLIS = Long.MAX_VALUE / NANOS_PER_MILLI; // so when I go to get millis it does not overflow
-    public static final long MAX_NANOS = MAX_MILLIS * NANOS_PER_MILLI;      // "
+    private static final long MAX_MILLIS = Long.MAX_VALUE / NANOS_PER_MILLI; // so when I go to get millis it does not overflow
+    private static final long MAX_NANOS = MAX_MILLIS * NANOS_PER_MILLI;      // "
 
     private final Connection conn;
     private final long totalWaitTimeNanos;
-    private final long maxStallNanos;
+    private final long stallNanos;
     private final long maxResponses;
+    private final boolean standardSentinel;
 
     @Override
     public String toString() {
-        String ms = maxStallNanos == MAX_NANOS ? ", <no stall>" : ", maxStall=" + maxStallNanos / NANOS_PER_MILLI;
-        String mr = maxResponses == Long.MAX_VALUE ? ", <no max>" : ", maxResponses=" + maxResponses;
+        String ms = stallNanos == -1 ? ", <no stall>" : ", maxStall=" + stallNanos / NANOS_PER_MILLI;
+        String mr = maxResponses == -1 ? ", <no max>" : ", maxResponses=" + maxResponses;
         return "RequestMany: totalWaitTime=" + totalWaitTimeNanos / NANOS_PER_MILLI + ms + mr;
     }
 
     // builder accepts millis then converts to nanos since we prefer to use nanos internally
-    public RequestMany(Builder b) {
+    private RequestMany(Builder b) {
         this.conn = b.conn;
         this.totalWaitTimeNanos = b.totalWaitTimeNanos;
-        this.maxStallNanos = b.maxStallNanos;
+        this.stallNanos = b.stallNanos;
         this.maxResponses = b.maxResponses;
+        this.standardSentinel = b.standardSentinel;
     }
 
     /**
      * The total amount of time to wait for messages regardless of other configuration
-     * @return the total wait time
+     * @return the total wait time in ms
      */
     public long getTotalWaitTime() {
         return totalWaitTimeNanos / NANOS_PER_MILLI;
     }
 
     /**
-     * The amount of time to wait on messages other than the first
-     * @return the max stall
+     * The amount of time to wait on messages other than the first, otherwise the request is stalled
+     * @return the stall in ms or -1 if there is no stall
      */
-    public long getMaxStall() {
-        return maxStallNanos / NANOS_PER_MILLI;
+    public long getStallTime() {
+        return stallNanos == -1 ? -1 : stallNanos / NANOS_PER_MILLI;
     }
 
     /**
      * The maximum number of messages to wait for
-     * @return then maximum number of responses
+     * @return then maximum number of responses or -1 if there is no max
      */
     public long getMaxResponses() {
         return maxResponses;
     }
 
+    /**
+     * Whether the configuration will automatically handle the standard sentinel
+     * @return the flag
+     */
+    public boolean isStandardSentinel() {
+        return standardSentinel;
+    }
+
+    /**
+     * Helper to start a builder
+     * @param conn the connection since a connection is required
+     * @return the builder
+     */
     public static Builder builder(Connection conn) {
         return new Builder(conn);
+    }
+
+    /**
+     * Get a RequestMany that waits the entire default connection timeout for as many messages as it can
+     * @param conn the connection since a connection is required
+     * @return the builder
+     */
+    public static RequestMany wait(Connection conn) {
+        return wait(conn, getDefaultTimeout(conn));
+    }
+
+    /**
+     * Get a RequestMany that waits the entire time for as many messages as it can
+     * @param conn the connection since a connection is required
+     * @param totalWaitTimeMillis the total time to wait
+     * @return the builder
+     */
+    public static RequestMany wait(Connection conn, long totalWaitTimeMillis) {
+        return new Builder(conn).totalWaitTime(totalWaitTimeMillis).build();
+    }
+
+    /**
+     * Get a RequestMany that waits a max total wait time of the default connection timeout
+     * and automatically makes a stall time of 10 percent of the total wait time
+     * @param conn the connection since a connection is required
+     * @return the builder
+     */
+    public static RequestMany stall(Connection conn) {
+        return stall(conn, getDefaultTimeout(conn));
+    }
+
+    /**
+     * Get a RequestMany that waits a max total wait time
+     * and automatically makes a stall time of 10 percent of the total wait time
+     * @param conn the connection since a connection is required
+     * @param totalWaitTimeMillis the total time to wait
+     * @return the builder
+     */
+    public static RequestMany stall(Connection conn, long totalWaitTimeMillis) {
+        return new Builder(conn).totalWaitTime(totalWaitTimeMillis).stallTime(totalWaitTimeMillis / 10).build();
+    }
+
+    /**
+     * Get a RequestMany that waits a max total wait time of the default connection timeout
+     * for the maximum number of responses
+     * @param conn the connection since a connection is required
+     * @param maxResponses the maximum number of responses
+     * @return the builder
+     */
+    public static RequestMany maxResponses(Connection conn, long maxResponses) {
+        return maxResponses(conn, getDefaultTimeout(conn), maxResponses);
+    }
+
+    /**
+     * Get a RequestMany that waits a max total wait time
+     * for the maximum number of responses
+     * @param conn the connection since a connection is required
+     * @param totalWaitTimeMillis the total time to wait
+     * @param maxResponses the maximum number of responses
+     * @return the builder
+     */
+    public static RequestMany maxResponses(Connection conn, long totalWaitTimeMillis, long maxResponses) {
+        return new Builder(conn).totalWaitTime(totalWaitTimeMillis).maxResponses(maxResponses).build();
+    }
+
+    /**
+     * Get a RequestMany that waits a 1 minute
+     * and automatically makes a stall time of 10 percent of the total wait time
+     * @param conn the connection since a connection is required
+     * @return the builder
+     */
+    public static RequestMany standardSentinel(Connection conn) {
+        return standardSentinel(conn, getDefaultTimeout(conn));
+    }
+
+    /**
+     * Get a RequestMany that waits a max total wait time
+     * and automatically makes a stall time of 10 percent of the total wait time
+     * @param conn the connection since a connection is required
+     * @param totalWaitTimeMillis the total time to wait
+     * @return the builder
+     */
+    public static RequestMany standardSentinel(Connection conn, long totalWaitTimeMillis) {
+        return new Builder(conn).totalWaitTime(totalWaitTimeMillis).standardSentinel().build();
+    }
+
+    private static long getDefaultTimeout(Connection conn) {
+        return conn.getOptions().getConnectionTimeout().toMillis();
+    }
+
+    private static long getDefaultTimeoutNanos(Connection conn) {
+        return conn.getOptions().getConnectionTimeout().toNanos();
     }
 
     /**
      * Builder for Request Many
      * Default Behavior
      * <ul>
-     * <li>if you don't set total wait time or stall, both default.</li>
      * <li>the default total wait time is the connections options timeout</li>
-     * <li>the default stall time is 1/10 of the default total wait time.</li>
-     * </ul>
-     * <p>Total Wait Time
-     * <ul>
-     * <li>if you set total wait time, but not stall, stall defaults don't use stall</li>
-     * </ul>
-     * <p>Max Stall
-     * <ul>
-     * <li>if you set max stall to a value between 1 and MAX_MILLIS inclusive, max stall is that value</li>
-     * <li>if you set max stall to an invalid value, it's like clearing it to default behavior</li>
-     * </ul>
-     * <p>Max Responses
-     * <ul>
-     * <li>if you set max responses to a value greater than 0, max responses is that value</li>
-     * <li>if you set max responses to an invalid value, max responses is Long.MAX_VALUE</li>
+     * <li>the default stall is "not used".</li>
+     * <li>the default max responses is unlimited.</li>
      * </ul>
      */
     public static class Builder {
         private final Connection conn;
-        private Long totalWaitTimeNanos;
-        private Long maxStallNanos;
-        private long maxResponses;
+        private long totalWaitTimeNanos = -1;
+        private long stallNanos = -1;
+        private long maxResponses = -1;
+        private boolean standardSentinel = false;
 
         public Builder(Connection conn) {
             this.conn = conn;
@@ -127,6 +221,7 @@ public class RequestMany {
         /**
          * Set the total amount of time to wait for messages regardless of other configuration
          * Less than 1 clears it to default behavior, setting it to the connection request timeout
+         * The actual maximum total wait time is 2.562048 hours since internally nanoseconds are used
          * @param totalWaitTimeMillis the total time to wait
          * @return the builder
          */
@@ -137,35 +232,50 @@ public class RequestMany {
 
         /**
          * The amount of time to wait on messages other than the first.
-         * @param maxStallMillis the max stall
+         * Less than 1 clears it to default behavior, setting it to "not used".
+         * The actual maximum stall is 2.562048 hours since internally nanoseconds are used
+         * @param stallMillis the maximum stall
          * @return the builder
          */
-        public Builder maxStall(long maxStallMillis) {
-            maxStallNanos = toNanos(maxStallMillis);
+        public Builder stallTime(long stallMillis) {
+            stallNanos = toNanos(stallMillis);
             return this;
         }
 
-        private static Long toNanos(long millis) {
-            return millis < 1 || millis > MAX_MILLIS ? null : millis * NANOS_PER_MILLI;
+        private static long toNanos(long millis) {
+            if (millis < 1) {
+                return -1;
+            }
+            if (millis > MAX_MILLIS) {
+                return MAX_NANOS;
+            }
+            return millis * NANOS_PER_MILLI;
         }
 
         /**
          * The maximum number of responses to get
+         * Less than 1 clears it to default behavior, no max number of responses
          * @param maxResponses the max number of responses
          * @return the builder
          */
         public Builder maxResponses(long maxResponses) {
-            this.maxResponses = maxResponses < 1 ? Long.MAX_VALUE : maxResponses;
+            this.maxResponses = maxResponses < 1 ? -1 : maxResponses;
+            return this;
+        }
+
+        /**
+         * Indicates to recgonize a null or zero byte payload as a sentinel
+         * @return the builder
+         */
+        public Builder standardSentinel() {
+            this.standardSentinel = true;
             return this;
         }
 
         public RequestMany build() {
-            // totalWaitTimeNanos must have a value
-            if (totalWaitTimeNanos == null) {
-                totalWaitTimeNanos = conn.getOptions().getConnectionTimeout().toNanos();
-            }
-            if (maxStallNanos == null) {
-                maxStallNanos = totalWaitTimeNanos / 10;
+            // fill in defaults.
+            if (totalWaitTimeNanos == -1) {
+                totalWaitTimeNanos = getDefaultTimeoutNanos(conn);
             }
             return new RequestMany(this);
         }
@@ -177,7 +287,7 @@ public class RequestMany {
 
     public List<RmMessage> fetch(String subject, Headers headers, byte[] payload) {
         List<RmMessage> results = new ArrayList<>();
-        gather(subject, headers, payload, rmm -> {
+        request(subject, headers, payload, rmm -> {
             if (!rmm.isNormalEndOfData()) {
                 results.add(rmm);
             }
@@ -193,7 +303,7 @@ public class RequestMany {
     public LinkedBlockingQueue<RmMessage> iterate(String subject, Headers headers, byte[] payload) {
         final LinkedBlockingQueue<RmMessage> q = new LinkedBlockingQueue<>();
         conn.getOptions().getExecutor().submit(() -> {
-            gather(subject, headers, payload, rmm -> {
+            request(subject, headers, payload, rmm -> {
                 q.add(rmm);
                 return true;
             });
@@ -201,11 +311,11 @@ public class RequestMany {
         return q;
     }
 
-    public void gather(String subject, byte[] payload, RmHandler handler) {
-        gather(subject, null, payload, handler);
+    public void request(String subject, byte[] payload, RmHandler handler) {
+        request(subject, null, payload, handler);
     }
 
-    public void gather(String subject, Headers headers, byte[] payload, RmHandler handler) {
+    public void request(String subject, Headers headers, byte[] payload, RmHandler handler) {
         Subscription sub = null;
 
         // the default end of data will be a normal end of data (vs status or exception)
@@ -215,9 +325,10 @@ public class RequestMany {
             sub = conn.subscribe(replyTo);
             conn.publish(subject, replyTo, headers, payload);
 
-            long resultsLeft = maxResponses;
+            long resultsLeft = maxResponses == -1 ? Long.MAX_VALUE : maxResponses; // Long.MAX_VALUE is a practical no limit
             long timeLeftNanos = totalWaitTimeNanos;
             long timeoutNanos = totalWaitTimeNanos; // first time we wait the whole timeout
+            long timeoutStall = stallNanos == -1 ? totalWaitTimeNanos : stallNanos; // totalWaitTimeNanos is practical since leftover time will always be less
 
             long start = System.nanoTime();
             while (timeLeftNanos > 0) {
@@ -237,7 +348,13 @@ public class RequestMany {
                     eod = new RmMessage(msg);
                     return;
                 }
-                if (!handler.gather(new RmMessage(msg))) {
+                if (standardSentinel) {
+                    if (msg.getData() == null || msg.getData().length == 0) {
+                        // in standard sentinel, we have to give them eod
+                        return;
+                    }
+                }
+                if (!handler.handle(new RmMessage(msg))) {
                     // they already know it's the end, the prevents them from getting an EOD at all
                     // I'm pretty sure this is right.
                     eod = null;
@@ -249,7 +366,7 @@ public class RequestMany {
                 }
 
                 // subsequent times we wait the shortest of the time left vs the max stall
-                timeoutNanos = Math.min(timeLeftNanos, maxStallNanos);
+                timeoutNanos = Math.min(timeLeftNanos, timeoutStall);
             }
 
             // if it fell through, the last operation went over time. Fine, just use the default EOD
@@ -266,7 +383,7 @@ public class RequestMany {
         finally {
             try {
                 if (eod != null) {
-                    handler.gather(eod);
+                    handler.handle(eod);
                 }
             }
             catch (Exception ignore) {}

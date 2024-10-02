@@ -57,7 +57,7 @@ public class RequestManyGather {
 
             List<RmMessage> list = new ArrayList<>();
             long start = System.currentTimeMillis();
-            rm.gather(RESPOND_SUBJECT, null, list::add);
+            rm.request(RESPOND_SUBJECT, null, list::add);
             long elapsed = System.currentTimeMillis() - start;
             report(list);
             System.out.println("   Count: " + list.size() + ", Elapsed: " + elapsed + " ms");
@@ -80,7 +80,7 @@ public class RequestManyGather {
 
             list.clear();
             start = System.currentTimeMillis();
-            rm.gather(RESPOND_SUBJECT, null, list::add);
+            rm.request(RESPOND_SUBJECT, null, list::add);
             elapsed = System.currentTimeMillis() - start;
             report(list);
             System.out.println("   Count: " + list.size() + ", Elapsed: " + elapsed + " ms");
@@ -93,7 +93,7 @@ public class RequestManyGather {
 
             list.clear();
             start = System.currentTimeMillis();
-            rm.gather(RESPOND_SUBJECT, null, list::add);
+            rm.request(RESPOND_SUBJECT, null, list::add);
             elapsed = System.currentTimeMillis() - start;
             report(list);
             System.out.println("   Count: " + list.size() + ", Elapsed: " + elapsed + " ms");
@@ -105,7 +105,7 @@ public class RequestManyGather {
 
             list.clear();
             start = System.currentTimeMillis();
-            rm.gather(RESPOND_SUBJECT, null, list::add);
+            rm.request(RESPOND_SUBJECT, null, list::add);
             elapsed = System.currentTimeMillis() - start;
 
             report(list);

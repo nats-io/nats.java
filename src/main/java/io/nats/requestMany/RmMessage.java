@@ -18,6 +18,9 @@ import io.nats.client.impl.StatusMessage;
 
 import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * This class is EXPERIMENTAL, meaning it's api is subject to change.
+ */
 public class RmMessage {
     private static final AtomicLong ID_MAKER = new AtomicLong();
 
@@ -45,6 +48,11 @@ public class RmMessage {
         id = 0;
     }
 
+    /**
+     * The internal id of the message, in case the user wants to track.
+     * This number is only unique to when this class was statically initialized.
+     * @return the id.
+     */
     public long getId() {
         return id;
     }
