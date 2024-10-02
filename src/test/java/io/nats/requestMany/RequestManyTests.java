@@ -336,8 +336,8 @@ public class RequestManyTests extends TestBase {
 
         // stall strategy
         assertBuilder(-1, DEFAULT_TIMEOUT / 10, -1, false, RequestMany.stall(NC));
-        assertBuilder(MAX_MILLIS, MAX_MILLIS / 10, -1, false, RequestMany.stall(NC, MAX_MILLIS));
-        assertBuilder(MAX_MILLIS, MAX_MILLIS / 10, -1, false, RequestMany.stall(NC, MAX_MILLIS + 1));
+        assertBuilder(MAX_MILLIS, DEFAULT_TIMEOUT, -1, false, RequestMany.stall(NC, MAX_MILLIS));
+        assertBuilder(MAX_MILLIS, DEFAULT_TIMEOUT, -1, false, RequestMany.stall(NC, MAX_MILLIS + 1));
         assertBuilder(-1, DEFAULT_TIMEOUT / 10, -1, false, RequestMany.stall(NC, 0));
         assertBuilder(-1, DEFAULT_TIMEOUT / 10, -1, false, RequestMany.stall(NC, -1));
 
