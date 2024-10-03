@@ -47,6 +47,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
     final JetStreamOptions jso;
     final boolean consumerCreate290Available;
     final boolean multipleSubjectFilter210Available;
+    final boolean directBatchGet211Available;
 
     // ----------------------------------------------------------------------------------------------------
     // Create / Init
@@ -63,6 +64,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
 
         consumerCreate290Available = conn.getInfo().isSameOrNewerThanVersion("2.9.0") && !jso.isOptOut290ConsumerCreate();
         multipleSubjectFilter210Available = conn.getInfo().isNewerVersionThan("2.9.99");
+        directBatchGet211Available = conn.getInfo().isNewerVersionThan("2.10.99");
     }
 
     NatsJetStreamImpl(NatsJetStreamImpl impl) {
@@ -70,6 +72,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         jso = impl.jso;
         consumerCreate290Available = impl.consumerCreate290Available;
         multipleSubjectFilter210Available = impl.multipleSubjectFilter210Available;
+        directBatchGet211Available = impl.directBatchGet211Available;
     }
 
     // ----------------------------------------------------------------------------------------------------
