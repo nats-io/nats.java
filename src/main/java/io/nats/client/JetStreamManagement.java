@@ -351,7 +351,7 @@ public interface JetStreamManagement {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    LinkedBlockingQueue<MessageInfo> iterateMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException;
+    LinkedBlockingQueue<MessageInfo> queueMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException;
 
     /**
      * Request a batch of messages using a {@link MessageBatchGetRequest}.
@@ -365,7 +365,7 @@ public interface JetStreamManagement {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    void gatherMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException;
+    void requestMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException;
 
     /**
      * Deletes a message, overwriting the message data with garbage
