@@ -980,6 +980,8 @@ You can however set the deliver policy which will be used to start the subscript
 | JsConsumerCreate290NotAvailable              | CON-90301 | Name field not valid when v2.9.0 consumer create api is not available.                                         |
 | JsConsumerNameDurableMismatch                | CON-90302 | Name must match durable if both are supplied.                                                                  |
 | JsMultipleFilterSubjects210NotAvailable      | CON-90303 | Multiple filter subjects not available until server version 2.10.0.                                            |
+| JsAllowDirectRequired                        | CON-90304 | Stream must have allow direct set.                                                                             |
+| JsDirectBatchGet211NotAvailable              | CON-90305 | Batch direct get not available until server version 2.11.0.                                                    |
 | OsObjectNotFound                             | OS-90201  | The object was not found.                                                                                      |
 | OsObjectIsDeleted                            | OS-90202  | The object is deleted.                                                                                         |
 | OsObjectAlreadyExists                        | OS-90203  | An object with that name already exists.                                                                       |
