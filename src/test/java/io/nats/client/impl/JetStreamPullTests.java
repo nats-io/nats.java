@@ -1179,7 +1179,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     public void testOverflow() throws Exception {
         ListenerForTesting l = new ListenerForTesting();
         Options.Builder b = Options.builder().errorListener(l);
-        runInJsServer(b, TestBase::atLeast2_11, nc -> {
+        jsServer.run(b, TestBase::atLeast2_11, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             TestingStreamContainer tsc = new TestingStreamContainer(jsm);
             JetStream js = nc.jetStream();
