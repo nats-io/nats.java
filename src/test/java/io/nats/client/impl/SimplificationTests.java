@@ -268,11 +268,11 @@ public class SimplificationTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // Pre define a consumer
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(tsc.name()).build();
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(tsc.consumerName()).build();
             jsm.addOrUpdateConsumer(tsc.stream, cc);
 
             // Consumer[Context]
-            ConsumerContext consumerContext = js.getConsumerContext(tsc.stream, tsc.name());
+            ConsumerContext consumerContext = js.getConsumerContext(tsc.stream, tsc.consumerName());
 
             int stopCount = 500;
             // create the consumer then use it
@@ -355,11 +355,11 @@ public class SimplificationTests extends JetStreamTestBase {
             jsPublish(js, tsc.subject(), 2500);
 
             // Pre define a consumer
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(tsc.name()).build();
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(tsc.consumerName()).build();
             jsm.addOrUpdateConsumer(tsc.stream, cc);
 
             // Consumer[Context]
-            ConsumerContext consumerContext = js.getConsumerContext(tsc.stream, tsc.name());
+            ConsumerContext consumerContext = js.getConsumerContext(tsc.stream, tsc.consumerName());
 
             int stopCount = 500;
 
@@ -428,10 +428,10 @@ public class SimplificationTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // Pre define a consumer
-            jsm.addOrUpdateConsumer(tsc.stream, ConsumerConfiguration.builder().durable(tsc.name(1)).build());
-            jsm.addOrUpdateConsumer(tsc.stream, ConsumerConfiguration.builder().durable(tsc.name(2)).build());
-            jsm.addOrUpdateConsumer(tsc.stream, ConsumerConfiguration.builder().durable(tsc.name(3)).build());
-            jsm.addOrUpdateConsumer(tsc.stream, ConsumerConfiguration.builder().durable(tsc.name(4)).build());
+            jsm.addOrUpdateConsumer(tsc.stream, ConsumerConfiguration.builder().durable(tsc.consumerName(1)).build());
+            jsm.addOrUpdateConsumer(tsc.stream, ConsumerConfiguration.builder().durable(tsc.consumerName(2)).build());
+            jsm.addOrUpdateConsumer(tsc.stream, ConsumerConfiguration.builder().durable(tsc.consumerName(3)).build());
+            jsm.addOrUpdateConsumer(tsc.stream, ConsumerConfiguration.builder().durable(tsc.consumerName(4)).build());
 
             // Stream[Context]
             StreamContext sctx1 = nc.getStreamContext(tsc.stream);
@@ -439,19 +439,19 @@ public class SimplificationTests extends JetStreamTestBase {
             js.getStreamContext(tsc.stream);
 
             // Consumer[Context]
-            ConsumerContext cctx1 = nc.getConsumerContext(tsc.stream, tsc.name(1));
-            ConsumerContext cctx2 = nc.getConsumerContext(tsc.stream, tsc.name(2), JetStreamOptions.DEFAULT_JS_OPTIONS);
-            ConsumerContext cctx3 = js.getConsumerContext(tsc.stream, tsc.name(3));
-            ConsumerContext cctx4 = sctx1.getConsumerContext(tsc.name(4));
-            ConsumerContext cctx5 = sctx1.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(tsc.name(5)).build());
-            ConsumerContext cctx6 = sctx1.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(tsc.name(6)).build());
+            ConsumerContext cctx1 = nc.getConsumerContext(tsc.stream, tsc.consumerName(1));
+            ConsumerContext cctx2 = nc.getConsumerContext(tsc.stream, tsc.consumerName(2), JetStreamOptions.DEFAULT_JS_OPTIONS);
+            ConsumerContext cctx3 = js.getConsumerContext(tsc.stream, tsc.consumerName(3));
+            ConsumerContext cctx4 = sctx1.getConsumerContext(tsc.consumerName(4));
+            ConsumerContext cctx5 = sctx1.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(tsc.consumerName(5)).build());
+            ConsumerContext cctx6 = sctx1.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(tsc.consumerName(6)).build());
 
-            after(cctx1.iterate(), tsc.name(1), true);
-            after(cctx2.iterate(ConsumeOptions.DEFAULT_CONSUME_OPTIONS), tsc.name(2), true);
-            after(cctx3.consume(m -> {}), tsc.name(3), true);
-            after(cctx4.consume(ConsumeOptions.DEFAULT_CONSUME_OPTIONS, m -> {}), tsc.name(4), true);
-            after(cctx5.fetchMessages(1), tsc.name(5), false);
-            after(cctx6.fetchBytes(1000), tsc.name(6), false);
+            after(cctx1.iterate(), tsc.consumerName(1), true);
+            after(cctx2.iterate(ConsumeOptions.DEFAULT_CONSUME_OPTIONS), tsc.consumerName(2), true);
+            after(cctx3.consume(m -> {}), tsc.consumerName(3), true);
+            after(cctx4.consume(ConsumeOptions.DEFAULT_CONSUME_OPTIONS, m -> {}), tsc.consumerName(4), true);
+            after(cctx5.fetchMessages(1), tsc.consumerName(5), false);
+            after(cctx6.fetchBytes(1000), tsc.consumerName(6), false);
         });
     }
 
@@ -494,6 +494,16 @@ public class SimplificationTests extends JetStreamTestBase {
         fco = FetchConsumeOptions.builder().max(1000, 100).thresholdPercent(50).build();
         check_values(fco, 100, 1000, 50);
         check_values(roundTripSerialize(fco), 100, 1000, 50);
+
+        fco = FetchConsumeOptions.builder().group("g").minPending(1).minAckPending(2).build();
+        assertEquals("g", fco.getGroup());
+        assertEquals(1, fco.getMinPending());
+        assertEquals(2, fco.getMinAckPending());
+
+        fco = roundTripSerialize(fco);
+        assertEquals("g", fco.getGroup());
+        assertEquals(1, fco.getMinPending());
+        assertEquals(2, fco.getMinAckPending());
     }
 
     private static void check_default_values(FetchConsumeOptions fco) {
@@ -514,6 +524,9 @@ public class SimplificationTests extends JetStreamTestBase {
         assertEquals(maxMessages, fco.getMaxMessages());
         assertEquals(maxBytes, fco.getMaxBytes());
         assertEquals(thresholdPercent, fco.getThresholdPercent());
+        assertNull(fco.getGroup());
+        assertEquals(-1, fco.getMinPending());
+        assertEquals(-1, fco.getMinAckPending());
     }
 
     private static FetchConsumeOptions roundTripSerialize(FetchConsumeOptions fco) throws IOException, ClassNotFoundException {
@@ -569,6 +582,16 @@ public class SimplificationTests extends JetStreamTestBase {
 
         assertThrows(IllegalArgumentException.class,
             () -> ConsumeOptions.builder().expiresIn(MIN_EXPIRES_MILLS - 1).build());
+
+        co = ConsumeOptions.builder().group("g").minPending(1).minAckPending(2).build();
+        assertEquals("g", co.getGroup());
+        assertEquals(1, co.getMinPending());
+        assertEquals(2, co.getMinAckPending());
+
+        co = roundTripSerialize(co);
+        assertEquals("g", co.getGroup());
+        assertEquals(1, co.getMinPending());
+        assertEquals(2, co.getMinAckPending());
     }
 
     private static void check_default_values(ConsumeOptions co) throws IOException, ClassNotFoundException {
@@ -583,6 +606,9 @@ public class SimplificationTests extends JetStreamTestBase {
         assertEquals(batchSize, co.getBatchSize());
         assertEquals(batchBytes, co.getBatchBytes());
         assertEquals(thresholdPercent, co.getThresholdPercent());
+        assertNull(co.getGroup());
+        assertEquals(-1, co.getMinPending());
+        assertEquals(-1, co.getMinAckPending());
     }
 
     private static ConsumeOptions roundTripSerialize(ConsumeOptions co) throws IOException, ClassNotFoundException {
