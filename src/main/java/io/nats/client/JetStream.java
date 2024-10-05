@@ -41,7 +41,6 @@ import java.util.concurrent.CompletableFuture;
  * It can create a named durable consumers though Options, but we prefer to avoid creating durable consumers implictly.
  * It is <b>recommened</b> to manage consumers explicitly through {@link StreamContext StreamContext} and {@link ConsumerContext ConsumerContext} or {@link JetStreamManagement JetStreamManagement}
  *
- *
  * <h3>Recommended usage for creating streams, consumers, publish and listen on a stream</h3>
  * <pre>
  *  io.nats.client.Connection nc = Nats.connect();
