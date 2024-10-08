@@ -88,7 +88,7 @@ public class NatsFeatureBase {
             .configuration(ccb.build())
             .build();
 
-        Duration timeout = js.jso.getRequestTimeout();
+        Duration timeout = js.getTimeout();
         JetStreamSubscription sub = js.subscribe(null, pso);
         try {
             boolean lastWasNull = false;
