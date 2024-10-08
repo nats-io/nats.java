@@ -20,6 +20,7 @@ import io.nats.client.support.Status;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -349,10 +350,10 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
      * {@inheritDoc}
      */
     @Override
-    public List<MessageInfo> fetchMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException {
-        validateMessageBatchGetRequest(streamName, messageBatchGetRequest);
+    public List<MessageInfo> fetchMessageBatch(String streamName, Duration timeout, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException {
+        validateMessageBatchGetRequest(streamName, timeout, messageBatchGetRequest);
         List<MessageInfo> results = new ArrayList<>();
-        _requestMessageBatch(streamName, messageBatchGetRequest, msg -> {
+        _requestMessageBatch(streamName, timeout, messageBatchGetRequest, msg -> {
             if (msg != MessageInfo.EOD) {
                 results.add(msg);
             }
@@ -364,10 +365,10 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
      * {@inheritDoc}
      */
     @Override
-    public LinkedBlockingQueue<MessageInfo> queueMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException {
-        validateMessageBatchGetRequest(streamName, messageBatchGetRequest);
+    public LinkedBlockingQueue<MessageInfo> queueMessageBatch(String streamName, Duration timeout, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException {
+        validateMessageBatchGetRequest(streamName, timeout, messageBatchGetRequest);
         final LinkedBlockingQueue<MessageInfo> q = new LinkedBlockingQueue<>();
-        conn.getOptions().getExecutor().submit(() -> _requestMessageBatch(streamName, messageBatchGetRequest, q::add));
+        conn.getOptions().getExecutor().submit(() -> _requestMessageBatch(streamName, timeout, messageBatchGetRequest, q::add));
         return q;
     }
 
@@ -375,12 +376,12 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
      * {@inheritDoc}
      */
     @Override
-    public void requestMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException {
-        validateMessageBatchGetRequest(streamName, messageBatchGetRequest);
-        _requestMessageBatch(streamName, messageBatchGetRequest, handler);
+    public void requestMessageBatch(String streamName, Duration timeout, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException {
+        validateMessageBatchGetRequest(streamName, timeout, messageBatchGetRequest);
+        _requestMessageBatch(streamName, timeout, messageBatchGetRequest, handler);
     }
 
-    public void _requestMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) {
+    public void _requestMessageBatch(String streamName, Duration timeout, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) {
         Subscription sub = null;
         try {
             String replyTo = conn.createInbox();
@@ -390,7 +391,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
             conn.publish(requestSubject, replyTo, messageBatchGetRequest.serialize());
 
             long start = System.currentTimeMillis();
-            long maxTimeMillis = messageBatchGetRequest.getTimeout().toMillis();
+            long maxTimeMillis = timeout != null ? timeout.toMillis() : Duration.ofSeconds(5).toMillis();
             long timeLeft = maxTimeMillis;
             while (true) {
                 Message msg = sub.nextMessage(timeLeft);
@@ -435,7 +436,11 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
         }
     }
 
-    private void validateMessageBatchGetRequest(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException {
+    private void validateMessageBatchGetRequest(String streamName, Duration timeout, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException {
+        // If timeout is not set the default will be used, otherwise validate it.
+        if (timeout != null) {
+            validateDurationRequired(timeout);
+        }
         validateNotNull(messageBatchGetRequest, "Message Batch Get Request");
 
         if (!directBatchGet211Available) {
