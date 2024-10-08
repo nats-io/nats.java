@@ -42,7 +42,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
      */
     @Override
     public AccountStatistics getAccountStatistics() throws IOException, JetStreamApiException {
-        Message resp = makeRequestResponseRequired(JSAPI_ACCOUNT_INFO, null, jso.getRequestTimeout());
+        Message resp = makeRequestResponseRequired(JSAPI_ACCOUNT_INFO, null, getTimeout());
         return new AccountStatistics(resp).throwOnHasError();
     }
 
@@ -70,7 +70,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
         }
 
         String subj = String.format(template, streamName);
-        Message resp = makeRequestResponseRequired(subj, config.toJson().getBytes(StandardCharsets.UTF_8), jso.getRequestTimeout());
+        Message resp = makeRequestResponseRequired(subj, config.toJson().getBytes(StandardCharsets.UTF_8), getTimeout());
         return createAndCacheStreamInfoThrowOnError(streamName, resp);
     }
 
@@ -81,7 +81,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
     public boolean deleteStream(String streamName) throws IOException, JetStreamApiException {
         validateNotNull(streamName, "Stream Name");
         String subj = String.format(JSAPI_STREAM_DELETE, streamName);
-        Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
+        Message resp = makeRequestResponseRequired(subj, null, getTimeout());
         return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
     }
 
@@ -110,7 +110,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
     public PurgeResponse purgeStream(String streamName) throws IOException, JetStreamApiException {
         validateNotNull(streamName, "Stream Name");
         String subj = String.format(JSAPI_STREAM_PURGE, streamName);
-        Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
+        Message resp = makeRequestResponseRequired(subj, null, getTimeout());
         return new PurgeResponse(resp).throwOnHasError();
     }
 
@@ -123,7 +123,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
         validateNotNull(options, "Purge Options");
         String subj = String.format(JSAPI_STREAM_PURGE, streamName);
         byte[] body = options.toJson().getBytes(StandardCharsets.UTF_8);
-        Message resp = makeRequestResponseRequired(subj, body, jso.getRequestTimeout());
+        Message resp = makeRequestResponseRequired(subj, body, getTimeout());
         return new PurgeResponse(resp).throwOnHasError();
     }
 
@@ -165,7 +165,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
         validateNotNull(streamName, "Stream Name");
         validateNotNull(consumerName, "Consumer Name");
         String subj = String.format(JSAPI_CONSUMER_DELETE, streamName, consumerName);
-        Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
+        Message resp = makeRequestResponseRequired(subj, null, getTimeout());
         return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
     }
 
@@ -178,7 +178,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
         validateNotNull(consumerName, "Consumer Name");
         String subj = String.format(JSAPI_CONSUMER_PAUSE, streamName, consumerName);
         ConsumerPauseRequest pauseRequest = new ConsumerPauseRequest(pauseUntil);
-        Message resp = makeRequestResponseRequired(subj, pauseRequest.serialize(), jso.getRequestTimeout());
+        Message resp = makeRequestResponseRequired(subj, pauseRequest.serialize(), getTimeout());
         return new ConsumerPauseResponse(resp).throwOnHasError();
     }
 
@@ -190,7 +190,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
         validateNotNull(streamName, "Stream Name");
         validateNotNull(consumerName, "Consumer Name");
         String subj = String.format(JSAPI_CONSUMER_PAUSE, streamName, consumerName);
-        Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
+        Message resp = makeRequestResponseRequired(subj, null, getTimeout());
         ConsumerPauseResponse response = new ConsumerPauseResponse(resp).throwOnHasError();
         return !response.isPaused();
     }
@@ -217,7 +217,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
         String subj = String.format(JSAPI_CONSUMER_NAMES, streamName);
         ConsumerNamesReader cnr = new ConsumerNamesReader();
         while (cnr.hasMore()) {
-            Message resp = makeRequestResponseRequired(subj, cnr.nextJson(filter), jso.getRequestTimeout());
+            Message resp = makeRequestResponseRequired(subj, cnr.nextJson(filter), getTimeout());
             cnr.process(resp);
         }
         return cnr.getStrings();
@@ -231,7 +231,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
         String subj = String.format(JSAPI_CONSUMER_LIST, streamName);
         ConsumerListReader clg = new ConsumerListReader();
         while (clg.hasMore()) {
-            Message resp = makeRequestResponseRequired(subj, clg.nextJson(), jso.getRequestTimeout());
+            Message resp = makeRequestResponseRequired(subj, clg.nextJson(), getTimeout());
             clg.process(resp);
         }
         return clg.getConsumers();
@@ -265,7 +265,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
     public List<StreamInfo> getStreams(String subjectFilter) throws IOException, JetStreamApiException {
         StreamListReader slr = new StreamListReader();
         while (slr.hasMore()) {
-            Message resp = makeRequestResponseRequired(JSAPI_STREAM_LIST, slr.nextJson(subjectFilter), jso.getRequestTimeout());
+            Message resp = makeRequestResponseRequired(JSAPI_STREAM_LIST, slr.nextJson(subjectFilter), getTimeout());
             slr.process(resp);
         }
         return cacheStreamInfo(slr.getStreams());
@@ -333,7 +333,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
                 subject = String.format(JSAPI_DIRECT_GET, streamName);
                 payload = messageGetRequest.serialize();
             }
-            Message resp = makeRequestResponseRequired(subject, payload, jso.getRequestTimeout());
+            Message resp = makeRequestResponseRequired(subject, payload, getTimeout());
             if (resp.isStatusMessage()) {
                 throw new JetStreamApiException(Error.convert(resp.getStatus()));
             }
@@ -341,7 +341,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
         }
         else {
             String getSubject = String.format(JSAPI_MSG_GET, streamName);
-            Message resp = makeRequestResponseRequired(getSubject, messageGetRequest.serialize(), jso.getRequestTimeout());
+            Message resp = makeRequestResponseRequired(getSubject, messageGetRequest.serialize(), getTimeout());
             return new MessageInfo(resp, streamName, false).throwOnHasError();
         }
     }
@@ -469,7 +469,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
         validateNotNull(streamName, "Stream Name");
         String subj = String.format(JSAPI_MSG_DELETE, streamName);
         MessageDeleteRequest mdr = new MessageDeleteRequest(seq, erase);
-        Message resp = makeRequestResponseRequired(subj, mdr.serialize(), jso.getRequestTimeout());
+        Message resp = makeRequestResponseRequired(subj, mdr.serialize(), getTimeout());
         return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
     }
 
