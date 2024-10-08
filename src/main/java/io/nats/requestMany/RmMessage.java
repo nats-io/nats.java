@@ -20,6 +20,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * This class is EXPERIMENTAL, meaning it's api is subject to change.
+ * RmMessage is a message given from the RequestMany to the user.
+ * This allows us to communicate useful information in addition to or in place of an actual NATS message.
  */
 public class RmMessage {
     private static final AtomicLong ID_MAKER = new AtomicLong();
