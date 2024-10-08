@@ -350,10 +350,10 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
      * {@inheritDoc}
      */
     @Override
-    public List<MessageInfo> fetchMessageBatch(String streamName, Duration timeout, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException {
-        validateMessageBatchGetRequest(streamName, timeout, messageBatchGetRequest);
+    public List<MessageInfo> fetchMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException {
+        validateMessageBatchGetRequest(streamName, messageBatchGetRequest);
         List<MessageInfo> results = new ArrayList<>();
-        _requestMessageBatch(streamName, timeout, messageBatchGetRequest, msg -> {
+        _requestMessageBatch(streamName, getTimeout(), messageBatchGetRequest, msg -> {
             if (msg != MessageInfo.EOD) {
                 results.add(msg);
             }
@@ -365,10 +365,10 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
      * {@inheritDoc}
      */
     @Override
-    public LinkedBlockingQueue<MessageInfo> queueMessageBatch(String streamName, Duration timeout, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException {
-        validateMessageBatchGetRequest(streamName, timeout, messageBatchGetRequest);
+    public LinkedBlockingQueue<MessageInfo> queueMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException {
+        validateMessageBatchGetRequest(streamName, messageBatchGetRequest);
         final LinkedBlockingQueue<MessageInfo> q = new LinkedBlockingQueue<>();
-        conn.getOptions().getExecutor().submit(() -> _requestMessageBatch(streamName, timeout, messageBatchGetRequest, q::add));
+        conn.getOptions().getExecutor().submit(() -> _requestMessageBatch(streamName, getTimeout(), messageBatchGetRequest, q::add));
         return q;
     }
 
@@ -376,9 +376,9 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
      * {@inheritDoc}
      */
     @Override
-    public void requestMessageBatch(String streamName, Duration timeout, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException {
-        validateMessageBatchGetRequest(streamName, timeout, messageBatchGetRequest);
-        _requestMessageBatch(streamName, timeout, messageBatchGetRequest, handler);
+    public void requestMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException {
+        validateMessageBatchGetRequest(streamName, messageBatchGetRequest);
+        _requestMessageBatch(streamName, getTimeout(), messageBatchGetRequest, handler);
     }
 
     public void _requestMessageBatch(String streamName, Duration timeout, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) {
@@ -436,11 +436,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
         }
     }
 
-    private void validateMessageBatchGetRequest(String streamName, Duration timeout, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException {
-        // If timeout is not set the default will be used, otherwise validate it.
-        if (timeout != null) {
-            validateDurationRequired(timeout);
-        }
+    private void validateMessageBatchGetRequest(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException {
         validateNotNull(messageBatchGetRequest, "Message Batch Get Request");
 
         if (!directBatchGet211Available) {

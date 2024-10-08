@@ -15,7 +15,6 @@ package io.nats.client;
 import io.nats.client.api.*;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -332,14 +331,13 @@ public interface JetStreamManagement {
      * This API is currently EXPERIMENTAL and is subject to change.
      *
      * @param streamName the name of the stream
-     * @param timeout the timeout used for the request
      * @param messageBatchGetRequest the request details
      * @return a list containing {@link MessageInfo}
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    List<MessageInfo> fetchMessageBatch(String streamName, Duration timeout, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException;
+    List<MessageInfo> fetchMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException;
 
     /**
      * Request a batch of messages using a {@link MessageBatchGetRequest}.
@@ -347,14 +345,13 @@ public interface JetStreamManagement {
      * This API is currently EXPERIMENTAL and is subject to change.
      *
      * @param streamName the name of the stream
-     * @param timeout the timeout used for the request
      * @param messageBatchGetRequest the request details
      * @return a queue used to asynchronously receive {@link MessageInfo}
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    LinkedBlockingQueue<MessageInfo> queueMessageBatch(String streamName, Duration timeout, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException;
+    LinkedBlockingQueue<MessageInfo> queueMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException;
 
     /**
      * Request a batch of messages using a {@link MessageBatchGetRequest}.
@@ -362,14 +359,13 @@ public interface JetStreamManagement {
      * This API is currently EXPERIMENTAL and is subject to change.
      *
      * @param streamName the name of the stream
-     * @param timeout the timeout used for the request
      * @param messageBatchGetRequest the request details
      * @param handler the handler used for receiving {@link MessageInfo}
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    void requestMessageBatch(String streamName, Duration timeout, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException;
+    void requestMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException;
 
     /**
      * Deletes a message, overwriting the message data with garbage

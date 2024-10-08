@@ -1575,7 +1575,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             // Stream doesn't have AllowDirect enabled, will error.
             assertThrows(IllegalArgumentException.class, () -> {
                 MessageBatchGetRequest request = MessageBatchGetRequest.builder().build();
-                jsm.requestMessageBatch(tsc.stream, null, request, handler);
+                jsm.requestMessageBatch(tsc.stream, request, handler);
             });
 
             // Enable AllowDirect.
@@ -1589,12 +1589,12 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 hasError.compareAndSet(false, msg.hasError());
             };
             MessageBatchGetRequest request = MessageBatchGetRequest.builder().build();
-            jsm.requestMessageBatch(tsc.stream, null, request, errorHandler);
+            jsm.requestMessageBatch(tsc.stream, request, errorHandler);
             assertTrue(hasError.get());
-            List<MessageInfo> list = jsm.fetchMessageBatch(tsc.stream, null, request);
+            List<MessageInfo> list = jsm.fetchMessageBatch(tsc.stream, request);
             assertEquals(1, list.size());
             assertTrue(list.get(0).hasError());
-            LinkedBlockingQueue<MessageInfo> queue = jsm.queueMessageBatch(tsc.stream, null, request);
+            LinkedBlockingQueue<MessageInfo> queue = jsm.queueMessageBatch(tsc.stream, request);
             assertTrue(queue.take().hasError());
             assertEquals(MessageInfo.EOD, queue.take());
 
@@ -1603,7 +1603,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     .batch(2)
                     .subject(tsc.subject())
                     .build();
-            jsm.requestMessageBatch(tsc.stream, null, request, handler);
+            jsm.requestMessageBatch(tsc.stream, request, handler);
             MessageInfo last = batch.get(batch.size() - 1);
             assertEquals(1, last.getNumPending());
             assertEquals(2, last.getSeq());
@@ -1613,7 +1613,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             request = MessageBatchGetRequest.builder(request)
                     .sequence(last.getSeq() + 1)
                     .build();
-            jsm.requestMessageBatch(tsc.stream, null, request, handler);
+            jsm.requestMessageBatch(tsc.stream, request, handler);
 
             List<String> actual = batch.stream().map(m -> new String(m.getData())).collect(Collectors.toList());
             assertEquals(expected, actual);
@@ -1657,7 +1657,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     batch.add(msg);
                 }
             };
-            jsm.requestMessageBatch(tsc.stream, null, request, handler);
+            jsm.requestMessageBatch(tsc.stream,  request, handler);
             assertEquals(3, batch.size());
             MessageInfo last = batch.get(batch.size() - 1);
             assertEquals(0, last.getNumPending());
@@ -1666,7 +1666,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             // Get using queue.
             batch.clear();
-            LinkedBlockingQueue<MessageInfo> queue = jsm.queueMessageBatch(tsc.stream, null, request);
+            LinkedBlockingQueue<MessageInfo> queue = jsm.queueMessageBatch(tsc.stream, request);
             MessageInfo msg;
             while ((msg = queue.take()) != MessageInfo.EOD) {
                 if (!msg.hasError()) {
@@ -1681,7 +1681,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             // Get using fetch.
             batch.clear();
-            batch.addAll(jsm.fetchMessageBatch(tsc.stream, null, request));
+            batch.addAll(jsm.fetchMessageBatch(tsc.stream, request));
             assertEquals(3, batch.size());
             last = batch.get(batch.size() - 1);
             assertEquals(0, last.getNumPending());
@@ -1720,7 +1720,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     keys.add(msg.getSubject());
                 }
             };
-            jsm.requestMessageBatch(stream, null, request, handler);
+            jsm.requestMessageBatch(stream, request, handler);
             assertEquals(2, keys.size());
             assertEquals(subjectAFoo, keys.get(0));
             assertEquals(subjectABaz, keys.get(1));
