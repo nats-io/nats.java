@@ -150,9 +150,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             return null;
         }
 
-        Duration timeout = options == null ? jso.getRequestTimeout() : options.getStreamTimeout();
-
-        Message resp = makeInternalRequestResponseRequired(subject, merged, data, timeout, CancelAction.COMPLETE, validateSubjectAndReplyTo);
+        Message resp = makeInternalRequestResponseRequired(subject, merged, data, getTimeout(), CancelAction.COMPLETE, validateSubjectAndReplyTo);
         return processPublishResponse(resp, options);
     }
 
