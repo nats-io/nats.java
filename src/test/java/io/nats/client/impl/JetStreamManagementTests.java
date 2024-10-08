@@ -1657,7 +1657,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     batch.add(msg);
                 }
             };
-            jsm.requestMessageBatch(tsc.stream,  request, handler);
+            jsm.requestMessageBatch(tsc.stream, request, handler);
             assertEquals(3, batch.size());
             MessageInfo last = batch.get(batch.size() - 1);
             assertEquals(0, last.getNumPending());
