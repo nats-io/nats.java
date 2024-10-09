@@ -262,8 +262,8 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
         }
         out.flush();
 
-        if (totalBytes != oi.getSize()) { throw OsGetSizeMismatch.instance(); }
         if (totalChunks != oi.getChunks()) { throw OsGetChunksMismatch.instance(); }
+        if (totalBytes != oi.getSize()) { throw OsGetSizeMismatch.instance(); }
         if (!digester.matches(oi.getDigest())) { throw OsGetDigestMismatch.instance(); }
 
         return oi;
