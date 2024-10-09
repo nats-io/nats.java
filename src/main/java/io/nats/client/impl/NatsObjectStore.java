@@ -238,33 +238,39 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
 
             Message m = sub.nextMessage(jsm.getTimeout());
             while (m != null) {
-                byte[] data = m.getData();
-
                 // track the byte count and chunks
-                // update the digest
-                // write the bytes to the output file
-                totalBytes += data.length;
-                totalChunks++;
-                if (expectedChunks != totalChunks + m.metaData().pendingCount()) {
-                    throw OsGetChunksMismatch.instance();
+                long pending = m.metaData().pendingCount();
+                if (expectedChunks != pending + (++totalChunks)) {
+                    throw OsGetChunksMismatch.instance(); // short circuit, we already know there are not enough chunks.
                 }
+
+                byte[] data = m.getData();
+                totalBytes += data.length;
+
+                // update the digest
                 digester.update(data);
+
+                // write the bytes to the output file
                 out.write(data);
 
                 // read until the subject is complete
-                if (m.metaData().pendingCount() == 0) {
+                if (pending == 0) {
                     break;
                 }
                 m = sub.nextMessage(jsm.getTimeout());
             }
 
-            sub.unsubscribe();
+            try {
+                sub.unsubscribe();
+            }
+            catch (RuntimeException ignore) {}
         }
-        out.flush();
 
         if (totalChunks != oi.getChunks()) { throw OsGetChunksMismatch.instance(); }
         if (totalBytes != oi.getSize()) { throw OsGetSizeMismatch.instance(); }
         if (!digester.matches(oi.getDigest())) { throw OsGetDigestMismatch.instance(); }
+
+        out.flush(); // moved after validation, no need if invalid
 
         return oi;
     }
