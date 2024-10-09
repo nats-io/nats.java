@@ -1729,16 +1729,11 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testBatchDirectGetBuilder() {
-        // Default timeout
-        assertEquals(Duration.ofSeconds(5), MessageBatchGetRequest.builder().build().getTimeout());
-
         // Request options.
         MessageBatchGetRequest requestOptions = MessageBatchGetRequest.builder()
-                .timeout(Duration.ofSeconds(1))
                 .maxBytes(1234)
                 .batch(2)
                 .build();
-        assertEquals(Duration.ofSeconds(1), requestOptions.getTimeout());
         assertEquals(1234, requestOptions.getMaxBytes());
         assertEquals(2, requestOptions.getBatch());
         assertEquals("{\"batch\":2,\"max_bytes\":1234}", requestOptions.toJson());

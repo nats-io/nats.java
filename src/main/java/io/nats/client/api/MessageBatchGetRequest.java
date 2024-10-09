@@ -31,7 +31,6 @@ import static io.nats.client.support.Validator.*;
  */
 public class MessageBatchGetRequest implements JsonSerializable {
 
-    private final Duration timeout;
     private final int batch;
     private final int maxBytes;
     private final long sequence;
@@ -42,7 +41,6 @@ public class MessageBatchGetRequest implements JsonSerializable {
     private final ZonedDateTime upToTime;
 
     MessageBatchGetRequest(Builder b) {
-        this.timeout = b.timeout;
         this.batch = b.batch;
         this.maxBytes = b.maxBytes;
         this.sequence = b.sequence;
@@ -51,15 +49,6 @@ public class MessageBatchGetRequest implements JsonSerializable {
         this.multiLastFor = b.multiLastFor;
         this.upToSequence = b.upToSequence;
         this.upToTime = b.upToTime;
-    }
-
-    /**
-     * Timeout used for the request.
-     *
-     * @return Duration
-     */
-    public Duration getTimeout() {
-        return timeout;
     }
 
     /**
@@ -178,7 +167,6 @@ public class MessageBatchGetRequest implements JsonSerializable {
      * <p>{@code MessageBatchGetRequest.builder().build()} will create a default {@link MessageBatchGetRequest}.
      */
     public static class Builder {
-        private Duration timeout = Duration.ofSeconds(5);
         private int batch = -1;
         private int maxBytes = -1;
         private long sequence = -1;
@@ -201,7 +189,6 @@ public class MessageBatchGetRequest implements JsonSerializable {
          */
         public Builder(MessageBatchGetRequest req) {
             if (req != null) {
-                this.timeout = req.timeout;
                 this.batch = req.batch;
                 this.maxBytes = req.maxBytes;
                 this.sequence = req.sequence;
@@ -211,18 +198,6 @@ public class MessageBatchGetRequest implements JsonSerializable {
                 this.upToSequence = req.upToSequence;
                 this.upToTime = req.upToTime;
             }
-        }
-
-        /**
-         * Set the timeout used for the request.
-         *
-         * @param timeout the timeout
-         * @return Builder
-         */
-        public Builder timeout(Duration timeout) {
-            validateDurationRequired(timeout);
-            this.timeout = timeout;
-            return this;
         }
 
         /**

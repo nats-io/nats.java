@@ -389,9 +389,9 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
             String requestSubject = prependPrefix(String.format(JSAPI_DIRECT_GET, streamName));
             conn.publish(requestSubject, replyTo, messageBatchGetRequest.serialize());
 
-            long start = System.currentTimeMillis();
-            long maxTimeMillis = messageBatchGetRequest.getTimeout().toMillis();
+            long maxTimeMillis = getTimeout().toMillis();
             long timeLeft = maxTimeMillis;
+            long start = System.currentTimeMillis();
             while (true) {
                 Message msg = sub.nextMessage(timeLeft);
                 if (msg == null) {
