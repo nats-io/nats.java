@@ -29,7 +29,7 @@ import static io.nats.client.support.NatsJetStreamConstants.JS_NO_MESSAGE_FOUND_
 public class NatsFeatureBase {
 
     protected final NatsJetStream js;
-    protected final JetStreamManagement jsm;
+    protected final NatsJetStreamManagement jsm;
     protected String streamName;
 
     NatsFeatureBase(NatsConnection connection, FeatureOptions fo) throws IOException {

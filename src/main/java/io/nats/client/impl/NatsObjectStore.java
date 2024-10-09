@@ -22,7 +22,6 @@ import io.nats.client.support.Validator;
 import java.io.*;
 import java.nio.file.Files;
 import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -218,6 +217,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
         Digester digester = new Digester();
         long totalBytes = 0;
         long totalChunks = 0;
+        long expectedChunks = oi.getChunks();
 
         // if there is one chunk, just go get the message directly and we're done.
         if (oi.getChunks() == 1) {
@@ -236,7 +236,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
             JetStreamSubscription sub = js.subscribe(rawChunkSubject(oi.getNuid()),
                 PushSubscribeOptions.builder().stream(streamName).ordered(true).build());
 
-            Message m = sub.nextMessage(Duration.ofSeconds(1));
+            Message m = sub.nextMessage(jsm.getTimeout());
             while (m != null) {
                 byte[] data = m.getData();
 
@@ -245,11 +245,17 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
                 // write the bytes to the output file
                 totalBytes += data.length;
                 totalChunks++;
+                if (expectedChunks != totalChunks + m.metaData().pendingCount()) {
+                    throw OsGetChunksMismatch.instance();
+                }
                 digester.update(data);
                 out.write(data);
 
                 // read until the subject is complete
-                m = sub.nextMessage(Duration.ofSeconds(1));
+                if (m.metaData().pendingCount() == 0) {
+                    break;
+                }
+                m = sub.nextMessage(jsm.getTimeout());
             }
 
             sub.unsubscribe();
