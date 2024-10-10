@@ -351,12 +351,8 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
     @Override
     public List<MessageInfo> fetchMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException {
         validateMessageBatchGetRequest(streamName, messageBatchGetRequest);
-        List<MessageInfo> results = new ArrayList<>();
-        _requestMessageBatch(streamName, messageBatchGetRequest, msg -> {
-            if (msg != MessageInfo.EOD) {
-                results.add(msg);
-            }
-        });
+        final List<MessageInfo> results = new ArrayList<>();
+        _requestMessageBatch(streamName, messageBatchGetRequest, false, results::add);
         return results;
     }
 
@@ -367,7 +363,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
     public LinkedBlockingQueue<MessageInfo> queueMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException {
         validateMessageBatchGetRequest(streamName, messageBatchGetRequest);
         final LinkedBlockingQueue<MessageInfo> q = new LinkedBlockingQueue<>();
-        conn.getOptions().getExecutor().submit(() -> _requestMessageBatch(streamName, messageBatchGetRequest, q::add));
+        conn.getOptions().getExecutor().submit(() -> _requestMessageBatch(streamName, messageBatchGetRequest, true, q::add));
         return q;
     }
 
@@ -377,11 +373,13 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
     @Override
     public void requestMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException {
         validateMessageBatchGetRequest(streamName, messageBatchGetRequest);
-        _requestMessageBatch(streamName, messageBatchGetRequest, handler);
+        _requestMessageBatch(streamName, messageBatchGetRequest, true, handler);
     }
 
-    public void _requestMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) {
+    public void _requestMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, boolean sendEod, MessageInfoHandler handler) {
         Subscription sub = null;
+
+        // the default end of data will be a normal end of data (vs status or exception)
         try {
             String replyTo = conn.createInbox();
             sub = conn.subscribe(replyTo);
@@ -389,20 +387,17 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
             String requestSubject = prependPrefix(String.format(JSAPI_DIRECT_GET, streamName));
             conn.publish(requestSubject, replyTo, messageBatchGetRequest.serialize());
 
-            long maxTimeMillis = getTimeout().toMillis();
-            long timeLeft = maxTimeMillis;
-            long start = System.currentTimeMillis();
             while (true) {
-                Message msg = sub.nextMessage(timeLeft);
+                Message msg = sub.nextMessage(getTimeout());
                 if (msg == null) {
                     break;
                 }
                 if (msg.isStatusMessage()) {
                     Status status = msg.getStatus();
                     // Report error, otherwise successful status.
-                    if (status.getCode() < 200 || status.getCode() > 299) {
-                        MessageInfo messageInfo = new MessageInfo(Error.convert(status), true);
-                        handler.onMessageInfo(messageInfo);
+                    if (status.getCode() != Status.EOB) {
+                        handler.onMessageInfo(new MessageInfo(Error.convert(status), true));
+                        sendEod = false; // the error is the EOD since we always end on error
                     }
                     break;
                 }
@@ -414,18 +409,21 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
 
                 MessageInfo messageInfo = new MessageInfo(msg, streamName, true);
                 handler.onMessageInfo(messageInfo);
-                timeLeft = maxTimeMillis - (System.currentTimeMillis() - start);
             }
-        } catch (InterruptedException e) {
+        }
+        catch (InterruptedException e) {
             // sub.nextMessage was fetching one message
             // and data is not completely read
             // so it seems like this is an error condition
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         } finally {
-            try {
-                handler.onMessageInfo(MessageInfo.EOD);
-            } catch (Exception ignore) {
+            if (sendEod) {
+                try {
+                    handler.onMessageInfo(MessageInfo.EOD);
+                }
+                catch (Exception ignore) {
+                }
             }
             try {
                 //noinspection DataFlowIssue
