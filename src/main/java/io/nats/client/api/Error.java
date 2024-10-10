@@ -97,10 +97,6 @@ public class Error implements JsonSerializable {
         return new Error(status.getCode(), NOT_SET, status.getMessage());
     }
 
-    public static Error convert(Exception e) {
-        return new Error(500, NOT_SET, e.getMessage());
-    }
-
     public static final Error JsBadRequestErr = new Error(400, 10003, "bad request");
     public static final Error JsNoMessageFoundErr = new Error(404, 10037, "no message found");
 }
