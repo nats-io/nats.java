@@ -38,8 +38,7 @@ public abstract class SubscribeOptions {
     protected final long pendingByteLimit; // Only applicable for non dispatched (sync) push consumers.
     protected final String name;
 
-    @SuppressWarnings("rawtypes") // Don't need the type of the builder to get its vars
-    protected SubscribeOptions(Builder builder, boolean isPull,
+    protected SubscribeOptions(Builder<?, ?> builder, boolean isPull,
                                String deliverSubject, String deliverGroup,
                                long pendingMessageLimit, long pendingByteLimit) {
 

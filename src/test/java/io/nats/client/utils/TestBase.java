@@ -237,10 +237,8 @@ public class TestBase {
         {
             initRunServerInfo(nc);
 
-            if (vc != null) {
-                if (!vc.runTest(RUN_SERVER_INFO)) {
-                    return;
-                }
+            if (vc != null && !vc.runTest(RUN_SERVER_INFO)) {
+                return;
             }
 
             try {
@@ -257,41 +255,52 @@ public class TestBase {
     public static class LongRunningNatsTestServer extends NatsTestServer {
         public final boolean jetstream;
         public final Options.Builder builder;
-        public final Connection nc;
 
         public LongRunningNatsTestServer(boolean debug, boolean jetstream, Options.Builder builder) throws IOException, InterruptedException {
             super(debug, jetstream);
             this.jetstream = jetstream;
             this.builder = builder == null ? new Options.Builder() : builder;
-            nc = connect();
-            initRunServerInfo(nc);
         }
 
         public Connection connect() throws IOException, InterruptedException {
             return standardConnection(builder.server(getURI()).build());
         }
 
-        @Override
-        public void close() throws Exception {
-            try { nc.close(); } catch (Exception ignore) {};
-            super.close();
-        }
-
         public void run(InServerTest inServerTest) throws Exception {
-            run(null, inServerTest);
+            run(null, null, inServerTest);
         }
 
         public void run(VersionCheck vc, InServerTest inServerTest) throws Exception {
-            if (vc != null && !vc.runTest(RUN_SERVER_INFO)) {
-                return;
+            run(null, vc, inServerTest);
+        }
+
+        public void run(Options.Builder builder, VersionCheck vc, InServerTest inServerTest) throws Exception {
+            if (vc != null && RUN_SERVER_INFO != null) {
+                if (!vc.runTest(RUN_SERVER_INFO)) {
+                    return;
+                }
+                vc = null; // since we've already determined it should run, null this out so we don't check below
             }
 
-            try {
-                inServerTest.test(nc);
+            if (builder == null) {
+                builder = new Options.Builder();
             }
-            finally {
-                if (jetstream) {
-                    cleanupJs(nc);
+
+            try (Connection nc = standardConnection(builder.server(getURI()).build()))
+            {
+                initRunServerInfo(nc);
+
+                if (vc != null && !vc.runTest(RUN_SERVER_INFO)) {
+                    return;
+                }
+
+                try {
+                    inServerTest.test(nc);
+                }
+                finally {
+                    if (jetstream) {
+                        cleanupJs(nc);
+                    }
                 }
             }
         }
