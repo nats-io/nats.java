@@ -43,7 +43,7 @@ public class JetStreamPushQueueTests extends JetStreamTestBase {
             // - the PushSubscribeOptions can be re-used since all the subscribers are the same
             // - use a concurrent integer to track all the messages received
             // - have a list of subscribers and threads so I can track them
-            PushSubscribeOptions pso = PushSubscribeOptions.builder().durable(tsc.name()).build();
+            PushSubscribeOptions pso = PushSubscribeOptions.builder().durable(tsc.consumerName()).build();
             AtomicInteger allReceived = new AtomicInteger();
             List<JsQueueSubscriber> subscribers = new ArrayList<>();
             List<Thread> subThreads = new ArrayList<>();

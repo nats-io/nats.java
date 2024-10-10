@@ -827,7 +827,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             ZonedDateTime pauseUntil = ZonedDateTime.now(ZONE_ID_GMT).plusMinutes(2);
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                    .durable(tsc.name())
+                    .durable(tsc.consumerName())
                     .pauseUntil(pauseUntil)
                     .build();
 
@@ -849,7 +849,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(0, list.size());
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                    .durable(tsc.name())
+                    .durable(tsc.consumerName())
                     .build();
 
             // durable and name can both be null
@@ -886,9 +886,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             ci = jsm.getConsumerInfo(tsc.stream, ci.getName());
             assertFalse(ci.getPaused());
 
-            assertThrows(JetStreamApiException.class, () -> jsm.pauseConsumer(stream(), tsc.name(), pauseUntil));
+            assertThrows(JetStreamApiException.class, () -> jsm.pauseConsumer(stream(), tsc.consumerName(), pauseUntil));
             assertThrows(JetStreamApiException.class, () -> jsm.pauseConsumer(tsc.stream, name(), pauseUntil));
-            assertThrows(JetStreamApiException.class, () -> jsm.resumeConsumer(stream(), tsc.name()));
+            assertThrows(JetStreamApiException.class, () -> jsm.resumeConsumer(stream(), tsc.consumerName()));
             assertThrows(JetStreamApiException.class, () -> jsm.resumeConsumer(tsc.stream, name()));
         });
     }
@@ -1009,7 +1009,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             TestingStreamContainer tsc = new TestingStreamContainer(jsm);
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                .durable(tsc.name())
+                .durable(tsc.consumerName())
                 .metadata(metaData)
                 .build();
 
@@ -1065,14 +1065,14 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         jsServer.run(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             TestingStreamContainer tsc = new TestingStreamContainer(jsm);
-            assertThrows(JetStreamApiException.class, () -> jsm.getConsumerInfo(tsc.stream, tsc.name()));
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(tsc.name()).build();
+            assertThrows(JetStreamApiException.class, () -> jsm.getConsumerInfo(tsc.stream, tsc.consumerName()));
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(tsc.consumerName()).build();
             ConsumerInfo ci = jsm.addOrUpdateConsumer(tsc.stream, cc);
             assertEquals(tsc.stream, ci.getStreamName());
-            assertEquals(tsc.name(), ci.getName());
-            ci = jsm.getConsumerInfo(tsc.stream, tsc.name());
+            assertEquals(tsc.consumerName(), ci.getName());
+            ci = jsm.getConsumerInfo(tsc.stream, tsc.consumerName());
             assertEquals(tsc.stream, ci.getStreamName());
-            assertEquals(tsc.name(), ci.getName());
+            assertEquals(tsc.consumerName(), ci.getName());
             assertThrows(JetStreamApiException.class, () -> jsm.getConsumerInfo(tsc.stream, durable(999)));
             if (nc.getServerInfo().isSameOrNewerThanVersion("2.10")) {
                 assertNotNull(ci.getTimestamp());
@@ -1228,14 +1228,14 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             TestingStreamContainer tsc = new TestingStreamContainer(nc);
 
             final ConsumerConfiguration cc0 = ConsumerConfiguration.builder()
-                .durable(tsc.name())
+                .durable(tsc.consumerName())
                 .build();
             ConsumerInfo ci = jsm.addOrUpdateConsumer(tsc.stream, cc0);
             // server returns 0 when value is not set
             assertEquals(0, ci.getConsumerConfiguration().getNumReplicas());
 
             final ConsumerConfiguration cc1 = ConsumerConfiguration.builder()
-                .durable(tsc.name())
+                .durable(tsc.consumerName())
                 .numReplicas(1)
                 .build();
             ci = jsm.addOrUpdateConsumer(tsc.stream, cc1);
@@ -1583,7 +1583,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             StreamInfo si = jsm.updateStream(sc);
             assertTrue(si.getConfiguration().getAllowDirect());
 
-            // Empty request errors.
+            // Empty (Invalid) request errors.
             AtomicBoolean hasError = new AtomicBoolean();
             MessageInfoHandler errorHandler = msg -> {
                 hasError.compareAndSet(false, msg.hasError());
@@ -1591,12 +1591,13 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             MessageBatchGetRequest request = MessageBatchGetRequest.builder().build();
             jsm.requestMessageBatch(tsc.stream, request, errorHandler);
             assertTrue(hasError.get());
+            // fetch
             List<MessageInfo> list = jsm.fetchMessageBatch(tsc.stream, request);
             assertEquals(1, list.size());
             assertTrue(list.get(0).hasError());
+            // queue
             LinkedBlockingQueue<MessageInfo> queue = jsm.queueMessageBatch(tsc.stream, request);
             assertTrue(queue.take().hasError());
-            assertEquals(MessageInfo.EOD, queue.take());
 
             // First batch gets first two messages.
             request = MessageBatchGetRequest.builder()

@@ -78,6 +78,7 @@ public interface ApiConstants {
     String FIRST_TS          = "first_ts";
     String FLOW_CONTROL      = "flow_control";
     String GO                = "go";
+    String GROUP             = "group";
     String HDRS              = "hdrs";
     String HEADERS           = "headers";
     String HEADERS_ONLY      = "headers_only";
@@ -117,6 +118,8 @@ public interface ApiConstants {
     String MAX_STORAGE       = "max_storage";
     String MAX_STREAMS       = "max_streams";
     String MAX_WAITING       = "max_waiting"; // this is correct! the meaning name is different than the field name
+    String MIN_PENDING       = "min_pending";
+    String MIN_ACK_PENDING   = "min_ack_pending";
     String MEM_STORAGE       = "mem_storage";
     String MEMORY            = "memory";
     String MEMORY_MAX_STREAM_BYTES = "memory_max_stream_bytes";
@@ -153,6 +156,8 @@ public interface ApiConstants {
     String PAUSE_UNTIL       = "pause_until";
     String PLACEMENT         = "placement";
     String PORT              = "port";
+    String PRIORITY_GROUPS   = "priority_groups";
+    String PRIORITY_POLICY   = "priority_policy";
     String PROCESSING_TIME   = "processing_time";
     String PROTO             = "proto";
     String PURGED            = "purged";

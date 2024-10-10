@@ -141,11 +141,11 @@ public class JetStreamTestBase extends TestBase {
             return subjects.computeIfAbsent(variant, TestBase::subject);
         }
 
-        public String name() {
-            return name(defaultNameVariant);
+        public String consumerName() {
+            return consumerName(defaultNameVariant);
         }
 
-        public String name(Object variant) {
+        public String consumerName(Object variant) {
             return names.computeIfAbsent(variant, TestBase::name);
         }
     }

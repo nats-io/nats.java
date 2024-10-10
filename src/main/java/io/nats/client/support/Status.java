@@ -27,6 +27,7 @@ public class Status {
     public static final int NOT_FOUND_CODE = 404;
     public static final int REQUEST_TIMEOUT_CODE = 408;
     public static final int CONFLICT_CODE = 409;
+    public static final int EOB = 204;
 
     public static String BAD_REQUEST                    = "Bad Request"; // 400
     public static String NO_MESSAGES                    = "No Messages"; // 404
