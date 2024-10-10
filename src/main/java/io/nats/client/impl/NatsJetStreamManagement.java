@@ -379,7 +379,6 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
     public void _requestMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, boolean sendEod, MessageInfoHandler handler) {
         Subscription sub = null;
 
-        // the default end of data will be a normal end of data (vs status or exception)
         try {
             String replyTo = conn.createInbox();
             sub = conn.subscribe(replyTo);
