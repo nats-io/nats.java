@@ -552,7 +552,7 @@ public class ValidatorTests {
     }
 
     @Test
-    public void testConsumerFilterSubjectsAreEquivalent() {
+    public void testListsAreEquivalent() {
         List<String> l1 = Arrays.asList("one", "two");
         List<String> l2 = Arrays.asList("two", "one");
         List<String> l3 = Arrays.asList("one", "not");
