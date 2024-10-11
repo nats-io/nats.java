@@ -25,7 +25,7 @@ import java.time.Duration;
 public class NatsOrderedConsumerContext implements OrderedConsumerContext {
     private final NatsConsumerContext impl;
 
-    NatsOrderedConsumerContext(NatsStreamContext streamContext, OrderedConsumerConfiguration config) {
+    NatsOrderedConsumerContext(NatsStreamContext streamContext, OrderedConsumerConfiguration config) throws JetStreamApiException {
         impl = new NatsConsumerContext(streamContext, null, config);
     }
 
