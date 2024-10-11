@@ -623,7 +623,7 @@ public abstract class Validator {
     // This function tests filter subject equivalency
     // It does not care what order and also assumes that there are no duplicates.
     // From the server: consumer subject filters cannot overlap [10138]
-    public static <T> boolean consumerFilterSubjectsAreEquivalent(List<T> l1, List<T> l2)
+    public static <T> boolean listsAreEquivalent(List<T> l1, List<T> l2)
     {
         if (l1 == null || l1.isEmpty()) {
             return l2 == null || l2.isEmpty();
