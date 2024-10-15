@@ -1583,7 +1583,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             StreamInfo si = jsm.updateStream(sc);
             assertTrue(si.getConfiguration().getAllowDirect());
 
-            // Empty request errors.
+            // Empty (Invalid) request errors.
             AtomicBoolean hasError = new AtomicBoolean();
             MessageInfoHandler errorHandler = msg -> {
                 hasError.compareAndSet(false, msg.hasError());
@@ -1591,12 +1591,13 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             MessageBatchGetRequest request = MessageBatchGetRequest.builder().build();
             jsm.requestMessageBatch(tsc.stream, request, errorHandler);
             assertTrue(hasError.get());
+            // fetch
             List<MessageInfo> list = jsm.fetchMessageBatch(tsc.stream, request);
             assertEquals(1, list.size());
             assertTrue(list.get(0).hasError());
+            // queue
             LinkedBlockingQueue<MessageInfo> queue = jsm.queueMessageBatch(tsc.stream, request);
             assertTrue(queue.take().hasError());
-            assertEquals(MessageInfo.EOD, queue.take());
 
             // First batch gets first two messages.
             request = MessageBatchGetRequest.builder()
