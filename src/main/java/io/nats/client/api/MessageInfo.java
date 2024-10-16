@@ -32,11 +32,6 @@ import static io.nats.client.support.NatsJetStreamConstants.*;
  */
 public class MessageInfo extends ApiResponse<MessageInfo> {
 
-    /**
-     * Message returned as a response in {@link MessageBatchGetRequest} to signal end of data.
-     */
-    public static final MessageInfo EOD = new MessageInfo(null, false);
-
     private final boolean direct;
     private final String subject;
     private final long seq;
@@ -45,7 +40,6 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
     private final Headers headers;
     private final String stream;
     private final long lastSeq;
-    private final long numPending;
 
     /**
      * Create a Message Info
@@ -55,25 +49,6 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
     @Deprecated
     public MessageInfo(Message msg) {
         this(msg, null, false);
-    }
-
-    /**
-     * Create a Message Info
-     * This signature is public for testing purposes and is not intended to be used externally.
-     * @param error the error
-     * @param direct true if the object is being created from a get direct api call instead of the standard get message
-     */
-    public MessageInfo(Error error, boolean direct) {
-        super(error);
-        this.direct = direct;
-        subject = null;
-        data = null;
-        seq = -1;
-        time = null;
-        headers = null;
-        stream = null;
-        lastSeq = -1;
-        numPending = -1;
     }
 
     /**
@@ -102,14 +77,6 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
             else {
                 lastSeq = JsonUtils.safeParseLong(tempLastSeq, -1);
             }
-            String tempNumPending = msgHeaders.getLast(NATS_NUM_PENDING);
-            if (tempNumPending == null) {
-                numPending = -1;
-            }
-            else {
-                // Num pending is +1 since it includes EOB message, correct that here.
-                numPending = Long.parseLong(tempNumPending) - 1;
-            }
             // these are control headers, not real headers so don't give them to the user.
             headers = new Headers(msgHeaders, true, MESSAGE_INFO_HEADERS);
         }
@@ -121,7 +88,6 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
             headers = null;
             stream = null;
             lastSeq = -1;
-            numPending = -1;
         }
         else {
             JsonValue mjv = readValue(jv, MESSAGE);
@@ -133,7 +99,6 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
             headers = hdrBytes == null ? null : new IncomingHeadersProcessor(hdrBytes).getHeaders();
             stream = streamName;
             lastSeq = -1;
-            numPending = -1;
         }
     }
 
@@ -193,14 +158,6 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
         return lastSeq;
     }
 
-    /**
-     * Amount of pending messages that can be requested with a subsequent batch request.
-     * @return number of pending messages
-     */
-    public long getNumPending() {
-        return numPending;
-    }
-
     @Override
     public String toString() {
         StringBuilder sb = JsonUtils.beginJsonPrefixed("\"MessageInfo\":");
@@ -217,7 +174,6 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
         JsonUtils.addField(sb, TIME, time);
         JsonUtils.addField(sb, STREAM, stream);
         JsonUtils.addField(sb, LAST_SEQ, lastSeq);
-        JsonUtils.addField(sb, NUM_PENDING, numPending);
         JsonUtils.addField(sb, SUBJECT, subject);
         JsonUtils.addField(sb, HDRS, headers);
         return JsonUtils.endJson(sb).toString();
