@@ -329,7 +329,6 @@ public interface JetStreamManagement {
      * Request a batch of messages using a {@link MessageBatchGetRequest}.
      * <p>
      * This API is currently EXPERIMENTAL and is subject to change.
-     *
      * @param streamName the name of the stream
      * @param messageBatchGetRequest the request details
      * @return a list containing {@link MessageInfo}
@@ -343,7 +342,6 @@ public interface JetStreamManagement {
      * Request a batch of messages using a {@link MessageBatchGetRequest}.
      * <p>
      * This API is currently EXPERIMENTAL and is subject to change.
-     *
      * @param streamName the name of the stream
      * @param messageBatchGetRequest the request details
      * @return a queue used to asynchronously receive {@link MessageInfo}
@@ -357,7 +355,6 @@ public interface JetStreamManagement {
      * Request a batch of messages using a {@link MessageBatchGetRequest}.
      * <p>
      * This API is currently EXPERIMENTAL and is subject to change.
-     *
      * @param streamName the name of the stream
      * @param messageBatchGetRequest the request details
      * @param handler the handler used for receiving {@link MessageInfo}

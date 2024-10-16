@@ -352,7 +352,12 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
     public List<MessageInfo> fetchMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException {
         validateMessageBatchGetRequest(streamName, messageBatchGetRequest);
         final List<MessageInfo> results = new ArrayList<>();
-        _requestMessageBatch(streamName, messageBatchGetRequest, false, results::add);
+        _requestMessageBatch(streamName, messageBatchGetRequest, false, mi -> {
+            if (mi.isErrorStatus()) {
+                results.clear();
+            }
+            results.add(mi);
+        });
         return results;
     }
 
@@ -379,6 +384,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
     public void _requestMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, boolean sendEod, MessageInfoHandler handler) {
         Subscription sub = null;
 
+        int x = 0;
         try {
             String replyTo = conn.createInbox();
             sub = conn.subscribe(replyTo);
@@ -391,14 +397,16 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
                 if (msg == null) {
                     break;
                 }
+
                 if (msg.isStatusMessage()) {
-                    Status status = msg.getStatus();
-                    // Report error, otherwise successful status.
-                    if (status.getCode() != Status.EOB) {
-                        handler.onMessageInfo(new MessageInfo(Error.convert(status), true));
-                        sendEod = false; // the error is the EOD since we always end on error
+                    // the return goes to the "finally"
+                    // when the status is the eob, the code in the "finally" checks the original sendEod flag
+                    // when the status is not an eob, always send the status message info as the last message
+                    if (!msg.getStatus().isEob()) {
+                        sendEod = false;
+                        handler.onMessageInfo(new MessageInfo(msg.getStatus(), streamName));
                     }
-                    break;
+                    return;
                 }
 
                 Headers headers = msg.getHeaders();
@@ -419,7 +427,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
         } finally {
             if (sendEod) {
                 try {
-                    handler.onMessageInfo(MessageInfo.EOD);
+                    handler.onMessageInfo(new MessageInfo(Status.EOB, streamName));
                 }
                 catch (Exception ignore) {
                 }

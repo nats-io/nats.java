@@ -1566,9 +1566,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             }
 
             List<MessageInfo> batch = new ArrayList<>();
-            MessageInfoHandler handler = msg -> {
-                if (!msg.hasError() && msg != MessageInfo.EOD) {
-                    batch.add(msg);
+            MessageInfoHandler handler = mi -> {
+                if (!mi.isStatus()) {
+                    batch.add(mi);
                 }
             };
 
@@ -1585,19 +1585,27 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             // Empty (Invalid) request errors.
             AtomicBoolean hasError = new AtomicBoolean();
-            MessageInfoHandler errorHandler = msg -> {
-                hasError.compareAndSet(false, msg.hasError());
+            MessageInfoHandler errorHandler = mi -> {
+                hasError.compareAndSet(false, mi.isErrorStatus());
             };
             MessageBatchGetRequest request = MessageBatchGetRequest.builder().build();
             jsm.requestMessageBatch(tsc.stream, request, errorHandler);
             assertTrue(hasError.get());
+
             // fetch
             List<MessageInfo> list = jsm.fetchMessageBatch(tsc.stream, request);
             assertEquals(1, list.size());
-            assertTrue(list.get(0).hasError());
+            MessageInfo mi = list.get(0);
+            assertFalse(mi.isMessage());
+            assertFalse(mi.isEob());
+            assertTrue(mi.isErrorStatus());
+
             // queue
             LinkedBlockingQueue<MessageInfo> queue = jsm.queueMessageBatch(tsc.stream, request);
-            assertTrue(queue.take().hasError());
+            mi = queue.take();
+            assertFalse(mi.isMessage());
+            assertFalse(mi.isEob());
+            assertTrue(mi.isErrorStatus());
 
             // First batch gets first two messages.
             request = MessageBatchGetRequest.builder()
@@ -1612,7 +1620,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             // Second batch gets last message.
             request = MessageBatchGetRequest.builder(request)
-                    .sequence(last.getSeq() + 1)
+                    .minSequence(last.getSeq() + 1)
                     .build();
             jsm.requestMessageBatch(tsc.stream, request, handler);
 
@@ -1640,55 +1648,83 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             StreamInfo si = jsm.updateStream(sc);
             assertTrue(si.getConfiguration().getAllowDirect());
 
-            List<String> expected = Arrays.asList("foo", "bar", "baz");
-            for (String data : expected) {
-                js.publish(tsc.subject(), data.getBytes(StandardCharsets.UTF_8));
+            for (int x = 1; x <= 5; x++) {
+                js.publish(tsc.subject(), ("" + x).getBytes(StandardCharsets.UTF_8));
             }
 
-            // Request stays the same for all options.
-            MessageBatchGetRequest request = MessageBatchGetRequest.builder()
+            // Requests stay the same for all options.
+            MessageBatchGetRequest request1 = MessageBatchGetRequest.builder()
                     .batch(3)
                     .subject(tsc.subject())
                     .build();
+            MessageBatchGetRequest request2 = MessageBatchGetRequest.builder()
+                .batch(3)
+                .minSequence(4)
+                .subject(tsc.subject())
+                .build();
 
             // Get using handler.
             List<MessageInfo> batch = new ArrayList<>();
-            MessageInfoHandler handler = msg -> {
-                if (!msg.hasError() && msg != MessageInfo.EOD) {
-                    batch.add(msg);
+            MessageInfoHandler handler = mi -> {
+                if (mi.isMessage()) {
+                    batch.add(mi);
                 }
             };
-            jsm.requestMessageBatch(tsc.stream, request, handler);
-            assertEquals(3, batch.size());
-            MessageInfo last = batch.get(batch.size() - 1);
-            assertEquals(0, last.getNumPending());
-            assertEquals(3, last.getSeq());
-            assertEquals(2, last.getLastSeq());
+            jsm.requestMessageBatch(tsc.stream, request1, handler);
+            verifyRequest1(batch);
+
+            batch.clear();
+            jsm.requestMessageBatch(tsc.stream, request2, handler);
+            verifyRequest2(batch);
 
             // Get using queue.
             batch.clear();
-            LinkedBlockingQueue<MessageInfo> queue = jsm.queueMessageBatch(tsc.stream, request);
-            MessageInfo msg;
-            while ((msg = queue.take()) != MessageInfo.EOD) {
-                if (!msg.hasError()) {
-                    batch.add(msg);
-                }
-            }
-            assertEquals(3, batch.size());
-            last = batch.get(batch.size() - 1);
-            assertEquals(0, last.getNumPending());
-            assertEquals(3, last.getSeq());
-            assertEquals(2, last.getLastSeq());
+            LinkedBlockingQueue<MessageInfo> queue = jsm.queueMessageBatch(tsc.stream, request1);
+            convertQueueToBatch(queue, batch);
+            verifyRequest1(batch);
+
+            batch.clear();
+            queue = jsm.queueMessageBatch(tsc.stream, request2);
+            convertQueueToBatch(queue, batch);
+            verifyRequest2(batch);
 
             // Get using fetch.
             batch.clear();
-            batch.addAll(jsm.fetchMessageBatch(tsc.stream, request));
-            assertEquals(3, batch.size());
-            last = batch.get(batch.size() - 1);
-            assertEquals(0, last.getNumPending());
-            assertEquals(3, last.getSeq());
-            assertEquals(2, last.getLastSeq());
+            batch.addAll(jsm.fetchMessageBatch(tsc.stream, request1));
+            verifyRequest1(batch);
+
+            batch.clear();
+            batch.addAll(jsm.fetchMessageBatch(tsc.stream, request2));
+            verifyRequest2(batch);
         });
+    }
+
+    private static void convertQueueToBatch(LinkedBlockingQueue<MessageInfo> queue, List<MessageInfo> batch) throws InterruptedException {
+        while (true) {
+            MessageInfo mi = queue.take();
+            if (mi.isMessage()) {
+                batch.add(mi);
+            }
+            else {
+                break;
+            }
+        }
+    }
+
+    private static void verifyRequest2(List<MessageInfo> batch) {
+        assertEquals(2, batch.size());
+        MessageInfo last = batch.get(batch.size() - 1);
+        assertEquals(0, last.getNumPending());
+        assertEquals(5, last.getSeq());
+        assertEquals(4, last.getLastSeq());
+    }
+
+    private static void verifyRequest1(List<MessageInfo> batch) {
+        assertEquals(3, batch.size());
+        MessageInfo last = batch.get(batch.size() - 1);
+        assertEquals(2, last.getNumPending());
+        assertEquals(3, last.getSeq());
+        assertEquals(2, last.getLastSeq());
     }
 
     @Test
@@ -1712,13 +1748,13 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             js.publish(subjectABaz, "baz".getBytes(StandardCharsets.UTF_8));
 
             MessageBatchGetRequest request = MessageBatchGetRequest.builder()
-                    .multiLastForSubjects(subjectAFoo, subjectABaz)
+                    .lastBySubjects(subjectAFoo, subjectABaz)
                     .build();
 
             List<String> keys = new ArrayList<>();
-            MessageInfoHandler handler = msg -> {
-                if (!msg.hasError() && msg != MessageInfo.EOD) {
-                    keys.add(msg.getSubject());
+            MessageInfoHandler handler = mi -> {
+                if (mi.isMessage()) {
+                    keys.add(mi.getSubject());
                 }
             };
             jsm.requestMessageBatch(stream, request, handler);
@@ -1742,31 +1778,31 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         // Batch direct get - simple
         ZonedDateTime time = Instant.EPOCH.atZone(ZoneOffset.UTC);
         MessageBatchGetRequest simple = MessageBatchGetRequest.builder()
-                .sequence(1)
+                .minSequence(1)
                 .startTime(time)
                 .subject("subject")
                 .build();
-        assertEquals(1, simple.getSequence());
+        assertEquals(1, simple.getMinSequence());
         assertEquals(time, simple.getStartTime());
         assertEquals("subject", simple.getSubject());
         assertEquals("{\"seq\":1,\"start_time\":\"1970-01-01T00:00:00.000000000Z\",\"next_by_subj\":\"subject\"}", simple.toJson());
 
         // Batch direct get - multi last
-        List<String> multiLastFor = Collections.singletonList("multi.last");
+        List<String> lastBySubjects = Collections.singletonList("multi.last");
         MessageBatchGetRequest multiLast = MessageBatchGetRequest.builder()
-                .multiLastForSubjects("multi.last")
+                .lastBySubjects("multi.last")
                 .upToSequence(1)
                 .upToTime(time)
                 .build();
-        assertEquals(Collections.singletonList("multi.last"), multiLast.getMultiLastForSubjects());
+        assertEquals(Collections.singletonList("multi.last"), multiLast.getLastBySubjects());
         assertEquals(1, multiLast.getUpToSequence());
         assertEquals(time, multiLast.getUpToTime());
         assertEquals("{\"multi_last\":[\"multi.last\"],\"up_to_seq\":1,\"up_to_time\":\"1970-01-01T00:00:00.000000000Z\"}", multiLast.toJson());
 
         MessageBatchGetRequest multiLastAlternative = MessageBatchGetRequest.builder()
-                .multiLastForSubjects(multiLastFor)
+                .lastBySubjects(lastBySubjects)
                 .build();
-        assertEquals(multiLastFor, multiLastAlternative.getMultiLastForSubjects());
+        assertEquals(lastBySubjects, multiLastAlternative.getLastBySubjects());
         assertEquals("{\"multi_last\":[\"multi.last\"]}", multiLastAlternative.toJson());
     }
 }
