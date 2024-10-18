@@ -14,7 +14,10 @@
 package io.nats.client;
 
 import io.nats.client.api.ConsumerConfiguration;
-import io.nats.client.support.*;
+import io.nats.client.support.JsonParseException;
+import io.nats.client.support.JsonParser;
+import io.nats.client.support.JsonSerializable;
+import io.nats.client.support.JsonValue;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
@@ -86,9 +89,9 @@ public class BaseConsumeOptions implements JsonSerializable {
         addField(sb, IDLE_HEARTBEAT, idleHeartbeat);
         addField(sb, THRESHOLD_PERCENT, thresholdPercent);
         addFldWhenTrue(sb, NO_WAIT, noWait);
-        JsonUtils.addField(sb, GROUP, group);
-        JsonUtils.addField(sb, MIN_PENDING, minPending);
-        JsonUtils.addField(sb, MIN_ACK_PENDING, minAckPending);
+        addField(sb, GROUP, group);
+        addField(sb, MIN_PENDING, minPending);
+        addField(sb, MIN_ACK_PENDING, minAckPending);
         return endJson(sb).toString();
     }
 

@@ -16,12 +16,17 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.Error;
 import io.nats.client.api.*;
+import io.nats.client.support.Status;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.LinkedBlockingQueue;
 
+import static io.nats.client.support.NatsJetStreamClientError.JsAllowDirectRequired;
+import static io.nats.client.support.NatsJetStreamClientError.JsDirectBatchGet211NotAvailable;
 import static io.nats.client.support.Validator.*;
 
 public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStreamManagement {
@@ -347,7 +352,12 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
     public List<MessageInfo> fetchMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException {
         validateMessageBatchGetRequest(streamName, messageBatchGetRequest);
         final List<MessageInfo> results = new ArrayList<>();
-        _requestMessageBatch(streamName, messageBatchGetRequest, false, results::add);
+        _requestMessageBatch(streamName, messageBatchGetRequest, false, mi -> {
+            if (mi.isErrorStatus()) {
+                results.clear();
+            }
+            results.add(mi);
+        });
         return results;
     }
 
@@ -366,34 +376,36 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
      * {@inheritDoc}
      */
     @Override
-    public void requestMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException {
+    public boolean requestMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException {
         validateMessageBatchGetRequest(streamName, messageBatchGetRequest);
-        _requestMessageBatch(streamName, messageBatchGetRequest, true, handler);
+        return _requestMessageBatch(streamName, messageBatchGetRequest, true, handler);
     }
 
-    public void _requestMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, boolean sendEod, MessageInfoHandler handler) {
+    private boolean _requestMessageBatch(String streamName, MessageBatchGetRequest mbgr, boolean sendEob, MessageInfoHandler handler) {
         Subscription sub = null;
 
         try {
             String replyTo = conn.createInbox();
             sub = conn.subscribe(replyTo);
 
-            String requestSubject = prependPrefix(String.format(JSAPI_DIRECT_GET, streamName));
-            conn.publish(requestSubject, replyTo, messageBatchGetRequest.serialize());
+            String subject = prependPrefix(String.format(JSAPI_DIRECT_GET, streamName));
+            conn.publish(subject, replyTo, mbgr.serialize());
 
             while (true) {
                 Message msg = sub.nextMessage(getTimeout());
                 if (msg == null) {
-                    break;
+                    return false; // should not time out before eob
                 }
+
                 if (msg.isStatusMessage()) {
-                    Status status = msg.getStatus();
-                    // Report error, otherwise successful status.
-                    if (status.getCode() != Status.EOB) {
-                        handler.onMessageInfo(new MessageInfo(Error.convert(status), true));
-                        sendEod = false; // the error is the EOD since we always end on error
+                    if (msg.getStatus().isEob()) {
+                        return true;  // will send eob in finally if caller asked
                     }
-                    break;
+
+                    // All non eob statuses, always send, but it is the last message to the caller
+                    sendEob = false;
+                    handler.onMessageInfo(new MessageInfo(msg.getStatus(), streamName, true));
+                    return false; // since this was an error
                 }
 
                 Headers headers = msg.getHeaders();
@@ -412,18 +424,16 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         } finally {
-            if (sendEod) {
+            if (sendEob) {
                 try {
-                    handler.onMessageInfo(MessageInfo.EOD);
+                    handler.onMessageInfo(new MessageInfo(Status.EOB, streamName, true));
                 }
-                catch (Exception ignore) {
-                }
+                catch (RuntimeException ignore) { /* user handler runtime error */ }
             }
             try {
                 //noinspection DataFlowIssue
                 sub.unsubscribe();
-            } catch (Exception ignore) {
-            }
+            } catch (RuntimeException ignore) { /* don't want this to fail here */ }
         }
     }
 

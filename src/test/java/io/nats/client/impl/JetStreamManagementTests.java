@@ -16,6 +16,8 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.Debug;
+import io.nats.client.support.Validator;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
@@ -24,14 +26,15 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.concurrent.LinkedBlockingQueue;
 
 import static io.nats.client.support.DateTimeUtils.DEFAULT_TIME;
 import static io.nats.client.support.DateTimeUtils.ZONE_ID_GMT;
 import static io.nats.client.support.NatsJetStreamConstants.*;
+import static io.nats.client.support.Status.EMPTY_REQUEST_CODE;
+import static io.nats.client.support.Status.NOT_FOUND_CODE;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -1550,143 +1553,277 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testBatchDirectGetBasic() throws Exception {
+        jsServer.run(TestBase::atLeast2_11, nc -> {
+            JetStream js = nc.jetStream();
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            String stream = variant();
+            String subject = variant();
+            StreamConfiguration sc = StreamConfiguration.builder()
+                .name(stream)
+                .storageType(StorageType.Memory)
+                .subjects(subject)
+                .build();
+            StreamInfo si = jsm.addStream(sc);
+            assertFalse(si.getConfiguration().getAllowDirect());
+
+            // Stream doesn't have AllowDirect enabled, will error.
+            List<MessageInfo> list = new ArrayList<>();
+            assertThrows(IllegalArgumentException.class, () -> {
+                MessageBatchGetRequest request = MessageBatchGetRequest.builder().build();
+                jsm.requestMessageBatch(stream, request, list::add);
+            });
+
+            // Enable AllowDirect.
+            jsm.deleteStream(stream);
+            sc = StreamConfiguration.builder()
+                .name(stream)
+                .storageType(StorageType.Memory)
+                .subjects(subject)
+                .allowDirect(true)
+                .build();
+            si = jsm.addStream(sc);
+            assertTrue(si.getConfiguration().getAllowDirect());
+
+            // Empty (Invalid) request errors.
+            list.clear();
+            MessageBatchGetRequest request = MessageBatchGetRequest.builder().build();
+            jsm.requestMessageBatch(stream, request, list::add);
+            assertEquals(1, list.size());
+            MessageInfo miErr = list.get(0);
+            assertFalse(miErr.isMessage());
+            assertFalse(miErr.isEobStatus());
+            assertTrue(miErr.isErrorStatus());
+
+            // Requests stay the same for all options.
+            MessageBatchGetRequest request1 = MessageBatchGetRequest.builder()
+                .batch(3)
+                .nextBySubject(subject)
+                .build();
+            MessageBatchGetRequest request2 = MessageBatchGetRequest.builder()
+                .batch(3)
+                .minSequence(4)
+                .nextBySubject(subject)
+                .build();
+
+            // no messages yet - handler
+            list.clear();
+            jsm.requestMessageBatch(stream, request1, list::add);
+            verifyError(list);
+
+            // no messages yet - fetch
+            verifyError(jsm.fetchMessageBatch(stream, request1));
+
+            // no messages yet - queue
+            LinkedBlockingQueue<MessageInfo> queue = jsm.queueMessageBatch(stream, request1);
+            verifyError(queueToList(queue));
+
+            for (int x = 0; x < 5; x++) {
+                js.publish(subject, ("" + x).getBytes(StandardCharsets.UTF_8));
+            }
+
+            // Get using handler.
+            list.clear();
+            jsm.requestMessageBatch(stream, request1, list::add);
+            verifyRequest1(list, true);
+
+            list.clear();
+            jsm.requestMessageBatch(stream, request2, list::add);
+            verifyRequest2(list, true);
+
+            // Get using fetch.
+            verifyRequest1(jsm.fetchMessageBatch(stream, request1), false);
+            verifyRequest2(jsm.fetchMessageBatch(stream, request2), false);
+
+            // Get using queue.
+            queue = jsm.queueMessageBatch(stream, request1);
+            verifyRequest1(queueToList(queue), true);
+
+            queue = jsm.queueMessageBatch(stream, request2);
+            verifyRequest2(queueToList(queue), true);
+        });
+    }
+
+    private static List<MessageInfo> queueToList(LinkedBlockingQueue<MessageInfo> queue) throws InterruptedException {
+        List<MessageInfo> list = new ArrayList<>();
+        while (true) {
+            MessageInfo mi = queue.take();
+            list.add(mi);
+            if (!mi.isMessage()) {
+                break;
+            }
+        }
+        return list;
+    }
+
+    private static void verifyRequest1(List<MessageInfo> list, boolean lastIsEob) {
+        assertEquals(lastIsEob ? 4 : 3, list.size());
+        MessageInfo mi = list.get(2);
+        assertEquals(2, mi.getNumPending());
+        assertEquals(3, mi.getSeq());
+        assertEquals(2, mi.getLastSeq());
+        verifyMessage(mi);
+        verifyEob(list, lastIsEob, 3);
+    }
+
+    private static void verifyRequest2(List<MessageInfo> list, boolean lastIsEob) {
+        assertEquals(lastIsEob ? 3 : 2, list.size());
+        MessageInfo mi = list.get(1);
+        assertEquals(0, mi.getNumPending());
+        assertEquals(5, mi.getSeq());
+        assertEquals(4, mi.getLastSeq());
+
+        verifyMessage(mi);
+        verifyEob(list, lastIsEob, 2);
+    }
+
+    private static void verifyMessage(MessageInfo mi) {
+        assertTrue(mi.isMessage());
+        assertFalse(mi.isStatus());
+        assertFalse(mi.isEobStatus());
+        assertFalse(mi.isErrorStatus());
+    }
+
+    private static void verifyEob(List<MessageInfo> list, boolean lastIsEob, int ix) {
+        if (lastIsEob) {
+            MessageInfo mi = list.get(ix);
+            assertFalse(mi.isMessage());
+            assertTrue(mi.isStatus());
+            assertTrue(mi.isEobStatus());
+            assertFalse(mi.isErrorStatus());
+        }
+    }
+
+    private static void verifyError(List<MessageInfo> list) {
+        MessageInfo mi = list.get(0);
+        assertFalse(mi.isMessage());
+        assertTrue(mi.isStatus());
+        assertFalse(mi.isEobStatus());
+        assertTrue(mi.isErrorStatus());
+    }
+
+    @Test
     public void testBatchDirectGet() throws Exception {
         jsServer.run(TestBase::atLeast2_11, nc -> {
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
-            TestingStreamContainer tsc = new TestingStreamContainer(nc);
-            assertFalse(tsc.si.getConfiguration().getAllowDirect());
-
-            List<String> expected = Arrays.asList("foo", "bar", "baz");
-            for (String data : expected) {
-                js.publish(tsc.subject(), data.getBytes(StandardCharsets.UTF_8));
-            }
-
-            List<MessageInfo> batch = new ArrayList<>();
-            MessageInfoHandler handler = msg -> {
-                if (!msg.hasError() && msg != MessageInfo.EOD) {
-                    batch.add(msg);
-                }
-            };
-
-            // Stream doesn't have AllowDirect enabled, will error.
-            assertThrows(IllegalArgumentException.class, () -> {
-                MessageBatchGetRequest request = MessageBatchGetRequest.builder().build();
-                jsm.requestMessageBatch(tsc.stream, request, handler);
-            });
-
-            // Enable AllowDirect.
-            StreamConfiguration sc = StreamConfiguration.builder(tsc.si.getConfiguration()).allowDirect(true).build();
-            StreamInfo si = jsm.updateStream(sc);
+            String stream = variant();
+            String subject = variant();
+            StreamConfiguration sc = StreamConfiguration.builder()
+                .name(stream)
+                .storageType(StorageType.Memory)
+                .subjects(subject)
+                .allowDirect(true)
+                .build();
+            StreamInfo si = jsm.addStream(sc);
             assertTrue(si.getConfiguration().getAllowDirect());
 
-            // Empty (Invalid) request errors.
-            AtomicBoolean hasError = new AtomicBoolean();
-            MessageInfoHandler errorHandler = msg -> {
-                hasError.compareAndSet(false, msg.hasError());
-            };
-            MessageBatchGetRequest request = MessageBatchGetRequest.builder().build();
-            jsm.requestMessageBatch(tsc.stream, request, errorHandler);
-            assertTrue(hasError.get());
-            // fetch
-            List<MessageInfo> list = jsm.fetchMessageBatch(tsc.stream, request);
-            assertEquals(1, list.size());
-            assertTrue(list.get(0).hasError());
-            // queue
-            LinkedBlockingQueue<MessageInfo> queue = jsm.queueMessageBatch(tsc.stream, request);
-            assertTrue(queue.take().hasError());
+            // Requests stay the same for all options.
+            MessageBatchGetRequest request1 = MessageBatchGetRequest.builder()
+                .batch(3)
+                .nextBySubject(subject)
+                .build();
+            MessageBatchGetRequest request2 = MessageBatchGetRequest.builder()
+                .batch(3)
+                .minSequence(4)
+                .nextBySubject(subject)
+                .build();
 
-            // First batch gets first two messages.
-            request = MessageBatchGetRequest.builder()
-                    .batch(2)
-                    .subject(tsc.subject())
-                    .build();
-            jsm.requestMessageBatch(tsc.stream, request, handler);
-            MessageInfo last = batch.get(batch.size() - 1);
-            assertEquals(1, last.getNumPending());
-            assertEquals(2, last.getSeq());
-            assertEquals(1, last.getLastSeq());
+            // no messages yet - handler
+            List<MessageInfo> list = new ArrayList<>();
+            jsm.requestMessageBatch(stream, request1, list::add);
+            verifyError(list);
 
-            // Second batch gets last message.
-            request = MessageBatchGetRequest.builder(request)
-                    .sequence(last.getSeq() + 1)
-                    .build();
-            jsm.requestMessageBatch(tsc.stream, request, handler);
+            // no messages yet - fetch
+            verifyError(jsm.fetchMessageBatch(stream, request1));
 
-            List<String> actual = batch.stream().map(m -> new String(m.getData())).collect(Collectors.toList());
-            assertEquals(expected, actual);
+            // no messages yet - queue
+            LinkedBlockingQueue<MessageInfo> queue = jsm.queueMessageBatch(stream, request1);
+            verifyError(queueToList(queue));
 
-            last = batch.get(batch.size() - 1);
-            assertEquals(0, last.getNumPending());
-            assertEquals(3, last.getSeq());
-            assertEquals(0, last.getLastSeq());
+            for (int x = 0; x < 5; x++) {
+                js.publish(subject, ("" + x).getBytes(StandardCharsets.UTF_8));
+            }
+
+            // Get using handler.
+            list.clear();
+            jsm.requestMessageBatch(stream, request1, list::add);
+            verifyRequest1(list, true);
+
+            list.clear();
+            jsm.requestMessageBatch(stream, request2, list::add);
+            verifyRequest2(list, true);
+
+            // Get using fetch.
+            verifyRequest1(jsm.fetchMessageBatch(stream, request1), false);
+            verifyRequest2(jsm.fetchMessageBatch(stream, request2), false);
+
+            // Get using queue.
+            queue = jsm.queueMessageBatch(stream, request1);
+            verifyRequest1(queueToList(queue), true);
+
+            queue = jsm.queueMessageBatch(stream, request2);
+            verifyRequest2(queueToList(queue), true);
         });
     }
 
     @Test
-    public void testBatchDirectGetAlternatives() throws Exception {
+    public void testBatchDirectGetErrors() throws Exception {
         jsServer.run(TestBase::atLeast2_11, nc -> {
-            JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
-            TestingStreamContainer tsc = new TestingStreamContainer(nc);
-            assertFalse(tsc.si.getConfiguration().getAllowDirect());
+            String streamNoDirect = variant();
+            String subject = variant();
+            StreamConfiguration sc = StreamConfiguration.builder()
+                .name(streamNoDirect)
+                .storageType(StorageType.Memory)
+                .subjects(subject)
+                .build();
+            StreamInfo si = jsm.addStream(sc);
+            assertFalse(si.getConfiguration().getAllowDirect());
 
-            // Enable AllowDirect.
-            StreamConfiguration sc = StreamConfiguration.builder(tsc.si.getConfiguration()).allowDirect(true).build();
-            StreamInfo si = jsm.updateStream(sc);
-            assertTrue(si.getConfiguration().getAllowDirect());
+            // Stream doesn't have AllowDirect enabled, will error.
+            assertThrows(IllegalArgumentException.class, () -> {
+                MessageBatchGetRequest request = MessageBatchGetRequest.builder().build();
+                jsm.requestMessageBatch(streamNoDirect, request, mi -> {});
+            });
 
-            List<String> expected = Arrays.asList("foo", "bar", "baz");
-            for (String data : expected) {
-                js.publish(tsc.subject(), data.getBytes(StandardCharsets.UTF_8));
-            }
+            String stream = variant();
+            subject = variant();
+            sc = StreamConfiguration.builder()
+                .name(stream)
+                .storageType(StorageType.Memory)
+                .subjects(subject)
+                .allowDirect(true)
+                .build();
+            jsm.addStream(sc);
 
-            // Request stays the same for all options.
-            MessageBatchGetRequest request = MessageBatchGetRequest.builder()
-                    .batch(3)
-                    .subject(tsc.subject())
-                    .build();
+            // Empty (Invalid) request errors.
+            MessageBatchGetRequest request = MessageBatchGetRequest.builder().build();
+            verifyError(jsm.fetchMessageBatch(stream, request), EMPTY_REQUEST_CODE);
 
-            // Get using handler.
-            List<MessageInfo> batch = new ArrayList<>();
-            MessageInfoHandler handler = msg -> {
-                if (!msg.hasError() && msg != MessageInfo.EOD) {
-                    batch.add(msg);
-                }
-            };
-            jsm.requestMessageBatch(tsc.stream, request, handler);
-            assertEquals(3, batch.size());
-            MessageInfo last = batch.get(batch.size() - 1);
-            assertEquals(0, last.getNumPending());
-            assertEquals(3, last.getSeq());
-            assertEquals(2, last.getLastSeq());
+            request = MessageBatchGetRequest.builder().batch(1).nextBySubject("not").build();
+            verifyError(jsm.fetchMessageBatch(stream, request), NOT_FOUND_CODE);
 
-            // Get using queue.
-            batch.clear();
-            LinkedBlockingQueue<MessageInfo> queue = jsm.queueMessageBatch(tsc.stream, request);
-            MessageInfo msg;
-            while ((msg = queue.take()) != MessageInfo.EOD) {
-                if (!msg.hasError()) {
-                    batch.add(msg);
-                }
-            }
-            assertEquals(3, batch.size());
-            last = batch.get(batch.size() - 1);
-            assertEquals(0, last.getNumPending());
-            assertEquals(3, last.getSeq());
-            assertEquals(2, last.getLastSeq());
+            request = MessageBatchGetRequest.builder().batch(1).minSequence(99).build();
+            verifyError(jsm.fetchMessageBatch(stream, request), NOT_FOUND_CODE);
 
-            // Get using fetch.
-            batch.clear();
-            batch.addAll(jsm.fetchMessageBatch(tsc.stream, request));
-            assertEquals(3, batch.size());
-            last = batch.get(batch.size() - 1);
-            assertEquals(0, last.getNumPending());
-            assertEquals(3, last.getSeq());
-            assertEquals(2, last.getLastSeq());
+            request = MessageBatchGetRequest.builder().batch(1).startTime(ZonedDateTime.now()).build();
+            verifyError(jsm.fetchMessageBatch(stream, request), NOT_FOUND_CODE);
         });
+    }
+
+    private static void verifyError(List<MessageInfo> list, int code) {
+        assertEquals(1, list.size());
+        MessageInfo miErr = list.get(0);
+        Debug.info("!", miErr);
+        assertFalse(miErr.isMessage());
+        assertTrue(miErr.isStatus());
+        assertFalse(miErr.isEobStatus());
+        assertTrue(miErr.isErrorStatus());
+        assertEquals(code, miErr.getStatus().getCode());
     }
 
     @Test
@@ -1697,10 +1834,10 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             String stream = stream();
             jsm.addStream(StreamConfiguration.builder()
-                    .name(stream)
-                    .subjects(stream + ".a.>")
-                    .allowDirect(true)
-                    .build());
+                .name(stream)
+                .subjects(stream + ".a.>")
+                .allowDirect(true)
+                .build());
 
             String subjectAFoo = stream + ".a.foo";
             String subjectABar = stream + ".a.bar";
@@ -1710,61 +1847,190 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             js.publish(subjectABaz, "baz".getBytes(StandardCharsets.UTF_8));
 
             MessageBatchGetRequest request = MessageBatchGetRequest.builder()
-                    .multiLastForSubjects(subjectAFoo, subjectABaz)
-                    .build();
+                .multiLastBySubjects(subjectAFoo, subjectABaz)
+                .build();
 
-            List<String> keys = new ArrayList<>();
-            MessageInfoHandler handler = msg -> {
-                if (!msg.hasError() && msg != MessageInfo.EOD) {
-                    keys.add(msg.getSubject());
-                }
-            };
-            jsm.requestMessageBatch(stream, request, handler);
-            assertEquals(2, keys.size());
-            assertEquals(subjectAFoo, keys.get(0));
-            assertEquals(subjectABaz, keys.get(1));
+            List<MessageInfo> list = jsm.fetchMessageBatch(stream, request);
+            assertEquals(2, list.size());
+            assertEquals(subjectAFoo, list.get(0).getSubject());
+            assertEquals(subjectABaz, list.get(1).getSubject());
+        });
+    }
+
+    @Test
+    public void testBatchDirectGetMiscConstraints() throws Exception {
+        jsServer.run(TestBase::atLeast2_11, nc -> {
+            JetStream js = nc.jetStream();
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            String stream = stream();
+            String subject = subject();
+            jsm.addStream(StreamConfiguration.builder()
+                .name(stream)
+                .subjects(subject)
+                .allowDirect(true)
+                .build());
+
+            List<Message> messages = new ArrayList<>();
+            Dispatcher d = nc.createDispatcher();
+            js.subscribe(subject, d, messages::add, true);
+
+            String dataA = "Aaaaaaaaaa";
+            String dataB = "Bbbbbbbbbb";
+            String dataC = "Cccccccccc";
+            js.publish(subject, dataA.getBytes());
+            sleep(500);
+            js.publish(subject, dataB.getBytes());
+            js.publish(subject, dataC.getBytes());
+
+            sleep(500); // wait for all the messages to be received
+
+            // min sequence
+            MessageBatchGetRequest request = MessageBatchGetRequest.builder()
+                .batch(5)
+                .minSequence(2)
+                .build();
+            List<MessageInfo> list = jsm.fetchMessageBatch(stream, request);
+            assertEquals(2, list.size());
+            assertEquals(dataB, new String(list.get(0).getData()));
+            assertEquals(dataC, new String(list.get(1).getData()));
+
+            // start time
+            request = MessageBatchGetRequest.builder()
+                .batch(5)
+                .startTime(messages.get(0).metaData().timestamp().plus(1, ChronoUnit.MILLIS))
+                .build();
+            list = jsm.fetchMessageBatch(stream, request);
+            assertEquals(2, list.size());
+            assertEquals(dataB, new String(list.get(0).getData()));
+            assertEquals(dataC, new String(list.get(1).getData()));
+
+            // maxBytes
+            request = MessageBatchGetRequest.builder()
+                .batch(5)
+                .maxBytes(50)
+                .build();
+            list = jsm.fetchMessageBatch(stream, request);
+            assertEquals(1, list.size());
+            Debug.info("?", request.toJson(), list.get(0));
+            assertEquals(dataA, new String(list.get(0).getData()));
+
+            // up to sequence
+            request = MessageBatchGetRequest.builder()
+                .batch(5)
+                .upToSequence(3)
+                .build();
+            list = jsm.fetchMessageBatch(stream, request);
+            assertEquals(2, list.size());
+            assertEquals(dataA, new String(list.get(0).getData()));
+            assertEquals(dataB, new String(list.get(1).getData()));
+
+            // up to time
+            request = MessageBatchGetRequest.builder()
+                .batch(5)
+                .upToTime(messages.get(2).metaData().timestamp().plus(1, ChronoUnit.MILLIS))
+                .build();
+            list = jsm.fetchMessageBatch(stream, request);
+            assertEquals(2, list.size());
+            assertEquals(dataA, new String(list.get(0).getData()));
+            assertEquals(dataB, new String(list.get(1).getData()));
         });
     }
 
     @Test
     public void testBatchDirectGetBuilder() {
-        // Request options.
-        MessageBatchGetRequest requestOptions = MessageBatchGetRequest.builder()
-                .maxBytes(1234)
-                .batch(2)
-                .build();
-        assertEquals(1234, requestOptions.getMaxBytes());
-        assertEquals(2, requestOptions.getBatch());
-        assertEquals("{\"batch\":2,\"max_bytes\":1234}", requestOptions.toJson());
+        // Default / empty
+        MessageBatchGetRequest mbgr = MessageBatchGetRequest.builder().build();
+        verifyBuilder(mbgr, -1, -1, -1, null, null, null, -1, null, "{}");
 
-        // Batch direct get - simple
-        ZonedDateTime time = Instant.EPOCH.atZone(ZoneOffset.UTC);
-        MessageBatchGetRequest simple = MessageBatchGetRequest.builder()
-                .sequence(1)
-                .startTime(time)
-                .subject("subject")
-                .build();
-        assertEquals(1, simple.getSequence());
-        assertEquals(time, simple.getStartTime());
-        assertEquals("subject", simple.getSubject());
-        assertEquals("{\"seq\":1,\"start_time\":\"1970-01-01T00:00:00.000000000Z\",\"next_by_subj\":\"subject\"}", simple.toJson());
+        mbgr = MessageBatchGetRequest.builder()
+            .batch(0)
+            .maxBytes(0)
+            .minSequence(0)
+            .build();
+        verifyBuilder(mbgr, -1, -1, -1, null, null, null, -1, null, "{}");
 
-        // Batch direct get - multi last
-        List<String> multiLastFor = Collections.singletonList("multi.last");
-        MessageBatchGetRequest multiLast = MessageBatchGetRequest.builder()
-                .multiLastForSubjects("multi.last")
-                .upToSequence(1)
-                .upToTime(time)
-                .build();
-        assertEquals(Collections.singletonList("multi.last"), multiLast.getMultiLastForSubjects());
-        assertEquals(1, multiLast.getUpToSequence());
-        assertEquals(time, multiLast.getUpToTime());
-        assertEquals("{\"multi_last\":[\"multi.last\"],\"up_to_seq\":1,\"up_to_time\":\"1970-01-01T00:00:00.000000000Z\"}", multiLast.toJson());
+        mbgr = MessageBatchGetRequest.builder()
+            .batch(Integer.MIN_VALUE)
+            .maxBytes(Integer.MIN_VALUE)
+            .minSequence(Long.MIN_VALUE)
+            .build();
+        verifyBuilder(mbgr, -1, -1, -1, null, null, null, -1, null, "{}");
 
-        MessageBatchGetRequest multiLastAlternative = MessageBatchGetRequest.builder()
-                .multiLastForSubjects(multiLastFor)
-                .build();
-        assertEquals(multiLastFor, multiLastAlternative.getMultiLastForSubjects());
-        assertEquals("{\"multi_last\":[\"multi.last\"]}", multiLastAlternative.toJson());
+        ZonedDateTime time = ZonedDateTime.now();
+        String timeStr = DateTimeUtils.toRfc3339(time);
+
+        mbgr = MessageBatchGetRequest.builder()
+            .batch(42)
+            .maxBytes(43)
+            .minSequence(44)
+            .startTime(time)
+            .nextBySubject("subject")
+            .upToSequence(45)
+            .upToTime(time)
+            .build();
+        verifyBuilder(mbgr, 42, 43, 44, time, "subject", null, 45, time,
+            "{\"batch\":42" +
+                ",\"max_bytes\":43" +
+                ",\"seq\":44" +
+                ",\"start_time\":\"" + timeStr + "\"" +
+                ",\"next_by_subj\":\"subject\"" +
+                ",\"up_to_seq\":45" +
+                ",\"up_to_time\":\"" + timeStr + "\"" +
+                "}"
+        );
+
+        // Batch direct get - multi last - array
+        List<String> lastBySubjects = Collections.singletonList("multi.last");
+        mbgr = MessageBatchGetRequest.builder()
+            .multiLastBySubjects("multi.last")
+            .build();
+        verifyBuilder(mbgr, -1, -1, -1, null, null, lastBySubjects, -1, null,
+            "{\"multi_last\":[\"multi.last\"]}");
+
+        // Batch direct get - multi last - collection
+        mbgr = MessageBatchGetRequest.builder()
+            .multiLastBySubjects(lastBySubjects)
+            .build();
+        verifyBuilder(mbgr, -1, -1, -1, null, null, lastBySubjects, -1, null,
+            "{\"multi_last\":[\"multi.last\"]}");
+
+        assertThrows(IllegalArgumentException.class, () -> MessageBatchGetRequest.builder().nextBySubject("nbs").multiLastBySubjects("mlbs"));
+        assertThrows(IllegalArgumentException.class, () -> MessageBatchGetRequest.builder().nextBySubject("nbs").multiLastBySubjects(lastBySubjects));
+        assertThrows(IllegalArgumentException.class, () -> MessageBatchGetRequest.builder().multiLastBySubjects("mlbs").nextBySubject("nbs"));
+    }
+
+    public void verifyBuilder(MessageBatchGetRequest mbgr,
+                              int batch,
+                              int maxBytes,
+                              long minSequence,
+                              ZonedDateTime startTime,
+                              String nextBySubject,
+                              List<String> multiLastBySubjects,
+                              long upToSequence,
+                              ZonedDateTime upToTime,
+                              String json)
+    {
+        assertEquals(batch, mbgr.getBatch());
+        assertEquals(maxBytes, mbgr.getMaxBytes());
+        assertEquals(minSequence, mbgr.getMinSequence());
+        if (startTime == null) {
+            assertNull(mbgr.getStartTime());
+        }
+        else {
+            assertEquals(startTime.withZoneSameInstant(ZONE_ID_GMT), mbgr.getStartTime().withZoneSameInstant(ZONE_ID_GMT));
+        }
+        assertEquals(nextBySubject, mbgr.getNextBySubject());
+        assertTrue(Validator.listsAreEquivalent(multiLastBySubjects, mbgr.getMultiLastBySubjects()));
+        assertEquals(upToSequence, mbgr.getUpToSequence());
+        if (upToTime == null) {
+            assertNull(mbgr.getUpToTime());
+        }
+        else {
+            assertEquals(upToTime.withZoneSameInstant(ZONE_ID_GMT), mbgr.getUpToTime().withZoneSameInstant(ZONE_ID_GMT));
+        }
+        if (json != null) {
+            assertEquals(json, mbgr.toJson());
+        }
     }
 }
