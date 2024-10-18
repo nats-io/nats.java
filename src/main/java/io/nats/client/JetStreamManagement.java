@@ -17,7 +17,6 @@ import io.nats.client.api.*;
 import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.util.List;
-import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * JetStream Management context for creation and access to streams and consumers in NATS.

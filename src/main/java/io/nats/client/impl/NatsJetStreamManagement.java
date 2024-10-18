@@ -16,17 +16,12 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.Error;
 import io.nats.client.api.*;
-import io.nats.client.support.Status;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.LinkedBlockingQueue;
 
-import static io.nats.client.support.NatsJetStreamClientError.JsAllowDirectRequired;
-import static io.nats.client.support.NatsJetStreamClientError.JsDirectBatchGet211NotAvailable;
 import static io.nats.client.support.Validator.*;
 
 public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStreamManagement {
