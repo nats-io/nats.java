@@ -355,14 +355,16 @@ public interface JetStreamManagement {
      * Request a batch of messages using a {@link MessageBatchGetRequest}.
      * <p>
      * This API is currently EXPERIMENTAL and is subject to change.
-     * @param streamName the name of the stream
+     *
+     * @param streamName             the name of the stream
      * @param messageBatchGetRequest the request details
-     * @param handler the handler used for receiving {@link MessageInfo}
-     * @throws IOException covers various communication issues with the NATS
-     *         server such as timeout or interruption
+     * @param handler                the handler used for receiving {@link MessageInfo}
+     * @return true if all messages were received and properly terminated with a server EOB
+     * @throws IOException           covers various communication issues with the NATS
+     *                               server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    void requestMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException;
+    boolean requestMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException;
 
     /**
      * Deletes a message, overwriting the message data with garbage

@@ -23,8 +23,6 @@ import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
-import static io.nats.client.support.Validator.validateGtEqZero;
-import static io.nats.client.support.Validator.validateGtZero;
 
 /**
  * Object used to make a request for message batch get requests.
@@ -35,18 +33,18 @@ public class MessageBatchGetRequest implements JsonSerializable {
     private final int maxBytes;
     private final long minSequence;
     private final ZonedDateTime startTime;
-    private final String subject;
-    private final List<String> lastBySubjects;
+    private final String nextBySubject;
+    private final List<String> multiLastBySubjects;
     private final long upToSequence;
     private final ZonedDateTime upToTime;
 
     MessageBatchGetRequest(Builder b) {
         this.batch = b.batch;
         this.maxBytes = b.maxBytes;
-        this.minSequence = b.sequence;
+        this.minSequence = b.minSequence;
         this.startTime = b.startTime;
-        this.subject = b.subject;
-        this.lastBySubjects = b.lastBySubjects;
+        this.nextBySubject = b.nextBySubject;
+        this.multiLastBySubjects = b.multiLastBySubjects;
         this.upToSequence = b.upToSequence;
         this.upToTime = b.upToTime;
     }
@@ -90,8 +88,8 @@ public class MessageBatchGetRequest implements JsonSerializable {
      * Subject used to filter messages that should be returned.
      * @return the subject to filter
      */
-    public String getSubject() {
-        return subject;
+    public String getNextBySubject() {
+        return nextBySubject;
     }
 
     /**
@@ -99,8 +97,8 @@ public class MessageBatchGetRequest implements JsonSerializable {
      * Will get the last messages matching the subjects.
      * @return the subjects to get the last messages for
      */
-    public List<String> getLastBySubjects() {
-        return lastBySubjects;
+    public List<String> getMultiLastBySubjects() {
+        return multiLastBySubjects;
     }
 
     /**
@@ -126,8 +124,8 @@ public class MessageBatchGetRequest implements JsonSerializable {
         addField(sb, MAX_BYTES, maxBytes);
         addField(sb, SEQ, minSequence);
         addField(sb, START_TIME, startTime);
-        addField(sb, NEXT_BY_SUBJECT, subject);
-        addStrings(sb, MULTI_LAST, lastBySubjects);
+        addField(sb, NEXT_BY_SUBJECT, nextBySubject);
+        addStrings(sb, MULTI_LAST, multiLastBySubjects);
         addField(sb, UP_TO_SEQ, upToSequence);
         addField(sb, UP_TO_TIME, upToTime);
         return endJson(sb).toString();
@@ -158,10 +156,10 @@ public class MessageBatchGetRequest implements JsonSerializable {
     public static class Builder {
         private int batch = -1;
         private int maxBytes = -1;
-        private long sequence = -1;
+        private long minSequence = -1;
         private ZonedDateTime startTime = null;
-        private String subject = null;
-        private List<String> lastBySubjects = new ArrayList<>();
+        private String nextBySubject = null;
+        private List<String> multiLastBySubjects = new ArrayList<>();
         private long upToSequence = -1;
         private ZonedDateTime upToTime = null;
 
@@ -179,10 +177,10 @@ public class MessageBatchGetRequest implements JsonSerializable {
             if (req != null) {
                 this.batch = req.batch;
                 this.maxBytes = req.maxBytes;
-                this.sequence = req.minSequence;
+                this.minSequence = req.minSequence;
                 this.startTime = req.startTime;
-                this.subject = req.subject;
-                this.lastBySubjects = req.lastBySubjects;
+                this.nextBySubject = req.nextBySubject;
+                this.multiLastBySubjects = req.multiLastBySubjects;
                 this.upToSequence = req.upToSequence;
                 this.upToTime = req.upToTime;
             }
@@ -194,8 +192,7 @@ public class MessageBatchGetRequest implements JsonSerializable {
          * @return Builder
          */
         public Builder batch(int batch) {
-            validateGtZero(batch, "Request batch size");
-            this.batch = batch;
+            this.batch = batch < 1 ? -1 : batch;
             return this;
         }
 
@@ -206,7 +203,7 @@ public class MessageBatchGetRequest implements JsonSerializable {
          * @return Builder
          */
         public Builder maxBytes(int maxBytes) {
-            this.maxBytes = maxBytes;
+            this.maxBytes = maxBytes < 1 ? -1 : maxBytes;
             return this;
         }
 
@@ -217,8 +214,7 @@ public class MessageBatchGetRequest implements JsonSerializable {
          * @return Builder
          */
         public Builder minSequence(long sequence) {
-            validateGtEqZero(sequence, "Minimum Sequence");
-            this.sequence = sequence;
+            this.minSequence = sequence < 1 ? -1 : sequence;
             return this;
         }
 
@@ -235,11 +231,14 @@ public class MessageBatchGetRequest implements JsonSerializable {
 
         /**
          * Subject used to filter messages that should be returned.
-         * @param subject the subject to filter
+         * @param nextBySubject the subject to filter
          * @return Builder
          */
-        public Builder subject(String subject) {
-            this.subject = subject;
+        public Builder nextBySubject(String nextBySubject) {
+            if (!multiLastBySubjects.isEmpty()) {
+                throw new IllegalArgumentException("nextBySubject cannot be used when multiLastBySubjects is used.");
+            }
+            this.nextBySubject = nextBySubject;
             return this;
         }
 
@@ -249,9 +248,14 @@ public class MessageBatchGetRequest implements JsonSerializable {
          * @param subjects the subjects to get the last messages for
          * @return Builder
          */
-        public Builder lastBySubjects(String... subjects) {
-            this.lastBySubjects.clear();
-            this.lastBySubjects.addAll(Arrays.asList(subjects));
+        public Builder multiLastBySubjects(String... subjects) {
+            if (nextBySubject != null) {
+                throw new IllegalArgumentException("nextBySubject cannot be used when multiLastBySubjects is used.");
+            }
+            this.multiLastBySubjects.clear();
+            if (subjects != null && subjects.length > 0) {
+                this.multiLastBySubjects.addAll(Arrays.asList(subjects));
+            }
             return this;
         }
 
@@ -261,9 +265,14 @@ public class MessageBatchGetRequest implements JsonSerializable {
          * @param subjects the subjects to get the last messages for
          * @return Builder
          */
-        public Builder lastBySubjects(Collection<String> subjects) {
-            this.lastBySubjects.clear();
-            this.lastBySubjects.addAll(subjects);
+        public Builder multiLastBySubjects(Collection<String> subjects) {
+            if (nextBySubject != null) {
+                throw new IllegalArgumentException("nextBySubject cannot be used when multiLastBySubjects is used.");
+            }
+            this.multiLastBySubjects.clear();
+            if (subjects != null && !subjects.isEmpty()) {
+                this.multiLastBySubjects.addAll(subjects);
+            }
             return this;
         }
 
@@ -274,8 +283,7 @@ public class MessageBatchGetRequest implements JsonSerializable {
          * @return Builder
          */
         public Builder upToSequence(long upToSequence) {
-            validateGtZero(upToSequence, "Up to sequence");
-            this.upToSequence = upToSequence;
+            this.upToSequence = upToSequence < 1 ? -1 : upToSequence;
             return this;
         }
 

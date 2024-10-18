@@ -29,7 +29,7 @@ import static io.nats.client.support.NatsJetStreamConstants.*;
  */
 public class MessageInfo extends ApiResponse<MessageInfo> {
 
-    private final boolean direct;
+    private final boolean fromDirect;
     private final String subject;
     private final long seq;
     private final byte[] data;
@@ -55,27 +55,29 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
      * This signature is public for testing purposes and is not intended to be used externally.
      * @param msg the message
      * @param streamName the stream name if known
-     * @param direct true if the object is being created from a get direct api call instead of the standard get message
+     * @param fromDirect true if the object is being created from a get fromDirect api call instead of the standard get message
      */
-    public MessageInfo(Message msg, String streamName, boolean direct) {
-        this(msg, null, streamName, direct);
+    public MessageInfo(Message msg, String streamName, boolean fromDirect) {
+        this(msg, null, streamName, fromDirect);
     }
 
 
     /**
      * Create a Message Info
      * This signature is public for testing purposes and is not intended to be used externally.
-     * @param status the status
+     *
+     * @param status     the status
      * @param streamName the stream name if known
+     * @param fromDirect whether this was called from a direct get
      */
-    public MessageInfo(Status status, String streamName) {
-        this(null, status, streamName, true);
+    public MessageInfo(Status status, String streamName, boolean fromDirect) {
+        this(null, status, streamName, fromDirect);
     }
 
-    private MessageInfo(Message msg, Status status, String streamName, boolean direct) {
-        super(direct ? null : msg);
+    private MessageInfo(Message msg, Status status, String streamName, boolean fromDirect) {
+        super(fromDirect ? null : msg);
 
-        this.direct = direct;
+        this.fromDirect = fromDirect;
 
         // working vars because the object vars are final
         String _subject = null;
@@ -92,7 +94,7 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
             _status = status;
             _stream = streamName;
         }
-        else if (direct) {
+        else if (fromDirect) {
             Headers msgHeaders = msg.getHeaders();
             _subject = msgHeaders.getLast(NATS_SUBJECT);
             _data = msg.getData();
@@ -105,10 +107,10 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
             }
             String tempNumPending = msgHeaders.getLast(NATS_NUM_PENDING);
             if (tempNumPending != null) {
-                // Num pending is +1 since it includes EOB message, correct that here.
                 _numPending = Long.parseLong(tempNumPending) - 1;
             }
-            // these are control headers, not real headers so don't give them to the user.
+
+            // these are control headers, not real headers so don't give them to the user. Must be done last
             _headers = new Headers(msgHeaders, true, MESSAGE_INFO_HEADERS);
         }
         else if (!hasError()){
@@ -222,10 +224,10 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
     }
 
     /**
-     * Whether this MessageInfo is a status message and is a direct EOB marker
-     * @return true if this MessageInfo is a status message and is a direct EOB marker
+     * Whether this MessageInfo is a status message and is a direct EOB status
+     * @return true if this MessageInfo is a status message and is a direct EOB status
      */
-    public boolean isEob() {
+    public boolean isEobStatus() {
         return status != null && status.isEob();
     }
 
@@ -248,21 +250,20 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
             JsonUtils.addField(sb, ERROR, getError());
         }
         else {
-            JsonUtils.addField(sb, "direct", direct);
-            JsonUtils.addField(sb, SUBJECT, subject);
             JsonUtils.addField(sb, SEQ, seq);
+            JsonUtils.addField(sb, LAST_SEQ, lastSeq);
+            JsonUtils.addField(sb, NUM_PENDING, numPending);
+            JsonUtils.addField(sb, STREAM, stream);
+            JsonUtils.addField(sb, SUBJECT, subject);
+            JsonUtils.addField(sb, TIME, time);
             if (data == null) {
                 addRawJson(sb, DATA, "null");
             }
             else {
                 JsonUtils.addField(sb, "data_length", data.length);
             }
-            JsonUtils.addField(sb, TIME, time);
-            JsonUtils.addField(sb, STREAM, stream);
-            JsonUtils.addField(sb, LAST_SEQ, lastSeq);
-            JsonUtils.addField(sb, NUM_PENDING, numPending);
-            JsonUtils.addField(sb, SUBJECT, subject);
             JsonUtils.addField(sb, HDRS, headers);
+            JsonUtils.addField(sb, "from_direct", fromDirect);
         }
         return JsonUtils.endJson(sb).toString();
     }

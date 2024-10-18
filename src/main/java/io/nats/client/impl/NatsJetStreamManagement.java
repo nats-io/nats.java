@@ -376,37 +376,36 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
      * {@inheritDoc}
      */
     @Override
-    public void requestMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException {
+    public boolean requestMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException {
         validateMessageBatchGetRequest(streamName, messageBatchGetRequest);
-        _requestMessageBatch(streamName, messageBatchGetRequest, true, handler);
+        return _requestMessageBatch(streamName, messageBatchGetRequest, true, handler);
     }
 
-    public void _requestMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, boolean sendEod, MessageInfoHandler handler) {
+    private boolean _requestMessageBatch(String streamName, MessageBatchGetRequest mbgr, boolean sendEob, MessageInfoHandler handler) {
         Subscription sub = null;
 
-        int x = 0;
         try {
             String replyTo = conn.createInbox();
             sub = conn.subscribe(replyTo);
 
-            String requestSubject = prependPrefix(String.format(JSAPI_DIRECT_GET, streamName));
-            conn.publish(requestSubject, replyTo, messageBatchGetRequest.serialize());
+            String subject = prependPrefix(String.format(JSAPI_DIRECT_GET, streamName));
+            conn.publish(subject, replyTo, mbgr.serialize());
 
             while (true) {
                 Message msg = sub.nextMessage(getTimeout());
                 if (msg == null) {
-                    break;
+                    return false; // should not time out before eob
                 }
 
                 if (msg.isStatusMessage()) {
-                    // the return goes to the "finally"
-                    // when the status is the eob, the code in the "finally" checks the original sendEod flag
-                    // when the status is not an eob, always send the status message info as the last message
-                    if (!msg.getStatus().isEob()) {
-                        sendEod = false;
-                        handler.onMessageInfo(new MessageInfo(msg.getStatus(), streamName));
+                    if (msg.getStatus().isEob()) {
+                        return true;  // will send eob in finally if caller asked
                     }
-                    return;
+
+                    // All non eob statuses, always send, but it is the last message to the caller
+                    sendEob = false;
+                    handler.onMessageInfo(new MessageInfo(msg.getStatus(), streamName, true));
+                    return false; // since this was an error
                 }
 
                 Headers headers = msg.getHeaders();
@@ -425,18 +424,16 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
             Thread.currentThread().interrupt();
             throw new RuntimeException(e);
         } finally {
-            if (sendEod) {
+            if (sendEob) {
                 try {
-                    handler.onMessageInfo(new MessageInfo(Status.EOB, streamName));
+                    handler.onMessageInfo(new MessageInfo(Status.EOB, streamName, true));
                 }
-                catch (Exception ignore) {
-                }
+                catch (RuntimeException ignore) { /* user handler runtime error */ }
             }
             try {
                 //noinspection DataFlowIssue
                 sub.unsubscribe();
-            } catch (Exception ignore) {
-            }
+            } catch (RuntimeException ignore) { /* don't want this to fail here */ }
         }
     }
 
