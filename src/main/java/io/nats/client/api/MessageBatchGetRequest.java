@@ -122,12 +122,17 @@ public class MessageBatchGetRequest implements JsonSerializable {
         StringBuilder sb = beginJson();
         addField(sb, BATCH, batch);
         addField(sb, MAX_BYTES, maxBytes);
-        addField(sb, SEQ, minSequence);
         addField(sb, START_TIME, startTime);
         addField(sb, NEXT_BY_SUBJECT, nextBySubject);
         addStrings(sb, MULTI_LAST, multiLastBySubjects);
         addField(sb, UP_TO_SEQ, upToSequence);
         addField(sb, UP_TO_TIME, upToTime);
+        if (minSequence < 1 && (maxBytes > 0 || upToSequence > 0 || upToTime != null)) {
+            addField(sb, SEQ, 1);
+        }
+        else {
+            addField(sb, SEQ, minSequence);
+        }
         return endJson(sb).toString();
     }
 
