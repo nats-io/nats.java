@@ -286,8 +286,7 @@ public interface JetStreamManagement {
     /**
      * Get MessageInfo for the first message created at or after the start time.
      * <p>
-     * This API is currently EXPERIMENTAL and is subject to change.
-     *
+     * This API 1) is currently EXPERIMENTAL and is subject to change. 2) Works on Server 2.11 or later
      * @param streamName the name of the stream.
      * @param startTime the start time to get the first message for.
      * @return The MessageInfo
@@ -300,8 +299,7 @@ public interface JetStreamManagement {
     /**
      * Get MessageInfo for the first message created at or after the start time matching the subject.
      * <p>
-     * This API is currently EXPERIMENTAL and is subject to change.
-     *
+     * This API 1) is currently EXPERIMENTAL and is subject to change. 2) Works on Server 2.11 or later
      * @param streamName the name of the stream.
      * @param startTime the start time to get the first message for.
      * @param subject the subject to get the first message for.
@@ -328,7 +326,7 @@ public interface JetStreamManagement {
     /**
      * Request a batch of messages using a {@link MessageBatchGetRequest}.
      * <p>
-     * This API is currently EXPERIMENTAL and is subject to change.
+     * This API 1) is currently EXPERIMENTAL and is subject to change. 2) Works on Server 2.11 or later
      * @param streamName the name of the stream
      * @param messageBatchGetRequest the request details
      * @return a list containing {@link MessageInfo}
@@ -341,7 +339,7 @@ public interface JetStreamManagement {
     /**
      * Request a batch of messages using a {@link MessageBatchGetRequest}.
      * <p>
-     * This API is currently EXPERIMENTAL and is subject to change.
+     * This API 1) is currently EXPERIMENTAL and is subject to change. 2) Works on Server 2.11 or later
      * @param streamName the name of the stream
      * @param messageBatchGetRequest the request details
      * @return a queue used to asynchronously receive {@link MessageInfo}
@@ -354,8 +352,7 @@ public interface JetStreamManagement {
     /**
      * Request a batch of messages using a {@link MessageBatchGetRequest}.
      * <p>
-     * This API is currently EXPERIMENTAL and is subject to change.
-     *
+     * This API 1) is currently EXPERIMENTAL and is subject to change. 2) Works on Server 2.11 or later
      * @param streamName             the name of the stream
      * @param messageBatchGetRequest the request details
      * @param handler                the handler used for receiving {@link MessageInfo}
