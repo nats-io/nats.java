@@ -16,7 +16,6 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.DateTimeUtils;
-import io.nats.client.support.Debug;
 import io.nats.client.support.Validator;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
@@ -1818,7 +1817,6 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     private static void verifyError(List<MessageInfo> list, int code) {
         assertEquals(1, list.size());
         MessageInfo miErr = list.get(0);
-        Debug.info("!", miErr);
         assertFalse(miErr.isMessage());
         assertTrue(miErr.isStatus());
         assertFalse(miErr.isEobStatus());
@@ -1912,7 +1910,6 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 .build();
             list = jsm.fetchMessageBatch(stream, request);
             assertEquals(1, list.size());
-            Debug.info("?", request.toJson(), list.get(0));
             assertEquals(dataA, new String(list.get(0).getData()));
 
             // up to sequence
