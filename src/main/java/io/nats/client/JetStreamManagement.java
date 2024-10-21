@@ -17,6 +17,7 @@ import io.nats.client.api.*;
 import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * JetStream Management context for creation and access to streams and consumers in NATS.
@@ -285,8 +286,7 @@ public interface JetStreamManagement {
     /**
      * Get MessageInfo for the first message created at or after the start time.
      * <p>
-     * This API is currently EXPERIMENTAL and is subject to change.
-     *
+     * This API 1) is currently EXPERIMENTAL and is subject to change. 2) Works on Server 2.11 or later
      * @param streamName the name of the stream.
      * @param startTime the start time to get the first message for.
      * @return The MessageInfo
@@ -299,8 +299,7 @@ public interface JetStreamManagement {
     /**
      * Get MessageInfo for the first message created at or after the start time matching the subject.
      * <p>
-     * This API is currently EXPERIMENTAL and is subject to change.
-     *
+     * This API 1) is currently EXPERIMENTAL and is subject to change. 2) Works on Server 2.11 or later
      * @param streamName the name of the stream.
      * @param startTime the start time to get the first message for.
      * @param subject the subject to get the first message for.
@@ -323,6 +322,46 @@ public interface JetStreamManagement {
      * @throws JetStreamApiException the request had an error related to the data
      */
     MessageInfo getNextMessage(String streamName, long seq, String subject) throws IOException, JetStreamApiException;
+
+    /**
+     * Request a batch of messages using a {@link MessageBatchGetRequest}.
+     * <p>
+     * This API 1) is currently EXPERIMENTAL and is subject to change. 2) Works on Server 2.11 or later
+     * @param streamName the name of the stream
+     * @param messageBatchGetRequest the request details
+     * @return a list containing {@link MessageInfo}
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    List<MessageInfo> fetchMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException;
+
+    /**
+     * Request a batch of messages using a {@link MessageBatchGetRequest}.
+     * <p>
+     * This API 1) is currently EXPERIMENTAL and is subject to change. 2) Works on Server 2.11 or later
+     * @param streamName the name of the stream
+     * @param messageBatchGetRequest the request details
+     * @return a queue used to asynchronously receive {@link MessageInfo}
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    LinkedBlockingQueue<MessageInfo> queueMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException;
+
+    /**
+     * Request a batch of messages using a {@link MessageBatchGetRequest}.
+     * <p>
+     * This API 1) is currently EXPERIMENTAL and is subject to change. 2) Works on Server 2.11 or later
+     * @param streamName             the name of the stream
+     * @param messageBatchGetRequest the request details
+     * @param handler                the handler used for receiving {@link MessageInfo}
+     * @return true if all messages were received and properly terminated with a server EOB
+     * @throws IOException           covers various communication issues with the NATS
+     *                               server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    boolean requestMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest, MessageInfoHandler handler) throws IOException, JetStreamApiException;
 
     /**
      * Deletes a message, overwriting the message data with garbage
