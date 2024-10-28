@@ -18,7 +18,7 @@ package io.nats.client;
  * listener is configured in the {@link Options Options} at creation time.
  */
 public interface ConnectionListener {
-    public enum Events {
+    enum Events {
         /** The connection has successfully completed the handshake with the nats-server. */
         CONNECTED(true, "opened"),
         /** The connection is permanently closed, either by manual action or failed reconnects. */
@@ -29,7 +29,7 @@ public interface ConnectionListener {
         RECONNECTED(true, "reconnected"),
         /** The connection was reconnected and the server has been notified of all subscriptions. */
         RESUBSCRIBED(false, "subscriptions re-established"),
-        /** The connection was told about new servers from, from the current server. */ 
+        /** The connection was made aware of new servers from the current server connection. */
         DISCOVERED_SERVERS(false, "discovered servers"),
         /** Server Sent a lame duck mode. */
         LAME_DUCK(false, "lame duck mode");
@@ -77,5 +77,5 @@ public interface ConnectionListener {
      * @param conn the connection associated with the error
      * @param type the type of event that has occurred
      */
-    public void connectionEvent(Connection conn, Events type);
+    void connectionEvent(Connection conn, Events type);
 }

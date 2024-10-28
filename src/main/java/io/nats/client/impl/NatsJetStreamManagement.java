@@ -408,11 +408,6 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
                     return false; // since this was an error
                 }
 
-                Headers headers = msg.getHeaders();
-                if (headers == null || headers.getLast(NATS_NUM_PENDING) == null) {
-                    throw JsDirectBatchGet211NotAvailable.instance();
-                }
-
                 MessageInfo messageInfo = new MessageInfo(msg, streamName, true);
                 handler.onMessageInfo(messageInfo);
             }

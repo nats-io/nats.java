@@ -26,8 +26,8 @@ public class Status {
     public static final int NO_RESPONDERS_CODE = 503;
     public static final int BAD_REQUEST_CODE = 400;
     public static final int NOT_FOUND_CODE = 404;
-    public static final int REQUEST_TIMEOUT_CODE = 408;
-    public static final int EMPTY_REQUEST_CODE = 408;
+    public static final int BAD_JS_REQUEST_CODE = 408;
+    public static final int REQUEST_TIMEOUT_CODE = BAD_JS_REQUEST_CODE; // only left in for b/w compat
     public static final int CONFLICT_CODE = 409;
     public static final int EOB_CODE = 204;
 

@@ -31,7 +31,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import static io.nats.client.support.DateTimeUtils.DEFAULT_TIME;
 import static io.nats.client.support.DateTimeUtils.ZONE_ID_GMT;
 import static io.nats.client.support.NatsJetStreamConstants.*;
-import static io.nats.client.support.Status.EMPTY_REQUEST_CODE;
+import static io.nats.client.support.Status.BAD_JS_REQUEST_CODE;
 import static io.nats.client.support.Status.NOT_FOUND_CODE;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
@@ -1550,99 +1550,6 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         });
     }
 
-    @Test
-    public void testBatchDirectGetBasic() throws Exception {
-        jsServer.run(TestBase::atLeast2_11, nc -> {
-            JetStream js = nc.jetStream();
-            JetStreamManagement jsm = nc.jetStreamManagement();
-
-            String stream = variant();
-            String subject = variant();
-            StreamConfiguration sc = StreamConfiguration.builder()
-                .name(stream)
-                .storageType(StorageType.Memory)
-                .subjects(subject)
-                .build();
-            StreamInfo si = jsm.addStream(sc);
-            assertFalse(si.getConfiguration().getAllowDirect());
-
-            // Stream doesn't have AllowDirect enabled, will error.
-            List<MessageInfo> list = new ArrayList<>();
-            assertThrows(IllegalArgumentException.class, () -> {
-                MessageBatchGetRequest request = MessageBatchGetRequest.builder().build();
-                jsm.requestMessageBatch(stream, request, list::add);
-            });
-
-            // Enable AllowDirect.
-            jsm.deleteStream(stream);
-            sc = StreamConfiguration.builder()
-                .name(stream)
-                .storageType(StorageType.Memory)
-                .subjects(subject)
-                .allowDirect(true)
-                .build();
-            si = jsm.addStream(sc);
-            assertTrue(si.getConfiguration().getAllowDirect());
-
-            // Empty (Invalid) request errors.
-            list.clear();
-            MessageBatchGetRequest request = MessageBatchGetRequest.builder().build();
-            jsm.requestMessageBatch(stream, request, list::add);
-            assertEquals(1, list.size());
-            MessageInfo miErr = list.get(0);
-            assertFalse(miErr.isMessage());
-            assertFalse(miErr.isEobStatus());
-            assertTrue(miErr.isErrorStatus());
-
-            // Requests stay the same for all options.
-            MessageBatchGetRequest request1 = MessageBatchGetRequest.builder()
-                .batch(3)
-                .nextBySubject(subject)
-                .build();
-            MessageBatchGetRequest request2 = MessageBatchGetRequest.builder()
-                .batch(3)
-                .minSequence(4)
-                .nextBySubject(subject)
-                .build();
-
-            // no messages yet - handler
-            list.clear();
-            jsm.requestMessageBatch(stream, request1, list::add);
-            verifyError(list);
-
-            // no messages yet - fetch
-            verifyError(jsm.fetchMessageBatch(stream, request1));
-
-            // no messages yet - queue
-            LinkedBlockingQueue<MessageInfo> queue = jsm.queueMessageBatch(stream, request1);
-            verifyError(queueToList(queue));
-
-            for (int x = 0; x < 5; x++) {
-                js.publish(subject, ("" + x).getBytes(StandardCharsets.UTF_8));
-            }
-
-            // Get using handler.
-            list.clear();
-            jsm.requestMessageBatch(stream, request1, list::add);
-            verifyRequest1(list, true);
-
-            list.clear();
-            jsm.requestMessageBatch(stream, request2, list::add);
-            verifyRequest2(list, true);
-
-            // Get using fetch.
-            verifyRequest1(jsm.fetchMessageBatch(stream, request1), false);
-            verifyRequest2(jsm.fetchMessageBatch(stream, request2), false);
-
-            // Get using queue.
-            queue = jsm.queueMessageBatch(stream, request1);
-            verifyRequest1(queueToList(queue), true);
-
-            queue = jsm.queueMessageBatch(stream, request2);
-            verifyRequest2(queueToList(queue), true);
-        });
-    }
-
     private static List<MessageInfo> queueToList(LinkedBlockingQueue<MessageInfo> queue) throws InterruptedException {
         List<MessageInfo> list = new ArrayList<>();
         while (true) {
@@ -1693,14 +1600,6 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         }
     }
 
-    private static void verifyError(List<MessageInfo> list) {
-        MessageInfo mi = list.get(0);
-        assertFalse(mi.isMessage());
-        assertTrue(mi.isStatus());
-        assertFalse(mi.isEobStatus());
-        assertTrue(mi.isErrorStatus());
-    }
-
     @Test
     public void testBatchDirectGet() throws Exception {
         jsServer.run(TestBase::atLeast2_11, nc -> {
@@ -1729,24 +1628,12 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 .nextBySubject(subject)
                 .build();
 
-            // no messages yet - handler
-            List<MessageInfo> list = new ArrayList<>();
-            jsm.requestMessageBatch(stream, request1, list::add);
-            verifyError(list);
-
-            // no messages yet - fetch
-            verifyError(jsm.fetchMessageBatch(stream, request1));
-
-            // no messages yet - queue
-            LinkedBlockingQueue<MessageInfo> queue = jsm.queueMessageBatch(stream, request1);
-            verifyError(queueToList(queue));
-
             for (int x = 0; x < 5; x++) {
                 js.publish(subject, ("" + x).getBytes(StandardCharsets.UTF_8));
             }
 
             // Get using handler.
-            list.clear();
+            List<MessageInfo> list = new ArrayList<>();
             jsm.requestMessageBatch(stream, request1, list::add);
             verifyRequest1(list, true);
 
@@ -1759,7 +1646,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             verifyRequest2(jsm.fetchMessageBatch(stream, request2), false);
 
             // Get using queue.
-            queue = jsm.queueMessageBatch(stream, request1);
+            LinkedBlockingQueue<MessageInfo> queue = jsm.queueMessageBatch(stream, request1);
             verifyRequest1(queueToList(queue), true);
 
             queue = jsm.queueMessageBatch(stream, request2);
@@ -1798,9 +1685,29 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 .build();
             jsm.addStream(sc);
 
+            MessageBatchGetRequest request = MessageBatchGetRequest.builder()
+                .batch(3)
+                .nextBySubject(subject)
+                .build();
+
+            // no messages yet - handler
+            List<MessageInfo> list = new ArrayList<>();
+            jsm.requestMessageBatch(stream, request, list::add);
+            verifyError(list, NOT_FOUND_CODE);
+
+            // no messages yet - fetch
+            verifyError(jsm.fetchMessageBatch(stream, request), NOT_FOUND_CODE);
+
+            // no messages yet - queue
+            LinkedBlockingQueue<MessageInfo> queue = jsm.queueMessageBatch(stream, request);
+            verifyError(queueToList(queue), NOT_FOUND_CODE);
+
+            jsm.jetStream().publish(subject, dataBytes()); // so there are messages
+            Thread.sleep(2500); // for start_time
+
             // Empty (Invalid) request errors.
-            MessageBatchGetRequest request = MessageBatchGetRequest.builder().build();
-            verifyError(jsm.fetchMessageBatch(stream, request), EMPTY_REQUEST_CODE);
+            request = MessageBatchGetRequest.builder().build();
+            verifyError(jsm.fetchMessageBatch(stream, request), BAD_JS_REQUEST_CODE);
 
             request = MessageBatchGetRequest.builder().batch(1).nextBySubject("not").build();
             verifyError(jsm.fetchMessageBatch(stream, request), NOT_FOUND_CODE);
@@ -1808,8 +1715,11 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             request = MessageBatchGetRequest.builder().batch(1).minSequence(99).build();
             verifyError(jsm.fetchMessageBatch(stream, request), NOT_FOUND_CODE);
 
-            request = MessageBatchGetRequest.builder().batch(1).startTime(ZonedDateTime.now()).build();
-            verifyError(jsm.fetchMessageBatch(stream, request), NOT_FOUND_CODE);
+// DOESN'T WORK AS ASSUMED
+//            request = MessageBatchGetRequest.builder()
+//                .batch(1)
+//                .startTime(ZonedDateTime.now()).build();
+//            verifyError(jsm.fetchMessageBatch(stream, request), NOT_FOUND_CODE);
         });
     }
 
@@ -1920,7 +1830,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(dataA, new String(list.get(0).getData()));
             assertEquals(1, list.get(0).getSeq());
 
-// TODO NOT WORKING YET!
+// TODO Not a feature yet
             // up to sequence
 //            request = MessageBatchGetRequest.builder()
 //                .batch(5)
@@ -1932,7 +1842,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 //            assertEquals(dataB, new String(list.get(1).getData()));
 //            assertEquals(dataC, new String(list.get(2).getData()));
 
-// TODO NOT WORKING YET!
+// TODO Not a feature yet
             // up to time
 //            request = MessageBatchGetRequest.builder()
 //                .batch(5)

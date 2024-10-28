@@ -127,8 +127,12 @@ public class MessageBatchGetRequest implements JsonSerializable {
         addStrings(sb, MULTI_LAST, multiLastBySubjects);
         addField(sb, UP_TO_SEQ, upToSequence);
         addField(sb, UP_TO_TIME, upToTime);
-        if (minSequence < 1 && (maxBytes > 0 || upToSequence > 0 || upToTime != null)) {
-            addField(sb, SEQ, 1);
+
+        // THIS IS A WORKAROUND https://github.com/nats-io/nats-server/issues/6026
+        if (minSequence < 1) {
+            if (maxBytes > 0) {
+                addField(sb, SEQ, 1);
+            }
         }
         else {
             addField(sb, SEQ, minSequence);
@@ -255,7 +259,7 @@ public class MessageBatchGetRequest implements JsonSerializable {
          */
         public Builder multiLastBySubjects(String... subjects) {
             if (nextBySubject != null) {
-                throw new IllegalArgumentException("nextBySubject cannot be used when multiLastBySubjects is used.");
+                throw new IllegalArgumentException("multiLastBySubjects cannot be used when nextBySubject is used.");
             }
             this.multiLastBySubjects.clear();
             if (subjects != null && subjects.length > 0) {
@@ -272,7 +276,7 @@ public class MessageBatchGetRequest implements JsonSerializable {
          */
         public Builder multiLastBySubjects(Collection<String> subjects) {
             if (nextBySubject != null) {
-                throw new IllegalArgumentException("nextBySubject cannot be used when multiLastBySubjects is used.");
+                throw new IllegalArgumentException("multiLastBySubjects cannot be used when nextBySubject is used.");
             }
             this.multiLastBySubjects.clear();
             if (subjects != null && !subjects.isEmpty()) {
