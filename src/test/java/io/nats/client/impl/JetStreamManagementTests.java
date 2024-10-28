@@ -106,8 +106,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testStreamMetadata() throws Exception {
-        jsServer.run(nc -> {
-            Map<String, String> metaData = new HashMap<>(); metaData.put("meta-foo", "meta-bar");
+        jsServer.run(TestBase::atLeast2_9_0, nc -> {
+            Map<String, String> metaData = new HashMap<>(); metaData.put(META_KEY, META_VALUE);
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             StreamConfiguration sc = StreamConfiguration.builder()
@@ -119,14 +119,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             StreamInfo si = jsm.addStream(sc);
             assertNotNull(si.getConfiguration());
-            sc = si.getConfiguration();
-            if (nc.getServerInfo().isSameOrNewerThanVersion("2.10")) {
-                assertEquals(1, sc.getMetadata().size());
-                assertEquals("meta-bar", sc.getMetadata().get("meta-foo"));
-            }
-            else {
-                assertNull(sc.getMetadata());
-            }
+            assertMetaData(si.getConfiguration().getMetadata());
         });
     }
 
@@ -832,7 +825,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             ZonedDateTime pauseUntil = ZonedDateTime.now(ZONE_ID_GMT).plusMinutes(2);
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                    .durable(tsc.name())
+                    .durable(tsc.consumerName())
                     .pauseUntil(pauseUntil)
                     .build();
 
@@ -854,7 +847,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(0, list.size());
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                    .durable(tsc.name())
+                    .durable(tsc.consumerName())
                     .build();
 
             // durable and name can both be null
@@ -891,9 +884,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             ci = jsm.getConsumerInfo(tsc.stream, ci.getName());
             assertFalse(ci.getPaused());
 
-            assertThrows(JetStreamApiException.class, () -> jsm.pauseConsumer(stream(), tsc.name(), pauseUntil));
+            assertThrows(JetStreamApiException.class, () -> jsm.pauseConsumer(stream(), tsc.consumerName(), pauseUntil));
             assertThrows(JetStreamApiException.class, () -> jsm.pauseConsumer(tsc.stream, name(), pauseUntil));
-            assertThrows(JetStreamApiException.class, () -> jsm.resumeConsumer(stream(), tsc.name()));
+            assertThrows(JetStreamApiException.class, () -> jsm.resumeConsumer(stream(), tsc.consumerName()));
             assertThrows(JetStreamApiException.class, () -> jsm.resumeConsumer(tsc.stream, name()));
         });
     }
@@ -1009,24 +1002,17 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     @Test
     public void testConsumerMetadata() throws Exception {
         jsServer.run(nc -> {
-            Map<String, String> metaData = new HashMap<>(); metaData.put("meta-foo", "meta-bar");
+            Map<String, String> metaData = new HashMap<>(); metaData.put(META_KEY, META_VALUE);
             JetStreamManagement jsm = nc.jetStreamManagement();
             TestingStreamContainer tsc = new TestingStreamContainer(jsm);
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                .durable(tsc.name())
+                .durable(tsc.consumerName())
                 .metadata(metaData)
                 .build();
 
             ConsumerInfo ci = jsm.addOrUpdateConsumer(tsc.stream, cc);
-            if (nc.getServerInfo().isSameOrNewerThanVersion("2.10")) {
-                assertEquals(1, ci.getConsumerConfiguration().getMetadata().size());
-                assertEquals("meta-bar", ci.getConsumerConfiguration().getMetadata().get("meta-foo"));
-            }
-            else {
-                assertNotNull(ci.getConsumerConfiguration().getMetadata());
-                assertEquals(0, ci.getConsumerConfiguration().getMetadata().size());
-            }
+            assertMetaData(ci.getConsumerConfiguration().getMetadata());
         });
     }
 
@@ -1077,14 +1063,14 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         jsServer.run(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             TestingStreamContainer tsc = new TestingStreamContainer(jsm);
-            assertThrows(JetStreamApiException.class, () -> jsm.getConsumerInfo(tsc.stream, tsc.name()));
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(tsc.name()).build();
+            assertThrows(JetStreamApiException.class, () -> jsm.getConsumerInfo(tsc.stream, tsc.consumerName()));
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(tsc.consumerName()).build();
             ConsumerInfo ci = jsm.addOrUpdateConsumer(tsc.stream, cc);
             assertEquals(tsc.stream, ci.getStreamName());
-            assertEquals(tsc.name(), ci.getName());
-            ci = jsm.getConsumerInfo(tsc.stream, tsc.name());
+            assertEquals(tsc.consumerName(), ci.getName());
+            ci = jsm.getConsumerInfo(tsc.stream, tsc.consumerName());
             assertEquals(tsc.stream, ci.getStreamName());
-            assertEquals(tsc.name(), ci.getName());
+            assertEquals(tsc.consumerName(), ci.getName());
             assertThrows(JetStreamApiException.class, () -> jsm.getConsumerInfo(tsc.stream, durable(999)));
             if (nc.getServerInfo().isSameOrNewerThanVersion("2.10")) {
                 assertNotNull(ci.getTimestamp());
@@ -1240,14 +1226,14 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             TestingStreamContainer tsc = new TestingStreamContainer(nc);
 
             final ConsumerConfiguration cc0 = ConsumerConfiguration.builder()
-                .durable(tsc.name())
+                .durable(tsc.consumerName())
                 .build();
             ConsumerInfo ci = jsm.addOrUpdateConsumer(tsc.stream, cc0);
             // server returns 0 when value is not set
             assertEquals(0, ci.getConsumerConfiguration().getNumReplicas());
 
             final ConsumerConfiguration cc1 = ConsumerConfiguration.builder()
-                .durable(tsc.name())
+                .durable(tsc.consumerName())
                 .numReplicas(1)
                 .build();
             ci = jsm.addOrUpdateConsumer(tsc.stream, cc1);
@@ -1307,6 +1293,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         assertMessageInfo(tsc, 1, 2, jsm.getNextMessage(tsc.stream, 0, tsc.subject(1)), beforeCreated);
         assertMessageInfo(tsc, 0, 1, jsm.getFirstMessage(tsc.stream, tsc.subject(0)), beforeCreated);
         assertMessageInfo(tsc, 1, 2, jsm.getFirstMessage(tsc.stream, tsc.subject(1)), beforeCreated);
+        assertMessageInfo(tsc, 0, 1, jsm.getFirstMessage(tsc.stream, beforeCreated), beforeCreated);
+        assertMessageInfo(tsc, 1, 2, jsm.getFirstMessage(tsc.stream, beforeCreated, tsc.subject(1)), beforeCreated);
 
         assertMessageInfo(tsc, 0, 1, jsm.getNextMessage(tsc.stream, 1, tsc.subject(0)), beforeCreated);
         assertMessageInfo(tsc, 1, 2, jsm.getNextMessage(tsc.stream, 1, tsc.subject(1)), beforeCreated);
@@ -1319,6 +1307,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
         assertStatus(10003, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(tsc.stream, -1)));
         assertStatus(10003, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(tsc.stream, 0)));
+        assertStatus(10003, assertThrows(JetStreamApiException.class, () -> jsm.getFirstMessage(tsc.stream, DEFAULT_TIME)));
         assertStatus(10037, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(tsc.stream, 9)));
         assertStatus(10037, assertThrows(JetStreamApiException.class, () -> jsm.getLastMessage(tsc.stream, "not-a-subject")));
         assertStatus(10037, assertThrows(JetStreamApiException.class, () -> jsm.getFirstMessage(tsc.stream, "not-a-subject")));

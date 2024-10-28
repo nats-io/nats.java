@@ -20,6 +20,8 @@ import java.util.List;
 
 /**
  * JetStream Management context for creation and access to streams and consumers in NATS.
+ * <p> Using JetStream Management is the <b>recommended</b> way of managing Jetstream resources.
+ * <p> Basic usage examples can be found in {@link JetStream JetStream}
  */
 public interface JetStreamManagement {
 
@@ -219,7 +221,7 @@ public interface JetStreamManagement {
 
     /**
      * Get a list of stream names that have subjects matching the subject filter.
-     * 
+     *
      * @param subjectFilter the subject. Wildcards are allowed.
      * @return The list of stream names matching the subject filter. May be empty, will not be null.
      * @throws IOException covers various communication issues with the NATS
@@ -279,6 +281,35 @@ public interface JetStreamManagement {
      * @throws JetStreamApiException the request had an error related to the data
      */
     MessageInfo getFirstMessage(String streamName, String subject) throws IOException, JetStreamApiException;
+
+    /**
+     * Get MessageInfo for the first message created at or after the start time.
+     * <p>
+     * This API is currently EXPERIMENTAL and is subject to change.
+     *
+     * @param streamName the name of the stream.
+     * @param startTime the start time to get the first message for.
+     * @return The MessageInfo
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    MessageInfo getFirstMessage(String streamName, ZonedDateTime startTime) throws IOException, JetStreamApiException;
+
+    /**
+     * Get MessageInfo for the first message created at or after the start time matching the subject.
+     * <p>
+     * This API is currently EXPERIMENTAL and is subject to change.
+     *
+     * @param streamName the name of the stream.
+     * @param startTime the start time to get the first message for.
+     * @param subject the subject to get the first message for.
+     * @return The MessageInfo
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    MessageInfo getFirstMessage(String streamName, ZonedDateTime startTime, String subject) throws IOException, JetStreamApiException;
 
     /**
      * Get MessageInfo for the message of the message sequence

@@ -29,7 +29,7 @@ import static io.nats.client.support.NatsJetStreamConstants.JS_NO_MESSAGE_FOUND_
 public class NatsFeatureBase {
 
     protected final NatsJetStream js;
-    protected final JetStreamManagement jsm;
+    protected final NatsJetStreamManagement jsm;
     protected String streamName;
 
     NatsFeatureBase(NatsConnection connection, FeatureOptions fo) throws IOException {
@@ -88,7 +88,7 @@ public class NatsFeatureBase {
             .configuration(ccb.build())
             .build();
 
-        Duration timeout = js.jso.getRequestTimeout();
+        Duration timeout = js.getTimeout();
         JetStreamSubscription sub = js.subscribe(null, pso);
         try {
             boolean lastWasNull = false;

@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Supplier;
@@ -44,9 +45,9 @@ public class TestBase {
     public static final String STARTS_WITH_DOT     = ".starts-with-dot";
     public static final String ENDS_WITH_DOT       = "ends-with-dot.";
     public static final String ENDS_WITH_DOT_SPACE = "ends-with-space. ";
-    public static final String ENDS_WITH_CR       = "ends-with-space.\r";
-    public static final String ENDS_WITH_LF       = "ends-with-space.\n";
-    public static final String ENDS_WITH_TAB      = "ends-with-space.\t";
+    public static final String ENDS_WITH_CR        = "ends-with-space.\r";
+    public static final String ENDS_WITH_LF        = "ends-with-space.\n";
+    public static final String ENDS_WITH_TAB       = "ends-with-space.\t";
     public static final String STAR_NOT_SEGMENT    = "star*not*segment";
     public static final String GT_NOT_SEGMENT      = "gt>not>segment";
     public static final String EMPTY_SEGMENT       = "blah..blah";
@@ -69,6 +70,9 @@ public class TestBase {
     public static final String HAS_BACK_SLASH = "has\\back\\slash";
     public static final String HAS_EQUALS     = "has=equals";
     public static final String HAS_TIC        = "has`tic";
+
+    public static final String META_KEY   = "meta-test-key";
+    public static final String META_VALUE = "meta-test-value";
 
     public static final long STANDARD_CONNECTION_WAIT_MS = 5000;
     public static final long LONG_CONNECTION_WAIT_MS = 7500;
@@ -109,6 +113,10 @@ public class TestBase {
         boolean runTest(ServerInfo si);
     }
 
+    public static boolean atLeast2_9_0() {
+        return atLeast2_9_0(RUN_SERVER_INFO);
+    }
+
     public static boolean atLeast2_9_0(Connection nc) {
         return atLeast2_9_0(nc.getServerInfo());
     }
@@ -122,7 +130,7 @@ public class TestBase {
     }
 
     public static boolean atLeast2_10() {
-        return RUN_SERVER_INFO.isNewerVersionThan("2.9.99");
+        return atLeast2_10(RUN_SERVER_INFO);
     }
 
     public static boolean atLeast2_10(ServerInfo si) {
@@ -133,8 +141,20 @@ public class TestBase {
         return si.isSameOrNewerThanVersion("2.10.3");
     }
 
+    public static boolean atLeast2_11() {
+        return atLeast2_11(RUN_SERVER_INFO);
+    }
+
     public static boolean atLeast2_11(ServerInfo si) {
         return si.isNewerVersionThan("2.10.99");
+    }
+
+    public static boolean before2_11() {
+        return before2_11(RUN_SERVER_INFO);
+    }
+
+    public static boolean before2_11(ServerInfo si) {
+        return si.isOlderThanVersion("2.11");
     }
 
     public static void runInServer(InServerTest inServerTest) throws Exception {
@@ -217,10 +237,8 @@ public class TestBase {
         {
             initRunServerInfo(nc);
 
-            if (vc != null) {
-                if (!vc.runTest(RUN_SERVER_INFO)) {
-                    return;
-                }
+            if (vc != null && !vc.runTest(RUN_SERVER_INFO)) {
+                return;
             }
 
             try {
@@ -237,41 +255,52 @@ public class TestBase {
     public static class LongRunningNatsTestServer extends NatsTestServer {
         public final boolean jetstream;
         public final Options.Builder builder;
-        public final Connection nc;
 
         public LongRunningNatsTestServer(boolean debug, boolean jetstream, Options.Builder builder) throws IOException, InterruptedException {
             super(debug, jetstream);
             this.jetstream = jetstream;
             this.builder = builder == null ? new Options.Builder() : builder;
-            nc = connect();
-            initRunServerInfo(nc);
         }
 
         public Connection connect() throws IOException, InterruptedException {
             return standardConnection(builder.server(getURI()).build());
         }
 
-        @Override
-        public void close() throws Exception {
-            try { nc.close(); } catch (Exception ignore) {};
-            super.close();
-        }
-
         public void run(InServerTest inServerTest) throws Exception {
-            run(null, inServerTest);
+            run(null, null, inServerTest);
         }
 
         public void run(VersionCheck vc, InServerTest inServerTest) throws Exception {
-            if (vc != null && !vc.runTest(RUN_SERVER_INFO)) {
-                return;
+            run(null, vc, inServerTest);
+        }
+
+        public void run(Options.Builder builder, VersionCheck vc, InServerTest inServerTest) throws Exception {
+            if (vc != null && RUN_SERVER_INFO != null) {
+                if (!vc.runTest(RUN_SERVER_INFO)) {
+                    return;
+                }
+                vc = null; // since we've already determined it should run, null this out so we don't check below
             }
 
-            try {
-                inServerTest.test(nc);
+            if (builder == null) {
+                builder = new Options.Builder();
             }
-            finally {
-                if (jetstream) {
-                    cleanupJs(nc);
+
+            try (Connection nc = standardConnection(builder.server(getURI()).build()))
+            {
+                initRunServerInfo(nc);
+
+                if (vc != null && !vc.runTest(RUN_SERVER_INFO)) {
+                    return;
+                }
+
+                try {
+                    inServerTest.test(nc);
+                }
+                finally {
+                    if (jetstream) {
+                        cleanupJs(nc);
+                    }
                 }
             }
         }
@@ -813,6 +842,22 @@ public class TestBase {
         }
         else if (error.getKind() == KIND_ILLEGAL_STATE) {
             assertInstanceOf(IllegalStateException.class, e);
+        }
+    }
+
+    public static void assertMetaData(Map<String, String> metadata) {
+        if (atLeast2_10()) {
+            if (before2_11()) {
+                assertEquals(1, metadata.size());
+            }
+            else {
+                assertTrue(metadata.size() > 1);
+            }
+            assertEquals(META_VALUE, metadata.get(META_KEY));
+        }
+        else if (atLeast2_9_0() ){
+            assertNotNull(metadata);
+            assertEquals(0, metadata.size());
         }
     }
 }

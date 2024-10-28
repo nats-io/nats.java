@@ -138,6 +138,11 @@ task sourcesJar(type: Jar) {
     from sourceSets.main.allSource
 }
 
+task testsJar(type: Jar) {
+    archiveClassifier.set('tests')
+    from sourceSets.test.allSource
+}
+
 // run build before running fat jar to get classes
 task fatJar(type: Jar) {
     archiveClassifier.set('fat')
@@ -168,7 +173,7 @@ jacocoTestReport {
 }
 
 artifacts {
-    archives javadocJar, sourcesJar, examplesJar
+    archives javadocJar, sourcesJar, examplesJar, testsJar
 }
 
 nexusPublishing {
@@ -187,6 +192,7 @@ publishing {
             artifact sourcesJar
             artifact examplesJar
             artifact javadocJar
+            artifact testsJar
             pom {
                 name = 'jnats'
                 packaging = 'jar'

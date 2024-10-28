@@ -22,8 +22,7 @@ public abstract class FeatureOptions {
 
     private final JetStreamOptions jso;
 
-    @SuppressWarnings("rawtypes") // Don't need the type of the builder to get its vars
-    protected FeatureOptions(Builder b) {
+    protected FeatureOptions(Builder<?, ?> b) {
         jso = b.jsoBuilder.build();
     }
 

@@ -462,7 +462,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             jsPublish(js, tsc.subject(), 1, 1);
             PushSubscribeOptions pso = PushSubscribeOptions.builder()
-                    .durable(tsc.name())
+                    .durable(tsc.consumerName())
                     .build();
             JetStreamSubscription s = js.subscribe(tsc.subject(), pso);
             Message m = s.nextMessage(DEFAULT_TIMEOUT);
@@ -474,7 +474,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             jsPublish(js, tsc.subject(), 2, 1);
             pso = PushSubscribeOptions.builder()
                     .stream(tsc.stream)
-                    .durable(tsc.name())
+                    .durable(tsc.consumerName())
                     .bind(true)
                     .build();
             s = js.subscribe(tsc.subject(), pso);
@@ -485,7 +485,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             unsubscribeEnsureNotBound(s);
 
             jsPublish(js, tsc.subject(), 3, 1);
-            pso = PushSubscribeOptions.bind(tsc.stream, tsc.name());
+            pso = PushSubscribeOptions.bind(tsc.stream, tsc.consumerName());
             s = js.subscribe(tsc.subject(), pso);
             m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNotNull(m);
@@ -495,7 +495,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                     () -> PushSubscribeOptions.builder().stream(tsc.stream).bind(true).build());
 
             assertThrows(IllegalArgumentException.class,
-                    () -> PushSubscribeOptions.builder().durable(tsc.name()).bind(true).build());
+                    () -> PushSubscribeOptions.builder().durable(tsc.consumerName()).bind(true).build());
 
             assertThrows(IllegalArgumentException.class,
                     () -> PushSubscribeOptions.builder().stream(EMPTY).bind(true).build());
@@ -514,7 +514,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             jsPublish(js, tsc.subject(), 1, 1);
 
             PullSubscribeOptions pso = PullSubscribeOptions.builder()
-                    .durable(tsc.name())
+                    .durable(tsc.consumerName())
                     .build();
             JetStreamSubscription s = js.subscribe(tsc.subject(), pso);
             s.pull(1);
@@ -527,7 +527,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             jsPublish(js, tsc.subject(), 2, 1);
             pso = PullSubscribeOptions.builder()
                     .stream(tsc.stream)
-                    .durable(tsc.name())
+                    .durable(tsc.consumerName())
                     .bind(true)
                     .build();
             s = js.subscribe(tsc.subject(), pso);
@@ -539,7 +539,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             unsubscribeEnsureNotBound(s);
 
             jsPublish(js, tsc.subject(), 3, 1);
-            pso = PullSubscribeOptions.bind(tsc.stream, tsc.name());
+            pso = PullSubscribeOptions.bind(tsc.stream, tsc.consumerName());
             s = js.subscribe(tsc.subject(), pso);
             s.pull(1);
             m = s.nextMessage(DEFAULT_TIMEOUT);
@@ -806,7 +806,6 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     public void testSubscribeDurableConsumerMustMatch() throws Exception {
         jsServer.run(nc -> {
             JetStream js = nc.jetStream();
-            JetStreamManagement jsm = nc.jetStreamManagement();
 
             String stream = stream();
             String subject = subject();
@@ -879,7 +878,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             Map<String, String> metadataA = new HashMap<>(); metadataA.put("a", "A");
             Map<String, String> metadataB = new HashMap<>(); metadataB.put("b", "B");
 
-            if (nc.getServerInfo().isNewerVersionThan("2.9.99")) {
+            if (atLeast2_10()) {
                 // metadata server null versus new not null
                 nc.jetStreamManagement().addOrUpdateConsumer(stream, pushDurableBuilder(subject, uname, deliver).build());
                 changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).metadata(metadataA), "metadata");
@@ -891,8 +890,10 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 // metadata server not null versus new not null but different
                 changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).metadata(metadataB), "metadata");
 
-                // metadata server not null versus new not null and same
-                changeOkPush(js, subject, pushDurableBuilder(subject, uname, deliver).metadata(metadataA));
+                if (before2_11()) {
+                    // metadata server not null versus new not null and same
+                    changeOkPush(js, subject, pushDurableBuilder(subject, uname, deliver).metadata(metadataA));
+                }
             }
         });
     }
@@ -959,9 +960,9 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             // - consumer not found
             // - stream does not exist
             JetStreamSubscription sub = js.subscribe(tsc.subject());
-            assertNull(((NatsJetStream)js).lookupConsumerInfo(tsc.stream, tsc.name()));
+            assertNull(((NatsJetStream)js).lookupConsumerInfo(tsc.stream, tsc.consumerName()));
             assertThrows(JetStreamApiException.class,
-                    () -> ((NatsJetStream)js).lookupConsumerInfo(stream(999), tsc.name()));
+                    () -> ((NatsJetStream)js).lookupConsumerInfo(stream(999), tsc.consumerName()));
         });
     }
 

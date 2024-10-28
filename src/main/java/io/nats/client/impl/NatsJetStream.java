@@ -150,9 +150,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             return null;
         }
 
-        Duration timeout = options == null ? jso.getRequestTimeout() : options.getStreamTimeout();
-
-        Message resp = makeInternalRequestResponseRequired(subject, merged, data, timeout, CancelAction.COMPLETE, validateSubjectAndReplyTo);
+        Message resp = makeInternalRequestResponseRequired(subject, merged, data, getTimeout(), CancelAction.COMPLETE, validateSubjectAndReplyTo);
         return processPublishResponse(resp, options);
     }
 
@@ -397,7 +395,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
                         settledFilterSubjects = serverCC.getFilterSubjects();
                     }
                 }
-                else if (!consumerFilterSubjectsAreEquivalent(settledFilterSubjects, serverCC.getFilterSubjects())) {
+                else if (!listsAreEquivalent(settledFilterSubjects, serverCC.getFilterSubjects())) {
                     throw JsSubSubjectDoesNotMatchFilter.instance();
                 }
 
@@ -530,9 +528,9 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             if (deliverSubject != null && !deliverSubject.equals(serverCcc.deliverSubject)) { changes.add("deliverSubject"); }
             if (deliverGroup != null && !deliverGroup.equals(serverCcc.deliverGroup)) { changes.add("deliverGroup"); }
 
-            if (backoff != null && !consumerFilterSubjectsAreEquivalent(backoff, serverCcc.backoff)) { changes.add("backoff"); }
+            if (backoff != null && !listsAreEquivalent(backoff, serverCcc.backoff)) { changes.add("backoff"); }
             if (metadata != null && !mapsAreEquivalent(metadata, serverCcc.metadata)) { changes.add("metadata"); }
-            if (filterSubjects != null && !consumerFilterSubjectsAreEquivalent(filterSubjects, serverCcc.filterSubjects)) { changes.add("filterSubjects"); }
+            if (filterSubjects != null && !listsAreEquivalent(filterSubjects, serverCcc.filterSubjects)) { changes.add("filterSubjects"); }
 
             // do not need to check Durable because the original is retrieved by the durable name
 
