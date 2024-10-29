@@ -53,7 +53,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
     // ----------------------------------------------------------------------------------------------------
     // Create / Init
     // ----------------------------------------------------------------------------------------------------
-    NatsJetStreamImpl(NatsConnection connection, JetStreamOptions jsOptions) throws IOException {
+    NatsJetStreamImpl(NatsConnection connection, JetStreamOptions jsOptions) {
         conn = connection;
 
         // Get a working version of JetStream Options...
