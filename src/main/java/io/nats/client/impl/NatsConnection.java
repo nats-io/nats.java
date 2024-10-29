@@ -1205,7 +1205,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public Message request(String subject, byte[] body, Duration timeout) throws InterruptedException {
-        return requestInternal(subject, null, body, timeout, cancelAction, true, true);
+        return requestInternal(subject, null, body, timeout, cancelAction, true, options.forceFlushOnRequest());
     }
 
     /**
@@ -1213,7 +1213,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public Message request(String subject, Headers headers, byte[] body, Duration timeout) throws InterruptedException {
-        return requestInternal(subject, headers, body, timeout, cancelAction, true, true);
+        return requestInternal(subject, headers, body, timeout, cancelAction, true, options.forceFlushOnRequest());
     }
 
     /**
@@ -1222,7 +1222,7 @@ class NatsConnection implements Connection {
     @Override
     public Message request(Message message, Duration timeout) throws InterruptedException {
         validateNotNull(message, "Message");
-        return requestInternal(message.getSubject(), message.getHeaders(), message.getData(), timeout, cancelAction, false, true);
+        return requestInternal(message.getSubject(), message.getHeaders(), message.getData(), timeout, cancelAction, false, options.forceFlushOnRequest());
     }
 
     Message requestInternal(String subject, Headers headers, byte[] data, Duration timeout,

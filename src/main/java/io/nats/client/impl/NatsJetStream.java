@@ -150,7 +150,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             return null;
         }
 
-        Message resp = makeInternalRequestResponseRequired(subject, merged, data, getTimeout(), CancelAction.COMPLETE, validateSubjectAndReplyTo);
+        Message resp = makeInternalRequestResponseRequired(subject, merged, data, getTimeout(), CancelAction.COMPLETE, validateSubjectAndReplyTo, conn.getOptions().forceFlushOnRequest());
         return processPublishResponse(resp, options);
     }
 
