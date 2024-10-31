@@ -56,19 +56,19 @@ public class Options {
     // NOTE TO DEVS!!! To add an option, you have to address:
     // ----------------------------------------------------------------------------------------------------
     // CONSTANTS * optionally add a default value constant
-    // ENVIRONMENT PROPERTIES * most of the time add an environment property, should always be in the form PFX +
+    // ENVIRONMENT PROPERTIES * always add an environment property. Constant always starts with PFX, but code accepts without
     // PROTOCOL CONNECT OPTION CONSTANTS * not related to options, but here because Options code uses them
     // CLASS VARIABLES * add a variable to the class
     // BUILDER VARIABLES * add a variable in builder
+    // BUILDER COPY CONSTRUCTOR * update builder constructor to ensure new variables are set
     // BUILD CONSTRUCTOR PROPS * update build props constructor to read new props
     // BUILDER METHODS * add a chainable method in builder for new variable
     // BUILD IMPL * update build() implementation if needed
-    // BUILDER COPY CONSTRUCTOR * update builder constructor to ensure new variables are set
     // CONSTRUCTOR * update constructor to ensure new variables are set from builder
     // GETTERS * update getter to be able to retrieve class variable value
     // HELPER FUNCTIONS * just helpers
     // ----------------------------------------------------------------------------------------------------
-    // README - if you add a property or change it's comment, add it to or update the readme
+    // README - if you add a property or change its comment, add it to or update the readme
     // ----------------------------------------------------------------------------------------------------
 
     // ----------------------------------------------------------------------------------------------------
@@ -492,6 +492,10 @@ public class Options {
      * {@link Builder#useDispatcherWithExecutor()}.
      */
     public static final String PROP_USE_DISPATCHER_WITH_EXECUTOR = PFX + "use.dispatcher.with.executor";
+    /**
+     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#forceFlushOnRequest() forceFlushOnRequest}.
+     */
+    public static final String PROP_FORCE_FLUSH_ON_REQUEST = PFX + "force.flush.on.request";
 
     // ----------------------------------------------------------------------------------------------------
     // PROTOCOL CONNECT OPTION CONSTANTS
@@ -625,6 +629,7 @@ public class Options {
     private final boolean tlsFirst;
     private final boolean useTimeoutException;
     private final boolean useDispatcherWithExecutor;
+    private final boolean forceFlushOnRequest;
 
     private final AuthHandler authHandler;
     private final ReconnectDelayHandler reconnectDelayHandler;
@@ -741,6 +746,7 @@ public class Options {
         private boolean tlsFirst = false;
         private boolean useTimeoutException = false;
         private boolean useDispatcherWithExecutor = false;
+        private boolean forceFlushOnRequest = true; // true since it's the original b/w compatible way
         private ServerPool serverPool = null;
         private DispatcherFactory dispatcherFactory = null;
 
@@ -876,6 +882,7 @@ public class Options {
             booleanProperty(props, PROP_TLS_FIRST, b -> this.tlsFirst = b);
             booleanProperty(props, PROP_USE_TIMEOUT_EXCEPTION, b -> this.useTimeoutException = b);
             booleanProperty(props, PROP_USE_DISPATCHER_WITH_EXECUTOR, b -> this.useDispatcherWithExecutor = b);
+            booleanProperty(props, PROP_FORCE_FLUSH_ON_REQUEST, b -> this.forceFlushOnRequest = b);
 
             classnameProperty(props, PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, o -> this.serverPool = (ServerPool) o);
             classnameProperty(props, PROP_DISPATCHER_FACTORY_CLASS, o -> this.dispatcherFactory = (DispatcherFactory) o);
@@ -1659,6 +1666,15 @@ public class Options {
         }
 
         /**
+         * Instruct requests to turn off flush on requests.
+         * @return the Builder for chaining
+         */
+        public Builder dontForceFlushOnRequest() {
+            this.forceFlushOnRequest = false;
+            return this;
+        }
+
+        /**
          * Set the ServerPool implementation for connections to use instead of the default implementation
          * @param serverPool the implementation
          * @return the Builder for chaining
@@ -1905,6 +1921,7 @@ public class Options {
             this.tlsFirst = o.tlsFirst;
             this.useTimeoutException = o.useTimeoutException;
             this.useDispatcherWithExecutor = o.useDispatcherWithExecutor;
+            this.forceFlushOnRequest = o.forceFlushOnRequest;
 
             this.serverPool = o.serverPool;
             this.dispatcherFactory = o.dispatcherFactory;
@@ -1969,6 +1986,7 @@ public class Options {
         this.tlsFirst = b.tlsFirst;
         this.useTimeoutException = b.useTimeoutException;
         this.useDispatcherWithExecutor = b.useDispatcherWithExecutor;
+        this.forceFlushOnRequest = b.forceFlushOnRequest;
 
         this.serverPool = b.serverPool;
         this.dispatcherFactory = b.dispatcherFactory;
@@ -2405,7 +2423,19 @@ public class Options {
         return useTimeoutException;
     }
 
+    /**
+     * Whether the dispatcher should use an executor to async messages to handlers
+     * @return the flag
+     */
     public boolean useDispatcherWithExecutor() { return useDispatcherWithExecutor; }
+
+    /**
+     * Whether to flush on any user request
+     * @return the flag
+     */
+    public boolean forceFlushOnRequest() {
+        return forceFlushOnRequest;
+    }
 
     /**
      * Get the ServerPool implementation. If null, a default implementation is used.

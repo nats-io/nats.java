@@ -540,6 +540,7 @@ public class OptionsTests {
         props.setProperty(Options.PROP_CLIENT_SIDE_LIMIT_CHECKS, "true"); // deprecated
         props.setProperty(Options.PROP_IGNORE_DISCOVERED_SERVERS, "true");
         props.setProperty(Options.PROP_NO_RESOLVE_HOSTNAMES, "true");
+        props.setProperty(PROP_FORCE_FLUSH_ON_REQUEST, "false");
 
         Options o = new Options.Builder(props).build();
         _testPropertiesCoverageOptions(o);
@@ -553,6 +554,7 @@ public class OptionsTests {
         assertTrue(o.clientSideLimitChecks());
         assertTrue(o.isIgnoreDiscoveredServers());
         assertTrue(o.isNoResolveHostnames());
+        assertFalse(o.forceFlushOnRequest());
     }
 
     @Test
