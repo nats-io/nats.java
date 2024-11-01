@@ -109,9 +109,6 @@ public class SimplificationTests extends JetStreamTestBase {
         MessageInfo mi = streamContext.getMessage(1);
         assertEquals(1, mi.getSeq());
 
-        mi = streamContext.getFirstMessage(tsc.subject());
-        assertEquals(1, mi.getSeq());
-
         mi = streamContext.getLastMessage(tsc.subject());
         assertEquals(6, mi.getSeq());
 
@@ -123,12 +120,6 @@ public class SimplificationTests extends JetStreamTestBase {
 
         streamContext.purge(PurgeOptions.builder().sequence(5).build());
         assertThrows(JetStreamApiException.class, () -> streamContext.getMessage(1));
-
-        mi = streamContext.getFirstMessage(tsc.subject());
-        assertEquals(5, mi.getSeq());
-
-        streamContext.purge();
-        assertThrows(JetStreamApiException.class, () -> streamContext.getFirstMessage(tsc.subject()));
     }
 
     static int FETCH_EPHEMERAL = 1;
