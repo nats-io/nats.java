@@ -49,10 +49,10 @@ public class BaseConsumeOptions implements JsonSerializable {
     protected BaseConsumeOptions(Builder b) {
         bytes = b.bytes;
         if (bytes > 0) {
-            messages = b.messages == -1 ? DEFAULT_MESSAGE_COUNT_WHEN_BYTES : b.messages;
+            messages = b.messages < 0 ? DEFAULT_MESSAGE_COUNT_WHEN_BYTES : b.messages;
         }
         else {
-            messages = b.messages == -1 ? DEFAULT_MESSAGE_COUNT : b.messages;
+            messages = b.messages < 0 ? DEFAULT_MESSAGE_COUNT : b.messages;
         }
 
         // validation handled in builder
