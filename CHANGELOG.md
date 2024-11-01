@@ -1,5 +1,27 @@
 # Change Log
 
+## 2.20.3
+
+### Core
+* Don't flush after the request from publishAsync calls #1220 @scottf
+
+### JetStream
+* Easier access to timeout in JetStream implementations #1236 @scottf
+
+### Object Store
+* Minor object store improvement - complete faster #1237 @scottf
+
+### Documentation
+* Javadocs Improvements #1221 @roeschter
+* Callout external docs and examples #1224 @scottf
+
+### Tests
+* Fixed tests for 2.8.4 regression stream and consumer metadata #1225 @scottf
+* Test base code improvements #1240 @scottf
+
+### Misc
+* Add publish of test code jar to builds. #1230 @scottf
+
 ## 2.20.2
 
 ### Core

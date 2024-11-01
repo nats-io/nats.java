@@ -4,7 +4,7 @@
 
 ### A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
-**Current Release**: 2.20.2 &nbsp; **Current Snapshot**: 2.20.3-SNAPSHOT
+**Current Release**: 2.20.3 &nbsp; **Current Snapshot**: 2.20.4-SNAPSHOT
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
@@ -17,9 +17,10 @@
 ### Examples and other documentation...
 
 1. [**Java API Docs**](https://javadoc.io/doc/io.nats/jnats/latest/index.html) - the latest Java API docs.
-1. [**NATS by Example**](https://natsbyexample.com) - An evolving collection of runnable, cross-client reference examples for NATS.
-1. The [**examples directory**](https://github.com/nats-io/nats.java/tree/main/src/examples/java/io/nats/examples) covers basic api use.
-1. The [**Java Nats Examples**](https://github.com/nats-io/java-nats-examples) github repo, a collection of simple use case examples.
+1. The [**examples directory**](https://github.com/nats-io/nats.java/tree/main/src/examples/java/io/nats/examples) has many examples and covers more than just basic use of the client, including many examples where a stream is created and several varieties of publishing and subscribing.
+1. The [**Java Nats Examples**](https://github.com/nats-io/java-nats-examples) GitHub repo has a collection of more in depth use case examples.
+1. [**NATS by Example**](https://natsbyexample.com) - NATS by Example! Many basic examples in multiple languages and provides a great way to jump in and learn fundamental NATS usage, like publishing and subscribing.
+
 
 ## Table of Contents
 * [Simplification](#simplification)
@@ -123,9 +124,9 @@ Replace `{major.minor.patch}` with the correct version in the examples.
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.20.2/jnats-2.20.2.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.20.2/jnats-2.20.2.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.20.3/jnats-2.20.3.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.20.3/jnats-2.20.3.jar).
 
-The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.20.2/jnats-2.20.2-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.20.2/jnats-2.20.2-examples.jar).
+The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.20.3/jnats-2.20.3-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.20.3/jnats-2.20.3-examples.jar).
 
 To use NKeys, you will need the ed25519 library, which can be downloaded at [https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar).
 
