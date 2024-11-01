@@ -47,6 +47,7 @@ class NatsConnection implements Connection {
     public static final double NANOS_PER_SECOND = 1_000_000_000.0;
 
     private final Options options;
+    final boolean forceFlushOnRequest;
 
     private final StatisticsCollector statistics;
 
@@ -112,6 +113,7 @@ class NatsConnection implements Connection {
         timeTraceLogger.trace("creating connection object");
 
         this.options = options;
+        forceFlushOnRequest = options.forceFlushOnRequest();
 
         advancedTracking = options.isTrackAdvancedStats();
         this.statistics = options.getStatisticsCollector() == null ? new NatsStatistics() : options.getStatisticsCollector();
@@ -1205,7 +1207,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public Message request(String subject, byte[] body, Duration timeout) throws InterruptedException {
-        return requestInternal(subject, null, body, timeout, cancelAction, true);
+        return requestInternal(subject, null, body, timeout, cancelAction, true, forceFlushOnRequest);
     }
 
     /**
@@ -1213,7 +1215,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public Message request(String subject, Headers headers, byte[] body, Duration timeout) throws InterruptedException {
-        return requestInternal(subject, headers, body, timeout, cancelAction, true);
+        return requestInternal(subject, headers, body, timeout, cancelAction, true, forceFlushOnRequest);
     }
 
     /**
@@ -1222,11 +1224,12 @@ class NatsConnection implements Connection {
     @Override
     public Message request(Message message, Duration timeout) throws InterruptedException {
         validateNotNull(message, "Message");
-        return requestInternal(message.getSubject(), message.getHeaders(), message.getData(), timeout, cancelAction, false);
+        return requestInternal(message.getSubject(), message.getHeaders(), message.getData(), timeout, cancelAction, false, forceFlushOnRequest);
     }
 
-    Message requestInternal(String subject, Headers headers, byte[] data, Duration timeout, CancelAction cancelAction, boolean validateSubjectAndReplyTo) throws InterruptedException {
-        CompletableFuture<Message> incoming = requestFutureInternal(subject, headers, data, timeout, cancelAction, validateSubjectAndReplyTo);
+    Message requestInternal(String subject, Headers headers, byte[] data, Duration timeout,
+                            CancelAction cancelAction, boolean validateSubjectAndReplyTo, boolean flushImmediatelyAfterPublish) throws InterruptedException {
+        CompletableFuture<Message> incoming = requestFutureInternal(subject, headers, data, timeout, cancelAction, validateSubjectAndReplyTo, flushImmediatelyAfterPublish);
         try {
             return incoming.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
         } catch (TimeoutException | ExecutionException | CancellationException e) {
@@ -1239,7 +1242,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public CompletableFuture<Message> request(String subject, byte[] body) {
-        return requestFutureInternal(subject, null, body, null, cancelAction, true);
+        return requestFutureInternal(subject, null, body, null, cancelAction, true, forceFlushOnRequest);
     }
 
     /**
@@ -1247,7 +1250,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public CompletableFuture<Message> request(String subject, Headers headers, byte[] body) {
-        return requestFutureInternal(subject, headers, body, null, cancelAction, true);
+        return requestFutureInternal(subject, headers, body, null, cancelAction, true, forceFlushOnRequest);
     }
 
     /**
@@ -1255,7 +1258,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public CompletableFuture<Message> requestWithTimeout(String subject, byte[] body, Duration timeout) {
-        return requestFutureInternal(subject, null, body, timeout, cancelAction, true);
+        return requestFutureInternal(subject, null, body, timeout, cancelAction, true, forceFlushOnRequest);
     }
 
     /**
@@ -1263,7 +1266,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public CompletableFuture<Message> requestWithTimeout(String subject, Headers headers, byte[] body, Duration timeout) {
-        return requestFutureInternal(subject, headers, body, timeout, cancelAction, true);
+        return requestFutureInternal(subject, headers, body, timeout, cancelAction, true, forceFlushOnRequest);
     }
 
     /**
@@ -1272,7 +1275,7 @@ class NatsConnection implements Connection {
     @Override
     public CompletableFuture<Message> requestWithTimeout(Message message, Duration timeout) {
         validateNotNull(message, "Message");
-        return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), timeout, cancelAction, false);
+        return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), timeout, cancelAction, false, forceFlushOnRequest);
     }
 
     /**
@@ -1281,10 +1284,11 @@ class NatsConnection implements Connection {
     @Override
     public CompletableFuture<Message> request(Message message) {
         validateNotNull(message, "Message");
-        return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), null, cancelAction, false);
+        return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), null, cancelAction, false, forceFlushOnRequest);
     }
 
-    CompletableFuture<Message> requestFutureInternal(String subject, Headers headers, byte[] data, Duration futureTimeout, CancelAction cancelAction, boolean validateSubjectAndReplyTo) {
+    CompletableFuture<Message> requestFutureInternal(String subject, Headers headers, byte[] data, Duration futureTimeout,
+                                                     CancelAction cancelAction, boolean validateSubjectAndReplyTo, boolean flushImmediatelyAfterPublish) {
         checkPayloadSize(data);
 
         if (isClosed()) {
@@ -1336,7 +1340,7 @@ class NatsConnection implements Connection {
             responsesAwaiting.put(sub.getSID(), future);
         }
 
-        publishInternal(subject, responseInbox, headers, data, validateSubjectAndReplyTo, true);
+        publishInternal(subject, responseInbox, headers, data, validateSubjectAndReplyTo, flushImmediatelyAfterPublish);
         statistics.incrementRequestsSent();
 
         return future;

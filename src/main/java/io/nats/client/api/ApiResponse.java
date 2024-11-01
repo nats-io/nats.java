@@ -76,6 +76,12 @@ public abstract class ApiResponse<T> {
         type = NO_TYPE;
     }
 
+    public ApiResponse(Error error) {
+        jv = null;
+        this.error = error;
+        type = NO_TYPE;
+    }
+
     @SuppressWarnings("unchecked")
     public T throwOnHasError() throws JetStreamApiException {
         if (hasError()) {

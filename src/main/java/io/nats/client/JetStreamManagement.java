@@ -272,17 +272,6 @@ public interface JetStreamManagement {
     MessageInfo getLastMessage(String streamName, String subject) throws IOException, JetStreamApiException;
 
     /**
-     * Get MessageInfo for the first message of the subject.
-     * @param streamName the name of the stream.
-     * @param subject the subject to get the first message for.
-     * @return The MessageInfo
-     * @throws IOException covers various communication issues with the NATS
-     *         server such as timeout or interruption
-     * @throws JetStreamApiException the request had an error related to the data
-     */
-    MessageInfo getFirstMessage(String streamName, String subject) throws IOException, JetStreamApiException;
-
-    /**
      * Get MessageInfo for the message of the message sequence
      * is equal to or greater the requested sequence for the subject.
      * @param streamName the name of the stream.

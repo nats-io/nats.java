@@ -15,6 +15,8 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 
+import java.time.ZonedDateTime;
+
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
 
@@ -25,21 +27,30 @@ public class MessageGetRequest implements JsonSerializable {
     private final long sequence;
     private final String lastBySubject;
     private final String nextBySubject;
+    private final ZonedDateTime startTime;
 
     public static MessageGetRequest forSequence(long sequence) {
-        return new MessageGetRequest(sequence, null, null);
+        return new MessageGetRequest(sequence, null, null, null);
     }
 
     public static MessageGetRequest lastForSubject(String subject) {
-        return new MessageGetRequest(-1, subject, null);
+        return new MessageGetRequest(-1, subject, null, null);
     }
 
     public static MessageGetRequest firstForSubject(String subject) {
-        return new MessageGetRequest(-1, null, subject);
+        return new MessageGetRequest(-1, null, subject, null);
+    }
+
+    public static MessageGetRequest firstForStartTime(ZonedDateTime startTime) {
+        return new MessageGetRequest(-1, null, null, startTime);
+    }
+
+    public static MessageGetRequest firstForStartTimeAndSubject(ZonedDateTime startTime, String subject) {
+        return new MessageGetRequest(-1, null, subject, startTime);
     }
 
     public static MessageGetRequest nextForSubject(long sequence, String subject) {
-        return new MessageGetRequest(sequence, null, subject);
+        return new MessageGetRequest(sequence, null, subject, null);
     }
 
     /**
@@ -69,7 +80,7 @@ public class MessageGetRequest implements JsonSerializable {
      */
     @Deprecated
     public MessageGetRequest(long sequence) {
-        this(sequence, null, null);
+        this(sequence, null, null, null);
     }
 
     /**
@@ -79,13 +90,14 @@ public class MessageGetRequest implements JsonSerializable {
      */
     @Deprecated
     public MessageGetRequest(String lastBySubject) {
-        this(-1, lastBySubject, null);
+        this(-1, lastBySubject, null, null);
     }
 
-    private MessageGetRequest(long sequence, String lastBySubject, String nextBySubject) {
+    private MessageGetRequest(long sequence, String lastBySubject, String nextBySubject, ZonedDateTime startTime) {
         this.sequence = sequence;
         this.lastBySubject = lastBySubject;
         this.nextBySubject = nextBySubject;
+        this.startTime = startTime;
     }
 
     public long getSequence() {
@@ -118,6 +130,7 @@ public class MessageGetRequest implements JsonSerializable {
         addField(sb, SEQ, sequence);
         addField(sb, LAST_BY_SUBJECT, lastBySubject);
         addField(sb, NEXT_BY_SUBJECT, nextBySubject);
+        addField(sb, START_TIME, startTime);
         return endJson(sb).toString();
     }
 }

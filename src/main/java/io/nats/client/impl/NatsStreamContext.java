@@ -151,14 +151,6 @@ class NatsStreamContext implements StreamContext {
      * {@inheritDoc}
      */
     @Override
-    public MessageInfo getFirstMessage(String subject) throws IOException, JetStreamApiException {
-        return jsm.getFirstMessage(streamName, subject);
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
     public MessageInfo getNextMessage(long seq, String subject) throws IOException, JetStreamApiException {
         return jsm.getNextMessage(streamName, seq, subject);
     }

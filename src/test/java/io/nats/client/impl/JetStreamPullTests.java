@@ -64,12 +64,12 @@ public class JetStreamPullTests extends JetStreamTestBase {
                 .build();
 
             PullSubscribeOptions options = PullSubscribeOptions.builder()
-                .durable(tsc.name())
+                .durable(tsc.consumerName())
                 .configuration(cc)
                 .build();
 
             JetStreamSubscription sub = js.subscribe(tsc.subject(), options);
-            assertSubscription(sub, tsc.stream, tsc.name(), null, true);
+            assertSubscription(sub, tsc.stream, tsc.consumerName(), null, true);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             List<Message> messages = sub.fetch(10, fetchDur);
@@ -139,12 +139,12 @@ public class JetStreamPullTests extends JetStreamTestBase {
                 .build();
 
             PullSubscribeOptions options = PullSubscribeOptions.builder()
-                .durable(tsc.name())
+                .durable(tsc.consumerName())
                 .configuration(cc)
                 .build();
 
             JetStreamSubscription sub = js.subscribe(tsc.subject(), options);
-            assertSubscription(sub, tsc.stream, tsc.name(), null, true);
+            assertSubscription(sub, tsc.stream, tsc.consumerName(), null, true);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             Iterator<Message> iterator = sub.iterate(10, fetchDur);
@@ -218,11 +218,11 @@ public class JetStreamPullTests extends JetStreamTestBase {
             TestingStreamContainer tsc = new TestingStreamContainer(nc);
 
             // Build our subscription options.
-            PullSubscribeOptions options = PullSubscribeOptions.builder().durable(tsc.name()).build();
+            PullSubscribeOptions options = PullSubscribeOptions.builder().durable(tsc.consumerName()).build();
 
             // Subscribe synchronously.
             JetStreamSubscription sub = js.subscribe(tsc.subject(), options);
-            assertSubscription(sub, tsc.stream, tsc.name(), null, true);
+            assertSubscription(sub, tsc.stream, tsc.consumerName(), null, true);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // publish some amount of messages, but not entire pull size
@@ -317,11 +317,11 @@ public class JetStreamPullTests extends JetStreamTestBase {
             TestingStreamContainer tsc = new TestingStreamContainer(nc);
 
             // Build our subscription options.
-            PullSubscribeOptions options = PullSubscribeOptions.builder().durable(tsc.name()).build();
+            PullSubscribeOptions options = PullSubscribeOptions.builder().durable(tsc.consumerName()).build();
 
             // Subscribe synchronously.
             JetStreamSubscription sub = js.subscribe(tsc.subject(), options);
-            assertSubscription(sub, tsc.stream, tsc.name(), null, true);
+            assertSubscription(sub, tsc.stream, tsc.consumerName(), null, true);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // publish 10 messages
@@ -391,11 +391,11 @@ public class JetStreamPullTests extends JetStreamTestBase {
             TestingStreamContainer tsc = new TestingStreamContainer(nc);
 
             // Build our subscription options.
-            PullSubscribeOptions options = PullSubscribeOptions.builder().durable(tsc.name()).build();
+            PullSubscribeOptions options = PullSubscribeOptions.builder().durable(tsc.consumerName()).build();
 
             // Subscribe synchronously.
             JetStreamSubscription sub = js.subscribe(tsc.subject(), options);
-            assertSubscription(sub, tsc.stream, tsc.name(), null, true);
+            assertSubscription(sub, tsc.stream, tsc.consumerName(), null, true);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             long expires = 500; // millis
@@ -574,7 +574,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
                 .ackWait(1500)
                 .build();
             PullSubscribeOptions pso = PullSubscribeOptions.builder()
-                .durable(tsc.name())
+                .durable(tsc.consumerName())
                 .configuration(cc)
                 .build();
 
@@ -1108,10 +1108,10 @@ public class JetStreamPullTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // Pre define a consumer
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(tsc.name()).filterSubjects(tsc.subject()).build();
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(tsc.consumerName()).filterSubjects(tsc.subject()).build();
             jsm.addOrUpdateConsumer(tsc.stream, cc);
 
-            PullSubscribeOptions so = PullSubscribeOptions.bind(tsc.stream, tsc.name());
+            PullSubscribeOptions so = PullSubscribeOptions.bind(tsc.stream, tsc.consumerName());
             JetStreamSubscription sub = js.subscribe(tsc.subject(), so);
             JetStreamReader reader = sub.reader(500, 125);
 

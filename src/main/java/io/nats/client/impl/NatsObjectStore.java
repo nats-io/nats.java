@@ -22,7 +22,6 @@ import io.nats.client.support.Validator;
 import java.io.*;
 import java.nio.file.Files;
 import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -218,6 +217,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
         Digester digester = new Digester();
         long totalBytes = 0;
         long totalChunks = 0;
+        long expectedChunks = oi.getChunks();
 
         // if there is one chunk, just go get the message directly and we're done.
         if (oi.getChunks() == 1) {
@@ -236,29 +236,41 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
             JetStreamSubscription sub = js.subscribe(rawChunkSubject(oi.getNuid()),
                 PushSubscribeOptions.builder().stream(streamName).ordered(true).build());
 
-            Message m = sub.nextMessage(Duration.ofSeconds(1));
+            Message m = sub.nextMessage(jsm.getTimeout());
             while (m != null) {
-                byte[] data = m.getData();
-
                 // track the byte count and chunks
-                // update the digest
-                // write the bytes to the output file
+                long pending = m.metaData().pendingCount();
+                if (expectedChunks != pending + (++totalChunks)) {
+                    throw OsGetChunksMismatch.instance(); // short circuit, we already know there are not enough chunks.
+                }
+
+                byte[] data = m.getData();
                 totalBytes += data.length;
-                totalChunks++;
+
+                // update the digest
                 digester.update(data);
+
+                // write the bytes to the output file
                 out.write(data);
 
                 // read until the subject is complete
-                m = sub.nextMessage(Duration.ofSeconds(1));
+                if (pending == 0) {
+                    break;
+                }
+                m = sub.nextMessage(jsm.getTimeout());
             }
 
-            sub.unsubscribe();
+            try {
+                sub.unsubscribe();
+            }
+            catch (RuntimeException ignore) {}
         }
-        out.flush();
 
-        if (totalBytes != oi.getSize()) { throw OsGetSizeMismatch.instance(); }
         if (totalChunks != oi.getChunks()) { throw OsGetChunksMismatch.instance(); }
+        if (totalBytes != oi.getSize()) { throw OsGetSizeMismatch.instance(); }
         if (!digester.matches(oi.getDigest())) { throw OsGetDigestMismatch.instance(); }
+
+        out.flush(); // moved after validation, no need if invalid
 
         return oi;
     }

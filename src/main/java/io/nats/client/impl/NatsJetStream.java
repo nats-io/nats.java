@@ -18,7 +18,6 @@ import io.nats.client.api.*;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -97,7 +96,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public CompletableFuture<PublishAck> publishAsync(String subject, byte[] body) {
-        return publishAsyncInternal(subject, null, body, null, null, true);
+        return publishAsyncInternal(subject, null, body, null, true);
     }
 
     /**
@@ -105,7 +104,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public CompletableFuture<PublishAck> publishAsync(String subject, Headers headers, byte[] body) {
-        return publishAsyncInternal(subject, headers, body, null, null, true);
+        return publishAsyncInternal(subject, headers, body, null, true);
     }
 
     /**
@@ -113,7 +112,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public CompletableFuture<PublishAck> publishAsync(String subject, byte[] body, PublishOptions options) {
-        return publishAsyncInternal(subject, null, body, options, null, true);
+        return publishAsyncInternal(subject, null, body, options, true);
     }
 
     /**
@@ -121,7 +120,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public CompletableFuture<PublishAck> publishAsync(String subject, Headers headers, byte[] body, PublishOptions options) {
-        return publishAsyncInternal(subject, headers, body, options, null, true);
+        return publishAsyncInternal(subject, headers, body, options, true);
     }
 
     /**
@@ -130,7 +129,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     @Override
     public CompletableFuture<PublishAck> publishAsync(Message message) {
         validateNotNull(message, "Message");
-        return publishAsyncInternal(message.getSubject(), message.getHeaders(), message.getData(), null, null, false);
+        return publishAsyncInternal(message.getSubject(), message.getHeaders(), message.getData(), null, false);
     }
 
     /**
@@ -139,7 +138,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     @Override
     public CompletableFuture<PublishAck> publishAsync(Message message, PublishOptions options) {
         validateNotNull(message, "Message");
-        return publishAsyncInternal(message.getSubject(), message.getHeaders(), message.getData(), options, null, false);
+        return publishAsyncInternal(message.getSubject(), message.getHeaders(), message.getData(), options, false);
     }
 
     private PublishAck publishSyncInternal(String subject, Headers headers, byte[] data, PublishOptions options, boolean validateSubjectAndReplyTo) throws IOException, JetStreamApiException {
@@ -150,13 +149,11 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             return null;
         }
 
-        Duration timeout = options == null ? jso.getRequestTimeout() : options.getStreamTimeout();
-
-        Message resp = makeInternalRequestResponseRequired(subject, merged, data, timeout, CancelAction.COMPLETE, validateSubjectAndReplyTo);
+        Message resp = makeInternalRequestResponseRequired(subject, merged, data, getTimeout(), CancelAction.COMPLETE, validateSubjectAndReplyTo, conn.forceFlushOnRequest);
         return processPublishResponse(resp, options);
     }
 
-    private CompletableFuture<PublishAck> publishAsyncInternal(String subject, Headers headers, byte[] data, PublishOptions options, Duration knownTimeout, boolean validateSubjectAndReplyTo) {
+    private CompletableFuture<PublishAck> publishAsyncInternal(String subject, Headers headers, byte[] data, PublishOptions options, boolean validateSubjectAndReplyTo) {
         Headers merged = mergePublishOptions(headers, options);
 
         if (jso.isPublishNoAck()) {
@@ -164,7 +161,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             return null;
         }
 
-        CompletableFuture<Message> future = conn.requestFutureInternal(subject, merged, data, knownTimeout, CancelAction.COMPLETE, validateSubjectAndReplyTo);
+        CompletableFuture<Message> future = conn.requestFutureInternal(subject, merged, data, null, CancelAction.COMPLETE, validateSubjectAndReplyTo, conn.forceFlushOnRequest);
 
         return future.thenCompose(resp -> {
             try {
@@ -397,7 +394,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
                         settledFilterSubjects = serverCC.getFilterSubjects();
                     }
                 }
-                else if (!consumerFilterSubjectsAreEquivalent(settledFilterSubjects, serverCC.getFilterSubjects())) {
+                else if (!listsAreEquivalent(settledFilterSubjects, serverCC.getFilterSubjects())) {
                     throw JsSubSubjectDoesNotMatchFilter.instance();
                 }
 
@@ -530,9 +527,9 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             if (deliverSubject != null && !deliverSubject.equals(serverCcc.deliverSubject)) { changes.add("deliverSubject"); }
             if (deliverGroup != null && !deliverGroup.equals(serverCcc.deliverGroup)) { changes.add("deliverGroup"); }
 
-            if (backoff != null && !consumerFilterSubjectsAreEquivalent(backoff, serverCcc.backoff)) { changes.add("backoff"); }
+            if (backoff != null && !listsAreEquivalent(backoff, serverCcc.backoff)) { changes.add("backoff"); }
             if (metadata != null && !mapsAreEquivalent(metadata, serverCcc.metadata)) { changes.add("metadata"); }
-            if (filterSubjects != null && !consumerFilterSubjectsAreEquivalent(filterSubjects, serverCcc.filterSubjects)) { changes.add("filterSubjects"); }
+            if (filterSubjects != null && !listsAreEquivalent(filterSubjects, serverCcc.filterSubjects)) { changes.add("filterSubjects"); }
 
             // do not need to check Durable because the original is retrieved by the durable name
 

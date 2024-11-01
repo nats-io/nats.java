@@ -45,31 +45,40 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
 
     final NatsConnection conn;
     final JetStreamOptions jso;
+    final Duration timeout;
     final boolean consumerCreate290Available;
     final boolean multipleSubjectFilter210Available;
+    final boolean directBatchGet211Available;
 
     // ----------------------------------------------------------------------------------------------------
     // Create / Init
     // ----------------------------------------------------------------------------------------------------
-    NatsJetStreamImpl(NatsConnection connection, JetStreamOptions jsOptions) throws IOException {
+    NatsJetStreamImpl(NatsConnection connection, JetStreamOptions jsOptions) {
         conn = connection;
 
         // Get a working version of JetStream Options...
         // Clone the input jsOptions (JetStreamOptions.builder(...) handles null.
         // If jsOptions is not supplied or the jsOptions request timeout
         // was not set, use the connection options connect timeout.
-        Duration rt = jsOptions == null || jsOptions.getRequestTimeout() == null ? conn.getOptions().getConnectionTimeout() : jsOptions.getRequestTimeout();
-        jso = JetStreamOptions.builder(jsOptions).requestTimeout(rt).build();
+        timeout = jsOptions == null || jsOptions.getRequestTimeout() == null ? conn.getOptions().getConnectionTimeout() : jsOptions.getRequestTimeout();
+        jso = JetStreamOptions.builder(jsOptions).requestTimeout(timeout).build();
 
         consumerCreate290Available = conn.getInfo().isSameOrNewerThanVersion("2.9.0") && !jso.isOptOut290ConsumerCreate();
         multipleSubjectFilter210Available = conn.getInfo().isNewerVersionThan("2.9.99");
+        directBatchGet211Available = conn.getInfo().isNewerVersionThan("2.10.99");
     }
 
     NatsJetStreamImpl(NatsJetStreamImpl impl) {
         conn = impl.conn;
         jso = impl.jso;
+        timeout = impl.timeout;
         consumerCreate290Available = impl.consumerCreate290Available;
         multipleSubjectFilter210Available = impl.multipleSubjectFilter210Available;
+        directBatchGet211Available = impl.directBatchGet211Available;
+    }
+
+    Duration getTimeout() {
+        return timeout;
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -77,7 +86,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
     // ----------------------------------------------------------------------------------------------------
     ConsumerInfo _getConsumerInfo(String streamName, String consumerName) throws IOException, JetStreamApiException {
         String subj = String.format(JSAPI_CONSUMER_INFO, streamName, consumerName);
-        Message resp = makeRequestResponseRequired(subj, null, jso.getRequestTimeout());
+        Message resp = makeRequestResponseRequired(subj, null, getTimeout());
         return new ConsumerInfo(resp).throwOnHasError();
     }
 
@@ -119,7 +128,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         }
 
         ConsumerCreateRequest ccr = new ConsumerCreateRequest(streamName, config, action);
-        Message resp = makeRequestResponseRequired(subj, ccr.serialize(), jso.getRequestTimeout());
+        Message resp = makeRequestResponseRequired(subj, ccr.serialize(), getTimeout());
         return new ConsumerInfo(resp).throwOnHasError();
     }
 
@@ -144,7 +153,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         String subj = String.format(JSAPI_STREAM_INFO, streamName);
         StreamInfoReader sir = new StreamInfoReader();
         while (sir.hasMore()) {
-            Message resp = makeRequestResponseRequired(subj, sir.nextJson(options), jso.getRequestTimeout());
+            Message resp = makeRequestResponseRequired(subj, sir.nextJson(options), getTimeout());
             sir.process(resp);
         }
         return cacheStreamInfo(streamName, sir.getStreamInfo());
@@ -167,7 +176,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
     List<String> _getStreamNames(String subjectFilter) throws IOException, JetStreamApiException {
         StreamNamesReader snr = new StreamNamesReader();
         while (snr.hasMore()) {
-            Message resp = makeRequestResponseRequired(JSAPI_STREAM_NAMES, snr.nextJson(subjectFilter), jso.getRequestTimeout());
+            Message resp = makeRequestResponseRequired(JSAPI_STREAM_NAMES, snr.nextJson(subjectFilter), getTimeout());
             snr.process(resp);
         }
         return snr.getStrings();
@@ -237,9 +246,9 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         }
     }
 
-    Message makeInternalRequestResponseRequired(String subject, Headers headers, byte[] data, Duration timeout, CancelAction cancelAction, boolean validateSubjectAndReplyTo) throws IOException {
+    Message makeInternalRequestResponseRequired(String subject, Headers headers, byte[] data, Duration timeout, CancelAction cancelAction, boolean validateSubjectAndReplyTo, boolean flushImmediatelyAfterPublish) throws IOException {
         try {
-            return responseRequired(conn.requestInternal(subject, headers, data, timeout, cancelAction, validateSubjectAndReplyTo));
+            return responseRequired(conn.requestInternal(subject, headers, data, timeout, cancelAction, validateSubjectAndReplyTo, flushImmediatelyAfterPublish));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException(e);

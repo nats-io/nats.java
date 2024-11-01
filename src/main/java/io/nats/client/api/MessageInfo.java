@@ -70,12 +70,12 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
             seq = Long.parseLong(msgHeaders.getLast(NATS_SEQUENCE));
             time = DateTimeUtils.parseDateTime(msgHeaders.getLast(NATS_TIMESTAMP));
             stream = msgHeaders.getLast(NATS_STREAM);
-            String temp = msgHeaders.getLast(NATS_LAST_SEQUENCE);
-            if (temp == null) {
+            String tempLastSeq = msgHeaders.getLast(NATS_LAST_SEQUENCE);
+            if (tempLastSeq == null) {
                 lastSeq = -1;
             }
             else {
-                lastSeq = JsonUtils.safeParseLong(temp, -1);
+                lastSeq = JsonUtils.safeParseLong(tempLastSeq, -1);
             }
             // these are control headers, not real headers so don't give them to the user.
             headers = new Headers(msgHeaders, true, MESSAGE_INFO_HEADERS);
@@ -162,7 +162,7 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
     public String toString() {
         StringBuilder sb = JsonUtils.beginJsonPrefixed("\"MessageInfo\":");
         JsonUtils.addField(sb, "direct", direct);
-        JsonUtils.addField(sb, "error", getError());
+        JsonUtils.addField(sb, ERROR, getError());
         JsonUtils.addField(sb, SUBJECT, subject);
         JsonUtils.addField(sb, SEQ, seq);
         if (data == null) {
@@ -173,7 +173,7 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
         }
         JsonUtils.addField(sb, TIME, time);
         JsonUtils.addField(sb, STREAM, stream);
-        JsonUtils.addField(sb, "last_seq", lastSeq);
+        JsonUtils.addField(sb, LAST_SEQ, lastSeq);
         JsonUtils.addField(sb, SUBJECT, subject);
         JsonUtils.addField(sb, HDRS, headers);
         return JsonUtils.endJson(sb).toString();
