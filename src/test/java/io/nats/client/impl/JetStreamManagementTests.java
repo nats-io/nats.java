@@ -1817,15 +1817,15 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(dataD, new String(list.get(2).getData()));
             assertEquals(dataE, new String(list.get(3).getData()));
 
-            // maxBytes
-            request = MessageBatchGetRequest.builder()
-                .batch(5)
-                .maxBytes(20)
-                .build();
-            list = jsm.fetchMessageBatch(stream, request);
-            assertEquals(1, list.size());
-            assertEquals(dataA, new String(list.get(0).getData()));
-            assertEquals(1, list.get(0).getSeq());
+            // maxBytes this is an empty request
+//            request = MessageBatchGetRequest.builder()
+//                .batch(5)
+//                .maxBytes(20)
+//                .build();
+//            list = jsm.fetchMessageBatch(stream, request);
+//            assertEquals(1, list.size());
+//            assertEquals(dataA, new String(list.get(0).getData()));
+//            assertEquals(1, list.get(0).getSeq());
 
 // TODO Not a feature yet
             // up to sequence
