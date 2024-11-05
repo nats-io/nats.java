@@ -29,6 +29,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import static io.nats.client.support.DateTimeUtils.DEFAULT_TIME;
 import static io.nats.client.support.DateTimeUtils.ZONE_ID_GMT;
+import static io.nats.client.support.NatsJetStreamClientError.JsAllowDirectRequired;
 import static io.nats.client.support.NatsJetStreamConstants.*;
 import static io.nats.client.support.Status.NOT_FOUND_CODE;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
@@ -1546,7 +1547,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testBatchDirectGetErrors() throws Exception {
+    public void testBatchDirectGetErrorsAndStatuses() throws Exception {
         assertThrows(IllegalArgumentException.class, () -> MessageBatchGetRequest.batch(null, 1));
         assertThrows(IllegalArgumentException.class, () -> MessageBatchGetRequest.batch("", 1));
         assertThrows(IllegalArgumentException.class, () -> MessageBatchGetRequest.batch(">", 0));
@@ -1566,10 +1567,11 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertFalse(si.getConfiguration().getAllowDirect());
 
             // Stream doesn't have AllowDirect enabled, will error.
-            assertThrows(IllegalArgumentException.class, () -> {
+            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> {
                 MessageBatchGetRequest request = MessageBatchGetRequest.batch("subject", 1);
                 jsm.requestMessageBatch(streamNoDirect, request, mi -> {});
             });
+            assertTrue(iae.getMessage().contains(JsAllowDirectRequired.id()));
 
             String stream = variant();
             subject = variant();
@@ -1595,35 +1597,43 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             LinkedBlockingQueue<MessageInfo> queue = jsm.queueMessageBatch(stream, request);
             verifyError(queueToList(queue), NOT_FOUND_CODE);
 
-            jsm.jetStream().publish(subject, dataBytes()); // so there are messages
-            Thread.sleep(2500); // for start_time
+            jsm.jetStream().publish(subject, dataBytes());
 
-            // Empty (Invalid) request errors.
-//            request = MessageBatchGetRequest.builder().build();
-//            verifyError(jsm.fetchMessageBatch(stream, request), BAD_JS_REQUEST_CODE);
-//
-//            request = MessageBatchGetRequest.builder().batch(1).nextBySubject("not").build();
-//            verifyError(jsm.fetchMessageBatch(stream, request), NOT_FOUND_CODE);
-//
-//            request = MessageBatchGetRequest.builder().batch(1).minSequence(99).build();
+            // subject not found
+            request = MessageBatchGetRequest.batch("invalid", 3);
+            verifyError(jsm.fetchMessageBatch(stream, request), NOT_FOUND_CODE);
+
+            request = MessageBatchGetRequest.multiLastForSubjects(Collections.singletonList("invalid"), 3);
+            verifyError(jsm.fetchMessageBatch(stream, request), NOT_FOUND_CODE);
+
+            // sequence larger
+            request = MessageBatchGetRequest.batch(subject, 3, 2);
+            verifyError(jsm.fetchMessageBatch(stream, request), NOT_FOUND_CODE);
+
+            List<String> subjects = Collections.singletonList(subject);
+
+            // batch, time after
+            // awaiting https://github.com/nats-io/nats-server/issues/6032
+//            ZonedDateTime time = ZonedDateTime.now().plusSeconds(10);
+//            request = MessageBatchGetRequest.batch(subject, 3, time);
 //            verifyError(jsm.fetchMessageBatch(stream, request), NOT_FOUND_CODE);
 
-// DOESN'T WORK AS ASSUMED
-//            request = MessageBatchGetRequest.builder()
-//                .batch(1)
-//                .startTime(ZonedDateTime.now()).build();
+            // last for, time before
+            // awaiting https://github.com/nats-io/nats-server/issues/6077
+//            time = ZonedDateTime.now().minusSeconds(10);
+//            request = MessageBatchGetRequest.multiLastForSubjects(subjects, time);
 //            verifyError(jsm.fetchMessageBatch(stream, request), NOT_FOUND_CODE);
         });
     }
 
     private static void verifyError(List<MessageInfo> list, int code) {
         assertEquals(1, list.size());
-        MessageInfo miErr = list.get(0);
-        assertFalse(miErr.isMessage());
-        assertTrue(miErr.isStatus());
-        assertFalse(miErr.isEobStatus());
-        assertTrue(miErr.isErrorStatus());
-        assertEquals(code, miErr.getStatus().getCode());
+        MessageInfo mi = list.get(0);
+        assertFalse(mi.isMessage());
+        assertTrue(mi.isStatus());
+        assertFalse(mi.isEobStatus());
+        assertTrue(mi.isErrorStatus());
+        assertEquals(code, mi.getStatus().getCode());
     }
 
     @Test

@@ -87,7 +87,7 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
         Headers _headers = null;
         String _stream = null;
         long _lastSeq = -1;
-        long _numPending = -1;
+        long _numPending = 0;
         Status _status = null;
 
         if (status != null) {
