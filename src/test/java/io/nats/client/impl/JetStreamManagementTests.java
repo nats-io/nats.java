@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.JsonUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
@@ -27,6 +28,7 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.DateTimeUtils.DEFAULT_TIME;
 import static io.nats.client.support.DateTimeUtils.ZONE_ID_GMT;
 import static io.nats.client.support.NatsJetStreamClientError.JsAllowDirectRequired;
@@ -1666,9 +1668,15 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             String subjectAll = subject + ".>";
             String subjectA = subject + ".A";
-            String subjectD = subject + ".D";
+            String subjectC = subject + ".C";
+            String subjectE = subject + ".E";
 
-            // Requests stay the same for all options.
+            // 1/1A batch only
+            // 2/2a batch with starting sequence
+            // 3/3a batch with start time
+            // 4/4a batch with max bytes
+            // 5/5a batch with max bytes and starting sequence
+            // 6/6a batch with max bytes and start time
             MessageBatchGetRequest requestBatch1 = MessageBatchGetRequest.batch(subjectAll, 3);
             MessageBatchGetRequest requestBatch1A = MessageBatchGetRequest.batch(subjectA, 3);
             MessageBatchGetRequest requestBatch2 = MessageBatchGetRequest.batch(subjectAll, 3, 4);
@@ -1682,276 +1690,187 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             MessageBatchGetRequest requestBatch6 = MessageBatchGetRequest.batchBytes(subjectAll, 3, 2002, time);
             MessageBatchGetRequest requestBatch6A = MessageBatchGetRequest.batchBytes(subjectA, 3, 2002, time);
 
+            // 1/1A just subjects
+            // 2/2A subjects with up_to_seq
+            // 3/3A subjects with up_to_time
             List<String> subjectAllList = Collections.singletonList(subjectAll);
-            List<String> subjectsList = Arrays.asList(subjectA, subjectD);
+            List<String> subjectsList = Arrays.asList(subjectA, subjectC, subjectE);
             MessageBatchGetRequest requestMulti1 = MessageBatchGetRequest.multiLastForSubjects(subjectsList);
-            MessageBatchGetRequest requestMulti1All = MessageBatchGetRequest.multiLastForSubjects(subjectAllList);
-            MessageBatchGetRequest requestMulti2 = MessageBatchGetRequest.multiLastForSubjects(subjectsList, 23);
-            MessageBatchGetRequest requestMulti2All = MessageBatchGetRequest.multiLastForSubjects(subjectAllList, 23);
+            MessageBatchGetRequest requestMulti1A = MessageBatchGetRequest.multiLastForSubjects(subjectAllList);
+            MessageBatchGetRequest requestMulti2 = MessageBatchGetRequest.multiLastForSubjects(subjectsList, 22);
+            MessageBatchGetRequest requestMulti2A = MessageBatchGetRequest.multiLastForSubjects(subjectAllList, 22);
             MessageBatchGetRequest requestMulti3 = MessageBatchGetRequest.multiLastForSubjects(subjectsList, time);
-            MessageBatchGetRequest requestMulti3All = MessageBatchGetRequest.multiLastForSubjects(subjectAllList, time);
+            MessageBatchGetRequest requestMulti3A = MessageBatchGetRequest.multiLastForSubjects(subjectAllList, time);
+            MessageBatchGetRequest requestMulti4 = MessageBatchGetRequest.multiLastForSubjectsBatch(subjectsList, 2);
+            MessageBatchGetRequest requestMulti4A = MessageBatchGetRequest.multiLastForSubjectsBatch(subjectAllList, 2);
+            MessageBatchGetRequest requestMulti5 = MessageBatchGetRequest.multiLastForSubjectsBatch(subjectsList, 22, 2);
+            MessageBatchGetRequest requestMulti5A = MessageBatchGetRequest.multiLastForSubjectsBatch(subjectAllList, 22, 2);
+            MessageBatchGetRequest requestMulti6 = MessageBatchGetRequest.multiLastForSubjectsBatch(subjectsList, time, 2);
+            MessageBatchGetRequest requestMulti6A = MessageBatchGetRequest.multiLastForSubjectsBatch(subjectAllList, time, 2);
 
             // Get using handler.
-            List<MessageInfo> list = new ArrayList<>();
-            jsm.requestMessageBatch(stream, requestBatch1, list::add);
-            verifyBatch1(list, true);
+            doHandler(jsm, stream, requestBatch1,  "1");
+            doHandler(jsm, stream, requestBatch1A, "1A");
+            doHandler(jsm, stream, requestBatch2,  "2");
+            doHandler(jsm, stream, requestBatch2A, "2A");
+            doHandler(jsm, stream, requestBatch3,  "3");
+            doHandler(jsm, stream, requestBatch3A, "3A");
+            doHandler(jsm, stream, requestBatch4,  "4");
+            doHandler(jsm, stream, requestBatch4A, "4A");
+            doHandler(jsm, stream, requestBatch5,  "5");
+            doHandler(jsm, stream, requestBatch5A, "5A");
+            doHandler(jsm, stream, requestBatch6,  "6");
+            doHandler(jsm, stream, requestBatch6A, "6A");
+            doHandler(jsm, stream, requestMulti1,  "M1");
+            doHandler(jsm, stream, requestMulti1A, "M1A");
+            doHandler(jsm, stream, requestMulti2,  "M2");
+            doHandler(jsm, stream, requestMulti2A, "M2A");
+            doHandler(jsm, stream, requestMulti3,  "M3");
+            doHandler(jsm, stream, requestMulti3A, "M3A");
+            doHandler(jsm, stream, requestMulti4,  "M4");
+            doHandler(jsm, stream, requestMulti4A, "M4A");
+            doHandler(jsm, stream, requestMulti5,  "M5");
+            doHandler(jsm, stream, requestMulti5A, "M5A");
+            doHandler(jsm, stream, requestMulti6,  "M6");
+            doHandler(jsm, stream, requestMulti6A, "M6A");
 
-            list.clear();
-            jsm.requestMessageBatch(stream, requestBatch1A, list::add);
-            verifyBatch1A(list, true);
-
-            list.clear();
-            jsm.requestMessageBatch(stream, requestBatch2, list::add);
-            verifyBatch2(list, true);
-
-            list.clear();
-            jsm.requestMessageBatch(stream, requestBatch2A, list::add);
-            verifyBatch2A(list, true);
-
-            list.clear();
-            jsm.requestMessageBatch(stream, requestBatch3, list::add);
-            verifyBatch3(list, true);
-
-            list.clear();
-            jsm.requestMessageBatch(stream, requestBatch3A, list::add);
-            verifyBatch3A(list, true);
-
-            list.clear();
-            jsm.requestMessageBatch(stream, requestBatch4, list::add);
-            verifyBatch4(list, true);
-
-            list.clear();
-            jsm.requestMessageBatch(stream, requestBatch4A, list::add);
-            verifyBatch4A(list, true);
-
-            list.clear();
-            jsm.requestMessageBatch(stream, requestBatch5, list::add);
-            verifyBatch5(list, true);
-
-            list.clear();
-            jsm.requestMessageBatch(stream, requestBatch5A, list::add);
-            verifyBatch5A(list, true);
-
-            list.clear();
-            jsm.requestMessageBatch(stream, requestBatch6, list::add);
-            verifyBatch6(list, true);
-
-            list.clear();
-            jsm.requestMessageBatch(stream, requestBatch6A, list::add);
-            verifyBatch6A(list, true);
-
-            list.clear();
-            jsm.requestMessageBatch(stream, requestMulti1, list::add);
-            verifyMulti1(list, true);
-
-            list.clear();
-            jsm.requestMessageBatch(stream, requestMulti1All, list::add);
-            verifyMulti1All(list, true);
-
-            list.clear();
-            jsm.requestMessageBatch(stream, requestMulti2, list::add);
-            verifyMulti2(list, true);
-
-            list.clear();
-            jsm.requestMessageBatch(stream, requestMulti2All, list::add);
-            verifyMulti2All(list, true);
-
-            list.clear();
-            jsm.requestMessageBatch(stream, requestMulti3, list::add);
-            verifyMulti3(list, true);
-
-            list.clear();
-            jsm.requestMessageBatch(stream, requestMulti3All, list::add);
-            verifyMulti3All(list, true);
-
-            // Get using fetch.
-            verifyBatch1(jsm.fetchMessageBatch(stream, requestBatch1), false);
-            verifyBatch1A(jsm.fetchMessageBatch(stream, requestBatch1A), false);
-            verifyBatch2(jsm.fetchMessageBatch(stream, requestBatch2), false);
-            verifyBatch2A(jsm.fetchMessageBatch(stream, requestBatch2A), false);
-            verifyBatch3(jsm.fetchMessageBatch(stream, requestBatch3), false);
-            verifyBatch3A(jsm.fetchMessageBatch(stream, requestBatch3A), false);
-            verifyBatch4(jsm.fetchMessageBatch(stream, requestBatch4), false);
-            verifyBatch4A(jsm.fetchMessageBatch(stream, requestBatch4A), false);
-            verifyBatch5(jsm.fetchMessageBatch(stream, requestBatch5), false);
-            verifyBatch5A(jsm.fetchMessageBatch(stream, requestBatch5A), false);
-            verifyBatch6(jsm.fetchMessageBatch(stream, requestBatch6), false);
-            verifyBatch6A(jsm.fetchMessageBatch(stream, requestBatch6A), false);
-
-            verifyMulti1(jsm.fetchMessageBatch(stream, requestMulti1), false);
-            verifyMulti1All(jsm.fetchMessageBatch(stream, requestMulti1All), false);
-            verifyMulti2(jsm.fetchMessageBatch(stream, requestMulti2), false);
-            verifyMulti2All(jsm.fetchMessageBatch(stream, requestMulti2All), false);
-            verifyMulti3(jsm.fetchMessageBatch(stream, requestMulti3), false);
-            verifyMulti3All(jsm.fetchMessageBatch(stream, requestMulti3All), false);
+            doFetch(jsm, stream, requestBatch1,  "1");
+            doFetch(jsm, stream, requestBatch1A, "1A");
+            doFetch(jsm, stream, requestBatch2,  "2");
+            doFetch(jsm, stream, requestBatch2A, "2A");
+            doFetch(jsm, stream, requestBatch3,  "3");
+            doFetch(jsm, stream, requestBatch3A, "3A");
+            doFetch(jsm, stream, requestBatch4,  "4");
+            doFetch(jsm, stream, requestBatch4A, "4A");
+            doFetch(jsm, stream, requestBatch5,  "5");
+            doFetch(jsm, stream, requestBatch5A, "5A");
+            doFetch(jsm, stream, requestBatch6,  "6");
+            doFetch(jsm, stream, requestBatch6A, "6A");
+            doFetch(jsm, stream, requestMulti1,  "M1");
+            doFetch(jsm, stream, requestMulti1A, "M1A");
+            doFetch(jsm, stream, requestMulti2,  "M2");
+            doFetch(jsm, stream, requestMulti2A, "M2A");
+            doFetch(jsm, stream, requestMulti3,  "M3");
+            doFetch(jsm, stream, requestMulti3A, "M3A");
+            doFetch(jsm, stream, requestMulti4,  "M4");
+            doFetch(jsm, stream, requestMulti4A, "M4A");
+            doFetch(jsm, stream, requestMulti5,  "M5");
+            doFetch(jsm, stream, requestMulti5A, "M5A");
+            doFetch(jsm, stream, requestMulti6,  "M6");
+            doFetch(jsm, stream, requestMulti6A, "M6A");
 
             // Get using queue.
-            LinkedBlockingQueue<MessageInfo> queue = jsm.queueMessageBatch(stream, requestBatch1);
-            verifyBatch1(queueToList(queue), true);
-
-            queue = jsm.queueMessageBatch(stream, requestBatch1A);
-            verifyBatch1A(queueToList(queue), true);
-
-            queue = jsm.queueMessageBatch(stream, requestBatch2);
-            verifyBatch2(queueToList(queue), true);
-
-            queue = jsm.queueMessageBatch(stream, requestBatch2A);
-            verifyBatch2A(queueToList(queue), true);
-
-            queue = jsm.queueMessageBatch(stream, requestBatch3);
-            verifyBatch3(queueToList(queue), true);
-
-            queue = jsm.queueMessageBatch(stream, requestBatch3A);
-            verifyBatch3A(queueToList(queue), true);
-
-            queue = jsm.queueMessageBatch(stream, requestBatch4);
-            verifyBatch4(queueToList(queue), true);
-
-            queue = jsm.queueMessageBatch(stream, requestBatch4A);
-            verifyBatch4A(queueToList(queue), true);
-
-            queue = jsm.queueMessageBatch(stream, requestBatch5);
-            verifyBatch5(queueToList(queue), true);
-
-            queue = jsm.queueMessageBatch(stream, requestBatch5A);
-            verifyBatch5A(queueToList(queue), true);
-
-            queue = jsm.queueMessageBatch(stream, requestBatch6);
-            verifyBatch6(queueToList(queue), true);
-
-            queue = jsm.queueMessageBatch(stream, requestBatch6A);
-            verifyBatch6A(queueToList(queue), true);
-
-            queue = jsm.queueMessageBatch(stream, requestMulti1);
-            verifyMulti1(queueToList(queue), true);
-
-            queue = jsm.queueMessageBatch(stream, requestMulti1All);
-            verifyMulti1All(queueToList(queue), true);
-
-            queue = jsm.queueMessageBatch(stream, requestMulti2);
-            verifyMulti2(queueToList(queue), true);
-
-            queue = jsm.queueMessageBatch(stream, requestMulti2All);
-            verifyMulti2All(queueToList(queue), true);
-
-            queue = jsm.queueMessageBatch(stream, requestMulti3);
-            verifyMulti3(queueToList(queue), true);
-
-            queue = jsm.queueMessageBatch(stream, requestMulti3All);
-            verifyMulti3All(queueToList(queue), true);
+            doQueue(jsm, stream, requestBatch1,  "1");
+            doQueue(jsm, stream, requestBatch1A, "1A");
+            doQueue(jsm, stream, requestBatch2,  "2");
+            doQueue(jsm, stream, requestBatch2A, "2A");
+            doQueue(jsm, stream, requestBatch3,  "3");
+            doQueue(jsm, stream, requestBatch3A, "3A");
+            doQueue(jsm, stream, requestBatch4,  "4");
+            doQueue(jsm, stream, requestBatch4A, "4A");
+            doQueue(jsm, stream, requestBatch5,  "5");
+            doQueue(jsm, stream, requestBatch5A, "5A");
+            doQueue(jsm, stream, requestBatch6,  "6");
+            doQueue(jsm, stream, requestBatch6A, "6A");
+            doQueue(jsm, stream, requestMulti1,  "M1");
+            doQueue(jsm, stream, requestMulti1A, "M1A");
+            doQueue(jsm, stream, requestMulti2,  "M2");
+            doQueue(jsm, stream, requestMulti2A, "M2A");
+            doQueue(jsm, stream, requestMulti3,  "M3");
+            doQueue(jsm, stream, requestMulti3A, "M3A");
+            doQueue(jsm, stream, requestMulti4,  "M4");
+            doQueue(jsm, stream, requestMulti4A, "M4A");
+            doQueue(jsm, stream, requestMulti5,  "M5");
+            doQueue(jsm, stream, requestMulti5A, "M5A");
+            doQueue(jsm, stream, requestMulti6,  "M6");
+            doQueue(jsm, stream, requestMulti6A, "M6A");
         });
     }
 
-    private static List<MessageInfo> queueToList(LinkedBlockingQueue<MessageInfo> queue) throws InterruptedException {
+    private static String miString(MessageInfo mi) {
+        StringBuilder sb = JsonUtils.beginJson();
+        if (mi.isStatus()) {
+            JsonUtils.addField(sb, "status_code", mi.getStatus().getCode());
+            JsonUtils.addField(sb, "status_message", mi.getStatus().getMessage());
+        }
+        else if (mi.hasError()) {
+            JsonUtils.addField(sb, ERROR, mi.getError());
+        }
+        else {
+            JsonUtils.addField(sb, SEQ, mi.getSeq());
+            JsonUtils.addField(sb, LAST_SEQ, mi.getLastSeq());
+            JsonUtils.addFieldWhenGteMinusOne(sb, NUM_PENDING, mi.getNumPending());
+            JsonUtils.addField(sb, SUBJECT, mi.getSubject());
+            JsonUtils.addField(sb, TIME, mi.getTime());
+        }
+        return JsonUtils.endJson(sb).toString();
+    }
+
+//    private static void debug(List<MessageInfo> list, MessageBatchGetRequest mbgr, String label) {
+//        System.out.println(label + " | " + mbgr);
+//        for (MessageInfo mi : list) {
+//            System.out.println(miString(mi));
+//        }
+//        System.out.println();
+//    }
+
+    private static void doHandler(JetStreamManagement jsm, String stream, MessageBatchGetRequest mbgr, String label) throws Exception {
         List<MessageInfo> list = new ArrayList<>();
-        while (true) {
-            MessageInfo mi = queue.take();
-            list.add(mi);
-            if (!mi.isMessage()) {
-                break;
+        jsm.requestMessageBatch(stream, mbgr, list::add);
+        _verify(list, label, true);
+    }
+
+    private static void doFetch(JetStreamManagement jsm, String stream, MessageBatchGetRequest mbgr, String label) throws Exception {
+        List<MessageInfo> list = jsm.fetchMessageBatch(stream, mbgr);
+        _verify(list, label, false);
+    }
+
+    private static void doQueue(JetStreamManagement jsm, String stream, MessageBatchGetRequest mbgr, String label) throws Exception {
+        LinkedBlockingQueue<MessageInfo> queue = jsm.queueMessageBatch(stream, mbgr);
+        _verify(queueToList(queue), label, true);
+    }
+
+    @SuppressWarnings("DuplicateBranchesInSwitch")
+    private static void _verify(List<MessageInfo> list, String label, boolean lastIsEob) {
+        switch (label) {
+            case "1"   : _verify(list, 1,  23, lastIsEob, 1, 2, 3);  break;
+            case "1A"  : _verify(list, 1,  3,  lastIsEob, 1, 6, 11); break;
+            case "2"   : _verify(list, 4,  20, lastIsEob, 4, 5, 6);  break;
+            case "2A"  : _verify(list, 6,  2,  lastIsEob, 6, 11, 16); break;
+            case "3"   : _verify(list, 6,  18, lastIsEob, 6, 7, 8);  break;
+            case "3A"  : _verify(list, 6,  2,  lastIsEob, 6, 11, 16); break;
+            case "4"   : _verify(list, 1,  23, lastIsEob, 1, 2);  break;
+            case "4A"  : _verify(list, 1,  3,  lastIsEob, 1, 6); break;
+            case "5"   : _verify(list, 4,  20, lastIsEob, 4, 5);  break;
+            case "5A"  : _verify(list, 6,  2,  lastIsEob, 6, 11); break;
+            case "6"   : _verify(list, 6,  18, lastIsEob, 6, 7);  break;
+            case "6A"  : _verify(list, 6,  2,  lastIsEob, 6, 11); break;
+            case "M1"  : _verify(list, 21, 0,  lastIsEob, 21, 23, 25);  break;
+            case "M1A" : _verify(list, 21, 2,  lastIsEob, 21, 22, 23, 24, 25); break;
+            case "M2"  : _verify(list, 18, 0,  lastIsEob, 18, 20, 21);  break;
+            case "M2A" : _verify(list, 18, 2,  lastIsEob, 18, 19, 20, 21, 22); break;
+            case "M3"  : _verify(list, 1, 0,   lastIsEob, 1, 3, 5);  break;
+            case "M3A" : _verify(list, 1, 2,   lastIsEob, 1, 2, 3, 4, 5); break;
+            case "M4"  : _verify(list, 21, 0,  lastIsEob, 21, 23);  break;
+            case "M4A" : _verify(list, 21, 2,  lastIsEob, 21, 22); break;
+            case "M5"  : _verify(list, 18, 0,  lastIsEob, 18, 20);  break;
+            case "M5A" : _verify(list, 18, 2,  lastIsEob, 18, 19); break;
+            case "M6"  : _verify(list, 1, 0,   lastIsEob, 1, 3);  break;
+            case "M6A" : _verify(list, 1, 2,   lastIsEob, 1, 2); break;
+        }
+    }
+
+    private static void _verify(List<MessageInfo> list, long lastSeq1, long pending1, boolean lastIsEob, long... expected) {
+        assertEquals(lastIsEob ? expected.length + 1 : expected.length, list.size());
+        for (int x = 0; x < expected.length; x++) {
+            MessageInfo mi = list.get(x);
+            if (x == 1) {
+                assertEquals(pending1, mi.getNumPending());
+                assertEquals(lastSeq1, mi.getLastSeq());
             }
+            assertEquals(expected[x], mi.getSeq());
+            verifyMessage(mi);
         }
-        return list;
-    }
-
-    private static void showList(List<MessageInfo> list, String label) {
-        System.out.println(label);
-        for (MessageInfo mi : list) {
-            System.out.println(mi);
-        }
-        System.out.println();
-    }
-
-    private static void verifyBatch1(List<MessageInfo> list, boolean lastIsEob) {
-        _verifyBatch(list, 3, lastIsEob, 23, 2, 1);
-    }
-
-    private static void verifyBatch1A(List<MessageInfo> list, boolean lastIsEob) {
-        _verifyBatch(list, 3, lastIsEob, 3, 6, 1);
-    }
-
-    private static void verifyBatch2(List<MessageInfo> list, boolean lastIsEob) {
-        _verifyBatch(list, 3, lastIsEob, 20, 5, 4);
-    }
-
-    private static void verifyBatch2A(List<MessageInfo> list, boolean lastIsEob) {
-        _verifyBatch(list, 3, lastIsEob, 2, 11, 6);
-    }
-
-    private static void verifyBatch3(List<MessageInfo> list, boolean lastIsEob) {
-        _verifyBatch(list, 3, lastIsEob, 18, 7, 6);
-    }
-
-    private static void verifyBatch3A(List<MessageInfo> list, boolean lastIsEob) {
-        _verifyBatch(list, 3, lastIsEob, 2, 11, 6);
-    }
-
-    private static void verifyBatch4(List<MessageInfo> list, boolean lastIsEob) {
-        _verifyBatch(list, 2, lastIsEob, 23, 2, 1);
-    }
-
-    private static void verifyBatch4A(List<MessageInfo> list, boolean lastIsEob) {
-        _verifyBatch(list, 2, lastIsEob, 3, 6, 1);
-    }
-
-    private static void verifyBatch5(List<MessageInfo> list, boolean lastIsEob) {
-        _verifyBatch(list, 2, lastIsEob, 20, 5, 4);
-    }
-
-    private static void verifyBatch5A(List<MessageInfo> list, boolean lastIsEob) {
-        _verifyBatch(list, 2, lastIsEob, 2, 11, 6);
-    }
-
-    private static void verifyBatch6(List<MessageInfo> list, boolean lastIsEob) {
-        _verifyBatch(list, 2, lastIsEob, 18, 7, 6);
-    }
-
-    private static void verifyBatch6A(List<MessageInfo> list, boolean lastIsEob) {
-        _verifyBatch(list, 2, lastIsEob, 2, 11, 6);
-    }
-
-    private void verifyMulti1(List<MessageInfo> list, boolean lastIsEob) {
-        _verifyMulti(list, 2, lastIsEob, 21, 24);
-    }
-
-    private void verifyMulti1All(List<MessageInfo> list, boolean lastIsEob) {
-        _verifyMulti(list, 5, lastIsEob, 21, 22, 23, 24, 25);
-    }
-
-    private void verifyMulti2(List<MessageInfo> list, boolean lastIsEob) {
-        _verifyMulti(list, 2, lastIsEob, 19, 21);
-    }
-
-    private void verifyMulti2All(List<MessageInfo> list, boolean lastIsEob) {
-        _verifyMulti(list, 5, lastIsEob, 19, 20, 21, 22, 23);
-    }
-
-    private void verifyMulti3(List<MessageInfo> list, boolean lastIsEob) {
-        _verifyMulti(list, 2, lastIsEob, 1, 4);
-    }
-
-    private void verifyMulti3All(List<MessageInfo> list, boolean lastIsEob) {
-        _verifyMulti(list, 5, lastIsEob, 1, 2, 3, 4, 5);
-    }
-
-    private static void _verifyMulti(List<MessageInfo> list, int sizeNoEob, boolean lastIsEob, long... seq) {
-        assertEquals(lastIsEob ? sizeNoEob + 1 : sizeNoEob, list.size());
-        for (int x = 0; x < seq.length; x++) {
-            assertEquals(seq[x], list.get(x).getSeq());
-            verifyMessage(list.get(x));
-        }
-        if (lastIsEob) {
-            verifyEob(list);
-        }
-    }
-
-    private static void _verifyBatch(List<MessageInfo> list, int sizeNoEob, boolean lastIsEob, long pending, long seq, long lastSeq) {
-        assertEquals(lastIsEob ? sizeNoEob + 1 : sizeNoEob, list.size());
-        MessageInfo mi = list.get(1);
-        assertEquals(pending, mi.getNumPending());
-        assertEquals(seq, mi.getSeq());
-        assertEquals(lastSeq, mi.getLastSeq());
-        verifyMessage(mi);
         if (lastIsEob) {
             verifyEob(list);
         }
@@ -1970,5 +1889,17 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         assertTrue(mi.isStatus());
         assertTrue(mi.isEobStatus());
         assertFalse(mi.isErrorStatus());
+    }
+
+    private static List<MessageInfo> queueToList(LinkedBlockingQueue<MessageInfo> queue) throws InterruptedException {
+        List<MessageInfo> list = new ArrayList<>();
+        while (true) {
+            MessageInfo mi = queue.take();
+            list.add(mi);
+            if (!mi.isMessage()) {
+                break;
+            }
+        }
+        return list;
     }
 }

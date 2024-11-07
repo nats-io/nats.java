@@ -87,7 +87,7 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
         Headers _headers = null;
         String _stream = null;
         long _lastSeq = -1;
-        long _numPending = 0;
+        long _numPending = -1;
         Status _status = null;
 
         if (status != null) {
@@ -252,7 +252,7 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
         else {
             JsonUtils.addField(sb, SEQ, seq);
             JsonUtils.addField(sb, LAST_SEQ, lastSeq);
-            JsonUtils.addField(sb, NUM_PENDING, numPending);
+            JsonUtils.addFieldWhenGteMinusOne(sb, NUM_PENDING, numPending);
             JsonUtils.addField(sb, STREAM, stream);
             JsonUtils.addField(sb, SUBJECT, subject);
             JsonUtils.addField(sb, TIME, time);

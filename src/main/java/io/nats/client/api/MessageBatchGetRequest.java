@@ -82,9 +82,9 @@ public class MessageBatchGetRequest implements JsonSerializable {
     }
 
     // multi for constructor
-    private MessageBatchGetRequest(List<String> subjects, long upToSequence, ZonedDateTime upToTime) {
+    private MessageBatchGetRequest(List<String> subjects, long upToSequence, ZonedDateTime upToTime, int batch) {
         Validator.required(subjects, "Subjects");
-        batch = -1;
+        this.batch = batch;
         nextBySubject = null;
         this.maxBytes = -1;
         this.minSequence = -1;
@@ -95,15 +95,27 @@ public class MessageBatchGetRequest implements JsonSerializable {
     }
 
     public static MessageBatchGetRequest multiLastForSubjects(List<String> subjects) {
-        return new MessageBatchGetRequest(subjects, -1, null);
+        return new MessageBatchGetRequest(subjects, -1, null, -1);
     }
 
     public static MessageBatchGetRequest multiLastForSubjects(List<String> subjects, long upToSequence) {
-        return new MessageBatchGetRequest(subjects, upToSequence, null);
+        return new MessageBatchGetRequest(subjects, upToSequence, null, -1);
     }
 
     public static MessageBatchGetRequest multiLastForSubjects(List<String> subjects, ZonedDateTime upToTime) {
-        return new MessageBatchGetRequest(subjects, -1, upToTime);
+        return new MessageBatchGetRequest(subjects, -1, upToTime, -1);
+    }
+
+    public static MessageBatchGetRequest multiLastForSubjectsBatch(List<String> subjects, int batch) {
+        return new MessageBatchGetRequest(subjects, -1, null, batch);
+    }
+
+    public static MessageBatchGetRequest multiLastForSubjectsBatch(List<String> subjects, long upToSequence, int batch) {
+        return new MessageBatchGetRequest(subjects, upToSequence, null, batch);
+    }
+
+    public static MessageBatchGetRequest multiLastForSubjectsBatch(List<String> subjects, ZonedDateTime upToTime, int batch) {
+        return new MessageBatchGetRequest(subjects, -1, upToTime, batch);
     }
 
     /**
