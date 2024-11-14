@@ -1685,7 +1685,7 @@ public class Options {
         }
 
         /**
-         * Set the DispatcherFactory  implementation for connections to use instead of the default implementation
+         * Set the DispatcherFactory implementation for connections to use instead of the default implementation
          * @param dispatcherFactory the implementation
          * @return the Builder for chaining
          */

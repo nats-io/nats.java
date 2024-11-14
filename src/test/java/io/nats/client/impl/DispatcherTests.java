@@ -18,10 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -916,12 +913,27 @@ public class DispatcherTests {
     public void testThrowOnWrongSubscription() {
         assertThrows(IllegalStateException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
+                 Connection nc = Nats.connect(ts.getURI())) {
                 Dispatcher d = nc.createDispatcher((msg) -> {});
                 Subscription sub2 = nc.subscribe("test");
                 d.unsubscribe(sub2);
                 assertFalse(true);
             }
         });
+    }
+
+    @Test
+    public void testDispatcherFactoryCoverage() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false);
+             Connection nc = Nats.connect(Options.builder().server(ts.getURI()).useDispatcherWithExecutor().build()))
+        {
+            CountDownLatch latch = new CountDownLatch(1);
+            Dispatcher d = nc.createDispatcher((msg) -> latch.countDown());
+            assertInstanceOf(NatsDispatcherWithExecutor.class, d);
+            String subject = NUID.nextGlobalSequence();
+            d.subscribe(subject);
+            nc.publish(subject, null);
+            assertTrue(latch.await(1, TimeUnit.SECONDS));
+        }
     }
 }

@@ -27,6 +27,7 @@ import java.util.regex.Pattern;
 
 import static io.nats.client.support.ApiConstants.DESCRIPTION;
 import static io.nats.client.support.DateTimeUtils.DEFAULT_TIME;
+import static io.nats.client.support.DateTimeUtils.ZONE_ID_GMT;
 import static io.nats.client.support.JsonUtils.*;
 import static io.nats.client.support.JsonValueUtils.mapBuilder;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
@@ -440,6 +441,22 @@ public final class JsonUtilsTests {
         assertEquals("Foobar", normalize("fooBar"));
         assertEquals("deprecated", objectString("name", "deprecated"));
         assertEquals("name=null", objectString("name", null));
+
+        // coverage of deprecated
+        byte[] byte64 = json.getBytes();
+        String base64 = Base64.getEncoder().encodeToString(byte64);
+        ZonedDateTime zdt = ZonedDateTime.now().withZoneSameInstant(ZONE_ID_GMT);
+        StringBuilder sb = JsonUtils.beginJson();
+        addField(sb, "foo64", base64);
+        addField(sb, "zdt", zdt);
+        endJson(sb);
+        System.out.println(sb);
+
+        bytes = readBase64(sb.toString(), string_pattern("foo64"));
+        assertArrayEquals(byte64, bytes);
+
+        ZonedDateTime zdtRead = JsonUtils.readDate(sb.toString(), string_pattern("zdt"));
+        assertEquals(zdt, zdtRead);
     }
 
     @Test
