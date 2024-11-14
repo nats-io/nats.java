@@ -18,10 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -930,8 +927,13 @@ public class DispatcherTests {
         try (NatsTestServer ts = new NatsTestServer(false);
              Connection nc = Nats.connect(Options.builder().server(ts.getURI()).useDispatcherWithExecutor().build()))
         {
-            Dispatcher d = nc.createDispatcher((msg) -> {});
+            CountDownLatch latch = new CountDownLatch(1);
+            Dispatcher d = nc.createDispatcher((msg) -> latch.countDown());
             assertInstanceOf(NatsDispatcherWithExecutor.class, d);
+            String subject = NUID.nextGlobalSequence();
+            d.subscribe(subject);
+            nc.publish(subject, null);
+            assertTrue(latch.await(1, TimeUnit.SECONDS));
         }
     }
 }
