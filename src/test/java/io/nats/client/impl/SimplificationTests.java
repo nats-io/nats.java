@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import java.io.*;
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -275,6 +276,52 @@ public class SimplificationTests extends JetStreamTestBase {
             IterableConsumer consumer = consumerContext.iterate(ConsumeOptions.DEFAULT_CONSUME_OPTIONS);
             consumer.close();
             assertThrows(IllegalArgumentException.class, () -> consumerContext.iterate((ConsumeOptions)null));
+        });
+    }
+
+    @Test
+    public void testOrderedConsumerDeliverPolices() throws Exception {
+        jsServer.run(TestBase::atLeast2_9_1, nc -> {
+            // Setup
+            JetStream js = nc.jetStream();
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
+
+            // setup mesage data
+            for (int x = 0; x < 3; x++) {
+                js.publish(tsc.subject(), null);
+                sleep(100); // to have a gap to test start time
+            }
+
+            JetStreamSubscription sub = js.subscribe(tsc.subject());
+            Message m = sub.nextMessage(1000);
+            ZonedDateTime startTime = m.metaData().timestamp().plus(30, ChronoUnit.MILLIS);
+            sub.unsubscribe();
+
+            StreamContext sctx = nc.getStreamContext(tsc.stream);
+
+            // test a start time
+            OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration()
+                .filterSubject(tsc.subject())
+                .deliverPolicy(DeliverPolicy.ByStartTime)
+                .startTime(startTime);
+            OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
+            try (IterableConsumer consumer = occtx.iterate()) {
+                m = consumer.nextMessage(1000);
+                assertEquals(2, m.metaData().streamSequence());
+            }
+
+            // test a start sequence
+            occ = new OrderedConsumerConfiguration()
+                .filterSubject(tsc.subject())
+                .deliverPolicy(DeliverPolicy.ByStartSequence)
+                .startSequence(2);
+            occtx = sctx.createOrderedConsumer(occ);
+            try (IterableConsumer consumer = occtx.iterate()) {
+                m = consumer.nextMessage(1000);
+                assertEquals(2, m.metaData().streamSequence());
+            }
         });
     }
 
