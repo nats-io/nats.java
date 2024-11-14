@@ -337,6 +337,9 @@ public class ErrorListenerTests {
         // exercises the default implementation
         _cover(new ErrorListenerLoggerImpl());
 
+        // exercises the console implementation
+        _cover(new ErrorListenerConsoleImpl());
+
         // exercises a little more than the defaults
         AtomicBoolean errorOccurredFlag = new AtomicBoolean();
         AtomicBoolean exceptionOccurredFlag = new AtomicBoolean();

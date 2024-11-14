@@ -916,12 +916,22 @@ public class DispatcherTests {
     public void testThrowOnWrongSubscription() {
         assertThrows(IllegalStateException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
+                 Connection nc = Nats.connect(ts.getURI())) {
                 Dispatcher d = nc.createDispatcher((msg) -> {});
                 Subscription sub2 = nc.subscribe("test");
                 d.unsubscribe(sub2);
                 assertFalse(true);
             }
         });
+    }
+
+    @Test
+    public void testDispatcherFactoryCoverage() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false);
+             Connection nc = Nats.connect(Options.builder().server(ts.getURI()).useDispatcherWithExecutor().build()))
+        {
+            Dispatcher d = nc.createDispatcher((msg) -> {});
+            assertInstanceOf(NatsDispatcherWithExecutor.class, d);
+        }
     }
 }
