@@ -345,6 +345,10 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(m1, mb.build());
         assertEquals(s1.hashCode(), sb.build().hashCode());
         assertEquals(m1.hashCode(), mb.build().hashCode());
+        assertEquals(sb.subjectTransforms, m1.getSubjectTransforms());
+
+        // coverage
+        m.getSubjectTransforms().get(0).toString();
     }
 
     private void assertNotEqualsEqualsHashcode(Source s, Mirror m, Source.Builder sb, Mirror.Builder mb) {

@@ -175,8 +175,9 @@ public abstract class Validator {
         return s;
     }
 
+    @Deprecated
     public static String required(String s1, String s2, String label) {
-        if (emptyAsNull(s1) == null && emptyAsNull(s2) == null) {
+        if (emptyAsNull(s1) == null || emptyAsNull(s2) == null) {
             throw new IllegalArgumentException(label + " cannot be null or empty.");
         }
         return s1;

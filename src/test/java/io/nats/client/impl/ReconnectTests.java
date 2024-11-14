@@ -716,6 +716,46 @@ public class ReconnectTests {
     }
 
     @Test
+    public void testForceReconnectOptionsBuilder() throws Exception {
+        ForceReconnectOptions fro = ForceReconnectOptions.builder().build();
+        assertFalse(fro.isForceClose());
+        assertFalse(fro.isFlush());
+        assertNull(fro.getFlushWait());
+
+        fro = ForceReconnectOptions.builder().forceClose().build();
+        assertTrue(fro.isForceClose());
+        assertFalse(fro.isFlush());
+        assertNull(fro.getFlushWait());
+
+        fro = ForceReconnectOptions.builder().flush(42).build();
+        assertFalse(fro.isForceClose());
+        assertTrue(fro.isFlush());
+        assertNotNull(fro.getFlushWait());
+        assertEquals(42, fro.getFlushWait().toMillis());
+
+        fro = ForceReconnectOptions.builder().flush(Duration.ofMillis(42)).build();
+        assertFalse(fro.isForceClose());
+        assertTrue(fro.isFlush());
+        assertNotNull(fro.getFlushWait());
+        assertEquals(42, fro.getFlushWait().toMillis());
+
+        fro = ForceReconnectOptions.builder().flush(null).build();
+        assertFalse(fro.isForceClose());
+        assertFalse(fro.isFlush());
+        assertNull(fro.getFlushWait());
+
+        fro = ForceReconnectOptions.builder().flush(-1).build();
+        assertFalse(fro.isForceClose());
+        assertFalse(fro.isFlush());
+        assertNull(fro.getFlushWait());
+
+        fro = ForceReconnectOptions.builder().flush(Duration.ofNanos(1)).build();
+        assertFalse(fro.isForceClose());
+        assertFalse(fro.isFlush());
+        assertNull(fro.getFlushWait());
+    }
+
+    @Test
     public void testForceReconnect() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
         ThreeServerTestOptions tstOpts = makeThreeServerTestOptions(listener, false);
