@@ -104,6 +104,40 @@ public class ValidatorTests {
         assertThrows(IllegalArgumentException.class, () -> validatePrintable(HAS_SPACE, "label", true));
         assertThrows(IllegalArgumentException.class, () -> validatePrintable(HAS_127, "label", true));
         assertThrows(IllegalArgumentException.class, () -> validatePrintable(HAS_LOW, "label", true));
+
+        validatePrintableExceptWildDotGt(PLAIN, "label", true);
+        validatePrintableExceptWildDotGt(HAS_PRINTABLE, "label", true);
+        validatePrintableExceptWildDotGt(HAS_DASH, "label", true);
+        validatePrintableExceptWildDotGt(HAS_UNDER, "label", true);
+        validatePrintableExceptWildDotGt(HAS_DOLLAR, "label", true);
+        validatePrintableExceptWildDotGt(HAS_FWD_SLASH, "label", true);
+        validatePrintableExceptWildDotGt(HAS_BACK_SLASH, "label", true);
+        validatePrintableExceptWildDotGt(HAS_EQUALS, "label", true);
+        validatePrintableExceptWildDotGt(HAS_TIC, "label", true);
+
+        assertThrows(IllegalArgumentException.class, () -> validatePrintableExceptWildDotGt(HAS_DOT, "label", true));
+        assertThrows(IllegalArgumentException.class, () -> validatePrintableExceptWildDotGt(STAR_NOT_SEGMENT, "label", true));
+        assertThrows(IllegalArgumentException.class, () -> validatePrintableExceptWildDotGt(GT_NOT_SEGMENT, "label", true));
+        assertThrows(IllegalArgumentException.class, () -> validatePrintableExceptWildDotGt(HAS_SPACE, "label", true));
+        assertThrows(IllegalArgumentException.class, () -> validatePrintableExceptWildDotGt(HAS_127, "label", true));
+        assertThrows(IllegalArgumentException.class, () -> validatePrintableExceptWildDotGt(HAS_LOW, "label", true));
+
+        validatePrintableExceptWildDotGtSlashes(PLAIN, "label", true);
+        validatePrintableExceptWildDotGtSlashes(HAS_PRINTABLE, "label", true);
+        validatePrintableExceptWildDotGtSlashes(HAS_DASH, "label", true);
+        validatePrintableExceptWildDotGtSlashes(HAS_UNDER, "label", true);
+        validatePrintableExceptWildDotGtSlashes(HAS_DOLLAR, "label", true);
+        validatePrintableExceptWildDotGtSlashes(HAS_EQUALS, "label", true);
+        validatePrintableExceptWildDotGtSlashes(HAS_TIC, "label", true);
+
+        assertThrows(IllegalArgumentException.class, () -> validatePrintableExceptWildDotGtSlashes(HAS_FWD_SLASH, "label", true));
+        assertThrows(IllegalArgumentException.class, () -> validatePrintableExceptWildDotGtSlashes(HAS_BACK_SLASH, "label", true));
+        assertThrows(IllegalArgumentException.class, () -> validatePrintableExceptWildDotGtSlashes(HAS_DOT, "label", true));
+        assertThrows(IllegalArgumentException.class, () -> validatePrintableExceptWildDotGtSlashes(STAR_NOT_SEGMENT, "label", true));
+        assertThrows(IllegalArgumentException.class, () -> validatePrintableExceptWildDotGtSlashes(GT_NOT_SEGMENT, "label", true));
+        assertThrows(IllegalArgumentException.class, () -> validatePrintableExceptWildDotGtSlashes(HAS_SPACE, "label", true));
+        assertThrows(IllegalArgumentException.class, () -> validatePrintableExceptWildDotGtSlashes(HAS_127, "label", true));
+        assertThrows(IllegalArgumentException.class, () -> validatePrintableExceptWildDotGtSlashes(HAS_LOW, "label", true));
     }
 
     @Test
@@ -332,11 +366,14 @@ public class ValidatorTests {
     @Test
     public void testValidateRequired() {
         required("required", "label");
+        required("required1", "required2", "label");
         required(new Object(), "label");
         required(Collections.singletonList("list"), "label");
         required(Collections.singletonMap("key", "value"), "label");
 
         assertThrows(IllegalArgumentException.class, () -> required((String)null, "label"));
+        assertThrows(IllegalArgumentException.class, () -> required("no-second", null, "label"));
+        assertThrows(IllegalArgumentException.class, () -> required(null, "no-first", "label"));
         assertThrows(IllegalArgumentException.class, () -> required(EMPTY, "label"));
         assertThrows(IllegalArgumentException.class, () -> required((Object)null, "label"));
         assertThrows(IllegalArgumentException.class, () -> required((List)null, "label"));
@@ -373,6 +410,9 @@ public class ValidatorTests {
         assertEquals(1, validateGtZero(1, "test"));
         assertThrows(IllegalArgumentException.class, () -> validateGtZero(0, "test"));
         assertThrows(IllegalArgumentException.class, () -> validateGtZero(-1, "test"));
+        assertEquals(1, validateGtZero(1L, "test"));
+        assertThrows(IllegalArgumentException.class, () -> validateGtZero(0L, "test"));
+        assertThrows(IllegalArgumentException.class, () -> validateGtZero(-1L, "test"));
     }
 
     @Test

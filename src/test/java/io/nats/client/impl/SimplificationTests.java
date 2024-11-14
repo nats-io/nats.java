@@ -15,10 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
-import io.nats.client.support.DateTimeUtils;
-import io.nats.client.support.SerializableConsumeOptions;
-import io.nats.client.support.SerializableFetchConsumeOptions;
-import io.nats.client.support.SerializableOrderedConsumerConfiguration;
+import io.nats.client.support.*;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -958,16 +955,32 @@ public class SimplificationTests extends JetStreamTestBase {
         check_values(occ, zdt);
         check_values(roundTripSerialize(occ), zdt);
 
-        // COVERAGE
+        // COVERAGE - depends on state from last occ
         socc = new SerializableOrderedConsumerConfiguration();
         socc.setOrderedConsumerConfiguration(occ);
         occ = socc.getOrderedConsumerConfiguration();
         check_values(occ, zdt);
         check_values(roundTripSerialize(occ), zdt);
+
+        // Multiple and COVERAGE
+        occ = new OrderedConsumerConfiguration().filterSubjects("fs0", "fs1");
+        assertNull(occ.getFilterSubject());
+        assertTrue(occ.hasMultipleFilterSubjects());
+        assertNotNull(occ.getFilterSubjects());
+        assertEquals("fs0", occ.getFilterSubjects().get(0));
+        assertEquals("fs1", occ.getFilterSubjects().get(1));
+        occ = new OrderedConsumerConfiguration(JsonParser.parse(occ.toJson()));
+        assertNull(occ.getFilterSubject());
+        assertTrue(occ.hasMultipleFilterSubjects());
+        assertNotNull(occ.getFilterSubjects());
+        assertEquals("fs0", occ.getFilterSubjects().get(0));
+        assertEquals("fs1", occ.getFilterSubjects().get(1));
     }
 
     private static void check_default_values(OrderedConsumerConfiguration occ) {
         assertEquals(">", occ.getFilterSubject());
+        assertNotNull(occ.getFilterSubject());
+        assertFalse(occ.hasMultipleFilterSubjects());
         assertNull(occ.getDeliverPolicy());
         assertEquals(ConsumerConfiguration.LONG_UNSET, occ.getStartSequence());
         assertNull(occ.getStartTime());
