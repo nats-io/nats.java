@@ -166,8 +166,9 @@ jacocoTestReport {
     }
     afterEvaluate { // only report on main library not examples
         classDirectories.setFrom(files(classDirectories.files.collect {
-            fileTree(dir: it,
-                    exclude: ['**/examples**'])
+            fileTree(dir: it, exclude: [
+                    '**/examples/**', 'io/nats/client/support/Debug*'
+                    ])
         }))
     }
 }
