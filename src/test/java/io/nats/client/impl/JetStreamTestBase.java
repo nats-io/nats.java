@@ -205,6 +205,13 @@ public class JetStreamTestBase extends TestBase {
         }
     }
 
+    public static void jsPublish(JetStream js, String subject, int startId, int count, long sleep) throws IOException, JetStreamApiException {
+        for (int x = 0; x < count; x++) {
+            js.publish(NatsMessage.builder().subject(subject).data((dataBytes(startId++))).build());
+            sleep(sleep);
+        }
+    }
+
     public static void jsPublish(JetStream js, String subject, int startId, int count) throws IOException, JetStreamApiException {
         for (int x = 0; x < count; x++) {
             js.publish(NatsMessage.builder().subject(subject).data((dataBytes(startId++))).build());

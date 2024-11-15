@@ -196,14 +196,13 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         String consumerName,
         Long inactiveThreshold)
     {
-        ConsumerConfiguration.Builder builder =
-            ConsumerConfiguration.builder(originalCc)
-                .deliverSubject(newDeliverSubject)
-                .startTime(null); // clear start time in case it was originally set
+        ConsumerConfiguration.Builder builder = ConsumerConfiguration.builder(originalCc).deliverSubject(newDeliverSubject);
 
         if (lastStreamSeq > 0) {
-            builder.deliverPolicy(DeliverPolicy.ByStartSequence)
-                .startSequence(Math.max(1, lastStreamSeq + 1));
+            builder
+                .deliverPolicy(DeliverPolicy.ByStartSequence)
+                .startSequence(Math.max(1, lastStreamSeq + 1))
+                .startTime(null); // clear start time in case it was originally set
         }
 
         if (consumerName != null && consumerCreate290Available) {
@@ -213,6 +212,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         if (inactiveThreshold != null) {
             builder.inactiveThreshold(inactiveThreshold);
         }
+
         return builder.build();
     }
 
