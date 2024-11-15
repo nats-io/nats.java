@@ -76,13 +76,16 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
             finished.set(false);
         }
         catch (JetStreamApiException | IOException e) {
-            setupHbAlarmToTrigger();
+        	setupHbAlarmToTrigger();
+        	throw e;
         }
     }
 
     private void setupHbAlarmToTrigger() {
-        pmm.resetTracking();
-        pmm.initOrResetHeartbeatTimer();
+    	if ( pmm != null) {
+	        pmm.resetTracking();
+	        pmm.initOrResetHeartbeatTimer();
+    	}
     }
 
     @Override
