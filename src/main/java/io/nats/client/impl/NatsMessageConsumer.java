@@ -58,7 +58,8 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
             doSub();
         }
         catch (JetStreamApiException | IOException e) {
-            setupHbAlarmToTrigger();
+            pmm.resetTracking();
+            pmm.initOrResetHeartbeatTimer();
         }
     }
 
@@ -69,23 +70,10 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
                 finished.set(true);
             }
         };
-        try {
-            super.initSub(subscriptionMaker.subscribe(mh, userDispatcher, pmm, null));
-            repull();
-            stopped.set(false);
-            finished.set(false);
-        }
-        catch (JetStreamApiException | IOException e) {
-        	setupHbAlarmToTrigger();
-        	throw e;
-        }
-    }
-
-    private void setupHbAlarmToTrigger() {
-    	if ( pmm != null) {
-	        pmm.resetTracking();
-	        pmm.initOrResetHeartbeatTimer();
-    	}
+        super.initSub(subscriptionMaker.subscribe(mh, userDispatcher, pmm, null));
+        repull();
+        stopped.set(false);
+        finished.set(false);
     }
 
     @Override
