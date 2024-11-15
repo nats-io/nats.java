@@ -266,7 +266,7 @@ public class SimplificationTests extends JetStreamTestBase {
             int stopCount = 500;
             // create the consumer then use it
             try (IterableConsumer consumer = consumerContext.iterate()) {
-                _testIterable(js, stopCount, consumer, tsc.subject());
+                _testIterableBasic(js, stopCount, consumer, tsc.subject());
             }
 
             // coverage
@@ -327,12 +327,12 @@ public class SimplificationTests extends JetStreamTestBase {
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(tsc.subject());
             OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
             try (IterableConsumer consumer = occtx.iterate()) {
-                _testIterable(js, stopCount, consumer, tsc.subject());
+                _testIterableBasic(js, stopCount, consumer, tsc.subject());
             }
         });
     }
 
-    private static void _testIterable(JetStream js, int stopCount, IterableConsumer consumer, String subject) throws InterruptedException {
+    private static void _testIterableBasic(JetStream js, int stopCount, IterableConsumer consumer, String subject) throws InterruptedException {
         AtomicInteger count = new AtomicInteger();
         Thread consumeThread = new Thread(() -> {
             try {
@@ -662,14 +662,14 @@ public class SimplificationTests extends JetStreamTestBase {
 
             // New pomm factory in place before each subscription is made
             ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedNextTestDropSimulator::new;
-            orderedNext(sctx, 1, new OrderedConsumerConfiguration().filterSubject(tsc.subject()));
+            _testOrderedNext(sctx, 1, new OrderedConsumerConfiguration().filterSubject(tsc.subject()));
 
             ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedNextTestDropSimulator::new;
-            orderedNext(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
+            _testOrderedNext(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
                 .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
 
             ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedNextTestDropSimulator::new;
-            orderedNext(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
+            _testOrderedNext(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
                 .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
         });
     }
@@ -683,7 +683,7 @@ public class SimplificationTests extends JetStreamTestBase {
         return startTime;
     }
 
-    private static void orderedNext(StreamContext sctx, int expectedStreamSeq, OrderedConsumerConfiguration occ) throws IOException, JetStreamApiException, InterruptedException, JetStreamStatusCheckedException {
+    private static void _testOrderedNext(StreamContext sctx, int expectedStreamSeq, OrderedConsumerConfiguration occ) throws IOException, JetStreamApiException, InterruptedException, JetStreamStatusCheckedException {
         OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
         // Loop through the messages to make sure I get stream sequence 1 to 6
         while (expectedStreamSeq <= 6) {
@@ -733,21 +733,21 @@ public class SimplificationTests extends JetStreamTestBase {
             // Set the Consumer Sequence For Stream Sequence 3 statically for ease
             CS_FOR_SS_3 = 3;
             ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
-            orderedFetch(sctx, 1, new OrderedConsumerConfiguration().filterSubject(tsc.subject()));
+            _testOrderedFetch(sctx, 1, new OrderedConsumerConfiguration().filterSubject(tsc.subject()));
 
             CS_FOR_SS_3 = 2;
             ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
-            orderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
+            _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
                 .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
 
             CS_FOR_SS_3 = 2;
             ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
-            orderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
+            _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
                 .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
         });
     }
 
-    private static void orderedFetch(StreamContext sctx, int expectedStreamSeq, OrderedConsumerConfiguration occ) throws Exception {
+    private static void _testOrderedFetch(StreamContext sctx, int expectedStreamSeq, OrderedConsumerConfiguration occ) throws Exception {
         OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
         FetchConsumeOptions fco = FetchConsumeOptions.builder().maxMessages(6).expiresIn(1000).build();
         try (FetchConsumer fcon = occtx.fetch(fco)) {
@@ -791,21 +791,21 @@ public class SimplificationTests extends JetStreamTestBase {
             // Set the Consumer Sequence For Stream Sequence 3 statically for ease
             CS_FOR_SS_3 = 3;
             ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
-            orderedIterate(sctx, 1, new OrderedConsumerConfiguration().filterSubject(tsc.subject()));
+            _testOrderedIterate(sctx, 1, new OrderedConsumerConfiguration().filterSubject(tsc.subject()));
 
             CS_FOR_SS_3 = 2;
             ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
-            orderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
+            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
                 .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
 
             CS_FOR_SS_3 = 2;
             ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
-            orderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
+            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
                 .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
         });
     }
 
-    private static void orderedIterate(StreamContext sctx, int expectedStreamSeq, OrderedConsumerConfiguration occ) throws Exception {
+    private static void _testOrderedIterate(StreamContext sctx, int expectedStreamSeq, OrderedConsumerConfiguration occ) throws Exception {
         OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
         try (IterableConsumer icon = occtx.iterate()) {
             // Loop through the messages to make sure I get stream sequence 1 to 5
