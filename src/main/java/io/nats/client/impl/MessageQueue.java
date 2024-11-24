@@ -141,6 +141,7 @@ class MessageQueue {
 
     boolean push(NatsMessage msg, boolean internal) {
         long start = System.currentTimeMillis();
+        boolean lockWasSuccessful = false;
         try {
             /*
                 This was essentially a Head-Of-Line blocking problem.
@@ -166,6 +167,8 @@ class MessageQueue {
                 throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
             }
 
+            lockWasSuccessful = true;
+
             if (!internal && this.discardWhenFull) {
                 return this.queue.offer(msg);
             }
@@ -184,7 +187,9 @@ class MessageQueue {
             return false;
         }
         finally {
-            editLock.unlock();
+            if (lockWasSuccessful) {
+                editLock.unlock();
+            }
         }
     }
 
