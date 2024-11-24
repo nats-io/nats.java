@@ -52,7 +52,6 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
 
     /**
      * Create a Message Info
-     * This signature is public for testing purposes and is not intended to be used externally.
      * @param msg the message
      * @param streamName the stream name if known
      * @param fromDirect true if the object is being created from a get fromDirect api call instead of the standard get message
@@ -64,8 +63,6 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
 
     /**
      * Create a Message Info
-     * This signature is public for testing purposes and is not intended to be used externally.
-     *
      * @param status     the status
      * @param streamName the stream name if known
      * @param fromDirect whether this was called from a direct get
