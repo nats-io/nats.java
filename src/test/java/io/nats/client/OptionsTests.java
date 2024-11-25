@@ -978,29 +978,27 @@ public class OptionsTests {
     }
 
     @Test
-    public void testCallbackExecutor() {
-        Options options = new Options.Builder().connectThreadFactory(new ThreadFactory() {
-            @Override
-            public Thread newThread(Runnable r) {
-                return new Thread(r, "test");
-            }
-        }).build();
-        options.getConnectExecutor().submit(() -> {
+    public void testCallbackExecutor() throws ExecutionException, InterruptedException, TimeoutException {
+        ThreadFactory threadFactory = r -> new Thread(r, "test");
+        Options options = new Options.Builder()
+                .callbackThreadFactory(threadFactory)
+                .build();
+        Future<?> callbackFuture = options.getCallbackExecutor().submit(() -> {
             assertEquals("test", Thread.currentThread().getName());
         });
+        callbackFuture.get(5, TimeUnit.SECONDS);
     }
 
     @Test
-    public void testConnectExecutor() {
-        Options options = new Options.Builder().connectThreadFactory(new ThreadFactory() {
-            @Override
-            public Thread newThread(Runnable r) {
-                return new Thread(r, "test");
-            }
-        }).build();
-        options.getConnectExecutor().submit(() -> {
+    public void testConnectExecutor() throws ExecutionException, InterruptedException, TimeoutException {
+        ThreadFactory threadFactory = r -> new Thread(r, "test");
+        Options options = new Options.Builder()
+                .connectThreadFactory(threadFactory)
+                .build();
+        Future<?> connectFuture = options.getConnectExecutor().submit(() -> {
             assertEquals("test", Thread.currentThread().getName());
         });
+        connectFuture.get(5, TimeUnit.SECONDS);
     }
 
     String[] schemes = new String[]   { "NATS", "unk",  "tls",  "opentls",  "ws",   "wss", "nats"};
