@@ -38,6 +38,7 @@ import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 
 import static io.nats.client.support.Encoding.*;
 import static io.nats.client.support.NatsConstants.*;
@@ -225,6 +226,11 @@ public class Options {
      * See {@link #DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE}
      */
     public static final boolean DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL = false;
+
+    /**
+     * Default supplier for creating a single-threaded executor service.
+     */
+    public static final Supplier<ExecutorService> DEFAULT_SINGLE_THREAD_EXECUTOR = Executors::newSingleThreadExecutor;
 
     // ----------------------------------------------------------------------------------------------------
     // ENVIRONMENT PROPERTIES
@@ -644,6 +650,8 @@ public class Options {
     private final boolean traceConnection;
 
     private final ExecutorService executor;
+    private final ThreadFactory connectThreadFactory;
+    private final ThreadFactory callbackThreadFactory;
     private final ServerPool serverPool;
     private final DispatcherFactory dispatcherFactory;
 
@@ -759,6 +767,8 @@ public class Options {
         private StatisticsCollector statisticsCollector = null;
         private String dataPortType = DEFAULT_DATA_PORT_TYPE;
         private ExecutorService executor;
+        private ThreadFactory connectThreadFactory;
+        private ThreadFactory callbackThreadFactory;
         private List<java.util.function.Consumer<HttpRequest>> httpRequestInterceptors;
         private Proxy proxy;
 
@@ -1554,6 +1564,28 @@ public class Options {
         }
 
         /**
+         * Sets custom thread factory for the executor service
+         *
+         * @param threadFactory the thread factory to use for the executor service
+         * @return the Builder for chaining
+         */
+        public Builder connectThreadFactory(ThreadFactory threadFactory) {
+            this.connectThreadFactory = threadFactory;
+            return this;
+        }
+
+        /**
+         * Sets custom thread factory for the executor service
+         *
+         * @param threadFactory the thread factory to use for the executor service
+         * @return the Builder for chaining
+         */
+        public Builder callbackThreadFactory(ThreadFactory threadFactory) {
+            this.callbackThreadFactory = threadFactory;
+            return this;
+        }
+
+        /**
          * Add an HttpRequest interceptor which can be used to modify the HTTP request when using websockets
          *
          * @param interceptor The interceptor
@@ -1914,6 +1946,8 @@ public class Options {
             this.dataPortType = o.dataPortType;
             this.trackAdvancedStats = o.trackAdvancedStats;
             this.executor = o.executor;
+            this.callbackThreadFactory = o.callbackThreadFactory;
+            this.connectThreadFactory = o.connectThreadFactory;
             this.httpRequestInterceptors = o.httpRequestInterceptors;
             this.proxy = o.proxy;
 
@@ -1979,6 +2013,8 @@ public class Options {
         this.dataPortType = b.dataPortType;
         this.trackAdvancedStats = b.trackAdvancedStats;
         this.executor = b.executor;
+        this.callbackThreadFactory = b.callbackThreadFactory;
+        this.connectThreadFactory = b.connectThreadFactory;
         this.httpRequestInterceptors = b.httpRequestInterceptors;
         this.proxy = b.proxy;
 
@@ -2000,6 +2036,22 @@ public class Options {
      */
     public ExecutorService getExecutor() {
         return this.executor;
+    }
+
+    /**
+     * @return the callback executor, see {@link Builder#callbackThreadFactory(ThreadFactory) callbackThreadFactory()} in the builder doc
+     */
+    public ExecutorService getCallbackExecutor() {
+        return this.callbackThreadFactory == null ?
+                DEFAULT_SINGLE_THREAD_EXECUTOR.get() : Executors.newSingleThreadExecutor(this.callbackThreadFactory);
+    }
+
+    /**
+     * @return the connect executor, see {@link Builder#connectThreadFactory(ThreadFactory) connectThreadFactory()} in the builder doc
+     */
+    public ExecutorService getConnectExecutor() {
+        return this.connectThreadFactory == null ?
+                DEFAULT_SINGLE_THREAD_EXECUTOR.get() : Executors.newSingleThreadExecutor(this.connectThreadFactory);
     }
 
     /**
