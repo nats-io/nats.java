@@ -47,6 +47,7 @@ public class Status {
     public static String LEADERSHIP_CHANGE              = "Leadership Change"; // 409
 
     public static final Status EOB = new Status(EOB_CODE, EOB_TEXT);
+    public static final Status TIMEOUT_OR_NO_MESSAGES = new Status(NOT_FOUND_CODE, "Timeout or No Messages");
 
     private final int code;
     private final String message;

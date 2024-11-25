@@ -373,7 +373,8 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
     public LinkedBlockingQueue<MessageInfo> queueMessageBatch(String streamName, MessageBatchGetRequest messageBatchGetRequest) throws IOException, JetStreamApiException {
         validateMessageBatchGetRequest(streamName, messageBatchGetRequest);
         final LinkedBlockingQueue<MessageInfo> q = new LinkedBlockingQueue<>();
-        conn.getOptions().getExecutor().submit(() -> _requestMessageBatch(streamName, messageBatchGetRequest, true, q::add));
+        conn.getOptions().getExecutor().submit(
+            () -> _requestMessageBatch(streamName, messageBatchGetRequest, true, q::add));
         return q;
     }
 
@@ -398,19 +399,22 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
 
             while (true) {
                 Message msg = sub.nextMessage(getTimeout());
+                Status errorOrNonEob = null;
                 if (msg == null) {
-                    return false; // should not time out before eob
+                    errorOrNonEob = Status.TIMEOUT_OR_NO_MESSAGES;
                 }
-
-                if (msg.isStatusMessage()) {
+                else if (msg.isStatusMessage()) {
                     if (msg.getStatus().isEob()) {
                         return true;  // will send eob in finally if caller asked
                     }
+                    errorOrNonEob = msg.getStatus();
+                }
 
-                    // All non eob statuses, always send, but it is the last message to the caller
+                if (errorOrNonEob != null) {
+                    // All error or non eob statuses, always send, but it is the last message to the caller
                     sendEob = false;
-                    handler.onMessageInfo(new MessageInfo(msg.getStatus(), streamName, true));
-                    return false; // since this was an error
+                    handler.onMessageInfo(new MessageInfo(Status.TIMEOUT_OR_NO_MESSAGES, streamName, true));
+                    return false; // should not time out before eob
                 }
 
                 MessageInfo messageInfo = new MessageInfo(msg, streamName, true);
