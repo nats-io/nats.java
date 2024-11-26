@@ -157,8 +157,8 @@ class NatsConnection implements Connection {
 
         timeTraceLogger.trace("creating executors");
         this.executor = options.getExecutor();
-        this.callbackRunner = Executors.newSingleThreadExecutor();
-        this.connectExecutor = Executors.newSingleThreadExecutor();
+        this.callbackRunner = options.getCallbackExecutor();
+        this.connectExecutor = options.getConnectExecutor();
 
         timeTraceLogger.trace("creating reader and writer");
         this.reader = new NatsConnectionReader(this);

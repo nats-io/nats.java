@@ -32,10 +32,7 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 import static io.nats.client.Options.*;
 import static io.nats.client.support.Encoding.base64UrlEncodeToString;
@@ -978,6 +975,30 @@ public class OptionsTests {
         future = options.getExecutor().submit(() -> Thread.currentThread().getName());
         name = future.get(5, TimeUnit.SECONDS);
         assertTrue(name.startsWith(Options.DEFAULT_THREAD_NAME_PREFIX));
+    }
+
+    @Test
+    public void testCallbackExecutor() throws ExecutionException, InterruptedException, TimeoutException {
+        ThreadFactory threadFactory = r -> new Thread(r, "test");
+        Options options = new Options.Builder()
+                .callbackThreadFactory(threadFactory)
+                .build();
+        Future<?> callbackFuture = options.getCallbackExecutor().submit(() -> {
+            assertEquals("test", Thread.currentThread().getName());
+        });
+        callbackFuture.get(5, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void testConnectExecutor() throws ExecutionException, InterruptedException, TimeoutException {
+        ThreadFactory threadFactory = r -> new Thread(r, "test");
+        Options options = new Options.Builder()
+                .connectThreadFactory(threadFactory)
+                .build();
+        Future<?> connectFuture = options.getConnectExecutor().submit(() -> {
+            assertEquals("test", Thread.currentThread().getName());
+        });
+        connectFuture.get(5, TimeUnit.SECONDS);
     }
 
     String[] schemes = new String[]   { "NATS", "unk",  "tls",  "opentls",  "ws",   "wss", "nats"};
