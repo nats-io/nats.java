@@ -29,7 +29,6 @@ import static io.nats.client.support.NatsJetStreamConstants.*;
  */
 public class MessageInfo extends ApiResponse<MessageInfo> {
 
-    private final boolean fromDirect;
     private final String subject;
     private final long seq;
     private final byte[] data;
@@ -54,27 +53,23 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
      * Create a Message Info
      * @param msg the message
      * @param streamName the stream name if known
-     * @param fromDirect true if the object is being created from a get fromDirect api call instead of the standard get message
+     * @param parseDirect true if the object is being created from a direct api call instead of get message
      */
-    public MessageInfo(Message msg, String streamName, boolean fromDirect) {
-        this(msg, null, streamName, fromDirect);
+    public MessageInfo(Message msg, String streamName, boolean parseDirect) {
+        this(msg, null, streamName, parseDirect);
     }
-
 
     /**
      * Create a Message Info
      * @param status     the status
      * @param streamName the stream name if known
-     * @param fromDirect whether this was called from a direct get
      */
-    public MessageInfo(Status status, String streamName, boolean fromDirect) {
-        this(null, status, streamName, fromDirect);
+    public MessageInfo(Status status, String streamName) {
+        this(null, status, streamName, false);
     }
 
-    private MessageInfo(Message msg, Status status, String streamName, boolean fromDirect) {
-        super(fromDirect ? null : msg);
-
-        this.fromDirect = fromDirect;
+    private MessageInfo(Message msg, Status status, String streamName, boolean parseDirect) {
+        super(parseDirect ? null : msg);
 
         // working vars because the object vars are final
         String _subject = null;
@@ -91,7 +86,7 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
             _status = status;
             _stream = streamName;
         }
-        else if (fromDirect) {
+        else if (parseDirect) {
             Headers msgHeaders = msg.getHeaders();
             _subject = msgHeaders.getLast(NATS_SUBJECT);
             _data = msg.getData();
@@ -260,7 +255,6 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
                 JsonUtils.addField(sb, "data_length", data.length);
             }
             JsonUtils.addField(sb, HDRS, headers);
-            JsonUtils.addField(sb, "from_direct", fromDirect);
         }
         return JsonUtils.endJson(sb).toString();
     }

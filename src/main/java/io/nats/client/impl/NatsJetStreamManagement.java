@@ -413,7 +413,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
                 if (errorOrNonEob != null) {
                     // All error or non eob statuses, always send, but it is the last message to the caller
                     sendEob = false;
-                    handler.onMessageInfo(new MessageInfo(Status.TIMEOUT_OR_NO_MESSAGES, streamName, true));
+                    handler.onMessageInfo(new MessageInfo(errorOrNonEob, streamName));
                     return false; // should not time out before eob
                 }
 
@@ -426,11 +426,12 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
             // and data is not completely read
             // so it seems like this is an error condition
             Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
+            sendEob = false;
+            return false;
         } finally {
             if (sendEob) {
                 try {
-                    handler.onMessageInfo(new MessageInfo(Status.EOB, streamName, true));
+                    handler.onMessageInfo(new MessageInfo(Status.EOB, streamName));
                 }
                 catch (RuntimeException ignore) { /* user handler runtime error */ }
             }
