@@ -96,6 +96,7 @@ public class FetchConsumeOptions extends BaseConsumeOptions {
 
         /**
          * Set no wait to true
+         * When no wait is true, the fetch will return immediately with as many messages as are available. Between zero and the maximum configured.
          * @return the builder
          */
         @Override
@@ -106,7 +107,9 @@ public class FetchConsumeOptions extends BaseConsumeOptions {
         }
 
         /**
-         * Set no wait to true with an expiration, special behavior.
+         * Set no wait to true with an expiration. This is the common configuration to receive messages as soon as they arrive in the stream without excessive pulling.
+         * When no wait is true with expire, the fetch will return immediately with as many messages as are available, but at least one message. Between one and the maximum configured.
+         * When no message is available it will wait for new messages to arrive till it expires.
          * @param expiresInMillis the expiration time in milliseconds
          * @return the builder
          */

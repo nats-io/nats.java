@@ -53,7 +53,7 @@ public interface JetStreamSubscription extends Subscription {
 
     /**
      * Initiate pull in noWait mode with the specified batch size.
-     *
+     * The fetch will return immediately with as many messages as are available. Between zero and the maximum configured.
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
      * ! Primitive API for ADVANCED use only, officially not supported. Prefer fetch, iterate or reader.
      *
@@ -64,6 +64,8 @@ public interface JetStreamSubscription extends Subscription {
 
     /**
      * Initiate pull in noWait mode with the specified batch size.
+     * The fetch will return immediately with as many messages as are available, but at least one message. Between one and the maximum configured.
+     * When no message is available it will wait for new messages to arrive till it expires.
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
      * ! Primitive API for ADVANCED use only, officially not supported. Prefer fetch, iterate or reader.
      *
@@ -75,6 +77,8 @@ public interface JetStreamSubscription extends Subscription {
 
     /**
      * Initiate pull in noWait mode with the specified batch size.
+     * The fetch will return immediately with as many messages as are available, but at least one message. Between one and the maximum configured.
+     * When no message is available it will wait for new messages to arrive till it expires.
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
      * ! Primitive API for ADVANCED use only, officially not supported. Prefer fetch, iterate or reader.
      *
