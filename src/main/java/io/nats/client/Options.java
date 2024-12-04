@@ -61,10 +61,10 @@ public class Options {
     // PROTOCOL CONNECT OPTION CONSTANTS * not related to options, but here because Options code uses them
     // CLASS VARIABLES * add a variable to the class
     // BUILDER VARIABLES * add a variable in builder
-    // BUILDER COPY CONSTRUCTOR * update builder constructor to ensure new variables are set
     // BUILD CONSTRUCTOR PROPS * update build props constructor to read new props
     // BUILDER METHODS * add a chainable method in builder for new variable
     // BUILD IMPL * update build() implementation if needed
+    // BUILDER COPY CONSTRUCTOR * update builder constructor to ensure new variables are set
     // CONSTRUCTOR * update constructor to ensure new variables are set from builder
     // GETTERS * update getter to be able to retrieve class variable value
     // HELPER FUNCTIONS * just helpers
@@ -502,6 +502,21 @@ public class Options {
      * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#forceFlushOnRequest() forceFlushOnRequest}.
      */
     public static final String PROP_FORCE_FLUSH_ON_REQUEST = PFX + "force.flush.on.request";
+    /**
+     * Property used to set class name for the Executor Service (executor) class
+     * {@link Builder#executor(ExecutorService) executor}.
+     */
+    public static final String PROP_EXECUTOR_SERVICE_CLASS = "executor.service.class";
+    /**
+     * Property used to set class name for the Connect Thread Factory
+     * {@link Builder#connectThreadFactory(ThreadFactory) connectThreadFactory}.
+     */
+    public static final String PROP_CONNECT_THREAD_FACTORY_CLASS = "connect.thread.factory.class";
+    /**
+     * Property used to set class name for the Callback Thread Factory
+     * {@link Builder#callbackThreadFactory(ThreadFactory) callbackThreadFactory}.
+     */
+    public static final String PROP_CALLBACK_THREAD_FACTORY_CLASS = "callback.thread.factory.class";
 
     // ----------------------------------------------------------------------------------------------------
     // PROTOCOL CONNECT OPTION CONSTANTS
@@ -896,6 +911,9 @@ public class Options {
 
             classnameProperty(props, PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, o -> this.serverPool = (ServerPool) o);
             classnameProperty(props, PROP_DISPATCHER_FACTORY_CLASS, o -> this.dispatcherFactory = (DispatcherFactory) o);
+            classnameProperty(props, PROP_EXECUTOR_SERVICE_CLASS, o -> this.executor = (ExecutorService) o);
+            classnameProperty(props, PROP_CONNECT_THREAD_FACTORY_CLASS, o -> this.connectThreadFactory = (ThreadFactory) o);
+            classnameProperty(props, PROP_CALLBACK_THREAD_FACTORY_CLASS, o -> this.callbackThreadFactory = (ThreadFactory) o);
 
             return this;
         }
