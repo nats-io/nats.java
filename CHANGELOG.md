@@ -1,5 +1,23 @@
 # Change Log
 
+## 2.20.5
+
+### Core
+* feat(nats-connection): implement named executor thread factories #1254 @kedzie
+* Edit lock don't unlock if was not locked. #1255 @scottf
+* Executor and Executor Factories in Options can be created via properties #1257 @scottf
+
+### JetStream
+* Fix simplified ordered consuming when a delivery policy was set. #1251 @scottf @roeschter
+* Fix: exception on simple consume when disconnected immediately #1253 @roeschter
+
+### Documentation
+* NoWait documentation #1256 @roeschter
+
+### Tests
+* Unit test coverage #1252 @scottf
+
+
 ## 2.20.4
 
 ### Core
