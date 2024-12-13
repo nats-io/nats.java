@@ -244,6 +244,7 @@ class NatsConnection implements Connection {
 
                 if (this.isAuthenticationError(err)) {
                     this.serverAuthErrors.put(resolved, err);
+                    keepGoing = false;
                 }
             }
         }
