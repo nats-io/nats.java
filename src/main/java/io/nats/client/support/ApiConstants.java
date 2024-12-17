@@ -172,7 +172,6 @@ public interface ApiConstants {
     String RESPONSE          = "response";
     String RETENTION         = "retention";
     String SAMPLE_FREQ       = "sample_freq";
-    String SCHEMA            = "schema";
     String SEALED            = "sealed";
     String SEQ               = "seq";
     String SERVER_ID         = "server_id";

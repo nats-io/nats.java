@@ -65,7 +65,6 @@ public class Service {
 
         // set up the service contexts
         // ? do we need an internal dispatcher for any user endpoints
-        // ! also while we are here, we need to collect the endpoints for the SchemaResponse
         Dispatcher dTemp = null;
         serviceContexts = new HashMap<>();
         for (ServiceEndpoint se : b.serviceEndpoints.values()) {
@@ -87,7 +86,7 @@ public class Service {
         pingResponse = new PingResponse(id, b.name, b.version, b.metadata);
         infoResponse = new InfoResponse(id, b.name, b.version, b.metadata, b.description, b.serviceEndpoints.values());
 
-        if (b.pingDispatcher == null || b.infoDispatcher == null || b.schemaDispatcher == null || b.statsDispatcher == null) {
+        if (b.pingDispatcher == null || b.infoDispatcher == null || b.statsDispatcher == null) {
             dTemp = conn.createDispatcher();
             dInternals.add(dTemp);
         }

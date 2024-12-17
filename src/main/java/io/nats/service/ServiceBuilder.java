@@ -26,7 +26,6 @@ public class ServiceBuilder {
     Duration drainTimeout = DEFAULT_DRAIN_TIMEOUT;
     Dispatcher pingDispatcher;
     Dispatcher infoDispatcher;
-    Dispatcher schemaDispatcher;
     Dispatcher statsDispatcher;
 
     /**
@@ -126,16 +125,6 @@ public class ServiceBuilder {
      */
     public ServiceBuilder infoDispatcher(Dispatcher infoDispatcher) {
         this.infoDispatcher = infoDispatcher;
-        return this;
-    }
-
-    /**
-     * Optional dispatcher for the schema service
-     * @param schemaDispatcher the dispatcher
-     * @return the ServiceBuilder
-     */
-    public ServiceBuilder schemaDispatcher(Dispatcher schemaDispatcher) {
-        this.schemaDispatcher = schemaDispatcher;
         return this;
     }
 

@@ -404,7 +404,6 @@ public class ServiceTests extends JetStreamTestBase {
 
                 Dispatcher dPing = nc.createDispatcher();
                 Dispatcher dInfo = nc.createDispatcher();
-                Dispatcher dSchema = nc.createDispatcher();
                 Dispatcher dStats = nc.createDispatcher();
                 Dispatcher dEnd = nc.createDispatcher();
 
@@ -424,7 +423,6 @@ public class ServiceTests extends JetStreamTestBase {
                     .addServiceEndpoint(se1)
                     .pingDispatcher(dPing)
                     .infoDispatcher(dInfo)
-                    .schemaDispatcher(dSchema)
                     .statsDispatcher(dStats)
                     .build();
 
@@ -438,7 +436,6 @@ public class ServiceTests extends JetStreamTestBase {
 
                 nc.closeDispatcher(dPing);
                 nc.closeDispatcher(dInfo);
-                nc.closeDispatcher(dSchema);
                 sleep(100); // no rush
 
                 dispatchers = getDispatchers(nc);
