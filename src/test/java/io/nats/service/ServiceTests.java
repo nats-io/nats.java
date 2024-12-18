@@ -404,12 +404,11 @@ public class ServiceTests extends JetStreamTestBase {
 
                 Dispatcher dPing = nc.createDispatcher();
                 Dispatcher dInfo = nc.createDispatcher();
-                Dispatcher dSchema = nc.createDispatcher();
                 Dispatcher dStats = nc.createDispatcher();
                 Dispatcher dEnd = nc.createDispatcher();
 
                 dispatchers = getDispatchers(nc);
-                assertEquals(5, dispatchers.size());
+                assertEquals(4, dispatchers.size());
 
                 ServiceEndpoint se1 = ServiceEndpoint.builder()
                     .endpointName("dispatch")
@@ -424,7 +423,6 @@ public class ServiceTests extends JetStreamTestBase {
                     .addServiceEndpoint(se1)
                     .pingDispatcher(dPing)
                     .infoDispatcher(dInfo)
-                    .schemaDispatcher(dSchema)
                     .statsDispatcher(dStats)
                     .build();
 
@@ -434,11 +432,10 @@ public class ServiceTests extends JetStreamTestBase {
                 done.get(100, TimeUnit.MILLISECONDS);
 
                 dispatchers = getDispatchers(nc);
-                assertEquals(5, dispatchers.size()); // stop doesn't touch supplied dispatchers
+                assertEquals(4, dispatchers.size()); // stop doesn't touch supplied dispatchers
 
                 nc.closeDispatcher(dPing);
                 nc.closeDispatcher(dInfo);
-                nc.closeDispatcher(dSchema);
                 sleep(100); // no rush
 
                 dispatchers = getDispatchers(nc);

@@ -26,7 +26,6 @@ public class ServiceBuilder {
     Duration drainTimeout = DEFAULT_DRAIN_TIMEOUT;
     Dispatcher pingDispatcher;
     Dispatcher infoDispatcher;
-    Dispatcher schemaDispatcher;
     Dispatcher statsDispatcher;
 
     /**
@@ -130,12 +129,13 @@ public class ServiceBuilder {
     }
 
     /**
-     * Optional dispatcher for the schema service
+     * A NOOP method to maintain compatibility with the old schema dispatcher, superseded by endpointMetadata
+     * @deprecated No longer used, see {@link ServiceEndpoint.Builder#endpointMetadata(Map)} instead
      * @param schemaDispatcher the dispatcher
      * @return the ServiceBuilder
      */
+    @Deprecated
     public ServiceBuilder schemaDispatcher(Dispatcher schemaDispatcher) {
-        this.schemaDispatcher = schemaDispatcher;
         return this;
     }
 
