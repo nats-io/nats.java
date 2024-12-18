@@ -129,6 +129,16 @@ public class ServiceBuilder {
     }
 
     /**
+     * A NOOP method to maintain compatibility with the old schema dispatcher, superseded by endpointMetadata
+     * @deprecated No longer used, see {@link ServiceEndpoint.Builder#endpointMetadata(Map)} instead
+     * @param schemaDispatcher the dispatcher
+     * @return the ServiceBuilder
+     */
+    public ServiceBuilder schemaDispatcher(Dispatcher schemaDispatcher) {
+        return this;
+    }
+
+    /**
      * Optional dispatcher for the stats service
      * @param statsDispatcher the dispatcher
      * @return the ServiceBuilder
