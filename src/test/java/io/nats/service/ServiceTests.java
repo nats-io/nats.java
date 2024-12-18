@@ -408,7 +408,7 @@ public class ServiceTests extends JetStreamTestBase {
                 Dispatcher dEnd = nc.createDispatcher();
 
                 dispatchers = getDispatchers(nc);
-                assertEquals(5, dispatchers.size());
+                assertEquals(4, dispatchers.size());
 
                 ServiceEndpoint se1 = ServiceEndpoint.builder()
                     .endpointName("dispatch")
