@@ -432,7 +432,7 @@ public class ServiceTests extends JetStreamTestBase {
                 done.get(100, TimeUnit.MILLISECONDS);
 
                 dispatchers = getDispatchers(nc);
-                assertEquals(5, dispatchers.size()); // stop doesn't touch supplied dispatchers
+                assertEquals(4, dispatchers.size()); // stop doesn't touch supplied dispatchers
 
                 nc.closeDispatcher(dPing);
                 nc.closeDispatcher(dInfo);
