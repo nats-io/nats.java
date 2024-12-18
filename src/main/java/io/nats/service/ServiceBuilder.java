@@ -134,6 +134,7 @@ public class ServiceBuilder {
      * @param schemaDispatcher the dispatcher
      * @return the ServiceBuilder
      */
+    @Deprecated
     public ServiceBuilder schemaDispatcher(Dispatcher schemaDispatcher) {
         return this;
     }
