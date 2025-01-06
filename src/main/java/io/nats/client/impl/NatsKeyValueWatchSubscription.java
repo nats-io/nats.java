@@ -30,10 +30,10 @@ public class NatsKeyValueWatchSubscription extends NatsWatchSubscription<KeyValu
 
     public NatsKeyValueWatchSubscription(NatsKeyValue kv, List<String> keyPatterns, KeyValueWatcher watcher, long fromRevision, KeyValueWatchOption... watchOptions) throws IOException, JetStreamApiException {
         super(kv.js);
-        kwWatchInit(kv, keyPatterns, watcher, fromRevision, watchOptions);
+        kvWatchInit(kv, keyPatterns, watcher, fromRevision, watchOptions);
     }
 
-    private void kwWatchInit(NatsKeyValue kv, List<String> keyPatterns, KeyValueWatcher watcher, long fromRevision, KeyValueWatchOption[] watchOptions) throws IOException, JetStreamApiException {
+    private void kvWatchInit(NatsKeyValue kv, List<String> keyPatterns, KeyValueWatcher watcher, long fromRevision, KeyValueWatchOption[] watchOptions) throws IOException, JetStreamApiException {
         // figure out the result options
         boolean headersOnly = false;
         boolean ignoreDeletes = false;

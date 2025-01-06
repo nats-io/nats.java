@@ -155,7 +155,7 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
      */
     @Override
     public long put(String key, Number value) throws IOException, JetStreamApiException {
-        return put(key, value.toString().getBytes(StandardCharsets.US_ASCII));
+        return _write(key, value.toString().getBytes(StandardCharsets.US_ASCII), null).getSeqno();
     }
 
     /**
@@ -202,7 +202,6 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
      */
     @Override
     public void delete(String key) throws IOException, JetStreamApiException {
-        validateNonWildcardKvKeyRequired(key);
         _write(key, null, getDeleteHeaders());
     }
 
@@ -211,9 +210,8 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
      */
     @Override
     public void delete(String key, long expectedRevision) throws IOException, JetStreamApiException {
-        validateNonWildcardKvKeyRequired(key);
         Headers h = getDeleteHeaders().put(EXPECTED_LAST_SUB_SEQ_HDR, Long.toString(expectedRevision));
-        _write(key, null, h).getSeqno();
+        _write(key, null, h);
     }
 
     /**
