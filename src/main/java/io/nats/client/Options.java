@@ -517,6 +517,11 @@ public class Options {
      * {@link Builder#callbackThreadFactory(ThreadFactory) callbackThreadFactory}.
      */
     public static final String PROP_CALLBACK_THREAD_FACTORY_CLASS = "callback.thread.factory.class";
+    /**
+     * Property used to set class name for the Callback Thread Factory
+     * {@link Builder#callbackThreadFactory(ThreadFactory) callbackThreadFactory}.
+     */
+    public static final String PROP_READ_LISTENER_CLASS = "read.listener.class";
 
     // ----------------------------------------------------------------------------------------------------
     // PROTOCOL CONNECT OPTION CONSTANTS
@@ -658,6 +663,7 @@ public class Options {
     private final ErrorListener errorListener;
     private final TimeTraceLogger timeTraceLogger;
     private final ConnectionListener connectionListener;
+    private ReadListener readListener;
     private final StatisticsCollector statisticsCollector;
     private final String dataPortType;
 
@@ -779,6 +785,7 @@ public class Options {
         private ErrorListener errorListener = null;
         private TimeTraceLogger timeTraceLogger = null;
         private ConnectionListener connectionListener = null;
+        private ReadListener readListener = null;
         private StatisticsCollector statisticsCollector = null;
         private String dataPortType = DEFAULT_DATA_PORT_TYPE;
         private ExecutorService executor;
@@ -896,6 +903,7 @@ public class Options {
             classnameProperty(props, PROP_ERROR_LISTENER, o -> this.errorListener = (ErrorListener) o);
             classnameProperty(props, PROP_TIME_TRACE_LOGGER, o -> this.timeTraceLogger = (TimeTraceLogger) o);
             classnameProperty(props, PROP_CONNECTION_CB, o -> this.connectionListener = (ConnectionListener) o);
+            classnameProperty(props, PROP_READ_LISTENER_CLASS, o -> this.readListener = (ReadListener) o);
             classnameProperty(props, PROP_STATISTICS_COLLECTOR, o -> this.statisticsCollector = (StatisticsCollector) o);
 
             stringProperty(props, PROP_DATA_PORT_TYPE, s -> this.dataPortType = s);
@@ -914,7 +922,6 @@ public class Options {
             classnameProperty(props, PROP_EXECUTOR_SERVICE_CLASS, o -> this.executor = (ExecutorService) o);
             classnameProperty(props, PROP_CONNECT_THREAD_FACTORY_CLASS, o -> this.connectThreadFactory = (ThreadFactory) o);
             classnameProperty(props, PROP_CALLBACK_THREAD_FACTORY_CLASS, o -> this.callbackThreadFactory = (ThreadFactory) o);
-
             return this;
         }
 
@@ -1552,6 +1559,17 @@ public class Options {
         }
 
         /**
+         * Sets a listener to be notified on incoming protocol/message
+         *
+         * @param readListener the listener
+         * @return the Builder for chaining
+         */
+        public Builder readListener(ReadListener readListener) {
+            this.readListener = readListener;
+            return this;
+        }
+
+        /**
          * Set the {@link StatisticsCollector StatisticsCollector} to collect connection metrics.
          * <p>
          * If not set, then a default implementation will be used.
@@ -1960,6 +1978,7 @@ public class Options {
             this.errorListener = o.errorListener;
             this.timeTraceLogger = o.timeTraceLogger;
             this.connectionListener = o.connectionListener;
+            this.readListener = o.readListener;
             this.statisticsCollector = o.statisticsCollector;
             this.dataPortType = o.dataPortType;
             this.trackAdvancedStats = o.trackAdvancedStats;
@@ -2027,6 +2046,7 @@ public class Options {
         this.errorListener = b.errorListener;
         this.timeTraceLogger = b.timeTraceLogger;
         this.connectionListener = b.connectionListener;
+        this.readListener = b.readListener;
         this.statisticsCollector = b.statisticsCollector;
         this.dataPortType = b.dataPortType;
         this.trackAdvancedStats = b.trackAdvancedStats;
@@ -2110,6 +2130,13 @@ public class Options {
      */
     public ConnectionListener getConnectionListener() {
         return this.connectionListener;
+    }
+
+    /**
+     * @return the read listener, or null, see {@link Builder#readListener(ReadListener) readListener()} in the builder doc
+     */
+    public ReadListener getReadListener() {
+        return this.readListener;
     }
 
     /**

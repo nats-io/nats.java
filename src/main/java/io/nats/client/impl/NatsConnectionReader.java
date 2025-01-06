@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.ReadListener;
 import io.nats.client.support.IncomingHeadersProcessor;
 
 import java.io.IOException;
@@ -68,6 +69,7 @@ class NatsConnectionReader implements Runnable {
     private final AtomicBoolean running;
 
     private final boolean utf8Mode;
+    private final ReadListener readListener;
 
     NatsConnectionReader(NatsConnection connection) {
         this.connection = connection;
@@ -83,6 +85,7 @@ class NatsConnectionReader implements Runnable {
         this.bufferPosition = 0;
 
         this.utf8Mode = connection.getOptions().supportUTF8Subjects();
+        readListener = connection.getOptions().getReadListener();
     }
 
     // Should only be called if the current thread has exited.
@@ -346,7 +349,11 @@ class NatsConnectionReader implements Runnable {
                 if (gotCR) {
                     if (b == LF) {
                         incoming.setData(msgData);
-                        this.connection.deliverMessage(incoming.getMessage());
+                        NatsMessage m = incoming.getMessage();
+                        this.connection.deliverMessage(m);
+                        if (readListener != null) {
+                            readListener.message(op, m);
+                        }
                         msgData = null;
                         msgDataPosition = 0;
                         incoming = null;
@@ -544,34 +551,50 @@ class NatsConnectionReader implements Runnable {
                     break;
                 case OP_OK:
                     this.connection.processOK();
+                    if (readListener != null) {
+                        readListener.protocol(op, null);
+                    }
                     this.op = UNKNOWN_OP;
                     this.mode = Mode.GATHER_OP;
                     break;
                 case OP_ERR:
                     String errorText = StandardCharsets.UTF_8.decode(protocolBuffer).toString().replace("'", "");
                     this.connection.processError(errorText);
+                    if (readListener != null) {
+                        readListener.protocol(op, errorText);
+                    }
                     this.op = UNKNOWN_OP;
                     this.mode = Mode.GATHER_OP;
                     break;
                 case OP_PING:
                     this.connection.sendPong();
+                    if (readListener != null) {
+                        readListener.protocol(op, null);
+                    }
                     this.op = UNKNOWN_OP;
                     this.mode = Mode.GATHER_OP;
                     break;
                 case OP_PONG:
                     this.connection.handlePong();
+                    if (readListener != null) {
+                        readListener.protocol(op, null);
+                    }
                     this.op = UNKNOWN_OP;
                     this.mode = Mode.GATHER_OP;
                     break;
                 case OP_INFO:
                     String info = StandardCharsets.UTF_8.decode(protocolBuffer).toString();
                     this.connection.handleInfo(info);
+                    if (readListener != null) {
+                        readListener.protocol(op, info);
+                    }
                     this.op = UNKNOWN_OP;
                     this.mode = Mode.GATHER_OP;
                     break;
                 default:
                     throw new IllegalStateException("Unknown protocol operation "+op);
             }
+
         } catch (IllegalStateException | NumberFormatException | NullPointerException ex) {
             this.encounteredProtocolError(ex);
         }
