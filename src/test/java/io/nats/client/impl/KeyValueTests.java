@@ -67,17 +67,17 @@ public class KeyValueTests extends JetStreamTestBase {
                 .build();
 
             KeyValueStatus status = kvm.create(kvc);
-            assertInitialStatus(status, bucket, desc, metadata);
+            assertInitialStatus(status, bucket, desc);
 
             // get the kv context for the specific bucket
             KeyValue kv = nc.keyValue(bucket);
             assertEquals(bucket, kv.getBucketName());
             status = kv.getStatus();
-            assertInitialStatus(status, bucket, desc, metadata);
+            assertInitialStatus(status, bucket, desc);
 
             KeyValue kv2 = nc.keyValue(bucket, KeyValueOptions.builder(DEFAULT_JS_OPTIONS).build()); // coverage
             assertEquals(bucket, kv2.getBucketName());
-            assertInitialStatus(kv2.getStatus(), bucket, desc, metadata);
+            assertInitialStatus(kv2.getStatus(), bucket, desc);
 
             // Put some keys. Each key is put in a subject in the bucket (stream)
             // The put returns the sequence number in the bucket (stream)
@@ -143,7 +143,7 @@ public class KeyValueTests extends JetStreamTestBase {
             status = kvm.getStatus(bucket);
             assertState(status, 4, 4);
 
-            // if the key has been deleted no etnry is returned
+            // if the key has been deleted no entry is returned
             assertNull(kv.get(byteKey));
 
             // if the key does not exist (no history) there is no entry
@@ -306,9 +306,8 @@ public class KeyValueTests extends JetStreamTestBase {
         assertEquals(status.getByteCount(), status.getBackingStreamInfo().getStreamState().getByteCount());
     }
 
-    private void assertInitialStatus(KeyValueStatus status, String bucket, String desc, Map<String, String> metadata) {
-        KeyValueConfiguration kvc;
-        kvc = status.getConfiguration();
+    private void assertInitialStatus(KeyValueStatus status, String bucket, String desc) {
+        KeyValueConfiguration kvc = status.getConfiguration();
         assertEquals(bucket, status.getBucketName());
         assertEquals(bucket, kvc.getBucketName());
         assertEquals(desc, status.getDescription());
@@ -483,10 +482,11 @@ public class KeyValueTests extends JetStreamTestBase {
                 .build());
 
             KeyValue kv = nc.keyValue(bucket1);
-            kv.put(KEY, 1);
-            kv.put(KEY, 2);
+            String key = key();
+            kv.put(key, 1);
+            kv.put(key, 2);
 
-            List<KeyValueEntry> history = kv.history(KEY);
+            List<KeyValueEntry> history = kv.history(key);
             assertEquals(1, history.size());
             assertEquals(2, history.get(0).getValueAsLong());
 
@@ -496,7 +496,7 @@ public class KeyValueTests extends JetStreamTestBase {
                 .storageType(StorageType.Memory)
                 .build());
 
-            String key = key();
+            key = key();
             kv = nc.keyValue(bucket2);
             kv.put(key, 1);
             kv.put(key, 2);
@@ -514,9 +514,11 @@ public class KeyValueTests extends JetStreamTestBase {
         jsServer.run(nc -> {
             KeyValueManagement kvm = nc.keyValueManagement();
 
-            assertThrows(JetStreamApiException.class, () -> kvm.getStatus(BUCKET));
-
             String bucket = bucket();
+
+            // doesn't exist yet
+            assertThrows(JetStreamApiException.class, () -> kvm.getStatus(bucket));
+
             KeyValueStatus kvs = kvm.create(KeyValueConfiguration.builder()
                 .name(bucket)
                 .storageType(StorageType.Memory)
