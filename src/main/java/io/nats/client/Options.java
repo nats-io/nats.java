@@ -518,7 +518,7 @@ public class Options {
      */
     public static final String PROP_CALLBACK_THREAD_FACTORY_CLASS = "callback.thread.factory.class";
     /**
-     * Property used to set class name for the ReaderListener implementations
+     * Property used to set class name for the ReaderListener implementation
      * {@link Builder#readListener(ReadListener) readListener}.
      */
     public static final String PROP_READ_LISTENER_CLASS = "read.listener.class";
