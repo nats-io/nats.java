@@ -151,7 +151,7 @@ class NatsConnectionWriter implements Runnable {
                 sendBuffer[sendPosition++] = CR;
                 sendBuffer[sendPosition++] = LF;
 
-                if (!msg.isProtocol()) {
+                if (!msg.isProtocol()) { // because a protocol message does not have headers
                     sendPosition += msg.copyNotEmptyHeaders(sendPosition, sendBuffer);
 
                     byte[] bytes = msg.getData(); // guaranteed to not be null
