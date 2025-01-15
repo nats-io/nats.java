@@ -161,6 +161,11 @@ class PullMessageManager extends MessageManager {
             case CONFLICT_CODE:
                 // sometimes just a warning
                 String statMsg = status.getMessage();
+                //properly handle error & propagate
+                if (statMsg.startsWith("Exceeded MaxRequestBatch")) {
+                        conn.executeCallback((c, el) -> el.pullStatusError(c, sub, status));
+                    return STATUS_ERROR;
+                }
                 if (statMsg.startsWith("Exceeded Max")
                     || statMsg.equals(SERVER_SHUTDOWN)
                     || statMsg.equals(LEADERSHIP_CHANGE)
