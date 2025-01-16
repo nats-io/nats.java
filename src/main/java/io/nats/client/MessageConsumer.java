@@ -46,10 +46,16 @@ public interface MessageConsumer extends AutoCloseable {
     ConsumerInfo getCachedConsumerInfo();
 
     /**
-     * Stop the MessageConsumer from asking for any more messages from the server.
+     * Use {@link close()} to unsubscribe. Stop will not unsubcribe or clean up resources.
      * The consumer will finish all pull request already in progress, but will not start any new ones.
      */
     void stop();
+
+    /**
+     * Unsubscribe the underlying subject. Close will be lenient. In flight and buffered messages may still be delivered.
+     */
+    @Override
+	void close();
 
     /**
      * Stopped indicates whether consuming has been stopped. Can be stopped without being finished.
