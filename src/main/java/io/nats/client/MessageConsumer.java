@@ -55,7 +55,7 @@ public interface MessageConsumer extends AutoCloseable {
      * Unsubscribe the underlying subject. Close will be lenient. In flight and buffered messages may still be delivered.
      */
     @Override
-	void close();
+	void close() throws Exception;
 
     /**
      * Stopped indicates whether consuming has been stopped. Can be stopped without being finished.
