@@ -73,9 +73,10 @@ import java.util.concurrent.CompletableFuture;
  *
  *  js.publish("foo.joe", "Hello World".getBytes());
  *
- *  //Wait a moment, then stop the MessageConsumer
+ *  //Wait a moment, then stop and close the MessageConsumer
  *  Thread.sleep(3000);
- *  mc.stop();
+ *  mc.stop();   //Stops pull requests
+ *  mc.close();  //Unsubcribes
  *
  *  </pre>
  *
