@@ -23,12 +23,14 @@ import javax.net.ssl.SSLSocketFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.net.SocketException;
-import java.net.URISyntaxException;
+import java.net.*;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import static io.nats.client.support.NatsConstants.SECURE_WEBSOCKET_PROTOCOL;
@@ -81,7 +83,7 @@ public class SocketDataPort implements DataPort {
             socket.setTcpNoDelay(true);
             socket.setReceiveBufferSize(2 * 1024 * 1024);
             socket.setSendBufferSize(2 * 1024 * 1024);
-            socket.connect(new InetSocketAddress(host, port), (int) timeout);
+            socket.connect(new InetSocketAddress(resolveHostToIps(nuri).get(0).getHost(), port), (int) timeout);
             if (soLinger > -1) {
                 socket.setSoLinger(true, soLinger);
             }
@@ -111,6 +113,39 @@ public class SocketDataPort implements DataPort {
             }
             throw new IOException(e);
         }
+    }
+
+    private List<NatsUri> resolveHostToIps(NatsUri nuri) {
+        if (nuri.hostIsIpAddress()) {
+            return Arrays.asList(nuri);
+        }
+        try {
+            InetAddress[] addresses = InetAddress.getAllByName(nuri.getHost());
+            return rehostToNUri(Arrays.asList(addresses), nuri);
+        } catch (UnknownHostException e) {
+            System.out.println(String.format("[WARN] Ignoring Address %s as Error in resolving host: %s", nuri.getHost(), e.getMessage()));
+        }
+        return Arrays.asList(nuri);
+    }
+
+
+    private List<NatsUri> rehostToNUri(List<InetAddress> inetAddresses, NatsUri nuri) {
+        List<NatsUri> natsUris = new ArrayList<>();
+        for (InetAddress addr : inetAddresses) {
+            try {
+                if (addr instanceof Inet6Address) {
+                    continue;
+                }
+                natsUris.add(nuri.reHost(addr.getHostAddress()));
+            } catch (URISyntaxException e) {
+                System.out.println(String.format("[WARN] Ignoring Address %s as Error in while rehostToNri: %s", nuri.getHost(), e.getMessage()));
+            }
+        }
+        if (natsUris.size() < 1) {
+            natsUris.add(nuri);
+        }
+        Collections.shuffle(natsUris, ThreadLocalRandom.current());
+        return natsUris;
     }
 
     /**
