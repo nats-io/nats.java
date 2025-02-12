@@ -38,9 +38,9 @@ import static io.nats.client.support.NatsConstants.COLON;
 public abstract class JsonUtils {
     public static final String EMPTY_JSON = "{}";
 
-    private static final String STRING_RE  = "\"(.+?)\"";
-    private static final String BOOLEAN_RE =  "(true|false)";
-    private static final String INTEGER_RE =  "(-?\\d+)";
+    private static final String STRING_RE = "\"(.+?)\"";
+    private static final String BOOLEAN_RE = "(true|false)";
+    private static final String INTEGER_RE = "(-?\\d+)";
     private static final String STRING_ARRAY_RE = "\\[\\s*(\".+?\")\\s*\\]";
     private static final String NUMBER_ARRAY_RE = "\\[\\s*(.+?)\\s*\\]";
     private static final String BEFORE_FIELD_RE = "\"";
@@ -54,7 +54,8 @@ public abstract class JsonUtils {
     public static final String OPENQ = "{\"";
     public static final String CLOSE = "}";
 
-    private JsonUtils() {} /* ensures cannot be constructed */
+    private JsonUtils() {
+    } /* ensures cannot be constructed */
 
     // ----------------------------------------------------------------------------------------------------
     // BUILD A STRING OF JSON
@@ -69,7 +70,7 @@ public abstract class JsonUtils {
 
     public static StringBuilder beginJsonPrefixed(String prefix) {
         return prefix == null ? beginJson()
-            : new StringBuilder(prefix).append('{');
+                : new StringBuilder(prefix).append('{');
     }
 
     public static StringBuilder endJson(StringBuilder sb) {
@@ -97,16 +98,17 @@ public abstract class JsonUtils {
     }
 
     public static String endFormattedJson(StringBuilder sb) {
-        sb.setLength(sb.length()-1);
+        sb.setLength(sb.length() - 1);
         sb.append("\n}");
         return sb.toString().replaceAll(",", ",\n    ");
     }
 
     /**
      * Appends a json field to a string builder.
-     * @param sb string builder
+     *
+     * @param sb    string builder
      * @param fname fieldname
-     * @param json raw json
+     * @param json  raw json
      */
     public static void addRawJson(StringBuilder sb, String fname, String json) {
         if (json != null && json.length() > 0) {
@@ -120,7 +122,8 @@ public abstract class JsonUtils {
 
     /**
      * Appends a json field to a string builder.
-     * @param sb string builder
+     *
+     * @param sb    string builder
      * @param fname fieldname
      * @param value field value
      */
@@ -136,7 +139,8 @@ public abstract class JsonUtils {
 
     /**
      * Appends a json field to a string builder. Empty and null string are added as value of empty string
-     * @param sb string builder
+     *
+     * @param sb    string builder
      * @param fname fieldname
      * @param value field value
      */
@@ -153,7 +157,8 @@ public abstract class JsonUtils {
 
     /**
      * Appends a json field to a string builder.
-     * @param sb string builder
+     *
+     * @param sb    string builder
      * @param fname fieldname
      * @param value field value
      */
@@ -167,7 +172,8 @@ public abstract class JsonUtils {
 
     /**
      * Appends a json field to a string builder.
-     * @param sb string builder
+     *
+     * @param sb    string builder
      * @param fname fieldname
      * @param value field value
      */
@@ -179,7 +185,8 @@ public abstract class JsonUtils {
 
     /**
      * Appends a json field to a string builder.
-     * @param sb string builder
+     *
+     * @param sb    string builder
      * @param fname fieldname
      * @param value field value
      */
@@ -193,7 +200,8 @@ public abstract class JsonUtils {
 
     /**
      * Appends a json field to a string builder.
-     * @param sb string builder
+     *
+     * @param sb    string builder
      * @param fname fieldname
      * @param value field value
      */
@@ -207,7 +215,8 @@ public abstract class JsonUtils {
 
     /**
      * Appends a json field to a string builder.
-     * @param sb string builder
+     *
+     * @param sb    string builder
      * @param fname fieldname
      * @param value field value
      */
@@ -221,7 +230,8 @@ public abstract class JsonUtils {
 
     /**
      * Appends a json field to a string builder.
-     * @param sb string builder
+     *
+     * @param sb    string builder
      * @param fname fieldname
      * @param value field value
      */
@@ -235,7 +245,8 @@ public abstract class JsonUtils {
 
     /**
      * Appends a json field to a string builder.
-     * @param sb string builder
+     *
+     * @param sb    string builder
      * @param fname fieldname
      * @param value field value
      */
@@ -249,10 +260,11 @@ public abstract class JsonUtils {
 
     /**
      * Appends a json field to a string builder.
-     * @param sb string builder
+     *
+     * @param sb    string builder
      * @param fname fieldname
      * @param value field value
-     * @param gt the number the value must be greater than
+     * @param gt    the number the value must be greater than
      */
     public static void addFieldWhenGreaterThan(StringBuilder sb, String fname, Long value, long gt) {
         if (value != null && value > gt) {
@@ -264,7 +276,8 @@ public abstract class JsonUtils {
 
     /**
      * Appends a json field to a string builder.
-     * @param sb string builder
+     *
+     * @param sb    string builder
      * @param fname fieldname
      * @param value duration value
      */
@@ -278,7 +291,8 @@ public abstract class JsonUtils {
 
     /**
      * Appends a json object to a string builder.
-     * @param sb string builder
+     *
+     * @param sb    string builder
      * @param fname fieldname
      * @param value JsonSerializable value
      */
@@ -309,10 +323,11 @@ public abstract class JsonUtils {
 
     /**
      * Appends a json field to a string builder.
-     * @param <T> the list type
-     * @param sb string builder
+     *
+     * @param <T>   the list type
+     * @param sb    string builder
      * @param fname fieldname
-     * @param list value list
+     * @param list  value list
      * @param adder implementation to add value, including its quotes if required
      */
     public static <T> void _addList(StringBuilder sb, String fname, List<T> list, ListAdder<T> adder) {
@@ -329,9 +344,22 @@ public abstract class JsonUtils {
     }
 
     /**
+     * Appends an empty JSON array to a string builder with the specified field name.
+     *
+     * @param sb    the string builder to append to
+     * @param fname the name of the JSON field
+     */
+    private static void _addEmptyList(StringBuilder sb, String fname) {
+        sb.append(Q);
+        jsonEncode(sb, fname);
+        sb.append("\":[],");
+    }
+
+    /**
      * Appends a json field to a string builder.
-     * @param sb string builder
-     * @param fname fieldname
+     *
+     * @param sb      string builder
+     * @param fname   fieldname
      * @param strings field value
      */
     public static void addStrings(StringBuilder sb, String fname, String[] strings) {
@@ -342,8 +370,9 @@ public abstract class JsonUtils {
 
     /**
      * Appends a json field to a string builder.
-     * @param sb string builder
-     * @param fname fieldname
+     *
+     * @param sb      string builder
+     * @param fname   fieldname
      * @param strings field value
      */
     public static void addStrings(StringBuilder sb, String fname, List<String> strings) {
@@ -362,20 +391,24 @@ public abstract class JsonUtils {
 
     /**
      * Appends a json field to a string builder.
-     * @param sb string builder
+     *
+     * @param sb    string builder
      * @param fname fieldname
      * @param jsons field value
      */
     public static void addJsons(StringBuilder sb, String fname, List<? extends JsonSerializable> jsons) {
         if (jsons != null && !jsons.isEmpty()) {
             _addList(sb, fname, jsons, (sbs, s) -> sbs.append(s.toJson()));
+        } else {
+            _addEmptyList(sb, fname);
         }
     }
 
     /**
      * Appends a json field to a string builder.
-     * @param sb string builder
-     * @param fname fieldname
+     *
+     * @param sb        string builder
+     * @param fname     fieldname
      * @param durations list of durations
      */
     public static void addDurations(StringBuilder sb, String fname, List<Duration> durations) {
@@ -386,8 +419,9 @@ public abstract class JsonUtils {
 
     /**
      * Appends a date/time to a string builder as a rfc 3339 formatted field.
-     * @param sb string builder
-     * @param fname fieldname
+     *
+     * @param sb            string builder
+     * @param fname         fieldname
      * @param zonedDateTime field value
      */
     public static void addField(StringBuilder sb, String fname, ZonedDateTime zonedDateTime) {
@@ -395,8 +429,8 @@ public abstract class JsonUtils {
             sb.append(Q);
             jsonEncode(sb, fname);
             sb.append(QCOLONQ)
-                .append(DateTimeUtils.toRfc3339(zonedDateTime))
-                .append(QCOMMA);
+                    .append(DateTimeUtils.toRfc3339(zonedDateTime))
+                    .append(QCOMMA);
         }
     }
 
@@ -434,12 +468,14 @@ public abstract class JsonUtils {
     }
 
     private static final String INDENT = "                                        ";
+
     private static String indent(int level) {
         return level == 0 ? "" : INDENT.substring(0, level * 4);
     }
 
     /**
      * This isn't perfect but good enough for debugging
+     *
      * @param o the object
      * @return the formatted string
      */
@@ -461,21 +497,17 @@ public abstract class JsonUtils {
                 indent = indent(++level);
                 indentNext = true;
                 lastWasClose = false;
-            }
-            else if (c == '}') {
+            } else if (c == '}') {
                 indent = indent(--level);
                 sb.append('\n').append(indent).append(c);
                 lastWasClose = true;
-            }
-            else if (c == ',') {
+            } else if (c == ',') {
                 sb.append(",\n");
                 indentNext = true;
-            }
-            else {
+            } else {
                 if (c == '[') {
                     arrayLevel++;
-                }
-                else if (c == ']') {
+                } else if (c == ']') {
                     arrayLevel--;
                 }
                 if (indentNext) {
@@ -483,8 +515,7 @@ public abstract class JsonUtils {
                         sb.append(indent).append(c);
                         indentNext = false;
                     }
-                }
-                else {
+                } else {
                     sb.append(c);
                 }
                 lastWasClose = lastWasClose && Character.isWhitespace(c);
@@ -503,12 +534,10 @@ public abstract class JsonUtils {
     public static Long safeParseLong(String s) {
         try {
             return Long.parseLong(s);
-        }
-        catch (Exception e1) {
+        } catch (Exception e1) {
             try {
                 return Long.parseUnsignedLong(s);
-            }
-            catch (Exception e2) {
+            } catch (Exception e2) {
                 return null;
             }
         }
@@ -531,6 +560,7 @@ public abstract class JsonUtils {
         jsonStringArray(STRING_ARRAY_RE);
 
         final String re;
+
         FieldType(String re) {
             this.re = re;
         }
@@ -568,8 +598,9 @@ public abstract class JsonUtils {
 
     /**
      * Builds a json parsing pattern
+     *
      * @param fieldName name of the field
-     * @param type type of the field.
+     * @param type      type of the field.
      * @return pattern.
      */
     @Deprecated
@@ -584,8 +615,9 @@ public abstract class JsonUtils {
 
     /**
      * Extract a JSON object string by object name. Returns empty object '{}' if not found.
+     *
      * @param objectName object name
-     * @param json source json
+     * @param json       source json
      * @return object json string
      */
     @Deprecated
@@ -613,8 +645,9 @@ public abstract class JsonUtils {
     /**
      * Extract a list JSON object strings for list object name. Returns empty list '{}' if not found.
      * Assumes that there are no brackets '{' or '}' in the actual data.
+     *
      * @param objectName list object name
-     * @param json source json
+     * @param json       source json
      * @return object json string
      */
     @Deprecated
@@ -644,7 +677,7 @@ public abstract class JsonUtils {
     }
 
     private static int[] getBracketIndexes(String objectName, String json, char start, char end, int fromIndex) {
-        int[] result = new int[] {-1, -1};
+        int[] result = new int[]{-1, -1};
         int objStart = json.indexOf(Q + objectName + Q, fromIndex);
         if (objStart != -1) {
             int startIx;
@@ -657,8 +690,7 @@ public abstract class JsonUtils {
                         return getBracketIndexes(objectName, json, start, end, colonMark);
                     }
                 }
-            }
-            else {
+            } else {
                 startIx = json.indexOf(start, objStart);
             }
             int depth = 1;
@@ -666,8 +698,7 @@ public abstract class JsonUtils {
                 char c = json.charAt(x);
                 if (c == start) {
                     depth++;
-                }
-                else if (c == end) {
+                } else if (c == end) {
                     if (--depth == 0) {
                         result[0] = startIx;
                         result[1] = x;
@@ -681,6 +712,7 @@ public abstract class JsonUtils {
 
     /**
      * Get a map of objects
+     *
      * @param json the json
      * @return the map of json object strings by key
      */
@@ -695,8 +727,7 @@ public abstract class JsonUtils {
             if (indexes != null) {
                 map.put(key, json.substring(indexes[0], indexes[1] + 1));
                 s1 = json.indexOf('"', indexes[1]);
-            }
-            else {
+            } else {
                 s1 = -1;
             }
         }
@@ -706,6 +737,7 @@ public abstract class JsonUtils {
 
     /**
      * Get a map of objects
+     *
      * @param json the json
      * @return the map of json object strings by key
      */
@@ -720,8 +752,7 @@ public abstract class JsonUtils {
             if (indexes != null) {
                 map.put(key, toList(json.substring(indexes[0] + 1, indexes[1])));
                 s1 = json.indexOf('"', indexes[1]);
-            }
-            else {
+            } else {
                 s1 = -1;
             }
         }
@@ -731,6 +762,7 @@ public abstract class JsonUtils {
 
     /**
      * Get a map of longs
+     *
      * @param json the json
      * @return the map of longs by key
      */
@@ -756,10 +788,11 @@ public abstract class JsonUtils {
     /**
      * Extract a list strings for list object name. Returns empty array if not found.
      * Assumes that there are no brackets '{' or '}' in the actual data.
-     * @deprecated Prefer using the {@link JsonParser}
+     *
      * @param objectName object name
-     * @param json source json
+     * @param json       source json
      * @return a string list, empty if no values are found.
+     * @deprecated Prefer using the {@link JsonParser}
      */
     @Deprecated
     public static List<String> getStringList(String objectName, String json) {
@@ -786,10 +819,11 @@ public abstract class JsonUtils {
 
     /**
      * Extract a list longs for list object name. Returns empty array if not found.
-     * @deprecated Prefer using the {@link JsonParser}
+     *
      * @param objectName object name
-     * @param json source json
+     * @param json       source json
      * @return a long list, empty if no values are found.
+     * @deprecated Prefer using the {@link JsonParser}
      */
     @Deprecated
     public static List<Long> getLongList(String objectName, String json) {
@@ -809,8 +843,9 @@ public abstract class JsonUtils {
 
     /**
      * Extract a list durations for list object name. Returns empty array if not found.
+     *
      * @param objectName object name
-     * @param json source json
+     * @param json       source json
      * @return a duration list, empty if no values are found.
      */
     @Deprecated
@@ -857,16 +892,13 @@ public abstract class JsonUtils {
                     char c2 = json.charAt(++at);
                     if (c2 == '"') {
                         sb.append('"');
-                    }
-                    else {
+                    } else {
                         sb.append(c);
                         sb.append(c2);
                     }
-                }
-                else if (c == '"') {
+                } else if (c == '"') {
                     break;
-                }
-                else {
+                } else {
                     sb.append(c);
                 }
             }
@@ -972,15 +1004,12 @@ public abstract class JsonUtils {
         }
     }
 
-    public static <T> boolean listEquals(List<T> l1, List<T> l2)
-    {
-        if (l1 == null)
-        {
+    public static <T> boolean listEquals(List<T> l1, List<T> l2) {
+        if (l1 == null) {
             return l2 == null;
         }
 
-        if (l2 == null)
-        {
+        if (l2 == null) {
             return false;
         }
 

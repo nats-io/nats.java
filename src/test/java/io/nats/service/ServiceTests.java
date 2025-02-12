@@ -562,9 +562,70 @@ public class ServiceTests extends JetStreamTestBase {
             () -> Service.builder().connection(conn).name(NAME).addServiceEndpoint(se).build());
         assertTrue(iae.getMessage().contains("Version cannot be null or empty"));
 
-        iae = assertThrows(IllegalArgumentException.class,
+        assertDoesNotThrow(
             () -> Service.builder().connection(conn).name(NAME).version("1.0.0").build());
-        assertTrue(iae.getMessage().contains("Endpoints cannot be null or empty"));
+    }
+
+    @Test
+    public void testAddingEndpointAfterServiceBuilderConstruction() {
+        Options options = new Options.Builder().build();
+        Connection conn = new MockNatsConnection(options);
+        ServiceEndpoint se = ServiceEndpoint.builder()
+                .endpoint(new Endpoint(name(0)))
+                .handler(m -> {
+                })
+                .build();
+
+        // minimum valid service
+        Service service = Service.builder().connection(conn).name(NAME).version("1.0.0").addServiceEndpoint(se).build();
+        assertNotNull(service.toString()); // coverage
+        assertNotNull(service.getId());
+        assertEquals(NAME, service.getName());
+        assertEquals(ServiceBuilder.DEFAULT_DRAIN_TIMEOUT, service.getDrainTimeout());
+        assertEquals("1.0.0", service.getVersion());
+        assertNull(service.getDescription());
+
+        service = Service.builder().connection(conn).name(NAME).version("1.0.0")
+                .description("desc")
+                .drainTimeout(Duration.ofSeconds(1))
+                .build();
+
+        service.addServiceEndpoint(se);
+        assertEquals("desc", service.getDescription());
+        assertEquals(Duration.ofSeconds(1), service.getDrainTimeout());
+
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(null));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(EMPTY));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_PRINTABLE));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_DOT));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(STAR_NOT_SEGMENT)); // invalid in the middle
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(GT_NOT_SEGMENT)); // invalid in the middle
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_DOLLAR));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_LOW));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_127));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_FWD_SLASH));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_BACK_SLASH));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_EQUALS));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().name(HAS_TIC));
+
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().version(null));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().version(EMPTY));
+        assertThrows(IllegalArgumentException.class, () -> Service.builder().version("not-semver"));
+
+        IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
+                () -> Service.builder().name(NAME).version("1.0.0").addServiceEndpoint(se).build());
+        assertTrue(iae.getMessage().contains("Connection cannot be null"));
+
+        iae = assertThrows(IllegalArgumentException.class,
+                () -> Service.builder().connection(conn).version("1.0.0").addServiceEndpoint(se).build());
+        assertTrue(iae.getMessage().contains("Name cannot be null or empty"));
+
+        iae = assertThrows(IllegalArgumentException.class,
+                () -> Service.builder().connection(conn).name(NAME).addServiceEndpoint(se).build());
+        assertTrue(iae.getMessage().contains("Version cannot be null or empty"));
+
+        assertDoesNotThrow(() -> Service.builder().connection(conn).name(NAME).version("1.0.0").build());
     }
 
     @Test
