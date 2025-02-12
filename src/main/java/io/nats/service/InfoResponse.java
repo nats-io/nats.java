@@ -38,12 +38,7 @@ public class InfoResponse extends ServiceResponse {
         this.description = description;
         this.endpoints = new ArrayList<>();
         for (ServiceEndpoint se : serviceEndpoints) {
-            endpoints.add(new Endpoint(
-                se.getName(),
-                se.getSubject(),
-                se.getQueueGroup(),
-                se.getMetadata()
-            ));
+            addServiceEndpoint(se);
         }
     }
 
@@ -78,6 +73,20 @@ public class InfoResponse extends ServiceResponse {
      */
     public List<Endpoint> getEndpoints() {
         return endpoints;
+    }
+
+    /**
+     * Adds a service endpoint to the list of endpoints.
+     *
+     * @param se the service endpoint to be added
+     */
+    public void addServiceEndpoint(ServiceEndpoint se) {
+        endpoints.add(new Endpoint(
+                se.getName(),
+                se.getSubject(),
+                se.getQueueGroup(),
+                se.getMetadata()
+        ));
     }
 
     @Override
