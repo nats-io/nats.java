@@ -21,10 +21,10 @@ import io.nats.client.support.JsonUtils;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -46,7 +46,7 @@ public class Service {
 
     private final Connection conn;
     private final Duration drainTimeout;
-    private final Map<String, EndpointContext> serviceContexts;
+    private final ConcurrentMap<String, EndpointContext> serviceContexts;
     private final List<EndpointContext> discoveryContexts;
     private final List<Dispatcher> dInternals;
     private final PingResponse pingResponse;
@@ -66,17 +66,9 @@ public class Service {
         // set up the service contexts
         // ? do we need an internal dispatcher for any user endpoints
         Dispatcher dTemp = null;
-        serviceContexts = new HashMap<>();
+        serviceContexts = new ConcurrentHashMap<>();
         for (ServiceEndpoint se : b.serviceEndpoints.values()) {
-            if (se.getDispatcher() == null) {
-                if (dTemp == null) {
-                    dTemp = conn.createDispatcher();
-                }
-                serviceContexts.put(se.getName(), new EndpointContext(conn, dTemp, false, se));
-            }
-            else {
-                serviceContexts.put(se.getName(), new EndpointContext(conn, null, false, se));
-            }
+            addServiceEndpoint(se);
         }
         if (dTemp != null) {
             dInternals.add(dTemp);
@@ -89,29 +81,66 @@ public class Service {
         if (b.pingDispatcher == null || b.infoDispatcher == null || b.statsDispatcher == null) {
             dTemp = conn.createDispatcher();
             dInternals.add(dTemp);
-        }
-        else {
+        } else {
             dTemp = null;
         }
 
         discoveryContexts = new ArrayList<>();
         addDiscoveryContexts(SRV_PING, pingResponse, b.pingDispatcher, dTemp);
-        addDiscoveryContexts(SRV_INFO, infoResponse, b.infoDispatcher, dTemp);
+        addDynamicDiscoveryContexts(SRV_INFO, infoResponse, b.infoDispatcher, dTemp);
         addStatsContexts(b.statsDispatcher, dTemp);
     }
 
+    /**
+     * Adds a service endpoint to the list of service contexts and starts it if the service is running.
+     *
+     * @param se the service endpoint to be added
+     */
+    public void addServiceEndpoint(ServiceEndpoint se) {
+        Dispatcher dTemp = null == dInternals || dInternals.isEmpty() ? null : dInternals.get(0);
+        EndpointContext ctx = null;
+        if (se.getDispatcher() == null) {
+            if (dTemp == null) {
+                dTemp = conn.createDispatcher();
+                dInternals.add(dTemp);
+            }
+            ctx = new EndpointContext(conn, dTemp, false, se);
+        } else {
+            ctx = new EndpointContext(conn, null, false, se);
+        }
+        serviceContexts.put(se.getName(), ctx);
+        startStopLock.lock();
+        try {
+            if (runningIndicator != null) {
+                ctx.start();
+            }
+        } finally {
+            startStopLock.unlock();
+        }
+
+        if (null != infoResponse) {
+            infoResponse.addServiceEndpoint(se);
+        }
+
+    }
+
     private void addDiscoveryContexts(String discoveryName, Dispatcher dUser, Dispatcher dInternal, ServiceMessageHandler handler) {
-        Endpoint[] endpoints = new Endpoint[] {
-            internalEndpoint(discoveryName, null, null),
-            internalEndpoint(discoveryName, pingResponse.getName(), null),
-            internalEndpoint(discoveryName, pingResponse.getName(), pingResponse.getId())
+        Endpoint[] endpoints = new Endpoint[]{
+                internalEndpoint(discoveryName, null, null),
+                internalEndpoint(discoveryName, pingResponse.getName(), null),
+                internalEndpoint(discoveryName, pingResponse.getName(), pingResponse.getId())
         };
 
         for (Endpoint endpoint : endpoints) {
             discoveryContexts.add(
-                new EndpointContext(conn, dInternal, true,
-                    new ServiceEndpoint(endpoint, handler, dUser)));
+                    new EndpointContext(conn, dInternal, true,
+                            new ServiceEndpoint(endpoint, handler, dUser)));
         }
+    }
+
+    private void addDynamicDiscoveryContexts(String discoveryName, ServiceResponse sr, Dispatcher dUser, Dispatcher dInternal) {
+        ServiceMessageHandler handler = smsg -> smsg.respond(conn, sr.serialize());
+        addDiscoveryContexts(discoveryName, dUser, dInternal, handler);
     }
 
     private void addDiscoveryContexts(String discoveryName, ServiceResponse sr, Dispatcher dUser, Dispatcher dInternal) {
@@ -142,6 +171,7 @@ public class Service {
 
     /**
      * Start the service
+     *
      * @return a future that can be held to see if another thread called stop
      */
     public CompletableFuture<Boolean> startService() {
@@ -158,14 +188,14 @@ public class Service {
                 started = DateTimeUtils.gmtNow();
             }
             return runningIndicator;
-        }
-        finally {
+        } finally {
             startStopLock.unlock();
         }
     }
 
     /**
      * Get an instance of a ServiceBuilder.
+     *
      * @return the instance
      */
     public static ServiceBuilder builder() {
@@ -181,6 +211,7 @@ public class Service {
 
     /**
      * Stop the service by draining. Mark the future that was received from the start method that the service completed exceptionally.
+     *
      * @param t the error cause
      */
     public void stop(Throwable t) {
@@ -189,6 +220,7 @@ public class Service {
 
     /**
      * Stop the service, optionally draining.
+     *
      * @param drain the flag indicating to drain or not
      */
     public void stop(boolean drain) {
@@ -197,8 +229,9 @@ public class Service {
 
     /**
      * Stop the service, optionally draining and optionally with an error cause
+     *
      * @param drain the flag indicating to drain or not
-     * @param t the optional error cause. If supplied, mark the future that was received from the start method that the service completed exceptionally
+     * @param t     the optional error cause. If supplied, mark the future that was received from the start method that the service completed exceptionally
      */
     public void stop(boolean drain, Throwable t) {
         startStopLock.lock();
@@ -210,16 +243,14 @@ public class Service {
                     for (Dispatcher d : dInternals) {
                         try {
                             futures.add(d.drain(drainTimeout));
-                        }
-                        catch (Exception e) { /* nothing I can really do, we are stopping anyway */ }
+                        } catch (Exception e) { /* nothing I can really do, we are stopping anyway */ }
                     }
 
                     for (EndpointContext c : serviceContexts.values()) {
                         if (c.isNotInternalDispatcher()) {
                             try {
                                 futures.add(c.getSub().drain(drainTimeout));
-                            }
-                            catch (Exception e) { /* nothing I can really do, we are stopping anyway */ }
+                            } catch (Exception e) { /* nothing I can really do, we are stopping anyway */ }
                         }
                     }
 
@@ -227,8 +258,7 @@ public class Service {
                         if (c.isNotInternalDispatcher()) {
                             try {
                                 futures.add(c.getSub().drain(drainTimeout));
-                            }
-                            catch (Exception e) { /* nothing I can really do, we are stopping anyway */ }
+                            } catch (Exception e) { /* nothing I can really do, we are stopping anyway */ }
                         }
                     }
 
@@ -237,8 +267,7 @@ public class Service {
                     for (CompletableFuture<Boolean> f : futures) {
                         try {
                             f.get(drainTimeoutMillis, TimeUnit.MILLISECONDS);
-                        }
-                        catch (Exception ignore) {
+                        } catch (Exception ignore) {
                             // don't care if it completes successfully or not, just that it's done.
                         }
                     }
@@ -252,14 +281,12 @@ public class Service {
                 // ok we are done
                 if (t == null) {
                     runningIndicator.complete(true);
-                }
-                else {
+                } else {
                     runningIndicator.completeExceptionally(t);
                 }
                 runningIndicator = null; // we don't need a copy anymore
             }
-        }
-        finally {
+        } finally {
             startStopLock.unlock();
         }
     }
@@ -279,6 +306,7 @@ public class Service {
 
     /**
      * Get the id of the service
+     *
      * @return the id
      */
     public String getId() {
@@ -287,6 +315,7 @@ public class Service {
 
     /**
      * Get the name of the service
+     *
      * @return the name
      */
     public String getName() {
@@ -295,6 +324,7 @@ public class Service {
 
     /**
      * Get the version of the service
+     *
      * @return the version
      */
     public String getVersion() {
@@ -303,6 +333,7 @@ public class Service {
 
     /**
      * Get the description of the service
+     *
      * @return the description
      */
     public String getDescription() {
@@ -311,6 +342,7 @@ public class Service {
 
     /**
      * Get the drain timeout setting
+     *
      * @return the drain timeout setting
      */
     public Duration getDrainTimeout() {
@@ -319,6 +351,7 @@ public class Service {
 
     /**
      * Get the pre-constructed ping response.
+     *
      * @return the ping response
      */
     public PingResponse getPingResponse() {
@@ -327,6 +360,7 @@ public class Service {
 
     /**
      * Get the pre-constructed info response.
+     *
      * @return the info response
      */
     public InfoResponse getInfoResponse() {
@@ -335,6 +369,7 @@ public class Service {
 
     /**
      * Get the up-to-date stats response which contains a list of all {@link EndpointStats}
+     *
      * @return the stats response
      */
     public StatsResponse getStatsResponse() {
@@ -347,6 +382,7 @@ public class Service {
 
     /**
      * Get the up-to-date {@link EndpointStats} for a specific endpoint
+     *
      * @param endpointName the endpoint name
      * @return the EndpointStats or null if the name is not found.
      */

@@ -54,10 +54,12 @@ class EndpointContext {
     }
 
     void start() {
-        sub = qGroup == null
-            ? dispatcher.subscribe(se.getSubject(), this::onMessage)
-            : dispatcher.subscribe(se.getSubject(), qGroup, this::onMessage);
-        started = DateTimeUtils.gmtNow();
+        if (null == sub) {
+            sub = qGroup == null
+                    ? dispatcher.subscribe(se.getSubject(), this::onMessage)
+                    : dispatcher.subscribe(se.getSubject(), qGroup, this::onMessage);
+            started = DateTimeUtils.gmtNow();
+        }
     }
 
     public void onMessage(Message msg) throws InterruptedException {

@@ -157,7 +157,6 @@ public class ServiceBuilder {
         required(conn, "Connection");
         required(name, "Name");
         required(version, "Version");
-        required(serviceEndpoints, "Service Endpoints");
         return new Service(this);
     }
 }
