@@ -83,7 +83,7 @@ public class SocketDataPort implements DataPort {
             socket.setTcpNoDelay(true);
             socket.setReceiveBufferSize(2 * 1024 * 1024);
             socket.setSendBufferSize(2 * 1024 * 1024);
-            socket.connect(new InetSocketAddress(resolveHostToIps(nuri).get(0).getHost(), port), (int) timeout);
+            socket.connect(new InetSocketAddress(getIpV4Addresses(nuri).get(0).getHost(), port), (int) timeout);
             if (soLinger > -1) {
                 socket.setSoLinger(true, soLinger);
             }
@@ -115,13 +115,13 @@ public class SocketDataPort implements DataPort {
         }
     }
 
-    private List<NatsUri> resolveHostToIps(NatsUri nuri) {
+    private List<NatsUri> getIpV4Addresses(NatsUri nuri) {
         if (nuri.hostIsIpAddress()) {
             return Arrays.asList(nuri);
         }
         try {
             InetAddress[] addresses = InetAddress.getAllByName(nuri.getHost());
-            return rehostToNUri(Arrays.asList(addresses), nuri);
+            return filterIpv6Address(Arrays.asList(addresses), nuri);
         } catch (UnknownHostException e) {
             System.out.println(String.format("[WARN] Ignoring Address %s as Error in resolving host: %s", nuri.getHost(), e.getMessage()));
         }
@@ -129,7 +129,7 @@ public class SocketDataPort implements DataPort {
     }
 
 
-    private List<NatsUri> rehostToNUri(List<InetAddress> inetAddresses, NatsUri nuri) {
+    private List<NatsUri> filterIpv6Address(List<InetAddress> inetAddresses, NatsUri nuri) {
         List<NatsUri> natsUris = new ArrayList<>();
         for (InetAddress addr : inetAddresses) {
             try {
