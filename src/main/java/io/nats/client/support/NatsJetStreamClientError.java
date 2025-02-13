@@ -70,8 +70,6 @@ public class NatsJetStreamClientError {
     public static final NatsJetStreamClientError JsConsumerCreate290NotAvailable = new NatsJetStreamClientError(CON, 90301, "Name field not valid when v2.9.0 consumer create api is not available.");
     public static final NatsJetStreamClientError JsConsumerNameDurableMismatch = new NatsJetStreamClientError(CON, 90302, "Name must match durable if both are supplied.");
     public static final NatsJetStreamClientError JsMultipleFilterSubjects210NotAvailable = new NatsJetStreamClientError(CON, 90303, "Multiple filter subjects not available until server version 2.10.0.");
-    public static final NatsJetStreamClientError JsAllowDirectRequired = new NatsJetStreamClientError(CON, 90304, "Stream must have allow direct set.");
-    public static final NatsJetStreamClientError JsDirectBatchGet211NotAvailable = new NatsJetStreamClientError(CON, 90305, "Batch direct get not available until server version 2.11.0.");
 
     @Deprecated // Fixed spelling error
     public static final NatsJetStreamClientError JsSubFcHbHbNotValidQueue = new NatsJetStreamClientError(SUB, 90006, "Flow Control and/or heartbeat is not valid in queue mode.");
