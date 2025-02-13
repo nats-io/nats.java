@@ -138,11 +138,26 @@ public class Service {
         }
     }
 
+    /**
+     * Adds dynamic discovery contexts for the service, dynamically generating the bytes content per call.
+     * This is different from `addDiscoveryContexts` which reuses the same static bytes at registration.
+     * @param discoveryName the name of the discovery
+     * @param dUser the user dispatcher
+     * @param dInternal the internal dispatcher
+     * @param handler the service message handler
+     */
     private void addDynamicDiscoveryContexts(String discoveryName, ServiceResponse sr, Dispatcher dUser, Dispatcher dInternal) {
         ServiceMessageHandler handler = smsg -> smsg.respond(conn, sr.serialize());
         addDiscoveryContexts(discoveryName, dUser, dInternal, handler);
     }
 
+    /**
+     * Adds discovery contexts for the service, reusing the same static bytes at registration.
+     * @param discoveryName the name of the discovery
+     * @param sr the service response
+     * @param dUser the user dispatcher
+     * @param dInternal the internal dispatcher
+     */
     private void addDiscoveryContexts(String discoveryName, ServiceResponse sr, Dispatcher dUser, Dispatcher dInternal) {
         final byte[] responseBytes = sr.serialize();
         ServiceMessageHandler handler = smsg -> smsg.respond(conn, responseBytes);
