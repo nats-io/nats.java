@@ -81,7 +81,8 @@ public class Service {
         if (b.pingDispatcher == null || b.infoDispatcher == null || b.statsDispatcher == null) {
             dTemp = conn.createDispatcher();
             dInternals.add(dTemp);
-        } else {
+        }
+        else {
             dTemp = null;
         }
 
