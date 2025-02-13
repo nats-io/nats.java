@@ -54,7 +54,7 @@ class EndpointContext {
     }
 
     void start() {
-        if (null == sub) {
+        if (sub == null) {
             sub = qGroup == null
                     ? dispatcher.subscribe(se.getSubject(), this::onMessage)
                     : dispatcher.subscribe(se.getSubject(), qGroup, this::onMessage);

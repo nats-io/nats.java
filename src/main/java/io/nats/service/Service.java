@@ -93,7 +93,6 @@ public class Service {
 
     /**
      * Adds a service endpoint to the list of service contexts and starts it if the service is running.
-     *
      * @param se the service endpoint to be added
      */
     public void addServiceEndpoint(ServiceEndpoint se) {
@@ -125,16 +124,16 @@ public class Service {
     }
 
     private void addDiscoveryContexts(String discoveryName, Dispatcher dUser, Dispatcher dInternal, ServiceMessageHandler handler) {
-        Endpoint[] endpoints = new Endpoint[]{
-                internalEndpoint(discoveryName, null, null),
-                internalEndpoint(discoveryName, pingResponse.getName(), null),
-                internalEndpoint(discoveryName, pingResponse.getName(), pingResponse.getId())
+        Endpoint[] endpoints = new Endpoint[] {
+            internalEndpoint(discoveryName, null, null),
+            internalEndpoint(discoveryName, pingResponse.getName(), null),
+            internalEndpoint(discoveryName, pingResponse.getName(), pingResponse.getId())
         };
 
         for (Endpoint endpoint : endpoints) {
             discoveryContexts.add(
-                    new EndpointContext(conn, dInternal, true,
-                            new ServiceEndpoint(endpoint, handler, dUser)));
+                new EndpointContext(conn, dInternal, true,
+                    new ServiceEndpoint(endpoint, handler, dUser)));
         }
     }
 
@@ -171,7 +170,6 @@ public class Service {
 
     /**
      * Start the service
-     *
      * @return a future that can be held to see if another thread called stop
      */
     public CompletableFuture<Boolean> startService() {
@@ -188,14 +186,14 @@ public class Service {
                 started = DateTimeUtils.gmtNow();
             }
             return runningIndicator;
-        } finally {
+        }
+        finally {
             startStopLock.unlock();
         }
     }
 
     /**
      * Get an instance of a ServiceBuilder.
-     *
      * @return the instance
      */
     public static ServiceBuilder builder() {
@@ -211,7 +209,6 @@ public class Service {
 
     /**
      * Stop the service by draining. Mark the future that was received from the start method that the service completed exceptionally.
-     *
      * @param t the error cause
      */
     public void stop(Throwable t) {
@@ -220,7 +217,6 @@ public class Service {
 
     /**
      * Stop the service, optionally draining.
-     *
      * @param drain the flag indicating to drain or not
      */
     public void stop(boolean drain) {
@@ -229,9 +225,8 @@ public class Service {
 
     /**
      * Stop the service, optionally draining and optionally with an error cause
-     *
      * @param drain the flag indicating to drain or not
-     * @param t     the optional error cause. If supplied, mark the future that was received from the start method that the service completed exceptionally
+     * @param t the optional error cause. If supplied, mark the future that was received from the start method that the service completed exceptionally
      */
     public void stop(boolean drain, Throwable t) {
         startStopLock.lock();
@@ -243,14 +238,16 @@ public class Service {
                     for (Dispatcher d : dInternals) {
                         try {
                             futures.add(d.drain(drainTimeout));
-                        } catch (Exception e) { /* nothing I can really do, we are stopping anyway */ }
+                        }
+                        catch (Exception e) { /* nothing I can really do, we are stopping anyway */ }
                     }
 
                     for (EndpointContext c : serviceContexts.values()) {
                         if (c.isNotInternalDispatcher()) {
                             try {
                                 futures.add(c.getSub().drain(drainTimeout));
-                            } catch (Exception e) { /* nothing I can really do, we are stopping anyway */ }
+                            }
+                            catch (Exception e) { /* nothing I can really do, we are stopping anyway */ }
                         }
                     }
 
@@ -258,7 +255,8 @@ public class Service {
                         if (c.isNotInternalDispatcher()) {
                             try {
                                 futures.add(c.getSub().drain(drainTimeout));
-                            } catch (Exception e) { /* nothing I can really do, we are stopping anyway */ }
+                            }
+                            catch (Exception e) { /* nothing I can really do, we are stopping anyway */ }
                         }
                     }
 
@@ -267,7 +265,8 @@ public class Service {
                     for (CompletableFuture<Boolean> f : futures) {
                         try {
                             f.get(drainTimeoutMillis, TimeUnit.MILLISECONDS);
-                        } catch (Exception ignore) {
+                        }
+                        catch (Exception ignore) {
                             // don't care if it completes successfully or not, just that it's done.
                         }
                     }
@@ -281,12 +280,14 @@ public class Service {
                 // ok we are done
                 if (t == null) {
                     runningIndicator.complete(true);
-                } else {
+                }
+                else {
                     runningIndicator.completeExceptionally(t);
                 }
                 runningIndicator = null; // we don't need a copy anymore
             }
-        } finally {
+        }
+        finally {
             startStopLock.unlock();
         }
     }
@@ -306,7 +307,6 @@ public class Service {
 
     /**
      * Get the id of the service
-     *
      * @return the id
      */
     public String getId() {
@@ -315,7 +315,6 @@ public class Service {
 
     /**
      * Get the name of the service
-     *
      * @return the name
      */
     public String getName() {
@@ -324,7 +323,6 @@ public class Service {
 
     /**
      * Get the version of the service
-     *
      * @return the version
      */
     public String getVersion() {
@@ -333,7 +331,6 @@ public class Service {
 
     /**
      * Get the description of the service
-     *
      * @return the description
      */
     public String getDescription() {
@@ -342,7 +339,6 @@ public class Service {
 
     /**
      * Get the drain timeout setting
-     *
      * @return the drain timeout setting
      */
     public Duration getDrainTimeout() {
@@ -351,7 +347,6 @@ public class Service {
 
     /**
      * Get the pre-constructed ping response.
-     *
      * @return the ping response
      */
     public PingResponse getPingResponse() {
@@ -360,7 +355,6 @@ public class Service {
 
     /**
      * Get the pre-constructed info response.
-     *
      * @return the info response
      */
     public InfoResponse getInfoResponse() {
@@ -369,7 +363,6 @@ public class Service {
 
     /**
      * Get the up-to-date stats response which contains a list of all {@link EndpointStats}
-     *
      * @return the stats response
      */
     public StatsResponse getStatsResponse() {
@@ -382,7 +375,6 @@ public class Service {
 
     /**
      * Get the up-to-date {@link EndpointStats} for a specific endpoint
-     *
      * @param endpointName the endpoint name
      * @return the EndpointStats or null if the name is not found.
      */

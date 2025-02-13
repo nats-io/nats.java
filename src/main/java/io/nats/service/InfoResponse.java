@@ -56,7 +56,11 @@ public class InfoResponse extends ServiceResponse {
     @Override
     protected void subToJson(StringBuilder sb) {
         JsonUtils.addField(sb, DESCRIPTION, description);
-        JsonUtils.addJsons(sb, ENDPOINTS, endpoints);
+        if (!endpoints.isEmpty()) {
+            JsonUtils.addJsons(sb, ENDPOINTS, endpoints);
+        } else {
+            JsonUtils.addEmptyList(sb, ENDPOINTS);
+        }
     }
 
     /**
@@ -77,7 +81,6 @@ public class InfoResponse extends ServiceResponse {
 
     /**
      * Adds a service endpoint to the list of endpoints.
-     *
      * @param se the service endpoint to be added
      */
     public void addServiceEndpoint(ServiceEndpoint se) {
