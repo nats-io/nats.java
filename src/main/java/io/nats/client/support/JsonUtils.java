@@ -333,7 +333,7 @@ public abstract class JsonUtils {
      * @param sb the string builder to append to
      * @param fname the name of the JSON field
      */
-    public static void addEmptyList(StringBuilder sb, String fname) {
+    private static void _addEmptyList(StringBuilder sb, String fname) {
         sb.append(Q);
         jsonEncode(sb, fname);
         sb.append("\":[],");
@@ -378,8 +378,22 @@ public abstract class JsonUtils {
      * @param jsons field value
      */
     public static void addJsons(StringBuilder sb, String fname, List<? extends JsonSerializable> jsons) {
+        addJsons(sb, fname, jsons, false);
+    }
+
+    /**
+     * Appends a json field to a string builder and the additional flag to indicate if an empty list to be added.
+     * @param sb string builder
+     * @param fname fieldname
+     * @param jsons field value
+     * @param addEmptyList flag to indicate if an empty list to be added
+     */
+    public static void addJsons(StringBuilder sb, String fname, List<? extends JsonSerializable> jsons, boolean addEmptyList) {
         if (jsons != null && !jsons.isEmpty()) {
             _addList(sb, fname, jsons, (sbs, s) -> sbs.append(s.toJson()));
+        }
+        else if (addEmptyList) {
+            _addEmptyList(sb, fname);
         }
     }
 

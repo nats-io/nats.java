@@ -57,9 +57,7 @@ public class InfoResponse extends ServiceResponse {
     protected void subToJson(StringBuilder sb) {
         JsonUtils.addField(sb, DESCRIPTION, description);
         if (!endpoints.isEmpty()) {
-            JsonUtils.addJsons(sb, ENDPOINTS, endpoints);
-        } else {
-            JsonUtils.addEmptyList(sb, ENDPOINTS);
+            JsonUtils.addJsons(sb, ENDPOINTS, endpoints, true);
         }
     }
 
