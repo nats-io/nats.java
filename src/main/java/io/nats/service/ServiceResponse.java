@@ -15,9 +15,11 @@ package io.nats.service;
 
 import io.nats.client.support.*;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.endJson;
@@ -33,6 +35,7 @@ public abstract class ServiceResponse implements JsonSerializable {
     protected final String id;
     protected final String version;
     protected final Map<String, String> metadata;
+    protected final AtomicReference<byte[]> serialized;
 
     protected ServiceResponse(String type, String id, String name, String version, Map<String, String> metadata) {
         this.type = type;
@@ -40,6 +43,7 @@ public abstract class ServiceResponse implements JsonSerializable {
         this.name = name;
         this.version = version;
         this.metadata = metadata == null || metadata.isEmpty() ? null : metadata;
+        serialized = new AtomicReference<>();
     }
 
     protected ServiceResponse(String type, ServiceResponse template) {
@@ -59,6 +63,16 @@ public abstract class ServiceResponse implements JsonSerializable {
         name = Validator.required(readString(jv, NAME), "Name");
         version = Validator.required(readString(jv, VERSION), "Version");
         metadata = readStringStringMap(jv, METADATA);
+        serialized = new AtomicReference<>();
+    }
+
+    @Override
+    public byte[] serialize() {
+        // lazy since endpoints can be added after creation
+        if (serialized.get() == null) {
+            serialized.set(toJson().getBytes(StandardCharsets.UTF_8));
+        }
+        return serialized.get();
     }
 
     protected static JsonValue parseMessage(byte[] bytes) {
@@ -123,7 +137,6 @@ public abstract class ServiceResponse implements JsonSerializable {
         JsonUtils.addField(sb, METADATA, metadata);
         return endJson(sb).toString();
     }
-
 
     @Override
     public String toString() {

@@ -63,32 +63,26 @@ public class Service {
         dInternals = new ArrayList<>();
         startStopLock = new ReentrantLock();
 
+        // build responses first. info needs to be available when adding service endpoints.
+        pingResponse = new PingResponse(id, b.name, b.version, b.metadata);
+        infoResponse = new InfoResponse(id, b.name, b.version, b.metadata, b.description);
+
         // set up the service contexts
-        // ? do we need an internal dispatcher for any user endpoints
-        Dispatcher dTemp = null;
+        // ? do we need an internal dispatcher for any user endpoints !! addServiceEndpoint deals with it
         serviceContexts = new ConcurrentHashMap<>();
         for (ServiceEndpoint se : b.serviceEndpoints.values()) {
             addServiceEndpoint(se);
         }
-        if (dTemp != null) {
-            dInternals.add(dTemp);
-        }
 
-        // build static responses
-        pingResponse = new PingResponse(id, b.name, b.version, b.metadata);
-        infoResponse = new InfoResponse(id, b.name, b.version, b.metadata, b.description, b.serviceEndpoints.values());
-
+        Dispatcher dTemp = null;
         if (b.pingDispatcher == null || b.infoDispatcher == null || b.statsDispatcher == null) {
             dTemp = conn.createDispatcher();
             dInternals.add(dTemp);
         }
-        else {
-            dTemp = null;
-        }
 
         discoveryContexts = new ArrayList<>();
         addDiscoveryContexts(SRV_PING, pingResponse, b.pingDispatcher, dTemp);
-        addDynamicDiscoveryContexts(SRV_INFO, infoResponse, b.infoDispatcher, dTemp);
+        addDiscoveryContexts(SRV_INFO, infoResponse, b.infoDispatcher, dTemp);
         addStatsContexts(b.statsDispatcher, dTemp);
     }
 
@@ -97,9 +91,12 @@ public class Service {
      * @param se the service endpoint to be added
      */
     public void addServiceEndpoint(ServiceEndpoint se) {
-        Dispatcher dTemp = null == dInternals || dInternals.isEmpty() ? null : dInternals.get(0);
-        EndpointContext ctx = null;
+        // do this first so it's available on start
+        infoResponse.addServiceEndpoint(se);
+
+        EndpointContext ctx;
         if (se.getDispatcher() == null) {
+            Dispatcher dTemp = dInternals.isEmpty() ? null : dInternals.get(0);
             if (dTemp == null) {
                 dTemp = conn.createDispatcher();
                 dInternals.add(dTemp);
@@ -109,19 +106,17 @@ public class Service {
             ctx = new EndpointContext(conn, null, false, se);
         }
         serviceContexts.put(se.getName(), ctx);
+
+        // if the service is already started, start the newly added context
         startStopLock.lock();
         try {
             if (runningIndicator != null) {
                 ctx.start();
             }
-        } finally {
+        }
+        finally {
             startStopLock.unlock();
         }
-
-        if (null != infoResponse) {
-            infoResponse.addServiceEndpoint(se);
-        }
-
     }
 
     private void addDiscoveryContexts(String discoveryName, Dispatcher dUser, Dispatcher dInternal, ServiceMessageHandler handler) {
@@ -139,19 +134,6 @@ public class Service {
     }
 
     /**
-     * Adds dynamic discovery contexts for the service, dynamically generating the bytes content per call.
-     * This is different from `addDiscoveryContexts` which reuses the same static bytes at registration.
-     * @param discoveryName the name of the discovery
-     * @param dUser the user dispatcher
-     * @param dInternal the internal dispatcher
-     * @param handler the service message handler
-     */
-    private void addDynamicDiscoveryContexts(String discoveryName, ServiceResponse sr, Dispatcher dUser, Dispatcher dInternal) {
-        ServiceMessageHandler handler = smsg -> smsg.respond(conn, sr.serialize());
-        addDiscoveryContexts(discoveryName, dUser, dInternal, handler);
-    }
-
-    /**
      * Adds discovery contexts for the service, reusing the same static bytes at registration.
      * @param discoveryName the name of the discovery
      * @param sr the service response
@@ -159,8 +141,7 @@ public class Service {
      * @param dInternal the internal dispatcher
      */
     private void addDiscoveryContexts(String discoveryName, ServiceResponse sr, Dispatcher dUser, Dispatcher dInternal) {
-        final byte[] responseBytes = sr.serialize();
-        ServiceMessageHandler handler = smsg -> smsg.respond(conn, responseBytes);
+        ServiceMessageHandler handler = smsg -> smsg.respond(conn, sr.serialize());
         addDiscoveryContexts(discoveryName, dUser, dInternal, handler);
     }
 
