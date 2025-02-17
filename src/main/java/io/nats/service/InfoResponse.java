@@ -38,12 +38,7 @@ public class InfoResponse extends ServiceResponse {
         this.description = description;
         this.endpoints = new ArrayList<>();
         for (ServiceEndpoint se : serviceEndpoints) {
-            endpoints.add(new Endpoint(
-                se.getName(),
-                se.getSubject(),
-                se.getQueueGroup(),
-                se.getMetadata()
-            ));
+            addServiceEndpoint(se);
         }
     }
 
@@ -61,7 +56,7 @@ public class InfoResponse extends ServiceResponse {
     @Override
     protected void subToJson(StringBuilder sb) {
         JsonUtils.addField(sb, DESCRIPTION, description);
-        JsonUtils.addJsons(sb, ENDPOINTS, endpoints);
+        JsonUtils.addJsons(sb, ENDPOINTS, endpoints, true);
     }
 
     /**
@@ -78,6 +73,19 @@ public class InfoResponse extends ServiceResponse {
      */
     public List<Endpoint> getEndpoints() {
         return endpoints;
+    }
+
+    /**
+     * Adds a service endpoint to the list of endpoints.
+     * @param se the service endpoint to be added
+     */
+    public void addServiceEndpoint(ServiceEndpoint se) {
+        endpoints.add(new Endpoint(
+                se.getName(),
+                se.getSubject(),
+                se.getQueueGroup(),
+                se.getMetadata()
+        ));
     }
 
     @Override
