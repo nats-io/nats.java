@@ -1193,10 +1193,11 @@ public class ServiceTests extends JetStreamTestBase {
         validateApiInOutStatsResponse(stat1, serviceStarted, endStarteds, data);
         validateApiInOutStatsResponse(stat2, serviceStarted, endStarteds, data);
 
-        EqualsVerifier.simple().forClass(PingResponse.class).verify();
-        EqualsVerifier.simple().forClass(InfoResponse.class).verify();
+        EqualsVerifier.simple().forClass(PingResponse.class).withIgnoredFields("serialized").verify();
+        EqualsVerifier.simple().forClass(InfoResponse.class).withIgnoredFields("serialized").verify();
         EqualsVerifier.simple().forClass(StatsResponse.class)
             .withPrefabValues(EndpointStats.class, statsList.get(0), statsList.get(1))
+            .withIgnoredFields("serialized")
             .verify();
     }
 
