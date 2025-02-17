@@ -16,7 +16,10 @@ package io.nats.service;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 import static io.nats.client.support.ApiConstants.DESCRIPTION;
 import static io.nats.client.support.ApiConstants.ENDPOINTS;
@@ -33,13 +36,21 @@ public class InfoResponse extends ServiceResponse {
     private final String description;
     private final List<Endpoint> endpoints;
 
-    InfoResponse(String id, String name, String version, Map<String, String> metadata, String description, Collection<ServiceEndpoint> serviceEndpoints) {
+    InfoResponse(String id, String name, String version, Map<String, String> metadata, String description) {
         super(TYPE, id, name, version, metadata);
         this.description = description;
         this.endpoints = new ArrayList<>();
-        for (ServiceEndpoint se : serviceEndpoints) {
-            addServiceEndpoint(se);
-        }
+    }
+
+    InfoResponse addServiceEndpoint(ServiceEndpoint se) {
+        endpoints.add(new Endpoint(
+            se.getName(),
+            se.getSubject(),
+            se.getQueueGroup(),
+            se.getMetadata()
+        ));
+        serialized.set(null);
+        return this;
     }
 
     InfoResponse(byte[] jsonBytes) {
@@ -73,19 +84,6 @@ public class InfoResponse extends ServiceResponse {
      */
     public List<Endpoint> getEndpoints() {
         return endpoints;
-    }
-
-    /**
-     * Adds a service endpoint to the list of endpoints.
-     * @param se the service endpoint to be added
-     */
-    public void addServiceEndpoint(ServiceEndpoint se) {
-        endpoints.add(new Endpoint(
-                se.getName(),
-                se.getSubject(),
-                se.getQueueGroup(),
-                se.getMetadata()
-        ));
     }
 
     @Override
