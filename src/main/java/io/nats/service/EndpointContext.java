@@ -55,9 +55,12 @@ class EndpointContext {
 
     void start() {
         if (sub == null) {
-            sub = qGroup == null
-                    ? dispatcher.subscribe(se.getSubject(), this::onMessage)
-                    : dispatcher.subscribe(se.getSubject(), qGroup, this::onMessage);
+            if (qGroup == null) {
+                dispatcher.subscribe(se.getSubject(), this::onMessage);
+            }
+            else {
+                dispatcher.subscribe(se.getSubject(), qGroup, this::onMessage);
+            }
             started = DateTimeUtils.gmtNow();
         }
     }
