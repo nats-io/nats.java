@@ -30,9 +30,11 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 import static io.nats.client.impl.NatsPackageScopeWorkarounds.getDispatchers;
@@ -79,7 +81,9 @@ public class ServiceTests extends JetStreamTestBase {
                     .build();
 
                 // constructor coverage
-                Endpoint endSortD = new Endpoint(SORT_ENDPOINT_DESCENDING_NAME, SORT_ENDPOINT_DESCENDING_SUBJECT);
+                Endpoint endSortD = new Endpoint(
+                    SORT_ENDPOINT_DESCENDING_NAME,
+                    SORT_ENDPOINT_DESCENDING_SUBJECT);
 
                 // sort is going to be grouped
                 Group sortGroup = new Group(SORT_GROUP);
@@ -369,40 +373,38 @@ public class ServiceTests extends JetStreamTestBase {
 
     static class EchoHandler implements ServiceMessageHandler {
         Connection conn;
+        Function<byte[], String> responder;
+        AtomicInteger counter = new AtomicInteger();
 
         public EchoHandler(Connection conn) {
             this.conn = conn;
+            this.responder = d -> {
+                counter.incrementAndGet();
+                return echo(d);
+            };
+        }
+
+        public EchoHandler(Connection conn, Function<byte[], String> responder) {
+            this.conn = conn;
+            this.responder = responder;
         }
 
         @Override
         public void onMessage(ServiceMessage smsg) {
-            smsg.respond(conn, echo(smsg.getData()));
+            counter.incrementAndGet();
+            smsg.respond(conn, responder.apply(smsg.getData()));
         }
     }
 
-    static class SortHandlerA implements ServiceMessageHandler {
-        Connection conn;
-
+    static class SortHandlerA extends EchoHandler {
         public SortHandlerA(Connection conn) {
-            this.conn = conn;
-        }
-
-        @Override
-        public void onMessage(ServiceMessage smsg) {
-            smsg.respond(conn, sortA(smsg.getData()));
+            super(conn, ServiceTests::sortA); // override the response with sortA
         }
     }
 
-    static class SortHandlerD implements ServiceMessageHandler {
-        Connection conn;
-
+    static class SortHandlerD extends EchoHandler {
         public SortHandlerD(Connection conn) {
-            this.conn = conn;
-        }
-
-        @Override
-        public void onMessage(ServiceMessage smsg) {
-            smsg.respond(conn, sortD(smsg.getData()));
+            super(conn, ServiceTests::sortD); // override the response with sortD
         }
     }
 
@@ -456,6 +458,189 @@ public class ServiceTests extends JetStreamTestBase {
 
     private static String reverse(byte[] data) {
         return reverse(new String(data));
+    }
+
+    @Test
+    public void testQueueGroup() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer()) {
+            try (Connection serviceNc1 = standardConnection(ts.getURI());
+                 Connection serviceNc2 = standardConnection(ts.getURI());
+                 Connection clientNc = standardConnection(ts.getURI())) {
+
+                String yesQueueSubject = "subjyes";
+                String noQueueSubject = "subjno";
+
+                Endpoint ep1 = Endpoint.builder()
+                    .name("with")
+                    .subject(yesQueueSubject)
+                    .build();
+
+                Endpoint ep2 = Endpoint.builder()
+                    .name("without")
+                    .subject(noQueueSubject)
+                    .noQueueGroup()
+                    .build();
+
+                EchoHandler handler1Ep1 = new EchoHandler(serviceNc1);
+                EchoHandler handler1Ep2 = new EchoHandler(serviceNc1);
+                EchoHandler handler2Ep1 = new EchoHandler(serviceNc2);
+                EchoHandler handler2Ep2 = new EchoHandler(serviceNc2);
+
+                ServiceEndpoint service1Ep1 = ServiceEndpoint.builder()
+                    .endpoint(ep1)
+                    .handler(handler1Ep1)
+                    .build();
+
+                ServiceEndpoint service1Ep2 = ServiceEndpoint.builder()
+                    .endpoint(ep2)
+                    .handler(handler1Ep2)
+                    .build();
+
+                ServiceEndpoint service2Ep1 = ServiceEndpoint.builder()
+                    .endpoint(ep1)
+                    .handler(handler2Ep1)
+                    .build();
+
+                ServiceEndpoint service2Ep2 = ServiceEndpoint.builder()
+                    .endpoint(ep2)
+                    .handler(handler2Ep2)
+                    .build();
+
+                Service service1 = new ServiceBuilder()
+                    .name(SERVICE_NAME_1)
+                    .version("1.0.0")
+                    .connection(serviceNc1)
+                    .addServiceEndpoint(service1Ep1)
+                    .addServiceEndpoint(service1Ep2)
+                    .build();
+
+                Service service2 = new ServiceBuilder()
+                    .name(SERVICE_NAME_2)
+                    .version("1.0.0")
+                    .connection(serviceNc2)
+                    .addServiceEndpoint(service2Ep1)
+                    .addServiceEndpoint(service2Ep2)
+                    .build();
+
+                service1.startService();
+                service2.startService();
+
+                String replyTo = "qreplyto";
+                AtomicInteger y1Count = new AtomicInteger();
+                AtomicInteger y2Count = new AtomicInteger();
+                AtomicInteger n1Count = new AtomicInteger();
+                AtomicInteger n2Count = new AtomicInteger();
+                CountDownLatch latch = new CountDownLatch(6);
+                Dispatcher d = clientNc.createDispatcher(m -> {
+                    switch (new String(m.getData())) {
+                        case "Echo y1": y1Count.incrementAndGet(); break;
+                        case "Echo y2": y2Count.incrementAndGet(); break;
+                        case "Echo n1": n1Count.incrementAndGet(); break;
+                        case "Echo n2": n2Count.incrementAndGet(); break;
+                    }
+                    latch.countDown();
+                });
+                d.subscribe(replyTo);
+
+                clientNc.publish(yesQueueSubject, replyTo, "y1".getBytes());
+                clientNc.publish(yesQueueSubject, replyTo, "y2".getBytes());
+                clientNc.publish(noQueueSubject, replyTo, "n1".getBytes());
+                clientNc.publish(noQueueSubject, replyTo, "n2".getBytes());
+
+                assertTrue(latch.await(2, TimeUnit.SECONDS));
+                assertEquals(2, y1Count.get() + y2Count.get());
+                assertEquals(4, n1Count.get() + n2Count.get());
+            }
+        }
+    }
+
+    @Test
+    public void testResponsesFromAllInstances() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer()) {
+            try (Connection serviceNc1 = standardConnection(ts.getURI());
+                 Connection serviceNc2 = standardConnection(ts.getURI());
+                 Connection clientNc = standardConnection(ts.getURI())) {
+
+                Endpoint ep = Endpoint.builder()
+                    .name("ep")
+                    .subject("eps")
+                    .build();
+
+                EchoHandler handler1 = new EchoHandler(serviceNc1);
+                EchoHandler handler2 = new EchoHandler(serviceNc2);
+
+                ServiceEndpoint service1Ep1 = ServiceEndpoint.builder()
+                    .endpoint(ep)
+                    .handler(handler1)
+                    .build();
+
+                ServiceEndpoint service2Ep1 = ServiceEndpoint.builder()
+                    .endpoint(ep)
+                    .handler(handler2)
+                    .build();
+
+                Service service1 = new ServiceBuilder()
+                    .name(SERVICE_NAME_1)
+                    .version("1.0.0")
+                    .connection(serviceNc1)
+                    .addServiceEndpoint(service1Ep1)
+                    .build();
+
+                Service service2 = new ServiceBuilder()
+                    .name(SERVICE_NAME_2)
+                    .version("1.0.0")
+                    .connection(serviceNc2)
+                    .addServiceEndpoint(service2Ep1)
+                    .build();
+
+                service1.startService();
+                service2.startService();
+
+                Discovery discovery = new Discovery(clientNc);
+
+                List<PingResponse> prs = discovery.ping();
+                boolean one = false;
+                boolean two = false;
+                for (PingResponse response : prs) {
+                    if (response.getName().equals(SERVICE_NAME_1)) {
+                        one = true;
+                    }
+                    else if (response.getName().equals(SERVICE_NAME_2)) {
+                        two = true;
+                    }
+                }
+                assertTrue(one);
+                assertTrue(two);
+
+                List<InfoResponse> irs = discovery.info();
+                one = false;
+                two = false;
+                for (InfoResponse response : irs) {
+                    if (response.getName().equals(SERVICE_NAME_1)) {
+                        one = true;
+                    }
+                    else if (response.getName().equals(SERVICE_NAME_2)) {
+                        two = true;
+                    }
+                }
+                assertTrue(one);
+                assertTrue(two);
+
+                List<StatsResponse> srs = discovery.stats();
+                one = false;
+                two = false;
+                for (StatsResponse response : srs) {
+                    if (response.getName().equals(SERVICE_NAME_1)) {
+                        one = true;
+                    }
+                    else if (response.getName().equals(SERVICE_NAME_2)) {
+                        two = true;
+                    }
+                }
+                assertTrue(one);
+                assertTrue(two);
+            }
+        }
     }
 
     @Test
@@ -818,42 +1003,52 @@ public class ServiceTests extends JetStreamTestBase {
     @Test
     public void testEndpointConstruction() {
         EqualsVerifier.simple().forClass(Endpoint.class).verify();
+        Map<String, String> metadata = new HashMap<>();
 
         Endpoint e = new Endpoint(NAME);
-        assertEquals(NAME, e.getName());
-        assertEquals(NAME, e.getSubject());
+        assertEpNameSubQ(e, NAME);
+        assertEquals(e, Endpoint.builder().endpoint(e).build());
+        assertNull(e.getMetadata());
+
+        e = new Endpoint(NAME, metadata);
+        assertEpNameSubQ(e, NAME);
         assertEquals(e, Endpoint.builder().endpoint(e).build());
         assertNull(e.getMetadata());
 
         e = new Endpoint(NAME, SUBJECT);
-        assertEquals(NAME, e.getName());
-        assertEquals(SUBJECT, e.getSubject());
+        assertEpNameSubQ(e);
         assertEquals(e, Endpoint.builder().endpoint(e).build());
 
         e = Endpoint.builder()
             .name(NAME).subject(SUBJECT)
             .build();
-        assertEquals(NAME, e.getName());
-        assertEquals(SUBJECT, e.getSubject());
+        assertEpNameSubQ(e);
         assertEquals(e, Endpoint.builder().endpoint(e).build());
 
-        Map<String, String> metadata = new HashMap<>();
+        e = new Endpoint(NAME, metadata);
         e = Endpoint.builder()
             .name(NAME).subject(SUBJECT)
             .metadata(metadata)
             .build();
-        assertEquals(NAME, e.getName());
-        assertEquals(SUBJECT, e.getSubject());
+        assertEpNameSubQ(e);
         assertNull(e.getMetadata());
 
         metadata.put("k", "v");
+
+        e = new Endpoint(NAME, SUBJECT, metadata);
+        assertEpNameSubQ(e);
+        assertTrue(JsonUtils.mapEquals(metadata, e.getMetadata()));
+
         e = Endpoint.builder()
             .name(NAME).subject(SUBJECT)
             .metadata(metadata)
             .build();
-        assertEquals(NAME, e.getName());
-        assertEquals(SUBJECT, e.getSubject());
+        assertEpNameSubQ(e);
         assertTrue(JsonUtils.mapEquals(metadata, e.getMetadata()));
+
+        // internal allows null queue group
+        e = new Endpoint(NAME, SUBJECT, null, metadata, false);
+        assertNull(e.getQueueGroup());
 
         // some subject testing
         e = new Endpoint(NAME, "foo.>");
@@ -863,8 +1058,7 @@ public class ServiceTests extends JetStreamTestBase {
 
         // coverage
         e = new Endpoint(NAME, SUBJECT, metadata);
-        assertEquals(NAME, e.getName());
-        assertEquals(SUBJECT, e.getSubject());
+        assertEpNameSubQ(e);
         assertTrue(JsonUtils.mapEquals(metadata, e.getMetadata()));
         assertThrows(IllegalArgumentException.class, () -> Endpoint.builder().build());
 
@@ -891,6 +1085,16 @@ public class ServiceTests extends JetStreamTestBase {
         assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, STAR_NOT_SEGMENT));
         assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, GT_NOT_SEGMENT));
         assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, STARTS_WITH_DOT));
+    }
+
+    private static void assertEpNameSubQ(Endpoint ep) {
+        assertEpNameSubQ(ep, SUBJECT);
+    }
+
+    private static void assertEpNameSubQ(Endpoint ep, String exSubject) {
+        assertEquals(NAME, ep.getName());
+        assertEquals(exSubject, ep.getSubject());
+        assertEquals(Endpoint.DEFAULT_QGROUP, ep.getQueueGroup());
     }
 
     @Test
