@@ -37,7 +37,7 @@ import static io.nats.client.support.Validator.validateIsRestrictedTerm;
  * </p>
  */
 public class Endpoint implements JsonSerializable {
-    private static final String DEFAULT_QGROUP = "q";
+    public static final String DEFAULT_QGROUP = "q";
 
     private final String name;
     private final String subject;
@@ -49,7 +49,7 @@ public class Endpoint implements JsonSerializable {
      * @param name the name
      */
     public Endpoint(String name) {
-        this(name, null, null, null, true);
+        this(name, null, DEFAULT_QGROUP, null, true);
     }
 
     /**
@@ -58,7 +58,7 @@ public class Endpoint implements JsonSerializable {
      * @param metadata the metadata
      */
     public Endpoint(String name, Map<String, String> metadata) {
-        this(name, null, null, metadata, true);
+        this(name, null, DEFAULT_QGROUP, metadata, true);
     }
 
     /**
@@ -67,7 +67,7 @@ public class Endpoint implements JsonSerializable {
      * @param subject the subject
      */
     public Endpoint(String name, String subject) {
-        this(name, subject, null, null, true);
+        this(name, subject, DEFAULT_QGROUP, null, true);
     }
 
     /**
@@ -77,7 +77,7 @@ public class Endpoint implements JsonSerializable {
      * @param metadata the metadata
      */
     public Endpoint(String name, String subject, Map<String, String> metadata) {
-        this(name, subject, null, metadata, true);
+        this(name, subject, DEFAULT_QGROUP, metadata, true);
     }
 
     /**
@@ -101,12 +101,7 @@ public class Endpoint implements JsonSerializable {
             else {
                 this.subject = Validator.validateSubjectTerm(subject, "Endpoint Subject", false);
             }
-            if (queueGroup == null) {
-                this.queueGroup = DEFAULT_QGROUP;
-            }
-            else {
-                this.queueGroup = Validator.validateSubjectTerm(queueGroup, "Endpoint Queue Group", true);
-            }
+            this.queueGroup = queueGroup == null ? null : Validator.validateSubjectTerm(queueGroup, "Endpoint Queue Group", true);
         }
         else {
             this.name = name;
@@ -202,10 +197,15 @@ public class Endpoint implements JsonSerializable {
          * @return the Endpoint.Builder
          */
         public Builder endpoint(Endpoint endpoint) {
-            return name(endpoint.getName())
+            name(endpoint.getName())
                 .subject(endpoint.getSubject())
-                .queueGroup(endpoint.getQueueGroup())
                 .metadata(endpoint.getMetadata());
+
+            if (endpoint.queueGroup == null) {
+                return noQueueGroup();
+            }
+
+            return queueGroup(endpoint.getQueueGroup());
         }
 
         /**
@@ -220,11 +220,22 @@ public class Endpoint implements JsonSerializable {
 
         /**
          * Set the queueGroup for the Endpoint, overriding the system default queue group
+         * Setting to null sets the group to the default qgroup, {@value #DEFAULT_QGROUP}. If you
+         * do not want a queue group, use {@link #noQueueGroup() noQueueGroup()}
          * @param queueGroup the queueGroup
          * @return the Endpoint.Builder
          */
         public Builder queueGroup(String queueGroup) {
             this.queueGroup = queueGroup == null ? DEFAULT_QGROUP : queueGroup;
+            return this;
+        }
+
+        /**
+         * Set to not use a queueGroup for this endpoint
+         * @return the Endpoint.Builder
+         */
+        public Builder noQueueGroup() {
+            this.queueGroup = null;
             return this;
         }
 

@@ -41,9 +41,9 @@ public class ServiceEndpoint {
     private final Dispatcher dispatcher;
     private final Supplier<JsonValue> statsDataSupplier;
 
-    private ServiceEndpoint(Builder b, Endpoint e) {
+    private ServiceEndpoint(Builder b, Endpoint endpoint) {
         this.group = b.group;
-        this.endpoint = e;
+        this.endpoint = endpoint;
         this.handler = b.handler;
         this.dispatcher = b.dispatcher;
         this.statsDataSupplier = b.statsDataSupplier;
