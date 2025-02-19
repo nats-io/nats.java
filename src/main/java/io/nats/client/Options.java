@@ -1241,7 +1241,7 @@ public class Options {
          * <p>The reconnect state is entered when the connection is connected and loses
          * that connection. During the initial connection attempt, the client will cycle over
          * its server list one time, regardless of what maxReconnects is set to. The only exception
-         * to this is the experimental async connect method {@link Nats#connectAsynchronously(Options, boolean) connectAsynchronously}.</p>
+         * to this is the async connect method {@link Nats#connectAsynchronously(Options, boolean) connectAsynchronously}.</p>
          *
          * @param max the maximum reconnect attempts
          * @return the Builder for chaining

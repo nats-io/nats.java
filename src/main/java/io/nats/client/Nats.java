@@ -23,7 +23,7 @@ import java.util.List;
 /**
  * The Nats class is the entry point into the NATS client for Java. This class
  * is used to create a connection to the NATS server. Connecting is a
- * synchronous process, with a new asynchronous version available for experimenting.
+ * synchronous process, with a new asynchronous version available.
  * 
  * <p>Simple connections can be created with a URL, while more control is provided
  * when an {@link Options Options} object is used. There are a number of options that
