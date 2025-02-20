@@ -709,16 +709,7 @@ public class ServiceTests extends JetStreamTestBase {
                 done.get(100, TimeUnit.MILLISECONDS);
 
                 dispatchers = getDispatchers(nc);
-                assertEquals(0, dispatchers.size()); // stop() calls drain which closes dispatcherrs
-                assertTrue(dispatchers.containsValue(dStats));
-                assertTrue(dispatchers.containsValue(dEnd));
-
-                nc.closeDispatcher(dStats);
-                nc.closeDispatcher(dEnd);
-                sleep(100); // no rush
-
-                dispatchers = getDispatchers(nc);
-                assertEquals(0, dispatchers.size());
+                assertEquals(0, dispatchers.size()); // stop() calls drain which closes dispatchers
 
                 se1 = ServiceEndpoint.builder()
                     .endpointName("dispatch")
