@@ -260,7 +260,7 @@ public class ServiceTests extends JetStreamTestBase {
                     .handler(new ReverseHandler(serviceNc1))
                     .build();
 
-                service1.addServiceEndpoint(seRev1);
+                service1.addServiceEndpoints(seRev1);
 
                 for (int x = 0; x < requestCount; x++) {
                     verifyServiceExecution(clientNc, REVERSE_ENDPOINT_NAME, REVERSE_ENDPOINT_SUBJECT, null);
@@ -709,16 +709,7 @@ public class ServiceTests extends JetStreamTestBase {
                 done.get(100, TimeUnit.MILLISECONDS);
 
                 dispatchers = getDispatchers(nc);
-                assertEquals(2, dispatchers.size()); // internal discovery was stopped
-                assertTrue(dispatchers.containsValue(dStats));
-                assertTrue(dispatchers.containsValue(dEnd));
-
-                nc.closeDispatcher(dStats);
-                nc.closeDispatcher(dEnd);
-                sleep(100); // no rush
-
-                dispatchers = getDispatchers(nc);
-                assertEquals(0, dispatchers.size());
+                assertEquals(0, dispatchers.size()); // stop() calls drain which closes dispatchers
 
                 se1 = ServiceEndpoint.builder()
                     .endpointName("dispatch")
@@ -839,7 +830,7 @@ public class ServiceTests extends JetStreamTestBase {
                 .drainTimeout(Duration.ofSeconds(1))
                 .build();
 
-        service.addServiceEndpoint(se);
+        service.addServiceEndpoints(se);
         assertEquals("desc", service.getDescription());
         assertEquals(Duration.ofSeconds(1), service.getDrainTimeout());
 
@@ -1375,7 +1366,8 @@ public class ServiceTests extends JetStreamTestBase {
         endMeta.put("foo", "bar");
         Endpoint ep = new Endpoint("endfoo", endMeta);
         ServiceEndpoint se = new ServiceEndpoint(ep, m -> {}, null);
-        InfoResponse ir1 = new InfoResponse("id", "name", "0.0.0", metadata, "desc").addServiceEndpoint(se);
+        InfoResponse ir1 = new InfoResponse("id", "name", "0.0.0", metadata, "desc");
+        ir1.addServiceEndpoint(se);
         InfoResponse ir2 = new InfoResponse(ir1.toJson().getBytes());
         validateApiInOutInfoResponse(ir1);
         validateApiInOutInfoResponse(ir2);
