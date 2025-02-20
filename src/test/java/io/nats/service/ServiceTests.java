@@ -18,10 +18,7 @@ import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.impl.MockNatsConnection;
 import io.nats.client.impl.NatsMessage;
-import io.nats.client.support.DateTimeUtils;
-import io.nats.client.support.JsonSerializable;
-import io.nats.client.support.JsonUtils;
-import io.nats.client.support.JsonValue;
+import io.nats.client.support.*;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import org.junit.jupiter.api.Test;
 
@@ -260,7 +257,7 @@ public class ServiceTests extends JetStreamTestBase {
                     .handler(new ReverseHandler(serviceNc1))
                     .build();
 
-                service1.addServiceEndpoint(seRev1);
+                service1.addServiceEndpoints(seRev1);
 
                 for (int x = 0; x < requestCount; x++) {
                     verifyServiceExecution(clientNc, REVERSE_ENDPOINT_NAME, REVERSE_ENDPOINT_SUBJECT, null);
@@ -692,6 +689,8 @@ public class ServiceTests extends JetStreamTestBase {
                 assertTrue(dispatchers.containsValue(dStats));
                 assertTrue(dispatchers.containsValue(dEnd));
 
+                Debug.PAUSE = false;
+
                 service = new ServiceBuilder()
                     .connection(nc)
                     .name("testDispatchers")
@@ -709,7 +708,7 @@ public class ServiceTests extends JetStreamTestBase {
                 done.get(100, TimeUnit.MILLISECONDS);
 
                 dispatchers = getDispatchers(nc);
-                assertEquals(2, dispatchers.size()); // internal discovery was stopped
+                assertEquals(0, dispatchers.size()); // stop() calls drain which closes dispatcherrs
                 assertTrue(dispatchers.containsValue(dStats));
                 assertTrue(dispatchers.containsValue(dEnd));
 
@@ -839,7 +838,7 @@ public class ServiceTests extends JetStreamTestBase {
                 .drainTimeout(Duration.ofSeconds(1))
                 .build();
 
-        service.addServiceEndpoint(se);
+        service.addServiceEndpoints(se);
         assertEquals("desc", service.getDescription());
         assertEquals(Duration.ofSeconds(1), service.getDrainTimeout());
 
@@ -1375,7 +1374,8 @@ public class ServiceTests extends JetStreamTestBase {
         endMeta.put("foo", "bar");
         Endpoint ep = new Endpoint("endfoo", endMeta);
         ServiceEndpoint se = new ServiceEndpoint(ep, m -> {}, null);
-        InfoResponse ir1 = new InfoResponse("id", "name", "0.0.0", metadata, "desc").addServiceEndpoint(se);
+        InfoResponse ir1 = new InfoResponse("id", "name", "0.0.0", metadata, "desc");
+        ir1.addServiceEndpoint(se);
         InfoResponse ir2 = new InfoResponse(ir1.toJson().getBytes());
         validateApiInOutInfoResponse(ir1);
         validateApiInOutInfoResponse(ir2);
