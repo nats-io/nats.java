@@ -18,7 +18,10 @@ import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.impl.MockNatsConnection;
 import io.nats.client.impl.NatsMessage;
-import io.nats.client.support.*;
+import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.JsonSerializable;
+import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import org.junit.jupiter.api.Test;
 
@@ -688,8 +691,6 @@ public class ServiceTests extends JetStreamTestBase {
                 assertEquals(2, dispatchers.size()); // dEnd and dStats
                 assertTrue(dispatchers.containsValue(dStats));
                 assertTrue(dispatchers.containsValue(dEnd));
-
-                Debug.PAUSE = false;
 
                 service = new ServiceBuilder()
                     .connection(nc)
