@@ -21,10 +21,11 @@ import io.nats.client.support.JsonUtils;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -46,7 +47,7 @@ public class Service {
 
     private final Connection conn;
     private final Duration drainTimeout;
-    private final ConcurrentMap<String, EndpointContext> serviceContexts;
+    private final ConcurrentHashMap<String, EndpointContext> serviceContexts;
     private final List<EndpointContext> discoveryContexts;
     private final List<Dispatcher> dInternals;
     private final PingResponse pingResponse;
@@ -70,9 +71,7 @@ public class Service {
         // set up the service contexts
         // ? do we need an internal dispatcher for any user endpoints !! addServiceEndpoint deals with it
         serviceContexts = new ConcurrentHashMap<>();
-        for (ServiceEndpoint se : b.serviceEndpoints.values()) {
-            addServiceEndpoint(se);
-        }
+        addServiceEndpoints(b.serviceEndpoints.values());
 
         Dispatcher dTemp = null;
         if (b.pingDispatcher == null || b.infoDispatcher == null || b.statsDispatcher == null) {
@@ -87,31 +86,41 @@ public class Service {
     }
 
     /**
-     * Adds a service endpoint to the list of service contexts and starts it if the service is running.
-     * @param se the service endpoint to be added
+     * Adds one or more service endpoint to the list of service contexts and starts it if the service is running.
+     * @param serviceEndpoints one or more service endpoints to be added
      */
-    public void addServiceEndpoint(ServiceEndpoint se) {
-        // do this first so it's available on start
-        infoResponse.addServiceEndpoint(se);
+    public void addServiceEndpoints(ServiceEndpoint... serviceEndpoints) {
+        addServiceEndpoints(Arrays.asList(serviceEndpoints));
+    }
 
-        EndpointContext ctx;
-        if (se.getDispatcher() == null) {
-            Dispatcher dTemp = dInternals.isEmpty() ? null : dInternals.get(0);
-            if (dTemp == null) {
-                dTemp = conn.createDispatcher();
-                dInternals.add(dTemp);
-            }
-            ctx = new EndpointContext(conn, dTemp, false, se);
-        } else {
-            ctx = new EndpointContext(conn, null, false, se);
-        }
-        serviceContexts.put(se.getName(), ctx);
-
-        // if the service is already started, start the newly added context
+    /**
+     * Adds all service endpoints to the list of service contexts and starts it if the service is running.
+     * @param serviceEndpoints service endpoints to be added
+     */
+    public void addServiceEndpoints(Collection<ServiceEndpoint> serviceEndpoints) {
         startStopLock.lock();
         try {
-            if (runningIndicator != null) {
-                ctx.start();
+            // do this first so it's available on start
+            infoResponse.addServiceEndpoints(serviceEndpoints);
+            for (ServiceEndpoint se : serviceEndpoints) {
+                EndpointContext ctx;
+                if (se.getDispatcher() == null) {
+                    Dispatcher dTemp = dInternals.isEmpty() ? null : dInternals.get(0);
+                    if (dTemp == null) {
+                        dTemp = conn.createDispatcher();
+                        dInternals.add(dTemp);
+                    }
+                    ctx = new EndpointContext(conn, dTemp, false, se);
+                }
+                else {
+                    ctx = new EndpointContext(conn, null, false, se);
+                }
+                serviceContexts.put(se.getName(), ctx);
+
+                // if the service is already started, start the newly added context
+                if (runningIndicator != null) {
+                    ctx.start();
+                }
             }
         }
         finally {
@@ -242,7 +251,7 @@ public class Service {
                     for (EndpointContext c : serviceContexts.values()) {
                         if (c.isNotInternalDispatcher()) {
                             try {
-                                futures.add(c.getSub().drain(drainTimeout));
+                                futures.add(c.drain(drainTimeout));
                             }
                             catch (Exception e) { /* nothing I can really do, we are stopping anyway */ }
                         }
@@ -251,7 +260,7 @@ public class Service {
                     for (EndpointContext c : discoveryContexts) {
                         if (c.isNotInternalDispatcher()) {
                             try {
-                                futures.add(c.getSub().drain(drainTimeout));
+                                futures.add(c.drain(drainTimeout));
                             }
                             catch (Exception e) { /* nothing I can really do, we are stopping anyway */ }
                         }

@@ -3,10 +3,11 @@ package io.nats.service;
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import io.nats.client.Message;
-import io.nats.client.Subscription;
 import io.nats.client.support.DateTimeUtils;
 
+import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -19,11 +20,10 @@ class EndpointContext {
     private final ServiceMessageHandler handler;
     private final boolean recordStats;
     private final String qGroup;
+    private boolean running;
 
     private final boolean internalDispatcher;
     private final Dispatcher dispatcher;
-
-    private Subscription sub;
 
     private ZonedDateTime started;
     private String lastError;
@@ -37,6 +37,7 @@ class EndpointContext {
         handler = se.getHandler();
         this.recordStats = !internalEndpoint;
         qGroup = internalEndpoint ? null : se.getQueueGroup();
+        running = false;
 
         if (se.getDispatcher() == null) {
             dispatcher = internalDispatcher;
@@ -53,8 +54,11 @@ class EndpointContext {
         started = DateTimeUtils.gmtNow();
     }
 
+    // this method does not need a lock because it is only
+    // called from Service start which is already locked
     void start() {
-        if (sub == null) {
+        if (!running) {
+            // we do not need to track the sub, since drain occurs through the dispatcher
             if (qGroup == null) {
                 dispatcher.subscribe(se.getSubject(), this::onMessage);
             }
@@ -62,6 +66,7 @@ class EndpointContext {
                 dispatcher.subscribe(se.getSubject(), qGroup, this::onMessage);
             }
             started = DateTimeUtils.gmtNow();
+            running = true;
         }
     }
 
@@ -115,7 +120,7 @@ class EndpointContext {
         return !internalDispatcher;
     }
 
-    Subscription getSub() {
-        return sub;
+    CompletableFuture<Boolean> drain(Duration timeout) throws InterruptedException {
+        return dispatcher.drain(timeout);
     }
 }
