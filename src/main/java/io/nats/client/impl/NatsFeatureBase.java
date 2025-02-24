@@ -91,22 +91,15 @@ public class NatsFeatureBase {
         Duration timeout = js.getTimeout();
         JetStreamSubscription sub = js.subscribe(null, pso);
         try {
-            boolean lastWasNull = false;
             long pending = sub.getConsumerInfo().getCalculatedPending();
             while (pending > 0) { // no need to loop if nothing pending
                 Message m = sub.nextMessage(timeout);
                 if (m == null) {
-                    if (lastWasNull) {
-                        return; // two timeouts in a row is enough
-                    }
-                    lastWasNull = true;
+                    return; // if there are no messages by the timeout, we are done.
                 }
-                else {
-                    handler.onMessage(m);
-                    if (--pending == 0) {
-                        return;
-                    }
-                    lastWasNull = false;
+                handler.onMessage(m);
+                if (--pending == 0) {
+                    return;
                 }
             }
         }
