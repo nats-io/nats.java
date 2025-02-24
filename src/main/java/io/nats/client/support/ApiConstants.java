@@ -20,8 +20,9 @@ public interface ApiConstants {
     String ACK_WAIT          = "ack_wait";
     String ACTION            = "action";
     String ACTIVE            = "active";
-    String ALLOW_ROLLUP_HDRS = "allow_rollup_hdrs";
     String ALLOW_DIRECT      = "allow_direct";
+    String ALLOW_MSG_TTL     = "allow_msg_ttl";
+    String ALLOW_ROLLUP_HDRS = "allow_rollup_hdrs";
     String AVERAGE_PROCESSING_TIME = "average_processing_time";
     String MIRROR_DIRECT     = "mirror_direct";
     String API               = "api";
@@ -192,6 +193,7 @@ public interface ApiConstants {
     String STREAM            = "stream";
     String STREAMS           = "streams";
     String SUBJECT           = "subject";
+    String SUBJECT_DELETE_MARKER_TTL = "subject_delete_marker_ttl";
     String SUBJECT_TRANSFORM = "subject_transform";
     String SUBJECT_TRANSFORMS = "subject_transforms";
     String SUBJECTS          = "subjects";

@@ -67,6 +67,8 @@ public class StreamConfiguration implements JsonSerializable {
     private final boolean discardNewPerSubject;
     private final Map<String, String> metadata;
     private final long firstSequence;
+    private final boolean allowMsgTtl;
+    private final Duration subjectDeleteMarkerTtl;
 
     static StreamConfiguration instance(JsonValue v) {
         Builder builder = new Builder();
@@ -102,6 +104,8 @@ public class StreamConfiguration implements JsonSerializable {
         builder.discardNewPerSubject(readBoolean(v, DISCARD_NEW_PER_SUBJECT));
         builder.metadata(readStringStringMap(v, METADATA));
         builder.firstSequence(readLong(v, FIRST_SEQ, 1));
+        builder.allowMsgTtl(readBoolean(v, ALLOW_MSG_TTL));
+        builder.subjectDeleteMarkerTtl(readNanos(v, SUBJECT_DELETE_MARKER_TTL));
         return builder.build();
     }
 
@@ -139,6 +143,8 @@ public class StreamConfiguration implements JsonSerializable {
         this.discardNewPerSubject = b.discardNewPerSubject;
         this.metadata = b.metadata;
         this.firstSequence = b.firstSequence;
+        this.allowMsgTtl = b.allowMsgTtl;
+        this.subjectDeleteMarkerTtl = b.subjectDeleteMarkerTtl;
     }
 
     /**
@@ -196,6 +202,8 @@ public class StreamConfiguration implements JsonSerializable {
         addFldWhenTrue(sb, DISCARD_NEW_PER_SUBJECT, discardNewPerSubject);
         addField(sb, METADATA, metadata);
         addFieldWhenGreaterThan(sb, FIRST_SEQ, firstSequence, 1);
+        addFldWhenTrue(sb, ALLOW_MSG_TTL, allowMsgTtl);
+        addFieldAsNanos(sb, SUBJECT_DELETE_MARKER_TTL, subjectDeleteMarkerTtl);
 
         return endJson(sb).toString();
     }
@@ -469,6 +477,14 @@ public class StreamConfiguration implements JsonSerializable {
         return firstSequence;
     }
 
+    public boolean isAllowMsgTtl() {
+        return allowMsgTtl;
+    }
+
+    public Duration getSubjectDeleteMarkerTtl() {
+        return subjectDeleteMarkerTtl;
+    }
+
     @Override
     public String toString() {
         return toJson();
@@ -532,6 +548,8 @@ public class StreamConfiguration implements JsonSerializable {
         private boolean discardNewPerSubject = false;
         private Map<String, String> metadata;
         private long firstSequence = 1;
+        private boolean allowMsgTtl = false;
+        private Duration subjectDeleteMarkerTtl = Duration.ZERO;
 
         /**
          * Default Builder
@@ -578,6 +596,8 @@ public class StreamConfiguration implements JsonSerializable {
                     this.metadata = new HashMap<>(sc.metadata);
                 }
                 this.firstSequence = sc.firstSequence;
+                this.allowMsgTtl = sc.allowMsgTtl;
+                this.subjectDeleteMarkerTtl = sc.subjectDeleteMarkerTtl;
             }
         }
 
@@ -1029,6 +1049,21 @@ public class StreamConfiguration implements JsonSerializable {
          */
         public Builder firstSequence(long firstSeq) {
             this.firstSequence = firstSeq > 1 ? firstSeq : 1;
+            return this;
+        }
+
+        public Builder allowMsgTtl() {
+            this.allowMsgTtl = true;
+            return this;
+        }
+
+        public Builder allowMsgTtl(boolean allowMsgTtl) {
+            this.allowMsgTtl = allowMsgTtl;
+            return this;
+        }
+
+        public Builder subjectDeleteMarkerTtl(Duration subjectDeleteMarkerTtl) {
+            this.subjectDeleteMarkerTtl = subjectDeleteMarkerTtl;
             return this;
         }
 
