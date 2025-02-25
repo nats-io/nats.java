@@ -25,6 +25,8 @@
   "mirror_direct": true,
   "metadata":{"meta-test-key":"meta-test-value"},
   "first_seq": 82942,
+  "allow_msg_ttl": true,
+  "subject_delete_marker_ttl": 73000000000,
   "placement": {
     "cluster": "clstr",
     "tags": ["tag1", "tag2"]
