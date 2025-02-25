@@ -152,8 +152,6 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         // copy constructor
         validate(StreamConfiguration.builder(testSc).build(), false);
 
-        Map<String, String> metaData = new HashMap<>(); metaData.put(META_KEY, META_VALUE);
-
         // builder
         StreamConfiguration.Builder builder = StreamConfiguration.builder()
             .name(testSc.getName())
@@ -197,13 +195,14 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         List<Source> sources = new ArrayList<>(testSc.getSources());
         sources.add(null);
         Source copy = new Source(JsonParser.parseUnchecked(sources.get(0).toJson()));
+        assertEquals(sources.get(0).toString(), copy.toString());
         sources.add(copy);
         validate(builder.addSources(sources).build(), false);
 
         // covering add a single source
         sources = new ArrayList<>(testSc.getSources());
         builder.sources(new ArrayList<>()); // clears the sources
-        builder.addSource(null); // coverage
+        builder.addSource(null); // COVERAGE
         for (Source source : sources) {
             builder.addSource(source);
         }
@@ -222,9 +221,11 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         for (String l1 : lines) {
             if (l1.startsWith("{")) {
                 Mirror m1 = new Mirror(JsonParser.parseUnchecked(l1));
+                //noinspection EqualsWithItself
                 assertEquals(m1, m1);
                 assertEquals(m1, Mirror.builder(m1).build());
                 Source s1 = new Source(JsonParser.parseUnchecked(l1));
+                //noinspection EqualsWithItself
                 assertEquals(s1, s1);
                 assertEquals(s1, Source.builder(s1).build());
                 //this provides testing coverage
@@ -251,6 +252,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         lines = ResourceUtils.dataAsLines("ExternalJson.txt");
         for (String l1 : lines) {
             External e1 = new External(JsonParser.parseUnchecked(l1));
+            //noinspection EqualsWithItself
             assertEquals(e1, e1);
             assertNotEquals(e1, null);
             assertNotEquals(e1, new Object());
@@ -276,6 +278,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(Duration.ofMillis(2222), scCov.getDuplicateWindow());
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testConstructionInvalidsCoverage() {
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().name(HAS_SPACE));
@@ -343,6 +346,10 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         sb.external(m.getExternal());
         mb.external(m.getExternal());
 
+        sb.subjectTransforms((SubjectTransform[]) null);
+        mb.subjectTransforms((SubjectTransform[]) null);
+        assertEquals(sb.subjectTransforms, mb.subjectTransforms);
+
         sb.subjectTransforms(m.getSubjectTransforms());
         mb.subjectTransforms(m.getSubjectTransforms());
 
@@ -353,7 +360,8 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(sb.subjectTransforms, m1.getSubjectTransforms());
 
         // coverage
-        m.getSubjectTransforms().get(0).toString();
+        String s = m.getSubjectTransforms().get(0).toString();
+        assertTrue(s != null && !s.isEmpty());
     }
 
     private void assertNotEqualsEqualsHashcode(Source s, Mirror m, Source.Builder sb, Mirror.Builder mb) {
@@ -500,6 +508,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(732, sc.getMaxBytes());
         assertEquals(Duration.ofNanos(43000000000L), sc.getMaxAge());
         assertEquals(Duration.ofNanos(42000000000L), sc.getDuplicateWindow());
+        //noinspection deprecation
         assertEquals(734, sc.getMaxMsgSize()); // COVERAGE for deprecated
         assertEquals(734, sc.getMaximumMessageSize());
         assertEquals(StorageType.Memory, sc.getStorageType());
@@ -599,14 +608,25 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertFalse(Placement.builder().cluster(null).build().hasData());
         assertFalse(Placement.builder().cluster("").build().hasData());
         assertFalse(Placement.builder().tags((List<String>)null).build().hasData());
+        assertFalse(Placement.builder().tags(new ArrayList<>()).build().hasData());
 
         Placement p = Placement.builder().cluster("cluster").build();
         assertEquals("cluster", p.getCluster());
         assertNull(p.getTags());
         assertTrue(p.hasData());
 
-        p = Placement.builder().cluster("cluster").tags("a", "b").build();
+        p = Placement.builder().cluster("cluster").build();
         assertEquals("cluster", p.getCluster());
+        assertNull(p.getTags());
+        assertTrue(p.hasData());
+
+        p = Placement.builder().tags("a", "b").build();
+        assertNull(p.getCluster());
+        assertEquals(2, p.getTags().size());
+        assertTrue(p.hasData());
+
+        p = Placement.builder().tags("a", "b").build();
+        assertNull(p.getCluster());
         assertEquals(2, p.getTags().size());
         assertTrue(p.hasData());
 
@@ -614,6 +634,9 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals("cluster", p.getCluster());
         assertEquals(2, p.getTags().size());
         assertTrue(p.hasData());
+
+        String s = p.toString();
+        assertTrue(s != null && !s.isEmpty()); // COVERAGE
     }
 
     @Test
@@ -642,12 +665,14 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         st = SubjectTransform.builder().build();
         assertNull(st.getSource());
         assertNull(st.getDestination());
+
+        EqualsVerifier.simple().forClass(SubjectTransform.class).verify();
     }
 
     @Test
     public void testConsumerLimits() {
         ConsumerLimits cl = ConsumerLimits.builder().build();
-        assertEquals(null, cl.getInactiveThreshold());
+        assertNull(cl.getInactiveThreshold());
         assertEquals(INTEGER_UNSET, cl.getMaxAckPending());
 
         cl = ConsumerLimits.builder().inactiveThreshold(Duration.ofMillis(0)).build();
