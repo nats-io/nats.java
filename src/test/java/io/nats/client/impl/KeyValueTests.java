@@ -987,6 +987,7 @@ public class KeyValueTests extends JetStreamTestBase {
         TestKeyValueWatcher key2AfterStartFirstWatcher = new TestKeyValueWatcher("key2AfterStartFirstWatcher", false, META_ONLY, INCLUDE_HISTORY);
         TestKeyValueWatcher key1FromRevisionAfterWatcher = new TestKeyValueWatcher("key1FromRevisionAfterWatcher", false);
         TestKeyValueWatcher allFromRevisionAfterWatcher = new TestKeyValueWatcher("allFromRevisionAfterWatcher", false);
+        TestKeyValueWatcher key1Key2FromRevisionAfterWatcher = new TestKeyValueWatcher("key1Key2FromRevisionAfterWatcher", false);
 
         List<String> allKeys = Arrays.asList(TEST_WATCH_KEY_1, TEST_WATCH_KEY_2, TEST_WATCH_KEY_NULL);
 
@@ -1014,6 +1015,8 @@ public class KeyValueTests extends JetStreamTestBase {
             _testWatch(nc, key2AfterStartFirstWatcher, key2AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_2, key2AfterStartFirstWatcher, key2AfterStartFirstWatcher.watchOptions));
             _testWatch(nc, key1FromRevisionAfterWatcher, key1FromRevisionExpecteds, 2, kv -> kv.watch(TEST_WATCH_KEY_1, key1FromRevisionAfterWatcher, 2, key1FromRevisionAfterWatcher.watchOptions));
             _testWatch(nc, allFromRevisionAfterWatcher, allFromRevisionExpecteds, 2, kv -> kv.watchAll(allFromRevisionAfterWatcher, 2, allFromRevisionAfterWatcher.watchOptions));
+            List<String> keys = Arrays.asList(TEST_WATCH_KEY_1, TEST_WATCH_KEY_2);
+            _testWatch(nc, key1Key2FromRevisionAfterWatcher, allFromRevisionExpecteds, 2, kv -> kv.watch(keys, key1Key2FromRevisionAfterWatcher, 2, key1Key2FromRevisionAfterWatcher.watchOptions));
 
             if (atLeast2_10()) {
                 _testWatch(nc, multipleFullWatcher, allExpecteds, -1, kv -> kv.watch(allKeys, multipleFullWatcher, multipleFullWatcher.watchOptions));
@@ -1277,7 +1280,7 @@ public class KeyValueTests extends JetStreamTestBase {
         assertEquals(KeyValueOperation.PUT, kveUserA.getOperation());
     }
 
-    @SuppressWarnings({"SimplifiableAssertion", "ConstantConditions"})
+    @SuppressWarnings({"SimplifiableAssertion", "ConstantConditions", "EqualsWithItself"})
     @Test
     public void testCoverBucketAndKey() {
         NatsKeyValueUtil.BucketAndKey bak1 = new NatsKeyValueUtil.BucketAndKey(DOT + BUCKET + DOT + KEY);
@@ -1287,7 +1290,6 @@ public class KeyValueTests extends JetStreamTestBase {
 
         assertEquals(BUCKET, bak1.bucket);
         assertEquals(KEY, bak1.key);
-        //noinspection EqualsWithItself
         assertEquals(bak1, bak1);
         assertEquals(bak1, bak2);
         assertEquals(bak2, bak1);
@@ -1347,9 +1349,21 @@ public class KeyValueTests extends JetStreamTestBase {
             kv1.put(key(1), "ONE-PRIME");
             assertNotEquals(kve1_1, kv1.get(key(1)));
 
+            kv1.put(key(9), (byte[]) null);
+            KeyValueEntry kve9 = kv1.get(key(9));
+            assertNull(kve9.getValue());
+            assertNull(kve9.getValueAsString());
+            assertNull(kve9.getValueAsLong());
+
+            kv1.put(key(9), new byte[0]);
+            kve9 = kv1.get(key(9));
+            assertNull(kve9.getValue());
+            assertNull(kve9.getValueAsString());
+            assertNull(kve9.getValueAsLong());
+
             // coverage
             assertNotEquals(kve1_1, null);
-            assertNotEquals(new Object(), kve1_1);
+            assertNotEquals(kve1_1, new Object());
         });
     }
 
@@ -1439,7 +1453,7 @@ public class KeyValueTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testMiscCoverage() throws Exception {
+    public void testEntryCoercion() throws Exception {
         jsServer.run(nc -> {
             KeyValueManagement kvm = nc.keyValueManagement();
 
@@ -1460,6 +1474,31 @@ public class KeyValueTests extends JetStreamTestBase {
             assertNull(list.get(0).getValueAsString());
             assertNull(list.get(0).getValueAsLong());
         });
+    }
+
+    @Test
+    public void testKeyResultConstruction() throws Exception {
+        KeyResult r = new KeyResult();
+        assertNull(r.getKey());
+        assertNull(r.getException());
+        assertFalse(r.isKey());
+        assertFalse(r.isException());
+        assertTrue(r.isDone());
+
+        r = new KeyResult("key");
+        assertEquals("key", r.getKey());
+        assertNull(r.getException());
+        assertTrue(r.isKey());
+        assertFalse(r.isException());
+        assertFalse(r.isDone());
+
+        Exception e = new Exception();
+        r = new KeyResult(e);
+        assertNull(r.getKey());
+        assertNotNull(r.getException());
+        assertFalse(r.isKey());
+        assertTrue(r.isException());
+        assertTrue(r.isDone());
     }
 
     @Test
@@ -1650,7 +1689,6 @@ public class KeyValueTests extends JetStreamTestBase {
 //            assertNull(kv2.get(key2));
         });
     }
-
 
     @Test
     public void testSubjectFiltersAgainst209OptOut() throws Exception {

@@ -162,6 +162,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
     private static void validateStatus(ObjectStoreStatus status, String bucket, String desc) {
         assertEquals(bucket, status.getBucketName());
         assertEquals(desc, status.getDescription());
+        assertEquals(-1, status.getMaxBucketSize());
         assertFalse(status.isSealed());
         assertEquals(0, status.getSize());
         assertEquals(Duration.ofHours(24), status.getTtl());

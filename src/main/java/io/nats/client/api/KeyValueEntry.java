@@ -136,7 +136,7 @@ public class KeyValueEntry {
     @Override
     public int hashCode() {
         int result = bucketAndKey.hashCode();
-        result = 31 * result + (int) (revision ^ (revision >>> 32));
+        result = 31 * result + Long.hashCode(revision);
         return result;
     }
 }
