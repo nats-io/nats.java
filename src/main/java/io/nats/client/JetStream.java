@@ -280,7 +280,7 @@ public interface JetStream {
      * where the sender creates a byte array immediately before calling publish.
      * See {@link #publish(String, byte[]) publish()} for more details on
      * publish during reconnect.
-     * The future me be completed with an exception, either
+     * The future may be completed with an exception, either
      * an IOException covers various communication issues with the NATS server such as timeout or interruption
      * - or - a JetStreamApiException the request had an error related to the data
      *
@@ -306,7 +306,7 @@ public interface JetStream {
      * where the sender creates a byte array immediately before calling publish.
      * See {@link #publish(String, byte[]) publish()} for more details on
      * publish during reconnect.
-     * The future me be completed with an exception, either
+     * The future may be completed with an exception, either
      * an IOException covers various communication issues with the NATS server such as timeout or interruption
      * - or - a JetStreamApiException the request had an error related to the data
      *
@@ -331,7 +331,7 @@ public interface JetStream {
      * where the sender creates a byte array immediately before calling publish.
      * See {@link #publish(String, byte[]) publish()} for more details on
      * publish during reconnect.
-     * The future me be completed with an exception, either
+     * The future may be completed with an exception, either
      * an IOException covers various communication issues with the NATS server such as timeout or interruption
      * - or - a JetStreamApiException the request had an error related to the data
      *
@@ -357,7 +357,7 @@ public interface JetStream {
      * where the sender creates a byte array immediately before calling publish.
      * See {@link #publish(String, byte[]) publish()} for more details on
      * publish during reconnect.
-     * The future me be completed with an exception, either
+     * The future may be completed with an exception, either
      * an IOException covers various communication issues with the NATS server such as timeout or interruption
      * - or - a JetStreamApiException the request had an error related to the data
      *
@@ -383,7 +383,7 @@ public interface JetStream {
      * where the sender creates a byte array immediately before calling publish.
      * See {@link #publish(String, byte[]) publish()} for more details on
      * publish during reconnect.
-     * The future me be completed with an exception, either
+     * The future may be completed with an exception, either
      * an IOException covers various communication issues with the NATS server such as timeout or interruption
      * - or - a JetStreamApiException the request had an error related to the data
      *
@@ -409,7 +409,7 @@ public interface JetStream {
      * where the sender creates a byte array immediately before calling publish.
      * See {@link #publish(String, byte[]) publish()} for more details on
      * publish during reconnect.
-     * The future me be completed with an exception, either
+     * The future may be completed with an exception, either
      * an IOException covers various communication issues with the NATS server such as timeout or interruption
      * - or - a JetStreamApiException the request had an error related to the data
      *
