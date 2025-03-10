@@ -29,7 +29,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.createOrReplaceStream;
 import static io.nats.examples.jetstream.NatsJsUtils.report;
 
 /**
- * This example will demonstrate simplified fetch that is resilient
+ * This example will demonstrate a resilient publish
  * HOW TO TEST
  * 1. Set up and run a simple cluster. See https://github.com/nats-io/java-nats-examples/tree/main/example-cluster-config
  * 2. Run this program, watch the output for some time
