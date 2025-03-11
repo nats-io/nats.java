@@ -32,7 +32,7 @@ public interface NatsConstants {
 
     List<String> KNOWN_PROTOCOLS = Arrays.asList(NATS_PROTOCOL, TLS_PROTOCOL, OPENTLS_PROTOCOL, WEBSOCKET_PROTOCOL, SECURE_WEBSOCKET_PROTOCOL);
     List<String> SECURE_PROTOCOLS = Arrays.asList(TLS_PROTOCOL, OPENTLS_PROTOCOL, SECURE_WEBSOCKET_PROTOCOL);
-    List<String> WSS_PROTOCOLS = Arrays.asList(WEBSOCKET_PROTOCOL, SECURE_WEBSOCKET_PROTOCOL);
+    List<String> WEBSOCKET_PROTOCOLS = Arrays.asList(WEBSOCKET_PROTOCOL, SECURE_WEBSOCKET_PROTOCOL);
 
     String SPACE = " ";
     String EMPTY = "";
@@ -94,4 +94,7 @@ public interface NatsConstants {
     String OUTPUT_QUEUE_IS_FULL = "Output queue is full ";
 
     long NANOS_PER_MILLI = 1_000_000L;
+
+    @Deprecated
+    List<String> WSS_PROTOCOLS = Arrays.asList(WEBSOCKET_PROTOCOL, SECURE_WEBSOCKET_PROTOCOL);
 }

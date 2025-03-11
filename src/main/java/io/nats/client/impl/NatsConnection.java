@@ -1901,15 +1901,17 @@ class NatsConnection implements Connection {
     }
 
     protected List<NatsUri> resolveHost(NatsUri nuri) {
-        // 1. If the host is not an ip address, let the pool resolve it.
+        // 1. If the nuri host is not already an ip address or the nuri is not for websocket
+        //    let the pool resolve it.
         List<NatsUri> results = new ArrayList<>();
-        if (!nuri.hostIsIpAddress()) {
+        if (!nuri.hostIsIpAddress() && !nuri.isWebsocket()) {
             List<String> ips = serverPool.resolveHostToIps(nuri.getHost());
             if (ips != null) {
                 for (String ip : ips) {
                     try {
                         results.add(nuri.reHost(ip));
-                    } catch (URISyntaxException u) {
+                    }
+                    catch (URISyntaxException u) {
                         // ??? should never happen
                     }
                 }
@@ -1917,7 +1919,8 @@ class NatsConnection implements Connection {
         }
 
         // 2. If there were no results,
-        //    - host was an ip address or
+        //    - host was already an ip address or
+        //    - host was for websocket or
         //    - pool returned nothing or
         //    - resolving failed...
         //    so the list just becomes the original host.
