@@ -221,7 +221,7 @@ public class NatsUri {
     private void postConstruct() {
         String s = uri.getScheme().toLowerCase();
         isSecure = SECURE_PROTOCOLS.contains(s);
-        isWebsocket = WSS_PROTOCOLS.contains(s);
+        isWebsocket = WEBSOCKET_PROTOCOLS.contains(s);
         s = uri.getHost();
         hostIsIpAddress = IPV4_RE.matcher(s).matches() || s.startsWith("[") && s.endsWith("]");
     }
