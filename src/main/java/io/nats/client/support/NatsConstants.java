@@ -96,5 +96,5 @@ public interface NatsConstants {
     long NANOS_PER_MILLI = 1_000_000L;
 
     @Deprecated
-    List<String> WSS_PROTOCOLS = Arrays.asList(WEBSOCKET_PROTOCOL, SECURE_WEBSOCKET_PROTOCOL);
+    List<String> WSS_PROTOCOLS = WEBSOCKET_PROTOCOLS;
 }
