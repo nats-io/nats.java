@@ -26,7 +26,6 @@ import java.util.Arrays;
 
 import static io.nats.client.support.Encoding.base32Decode;
 import static io.nats.client.support.Encoding.base32Encode;
-import static io.nats.client.support.RandomUtils.PRAND;
 import static io.nats.client.support.RandomUtils.SRAND;
 
 class DecodedSeed {
@@ -329,15 +328,14 @@ public class NKey {
         return retVal;
     }
 
-    public static NKey createPair(Type type, SecureRandom random)
-        throws IOException, NoSuchProviderException, NoSuchAlgorithmException {
+    private static NKey createPair(Type type, SecureRandom random) throws IOException {
+        byte[] seed = new byte[ED25519_SEED_SIZE];
         if (random == null) {
-            random = SRAND;
+            SRAND.nextBytes(seed);
         }
-
-        byte[] seed = new byte[32]; // NKey.ed25519.getCurve().getField().getb() / 8
-        random.nextBytes(seed);
-
+        else {
+            random.nextBytes(seed);
+        }
         return createPair(type, seed);
     }
 
@@ -358,11 +356,8 @@ public class NKey {
 
     /**
      * Create an Account NKey from the provided random number generator.
-     *
      * If no random is provided, SecureRandom() will be used to create one.
-     *
      * The new NKey contains the private seed, which should be saved in a secure location.
-     *
      * @param random A secure random provider
      * @return the new Nkey
      * @throws IOException if the seed cannot be encoded to a string
@@ -376,11 +371,8 @@ public class NKey {
 
     /**
      * Create a Cluster NKey from the provided random number generator.
-     *
      * If no random is provided, SecureRandom() will be used to create one.
-     *
      * The new NKey contains the private seed, which should be saved in a secure location.
-     *
      * @param random A secure random provider
      * @return the new Nkey
      * @throws IOException if the seed cannot be encoded to a string
@@ -394,11 +386,8 @@ public class NKey {
 
     /**
      * Create an Operator NKey from the provided random number generator.
-     *
      * If no random is provided, SecureRandom() will be used to create one.
-     *
      * The new NKey contains the private seed, which should be saved in a secure location.
-     *
      * @param random A secure random provider
      * @return the new Nkey
      * @throws IOException if the seed cannot be encoded to a string
@@ -412,11 +401,8 @@ public class NKey {
 
     /**
      * Create a Server NKey from the provided random number generator.
-     *
      * If no random is provided, SecureRandom() will be used to create one.
-     *
      * The new NKey contains the private seed, which should be saved in a secure location.
-     *
      * @param random A secure random provider
      * @return the new Nkey
      * @throws IOException if the seed cannot be encoded to a string
@@ -430,9 +416,7 @@ public class NKey {
 
     /**
      * Create a User NKey from the provided random number generator.
-     *
      * If no random is provided, SecureRandom() will be used to create one.
-     *
      * The new NKey contains the private seed, which should be saved in a secure location.
      *
      * @param random A secure random provider
@@ -448,7 +432,6 @@ public class NKey {
 
     /**
      * Create an NKey object from the encoded public key. This NKey can be used for verification but not for signing.
-     *
      * @param publicKey the string encoded public key
      * @return the new Nkey
      */
@@ -466,7 +449,6 @@ public class NKey {
 
     /**
      * Creates an NKey object from a string encoded seed. This NKey can be used to sign or verify.
-     *
      * @param seed the string encoded seed, see {@link NKey#getSeed() getSeed()}
      * @return the Nkey
      */
@@ -527,14 +509,14 @@ public class NKey {
     /**
      * The seed or private key per the Ed25519 spec, encoded with encodeSeed.
      */
-    private char[] privateKeyAsSeed;
+    private final char[] privateKeyAsSeed;
 
     /**
      * The public key, maybe null. Used for public only NKeys.
      */
-    private char[] publicKey;
+    private final char[] publicKey;
 
-    private Type type;
+    private final Type type;
 
     private NKey(Type t, char[] publicKey, char[] privateKey) {
         this.type = t;
@@ -543,23 +525,19 @@ public class NKey {
     }
 
     /**
-     * Clear the seed and public key char arrays by filling them
-     * with random bytes then zero-ing them out.
-     *
+     * Clear the seed and public key char arrays by zero-ing them out.
      * The nkey is unusable after this operation.
      */
     public void clear() {
         if (privateKeyAsSeed != null) {
             for (int i=0; i< privateKeyAsSeed.length ; i++) {
-                privateKeyAsSeed[i] = (char)(PRAND.nextInt(26) + 'a');
+                privateKeyAsSeed[i] = '\0';
             }
-            Arrays.fill(privateKeyAsSeed, '\0');
         }
         if (publicKey != null) {
             for (int i=0; i< publicKey.length ; i++) {
-                publicKey[i] = (char)(PRAND.nextInt(26) + 'a');
+                publicKey[i] = '\0';
             }
-            Arrays.fill(publicKey, '\0');
         }
     }
 
