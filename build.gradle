@@ -36,7 +36,8 @@ repositories {
 }
 
 dependencies {
-    implementation 'net.i2p.crypto:eddsa:0.3.0'
+    implementation 'org.bouncycastle:bcprov-lts8on:2.73.7'
+
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.9.0'
     testImplementation 'io.nats:jnats-server-runner:2.0.0'

@@ -13,13 +13,9 @@
 
 package io.nats.client;
 
-import net.i2p.crypto.eddsa.EdDSAEngine;
-import net.i2p.crypto.eddsa.EdDSAPrivateKey;
-import net.i2p.crypto.eddsa.EdDSAPublicKey;
-import net.i2p.crypto.eddsa.spec.EdDSANamedCurveSpec;
-import net.i2p.crypto.eddsa.spec.EdDSANamedCurveTable;
-import net.i2p.crypto.eddsa.spec.EdDSAPrivateKeySpec;
-import net.i2p.crypto.eddsa.spec.EdDSAPublicKeySpec;
+import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters;
+import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters;
+import org.bouncycastle.crypto.signers.Ed25519Signer;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -174,7 +170,6 @@ public class NKey {
     private static final int ED25519_PUBLIC_KEYSIZE = 32;
     private static final int ED25519_PRIVATE_KEYSIZE = 64;
     private static final int ED25519_SEED_SIZE = 32;
-    private static final EdDSANamedCurveSpec ed25519 = EdDSANamedCurveTable.getByName(EdDSANamedCurveTable.ED_25519);
 
     // XModem CRC based on the go version of NKeys
     private final static int[] crc16table = { 0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7, 0x8108,
@@ -208,17 +203,16 @@ public class NKey {
         return crc;
     }
 
-
-    private static boolean checkValidPublicPrefixByte(int prefix) {
+    private static boolean notValidPublicPrefixByte(int prefix) {
         switch (prefix) {
             case PREFIX_BYTE_SERVER:
             case PREFIX_BYTE_CLUSTER:
             case PREFIX_BYTE_OPERATOR:
             case PREFIX_BYTE_ACCOUNT:
             case PREFIX_BYTE_USER:
-                return true;
+                return false;
         }
-        return false;
+        return true;
     }
 
     static char[] removePaddingAndClear(char[] withPad) {
@@ -232,7 +226,7 @@ public class NKey {
         char[] withoutPad = new char[i+1];
         System.arraycopy(withPad, 0, withoutPad, 0, withoutPad.length);
 
-        for (int j=0;j<withPad.length;j++) {
+        for (int j=0; j<withPad.length;j++) {
             withPad[j] = '\0';
         }
 
@@ -281,8 +275,7 @@ public class NKey {
 
     static byte[] decode(char[] src) {
         byte[] raw = base32Decode(src);
-
-        if (raw == null || raw.length < 4) {
+        if (raw.length < 4) {
             throw new IllegalArgumentException("Invalid encoding for source string");
         }
 
@@ -325,7 +318,7 @@ public class NKey {
             throw new IllegalArgumentException("Invalid encoding");
         }
 
-        if (!checkValidPublicPrefixByte(b2)) {
+        if (notValidPublicPrefixByte(b2)) {
             throw new IllegalArgumentException("Invalid encoded prefix byte");
         }
 
@@ -336,25 +329,24 @@ public class NKey {
         return retVal;
     }
 
-    private static NKey createPair(Type type, SecureRandom random)
+    public static NKey createPair(Type type, SecureRandom random)
         throws IOException, NoSuchProviderException, NoSuchAlgorithmException {
         if (random == null) {
             random = SRAND;
         }
 
-        byte[] seed = new byte[NKey.ed25519.getCurve().getField().getb() / 8];
+        byte[] seed = new byte[32]; // NKey.ed25519.getCurve().getField().getb() / 8
         random.nextBytes(seed);
 
         return createPair(type, seed);
     }
 
     private static NKey createPair(Type type, byte[] seed)
-        throws IOException, NoSuchProviderException, NoSuchAlgorithmException {
-        EdDSAPrivateKeySpec privKeySpec = new EdDSAPrivateKeySpec(seed, NKey.ed25519);
-        EdDSAPrivateKey privKey = new EdDSAPrivateKey(privKeySpec);
-        EdDSAPublicKeySpec pubKeySpec = new EdDSAPublicKeySpec(privKey.getA(), NKey.ed25519);
-        EdDSAPublicKey pubKey = new EdDSAPublicKey(pubKeySpec);
-        byte[] pubBytes = pubKey.getAbyte();
+        throws IOException {
+        Ed25519PrivateKeyParameters privateKey = new Ed25519PrivateKeyParameters(seed);
+        Ed25519PublicKeyParameters publicKey = privateKey.generatePublicKey();
+
+        byte[] pubBytes = publicKey.getEncoded();
 
         byte[] bytes = new byte[pubBytes.length + seed.length];
         System.arraycopy(seed, 0, bytes, 0, seed.length);
@@ -383,7 +375,7 @@ public class NKey {
     }
 
     /**
-     * Create an Cluster NKey from the provided random number generator.
+     * Create a Cluster NKey from the provided random number generator.
      *
      * If no random is provided, SecureRandom() will be used to create one.
      *
@@ -464,7 +456,7 @@ public class NKey {
         byte[] raw = decode(publicKey);
         int prefix = raw[0] & 0xFF;
 
-        if (!checkValidPublicPrefixByte(prefix)) {
+        if (notValidPublicPrefixByte(prefix)) {
             throw new IllegalArgumentException("Not a valid public NKey");
         }
 
@@ -599,12 +591,7 @@ public class NKey {
         if (publicKey != null) {
             return publicKey;
         }
-
-        KeyPair keys = getKeyPair();
-        EdDSAPublicKey pubKey = (EdDSAPublicKey) keys.getPublic();
-        byte[] pubBytes = pubKey.getAbyte();
-
-        return encode(this.type, pubBytes);
+        return encode(this.type, getKeyPair().getPublic().getEncoded());
     }
 
     /**
@@ -641,12 +628,10 @@ public class NKey {
         System.arraycopy(decoded.bytes, 0, seedBytes, 0, seedBytes.length);
         System.arraycopy(decoded.bytes, seedBytes.length, pubBytes, 0, pubBytes.length);
 
-        EdDSAPrivateKeySpec privKeySpec = new EdDSAPrivateKeySpec(seedBytes, NKey.ed25519);
-        EdDSAPrivateKey privKey = new EdDSAPrivateKey(privKeySpec);
-        EdDSAPublicKeySpec pubKeySpec = new EdDSAPublicKeySpec(pubBytes, NKey.ed25519);
-        EdDSAPublicKey pubKey = new EdDSAPublicKey(pubKeySpec);
+        Ed25519PrivateKeyParameters privateKey = new Ed25519PrivateKeyParameters(seedBytes);
+        Ed25519PublicKeyParameters publicKey = new Ed25519PublicKeyParameters(pubBytes);
 
-        return new KeyPair(pubKey, privKey);
+        return new KeyPair(new PublicKeyWrapper(publicKey), new PrivateKeyWrapper(privateKey));
     }
 
     /**
@@ -657,7 +642,7 @@ public class NKey {
     }
 
     /**
-     * Sign aribitrary binary input.
+     * Sign arbitrary binary input.
      *
      * @param input the bytes to sign
      * @return the signature for the input from the NKey
@@ -666,13 +651,11 @@ public class NKey {
      * @throws IOException              if there is a problem reading the data
      */
     public byte[] sign(byte[] input) throws GeneralSecurityException, IOException {
-        Signature sgr = new EdDSAEngine(MessageDigest.getInstance(NKey.ed25519.getHashAlgorithm()));
-        PrivateKey sKey = getKeyPair().getPrivate();
-
-        sgr.initSign(sKey);
-        sgr.update(input);
-
-        return sgr.sign();
+        Ed25519PrivateKeyParameters privateKey = new Ed25519PrivateKeyParameters(getKeyPair().getPrivate().getEncoded());
+        Ed25519Signer signer = new Ed25519Signer();
+        signer.init(true, privateKey);
+        signer.update(input, 0, input.length);
+        return signer.generateSignature();
     }
 
     /**
@@ -686,22 +669,20 @@ public class NKey {
      * @throws IOException              if there is a problem reading the data
      */
     public boolean verify(byte[] input, byte[] signature) throws GeneralSecurityException, IOException {
-        Signature sgr = new EdDSAEngine(MessageDigest.getInstance(NKey.ed25519.getHashAlgorithm()));
-        PublicKey sKey = null;
-
+        Ed25519PublicKeyParameters publicKey;
         if (privateKeyAsSeed != null) {
-            sKey = getKeyPair().getPublic();
+            publicKey = new Ed25519PublicKeyParameters(getKeyPair().getPublic().getEncoded());
         } else {
             char[] encodedPublicKey = getPublicKey();
             byte[] decodedPublicKey = decode(this.type, encodedPublicKey, false);
-            EdDSAPublicKeySpec pubKeySpec = new EdDSAPublicKeySpec(decodedPublicKey, NKey.ed25519);
-            sKey = new EdDSAPublicKey(pubKeySpec);
+            //noinspection DataFlowIssue // decode will throw instead of return null
+            publicKey = new Ed25519PublicKeyParameters(decodedPublicKey);
         }
 
-        sgr.initVerify(sKey);
-        sgr.update(input);
-
-        return sgr.verify(signature);
+        Ed25519Signer signer = new Ed25519Signer();
+        signer.init(false, publicKey);
+        signer.update(input, 0, input.length);
+        return signer.verifySignature(signature);
     }
 
     @Override
@@ -737,5 +718,43 @@ public class NKey {
         }
         return result;
     }
+}
 
+
+abstract class KeyWrapper implements Key {
+    @Override
+    public String getAlgorithm() {
+        return "EdDSA";
+    }
+
+    @Override
+    public String getFormat() {
+        return "PKCS#8";
+    }
+}
+
+class PublicKeyWrapper extends KeyWrapper implements PublicKey {
+    final Ed25519PublicKeyParameters publicKey;
+
+    public PublicKeyWrapper(Ed25519PublicKeyParameters publicKey) {
+        this.publicKey = publicKey;
+    }
+
+    @Override
+    public byte[] getEncoded() {
+        return publicKey.getEncoded();
+    }
+}
+
+class PrivateKeyWrapper extends KeyWrapper implements PrivateKey {
+    final Ed25519PrivateKeyParameters privateKey;
+
+    public PrivateKeyWrapper(Ed25519PrivateKeyParameters privateKey) {
+        this.privateKey = privateKey;
+    }
+
+    @Override
+    public byte[] getEncoded() {
+        return privateKey.getEncoded();
+    }
 }
