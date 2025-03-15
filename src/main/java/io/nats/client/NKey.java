@@ -339,8 +339,7 @@ public class NKey {
         return createPair(type, seed);
     }
 
-    private static NKey createPair(Type type, byte[] seed)
-        throws IOException {
+    private static NKey createPair(Type type, byte[] seed) throws IOException {
         Ed25519PrivateKeyParameters privateKey = new Ed25519PrivateKeyParameters(seed);
         Ed25519PublicKeyParameters publicKey = privateKey.generatePublicKey();
 
@@ -697,7 +696,6 @@ public class NKey {
         return result;
     }
 }
-
 
 abstract class KeyWrapper implements Key {
     @Override
