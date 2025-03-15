@@ -437,8 +437,8 @@ public class NKeyTests {
         char[] seed = theKey.getSeed();
         assertEquals(NKey.fromSeed(seed), NKey.fromSeed(seed));
         assertEquals(NKey.fromSeed(seed).hashCode(), NKey.fromSeed(seed).hashCode());
-        assertTrue(Arrays.equals(NKey.fromSeed(seed).getPublicKey(), NKey.fromSeed(seed).getPublicKey()));
-        assertTrue(Arrays.equals(NKey.fromSeed(seed).getPrivateKey(), NKey.fromSeed(seed).getPrivateKey()));
+        assertArrayEquals(NKey.fromSeed(seed).getPublicKey(), NKey.fromSeed(seed).getPublicKey());
+        assertArrayEquals(NKey.fromSeed(seed).getPrivateKey(), NKey.fromSeed(seed).getPrivateKey());
 
         assertTrue(seed[0] == 'S' && seed[1] == 'A');
 
