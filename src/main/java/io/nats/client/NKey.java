@@ -530,12 +530,12 @@ public class NKey {
     public void clear() {
         if (privateKeyAsSeed != null) {
             for (int i=0; i< privateKeyAsSeed.length ; i++) {
-                privateKeyAsSeed[i] = '\0';
+                privateKeyAsSeed[i] = 0;
             }
         }
         if (publicKey != null) {
             for (int i=0; i< publicKey.length ; i++) {
-                publicKey[i] = '\0';
+                publicKey[i] = 0;
             }
         }
     }
