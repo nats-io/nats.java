@@ -11,10 +11,9 @@ This file lists the dependencies used in this repository.
 
 #### Runtime Dependencies
 
-| Dependency                           | License                                 |
-|--------------------------------------|-----------------------------------------|
-| net.i2p.crypto:eddsa:0.3.0           | CC 1.0 Universal                        |
-
+| Dependency                            | License     |
+|---------------------------------------|-------------|
+| org.bouncycastle:bcprov-lts8on:2.73.7 | MIT License |
 #### Test Dependencies
 
 | Dependency                                      | License                                 |
