@@ -1,5 +1,45 @@
 # Change Log
 
+## 2.20.6
+### Core
+* Reader Listener #1265 @scottf
+* [BUG] Hosts should never be resolved on websocket URI's #1286 @scottf
+* Replace ed25519 with BouncyCastle #1290 @scottf
+
+### KV
+* KV Minor Changes #1264 @scottf
+* Tuning common code used for watches and key lookup #1281 @scottf
+
+### Service API
+* Remove Schema related leftovers #1263 @d0x7
+* Feature: Support adding service endpoint after construction #1274 @scottf
+* Feature: Support adding service endpoint after construction (more) #1276 @scottf
+* Service user endpoints can be run without queue groups. #1277 @scottf
+* Service, tuning review #1279 @scottf
+
+### Documentation
+* Docs - close() versus stop() in MessageConsumer #1271 @roeschter
+* Remove the experimental mentions #1278 @scottf
+* Fix Javadoc for JetStream #1283 @vkolomeyko
+* [DOC] ResilientPublisher better api doc #1285 @scottf
+
+### Test
+* Add test coverage #1282 @scottf
+
+### Benchmark
+
+```
+┌─────────────────────┬───────────────────┬─────────────────┬──────────────────────────┬──────────────────┐
+│                     │             count │            time │                 msgs/sec │        bytes/sec │
+├─────────────────────┼───────────────────┼─────────────────┼──────────────────────────┼──────────────────┤
+│ PubAsync            │   50,000,000 msgs │       30:37.925 │      27,204.592 msgs/sec │      6.49 mb/sec │
+├─────────────────────┼───────────────────┼─────────────────┼──────────────────────────┼──────────────────┤
+│ SubFetch            │   50,000,000 msgs │       34:11.735 │      24,369.608 msgs/sec │      5.81 mb/sec │
+├─────────────────────┼───────────────────┼─────────────────┼──────────────────────────┼──────────────────┤
+│ SubIterate          │   50,000,000 msgs │       18:25.347 │      45,234.664 msgs/sec │     10.78 mb/sec │
+└─────────────────────┴───────────────────┴─────────────────┴──────────────────────────┴──────────────────┘
+```
+
 ## 2.20.5
 
 ### Core
