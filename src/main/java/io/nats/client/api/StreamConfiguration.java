@@ -104,7 +104,7 @@ public class StreamConfiguration implements JsonSerializable {
         builder.discardNewPerSubject(readBoolean(v, DISCARD_NEW_PER_SUBJECT));
         builder.metadata(readStringStringMap(v, METADATA));
         builder.firstSequence(readLong(v, FIRST_SEQ, 1));
-        builder.allowMessageTtl(readBoolean(v, ALLOW_MSG_TTL));
+        // builder.allowMessageTtl(readBoolean(v, ALLOW_MSG_TTL));
         builder.subjectDeleteMarkerTtl(readNanos(v, SUBJECT_DELETE_MARKER_TTL));
         return builder.build();
     }
@@ -1060,24 +1060,24 @@ public class StreamConfiguration implements JsonSerializable {
             return this;
         }
 
-        /**
-         * Set to allow per message TTL to true
-         * @return The Builder
-         */
-        public Builder allowMessageTtl() {
-            this.allowMessageTtl = true;
-            return this;
-        }
+//        /**
+//         * Set to allow per message TTL to true
+//         * @return The Builder
+//         */
+//        public Builder allowMessageTtl() {
+//            this.allowMessageTtl = true;
+//            return this;
+//        }
 
-        /**
-         * Set allow per message TTL flag
-         * @param allowMessageTtl the flag
-         * @return The Builder
-         */
-        public Builder allowMessageTtl(boolean allowMessageTtl) {
-            this.allowMessageTtl = allowMessageTtl;
-            return this;
-        }
+//        /**
+//         * Set allow per message TTL flag
+//         * @param allowMessageTtl the flag
+//         * @return The Builder
+//         */
+//        public Builder allowMessageTtl(boolean allowMessageTtl) {
+//            this.allowMessageTtl = allowMessageTtl;
+//            return this;
+//        }
 
         /**
          * The time delete marker TTL duration. Server accepts 1 second or more.

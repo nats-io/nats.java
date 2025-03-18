@@ -115,7 +115,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 add(DISCARD_NEW_PER_SUBJECT);
                 add(METADATA);
                 add(FIRST_SEQ);
-                add(ALLOW_MSG_TTL);
+//                add(ALLOW_MSG_TTL);
                 add(SUBJECT_DELETE_MARKER_TTL);
             }
         };
@@ -186,7 +186,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             .metadata(testSc.getMetadata())
             .firstSequence(testSc.getFirstSequence())
             .consumerLimits(testSc.getConsumerLimits())
-            .allowMessageTtl(testSc.isAllowMessageTtl())
+//            .allowMessageTtl(testSc.isAllowMessageTtl())
             .subjectDeleteMarkerTtl(testSc.getSubjectDeleteMarkerTtl())
             ;
         validate(builder.build(), false);
@@ -514,7 +514,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(StorageType.Memory, sc.getStorageType());
         assertSame(DiscardPolicy.New, sc.getDiscardPolicy());
 
-        assertTrue(sc.isAllowMessageTtl());
+//        assertTrue(sc.isAllowMessageTtl());
         assertEquals(Duration.ofNanos(73000000000L), sc.getSubjectDeleteMarkerTtl());
 
         assertNotNull(sc.getPlacement());
