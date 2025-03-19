@@ -21,7 +21,6 @@ import io.nats.client.support.JsonValue;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
-import static io.nats.client.support.JsonValueUtils.readBoolean;
 import static io.nats.client.support.JsonValueUtils.readInteger;
 import static io.nats.client.support.JsonValueUtils.readLong;
 
@@ -110,10 +109,6 @@ public class BaseConsumeOptions implements JsonSerializable {
 
         protected abstract B getThis();
 
-        protected B noWait() {
-            return getThis();
-        }
-
         /**
          * Initialize values from the json string.
          * @param json the json string to parse
@@ -134,9 +129,6 @@ public class BaseConsumeOptions implements JsonSerializable {
             bytes(readLong(jsonValue, BYTES, -1));
             expiresIn(readLong(jsonValue, EXPIRES_IN, MIN_EXPIRES_MILLS));
             thresholdPercent(readInteger(jsonValue, THRESHOLD_PERCENT, -1));
-            if (readBoolean(jsonValue, NO_WAIT, false)) {
-                noWait();
-            }
             return getThis();
         }
 
@@ -160,8 +152,8 @@ public class BaseConsumeOptions implements JsonSerializable {
          * @return the builder
          */
         public B expiresIn(long expiresInMillis) {
-            if (expiresInMillis < 1) { // this is way to clear or reset, just a code guard really
-                expiresIn = ConsumerConfiguration.LONG_UNSET;
+            if (expiresInMillis < 1) {
+                expiresIn = DEFAULT_EXPIRES_IN_MILLIS;
             }
             else if (expiresInMillis < MIN_EXPIRES_MILLS) {
                 throw new IllegalArgumentException("Expires must be greater than or equal to " + MIN_EXPIRES_MILLS);

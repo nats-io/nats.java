@@ -249,6 +249,85 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testFetchNoWaitPlusExpires() throws Exception {
+        jsServer.run(TestBase::atLeast2_9_1, nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
+            JetStream js = nc.jetStream();
+
+            jsm.addOrUpdateConsumer(tsc.stream, ConsumerConfiguration.builder()
+                .name(tsc.consumerName())
+                .inactiveThreshold(100000) // I could have used a durable, but this is long enough for the test
+                .filterSubject(tsc.subject())
+                .build());
+
+            ConsumerContext cc = nc.getConsumerContext(tsc.stream, tsc.consumerName());
+            FetchConsumeOptions fco = FetchConsumeOptions.builder().maxMessages(10).noWait().build();
+
+            long veryFastExpected = 250;
+            long regularWaitExpected = 1000;
+
+            // No Wait, No Messages
+            FetchConsumer fc = cc.fetch(fco);
+            long[] result = readMessages(fc);
+            assertEquals(0, result[0]); // no messages
+            assertTrue(result[1] < veryFastExpected); // comes back very fast
+
+            // No Wait, One Message
+            js.publish(tsc.subject(), "DATA-A".getBytes());
+            fc = cc.fetch(fco);
+            result = readMessages(fc);
+            assertEquals(1, result[0]); // 1 message
+            assertTrue(result[1] < veryFastExpected); // comes back very fast
+
+            // No Wait, Two Messages
+            js.publish(tsc.subject(), "DATA-B".getBytes());
+            js.publish(tsc.subject(), "DATA-C".getBytes());
+            fc = cc.fetch(fco);
+            result = readMessages(fc);
+            assertEquals(2, result[0]); // 2 messages
+            assertTrue(result[1] < veryFastExpected); // comes back very fast
+
+            // With Expires, No Messages
+            fco = FetchConsumeOptions.builder().maxMessages(10).noWaitExpiresIn(regularWaitExpected).build();
+            fc = cc.fetch(fco);
+            result = readMessages(fc);
+            assertEquals(0, result[0]); // 0 messages
+            assertTrue(result[1] >= regularWaitExpected); // comes after full expires
+
+            // With Expires, One to Three Message
+            fco = FetchConsumeOptions.builder().maxMessages(10).noWaitExpiresIn(regularWaitExpected).build();
+            fc = cc.fetch(fco);
+            js.publish(tsc.subject(), "DATA-D".getBytes());
+            js.publish(tsc.subject(), "DATA-E".getBytes());
+            js.publish(tsc.subject(), "DATA-F".getBytes());
+            result = readMessages(fc);
+            long count = result[0];
+
+            // With Long (Default) Expires, Leftovers
+            long left = 3 - count;
+            fc = cc.fetch(fco);
+            result = readMessages(fc);
+            assertEquals(left, result[0]);
+        });
+    }
+
+    private static long[] readMessages(FetchConsumer fc) throws InterruptedException, JetStreamStatusCheckedException {
+        long count = 0;
+        long start = System.currentTimeMillis();
+        while (!fc.isFinished()) {
+            Message m = fc.nextMessage();
+            if (m != null) {
+                m.ack();
+                ++count;
+            }
+        }
+        return new long[]{count, System.currentTimeMillis() - start};
+    }
+
+
+    @Test
     public void testIterableConsumer() throws Exception {
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
