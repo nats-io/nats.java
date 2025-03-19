@@ -265,9 +265,6 @@ public class SimplificationTests extends JetStreamTestBase {
             ConsumerContext cc = nc.getConsumerContext(tsc.stream, tsc.consumerName());
             FetchConsumeOptions fco = FetchConsumeOptions.builder().maxMessages(10).noWait().build();
 
-            long veryFastExpected = 250;
-            long regularWaitExpected = 1000;
-
             // No Wait, No Messages
             FetchConsumer fc = cc.fetch(fco);
             int count = readMessages(fc);
@@ -287,13 +284,13 @@ public class SimplificationTests extends JetStreamTestBase {
             assertEquals(2, count); // 2 messages
 
             // With Expires, No Messages
-            fco = FetchConsumeOptions.builder().maxMessages(10).noWaitExpiresIn(regularWaitExpected).build();
+            fco = FetchConsumeOptions.builder().maxMessages(10).noWaitExpiresIn(1000).build();
             fc = cc.fetch(fco);
             count = readMessages(fc);
             assertEquals(0, count); // 0 messages
 
             // With Expires, One to Three Message
-            fco = FetchConsumeOptions.builder().maxMessages(10).noWaitExpiresIn(regularWaitExpected).build();
+            fco = FetchConsumeOptions.builder().maxMessages(10).noWaitExpiresIn(1000).build();
             fc = cc.fetch(fco);
             js.publish(tsc.subject(), "DATA-D".getBytes());
             js.publish(tsc.subject(), "DATA-E".getBytes());
