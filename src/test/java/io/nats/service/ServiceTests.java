@@ -261,6 +261,7 @@ public class ServiceTests extends JetStreamTestBase {
                     .build();
 
                 service1.addServiceEndpoints(seRev1);
+                sleep(100); // give the service some time to get running. remember it's got to subscribe on the server
 
                 for (int x = 0; x < requestCount; x++) {
                     verifyServiceExecution(clientNc, REVERSE_ENDPOINT_NAME, REVERSE_ENDPOINT_SUBJECT, null);

@@ -35,6 +35,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class StreamConfigurationTests extends JetStreamTestBase {
 
+    public static final String DEFAULT_STREAM_NAME = "sname";
+
     private StreamConfiguration getTestConfiguration() {
         String json = ResourceUtils.dataAsString("StreamConfiguration.json");
         StreamConfiguration sc = StreamConfiguration.instance(JsonParser.parseUnchecked(json));
@@ -46,7 +48,9 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     public void testRoundTrip() throws Exception {
         runInJsServer(si -> si.isNewerVersionThan("2.8.4"), nc -> {
             CompressionOption compressionOption = atLeast2_10(ensureRunServerInfo()) ? S2 : None;
+            String stream = stream();
             StreamConfiguration sc = StreamConfiguration.builder(getTestConfiguration())
+                .name(stream)
                 .mirror(null)
                 .sources()
                 .replicas(1)
@@ -58,7 +62,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 .compressionOption(compressionOption)
                 .build();
             JetStreamManagement jsm = nc.jetStreamManagement();
-            validate(jsm.addStream(sc).getConfiguration(), true);
+            validate(jsm.addStream(sc).getConfiguration(), true, stream);
         });
     }
 
@@ -66,9 +70,9 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     public void testSerializationDeserialization() throws Exception {
         String originalJson = ResourceUtils.dataAsString("StreamConfiguration.json");
         StreamConfiguration sc = StreamConfiguration.instance(originalJson);
-        validate(sc, false);
+        validate(sc, false, DEFAULT_STREAM_NAME);
         String serializedJson = sc.toJson();
-        validate(StreamConfiguration.instance(serializedJson), false);
+        validate(StreamConfiguration.instance(serializedJson), false, DEFAULT_STREAM_NAME);
     }
 
     @Test
@@ -144,13 +148,13 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     public void testConstruction() {
         StreamConfiguration testSc = getTestConfiguration();
         // from json
-        validate(testSc, false);
+        validate(testSc, false, DEFAULT_STREAM_NAME);
 
         // test toJson
-        validate(StreamConfiguration.instance(JsonParser.parseUnchecked(testSc.toJson())), false);
+        validate(StreamConfiguration.instance(JsonParser.parseUnchecked(testSc.toJson())), false, DEFAULT_STREAM_NAME);
 
         // copy constructor
-        validate(StreamConfiguration.builder(testSc).build(), false);
+        validate(StreamConfiguration.builder(testSc).build(), false, DEFAULT_STREAM_NAME);
 
         // builder
         StreamConfiguration.Builder builder = StreamConfiguration.builder()
@@ -189,15 +193,15 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 //            .allowMessageTtl(testSc.isAllowMessageTtl())
 //            .subjectDeleteMarkerTtl(testSc.getSubjectDeleteMarkerTtl())
             ;
-        validate(builder.build(), false);
-        validate(builder.addSources((Source)null).build(), false);
+        validate(builder.build(), false, DEFAULT_STREAM_NAME);
+        validate(builder.addSources((Source)null).build(), false, DEFAULT_STREAM_NAME);
 
         List<Source> sources = new ArrayList<>(testSc.getSources());
         sources.add(null);
         Source copy = new Source(JsonParser.parseUnchecked(sources.get(0).toJson()));
         assertEquals(sources.get(0).toString(), copy.toString());
         sources.add(copy);
-        validate(builder.addSources(sources).build(), false);
+        validate(builder.addSources(sources).build(), false, DEFAULT_STREAM_NAME);
 
         // covering add a single source
         sources = new ArrayList<>(testSc.getSources());
@@ -207,7 +211,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             builder.addSource(source);
         }
         builder.addSource(sources.get(0));
-        validate(builder.build(), false);
+        validate(builder.build(), false, DEFAULT_STREAM_NAME);
 
         // equals and hashcode coverage
         External external = copy.getExternal();
@@ -490,8 +494,8 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(DiscardPolicy.Old, builder.build().getDiscardPolicy());
     }
 
-    private void validate(StreamConfiguration sc, boolean serverTest) {
-        assertEquals("sname", sc.getName());
+    private void validate(StreamConfiguration sc, boolean serverTest, String name) {
+        assertEquals(name, sc.getName());
         assertEquals("blah blah", sc.getDescription());
         assertEquals(4, sc.getSubjects().size());
         assertEquals("foo", sc.getSubjects().get(0));

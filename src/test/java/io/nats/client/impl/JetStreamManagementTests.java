@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.support.DateTimeUtils.DEFAULT_TIME;
 import static io.nats.client.support.DateTimeUtils.ZONE_ID_GMT;
@@ -1375,5 +1376,262 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         assertEquals(seq > 0 && nextBySubject == null, mgr.isSequenceOnly());
         assertEquals(lastBySubject != null, mgr.isLastBySubject());
         assertEquals(nextBySubject != null, mgr.isNextBySubject());
+    }
+
+    @Test
+    public void testDirectMessageRepublishedSubject() throws Exception {
+        jsServer.run(TestBase::atLeast2_9_0, nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            String streamBucketName = "sb-" + variant(null);
+            String subject = subject();
+            String streamSubject = subject + ".>";
+            String publishSubject1 = subject + ".one";
+            String publishSubject2 = subject + ".two";
+            String publishSubject3 = subject + ".three";
+            String republishDest = "$KV." + streamBucketName + ".>";
+
+            StreamConfiguration sc = StreamConfiguration.builder()
+                .name(streamBucketName)
+                .storageType(StorageType.Memory)
+                .subjects(streamSubject)
+                .republish(Republish.builder().source(">").destination(republishDest).build())
+                .build();
+            jsm.addStream(sc);
+
+            KeyValueConfiguration kvc = KeyValueConfiguration.builder().name(streamBucketName).build();
+            nc.keyValueManagement().create(kvc);
+            KeyValue kv = nc.keyValue(streamBucketName);
+
+            nc.publish(publishSubject1, "uno".getBytes());
+            nc.jetStream().publish(publishSubject2, "dos".getBytes());
+            kv.put(publishSubject3, "tres");
+
+            KeyValueEntry kve1 = kv.get(publishSubject1);
+            assertEquals(streamBucketName, kve1.getBucket());
+            assertEquals(publishSubject1, kve1.getKey());
+            assertEquals("uno", kve1.getValueAsString());
+
+            KeyValueEntry kve2 = kv.get(publishSubject2);
+            assertEquals(streamBucketName, kve2.getBucket());
+            assertEquals(publishSubject2, kve2.getKey());
+            assertEquals("dos", kve2.getValueAsString());
+
+            KeyValueEntry kve3 = kv.get(publishSubject3);
+            assertEquals(streamBucketName, kve3.getBucket());
+            assertEquals(publishSubject3, kve3.getKey());
+            assertEquals("tres", kve3.getValueAsString());
+        });
+    }
+
+    @Test
+    public void testCreateConsumerUpdateConsumer() throws Exception {
+        jsServer.run(TestBase::atLeast2_9_0, nc -> {
+            String streamPrefix = variant();
+            JetStreamManagement jsmNew = nc.jetStreamManagement();
+            JetStreamManagement jsmPre290 = nc.jetStreamManagement(JetStreamOptions.builder().optOut290ConsumerCreate(true).build());
+
+            // --------------------------------------------------------
+            // New without filter
+            // --------------------------------------------------------
+            String stream1 = streamPrefix + "-new";
+            String name = name();
+            String subject = name();
+            createMemoryStream(jsmNew, stream1, subject + ".*");
+
+            ConsumerConfiguration cc11 = ConsumerConfiguration.builder().name(name).build();
+
+            // update no good when not exist
+            JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> jsmNew.updateConsumer(stream1, cc11));
+            assertEquals(10149, e.getApiErrorCode());
+
+            // initial create ok
+            ConsumerInfo ci = jsmNew.createConsumer(stream1, cc11);
+            assertEquals(name, ci.getName());
+            assertNull(ci.getConsumerConfiguration().getFilterSubject());
+
+            // any other create no good
+            e = assertThrows(JetStreamApiException.class, () -> jsmNew.createConsumer(stream1, cc11));
+            assertEquals(10148, e.getApiErrorCode());
+
+            // update ok when exists
+            ConsumerConfiguration cc12 = ConsumerConfiguration.builder().name(name).description(variant()).build();
+            ci = jsmNew.updateConsumer(stream1, cc12);
+            assertEquals(name, ci.getName());
+            assertNull(ci.getConsumerConfiguration().getFilterSubject());
+
+            // --------------------------------------------------------
+            // New with filter subject
+            // --------------------------------------------------------
+            String stream2 = streamPrefix + "-new-fs";
+            name = name();
+            subject = name();
+            String fs1 = subject + ".A";
+            String fs2 = subject + ".B";
+            createMemoryStream(jsmNew, stream2, subject + ".*");
+
+            ConsumerConfiguration cc21 = ConsumerConfiguration.builder().name(name).filterSubject(fs1).build();
+
+            // update no good when not exist
+            e = assertThrows(JetStreamApiException.class, () -> jsmNew.updateConsumer(stream2, cc21));
+            assertEquals(10149, e.getApiErrorCode());
+
+            // initial create ok
+            ci = jsmNew.createConsumer(stream2, cc21);
+            assertEquals(name, ci.getName());
+            assertEquals(fs1, ci.getConsumerConfiguration().getFilterSubject());
+
+            // any other create no good
+            e = assertThrows(JetStreamApiException.class, () -> jsmNew.createConsumer(stream2, cc21));
+            assertEquals(10148, e.getApiErrorCode());
+
+            // update ok when exists
+            ConsumerConfiguration cc22 = ConsumerConfiguration.builder().name(name).filterSubjects(fs2).build();
+            ci = jsmNew.updateConsumer(stream2, cc22);
+            assertEquals(name, ci.getName());
+            assertEquals(fs2, ci.getConsumerConfiguration().getFilterSubject());
+
+            // --------------------------------------------------------
+            // Pre 290 durable pathway
+            // --------------------------------------------------------
+            String stream3 = streamPrefix + "-old-durable";
+            name = name();
+            subject = name();
+            fs1 = subject + ".A";
+            fs2 = subject + ".B";
+            String fs3 = subject + ".C";
+            createMemoryStream(jsmPre290, stream3, subject + ".*");
+
+            ConsumerConfiguration cc31 = ConsumerConfiguration.builder().durable(name).filterSubject(fs1).build();
+
+            // update no good when not exist
+            e = assertThrows(JetStreamApiException.class, () -> jsmPre290.updateConsumer(stream3, cc31));
+            assertEquals(10149, e.getApiErrorCode());
+
+            // initial create ok
+            ci = jsmPre290.createConsumer(stream3, cc31);
+            assertEquals(name, ci.getName());
+            assertEquals(fs1, ci.getConsumerConfiguration().getFilterSubject());
+
+            // opt out of 209, create on existing ok
+            // This is not exactly the same behavior as with the new consumer create api, but it's what the server does
+            jsmPre290.createConsumer(stream3, cc31);
+
+            ConsumerConfiguration cc32 = ConsumerConfiguration.builder().durable(name).filterSubject(fs2).build();
+            e = assertThrows(JetStreamApiException.class, () -> jsmPre290.createConsumer(stream3, cc32));
+            assertEquals(10148, e.getApiErrorCode());
+
+            // update ok when exists
+            ConsumerConfiguration cc33 = ConsumerConfiguration.builder().durable(name).filterSubjects(fs3).build();
+            ci = jsmPre290.updateConsumer(stream3, cc33);
+            assertEquals(name, ci.getName());
+            assertEquals(fs3, ci.getConsumerConfiguration().getFilterSubject());
+
+            // --------------------------------------------------------
+            // Pre 290 ephemeral pathway
+            // --------------------------------------------------------
+            subject = name();
+
+            String stream4 = streamPrefix + "-old-ephemeral";
+            fs1 = subject + ".A";
+            createMemoryStream(jsmPre290, stream4, subject + ".*");
+
+            ConsumerConfiguration cc4 = ConsumerConfiguration.builder().filterSubject(fs1).build();
+
+            // update no good when not exist
+            e = assertThrows(JetStreamApiException.class, () -> jsmPre290.updateConsumer(stream4, cc4));
+            assertEquals(10149, e.getApiErrorCode());
+
+            // initial create ok
+            ci = jsmPre290.createConsumer(stream4, cc4);
+            assertEquals(fs1, ci.getConsumerConfiguration().getFilterSubject());
+        });
+    }
+
+    @Test
+    public void testNoRespondersWhenConsumerDeleted() throws Exception {
+        ListenerForTesting listener = new ListenerForTesting();
+        jsServer.run(new Options.Builder().errorListener(listener), TestBase::atLeast2_10_26, nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            JetStream js = nc.jetStream();
+
+            String stream = stream();
+            String subject = subject();
+
+            assertThrows(JetStreamApiException.class, () -> jsm.getMessage(stream, 1));
+
+            createMemoryStream(jsm, stream, subject);
+
+            for (int x = 0; x < 5; x++) {
+                js.publish(subject, null);
+            }
+
+            String consumer = create1026Consumer(jsm, stream, subject);
+            PullSubscribeOptions so = PullSubscribeOptions.fastBind(stream, consumer);
+            JetStreamSubscription sub = js.subscribe(null, so);
+            jsm.deleteConsumer(stream, consumer);
+            sub.pull(5);
+            validate1026(sub.nextMessage(500), listener, false);
+
+            ConsumerContext context = setupFor1026Simplification(nc, jsm, listener, stream, subject);
+            validate1026(context.next(1000), listener, true); // simplification next never raises warnings, so empty = true
+
+            context = setupFor1026Simplification(nc, jsm, listener, stream, subject);
+            //noinspection resource
+            FetchConsumer fc = context.fetch(FetchConsumeOptions.builder().maxMessages(1).raiseStatusWarnings(false).build());
+            validate1026(fc.nextMessage(), listener, true); // we said not to raise status warnings in the FetchConsumeOptions
+
+            context = setupFor1026Simplification(nc, jsm, listener, stream, subject);
+            //noinspection resource
+            fc = context.fetch(FetchConsumeOptions.builder().maxMessages(1).raiseStatusWarnings().build());
+            validate1026(fc.nextMessage(), listener, false); // we said raise status warnings in the FetchConsumeOptions
+
+            context = setupFor1026Simplification(nc, jsm, listener, stream, subject);
+            IterableConsumer ic = context.iterate(ConsumeOptions.builder().raiseStatusWarnings(false).build());
+            validate1026(ic.nextMessage(1000), listener, true); // we said not to raise status warnings in the ConsumeOptions
+
+            context = setupFor1026Simplification(nc, jsm, listener, stream, subject);
+            ic = context.iterate(ConsumeOptions.builder().raiseStatusWarnings().build());
+            validate1026(ic.nextMessage(1000), listener, false); // we said raise status warnings in the ConsumeOptions
+
+            AtomicInteger count = new AtomicInteger();
+            MessageHandler handler = m -> count.incrementAndGet();
+
+            context = setupFor1026Simplification(nc, jsm, listener, stream, subject);
+            //noinspection resource
+            context.consume(ConsumeOptions.builder().raiseStatusWarnings(false).build(), handler);
+            Thread.sleep(100); // give time to get a message
+            assertEquals(0, count.get());
+            validate1026(null, listener, true);
+
+            context = setupFor1026Simplification(nc, jsm, listener, stream, subject);
+            //noinspection resource
+            context.consume(ConsumeOptions.builder().raiseStatusWarnings().build(), handler);
+            Thread.sleep(100); // give time to get a message
+            assertEquals(0, count.get());
+            validate1026(null, listener, false);
+        });
+    }
+
+    private static void validate1026(Message m, ListenerForTesting listener, boolean empty) {
+        assertNull(m);
+        sleep(100); // give time for the message to get there
+        assertEquals(empty, listener.getPullStatusWarnings().isEmpty());
+    }
+
+    private static ConsumerContext setupFor1026Simplification(Connection nc, JetStreamManagement jsm, ListenerForTesting listener, String stream, String subject) throws IOException, JetStreamApiException {
+        listener.reset();
+        String consumer = create1026Consumer(jsm, stream, subject);
+        ConsumerContext cCtx = nc.getConsumerContext(stream, consumer);
+        jsm.deleteConsumer(stream, consumer);
+        return cCtx;
+    }
+
+    private static String create1026Consumer(JetStreamManagement jsm, String stream, String subject) throws IOException, JetStreamApiException {
+        String consumer = name();
+        jsm.addOrUpdateConsumer(stream, ConsumerConfiguration.builder()
+            .durable(consumer)
+            .filterSubject(subject)
+            .build());
+        return consumer;
     }
 }

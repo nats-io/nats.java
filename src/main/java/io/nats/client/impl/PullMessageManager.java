@@ -153,6 +153,7 @@ class PullMessageManager extends MessageManager {
         switch (status.getCode()) {
             case NOT_FOUND_CODE:
             case REQUEST_TIMEOUT_CODE:
+            case NO_RESPONDERS_CODE:
                 if (raiseStatusWarnings) {
                     conn.executeCallback((c, el) -> el.pullStatusWarning(c, sub, status));
                 }
