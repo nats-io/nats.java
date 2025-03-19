@@ -21,6 +21,7 @@ import io.nats.client.support.JsonValue;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonValueUtils.readBoolean;
 import static io.nats.client.support.JsonValueUtils.readInteger;
 import static io.nats.client.support.JsonValueUtils.readLong;
 import static io.nats.client.support.JsonValueUtils.*;
@@ -43,11 +44,11 @@ public class BaseConsumeOptions implements JsonSerializable {
     protected final long expiresIn;
     protected final long idleHeartbeat;
     protected final int thresholdPercent;
-    protected final boolean noWait;
-    protected final boolean raiseStatusWarnings;
     protected final String group;
     protected final long minPending;
     protected final long minAckPending;
+    protected final boolean noWait;
+    protected final boolean raiseStatusWarnings;
 
     protected BaseConsumeOptions(Builder<?, ?> b) {
         bytes = b.bytes;
@@ -58,14 +59,14 @@ public class BaseConsumeOptions implements JsonSerializable {
             messages = b.messages < 0 ? DEFAULT_MESSAGE_COUNT : b.messages;
         }
 
+        this.group = b.group;
+        this.minPending = b.minPending;
+        this.minAckPending = b.minAckPending;
+
         // validation handled in builder
         thresholdPercent = b.thresholdPercent;
         noWait = b.noWait;
         raiseStatusWarnings = b.raiseStatusWarnings;
-
-        this.group = b.group;
-        this.minPending = b.minPending;
-        this.minAckPending = b.minAckPending;
 
         // if it's not noWait, it must have an expiresIn
         // we can't check this in the builder because we can't guarantee order
@@ -89,12 +90,11 @@ public class BaseConsumeOptions implements JsonSerializable {
         addField(sb, EXPIRES_IN, expiresIn);
         addField(sb, IDLE_HEARTBEAT, idleHeartbeat);
         addField(sb, THRESHOLD_PERCENT, thresholdPercent);
-        addFldWhenTrue(sb, RAISE_STATUS_WARNINGS, raiseStatusWarnings);
-        addFldWhenTrue(sb, NO_WAIT, noWait);
-        addFldWhenTrue(sb, RAISE_STATUS_WARNINGS, raiseStatusWarnings);
         addField(sb, GROUP, group);
         addField(sb, MIN_PENDING, minPending);
         addField(sb, MIN_ACK_PENDING, minAckPending);
+        addFldWhenTrue(sb, NO_WAIT, noWait);
+        addFldWhenTrue(sb, RAISE_STATUS_WARNINGS, raiseStatusWarnings);
         return endJson(sb).toString();
     }
 
