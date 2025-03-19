@@ -16,7 +16,6 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.Error;
 import io.nats.client.api.*;
-import io.nats.client.support.Debug;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -65,7 +64,6 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
         }
 
         String subj = String.format(template, streamName);
-        Debug.info("S", subj, config.toJson());
         Message resp = makeRequestResponseRequired(subj, config.toJson().getBytes(StandardCharsets.UTF_8), getTimeout());
         return createAndCacheStreamInfoThrowOnError(streamName, resp);
     }
