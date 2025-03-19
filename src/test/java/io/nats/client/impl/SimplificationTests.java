@@ -249,6 +249,75 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testFetchNoWaitPlusExpires() throws Exception {
+        jsServer.run(TestBase::atLeast2_9_1, nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
+            JetStream js = nc.jetStream();
+
+            jsm.addOrUpdateConsumer(tsc.stream, ConsumerConfiguration.builder()
+                .name(tsc.consumerName())
+                .inactiveThreshold(100000) // I could have used a durable, but this is long enough for the test
+                .filterSubject(tsc.subject())
+                .build());
+
+            ConsumerContext cc = nc.getConsumerContext(tsc.stream, tsc.consumerName());
+            FetchConsumeOptions fco = FetchConsumeOptions.builder().maxMessages(10).noWait().build();
+
+            // No Wait, No Messages
+            FetchConsumer fc = cc.fetch(fco);
+            int count = readMessages(fc);
+            assertEquals(0, count); // no messages
+
+            // No Wait, One Message
+            js.publish(tsc.subject(), "DATA-A".getBytes());
+            fc = cc.fetch(fco);
+            count = readMessages(fc);
+            assertEquals(1, count); // 1 message
+
+            // No Wait, Two Messages
+            js.publish(tsc.subject(), "DATA-B".getBytes());
+            js.publish(tsc.subject(), "DATA-C".getBytes());
+            fc = cc.fetch(fco);
+            count = readMessages(fc);
+            assertEquals(2, count); // 2 messages
+
+            // With Expires, No Messages
+            fco = FetchConsumeOptions.builder().maxMessages(10).noWaitExpiresIn(1000).build();
+            fc = cc.fetch(fco);
+            count = readMessages(fc);
+            assertEquals(0, count); // 0 messages
+
+            // With Expires, One to Three Message
+            fco = FetchConsumeOptions.builder().maxMessages(10).noWaitExpiresIn(1000).build();
+            fc = cc.fetch(fco);
+            js.publish(tsc.subject(), "DATA-D".getBytes());
+            js.publish(tsc.subject(), "DATA-E".getBytes());
+            js.publish(tsc.subject(), "DATA-F".getBytes());
+            count = readMessages(fc);
+
+            // With Long (Default) Expires, Leftovers
+            long left = 3 - count;
+            fc = cc.fetch(fco);
+            count = readMessages(fc);
+            assertEquals(left, count);
+        });
+    }
+
+    private static int readMessages(FetchConsumer fc) throws InterruptedException, JetStreamStatusCheckedException {
+        int count = 0;
+        while (!fc.isFinished()) {
+            Message m = fc.nextMessage();
+            if (m != null) {
+                m.ack();
+                ++count;
+            }
+        }
+        return count;
+    }
+
+    @Test
     public void testIterableConsumer() throws Exception {
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();

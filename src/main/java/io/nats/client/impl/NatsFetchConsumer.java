@@ -20,6 +20,7 @@ import io.nats.client.api.ConsumerInfo;
 import java.io.IOException;
 
 import static io.nats.client.BaseConsumeOptions.MIN_EXPIRES_MILLS;
+import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
 
 class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer, PullManagerObserver {
     private final boolean isNoWaitNoExpires;
@@ -39,11 +40,11 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
 
         long inactiveThreshold;
         if (expiresInMillis == ConsumerConfiguration.LONG_UNSET) { // can be for noWait
-            maxWaitNanos = MIN_EXPIRES_MILLS * 1_000_000;
+            maxWaitNanos = MIN_EXPIRES_MILLS * NANOS_PER_MILLI;
             inactiveThreshold = MIN_EXPIRES_MILLS; // no need to do the 10% longer
         }
         else {
-            maxWaitNanos = expiresInMillis * 1_000_000;
+            maxWaitNanos = expiresInMillis * NANOS_PER_MILLI;
             inactiveThreshold = expiresInMillis * 110 / 100; // 10% longer than the wait
         }
 
