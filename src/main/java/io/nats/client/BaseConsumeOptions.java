@@ -142,6 +142,7 @@ public class BaseConsumeOptions implements JsonSerializable {
             bytes(readLong(jsonValue, BYTES, -1));
             expiresIn(readLong(jsonValue, EXPIRES_IN, MIN_EXPIRES_MILLS));
             thresholdPercent(readInteger(jsonValue, THRESHOLD_PERCENT, -1));
+            raiseStatusWarnings(readBoolean(jsonValue, RAISE_STATUS_WARNINGS, false));
             if (readBoolean(jsonValue, NO_WAIT, false)) {
                 noWait();
             }
