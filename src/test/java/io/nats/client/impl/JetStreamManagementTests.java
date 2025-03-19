@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.support.DateTimeUtils.DEFAULT_TIME;
 import static io.nats.client.support.DateTimeUtils.ZONE_ID_GMT;
@@ -1544,5 +1545,93 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             ci = jsmPre290.createConsumer(stream4, cc4);
             assertEquals(fs1, ci.getConsumerConfiguration().getFilterSubject());
         });
+    }
+
+    @Test
+    public void testNoRespondersWhenConsumerDeleted() throws Exception {
+        ListenerForTesting listener = new ListenerForTesting();
+        jsServer.run(new Options.Builder().errorListener(listener), TestBase::atLeast2_10_26, nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            JetStream js = nc.jetStream();
+
+            String stream = stream();
+            String subject = subject();
+
+            assertThrows(JetStreamApiException.class, () -> jsm.getMessage(stream, 1));
+
+            createMemoryStream(jsm, stream, subject);
+
+            for (int x = 0; x < 5; x++) {
+                js.publish(subject, null);
+            }
+
+            String consumer = create1026Consumer(jsm, stream, subject);
+            PullSubscribeOptions so = PullSubscribeOptions.fastBind(stream, consumer);
+            JetStreamSubscription sub = js.subscribe(null, so);
+            jsm.deleteConsumer(stream, consumer);
+            sub.pull(5);
+            validate1026(sub.nextMessage(500), listener, false);
+
+            ConsumerContext context = setupFor1026Simplification(nc, jsm, listener, stream, subject);
+            validate1026(context.next(1000), listener, true); // simplification next never raises warnings, so empty = true
+
+            context = setupFor1026Simplification(nc, jsm, listener, stream, subject);
+            //noinspection resource
+            FetchConsumer fc = context.fetch(FetchConsumeOptions.builder().maxMessages(1).raiseStatusWarnings(false).build());
+            validate1026(fc.nextMessage(), listener, true); // we said not to raise status warnings in the FetchConsumeOptions
+
+            context = setupFor1026Simplification(nc, jsm, listener, stream, subject);
+            //noinspection resource
+            fc = context.fetch(FetchConsumeOptions.builder().maxMessages(1).raiseStatusWarnings().build());
+            validate1026(fc.nextMessage(), listener, false); // we said raise status warnings in the FetchConsumeOptions
+
+            context = setupFor1026Simplification(nc, jsm, listener, stream, subject);
+            IterableConsumer ic = context.iterate(ConsumeOptions.builder().raiseStatusWarnings(false).build());
+            validate1026(ic.nextMessage(1000), listener, true); // we said not to raise status warnings in the ConsumeOptions
+
+            context = setupFor1026Simplification(nc, jsm, listener, stream, subject);
+            ic = context.iterate(ConsumeOptions.builder().raiseStatusWarnings().build());
+            validate1026(ic.nextMessage(1000), listener, false); // we said raise status warnings in the ConsumeOptions
+
+            AtomicInteger count = new AtomicInteger();
+            MessageHandler handler = m -> count.incrementAndGet();
+
+            context = setupFor1026Simplification(nc, jsm, listener, stream, subject);
+            //noinspection resource
+            context.consume(ConsumeOptions.builder().raiseStatusWarnings(false).build(), handler);
+            Thread.sleep(100); // give time to get a message
+            assertEquals(0, count.get());
+            validate1026(null, listener, true);
+
+            context = setupFor1026Simplification(nc, jsm, listener, stream, subject);
+            //noinspection resource
+            context.consume(ConsumeOptions.builder().raiseStatusWarnings().build(), handler);
+            Thread.sleep(100); // give time to get a message
+            assertEquals(0, count.get());
+            validate1026(null, listener, false);
+        });
+    }
+
+    private static void validate1026(Message m, ListenerForTesting listener, boolean empty) {
+        assertNull(m);
+        sleep(100); // give time for the message to get there
+        assertEquals(empty, listener.getPullStatusWarnings().isEmpty());
+    }
+
+    private static ConsumerContext setupFor1026Simplification(Connection nc, JetStreamManagement jsm, ListenerForTesting listener, String stream, String subject) throws IOException, JetStreamApiException {
+        listener.reset();
+        String consumer = create1026Consumer(jsm, stream, subject);
+        ConsumerContext cCtx = nc.getConsumerContext(stream, consumer);
+        jsm.deleteConsumer(stream, consumer);
+        return cCtx;
+    }
+
+    private static String create1026Consumer(JetStreamManagement jsm, String stream, String subject) throws IOException, JetStreamApiException {
+        String consumer = name();
+        jsm.addOrUpdateConsumer(stream, ConsumerConfiguration.builder()
+            .durable(consumer)
+            .filterSubject(subject)
+            .build());
+        return consumer;
     }
 }

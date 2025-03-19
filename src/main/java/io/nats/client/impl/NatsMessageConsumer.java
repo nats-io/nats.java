@@ -92,6 +92,6 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
             .expiresIn(opts.getExpiresInMillis())
             .idleHeartbeat(opts.getIdleHeartbeat())
             .build();
-        sub._pull(pro, false, this);
+        sub._pull(pro, opts.raiseStatusWarnings(), this);
     }
 }

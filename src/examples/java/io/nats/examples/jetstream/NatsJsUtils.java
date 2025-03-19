@@ -80,7 +80,7 @@ public class NatsJsUtils {
 
     public static StreamInfo createOrReplaceStream(JetStreamManagement jsm, String stream, StorageType storageType, String... subjects) {
         // in case the stream was here before, we want a completely new one
-        try { jsm.deleteStream(stream); } catch (Exception ignore) {}
+        safeDeleteStream(jsm, stream);
 
         try {
             return jsm.addStream(StreamConfiguration.builder()
@@ -467,10 +467,7 @@ public class NatsJsUtils {
     }
 
     public static void createCleanMemStream(JetStreamManagement jsm, String stream, String... subs) throws IOException, JetStreamApiException {
-        try {
-            jsm.deleteStream(stream);
-        }
-        catch (Exception ignore) {}
+        safeDeleteStream(jsm, stream);
 
         StreamConfiguration sc = StreamConfiguration.builder()
             .name(stream)
@@ -478,5 +475,12 @@ public class NatsJsUtils {
             .subjects(subs)
             .build();
         jsm.addStream(sc);
+    }
+
+    public static void safeDeleteStream(JetStreamManagement jsm, String stream) {
+        try {
+            jsm.deleteStream(stream);
+        }
+        catch (Exception ignore) {}
     }
 }

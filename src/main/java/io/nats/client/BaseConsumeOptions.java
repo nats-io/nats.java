@@ -44,6 +44,7 @@ public class BaseConsumeOptions implements JsonSerializable {
     protected final long idleHeartbeat;
     protected final int thresholdPercent;
     protected final boolean noWait;
+    protected final boolean raiseStatusWarnings;
 
     @SuppressWarnings("rawtypes") // Don't need the type of the builder to get its vars
     protected BaseConsumeOptions(Builder b) {
@@ -58,6 +59,7 @@ public class BaseConsumeOptions implements JsonSerializable {
         // validation handled in builder
         thresholdPercent = b.thresholdPercent;
         noWait = b.noWait;
+        raiseStatusWarnings = b.raiseStatusWarnings;
 
         // if it's not noWait, it must have an expiresIn
         // we can't check this in the builder because we can't guarantee order
@@ -81,6 +83,7 @@ public class BaseConsumeOptions implements JsonSerializable {
         addField(sb, EXPIRES_IN, expiresIn);
         addField(sb, IDLE_HEARTBEAT, idleHeartbeat);
         addField(sb, THRESHOLD_PERCENT, thresholdPercent);
+        addFldWhenTrue(sb, RAISE_STATUS_WARNINGS, raiseStatusWarnings);
         addFldWhenTrue(sb, NO_WAIT, noWait);
         return endJson(sb).toString();
     }
@@ -101,12 +104,17 @@ public class BaseConsumeOptions implements JsonSerializable {
         return noWait;
     }
 
+    public boolean raiseStatusWarnings() {
+        return raiseStatusWarnings;
+    }
+
     protected static abstract class Builder<B, CO> {
         protected int messages = -1;
         protected long bytes = 0;
         protected int thresholdPercent = DEFAULT_THRESHOLD_PERCENT;
         protected long expiresIn = DEFAULT_EXPIRES_IN_MILLIS;
         protected boolean noWait = false;
+        protected boolean raiseStatusWarnings = false;
 
         protected abstract B getThis();
 
@@ -134,6 +142,7 @@ public class BaseConsumeOptions implements JsonSerializable {
             bytes(readLong(jsonValue, BYTES, -1));
             expiresIn(readLong(jsonValue, EXPIRES_IN, MIN_EXPIRES_MILLS));
             thresholdPercent(readInteger(jsonValue, THRESHOLD_PERCENT, -1));
+            raiseStatusWarnings(readBoolean(jsonValue, RAISE_STATUS_WARNINGS, false));
             if (readBoolean(jsonValue, NO_WAIT, false)) {
                 noWait();
             }
@@ -187,6 +196,26 @@ public class BaseConsumeOptions implements JsonSerializable {
          */
         public B thresholdPercent(int thresholdPercent) {
             this.thresholdPercent = thresholdPercent < 1 ? DEFAULT_THRESHOLD_PERCENT : Math.min(100, thresholdPercent);
+            return getThis();
+        }
+
+        /**
+         * Raise status warning turns on sending status messages to the error listener.
+         * The default of to not raise status warning
+         * @return the builder
+         */
+        public B raiseStatusWarnings() {
+            this.raiseStatusWarnings = true;
+            return getThis();
+        }
+
+        /**
+         * Turn on or off raise status warning turns. When on, status messages are sent to the error listener.
+         * The default of to not raise status warning
+         * @return the builder
+         */
+        public B raiseStatusWarnings(boolean raiseStatusWarnings) {
+            this.raiseStatusWarnings = raiseStatusWarnings;
             return getThis();
         }
 
