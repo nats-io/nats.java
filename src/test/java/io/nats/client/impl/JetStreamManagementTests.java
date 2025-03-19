@@ -1548,14 +1548,14 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     }
 
     @Test
-    public void test1026() throws Exception {
+    public void testNoRespondersWhenConsumerDeleted() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
         jsServer.run(new Options.Builder().errorListener(listener), TestBase::atLeast2_10_26, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
             JetStream js = nc.jetStream();
 
             String stream = stream();
-            String subject = stream();
+            String subject = subject();
 
             assertThrows(JetStreamApiException.class, () -> jsm.getMessage(stream, 1));
 
@@ -1603,7 +1603,6 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(0, count.get());
             validate1026(null, listener, true);
 
-
             context = setupFor1026Simplification(nc, jsm, listener, stream, subject);
             //noinspection resource
             context.consume(ConsumeOptions.builder().raiseStatusWarnings().build(), handler);
@@ -1613,9 +1612,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         });
     }
 
-    private static void validate1026(Message m, ListenerForTesting listener, boolean empty) throws InterruptedException {
+    private static void validate1026(Message m, ListenerForTesting listener, boolean empty) {
         assertNull(m);
-        Thread.sleep(100); // give time for the message to get there
+        sleep(100); // give time for the message to get there
         assertEquals(empty, listener.getPullStatusWarnings().isEmpty());
     }
 

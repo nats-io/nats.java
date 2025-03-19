@@ -56,11 +56,10 @@ public class BaseConsumeOptions implements JsonSerializable {
             messages = b.messages < 0 ? DEFAULT_MESSAGE_COUNT : b.messages;
         }
 
-        this.raiseStatusWarnings = b.raiseStatusWarnings;
-
         // validation handled in builder
         thresholdPercent = b.thresholdPercent;
         noWait = b.noWait;
+        raiseStatusWarnings = b.raiseStatusWarnings;
 
         // if it's not noWait, it must have an expiresIn
         // we can't check this in the builder because we can't guarantee order
