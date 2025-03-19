@@ -14,6 +14,12 @@
 package io.nats.client;
 
 import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.support.JsonValue;
+
+import static io.nats.client.support.ApiConstants.EXPIRES_IN;
+import static io.nats.client.support.ApiConstants.NO_WAIT;
+import static io.nats.client.support.JsonValueUtils.readBoolean;
+import static io.nats.client.support.JsonValueUtils.readLong;
 
 /**
  * Fetch Consume Options are provided to customize the fetch operation.
@@ -49,6 +55,15 @@ public class FetchConsumeOptions extends BaseConsumeOptions {
         extends BaseConsumeOptions.Builder<Builder, FetchConsumeOptions> {
 
         protected Builder getThis() { return this; }
+
+        @Override
+        public Builder jsonValue(JsonValue jsonValue) {
+            super.jsonValue(jsonValue);
+            if (readBoolean(jsonValue, NO_WAIT, false)) {
+                noWaitExpiresIn(readLong(jsonValue, EXPIRES_IN, ConsumerConfiguration.LONG_UNSET));
+            }
+            return this;
+        }
 
         /**
          * Set the maximum number of messages to fetch and remove any previously set {@link #maxBytes(long)} constraint.
@@ -94,12 +109,20 @@ public class FetchConsumeOptions extends BaseConsumeOptions {
             return bytes(maxBytes);
         }
 
+        @Override
+        public Builder expiresIn(long expiresInMillis) {
+            if (noWait && expiresInMillis < 1) {
+                expiresIn = ConsumerConfiguration.LONG_UNSET;
+                return this;
+            }
+            return super.expiresIn(expiresInMillis);
+        }
+
         /**
          * Set no wait to true
          * When no wait is true, the fetch will return immediately with as many messages as are available. Between zero and the maximum configured.
          * @return the builder
          */
-        @Override
         public Builder noWait() {
             this.noWait = true;
             expiresIn = ConsumerConfiguration.LONG_UNSET;
@@ -115,8 +138,7 @@ public class FetchConsumeOptions extends BaseConsumeOptions {
          */
         public Builder noWaitExpiresIn(long expiresInMillis) {
             this.noWait = true;
-            expiresIn(expiresInMillis);
-            return this;
+            return expiresIn(expiresInMillis);
         }
 
         /**
