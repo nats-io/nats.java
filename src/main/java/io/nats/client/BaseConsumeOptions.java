@@ -44,10 +44,11 @@ public class BaseConsumeOptions implements JsonSerializable {
     protected final long expiresIn;
     protected final long idleHeartbeat;
     protected final int thresholdPercent;
-    protected final boolean noWait;
     protected final String group;
     protected final long minPending;
     protected final long minAckPending;
+    protected final boolean noWait;
+    protected final boolean raiseStatusWarnings;
 
     protected BaseConsumeOptions(Builder<?, ?> b) {
         bytes = b.bytes;
@@ -65,6 +66,7 @@ public class BaseConsumeOptions implements JsonSerializable {
         // validation handled in builder
         thresholdPercent = b.thresholdPercent;
         noWait = b.noWait;
+        raiseStatusWarnings = b.raiseStatusWarnings;
 
         // if it's not noWait, it must have an expiresIn
         // we can't check this in the builder because we can't guarantee order
@@ -88,10 +90,11 @@ public class BaseConsumeOptions implements JsonSerializable {
         addField(sb, EXPIRES_IN, expiresIn);
         addField(sb, IDLE_HEARTBEAT, idleHeartbeat);
         addField(sb, THRESHOLD_PERCENT, thresholdPercent);
-        addFldWhenTrue(sb, NO_WAIT, noWait);
         addField(sb, GROUP, group);
         addField(sb, MIN_PENDING, minPending);
         addField(sb, MIN_ACK_PENDING, minAckPending);
+        addFldWhenTrue(sb, NO_WAIT, noWait);
+        addFldWhenTrue(sb, RAISE_STATUS_WARNINGS, raiseStatusWarnings);
         return endJson(sb).toString();
     }
 
@@ -109,6 +112,10 @@ public class BaseConsumeOptions implements JsonSerializable {
 
     public boolean isNoWait() {
         return noWait;
+    }
+
+    public boolean raiseStatusWarnings() {
+        return raiseStatusWarnings;
     }
 
     public String getGroup() {
@@ -129,15 +136,12 @@ public class BaseConsumeOptions implements JsonSerializable {
         protected int thresholdPercent = DEFAULT_THRESHOLD_PERCENT;
         protected long expiresIn = DEFAULT_EXPIRES_IN_MILLIS;
         protected boolean noWait = false;
+        protected boolean raiseStatusWarnings = false;
         protected String group;
         protected long minPending = -1;
         protected long minAckPending = -1;
 
         protected abstract B getThis();
-
-        protected B noWait() {
-            return getThis();
-        }
 
         /**
          * Initialize values from the json string.
@@ -159,9 +163,7 @@ public class BaseConsumeOptions implements JsonSerializable {
             bytes(readLong(jsonValue, BYTES, -1));
             expiresIn(readLong(jsonValue, EXPIRES_IN, MIN_EXPIRES_MILLS));
             thresholdPercent(readInteger(jsonValue, THRESHOLD_PERCENT, -1));
-            if (readBoolean(jsonValue, NO_WAIT, false)) {
-                noWait();
-            }
+            raiseStatusWarnings(readBoolean(jsonValue, RAISE_STATUS_WARNINGS, false));
             group(readStringEmptyAsNull(jsonValue, GROUP));
             minPending(readLong(jsonValue, MIN_PENDING, -1));
             minAckPending(readLong(jsonValue, MIN_ACK_PENDING, -1));
@@ -188,8 +190,8 @@ public class BaseConsumeOptions implements JsonSerializable {
          * @return the builder
          */
         public B expiresIn(long expiresInMillis) {
-            if (expiresInMillis < 1) { // this is way to clear or reset, just a code guard really
-                expiresIn = ConsumerConfiguration.LONG_UNSET;
+            if (expiresInMillis < 1) {
+                expiresIn = DEFAULT_EXPIRES_IN_MILLIS;
             }
             else if (expiresInMillis < MIN_EXPIRES_MILLS) {
                 throw new IllegalArgumentException("Expires must be greater than or equal to " + MIN_EXPIRES_MILLS);
@@ -215,6 +217,26 @@ public class BaseConsumeOptions implements JsonSerializable {
          */
         public B thresholdPercent(int thresholdPercent) {
             this.thresholdPercent = thresholdPercent < 1 ? DEFAULT_THRESHOLD_PERCENT : Math.min(100, thresholdPercent);
+            return getThis();
+        }
+
+        /**
+         * Raise status warning turns on sending status messages to the error listener.
+         * The default of to not raise status warning
+         * @return the builder
+         */
+        public B raiseStatusWarnings() {
+            this.raiseStatusWarnings = true;
+            return getThis();
+        }
+
+        /**
+         * Turn on or off raise status warning turns. When on, status messages are sent to the error listener.
+         * The default of to not raise status warning
+         * @return the builder
+         */
+        public B raiseStatusWarnings(boolean raiseStatusWarnings) {
+            this.raiseStatusWarnings = raiseStatusWarnings;
             return getThis();
         }
 
