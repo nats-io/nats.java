@@ -105,7 +105,7 @@ public class StreamConfiguration implements JsonSerializable {
         builder.metadata(readStringStringMap(v, METADATA));
         builder.firstSequence(readLong(v, FIRST_SEQ, 1));
         // builder.allowMessageTtl(readBoolean(v, ALLOW_MSG_TTL));
-        builder.subjectDeleteMarkerTtl(readNanos(v, SUBJECT_DELETE_MARKER_TTL));
+        // builder.subjectDeleteMarkerTtl(readNanos(v, SUBJECT_DELETE_MARKER_TTL));
         return builder.build();
     }
 
@@ -1079,16 +1079,16 @@ public class StreamConfiguration implements JsonSerializable {
 //            return this;
 //        }
 
-        /**
-         * The time delete marker TTL duration. Server accepts 1 second or more.
-         * CLIENT DOES NOT VALIDATE
-         * @param subjectDeleteMarkerTtl the TTL duration
-         * @return The Builder
-         */
-        public Builder subjectDeleteMarkerTtl(Duration subjectDeleteMarkerTtl) {
-            this.subjectDeleteMarkerTtl = subjectDeleteMarkerTtl;
-            return this;
-        }
+//        /**
+//         * The time delete marker TTL duration. Server accepts 1 second or more.
+//         * CLIENT DOES NOT VALIDATE
+//         * @param subjectDeleteMarkerTtl the TTL duration
+//         * @return The Builder
+//         */
+//        public Builder subjectDeleteMarkerTtl(Duration subjectDeleteMarkerTtl) {
+//            this.subjectDeleteMarkerTtl = subjectDeleteMarkerTtl;
+//            return this;
+//        }
 
         /**
          * Builds the StreamConfiguration

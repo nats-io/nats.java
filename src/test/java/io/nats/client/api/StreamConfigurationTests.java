@@ -187,7 +187,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             .firstSequence(testSc.getFirstSequence())
             .consumerLimits(testSc.getConsumerLimits())
 //            .allowMessageTtl(testSc.isAllowMessageTtl())
-            .subjectDeleteMarkerTtl(testSc.getSubjectDeleteMarkerTtl())
+//            .subjectDeleteMarkerTtl(testSc.getSubjectDeleteMarkerTtl())
             ;
         validate(builder.build(), false);
         validate(builder.addSources((Source)null).build(), false);
@@ -515,7 +515,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertSame(DiscardPolicy.New, sc.getDiscardPolicy());
 
 //        assertTrue(sc.isAllowMessageTtl());
-        assertEquals(Duration.ofNanos(73000000000L), sc.getSubjectDeleteMarkerTtl());
+//        assertEquals(Duration.ofNanos(73000000000L), sc.getSubjectDeleteMarkerTtl());
 
         assertNotNull(sc.getPlacement());
         assertEquals("clstr", sc.getPlacement().getCluster());
