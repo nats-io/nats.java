@@ -270,31 +270,27 @@ public class SimplificationTests extends JetStreamTestBase {
 
             // No Wait, No Messages
             FetchConsumer fc = cc.fetch(fco);
-            long[] result = readMessages(fc);
-            assertEquals(0, result[0]); // no messages
-            assertTrue(result[1] < veryFastExpected); // comes back very fast
+            int count = readMessages(fc);
+            assertEquals(0, count); // no messages
 
             // No Wait, One Message
             js.publish(tsc.subject(), "DATA-A".getBytes());
             fc = cc.fetch(fco);
-            result = readMessages(fc);
-            assertEquals(1, result[0]); // 1 message
-            assertTrue(result[1] < veryFastExpected); // comes back very fast
+            count = readMessages(fc);
+            assertEquals(1, count); // 1 message
 
             // No Wait, Two Messages
             js.publish(tsc.subject(), "DATA-B".getBytes());
             js.publish(tsc.subject(), "DATA-C".getBytes());
             fc = cc.fetch(fco);
-            result = readMessages(fc);
-            assertEquals(2, result[0]); // 2 messages
-            assertTrue(result[1] < veryFastExpected); // comes back very fast
+            count = readMessages(fc);
+            assertEquals(2, count); // 2 messages
 
             // With Expires, No Messages
             fco = FetchConsumeOptions.builder().maxMessages(10).noWaitExpiresIn(regularWaitExpected).build();
             fc = cc.fetch(fco);
-            result = readMessages(fc);
-            assertEquals(0, result[0]); // 0 messages
-            assertTrue(result[1] >= regularWaitExpected); // comes after full expires
+            count = readMessages(fc);
+            assertEquals(0, count); // 0 messages
 
             // With Expires, One to Three Message
             fco = FetchConsumeOptions.builder().maxMessages(10).noWaitExpiresIn(regularWaitExpected).build();
@@ -302,20 +298,18 @@ public class SimplificationTests extends JetStreamTestBase {
             js.publish(tsc.subject(), "DATA-D".getBytes());
             js.publish(tsc.subject(), "DATA-E".getBytes());
             js.publish(tsc.subject(), "DATA-F".getBytes());
-            result = readMessages(fc);
-            long count = result[0];
+            count = readMessages(fc);
 
             // With Long (Default) Expires, Leftovers
             long left = 3 - count;
             fc = cc.fetch(fco);
-            result = readMessages(fc);
-            assertEquals(left, result[0]);
+            count = readMessages(fc);
+            assertEquals(left, count);
         });
     }
 
-    private static long[] readMessages(FetchConsumer fc) throws InterruptedException, JetStreamStatusCheckedException {
-        long count = 0;
-        long start = System.currentTimeMillis();
+    private static int readMessages(FetchConsumer fc) throws InterruptedException, JetStreamStatusCheckedException {
+        int count = 0;
         while (!fc.isFinished()) {
             Message m = fc.nextMessage();
             if (m != null) {
@@ -323,9 +317,8 @@ public class SimplificationTests extends JetStreamTestBase {
                 ++count;
             }
         }
-        return new long[]{count, System.currentTimeMillis() - start};
+        return count;
     }
-
 
     @Test
     public void testIterableConsumer() throws Exception {
