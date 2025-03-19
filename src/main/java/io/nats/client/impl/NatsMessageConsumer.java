@@ -95,6 +95,6 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
             .minPending(consumeOpts.getMinPending())
             .minAckPending(consumeOpts.getMinAckPending())
             .build();
-        sub._pull(pro, false, this);
+        sub._pull(pro, opts.raiseStatusWarnings(), this);
     }
 }

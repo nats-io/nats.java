@@ -45,6 +45,7 @@ public class BaseConsumeOptions implements JsonSerializable {
     protected final long idleHeartbeat;
     protected final int thresholdPercent;
     protected final boolean noWait;
+    protected final boolean raiseStatusWarnings;
     protected final String group;
     protected final long minPending;
     protected final long minAckPending;
@@ -58,13 +59,14 @@ public class BaseConsumeOptions implements JsonSerializable {
             messages = b.messages < 0 ? DEFAULT_MESSAGE_COUNT : b.messages;
         }
 
-        this.group = b.group;
-        this.minPending = b.minPending;
-        this.minAckPending = b.minAckPending;
-
         // validation handled in builder
         thresholdPercent = b.thresholdPercent;
         noWait = b.noWait;
+        raiseStatusWarnings = b.raiseStatusWarnings;
+
+        this.group = b.group;
+        this.minPending = b.minPending;
+        this.minAckPending = b.minAckPending;
 
         // if it's not noWait, it must have an expiresIn
         // we can't check this in the builder because we can't guarantee order
@@ -89,6 +91,7 @@ public class BaseConsumeOptions implements JsonSerializable {
         addField(sb, IDLE_HEARTBEAT, idleHeartbeat);
         addField(sb, THRESHOLD_PERCENT, thresholdPercent);
         addFldWhenTrue(sb, NO_WAIT, noWait);
+        addFldWhenTrue(sb, RAISE_STATUS_WARNINGS, raiseStatusWarnings);
         addField(sb, GROUP, group);
         addField(sb, MIN_PENDING, minPending);
         addField(sb, MIN_ACK_PENDING, minAckPending);
@@ -111,6 +114,10 @@ public class BaseConsumeOptions implements JsonSerializable {
         return noWait;
     }
 
+    public boolean raiseStatusWarnings() {
+        return raiseStatusWarnings;
+    }
+
     public String getGroup() {
         return group;
     }
@@ -129,6 +136,7 @@ public class BaseConsumeOptions implements JsonSerializable {
         protected int thresholdPercent = DEFAULT_THRESHOLD_PERCENT;
         protected long expiresIn = DEFAULT_EXPIRES_IN_MILLIS;
         protected boolean noWait = false;
+        protected boolean raiseStatusWarnings = false;
         protected String group;
         protected long minPending = -1;
         protected long minAckPending = -1;
@@ -159,13 +167,11 @@ public class BaseConsumeOptions implements JsonSerializable {
             bytes(readLong(jsonValue, BYTES, -1));
             expiresIn(readLong(jsonValue, EXPIRES_IN, MIN_EXPIRES_MILLS));
             thresholdPercent(readInteger(jsonValue, THRESHOLD_PERCENT, -1));
-            if (readBoolean(jsonValue, NO_WAIT, false)) {
-                noWait();
-            }
+            raiseStatusWarnings(readBoolean(jsonValue, RAISE_STATUS_WARNINGS, false));
+            return getThis();
             group(readStringEmptyAsNull(jsonValue, GROUP));
             minPending(readLong(jsonValue, MIN_PENDING, -1));
             minAckPending(readLong(jsonValue, MIN_ACK_PENDING, -1));
-            return getThis();
         }
 
         protected B messages(int messages) {
@@ -215,6 +221,26 @@ public class BaseConsumeOptions implements JsonSerializable {
          */
         public B thresholdPercent(int thresholdPercent) {
             this.thresholdPercent = thresholdPercent < 1 ? DEFAULT_THRESHOLD_PERCENT : Math.min(100, thresholdPercent);
+            return getThis();
+        }
+
+        /**
+         * Raise status warning turns on sending status messages to the error listener.
+         * The default of to not raise status warning
+         * @return the builder
+         */
+        public B raiseStatusWarnings() {
+            this.raiseStatusWarnings = true;
+            return getThis();
+        }
+
+        /**
+         * Turn on or off raise status warning turns. When on, status messages are sent to the error listener.
+         * The default of to not raise status warning
+         * @return the builder
+         */
+        public B raiseStatusWarnings(boolean raiseStatusWarnings) {
+            this.raiseStatusWarnings = raiseStatusWarnings;
             return getThis();
         }
 

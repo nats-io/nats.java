@@ -57,7 +57,7 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
             .minAckPending(fetchConsumeOptions.getMinAckPending())
             .build();
         initSub(subscriptionMaker.subscribe(null, null, null, inactiveThreshold));
-        pullSubject = sub._pull(pro, false, this);
+        pullSubject = sub._pull(pro, fetchConsumeOptions.raiseStatusWarnings(), this);
         startNanos = -1;
     }
 
