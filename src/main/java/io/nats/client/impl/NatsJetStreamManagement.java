@@ -273,6 +273,11 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
         return _getMessage(streamName, MessageGetRequest.forSequence(seq));
     }
 
+    @Override
+    public MessageInfo getMessage(String streamName, MessageGetRequest messageGetRequest) throws IOException, JetStreamApiException {
+        return _getMessage(streamName, messageGetRequest);
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -287,6 +292,22 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
     @Override
     public MessageInfo getFirstMessage(String streamName, String subject) throws IOException, JetStreamApiException {
         return _getMessage(streamName, MessageGetRequest.firstForSubject(subject));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public MessageInfo getFirstMessage(String streamName, ZonedDateTime startTime) throws IOException, JetStreamApiException {
+        return _getMessage(streamName, MessageGetRequest.firstForStartTime(startTime));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public MessageInfo getFirstMessage(String streamName, ZonedDateTime startTime, String subject) throws IOException, JetStreamApiException {
+        return _getMessage(streamName, MessageGetRequest.firstForStartTimeAndSubject(startTime, subject));
     }
 
     /**

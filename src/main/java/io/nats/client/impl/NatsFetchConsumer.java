@@ -53,6 +53,9 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
             .expiresIn(expiresInMillis)
             .idleHeartbeat(fetchConsumeOptions.getIdleHeartbeat())
             .noWait(isNoWait)
+            .group(fetchConsumeOptions.getGroup())
+            .minPending(fetchConsumeOptions.getMinPending())
+            .minAckPending(fetchConsumeOptions.getMinAckPending())
             .build();
         initSub(subscriptionMaker.subscribe(null, null, null, inactiveThreshold));
         pullSubject = sub._pull(pro, fetchConsumeOptions.raiseStatusWarnings(), this);

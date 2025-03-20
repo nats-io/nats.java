@@ -67,6 +67,8 @@ public class StreamConfiguration implements JsonSerializable {
     private final boolean discardNewPerSubject;
     private final Map<String, String> metadata;
     private final long firstSequence;
+    private final boolean allowMessageTtl;
+    private final Duration subjectDeleteMarkerTtl;
 
     static StreamConfiguration instance(JsonValue v) {
         Builder builder = new Builder();
@@ -102,6 +104,8 @@ public class StreamConfiguration implements JsonSerializable {
         builder.discardNewPerSubject(readBoolean(v, DISCARD_NEW_PER_SUBJECT));
         builder.metadata(readStringStringMap(v, METADATA));
         builder.firstSequence(readLong(v, FIRST_SEQ, 1));
+        // builder.allowMessageTtl(readBoolean(v, ALLOW_MSG_TTL));
+        // builder.subjectDeleteMarkerTtl(readNanos(v, SUBJECT_DELETE_MARKER_TTL));
         return builder.build();
     }
 
@@ -139,6 +143,8 @@ public class StreamConfiguration implements JsonSerializable {
         this.discardNewPerSubject = b.discardNewPerSubject;
         this.metadata = b.metadata;
         this.firstSequence = b.firstSequence;
+        this.allowMessageTtl = b.allowMessageTtl;
+        this.subjectDeleteMarkerTtl = b.subjectDeleteMarkerTtl;
     }
 
     /**
@@ -196,6 +202,8 @@ public class StreamConfiguration implements JsonSerializable {
         addFldWhenTrue(sb, DISCARD_NEW_PER_SUBJECT, discardNewPerSubject);
         addField(sb, METADATA, metadata);
         addFieldWhenGreaterThan(sb, FIRST_SEQ, firstSequence, 1);
+        addFldWhenTrue(sb, ALLOW_MSG_TTL, allowMessageTtl);
+        addFieldAsNanos(sb, SUBJECT_DELETE_MARKER_TTL, subjectDeleteMarkerTtl);
 
         return endJson(sb).toString();
     }
@@ -469,6 +477,22 @@ public class StreamConfiguration implements JsonSerializable {
         return firstSequence;
     }
 
+    /**
+     * Whether Allow Message TTL is set
+     * @return the flag
+     */
+    public boolean isAllowMessageTtl() {
+        return allowMessageTtl;
+    }
+
+    /**
+     * Get the Subject Delete Marker TTL duration. May be null.
+     * @return The duration
+     */
+    public Duration getSubjectDeleteMarkerTtl() {
+        return subjectDeleteMarkerTtl;
+    }
+
     @Override
     public String toString() {
         return toJson();
@@ -532,6 +556,8 @@ public class StreamConfiguration implements JsonSerializable {
         private boolean discardNewPerSubject = false;
         private Map<String, String> metadata;
         private long firstSequence = 1;
+        private boolean allowMessageTtl = false;
+        private Duration subjectDeleteMarkerTtl = Duration.ZERO;
 
         /**
          * Default Builder
@@ -578,6 +604,8 @@ public class StreamConfiguration implements JsonSerializable {
                     this.metadata = new HashMap<>(sc.metadata);
                 }
                 this.firstSequence = sc.firstSequence;
+                this.allowMessageTtl = sc.allowMessageTtl;
+                this.subjectDeleteMarkerTtl = sc.subjectDeleteMarkerTtl;
             }
         }
 
@@ -604,7 +632,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Sets the subjects in the StreamConfiguration.
          * @param subjects the stream's subjects
-         * @return Builder
+         * @return The Builder
          */
         public Builder subjects(String... subjects) {
             this.subjects.clear();
@@ -614,7 +642,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Sets the subjects in the StreamConfiguration.
          * @param subjects the stream's subjects
-         * @return Builder
+         * @return The Builder
          */
         public Builder subjects(Collection<String> subjects) {
             this.subjects.clear();
@@ -624,7 +652,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Adds unique subjects into the StreamConfiguration.
          * @param subjects the stream's subjects to add
-         * @return Builder
+         * @return The Builder
          */
         public Builder addSubjects(String... subjects) {
             if (subjects != null) {
@@ -636,7 +664,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Adds unique subjects into the StreamConfiguration.
          * @param subjects the stream's subjects to add
-         * @return Builder
+         * @return The Builder
          */
         public Builder addSubjects(Collection<String> subjects) {
             if (subjects != null) {
@@ -652,7 +680,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Sets the retention policy in the StreamConfiguration.
          * @param policy the retention policy of the StreamConfiguration
-         * @return Builder
+         * @return The Builder
          */
         public Builder retentionPolicy(RetentionPolicy policy) {
             this.retentionPolicy = policy == null ? RetentionPolicy.Limits : policy;
@@ -662,7 +690,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Sets the compression option in the StreamConfiguration.
          * @param compressionOption the compression option of the StreamConfiguration
-         * @return Builder
+         * @return The Builder
          */
         public Builder compressionOption(CompressionOption compressionOption) {
             this.compressionOption = compressionOption == null ? CompressionOption.None : compressionOption;
@@ -672,7 +700,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Sets the maximum number of consumers in the StreamConfiguration.
          * @param maxConsumers the maximum number of consumers
-         * @return Builder
+         * @return The Builder
          */        
         public Builder maxConsumers(long maxConsumers) {
             this.maxConsumers = validateMaxConsumers(maxConsumers);
@@ -682,7 +710,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Sets the maximum number of messages in the StreamConfiguration.
          * @param maxMsgs the maximum number of messages
-         * @return Builder
+         * @return The Builder
          */
         public Builder maxMessages(long maxMsgs) {
             this.maxMsgs = validateMaxMessages(maxMsgs);
@@ -692,7 +720,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Sets the maximum number of message per subject in the StreamConfiguration.
          * @param maxMsgsPerSubject the maximum number of messages
-         * @return Builder
+         * @return The Builder
          */
         public Builder maxMessagesPerSubject(long maxMsgsPerSubject) {
             this.maxMsgsPerSubject = validateMaxMessagesPerSubject(maxMsgsPerSubject);
@@ -702,7 +730,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Sets the maximum number of bytes in the StreamConfiguration.
          * @param maxBytes the maximum number of bytes
-         * @return Builder
+         * @return The Builder
          */
         public Builder maxBytes(long maxBytes) {
             this.maxBytes = validateMaxBytes(maxBytes);
@@ -712,7 +740,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Sets the maximum age in the StreamConfiguration.
          * @param maxAge the maximum message age
-         * @return Builder
+         * @return The Builder
          */
         public Builder maxAge(Duration maxAge) {
             this.maxAge = validateDurationNotRequiredGtOrEqZero(maxAge, Duration.ZERO);
@@ -722,7 +750,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Sets the maximum age in the StreamConfiguration.
          * @param maxAgeMillis the maximum message age
-         * @return Builder
+         * @return The Builder
          */
         public Builder maxAge(long maxAgeMillis) {
             this.maxAge = validateDurationNotRequiredGtOrEqZero(maxAgeMillis);
@@ -733,7 +761,7 @@ public class StreamConfiguration implements JsonSerializable {
          * Sets the maximum message size in the StreamConfiguration.
          * @deprecated the server value is a 32-bit signed value. Use {@link #maximumMessageSize(int)} instead.
          * @param maxMsgSize the maximum message size
-         * @return Builder
+         * @return The Builder
          */
         @Deprecated
         public Builder maxMsgSize(long maxMsgSize) {
@@ -744,7 +772,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Sets the maximum message size in the StreamConfiguration.
          * @param maxMsgSize the maximum message size
-         * @return Builder
+         * @return The Builder
          */
         public Builder maximumMessageSize(int maxMsgSize) {
             this.maxMsgSize = (int)validateMaxMessageSize(maxMsgSize);
@@ -754,7 +782,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Sets the storage type in the StreamConfiguration.
          * @param storageType the storage type
-         * @return Builder
+         * @return The Builder
          */        
         public Builder storageType(StorageType storageType) {
             this.storageType = storageType == null ? StorageType.File : storageType;
@@ -765,7 +793,7 @@ public class StreamConfiguration implements JsonSerializable {
          * Sets the number of replicas a message must be stored on in the StreamConfiguration.
          * Must be 1 to 5 inclusive
          * @param replicas the number of replicas to store this message on
-         * @return Builder
+         * @return The Builder
          */
         public Builder replicas(int replicas) {
             this.replicas = validateNumberOfReplicas(replicas);
@@ -776,7 +804,7 @@ public class StreamConfiguration implements JsonSerializable {
          * Sets the acknowledgement mode of the StreamConfiguration.  if no acknowledgements are
          * set, then acknowledgements are not sent back to the client.  The default is false.
          * @param noAck true to disable acknowledgements.
-         * @return Builder
+         * @return The Builder
          */        
         public Builder noAck(boolean noAck) {
             this.noAck = noAck;
@@ -796,7 +824,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Sets the discard policy in the StreamConfiguration.
          * @param policy the discard policy of the StreamConfiguration
-         * @return Builder
+         * @return The Builder
          */
         public Builder discardPolicy(DiscardPolicy policy) {
             this.discardPolicy = policy == null ? DiscardPolicy.Old : policy;
@@ -807,7 +835,7 @@ public class StreamConfiguration implements JsonSerializable {
          * Sets the duplicate checking window in the StreamConfiguration.  A Duration.Zero
          * disables duplicate checking.  Duplicate checking is disabled by default.
          * @param window duration to hold message ids for duplicate checking.
-         * @return Builder
+         * @return The Builder
          */
         public Builder duplicateWindow(Duration window) {
             this.duplicateWindow = validateDurationNotRequiredGtOrEqZero(window, Duration.ZERO);
@@ -818,7 +846,7 @@ public class StreamConfiguration implements JsonSerializable {
          * Sets the duplicate checking window in the StreamConfiguration.  A Duration.Zero
          * disables duplicate checking.  Duplicate checking is disabled by default.
          * @param windowMillis duration to hold message ids for duplicate checking.
-         * @return Builder
+         * @return The Builder
          */
         public Builder duplicateWindow(long windowMillis) {
             this.duplicateWindow = validateDurationNotRequiredGtOrEqZero(windowMillis);
@@ -828,7 +856,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Sets the placement directive object
          * @param placement the placement directive object
-         * @return Builder
+         * @return The Builder
          */
         public Builder placement(Placement placement) {
             this.placement = placement;
@@ -838,7 +866,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Sets the republish config object
          * @param republish the republish config object
-         * @return Builder
+         * @return The Builder
          */
         public Builder republish(Republish republish) {
             this.republish = republish;
@@ -848,7 +876,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Sets the subjectTransform config object
          * @param subjectTransform the subjectTransform config object
-         * @return Builder
+         * @return The Builder
          */
         public Builder subjectTransform(SubjectTransform subjectTransform) {
             this.subjectTransform = subjectTransform;
@@ -858,7 +886,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Sets the consumerLimits config object
          * @param consumerLimits the consumerLimits config object
-         * @return Builder
+         * @return The Builder
          */
         public Builder consumerLimits(ConsumerLimits consumerLimits) {
             this.consumerLimits = consumerLimits;
@@ -868,7 +896,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Sets the mirror  object
          * @param mirror the mirror object
-         * @return Builder
+         * @return The Builder
          */
         public Builder mirror(Mirror mirror) {
             this.mirror = mirror;
@@ -878,7 +906,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Sets the sources in the StreamConfiguration.
          * @param sources the stream's sources
-         * @return Builder
+         * @return The Builder
          */
         public Builder sources(Source... sources) {
             this.sources.clear();
@@ -888,7 +916,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Add the sources into the StreamConfiguration.
          * @param sources the stream's sources
-         * @return Builder
+         * @return The Builder
          */
         public Builder sources(Collection<Source> sources) {
             this.sources.clear();
@@ -898,7 +926,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Add the sources into the StreamConfiguration.
          * @param sources the stream's sources
-         * @return Builder
+         * @return The Builder
          */
         public Builder addSources(Source... sources) {
             return addSources(Arrays.asList(sources));
@@ -907,7 +935,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Sets the sources in the StreamConfiguration.
          * @param sources the stream's sources
-         * @return Builder
+         * @return The Builder
          */
         public Builder addSources(Collection<Source> sources) {
             if (sources != null) {
@@ -923,7 +951,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Add a source into the StreamConfiguration.
          * @param source a stream source
-         * @return Builder
+         * @return The Builder
          */
         public Builder addSource(Source source) {
             if (source != null && !this.sources.contains(source)) {
@@ -936,7 +964,7 @@ public class StreamConfiguration implements JsonSerializable {
          * Set whether to seal the stream.
          * INTERNAL USE ONLY. Scoped protected for test purposes.
          * @param sealed the sealed setting
-         * @return Builder
+         * @return The Builder
          */
         protected Builder sealed(boolean sealed) {
             this.sealed = sealed;
@@ -946,7 +974,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Set whether to allow the rollup feature for a stream
          * @param allowRollup the allow rollup setting
-         * @return Builder
+         * @return The Builder
          */
         public Builder allowRollup(boolean allowRollup) {
             this.allowRollup = allowRollup;
@@ -956,7 +984,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Set whether to allow direct message access for a stream
          * @param allowDirect the allow direct setting
-         * @return Builder
+         * @return The Builder
          */
         public Builder allowDirect(boolean allowDirect) {
             this.allowDirect = allowDirect;
@@ -966,7 +994,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Set whether to allow unified direct access for mirrors
          * @param mirrorDirect the allow direct setting
-         * @return Builder
+         * @return The Builder
          */
         public Builder mirrorDirect(boolean mirrorDirect) {
             this.mirrorDirect = mirrorDirect;
@@ -976,7 +1004,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Set whether to deny deleting messages from the stream
          * @param denyDelete the deny delete setting
-         * @return Builder
+         * @return The Builder
          */
         public Builder denyDelete(boolean denyDelete) {
             this.denyDelete = denyDelete;
@@ -986,7 +1014,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Set whether to deny purging messages from the stream
          * @param denyPurge the deny purge setting
-         * @return Builder
+         * @return The Builder
          */
         public Builder denyPurge(boolean denyPurge) {
             this.denyPurge = denyPurge;
@@ -996,7 +1024,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Set whether discard policy new with max message per subject applies to existing subjects, not just new subjects.
          * @param discardNewPerSubject the setting
-         * @return Builder
+         * @return The Builder
          */
         public Builder discardNewPerSubject(boolean discardNewPerSubject) {
             this.discardNewPerSubject = discardNewPerSubject;
@@ -1005,7 +1033,7 @@ public class StreamConfiguration implements JsonSerializable {
 
         /**
          * Set this stream to be sealed. This is irreversible.
-         * @return Builder
+         * @return The Builder
          */
         public Builder seal() {
             this.sealed = true;
@@ -1015,7 +1043,7 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Sets the metadata for the configuration
          * @param metadata the metadata map
-         * @return Builder
+         * @return The Builder
          */
         public Builder metadata(Map<String, String> metadata) {
             this.metadata = metadata;
@@ -1025,12 +1053,42 @@ public class StreamConfiguration implements JsonSerializable {
         /**
          * Sets the first sequence to be used. 1 is the default. All values less than 2 are treated as 1.
          * @param firstSeq specify the first_seq in the stream config when creating the stream.
-         * @return Builder
+         * @return The Builder
          */
         public Builder firstSequence(long firstSeq) {
             this.firstSequence = firstSeq > 1 ? firstSeq : 1;
             return this;
         }
+
+//        /**
+//         * Set to allow per message TTL to true
+//         * @return The Builder
+//         */
+//        public Builder allowMessageTtl() {
+//            this.allowMessageTtl = true;
+//            return this;
+//        }
+
+//        /**
+//         * Set allow per message TTL flag
+//         * @param allowMessageTtl the flag
+//         * @return The Builder
+//         */
+//        public Builder allowMessageTtl(boolean allowMessageTtl) {
+//            this.allowMessageTtl = allowMessageTtl;
+//            return this;
+//        }
+
+//        /**
+//         * The time delete marker TTL duration. Server accepts 1 second or more.
+//         * CLIENT DOES NOT VALIDATE
+//         * @param subjectDeleteMarkerTtl the TTL duration
+//         * @return The Builder
+//         */
+//        public Builder subjectDeleteMarkerTtl(Duration subjectDeleteMarkerTtl) {
+//            this.subjectDeleteMarkerTtl = subjectDeleteMarkerTtl;
+//            return this;
+//        }
 
         /**
          * Builds the StreamConfiguration

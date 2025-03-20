@@ -47,9 +47,56 @@ public class MessageDeleteRequest implements JsonSerializable {
     public String toJson() {
         StringBuilder sb = beginJson();
         addField(sb, SEQ, sequence);
-        if (isNoErase()) {
-            addField(sb, NO_ERASE, true);
-        }
+        addFldWhenTrue(sb, NO_ERASE, isNoErase());
         return endJson(sb).toString();
+    }
+
+    /**
+     * Creates a builder for the purge options
+     * @return a purge options builder
+     */
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    public static class Builder {
+        private long seq = -1;
+        private boolean erase = true;
+
+        /**
+         * Set upper-bound sequence for messages to be deleted
+         * @param seq the upper-bound sequence
+         * @return the builder
+         */
+        public Builder sequence(final long seq) {
+            this.seq = seq;
+            return this;
+        }
+
+        /**
+         * set to the default, erase the message on delete
+         * @return the builder
+         */
+        public Builder erase() {
+            this.erase = true;
+            return this;
+        }
+
+        /**
+         * set to not erase the message on delete
+         * @return the builder
+         */
+        public Builder noErase() {
+            this.erase = false;
+            return this;
+        }
+
+        /**
+         * Build the MessageDeleteRequest
+         * @return the built MessageDeleteRequest
+         */
+        public MessageDeleteRequest build() {
+            return new MessageDeleteRequest(seq, erase);
+        }
     }
 }

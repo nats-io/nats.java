@@ -69,7 +69,10 @@ public class ConsumerConfigurationTests extends TestBase {
             .headersOnly(true)
             .memStorage(true)
             .backoff(1000, 2000, 3000)
-            .metadata(metadata);
+            .metadata(metadata)
+            .priorityGroups("pgroup1", "pgroup2")
+            .priorityPolicy(PriorityPolicy.Overflow)
+            ;
 
         ConsumerConfiguration c = builder.build();
         assertTrue(c.toJson().contains(FILTER_SUBJECT + '"'));
@@ -235,6 +238,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertFalse(cc.maxBytesWasSet());
         assertFalse(cc.numReplicasWasSet());
         assertFalse(cc.memStorageWasSet());
+        assertFalse(cc.priorityPolicyWasSet());
         assertFalse(cc.backoffWasSet());
         assertFalse(cc.metadataWasSet());
     }
@@ -286,10 +290,15 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Duration.ofSeconds(3), c.getBackoff().get(2));
         assertEquals(1, c.getMetadata().size());
         assertEquals(META_VALUE, c.getMetadata().get(META_KEY));
+        assertEquals(PriorityPolicy.Overflow, c.getPriorityPolicy());
+        assertNotNull(c.getPriorityGroups());
+        assertEquals(2, c.getPriorityGroups().size());
+        assertTrue(c.getPriorityGroups().contains("pgroup1"));
+        assertTrue(c.getPriorityGroups().contains("pgroup2"));
     }
 
     @Test
-    public void testParsingAndSetters() {
+    public void testParsingAndSetters() throws JsonParseException {
         String json = dataAsString("ConsumerConfiguration.json");
         ConsumerConfiguration c = ConsumerConfiguration.builder().jsonValue(JsonParser.parseUnchecked(json)).build();
 
@@ -334,6 +343,13 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Duration.ofSeconds(3), c.getBackoff().get(2));
         assertEquals(1, c.getMetadata().size());
         assertEquals(META_VALUE, c.getMetadata().get(META_KEY));
+
+        assertEquals(PriorityPolicy.Overflow, c.getPriorityPolicy());
+        assertNotNull(c.getPriorityGroups());
+        assertEquals(2, c.getPriorityGroups().size());
+        assertTrue(c.getPriorityGroups().contains("pgroup1"));
+        assertTrue(c.getPriorityGroups().contains("pgroup2"));
+
         if (multiFilters) {
             assertNull(c.getFilterSubject());
             assertEquals(2, c.getFilterSubjects().size());
