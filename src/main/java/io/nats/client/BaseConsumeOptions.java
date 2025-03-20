@@ -13,7 +13,6 @@
 
 package io.nats.client;
 
-import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.support.JsonParseException;
 import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonSerializable;
@@ -42,15 +41,15 @@ public class BaseConsumeOptions implements JsonSerializable {
     protected final int messages;
     protected final long bytes;
     protected final long expiresIn;
-    protected final long idleHeartbeat;
     protected final int thresholdPercent;
+    protected final long idleHeartbeat;
     protected final String group;
     protected final long minPending;
     protected final long minAckPending;
-    protected final boolean noWait;
     protected final boolean raiseStatusWarnings;
 
     protected BaseConsumeOptions(Builder<?, ?> b) {
+        // Message / bytes is part of base and is calculated
         bytes = b.bytes;
         if (bytes > 0) {
             messages = b.messages < 0 ? DEFAULT_MESSAGE_COUNT_WHEN_BYTES : b.messages;
@@ -59,27 +58,17 @@ public class BaseConsumeOptions implements JsonSerializable {
             messages = b.messages < 0 ? DEFAULT_MESSAGE_COUNT : b.messages;
         }
 
+        // Validation for expiresIn, if any extra, is handled in subclass builder
+        expiresIn = b.expiresIn;
+        thresholdPercent = b.thresholdPercent;
+
+        // 3. idleHeartbeat is part of base and is calculated.
+        idleHeartbeat = Math.min(MAX_HEARTBEAT_MILLIS, expiresIn * MAX_IDLE_HEARTBEAT_PERCENT / 100);
+
         this.group = b.group;
         this.minPending = b.minPending;
         this.minAckPending = b.minAckPending;
-
-        // validation handled in builder
-        thresholdPercent = b.thresholdPercent;
-        noWait = b.noWait;
         raiseStatusWarnings = b.raiseStatusWarnings;
-
-        // if it's not noWait, it must have an expiresIn
-        // we can't check this in the builder because we can't guarantee order
-        // so we always default to LONG_UNSET in the builder and check it here.
-        if (b.expiresIn == ConsumerConfiguration.LONG_UNSET && !noWait) {
-            expiresIn = DEFAULT_EXPIRES_IN_MILLIS;
-        }
-        else {
-            expiresIn = b.expiresIn;
-        }
-
-        // calculated
-        idleHeartbeat = Math.min(MAX_HEARTBEAT_MILLIS, expiresIn * MAX_IDLE_HEARTBEAT_PERCENT / 100);
     }
 
     @Override
@@ -93,10 +82,12 @@ public class BaseConsumeOptions implements JsonSerializable {
         addField(sb, GROUP, group);
         addField(sb, MIN_PENDING, minPending);
         addField(sb, MIN_ACK_PENDING, minAckPending);
-        addFldWhenTrue(sb, NO_WAIT, noWait);
         addFldWhenTrue(sb, RAISE_STATUS_WARNINGS, raiseStatusWarnings);
+        subclassSpecificToJson(sb);
         return endJson(sb).toString();
     }
+
+    protected void subclassSpecificToJson(StringBuilder sb) {}
 
     public long getExpiresInMillis() {
         return expiresIn;
@@ -108,10 +99,6 @@ public class BaseConsumeOptions implements JsonSerializable {
 
     public int getThresholdPercent() {
         return thresholdPercent;
-    }
-
-    public boolean isNoWait() {
-        return noWait;
     }
 
     public boolean raiseStatusWarnings() {
@@ -135,7 +122,6 @@ public class BaseConsumeOptions implements JsonSerializable {
         protected long bytes = 0;
         protected int thresholdPercent = DEFAULT_THRESHOLD_PERCENT;
         protected long expiresIn = DEFAULT_EXPIRES_IN_MILLIS;
-        protected boolean noWait = false;
         protected boolean raiseStatusWarnings = false;
         protected String group;
         protected long minPending = -1;

@@ -18,6 +18,7 @@ import io.nats.client.support.JsonValue;
 
 import static io.nats.client.support.ApiConstants.EXPIRES_IN;
 import static io.nats.client.support.ApiConstants.NO_WAIT;
+import static io.nats.client.support.JsonUtils.addFldWhenTrue;
 import static io.nats.client.support.JsonValueUtils.readBoolean;
 import static io.nats.client.support.JsonValueUtils.readLong;
 
@@ -27,8 +28,16 @@ import static io.nats.client.support.JsonValueUtils.readLong;
 public class FetchConsumeOptions extends BaseConsumeOptions {
     public static FetchConsumeOptions DEFAULT_FETCH_OPTIONS = FetchConsumeOptions.builder().build();
 
+    private final boolean noWait;
+
     private FetchConsumeOptions(Builder b) {
         super(b);
+        this.noWait = b.noWait;
+    }
+
+    @Override
+    protected void subclassSpecificToJson(StringBuilder sb) {
+        addFldWhenTrue(sb, NO_WAIT, noWait);
     }
 
     /**
@@ -47,12 +56,18 @@ public class FetchConsumeOptions extends BaseConsumeOptions {
         return bytes;
     }
 
+    public boolean isNoWait() {
+        return noWait;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
 
     public static class Builder
         extends BaseConsumeOptions.Builder<Builder, FetchConsumeOptions> {
+
+        protected boolean noWait = false;
 
         protected Builder getThis() { return this; }
 
