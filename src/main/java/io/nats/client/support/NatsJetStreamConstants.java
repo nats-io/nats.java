@@ -85,11 +85,13 @@ public interface NatsJetStreamConstants {
     String EXPECTED_LAST_SEQ_HDR = "Nats-Expected-Last-Sequence";
     String EXPECTED_LAST_MSG_ID_HDR = "Nats-Expected-Last-Msg-Id";
     String EXPECTED_LAST_SUB_SEQ_HDR = "Nats-Expected-Last-Subject-Sequence";
+    String MSG_TTL_HDR = "Nats-TTL";
 
     String LAST_CONSUMER_HDR = "Nats-Last-Consumer";
     String LAST_STREAM_HDR = "Nats-Last-Stream";
     String CONSUMER_STALLED_HDR = "Nats-Consumer-Stalled";
     String MSG_SIZE_HDR = "Nats-Msg-Size";
+    String NATS_MARKER_REASON_HDR = "Nats-Marker-Reason";
 
     String ROLLUP_HDR = "Nats-Rollup";
     String ROLLUP_HDR_SUBJECT = "sub";

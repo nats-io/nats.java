@@ -71,42 +71,42 @@ public class StreamConfiguration implements JsonSerializable {
     private final Duration subjectDeleteMarkerTtl;
 
     static StreamConfiguration instance(JsonValue v) {
-        Builder builder = new Builder();
-        builder.retentionPolicy(RetentionPolicy.get(readString(v, RETENTION)));
-        builder.compressionOption(CompressionOption.get(readString(v, COMPRESSION)));
-        builder.storageType(StorageType.get(readString(v, STORAGE)));
-        builder.discardPolicy(DiscardPolicy.get(readString(v, DISCARD)));
-        builder.name(readString(v, NAME));
-        builder.description(readString(v, DESCRIPTION));
-        builder.maxConsumers(readLong(v, MAX_CONSUMERS, -1));
-        builder.maxMessages(readLong(v, MAX_MSGS, -1));
-        builder.maxMessagesPerSubject(readLong(v, MAX_MSGS_PER_SUB, -1));
-        builder.maxBytes(readLong(v, MAX_BYTES, -1));
-        builder.maxAge(readNanos(v, MAX_AGE));
-        builder.maximumMessageSize(readInteger(v, MAX_MSG_SIZE, -1));
-        builder.replicas(readInteger(v, NUM_REPLICAS, 1));
-        builder.noAck(readBoolean(v, NO_ACK));
-        builder.templateOwner(readString(v, TEMPLATE_OWNER));
-        builder.duplicateWindow(readNanos(v, DUPLICATE_WINDOW));
-        builder.subjects(readStringList(v, SUBJECTS));
-        builder.placement(Placement.optionalInstance(readValue(v, PLACEMENT)));
-        builder.republish(Republish.optionalInstance(readValue(v, REPUBLISH)));
-        builder.subjectTransform(SubjectTransform.optionalInstance(readValue(v, SUBJECT_TRANSFORM)));
-        builder.consumerLimits(ConsumerLimits.optionalInstance(readValue(v, CONSUMER_LIMITS)));
-        builder.mirror(Mirror.optionalInstance(readValue(v, MIRROR)));
-        builder.sources(Source.optionalListOf(readValue(v, SOURCES)));
-        builder.sealed(readBoolean(v, SEALED));
-        builder.allowRollup(readBoolean(v, ALLOW_ROLLUP_HDRS));
-        builder.allowDirect(readBoolean(v, ALLOW_DIRECT));
-        builder.mirrorDirect(readBoolean(v, MIRROR_DIRECT));
-        builder.denyDelete(readBoolean(v, DENY_DELETE));
-        builder.denyPurge(readBoolean(v, DENY_PURGE));
-        builder.discardNewPerSubject(readBoolean(v, DISCARD_NEW_PER_SUBJECT));
-        builder.metadata(readStringStringMap(v, METADATA));
-        builder.firstSequence(readLong(v, FIRST_SEQ, 1));
-        // builder.allowMessageTtl(readBoolean(v, ALLOW_MSG_TTL));
-        // builder.subjectDeleteMarkerTtl(readNanos(v, SUBJECT_DELETE_MARKER_TTL));
-        return builder.build();
+        return new Builder()
+            .retentionPolicy(RetentionPolicy.get(readString(v, RETENTION)))
+            .compressionOption(CompressionOption.get(readString(v, COMPRESSION)))
+            .storageType(StorageType.get(readString(v, STORAGE)))
+            .discardPolicy(DiscardPolicy.get(readString(v, DISCARD)))
+            .name(readString(v, NAME))
+            .description(readString(v, DESCRIPTION))
+            .maxConsumers(readLong(v, MAX_CONSUMERS, -1))
+            .maxMessages(readLong(v, MAX_MSGS, -1))
+            .maxMessagesPerSubject(readLong(v, MAX_MSGS_PER_SUB, -1))
+            .maxBytes(readLong(v, MAX_BYTES, -1))
+            .maxAge(readNanos(v, MAX_AGE))
+            .maximumMessageSize(readInteger(v, MAX_MSG_SIZE, -1))
+            .replicas(readInteger(v, NUM_REPLICAS, 1))
+            .noAck(readBoolean(v, NO_ACK))
+            .templateOwner(readString(v, TEMPLATE_OWNER))
+            .duplicateWindow(readNanos(v, DUPLICATE_WINDOW))
+            .subjects(readStringList(v, SUBJECTS))
+            .placement(Placement.optionalInstance(readValue(v, PLACEMENT)))
+            .republish(Republish.optionalInstance(readValue(v, REPUBLISH)))
+            .subjectTransform(SubjectTransform.optionalInstance(readValue(v, SUBJECT_TRANSFORM)))
+            .consumerLimits(ConsumerLimits.optionalInstance(readValue(v, CONSUMER_LIMITS)))
+            .mirror(Mirror.optionalInstance(readValue(v, MIRROR)))
+            .sources(Source.optionalListOf(readValue(v, SOURCES)))
+            .sealed(readBoolean(v, SEALED))
+            .allowRollup(readBoolean(v, ALLOW_ROLLUP_HDRS))
+            .allowDirect(readBoolean(v, ALLOW_DIRECT))
+            .mirrorDirect(readBoolean(v, MIRROR_DIRECT))
+            .denyDelete(readBoolean(v, DENY_DELETE))
+            .denyPurge(readBoolean(v, DENY_PURGE))
+            .discardNewPerSubject(readBoolean(v, DISCARD_NEW_PER_SUBJECT))
+            .metadata(readStringStringMap(v, METADATA))
+            .firstSequence(readLong(v, FIRST_SEQ, 1))
+            .allowMessageTtl(readBoolean(v, ALLOW_MSG_TTL))
+            .subjectDeleteMarkerTtl(readNanos(v, SUBJECT_DELETE_MARKER_TTL))
+            .build();
     }
 
     // For the builder, assumes all validations are already done in builder
@@ -1060,35 +1060,35 @@ public class StreamConfiguration implements JsonSerializable {
             return this;
         }
 
-//        /**
-//         * Set to allow per message TTL to true
-//         * @return The Builder
-//         */
-//        public Builder allowMessageTtl() {
-//            this.allowMessageTtl = true;
-//            return this;
-//        }
+        /**
+         * Set to allow per message TTL to true
+         * @return The Builder
+         */
+        public Builder allowMessageTtl() {
+            this.allowMessageTtl = true;
+            return this;
+        }
 
-//        /**
-//         * Set allow per message TTL flag
-//         * @param allowMessageTtl the flag
-//         * @return The Builder
-//         */
-//        public Builder allowMessageTtl(boolean allowMessageTtl) {
-//            this.allowMessageTtl = allowMessageTtl;
-//            return this;
-//        }
+        /**
+         * Set allow per message TTL flag
+         * @param allowMessageTtl the flag
+         * @return The Builder
+         */
+        public Builder allowMessageTtl(boolean allowMessageTtl) {
+            this.allowMessageTtl = allowMessageTtl;
+            return this;
+        }
 
-//        /**
-//         * The time delete marker TTL duration. Server accepts 1 second or more.
-//         * CLIENT DOES NOT VALIDATE
-//         * @param subjectDeleteMarkerTtl the TTL duration
-//         * @return The Builder
-//         */
-//        public Builder subjectDeleteMarkerTtl(Duration subjectDeleteMarkerTtl) {
-//            this.subjectDeleteMarkerTtl = subjectDeleteMarkerTtl;
-//            return this;
-//        }
+        /**
+         * The time delete marker TTL duration. Server accepts 1 second or more.
+         * CLIENT DOES NOT VALIDATE
+         * @param subjectDeleteMarkerTtl the TTL duration
+         * @return The Builder
+         */
+        public Builder subjectDeleteMarkerTtl(Duration subjectDeleteMarkerTtl) {
+            this.subjectDeleteMarkerTtl = subjectDeleteMarkerTtl;
+            return this;
+        }
 
         /**
          * Builds the StreamConfiguration
