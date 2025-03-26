@@ -454,15 +454,25 @@ public class JetStreamPubTests extends JetStreamTestBase {
             jsm.addStream(sc);
 
             PublishOptions opts = PublishOptions.builder().messageTtlSeconds(1).build();
-            PublishAck pa = js.publish(subject, null, opts);
-            assertNotNull(pa);
+            PublishAck pa1 = js.publish(subject, null, opts);
+            assertNotNull(pa1);
 
-            MessageInfo mi = jsm.getMessage(stream, pa.getSeqno());
-            assertEquals("1s", mi.getHeaders().getFirst(MSG_TTL_HDR));
+            opts = PublishOptions.builder().messageTtlNever().build();
+            PublishAck paNever = js.publish(subject, null, opts);
+            assertNotNull(paNever);
+
+            MessageInfo mi1 = jsm.getMessage(stream, pa1.getSeqno());
+            assertEquals("1s", mi1.getHeaders().getFirst(MSG_TTL_HDR));
+
+            MessageInfo miNever = jsm.getMessage(stream, paNever.getSeqno());
+            assertEquals("never", miNever.getHeaders().getFirst(MSG_TTL_HDR));
 
             sleep(1200);
-            JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> jsm.getMessage(stream, pa.getSeqno()));
+
+            JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> jsm.getMessage(stream, pa1.getSeqno()));
             assertEquals(10037, e.getApiErrorCode());
+
+            assertNotNull((jsm.getMessage(stream, paNever.getSeqno())));
         });
     }
 
