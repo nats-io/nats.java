@@ -23,7 +23,7 @@ public class ErrorListenerConsoleImpl implements ErrorListener {
      */
     @Override
     public void errorOccurred(final Connection conn, final String error) {
-        System.out.println(supplyMessage("[SEVERE] errorOccurred", conn, null, null, "Error: ", error));
+        log("[SEVERE]", "errorOccurred", conn, null, null, "Error: ", error);
     }
 
     /**
@@ -31,7 +31,7 @@ public class ErrorListenerConsoleImpl implements ErrorListener {
      */
     @Override
     public void exceptionOccurred(final Connection conn, final Exception exp) {
-        System.out.println(supplyMessage("[SEVERE] exceptionOccurred", conn, null, null, "Exception: ", exp));
+        log("[SEVERE]", "exceptionOccurred", conn, null, null, "Exception: ", exp);
     }
 
     /**
@@ -39,7 +39,7 @@ public class ErrorListenerConsoleImpl implements ErrorListener {
      */
     @Override
     public void slowConsumerDetected(final Connection conn, final Consumer consumer) {
-        System.out.println(supplyMessage("[WARN] slowConsumerDetected", conn, consumer, null));
+        log("[WARN]", "slowConsumerDetected", conn, consumer, null);
     }
 
     /**
@@ -47,7 +47,7 @@ public class ErrorListenerConsoleImpl implements ErrorListener {
      */
     @Override
     public void messageDiscarded(final Connection conn, final Message msg) {
-        System.out.println(supplyMessage("[INFO] messageDiscarded", conn, null, null, "Message: ", msg));
+        log("[INFO]", "messageDiscarded", conn, null, null, "Message: ", msg);
     }
 
     /**
@@ -56,7 +56,8 @@ public class ErrorListenerConsoleImpl implements ErrorListener {
     @Override
     public void heartbeatAlarm(final Connection conn, final JetStreamSubscription sub,
                                final long lastStreamSequence, final long lastConsumerSequence) {
-        System.out.println(supplyMessage("[SEVERE] heartbeatAlarm", conn, null, sub, "lastStreamSequence: ", lastStreamSequence, "lastConsumerSequence: ", lastConsumerSequence));
+        log("[SEVERE]", "heartbeatAlarm", conn, null, sub, "lastStreamSequence: ", lastStreamSequence,
+                "lastConsumerSequence: ", lastConsumerSequence);
     }
 
     /**
@@ -64,7 +65,7 @@ public class ErrorListenerConsoleImpl implements ErrorListener {
      */
     @Override
     public void unhandledStatus(final Connection conn, final JetStreamSubscription sub, final Status status) {
-        System.out.println(supplyMessage("[WARN] unhandledStatus", conn, null, sub, "Status: ", status));
+        log("[WARN]", "unhandledStatus", conn, null, sub, "Status: ", status);
     }
 
     /**
@@ -72,7 +73,7 @@ public class ErrorListenerConsoleImpl implements ErrorListener {
      */
     @Override
     public void pullStatusWarning(Connection conn, JetStreamSubscription sub, Status status) {
-        System.out.println(supplyMessage("[WARN] pullStatusWarning", conn, null, sub, "Status: ", status));
+        log("[WARN]", "pullStatusWarning", conn, null, sub, "Status: ", status);
     }
 
     /**
@@ -80,7 +81,7 @@ public class ErrorListenerConsoleImpl implements ErrorListener {
      */
     @Override
     public void pullStatusError(Connection conn, JetStreamSubscription sub, Status status) {
-        System.out.println(supplyMessage("[SEVERE] pullStatusError", conn, null, sub, "Status: ", status));
+        log("[SEVERE]", "pullStatusError", conn, null, sub, "Status: ", status);
     }
 
     /**
@@ -88,7 +89,7 @@ public class ErrorListenerConsoleImpl implements ErrorListener {
      */
     @Override
     public void flowControlProcessed(Connection conn, JetStreamSubscription sub, String id, FlowControlSource source) {
-        System.out.println(supplyMessage("[INFO] flowControlProcessed", conn, null, sub, "FlowControlSource: ", source));
+        log("[INFO]", "flowControlProcessed", conn, null, sub, "FlowControlSource: ", source);
     }
 
     /**
@@ -96,6 +97,12 @@ public class ErrorListenerConsoleImpl implements ErrorListener {
      */
     @Override
     public void socketWriteTimeout(Connection conn) {
-        System.out.println(supplyMessage("[SEVERE] socketWriteTimeout", conn, null, null));
+        log("[SEVERE]", "socketWriteTimeout", conn, null, null);
+    }
+
+    //Extracted Method for refactoring
+    private void log(String level, String eventName, Connection conn, Consumer consumer,
+                     JetStreamSubscription sub, Object... args) {
+        System.out.println(supplyMessage(level + " " + eventName, conn, consumer, sub, args));
     }
 }
