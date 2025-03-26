@@ -108,7 +108,7 @@ class FileAuthHandler implements AuthHandler {
         return retVal;
     }
 
-    private char[] readKeyChars() throws IOException {
+    private char[] extractKeyFromFile() throws IOException {
         char[] keyChars = null;
 
         if (this.credsFile != null) {
@@ -151,7 +151,7 @@ class FileAuthHandler implements AuthHandler {
      */ 
     public byte[] sign(byte[] nonce) {
         try {
-            char[] keyChars = this.readKeyChars();
+            char[] keyChars = this.extractKeyFromFile();
             NKey nkey =  NKey.fromSeed(keyChars);
             byte[] sig = nkey.sign(nonce);
             nkey.clear();
@@ -169,7 +169,7 @@ class FileAuthHandler implements AuthHandler {
      */
     public char[] getID() {
         try {
-            char[] keyChars = this.readKeyChars();
+            char[] keyChars = this.extractKeyFromFile();
             NKey nkey =  NKey.fromSeed(keyChars);
             char[] pubKey = nkey.getPublicKey();
             nkey.clear();
