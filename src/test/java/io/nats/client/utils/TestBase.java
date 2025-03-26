@@ -278,6 +278,10 @@ public class TestBase {
             run(null, vc, inServerTest);
         }
 
+        public void run(Options.Builder builder, InServerTest inServerTest) throws Exception {
+            run(builder, null, inServerTest);
+        }
+
         public void run(Options.Builder builder, VersionCheck vc, InServerTest inServerTest) throws Exception {
             if (vc != null && RUN_SERVER_INFO != null) {
                 if (!vc.runTest(RUN_SERVER_INFO)) {

@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.api.MessageInfo;
 import io.nats.client.api.PublishAck;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
@@ -25,6 +26,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
 
+import static io.nats.client.support.NatsJetStreamConstants.MSG_TTL_HDR;
+import static io.nats.client.support.NatsJetStreamConstants.NATS_MARKER_REASON_HDR;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamPubTests extends JetStreamTestBase {
@@ -432,5 +435,64 @@ public class JetStreamPubTests extends JetStreamTestBase {
                 }
             }
         }
+    }
+
+    @Test
+    public void testPublishWithTTL() throws Exception {
+        jsServer.run(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            JetStream js = nc.jetStream();
+
+            String stream = stream();
+            String subject = subject();
+            StreamConfiguration sc = StreamConfiguration.builder()
+                .name(stream)
+                .storageType(StorageType.Memory)
+                .allowMessageTtl()
+                .subjects(subject).build();
+
+            jsm.addStream(sc);
+
+            PublishOptions opts = PublishOptions.builder().msgTtlSeconds(1).build();
+            PublishAck pa = js.publish(subject, null, opts);
+            assertNotNull(pa);
+
+            MessageInfo mi = jsm.getMessage(stream, pa.getSeqno());
+            assertEquals("1", mi.getHeaders().getFirst(MSG_TTL_HDR));
+
+            sleep(1200);
+            JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> jsm.getMessage(stream, pa.getSeqno()));
+            assertEquals(10037, e.getApiErrorCode());
+        });
+    }
+
+    @Test
+    public void testMsgDeleteMarkerMaxAge() throws Exception {
+        jsServer.run(nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            JetStream js = nc.jetStream();
+
+            String stream = stream();
+            String subject = subject();
+            StreamConfiguration sc = StreamConfiguration.builder()
+                .name(stream)
+                .storageType(StorageType.Memory)
+                .allowMessageTtl()
+                .subjectDeleteMarkerTtl(Duration.ofSeconds(50))
+                .maxAge(1000)
+                .subjects(subject).build();
+
+            jsm.addStream(sc);
+
+            PublishOptions opts = PublishOptions.builder().msgTtlSeconds(1).build();
+            PublishAck pa = js.publish(subject, null, opts);
+            assertNotNull(pa);
+
+            sleep(1200);
+
+            MessageInfo mi = jsm.getLastMessage(stream, subject);
+            assertEquals("MaxAge", mi.getHeaders().getFirst(NATS_MARKER_REASON_HDR));
+            assertEquals("50s", mi.getHeaders().getFirst(MSG_TTL_HDR));
+        });
     }
 }

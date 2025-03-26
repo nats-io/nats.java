@@ -33,7 +33,7 @@ public enum AckPolicy {
      */
     Explicit("explicit");
 
-    private String policy;
+    private final String policy;
 
     AckPolicy(String p) {
         policy = p;

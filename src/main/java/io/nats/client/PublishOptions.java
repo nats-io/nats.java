@@ -45,15 +45,17 @@ public class PublishOptions {
     private final long expectedLastSeq;
     private final long expectedLastSubSeq;
     private final String msgId;
+    private final int msgTtlSeconds;
 
-    private PublishOptions(String stream, Duration streamTimeout, String expectedStream, String expectedLastId, long expectedLastSeq, long expectedLastSubSeq, String msgId) {
-        this.stream = stream;
-        this.streamTimeout = streamTimeout;
-        this.expectedStream = expectedStream;
-        this.expectedLastId = expectedLastId;
-        this.expectedLastSeq = expectedLastSeq;
-        this.expectedLastSubSeq = expectedLastSubSeq;
-        this.msgId = msgId;
+    private PublishOptions(Builder b) {
+        this.stream = b.stream;
+        this.streamTimeout = b.streamTimeout;
+        this.expectedStream = b.expectedStream;
+        this.expectedLastId = b.expectedLastId;
+        this.expectedLastSeq = b.expectedLastSeq;
+        this.expectedLastSubSeq = b.expectedLastSubSeq;
+        this.msgId = b.msgId;
+        this.msgTtlSeconds = b.msgTtlSeconds;
     }
 
     /**
@@ -123,6 +125,14 @@ public class PublishOptions {
     }
 
     /**
+     * Gets the message ttl in seconds. returns -1 if not set.
+     * @return the message ttl or -1
+     */
+    public int getMsgTtlSeconds() {
+        return msgTtlSeconds;
+    }
+
+    /**
      * Creates a builder for the options.
      * @return the builder
      */
@@ -144,6 +154,7 @@ public class PublishOptions {
         long expectedLastSeq = UNSET_LAST_SEQUENCE;
         long expectedLastSubSeq = UNSET_LAST_SEQUENCE;
         String msgId;
+        int msgTtlSeconds = -1;
 
         /**
          * Constructs a new publish options Builder with the default values.
@@ -169,7 +180,7 @@ public class PublishOptions {
         /**
          * Sets the stream name for publishing. The default is undefined.
          * @param stream The name of the stream.
-         * @return Builder
+         * @return The Builder
          */
         public Builder stream(String stream) {
             this.stream = validateStreamName(stream, false);
@@ -180,7 +191,7 @@ public class PublishOptions {
          * Sets the timeout to wait for a publish acknowledgement from a JetStream
          * enabled NATS server.
          * @param timeout the publish timeout.
-         * @return Builder
+         * @return The Builder
          */
         public Builder streamTimeout(Duration timeout) {
             this.streamTimeout = validateDurationNotRequiredGtOrEqZero(timeout, DEFAULT_TIMEOUT);
@@ -191,7 +202,7 @@ public class PublishOptions {
          * Sets the expected stream for the publish. If the
          * stream does not match the server will not save the message.
          * @param stream expected stream
-         * @return builder
+         * @return The Builder
          */
         public Builder expectedStream(String stream) {
             expectedStream = validateStreamName(stream, false);
@@ -202,7 +213,7 @@ public class PublishOptions {
          * Sets the expected last ID of the previously published message.  If the
          * message ID does not match the server will not save the message.
          * @param lastMsgId the stream
-         * @return builder
+         * @return The Builder
          */
         public Builder expectedLastMsgId(String lastMsgId) {
             expectedLastId = emptyAsNull(lastMsgId);
@@ -212,7 +223,7 @@ public class PublishOptions {
         /**
          * Sets the expected message sequence of the publish
          * @param sequence the expected last sequence number
-         * @return builder
+         * @return The Builder
          */
         public Builder expectedLastSequence(long sequence) {
             // 0 has NO meaning to expectedLastSequence but we except 0 b/c the sequence is really a ulong
@@ -223,7 +234,7 @@ public class PublishOptions {
         /**
          * Sets the expected subject message sequence of the publish
          * @param sequence the expected last subject sequence number
-         * @return builder
+         * @return The Builder
          */
         public Builder expectedLastSubjectSequence(long sequence) {
             expectedLastSubSeq = validateGtEqMinus1(sequence, "Last Subject Sequence");
@@ -234,7 +245,7 @@ public class PublishOptions {
          * Sets the message id. Message IDs are used for de-duplication
          * and should be unique to each message payload.
          * @param msgId the unique message id.
-         * @return builder
+         * @return The Builder
          */
         public Builder messageId(String msgId) {
             this.msgId = emptyAsNull(msgId);
@@ -242,9 +253,19 @@ public class PublishOptions {
         }
 
         /**
+         * Sets the TTL for this specific message to be published
+         * @param msgTtlSeconds the ttl in seconds
+         * @return The Builder
+         */
+        public Builder msgTtlSeconds(int msgTtlSeconds) {
+            this.msgTtlSeconds = msgTtlSeconds < 1 ? -1 : msgTtlSeconds;
+            return this;
+        }
+
+        /**
          * Clears the expected so the build can be re-used.
          * Clears the expectedLastId, expectedLastSequence and messageId fields.
-         * @return builder
+         * @return The Builder
          */
         public Builder clearExpected() {
             expectedLastId = null;
@@ -259,7 +280,7 @@ public class PublishOptions {
          * @return publish options
          */
         public PublishOptions build() {
-            return new PublishOptions(stream, streamTimeout, expectedStream, expectedLastId, expectedLastSeq, expectedLastSubSeq, msgId);
+            return new PublishOptions(this);
         }
     }
 }
