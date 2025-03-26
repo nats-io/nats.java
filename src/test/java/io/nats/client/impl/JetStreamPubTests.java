@@ -453,12 +453,12 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
             jsm.addStream(sc);
 
-            PublishOptions opts = PublishOptions.builder().msgTtlSeconds(1).build();
+            PublishOptions opts = PublishOptions.builder().messageTtlSeconds(1).build();
             PublishAck pa = js.publish(subject, null, opts);
             assertNotNull(pa);
 
             MessageInfo mi = jsm.getMessage(stream, pa.getSeqno());
-            assertEquals("1", mi.getHeaders().getFirst(MSG_TTL_HDR));
+            assertEquals("1s", mi.getHeaders().getFirst(MSG_TTL_HDR));
 
             sleep(1200);
             JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> jsm.getMessage(stream, pa.getSeqno()));
@@ -484,7 +484,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
             jsm.addStream(sc);
 
-            PublishOptions opts = PublishOptions.builder().msgTtlSeconds(1).build();
+            PublishOptions opts = PublishOptions.builder().messageTtlSeconds(1).build();
             PublishAck pa = js.publish(subject, null, opts);
             assertNotNull(pa);
 

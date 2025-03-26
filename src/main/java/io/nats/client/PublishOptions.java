@@ -45,7 +45,7 @@ public class PublishOptions {
     private final long expectedLastSeq;
     private final long expectedLastSubSeq;
     private final String msgId;
-    private final int msgTtlSeconds;
+    private final String messageTtl;
 
     private PublishOptions(Builder b) {
         this.stream = b.stream;
@@ -55,7 +55,7 @@ public class PublishOptions {
         this.expectedLastSeq = b.expectedLastSeq;
         this.expectedLastSubSeq = b.expectedLastSubSeq;
         this.msgId = b.msgId;
-        this.msgTtlSeconds = b.msgTtlSeconds;
+        this.messageTtl = b.messageTtl;
     }
 
     /**
@@ -125,11 +125,12 @@ public class PublishOptions {
     }
 
     /**
-     * Gets the message ttl in seconds. returns -1 if not set.
-     * @return the message ttl or -1
+     * Gets the message ttl string. Might be null. Might be "never".
+     * 10 seconds would be "10s" for the server
+     * @return the message ttl string
      */
-    public int getMsgTtlSeconds() {
-        return msgTtlSeconds;
+    public String getMessageTtl() {
+        return messageTtl;
     }
 
     /**
@@ -154,7 +155,7 @@ public class PublishOptions {
         long expectedLastSeq = UNSET_LAST_SEQUENCE;
         long expectedLastSubSeq = UNSET_LAST_SEQUENCE;
         String msgId;
-        int msgTtlSeconds = -1;
+        String messageTtl;
 
         /**
          * Constructs a new publish options Builder with the default values.
@@ -257,8 +258,36 @@ public class PublishOptions {
          * @param msgTtlSeconds the ttl in seconds
          * @return The Builder
          */
-        public Builder msgTtlSeconds(int msgTtlSeconds) {
-            this.msgTtlSeconds = msgTtlSeconds < 1 ? -1 : msgTtlSeconds;
+        public Builder messageTtlSeconds(int msgTtlSeconds) {
+            this.messageTtl = msgTtlSeconds < 1 ? null : msgTtlSeconds + "s";
+            return this;
+        }
+
+        /**
+         * Sets the TTL for this specific message to be published. Use at your own risk.
+         * The current specification can be found here @see <a href="https://github.com/nats-io/nats-architecture-and-design/blob/main/adr/ADR-43.md#per-message-ttl">JetStream Per-Message TTL</a>
+         * @param messageTtlCustom the ttl in seconds
+         * @return The Builder
+         */
+        public Builder messageTtlCustom(String messageTtlCustom) {
+            if (messageTtlCustom == null) {
+                this.messageTtl = null;
+            }
+            else {
+                this.messageTtl = messageTtlCustom.trim();
+                if (this.messageTtl.isEmpty()) {
+                    this.messageTtl = null;
+                }
+            }
+            return this;
+        }
+
+        /**
+         * Sets the TTL for this specific message to be published and never be expired
+         * @return The Builder
+         */
+        public Builder messageTtlNever() {
+            this.messageTtl = "never";
             return this;
         }
 
