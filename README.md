@@ -16,9 +16,10 @@
 ### Examples and other documentation...
 
 1. [**Java API Docs**](https://javadoc.io/doc/io.nats/jnats/latest/index.html) - the latest Java API docs.
-1. [**NATS by Example**](https://natsbyexample.com) - An evolving collection of runnable, cross-client reference examples for NATS.
+1. [**NATS by Example**](https://natsbyexample.com) is an evolving collection of runnable, cross-client reference examples for NATS.
 1. The [**examples directory**](https://github.com/nats-io/nats.java/tree/main/src/examples/java/io/nats/examples) covers basic api use.
 1. The [**Java Nats Examples**](https://github.com/nats-io/java-nats-examples) github repo, a collection of simple use case examples.
+1. [**Java Orbit**](https://github.com/synadia-io/orbit.java) is a set of independent utilities or extensions for this client. 
 
 ## Table of Contents
 * [Simplification](#simplification)
