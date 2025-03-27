@@ -34,6 +34,7 @@ public class KeyValueEntry {
     private final long revision;
     private final long delta;
     private final KeyValueOperation op;
+    private static final int PRIME = 31;
 
     public KeyValueEntry(MessageInfo mi) {
         Headers h = mi.getHeaders();
@@ -136,7 +137,7 @@ public class KeyValueEntry {
     @Override
     public int hashCode() {
         int result = bucketAndKey.hashCode();
-        result = 31 * result + Long.hashCode(revision);
+        result = PRIME * result + Long.hashCode(revision);
         return result;
     }
 }
