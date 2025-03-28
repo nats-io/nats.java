@@ -22,6 +22,24 @@ class NatsDispatcherWithExecutor extends NatsDispatcher {
     }
 
     @Override
+    protected void handleMessage(NatsSubscription sub, NatsMessage msg, MessageHandler handler) {
+        MessageHandler finalHandler = handler;
+        connection.getExecutor().execute(() -> {
+            try {
+                finalHandler.onMessage(msg);
+            } catch (Exception exp) {
+                connection.processException(exp);
+            } catch (Error err) {
+                connection.processException(new Exception(err));
+            }
+
+            if (sub.reachedUnsubLimit()) {
+                connection.invalidate(sub);
+            }
+        });
+    }
+
+    @Override
     public void run() {
         try {
             while (running.get() && !Thread.interrupted()) {

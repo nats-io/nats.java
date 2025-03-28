@@ -132,6 +132,11 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         }
     }
 
+    // Template method (default: synchronous)
+    protected void handleMessage(NatsSubscription sub, NatsMessage msg, MessageHandler handler) throws InterruptedException {
+        handler.onMessage(msg);
+    }
+
     void stop(boolean unsubscribeAll) {
         this.running.set(false);
         this.incoming.pause();
