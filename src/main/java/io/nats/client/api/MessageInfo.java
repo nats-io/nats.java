@@ -39,6 +39,18 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
     private final long numPending;
     private final Status status;
 
+    private static class ParseResult {
+        String subject;
+        long seq;
+        byte[] data;
+        ZonedDateTime time;
+        Headers headers;
+        String stream;
+        long lastSeq;
+        long numPending;
+        Status status;
+    }
+
     /**
      * Create a Message Info
      * @deprecated This signature was public for unit testing but is no longer used.
@@ -72,59 +84,28 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
         super(parseDirect ? null : msg);
 
         // working vars because the object vars are final
-        String _subject = null;
-        long _seq = -1;
-        byte[] _data = null;
-        ZonedDateTime _time = null;
-        Headers _headers = null;
-        String _stream = null;
-        long _lastSeq = -1;
-        long _numPending = -1;
-        Status _status = null;
+        ParseResult result;
 
         if (status != null) {
-            _status = status;
-            _stream = streamName;
-        }
-        else if (parseDirect) {
-            Headers msgHeaders = msg.getHeaders();
-            _subject = msgHeaders.getLast(NATS_SUBJECT);
-            _data = msg.getData();
-            _seq = Long.parseLong(msgHeaders.getLast(NATS_SEQUENCE));
-            _time = DateTimeUtils.parseDateTime(msgHeaders.getLast(NATS_TIMESTAMP));
-            _stream = msgHeaders.getLast(NATS_STREAM);
-            String tempLastSeq = msgHeaders.getLast(NATS_LAST_SEQUENCE);
-            if (tempLastSeq != null) {
-                _lastSeq = JsonUtils.safeParseLong(tempLastSeq, -1);
-            }
-            String tempNumPending = msgHeaders.getLast(NATS_NUM_PENDING);
-            if (tempNumPending != null) {
-                _numPending = Long.parseLong(tempNumPending) - 1;
-            }
-
-            // these are control headers, not real headers so don't give them to the user. Must be done last
-            _headers = new Headers(msgHeaders, true, MESSAGE_INFO_HEADERS);
-        }
-        else if (!hasError()){
-            JsonValue mjv = readValue(jv, MESSAGE);
-            _subject = readString(mjv, SUBJECT);
-            _data = readBase64(mjv, DATA);
-            _seq = readLong(mjv, SEQ, 0);
-            _time = readDate(mjv, TIME);
-            byte[] hdrBytes = readBase64(mjv, HDRS);
-            _headers = hdrBytes == null ? null : new IncomingHeadersProcessor(hdrBytes).getHeaders();
-            _stream = streamName;
+            result = parseFromStatus(status, streamName);
+        } else if (parseDirect) {
+            result = parseFromDirectMessage(msg, streamName);
+        } else if (!hasError()) {
+            result = parseFromJson(jv, streamName);
+        } else {
+            result = new ParseResult();
         }
 
-        this.subject = _subject;
-        this.data = _data;
-        this.seq = _seq;
-        this.time = _time;
-        this.headers = _headers;
-        this.stream = _stream;
-        this.lastSeq = _lastSeq;
-        this.numPending = _numPending;
-        this.status = _status;
+        this.subject = result.subject;
+        this.seq = result.seq;
+        this.data = result.data;
+        this.time = result.time;
+        this.headers = result.headers;
+        this.stream = result.stream;
+        this.lastSeq = result.lastSeq;
+        this.numPending = result.numPending;
+        this.status = result.status;
+
     }
 
     /**
@@ -258,4 +239,48 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
         }
         return JsonUtils.endJson(sb).toString();
     }
+
+    private ParseResult parseFromStatus(Status status, String streamName) {
+        ParseResult r = new ParseResult();
+        r.status = status;
+        r.stream = streamName;
+        return r;
+    }
+
+    private ParseResult parseFromDirectMessage(Message msg, String streamName) {
+        ParseResult r = new ParseResult();
+        Headers msgHeaders = msg.getHeaders();
+        r.subject = msgHeaders.getLast(NATS_SUBJECT);
+        r.data = msg.getData();
+        r.seq = Long.parseLong(msgHeaders.getLast(NATS_SEQUENCE));
+        r.time = DateTimeUtils.parseDateTime(msgHeaders.getLast(NATS_TIMESTAMP));
+        r.stream = msgHeaders.getLast(NATS_STREAM);
+
+        String tempLastSeq = msgHeaders.getLast(NATS_LAST_SEQUENCE);
+        if (tempLastSeq != null) {
+            r.lastSeq = JsonUtils.safeParseLong(tempLastSeq, -1);
+        }
+
+        String tempNumPending = msgHeaders.getLast(NATS_NUM_PENDING);
+        if (tempNumPending != null) {
+            r.numPending = Long.parseLong(tempNumPending) - 1;
+        }
+
+        r.headers = new Headers(msgHeaders, true, MESSAGE_INFO_HEADERS);
+        return r;
+    }
+
+    private ParseResult parseFromJson(JsonValue jv, String streamName) {
+        ParseResult r = new ParseResult();
+        JsonValue mjv = readValue(jv, MESSAGE);
+        r.subject = readString(mjv, SUBJECT);
+        r.data = readBase64(mjv, DATA);
+        r.seq = readLong(mjv, SEQ, 0);
+        r.time = readDate(mjv, TIME);
+        byte[] hdrBytes = readBase64(mjv, HDRS);
+        r.headers = hdrBytes == null ? null : new IncomingHeadersProcessor(hdrBytes).getHeaders();
+        r.stream = streamName;
+        return r;
+    }
+
 }
