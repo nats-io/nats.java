@@ -113,7 +113,7 @@ There may still be messages in the output queue and messages that were in transi
 Handling disconnections and output queue is left for another discussion.
 
 ### Version Notes for older releases
-See [Version Notes](#version_notes)
+See [Version Notes](#version-notes)
 
 ## Installation
 
@@ -1163,7 +1163,7 @@ that rely on the protocol size, so it must not change once created.
 ### Version 2.17.1 Support for TLS Handshake First
 
 There is a new connection Option, `tlsFirst` for "TLS Handshake First"
-See the [TLS Handshake First](#tls_handshake_first) for more details.
+See the [TLS Handshake First](#tls-handshake-first) for more details.
 
 #### Version 2.17.0: Server 2.10 support.
 The release has support for Server 2.10 features and client validation improvements including:
@@ -1174,9 +1174,9 @@ The release has support for Server 2.10 features and client validation improveme
     * Subject Transform
     * Consumer Limits
     * First Sequence
-* [Multiple Filter Subjects](#multiple_filter_subjects)
-* [Subject and Queue Name Validation](#subject_and_queue_name_validation)
-* [Subscribe Subject Validation](#subscribe_subject_validation)
+* [Multiple Filter Subjects](#multiple-filter-subjects)
+* [Subject and Queue Name Validation](#subject-and-queue-name-validation)
+* [Subscribe Subject Validation](#subscribe-subject-validation)
 
 ### Version 2.16.14: Options properties improvements
 
