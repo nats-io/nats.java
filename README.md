@@ -4,7 +4,7 @@
 
 ### A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
-**Current Release**: 2.20.6 &nbsp; **Current Snapshot**: 2.20.7-SNAPSHOT
+**Current Release**: 2.21.0 &nbsp; **Current Snapshot**: 2.21.1-SNAPSHOT
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
@@ -16,9 +16,10 @@
 ### Examples and other documentation...
 
 1. [**Java API Docs**](https://javadoc.io/doc/io.nats/jnats/latest/index.html) - the latest Java API docs.
-1. [**NATS by Example**](https://natsbyexample.com) - An evolving collection of runnable, cross-client reference examples for NATS.
+1. [**NATS by Example**](https://natsbyexample.com) is an evolving collection of runnable, cross-client reference examples for NATS.
 1. The [**examples directory**](https://github.com/nats-io/nats.java/tree/main/src/examples/java/io/nats/examples) covers basic api use.
 1. The [**Java Nats Examples**](https://github.com/nats-io/java-nats-examples) github repo, a collection of simple use case examples.
+1. [**Java Orbit**](https://github.com/synadia-io/orbit.java) is a set of independent utilities or extensions for this client. 
 
 ## Table of Contents
 * [Simplification](#simplification)
@@ -112,7 +113,7 @@ There may still be messages in the output queue and messages that were in transi
 Handling disconnections and output queue is left for another discussion.
 
 ### Version Notes for older releases
-See [Version Notes](#version_notes)
+See [Version Notes](#version-notes)
 
 ## Installation
 
@@ -122,9 +123,9 @@ Replace `{major.minor.patch}` with the correct version in the examples.
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.20.6/jnats-2.20.6.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.20.6/jnats-2.20.6.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.21.0/jnats-2.21.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.21.0/jnats-2.21.0.jar).
 
-The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.20.6/jnats-2.20.6-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.20.6/jnats-2.20.6-examples.jar).
+The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.21.0/jnats-2.21.0-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.21.0/jnats-2.21.0-examples.jar).
 
 To use NKeys, you will need the ed25519 library, which can be downloaded at [https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar).
 
@@ -1162,7 +1163,7 @@ that rely on the protocol size, so it must not change once created.
 ### Version 2.17.1 Support for TLS Handshake First
 
 There is a new connection Option, `tlsFirst` for "TLS Handshake First"
-See the [TLS Handshake First](#tls_handshake_first) for more details.
+See the [TLS Handshake First](#tls-handshake-first) for more details.
 
 #### Version 2.17.0: Server 2.10 support.
 The release has support for Server 2.10 features and client validation improvements including:
@@ -1173,9 +1174,9 @@ The release has support for Server 2.10 features and client validation improveme
     * Subject Transform
     * Consumer Limits
     * First Sequence
-* [Multiple Filter Subjects](#multiple_filter_subjects)
-* [Subject and Queue Name Validation](#subject_and_queue_name_validation)
-* [Subscribe Subject Validation](#subscribe_subject_validation)
+* [Multiple Filter Subjects](#multiple-filter-subjects)
+* [Subject and Queue Name Validation](#subject-and-queue-name-validation)
+* [Subscribe Subject Validation](#subscribe-subject-validation)
 
 ### Version 2.16.14: Options properties improvements
 

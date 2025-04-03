@@ -1,5 +1,19 @@
 # Change Log
 
+## 2.21.1
+### Core
+* Handle Server 2.10.26 returns No Responders instead of timeouts. #1292 @scottf
+
+### Jetstream
+* Improve FetchConsumeOptions construction and add test #1293 @scottf
+
+### 2.11 Specific
+Main 2 11 merge safe #1294 is actually a compilation of PRs related to 2.11 features  @scottf @MauriceVanVeen
+* Main for server v2.11 #1239
+* Consumer Priority Group Overflow #1233
+* Add Message TTL Stream Configuration #1280
+* Per Message TTL Support for 2.11 #1295
+
 ## 2.20.6
 ### Core
 * Reader Listener #1265 @scottf
