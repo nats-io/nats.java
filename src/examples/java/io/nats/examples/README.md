@@ -55,7 +55,6 @@ In the `io.nats.examples.jetstream` package...
 ### Other examples
 1. `autobench` - benchmarks the current system/setup in several scenarios
 1. `benchmark` - benchmark that supports multiple threads
-1. `stan` - A larger example that implements a server that can respond on multiple subjects, and several clients that send requests on those various subjects.
 1. `stability` - a small producer and subscriber that run forever printing some status every so often. These are intended for long running tests without burning the CPU.
 1. `jsmulti` - a multi-faceted tool that allows you to do a variety of publishing and subscribing to both core NATS and JetStream subjects. Please see the [JsMultiTool README](jsmulti/README.md) 
 
