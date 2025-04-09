@@ -431,7 +431,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
             if (ttlMs > 0 && ttlMs < SERVER_DEFAULT_DUPLICATE_WINDOW_MS) {
                 dupeMs = ttlMs;
             }
-            scBuilder.duplicateWindow(dupeMs).build();
+            scBuilder.duplicateWindow(dupeMs);
 
             return new KeyValueConfiguration(scBuilder.build());
         }
