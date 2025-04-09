@@ -137,8 +137,9 @@ public abstract class FeatureConfiguration implements JsonSerializable {
     }
 
     protected static abstract class Builder<B, FC> {
-        String name;
-        StreamConfiguration.Builder scBuilder;
+        protected String name;
+        protected Duration ttl = Duration.ZERO;
+        protected StreamConfiguration.Builder scBuilder;
         protected abstract B getThis();
 
         /**
@@ -177,7 +178,8 @@ public abstract class FeatureConfiguration implements JsonSerializable {
          * @return Builder
          */
         protected B ttl(Duration ttl) {
-            scBuilder.maxAge(ttl);
+            this.ttl = ttl == null ? Duration.ZERO : ttl;
+            scBuilder.maxAge(this.ttl);
             return getThis();
         }
 

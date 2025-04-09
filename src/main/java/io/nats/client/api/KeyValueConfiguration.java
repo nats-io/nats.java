@@ -19,6 +19,7 @@ import io.nats.client.support.NatsKeyValueUtil;
 import java.time.Duration;
 import java.util.*;
 
+import static io.nats.client.support.NatsJetStreamConstants.SERVER_DEFAULT_DUPLICATE_WINDOW_MS;
 import static io.nats.client.support.NatsKeyValueUtil.*;
 import static io.nats.client.support.Validator.*;
 
@@ -419,6 +420,18 @@ public class KeyValueConfiguration extends FeatureConfiguration {
             else {
                 scBuilder.subjects(toStreamSubject(name));
             }
+
+            // When stream's MaxAge is not set, server uses 2 minutes as the default
+            // for the duplicate window. If MaxAge is set, and lower than 2 minutes,
+            // then the duplicate window will be set to that. If MaxAge is greater,
+            // we will cap the duplicate window to 2 minutes (to be consistent with
+            // previous behavior).
+            long ttlMs = ttl.toMillis();
+            long dupeMs = SERVER_DEFAULT_DUPLICATE_WINDOW_MS;
+            if (ttlMs > 0 && ttlMs < SERVER_DEFAULT_DUPLICATE_WINDOW_MS) {
+                dupeMs = ttlMs;
+            }
+            scBuilder.duplicateWindow(dupeMs).build();
 
             return new KeyValueConfiguration(scBuilder.build());
         }
