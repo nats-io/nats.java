@@ -30,6 +30,7 @@ import static io.nats.client.JetStreamOptions.DEFAULT_JS_OPTIONS;
 import static io.nats.client.api.KeyValuePurgeOptions.DEFAULT_THRESHOLD_MILLIS;
 import static io.nats.client.api.KeyValueWatchOption.*;
 import static io.nats.client.support.NatsConstants.DOT;
+import static io.nats.client.support.NatsJetStreamConstants.SERVER_DEFAULT_DUPLICATE_WINDOW_MS;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class KeyValueTests extends JetStreamTestBase {
@@ -1707,6 +1708,41 @@ public class KeyValueTests extends JetStreamTestBase {
             kv.put("one", 1);
             kv.put("two", 2);
             assertKeys(kv.keys(Arrays.asList("one", "two")), "one", "two");
+        });
+    }
+
+    @Test
+    public void testTtlAndDuplicateWindow() throws Exception {
+        jsServer.run(TestBase::atLeast2_10, nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+            String bucket = bucket();
+            KeyValueConfiguration config = KeyValueConfiguration.builder()
+                .name(bucket)
+                .storageType(StorageType.Memory)
+                .build();
+            KeyValueStatus status = kvm.create(config);
+
+            StreamConfiguration sc = status.getBackingStreamInfo().getConfiguration();
+            assertEquals(0, sc.getMaxAge().toMillis());
+            assertEquals(SERVER_DEFAULT_DUPLICATE_WINDOW_MS, sc.getDuplicateWindow().toMillis());
+
+            config = KeyValueConfiguration.builder(status.getConfiguration()).ttl(Duration.ofSeconds(10)).build();
+            status = kvm.update(config);
+            sc = status.getBackingStreamInfo().getConfiguration();
+            assertEquals(10_000, sc.getMaxAge().toMillis());
+            assertEquals(10_000, sc.getDuplicateWindow().toMillis());
+
+            bucket = bucket();
+            config = KeyValueConfiguration.builder()
+                .name(bucket)
+                .storageType(StorageType.Memory)
+                .ttl(Duration.ofMinutes(30))
+                .build();
+            status = kvm.create(config);
+
+            sc = status.getBackingStreamInfo().getConfiguration();
+            assertEquals(30, sc.getMaxAge().toMinutes());
+            assertEquals(SERVER_DEFAULT_DUPLICATE_WINDOW_MS, sc.getDuplicateWindow().toMillis());
         });
     }
 }
