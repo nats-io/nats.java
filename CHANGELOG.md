@@ -1,6 +1,16 @@
 # Change Log
 
 ## 2.21.1
+### KV
+* KV TTL (stream max_age) versus stream duplicate_window #1301 @scottf
+
+### JetStream
+* ConsumeOptions creation from json should use default, not minimum #1302
+
+### Misc
+* Remove STAN references #1300 @scottf
+
+## 2.21.0
 ### Core
 * Handle Server 2.10.26 returns No Responders instead of timeouts. #1292 @scottf
 
