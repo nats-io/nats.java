@@ -147,7 +147,7 @@ public class BaseConsumeOptions implements JsonSerializable {
         public B jsonValue(JsonValue jsonValue) {
             messages(readInteger(jsonValue, MESSAGES, -1));
             bytes(readLong(jsonValue, BYTES, -1));
-            expiresIn(readLong(jsonValue, EXPIRES_IN, MIN_EXPIRES_MILLS));
+            expiresIn(readLong(jsonValue, EXPIRES_IN, DEFAULT_EXPIRES_IN_MILLIS));
             thresholdPercent(readInteger(jsonValue, THRESHOLD_PERCENT, -1));
             raiseStatusWarnings(readBoolean(jsonValue, RAISE_STATUS_WARNINGS, false));
             group(readStringEmptyAsNull(jsonValue, GROUP));
