@@ -78,8 +78,10 @@ public class AccountStatisticsTests extends JetStreamTestBase {
 
     private void validateTier(AccountTier tier, int tierBase, int limitsIdBase) {
         assertNotNull(tier);
-        assertEquals(tierBase + 1, tier.getMemory());
-        assertEquals(tierBase + 2, tier.getStorage());
+        assertEquals(tierBase + 1, tier.getMemory()); // COVERAGE
+        assertEquals(tierBase + 1, tier.getMemoryBytes());
+        assertEquals(tierBase + 2, tier.getStorage()); // COVERAGE
+        assertEquals(tierBase + 2, tier.getStorageBytes());
         assertEquals(tierBase + 3, tier.getStreams());
         assertEquals(tierBase + 4, tier.getConsumers());
         assertEquals(tierBase + 5, tier.getReservedMemory());
