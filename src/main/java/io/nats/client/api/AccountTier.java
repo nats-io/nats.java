@@ -24,10 +24,10 @@ import static io.nats.client.support.JsonValueUtils.readObject;
  */
 public class AccountTier {
 
-    private final int memory;
-    private final int storage;
-    private final int reservedMemory;
-    private final int reservedStorage;
+    private final long memory;
+    private final long storage;
+    private final long reservedMemory;
+    private final long reservedStorage;
     private final int streams;
     private final int consumers;
     private final AccountLimits limits;
@@ -46,7 +46,7 @@ public class AccountTier {
      * Memory Storage being used for Stream Message storage in this tier.
      * @return the memory storage in bytes
      */
-    public int getMemory() {
+    public long getMemoryBytes() {
         return memory;
     }
 
@@ -54,7 +54,7 @@ public class AccountTier {
      * File Storage being used for Stream Message storage in this tier.
      * @return the storage in bytes
      */
-    public int getStorage() {
+    public long getStorageBytes() {
         return storage;
     }
 
@@ -62,7 +62,23 @@ public class AccountTier {
      * Bytes that is reserved for memory usage by this account on the server
      * @return the memory usage in bytes
      */
-    public int getReservedMemory() {
+    public long getReservedMemory() {
+        return (int)reservedMemory;
+    }
+
+    /**
+     * Bytes that is reserved for disk usage by this account on the server
+     * @return the disk usage in bytes
+     */
+    public long getReservedStorage() {
+        return reservedStorage;
+    }
+
+    /**
+     * Bytes that is reserved for memory usage by this account on the server
+     * @return the memory usage in bytes
+     */
+    public long getReservedMemoryBytes() {
         return reservedMemory;
     }
 
@@ -70,7 +86,7 @@ public class AccountTier {
      * Bytes that is reserved for disk usage by this account on the server
      * @return the disk usage in bytes
      */
-    public int getReservedStorage() {
+    public long getReservedStorageBytes() {
         return reservedStorage;
     }
 
@@ -96,5 +112,25 @@ public class AccountTier {
      */
     public AccountLimits getLimits() {
         return limits;
+    }
+
+    /**
+     * @deprecated use getMemoryBytes instead
+     * Memory Storage being used for Stream Message storage in this tier.
+     * @return the memory storage in bytes
+     */
+    @Deprecated
+    public int getMemory() {
+        return (int)memory;
+    }
+
+    /**
+     * @deprecated use getStorageBytes instead
+     * File Storage being used for Stream Message storage in this tier.
+     * @return the storage in bytes
+     */
+    @Deprecated
+    public int getStorage() {
+        return (int)storage;
     }
 }

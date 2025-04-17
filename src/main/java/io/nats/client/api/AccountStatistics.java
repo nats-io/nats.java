@@ -54,7 +54,7 @@ public class AccountStatistics
      * @return bytes
      */
     public long getMemory() {
-        return rollupTier.getMemory();
+        return rollupTier.getMemoryBytes();
     }
 
     /**
@@ -63,7 +63,23 @@ public class AccountStatistics
      * @return bytes
      */
     public long getStorage() {
-        return rollupTier.getStorage();
+        return rollupTier.getStorageBytes();
+    }
+
+    /**
+     * Bytes that is reserved for memory usage by this account on the server
+     * @return the memory usage in bytes
+     */
+    public long getReservedMemory() {
+        return rollupTier.getReservedMemoryBytes();
+    }
+
+    /**
+     * Bytes that is reserved for disk usage by this account on the server
+     * @return the disk usage in bytes
+     */
+    public long getReservedStorage() {
+        return rollupTier.getReservedStorageBytes();
     }
 
     /**
