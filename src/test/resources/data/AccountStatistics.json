@@ -2,6 +2,8 @@
   "type": "io.nats.jetstream.api.v1.account_info_response",
   "memory": 101,
   "storage": 102,
+  "reserved_memory": 105,
+  "reserved_storage": 106,
   "streams": 103,
   "consumers": 104,
   "limits": {
@@ -16,13 +18,17 @@
   },
   "domain": "ngs",
   "api": {
+    "level": 303,
     "total": 301,
-    "errors": 302
+    "errors": 302,
+    "inflight": 304
   },
   "tiers": {
     "R1": {
       "memory": 401,
       "storage": 402,
+      "reserved_memory": 405,
+      "reserved_storage": 406,
       "streams": 403,
       "consumers": 404,
       "limits": {
@@ -39,6 +45,8 @@
     "R3": {
       "memory": 601,
       "storage": 602,
+      "reserved_memory": 605,
+      "reserved_storage": 606,
       "streams": 603,
       "consumers": 604,
       "limits": {

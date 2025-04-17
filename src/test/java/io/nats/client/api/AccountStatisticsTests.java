@@ -37,25 +37,16 @@ public class AccountStatisticsTests extends JetStreamTestBase {
         assertEquals("ngs", as.getDomain());
 
         ApiStats api = as.getApi();
-        assertEquals(301, api.getTotal());
-        assertEquals(302, api.getErrors());
+        assertEquals(301, api.getTotal()); // COVERAGE
+        assertEquals(302, api.getErrors()); // COVERAGE
+        assertEquals(301, api.getTotalApiRequests());
+        assertEquals(302, api.getErrorCount());
+        assertEquals(303, api.getLevel());
+        assertEquals(304, api.getInFlight());
 
         Map<String, AccountTier> tiers = as.getTiers();
-        AccountTier tier = tiers.get("R1");
-        assertNotNull(tier);
-        assertEquals(401, tier.getMemory());
-        assertEquals(402, tier.getStorage());
-        assertEquals(403, tier.getStreams());
-        assertEquals(404, tier.getConsumers());
-        validateAccountLimits(tier.getLimits(), 500);
-
-        tier = tiers.get("R3");
-        assertNotNull(tier);
-        assertEquals(601, tier.getMemory());
-        assertEquals(602, tier.getStorage());
-        assertEquals(603, tier.getStreams());
-        assertEquals(604, tier.getConsumers());
-        validateAccountLimits(tier.getLimits(), 700);
+        validateTier(tiers.get("R1"), 400, 500);
+        validateTier(tiers.get("R3"), 600, 700);
 
         assertNotNull(as.toString()); // COVERAGE
 
@@ -66,7 +57,6 @@ public class AccountStatisticsTests extends JetStreamTestBase {
         assertEquals(0, as.getConsumers());
 
         AccountLimits al = as.getLimits();
-        assertNotNull(al);
         assertEquals(0, al.getMaxMemory());
         assertEquals(0, al.getMaxStorage());
         assertEquals(0, al.getMaxStreams());
@@ -78,18 +68,34 @@ public class AccountStatisticsTests extends JetStreamTestBase {
 
         api = as.getApi();
         assertNotNull(api);
-        assertEquals(0, api.getTotal());
-        assertEquals(0, api.getErrors());
+        assertEquals(0, api.getTotal()); // COVERAGE
+        assertEquals(0, api.getErrors()); // COVERAGE
+        assertEquals(0, api.getTotalApiRequests());
+        assertEquals(0, api.getErrorCount());
+        assertEquals(0, api.getLevel());
+        assertEquals(0, api.getInFlight());
     }
 
-    private void validateAccountLimits(AccountLimits al, int id) {
-        assertEquals(id + 1, al.getMaxMemory());
-        assertEquals(id + 2, al.getMaxStorage());
-        assertEquals(id + 3, al.getMaxStreams());
-        assertEquals(id + 4, al.getMaxConsumers());
-        assertEquals(id + 5, al.getMaxAckPending());
-        assertEquals(id + 6, al.getMemoryMaxStreamBytes());
-        assertEquals(id + 7, al.getStorageMaxStreamBytes());
+    private void validateTier(AccountTier tier, int tierBase, int limitsIdBase) {
+        assertNotNull(tier);
+        assertEquals(tierBase + 1, tier.getMemory());
+        assertEquals(tierBase + 2, tier.getStorage());
+        assertEquals(tierBase + 3, tier.getStreams());
+        assertEquals(tierBase + 4, tier.getConsumers());
+        assertEquals(tierBase + 5, tier.getReservedMemory());
+        assertEquals(tierBase + 6, tier.getReservedStorage());
+        validateAccountLimits(tier.getLimits(), limitsIdBase);
+    }
+
+    private static void validateAccountLimits(AccountLimits al, int limitsIdBase) {
+        assertNotNull(al);
+        assertEquals(limitsIdBase + 1, al.getMaxMemory());
+        assertEquals(limitsIdBase + 2, al.getMaxStorage());
+        assertEquals(limitsIdBase + 3, al.getMaxStreams());
+        assertEquals(limitsIdBase + 4, al.getMaxConsumers());
+        assertEquals(limitsIdBase + 5, al.getMaxAckPending());
+        assertEquals(limitsIdBase + 6, al.getMemoryMaxStreamBytes());
+        assertEquals(limitsIdBase + 7, al.getStorageMaxStreamBytes());
         assertTrue(al.isMaxBytesRequired());
     }
 }

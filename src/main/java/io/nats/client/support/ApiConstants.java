@@ -87,6 +87,7 @@ public interface ApiConstants {
     String ID                = "id";
     String IDLE_HEARTBEAT    = "idle_heartbeat";
     String INACTIVE_THRESHOLD= "inactive_threshold";
+    String INFLIGHT          = "inflight";
     String INTERNAL          = "internal";
     String JETSTREAM         = "jetstream";
     String KEEP              = "keep";
@@ -98,6 +99,7 @@ public interface ApiConstants {
     String LAST_SEQ          = "last_seq";
     String LAST_TS           = "last_ts";
     String LEADER            = "leader";
+    String LEVEL             = "level";
     String LIMIT             = "limit";
     String LIMITS            = "limits";
     String LINK              = "link";
@@ -171,6 +173,8 @@ public interface ApiConstants {
     String REPLICAS          = "replicas";
     String REPUBLISH         = "republish";
     String REQUEST           = "request";
+    String RESERVED_MEMORY   = "reserved_memory";
+    String RESERVED_STORAGE  = "reserved_storage";
     String RESPONSE          = "response";
     String RETENTION         = "retention";
     String SAMPLE_FREQ       = "sample_freq";
