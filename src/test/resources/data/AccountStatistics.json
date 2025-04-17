@@ -16,8 +16,10 @@
   },
   "domain": "ngs",
   "api": {
+    "level": 303,
     "total": 301,
-    "errors": 302
+    "errors": 302,
+    "inflight": 304
   },
   "tiers": {
     "R1": {

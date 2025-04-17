@@ -37,8 +37,12 @@ public class AccountStatisticsTests extends JetStreamTestBase {
         assertEquals("ngs", as.getDomain());
 
         ApiStats api = as.getApi();
-        assertEquals(301, api.getTotal());
-        assertEquals(302, api.getErrors());
+        assertEquals(301, api.getTotal()); // COVERAGE
+        assertEquals(302, api.getErrors()); // COVERAGE
+        assertEquals(301, api.getTotalApiRequests());
+        assertEquals(302, api.getErrorCount());
+        assertEquals(303, api.getLevel());
+        assertEquals(304, api.getInFlight());
 
         Map<String, AccountTier> tiers = as.getTiers();
         AccountTier tier = tiers.get("R1");

@@ -26,6 +26,8 @@ public class AccountTier {
 
     private final int memory;
     private final int storage;
+    private final int reservedMemory;
+    private final int reservedStorage;
     private final int streams;
     private final int consumers;
     private final AccountLimits limits;
@@ -33,6 +35,8 @@ public class AccountTier {
     AccountTier(JsonValue vAccountTier) {
         memory = readInteger(vAccountTier, MEMORY, 0);
         storage = readInteger(vAccountTier, STORAGE, 0);
+        reservedMemory = readInteger(vAccountTier, RESERVED_MEMORY, 0);
+        reservedStorage = readInteger(vAccountTier, RESERVED_STORAGE, 0);
         streams = readInteger(vAccountTier, STREAMS, 0);
         consumers = readInteger(vAccountTier, CONSUMERS, 0);
         limits = new AccountLimits(readObject(vAccountTier, LIMITS));
@@ -40,7 +44,7 @@ public class AccountTier {
 
     /**
      * Memory Storage being used for Stream Message storage in this tier.
-     * @return the storage in bytes
+     * @return the memory storage in bytes
      */
     public int getMemory() {
         return memory;
@@ -52,6 +56,22 @@ public class AccountTier {
      */
     public int getStorage() {
         return storage;
+    }
+
+    /**
+     * Bytes that is reserved for memory usage by this account on the server
+     * @return the memory usage in bytes
+     */
+    public int getReservedMemory() {
+        return reservedMemory;
+    }
+
+    /**
+     * Bytes that is reserved for disk usage by this account on the server
+     * @return the disk usage in bytes
+     */
+    public int getReservedStorage() {
+        return reservedStorage;
     }
 
     /**

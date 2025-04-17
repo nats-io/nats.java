@@ -16,27 +16,34 @@ package io.nats.client.api;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
 
-import static io.nats.client.support.ApiConstants.ERRORS;
-import static io.nats.client.support.ApiConstants.TOTAL;
+import static io.nats.client.support.ApiConstants.*;
 
 /**
  * Represents the JetStream Account Api Stats
  */
 public class ApiStats {
 
-    private final int total;
-    private final int errors;
+    private final int level;
+    private final long total;
+    private final long errors;
+    private final long inFlight;
 
     ApiStats(JsonValue vApiStats) {
-        this.total = JsonValueUtils.readInteger(vApiStats, TOTAL, 0);
-        this.errors = JsonValueUtils.readInteger(vApiStats, ERRORS, 0);
+        this.level = JsonValueUtils.readInteger(vApiStats, LEVEL, 0);
+        this.total = JsonValueUtils.readLong(vApiStats, TOTAL, 0);
+        this.errors = JsonValueUtils.readLong(vApiStats, ERRORS, 0);
+        this.inFlight = JsonValueUtils.readLong(vApiStats, INFLIGHT, 0);
+    }
+
+    public int getLevel() {
+        return level;
     }
 
     /**
      * Total number of API requests received for this account
      * @return the total requests
      */
-    public int getTotal() {
+    public long getTotalApiRequests() {
         return total;
     }
 
@@ -44,7 +51,31 @@ public class ApiStats {
      * API requests that resulted in an error response
      * @return the error count
      */
-    public int getErrors() {
+    public long getErrorCount() {
         return errors;
+    }
+
+    public long getInFlight() {
+        return inFlight;
+    }
+
+    /**
+     * @deprecated Deprecated, replaced with getTotalApiRequests
+     * Total number of API requests received for this account
+     * @return the total requests
+     */
+    @Deprecated
+    public int getTotal() {
+        return (int)total;
+    }
+
+    /**
+     * @deprecated Deprecated, replaced with getErrorErroredRequests
+     * API requests that resulted in an error response
+     * @return the error count
+     */
+    @Deprecated
+    public int getErrors() {
+        return (int)errors;
     }
 }
