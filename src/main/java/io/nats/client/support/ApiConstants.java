@@ -23,11 +23,11 @@ public interface ApiConstants {
     String ALLOW_DIRECT      = "allow_direct";
     String ALLOW_MSG_TTL     = "allow_msg_ttl";
     String ALLOW_ROLLUP_HDRS = "allow_rollup_hdrs";
-    String AVERAGE_PROCESSING_TIME = "average_processing_time";
-    String MIRROR_DIRECT     = "mirror_direct";
+    String ALTERNATES        = "alternates";
     String API               = "api";
     String API_URL           = "api_url";
     String AUTH_REQUIRED     = "auth_required";
+    String AVERAGE_PROCESSING_TIME = "average_processing_time";
     String BACKOFF           = "backoff";
     String BATCH             = "batch";
     String BUCKET            = "bucket";
@@ -131,6 +131,7 @@ public interface ApiConstants {
     String METADATA          = "metadata";
     String MTIME             = "mtime";
     String MIRROR            = "mirror";
+    String MIRROR_DIRECT     = "mirror_direct";
     String MSGS              = "msgs";
     String MULTI_LAST        = "multi_last";
     String NAME              = "name";

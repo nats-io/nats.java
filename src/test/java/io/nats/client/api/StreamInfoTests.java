@@ -157,6 +157,10 @@ public class StreamInfoTests {
         validateSourceInfo(si.getSourceInfos().get(0), 17);
         validateSourceInfo(si.getSourceInfos().get(1), 18);
 
+        assertEquals(2, si.getAlternates().size());
+        validateStreamAlternate(si.getAlternates().get(0), 19);
+        validateStreamAlternate(si.getAlternates().get(1), 20);
+
         si = new StreamInfo(JsonValue.EMPTY_MAP);
         assertNull(si.getCreateTime());
         assertNotNull(si.getStreamState());
@@ -178,6 +182,13 @@ public class StreamInfoTests {
         assertEquals(Duration.ofNanos(id * 10000000000L), sourceInfo.getActive());
         validateExternal(sourceInfo.getExternal(), id);
         StreamConfigurationTests.validateSubjectTransforms(sourceInfo.getSubjectTransforms(), 2, "" + id);
+    }
+
+    private static void validateStreamAlternate(StreamAlternate streamAlternate, int id) {
+        assertNotNull(streamAlternate.toString()); // coverage
+        assertEquals("alt" + id, streamAlternate.getName());
+        assertEquals("domain" + id, streamAlternate.getDomain());
+        assertEquals("cluster" + id, streamAlternate.getCluster());
     }
 
     private static void validateExternal(External e, int id) {
