@@ -112,5 +112,17 @@
         {"src":"18_st_src1","dest":"18_st_dest1"}
       ]
     }
+  ],
+  "alternates": [
+    {
+      "name": "alt19",
+      "domain": "domain19",
+      "cluster": "cluster19"
+    },
+    {
+      "name": "alt20",
+      "domain": "domain20",
+      "cluster": "cluster20"
+    }
   ]
 }

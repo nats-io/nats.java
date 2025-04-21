@@ -35,6 +35,7 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
     private final ClusterInfo clusterInfo;
     private final MirrorInfo mirrorInfo;
     private final List<SourceInfo> sourceInfos;
+    private final List<StreamAlternate> alternates;
     private final ZonedDateTime timestamp;
 
     public StreamInfo(Message msg) {
@@ -49,6 +50,7 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
         clusterInfo = ClusterInfo.optionalInstance(readValue(jv, CLUSTER));
         mirrorInfo = MirrorInfo.optionalInstance(readValue(jv, MIRROR));
         sourceInfos = SourceInfo.optionalListOf(readValue(jv, SOURCES));
+        alternates = StreamAlternate.optionalListOf(readValue(jv, ALTERNATES));
         timestamp = readDate(jv, TIMESTAMP);
     }
 
@@ -90,6 +92,10 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
 
     public StreamConfiguration getConfig() {
         return config;
+    }
+
+    public List<StreamAlternate> getAlternates() {
+        return alternates;
     }
 
     /**
