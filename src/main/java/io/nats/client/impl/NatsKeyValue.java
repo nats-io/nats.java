@@ -315,11 +315,17 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
         return _consumeKeys(Collections.singletonList(readSubject(GREATER_THAN)));
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public LinkedBlockingQueue<KeyResult> consumeKeys(String filter) {
         return _consumeKeys(Collections.singletonList(readSubject(filter)));
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public LinkedBlockingQueue<KeyResult> consumeKeys(List<String> filters) {
         List<String> readSubjectFilters = new ArrayList<>(filters.size());
