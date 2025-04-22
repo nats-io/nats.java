@@ -331,22 +331,25 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
 
     private LinkedBlockingQueue<KeyResult> _consumeKeys(List<String> readSubjectFilters) {
         LinkedBlockingQueue<KeyResult> q = new LinkedBlockingQueue<>();
-        try {
-            visitSubject(readSubjectFilters, DeliverPolicy.LastPerSubject, true, false, m -> {
-                KeyValueOperation op = getOperation(m.getHeaders());
-                if (op == KeyValueOperation.PUT) {
-                    q.offer(new KeyResult(new BucketAndKey(m).key));
-                }
-            });
-            q.offer(new KeyResult());
-        }
-        catch (IOException | JetStreamApiException e) {
-            q.offer(new KeyResult(e));
-        }
-        catch (InterruptedException e) {
-            q.offer(new KeyResult(e));
-            Thread.currentThread().interrupt();
-        }
+        js.conn.getOptions().getExecutor().submit( () -> {
+            try {
+                visitSubject(readSubjectFilters, DeliverPolicy.LastPerSubject, true, false, m -> {
+                    KeyValueOperation op = getOperation(m.getHeaders());
+                    if (op == KeyValueOperation.PUT) {
+                        q.offer(new KeyResult(new BucketAndKey(m).key));
+                    }
+                });
+                q.offer(new KeyResult());
+            }
+            catch (IOException | JetStreamApiException e) {
+                q.offer(new KeyResult(e));
+            }
+            catch (InterruptedException e) {
+                q.offer(new KeyResult(e));
+                Thread.currentThread().interrupt();
+            }
+        });
+
         return q;
     }
 
