@@ -1769,7 +1769,7 @@ public class KeyValueTests extends JetStreamTestBase {
             long elapsed = System.currentTimeMillis() - start;
             assertTrue(elapsed < 10); // should return very quickly, even on a slow machine
             int consumed = 0;
-            while (consumed < count) {
+            while (consumed <= count) { // there is always a terminator message at the end
                 KeyResult kr = list.poll(1, TimeUnit.SECONDS);
                 if (kr != null) {
                     if (++consumed == 1) {
@@ -1778,7 +1778,7 @@ public class KeyValueTests extends JetStreamTestBase {
                     }
                 }
             }
-            assertEquals(count, consumed);
+            assertEquals(count + 1, consumed);
         });
     }
 }
