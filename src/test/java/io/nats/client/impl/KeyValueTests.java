@@ -1745,5 +1745,41 @@ public class KeyValueTests extends JetStreamTestBase {
             assertEquals(SERVER_DEFAULT_DUPLICATE_WINDOW_MS, sc.getDuplicateWindow().toMillis());
         });
     }
+
+    @Test
+    public void testConsumeKeys() throws Exception {
+        int count = 10000;
+        jsServer.run(TestBase::atLeast2_10, nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+            String bucket = bucket();
+            KeyValueConfiguration config = KeyValueConfiguration.builder()
+                .name(bucket)
+                .storageType(StorageType.Memory)
+                .build();
+            kvm.create(config);
+
+            // put a bunch of keys so consume takes some time.
+            KeyValue kv = nc.keyValue(bucket);
+            for (int x = 0; x < count; x++) {
+                kv.put("key" + x, "" + x);
+            }
+
+            long start = System.currentTimeMillis();
+            LinkedBlockingQueue<KeyResult> list = kv.consumeKeys();
+            long elapsed = System.currentTimeMillis() - start;
+            assertTrue(elapsed < 10); // should return very quickly, even on a slow machine
+            int consumed = 0;
+            while (consumed <= count) { // there is always a terminator message at the end
+                KeyResult kr = list.poll(1, TimeUnit.SECONDS);
+                if (kr != null) {
+                    if (++consumed == 1) {
+                        long elapsed2 = System.currentTimeMillis() - start;
+                        assertTrue(elapsed < elapsed2); // the first message comes in well after the function call returns
+                    }
+                }
+            }
+            assertEquals(count + 1, consumed);
+        });
+    }
 }
 
