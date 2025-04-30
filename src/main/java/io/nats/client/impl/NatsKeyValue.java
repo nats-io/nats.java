@@ -13,10 +13,7 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.JetStreamApiException;
-import io.nats.client.KeyValue;
-import io.nats.client.KeyValueOptions;
-import io.nats.client.PurgeOptions;
+import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.Validator;
@@ -31,7 +28,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsConstants.GREATER_THAN;
-import static io.nats.client.support.NatsJetStreamConstants.EXPECTED_LAST_SUB_SEQ_HDR;
 import static io.nats.client.support.NatsJetStreamConstants.JS_WRONG_LAST_SEQUENCE;
 import static io.nats.client.support.NatsKeyValueUtil.*;
 import static io.nats.client.support.Validator.*;
@@ -139,7 +135,7 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
      */
     @Override
     public long put(String key, byte[] value) throws IOException, JetStreamApiException {
-        return _write(key, value, null).getSeqno();
+        return _write(key, value, null, null).getSeqno();
     }
 
     /**
@@ -147,7 +143,7 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
      */
     @Override
     public long put(String key, String value) throws IOException, JetStreamApiException {
-        return _write(key, value.getBytes(StandardCharsets.UTF_8), null).getSeqno();
+        return _write(key, value.getBytes(StandardCharsets.UTF_8), null, null).getSeqno();
     }
 
     /**
@@ -155,7 +151,7 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
      */
     @Override
     public long put(String key, Number value) throws IOException, JetStreamApiException {
-        return _write(key, value.toString().getBytes(StandardCharsets.US_ASCII), null).getSeqno();
+        return _write(key, value.toString().getBytes(StandardCharsets.US_ASCII), null, null).getSeqno();
     }
 
     /**
@@ -163,16 +159,21 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
      */
     @Override
     public long create(String key, byte[] value) throws IOException, JetStreamApiException {
+        return create(key, value, null);
+    }
+
+    @Override
+    public long create(String key, byte[] value, MessageTtl messageTtl) throws IOException, JetStreamApiException {
         validateNonWildcardKvKeyRequired(key);
         try {
-            return update(key, value, 0);
+            return _update(key, value, 0, messageTtl);
         }
         catch (JetStreamApiException e) {
             if (e.getApiErrorCode() == JS_WRONG_LAST_SEQUENCE) {
                 // must check if the last message for this subject is a delete or purge
                 KeyValueEntry kve = _get(key);
                 if (kve != null && kve.getOperation() != KeyValueOperation.PUT) {
-                    return update(key, value, kve.getRevision());
+                    return _update(key, value, kve.getRevision(), messageTtl);
                 }
             }
             throw e;
@@ -185,8 +186,11 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
     @Override
     public long update(String key, byte[] value, long expectedRevision) throws IOException, JetStreamApiException {
         validateNonWildcardKvKeyRequired(key);
-        Headers h = new Headers().add(EXPECTED_LAST_SUB_SEQ_HDR, Long.toString(expectedRevision));
-        return _write(key, value, h).getSeqno();
+        return _update(key, value, expectedRevision, null);
+    }
+
+    private long _update(String key, byte[] value, long expectedRevision, MessageTtl messageTtl) throws IOException, JetStreamApiException {
+        return _write(key, value, null, getPublishOptions(expectedRevision, messageTtl)).getSeqno();
     }
 
     /**
@@ -202,7 +206,7 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
      */
     @Override
     public void delete(String key) throws IOException, JetStreamApiException {
-        _write(key, null, getDeleteHeaders());
+        _write(key, null, getDeleteHeaders(), null);
     }
 
     /**
@@ -210,8 +214,7 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
      */
     @Override
     public void delete(String key, long expectedRevision) throws IOException, JetStreamApiException {
-        Headers h = getDeleteHeaders().put(EXPECTED_LAST_SUB_SEQ_HDR, Long.toString(expectedRevision));
-        _write(key, null, h);
+        _write(key, null, getDeleteHeaders(), getPublishOptions(expectedRevision, null));
     }
 
     /**
@@ -219,7 +222,7 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
      */
     @Override
     public void purge(String key) throws IOException, JetStreamApiException {
-        _write(key, null, getPurgeHeaders());
+        _write(key, null, getPurgeHeaders(), null);
     }
 
     /**
@@ -227,13 +230,12 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
      */
     @Override
     public void purge(String key, long expectedRevision) throws IOException, JetStreamApiException {
-        Headers h = getPurgeHeaders().put(EXPECTED_LAST_SUB_SEQ_HDR, Long.toString(expectedRevision));
-        _write(key, null, h);
+        _write(key, null, getPurgeHeaders(), getPublishOptions(expectedRevision, null));
     }
 
-    private PublishAck _write(String key, byte[] data, Headers h) throws IOException, JetStreamApiException {
+    private PublishAck _write(String key, byte[] data, Headers h, PublishOptions popts) throws IOException, JetStreamApiException {
         validateNonWildcardKvKeyRequired(key);
-        return js.publish(NatsMessage.builder().subject(writeSubject(key)).data(data).headers(h).build());
+        return js.publish(NatsMessage.builder().subject(writeSubject(key)).data(data).headers(h).build(), popts);
     }
 
     @Override

@@ -136,6 +136,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
         extends FeatureConfiguration.Builder<Builder, KeyValueConfiguration>
     {
         Mirror mirror;
+        Duration limitMarkerTtl;
         final List<Source> sources = new ArrayList<>();
 
         @Override
@@ -379,6 +380,31 @@ public class KeyValueConfiguration extends FeatureConfiguration {
         }
 
         /**
+         * The limit marker TTL duration. Server accepts 1 second or more.
+         * @param limitMarkerTtl the TTL duration
+         * @return The Builder
+         */
+        public Builder limitMarker(Duration limitMarkerTtl) {
+            this.limitMarkerTtl = validateDurationNotRequiredGtOrEqSeconds(1, limitMarkerTtl, Duration.ZERO);
+            return this;
+        }
+
+        /**
+         * The limit marker TTL duration. Server accepts 1 second or more.
+         * @param limitMarkerTtlMillis the TTL duration
+         * @return The Builder
+         */
+        public Builder limitMarker(long limitMarkerTtlMillis) {
+            if (limitMarkerTtlMillis <= 0) {
+                this.limitMarkerTtl = Duration.ZERO;
+            }
+            else {
+                this.limitMarkerTtl = validateDurationNotRequiredGtOrEqSeconds(1, limitMarkerTtlMillis);
+            }
+            return this;
+        }
+
+        /**
          * Builds the KeyValueConfiguration
          * @return the KeyValueConfiguration.
          */
@@ -419,6 +445,10 @@ public class KeyValueConfiguration extends FeatureConfiguration {
             }
             else {
                 scBuilder.subjects(toStreamSubject(name));
+            }
+
+            if (limitMarkerTtl != null) {
+                scBuilder.subjectDeleteMarkerTtl(limitMarkerTtl).allowMessageTtl();
             }
 
             // When stream's MaxAge is not set, server uses 2 minutes as the default

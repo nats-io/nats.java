@@ -503,6 +503,20 @@ public class JetStreamPubTests extends JetStreamTestBase {
             MessageInfo mi = jsm.getLastMessage(stream, subject);
             assertEquals("MaxAge", mi.getHeaders().getFirst(NATS_MARKER_REASON_HDR));
             assertEquals("50s", mi.getHeaders().getFirst(MSG_TTL_HDR));
+
+            assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder()
+                .name(stream)
+                .storageType(StorageType.Memory)
+                .allowMessageTtl()
+                .subjectDeleteMarkerTtl(Duration.ofMillis(999))
+                .subjects(subject).build());
+
+            assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder()
+                .name(stream)
+                .storageType(StorageType.Memory)
+                .allowMessageTtl()
+                .subjectDeleteMarkerTtl(999)
+                .subjects(subject).build());
         });
     }
 }

@@ -19,8 +19,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.Properties;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class PublishOptionsTests extends TestBase {
 
@@ -82,5 +81,40 @@ public class PublishOptionsTests extends TestBase {
         po = new PublishOptions.Builder(p).build();
         assertEquals(PublishOptions.UNSET_STREAM, po.getStream());
         assertEquals(PublishOptions.DEFAULT_TIMEOUT, po.getStreamTimeout());
+    }
+
+    @Test
+    public void testMessageTtl() {
+        PublishOptions po = PublishOptions.builder()
+            .messageTtlSeconds(3)
+            .build();
+        assertEquals("3s", po.getMessageTtl());
+
+        po = PublishOptions.builder()
+            .messageTtlCustom("abcd")
+            .build();
+        assertEquals("abcd", po.getMessageTtl());
+
+        po = PublishOptions.builder()
+            .messageTtlNever()
+            .build();
+        assertEquals("never", po.getMessageTtl());
+
+        po = PublishOptions.builder()
+            .messageTtl(MessageTtl.seconds(3))
+            .build();
+        assertEquals("3s", po.getMessageTtl());
+
+        po = PublishOptions.builder()
+            .messageTtl(MessageTtl.custom("abcd"))
+            .build();
+        assertEquals("abcd", po.getMessageTtl());
+
+        po = PublishOptions.builder()
+            .messageTtl(MessageTtl.never())
+            .build();
+        assertEquals("never", po.getMessageTtl());
+
+        assertTrue(MessageTtl.seconds(3).toString().contains("3s")); // COVERAGE
     }
 }

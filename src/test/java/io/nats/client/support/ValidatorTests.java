@@ -240,6 +240,17 @@ public class ValidatorTests {
     }
 
     @Test
+    public void testValidateDurationNotRequiredGtOrEqMinimum() {
+        Duration ifNull = Duration.ofMillis(999);
+        assertEquals(ifNull, validateDurationNotRequiredGtOrEqSeconds(1, null, ifNull));
+        assertEquals(Duration.ofSeconds(1), validateDurationNotRequiredGtOrEqSeconds(1, Duration.ofSeconds(1), ifNull));
+        assertThrows(IllegalArgumentException.class, () -> validateDurationNotRequiredGtOrEqSeconds(1, Duration.ofMillis(999), ifNull));
+
+        assertEquals(Duration.ofSeconds(1), validateDurationNotRequiredGtOrEqSeconds(1, 1000));
+        assertThrows(IllegalArgumentException.class, () -> validateDurationNotRequiredGtOrEqSeconds(1, 999));
+    }
+
+    @Test
     public void testIsGtEqZero() {
         assertTrue(Validator.isGtEqZero(0));
         assertTrue(Validator.isGtEqZero(1));

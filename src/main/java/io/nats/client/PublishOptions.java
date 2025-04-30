@@ -45,7 +45,7 @@ public class PublishOptions {
     private final long expectedLastSeq;
     private final long expectedLastSubSeq;
     private final String msgId;
-    private final String messageTtl;
+    private final MessageTtl messageTtl;
 
     private PublishOptions(Builder b) {
         this.stream = b.stream;
@@ -56,6 +56,20 @@ public class PublishOptions {
         this.expectedLastSubSeq = b.expectedLastSubSeq;
         this.msgId = b.msgId;
         this.messageTtl = b.messageTtl;
+    }
+
+    @Override
+    public String toString() {
+        return "PublishOptions{" +
+            "stream='" + stream + '\'' +
+            ", streamTimeout=" + streamTimeout +
+            ", expectedStream='" + expectedStream + '\'' +
+            ", expectedLastId='" + expectedLastId + '\'' +
+            ", expectedLastSeq=" + expectedLastSeq +
+            ", expectedLastSubSeq=" + expectedLastSubSeq +
+            ", msgId='" + msgId + '\'' +
+            ", messageTtl=" + messageTtl +
+            '}';
     }
 
     /**
@@ -130,7 +144,7 @@ public class PublishOptions {
      * @return the message ttl string
      */
     public String getMessageTtl() {
-        return messageTtl;
+        return messageTtl == null ? null : messageTtl.getMessageTtl();
     }
 
     /**
@@ -155,7 +169,7 @@ public class PublishOptions {
         long expectedLastSeq = UNSET_LAST_SEQUENCE;
         long expectedLastSubSeq = UNSET_LAST_SEQUENCE;
         String msgId;
-        String messageTtl;
+        MessageTtl messageTtl;
 
         /**
          * Constructs a new publish options Builder with the default values.
@@ -259,7 +273,7 @@ public class PublishOptions {
          * @return The Builder
          */
         public Builder messageTtlSeconds(int msgTtlSeconds) {
-            this.messageTtl = msgTtlSeconds < 1 ? null : msgTtlSeconds + "s";
+            this.messageTtl = msgTtlSeconds < 1 ? null : MessageTtl.seconds(msgTtlSeconds);
             return this;
         }
 
@@ -270,15 +284,7 @@ public class PublishOptions {
          * @return The Builder
          */
         public Builder messageTtlCustom(String messageTtlCustom) {
-            if (messageTtlCustom == null) {
-                this.messageTtl = null;
-            }
-            else {
-                this.messageTtl = messageTtlCustom.trim();
-                if (this.messageTtl.isEmpty()) {
-                    this.messageTtl = null;
-                }
-            }
+            this.messageTtl = messageTtlCustom == null ? null : MessageTtl.custom(messageTtlCustom);
             return this;
         }
 
@@ -287,7 +293,16 @@ public class PublishOptions {
          * @return The Builder
          */
         public Builder messageTtlNever() {
-            this.messageTtl = "never";
+            this.messageTtl = MessageTtl.never();
+            return this;
+        }
+
+        /**
+         * Sets the TTL for this specific message to be published
+         * @return The Builder
+         */
+        public Builder messageTtl(MessageTtl messageTtl) {
+            this.messageTtl = messageTtl;
             return this;
         }
 

@@ -1781,5 +1781,44 @@ public class KeyValueTests extends JetStreamTestBase {
             assertEquals(count + 1, consumed);
         });
     }
+
+    @Test
+    public void testLimitMarker() throws Exception {
+        jsServer.run(TestBase::atLeast2_10, nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+            String bucket = bucket();
+            KeyValueConfiguration config = KeyValueConfiguration.builder()
+                .name(bucket)
+                .storageType(StorageType.Memory)
+                .limitMarker(1000)
+                .build();
+            kvm.create(config);
+
+            String key = key();
+            KeyValue kv = nc.keyValue(bucket);
+            kv.create(key, dataBytes(), MessageTtl.seconds(1));
+
+            KeyValueEntry kve = kv.get(key);
+            System.out.println(kve);
+            assertNotNull(kve);
+
+            Thread.sleep(1200);
+
+            kve = kv.get(key);
+            assertNull(kve);
+
+            assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder()
+                .name(bucket)
+                .storageType(StorageType.Memory)
+                .limitMarker(Duration.ofMillis(999))
+                .build());
+
+            assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder()
+                .name(bucket)
+                .storageType(StorageType.Memory)
+                .limitMarker(999)
+                .build());
+        });
+    }
 }
 
