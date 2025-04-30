@@ -1792,14 +1792,14 @@ public class KeyValueTests extends JetStreamTestBase {
                 .storageType(StorageType.Memory)
                 .limitMarker(1000)
                 .build();
-            kvm.create(config);
+            KeyValueStatus kvs = kvm.create(config);
+            assertEquals(1000, kvs.getLimitMarkerTtl().toMillis());
 
             String key = key();
             KeyValue kv = nc.keyValue(bucket);
             kv.create(key, dataBytes(), MessageTtl.seconds(1));
 
             KeyValueEntry kve = kv.get(key);
-            System.out.println(kve);
             assertNotNull(kve);
 
             Thread.sleep(1200);
@@ -1807,16 +1807,24 @@ public class KeyValueTests extends JetStreamTestBase {
             kve = kv.get(key);
             assertNull(kve);
 
-            assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder()
-                .name(bucket)
+            config = KeyValueConfiguration.builder()
+                .name(bucket())
                 .storageType(StorageType.Memory)
-                .limitMarker(Duration.ofMillis(999))
-                .build());
+                .limitMarker(Duration.ofSeconds(2)) // coverage of duration api vs ms api
+                .build();
+            kvs = kvm.create(config);
+            assertEquals(2000, kvs.getLimitMarkerTtl().toMillis());
 
             assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder()
                 .name(bucket)
                 .storageType(StorageType.Memory)
                 .limitMarker(999)
+                .build());
+
+            assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder()
+                .name(bucket)
+                .storageType(StorageType.Memory)
+                .limitMarker(Duration.ofMillis(999)) // coverage of duration api vs ms api
                 .build());
         });
     }

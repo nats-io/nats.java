@@ -385,7 +385,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          * @return The Builder
          */
         public Builder limitMarker(Duration limitMarkerTtl) {
-            this.limitMarkerTtl = validateDurationNotRequiredGtOrEqSeconds(1, limitMarkerTtl, Duration.ZERO);
+            this.limitMarkerTtl = validateDurationNotRequiredGtOrEqSeconds(1, limitMarkerTtl, null);
             return this;
         }
 
@@ -396,7 +396,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
          */
         public Builder limitMarker(long limitMarkerTtlMillis) {
             if (limitMarkerTtlMillis <= 0) {
-                this.limitMarkerTtl = Duration.ZERO;
+                this.limitMarkerTtl = null;
             }
             else {
                 this.limitMarkerTtl = validateDurationNotRequiredGtOrEqSeconds(1, limitMarkerTtlMillis);

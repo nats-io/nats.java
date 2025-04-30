@@ -557,7 +557,7 @@ public class StreamConfiguration implements JsonSerializable {
         private Map<String, String> metadata;
         private long firstSequence = 1;
         private boolean allowMessageTtl = false;
-        private Duration subjectDeleteMarkerTtl = Duration.ZERO;
+        private Duration subjectDeleteMarkerTtl;
 
         /**
          * Default Builder
@@ -1085,7 +1085,7 @@ public class StreamConfiguration implements JsonSerializable {
          * @return The Builder
          */
         public Builder subjectDeleteMarkerTtl(Duration subjectDeleteMarkerTtl) {
-            this.subjectDeleteMarkerTtl = validateDurationNotRequiredGtOrEqSeconds(1, subjectDeleteMarkerTtl, Duration.ZERO);
+            this.subjectDeleteMarkerTtl = validateDurationNotRequiredGtOrEqSeconds(1, subjectDeleteMarkerTtl, null);
             return this;
         }
 
@@ -1095,12 +1095,8 @@ public class StreamConfiguration implements JsonSerializable {
          * @return The Builder
          */
         public Builder subjectDeleteMarkerTtl(long subjectDeleteMarkerTtlMillis) {
-            if (subjectDeleteMarkerTtlMillis <= 0) {
-                this.subjectDeleteMarkerTtl = Duration.ZERO;
-            }
-            else {
-                this.subjectDeleteMarkerTtl = validateDurationNotRequiredGtOrEqSeconds(1, subjectDeleteMarkerTtlMillis);
-            }
+            this.subjectDeleteMarkerTtl = subjectDeleteMarkerTtlMillis <= 0 ? null
+                : validateDurationNotRequiredGtOrEqSeconds(1, subjectDeleteMarkerTtlMillis);
             return this;
         }
 
