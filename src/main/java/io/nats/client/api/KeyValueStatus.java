@@ -169,6 +169,13 @@ public class KeyValueStatus {
     }
 
     /**
+     * Get the Limit Marker TTL duration or null if configured.
+     * @return the duration.
+     */
+    public Duration getLimitMarkerTtl() {
+        return streamInfo.getConfig().getSubjectDeleteMarkerTtl();
+    }
+    /**
      * Gets the name of the type of backing store, currently only "JetStream"
      * @return the name of the store, currently only "JetStream"
      */

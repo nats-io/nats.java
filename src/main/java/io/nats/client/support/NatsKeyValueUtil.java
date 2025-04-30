@@ -14,6 +14,8 @@
 package io.nats.client.support;
 
 import io.nats.client.Message;
+import io.nats.client.MessageTtl;
+import io.nats.client.PublishOptions;
 import io.nats.client.api.KeyValueOperation;
 import io.nats.client.impl.Headers;
 
@@ -75,6 +77,20 @@ public abstract class NatsKeyValueUtil {
         return new Headers()
             .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.PURGE.getHeaderValue())
             .put(ROLLUP_HDR, ROLLUP_HDR_SUBJECT);
+    }
+
+    public static PublishOptions getPublishOptions(long expectedRevision, MessageTtl messageTtl) {
+        boolean returnNull = true;
+        PublishOptions.Builder b = PublishOptions.builder();
+        if (expectedRevision > -1) {
+            returnNull = false;
+            b.expectedLastSubjectSequence(expectedRevision);
+        }
+        if (messageTtl != null) {
+            returnNull = false;
+            b.messageTtl(messageTtl);
+        }
+        return returnNull ? null : b.build();
     }
 
     public static class BucketAndKey {

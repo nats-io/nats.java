@@ -1781,5 +1781,52 @@ public class KeyValueTests extends JetStreamTestBase {
             assertEquals(count + 1, consumed);
         });
     }
+
+    @Test
+    public void testLimitMarker() throws Exception {
+        jsServer.run(TestBase::atLeast2_10, nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+            String bucket = bucket();
+            KeyValueConfiguration config = KeyValueConfiguration.builder()
+                .name(bucket)
+                .storageType(StorageType.Memory)
+                .limitMarker(1000)
+                .build();
+            KeyValueStatus kvs = kvm.create(config);
+            assertEquals(1000, kvs.getLimitMarkerTtl().toMillis());
+
+            String key = key();
+            KeyValue kv = nc.keyValue(bucket);
+            kv.create(key, dataBytes(), MessageTtl.seconds(1));
+
+            KeyValueEntry kve = kv.get(key);
+            assertNotNull(kve);
+
+            Thread.sleep(2000); // a good amount of time to make sure a CI server works
+
+            kve = kv.get(key);
+            assertNull(kve);
+
+            config = KeyValueConfiguration.builder()
+                .name(bucket())
+                .storageType(StorageType.Memory)
+                .limitMarker(Duration.ofSeconds(2)) // coverage of duration api vs ms api
+                .build();
+            kvs = kvm.create(config);
+            assertEquals(2000, kvs.getLimitMarkerTtl().toMillis());
+
+            assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder()
+                .name(bucket)
+                .storageType(StorageType.Memory)
+                .limitMarker(999)
+                .build());
+
+            assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder()
+                .name(bucket)
+                .storageType(StorageType.Memory)
+                .limitMarker(Duration.ofMillis(999)) // coverage of duration api vs ms api
+                .build());
+        });
+    }
 }
 

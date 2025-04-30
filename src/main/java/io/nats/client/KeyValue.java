@@ -105,6 +105,20 @@ public interface KeyValue {
     long create(String key, byte[] value) throws IOException, JetStreamApiException;
 
     /**
+     * Put as the value for a key iff the key does not exist (there is no history)
+     * or is deleted (history shows the key is deleted)
+     * @param key the key
+     * @param value the bytes of the value
+     * @param messageTtl the individual ttl for the key
+     * @return the revision number for the key
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @throws IllegalArgumentException the server is not JetStream enabled
+     */
+    long create(String key, byte[] value, MessageTtl messageTtl) throws IOException, JetStreamApiException;
+
+    /**
      * Put as the value for a key iff the key exists and its last revision matches the expected
      * @param key the key
      * @param value the bytes of the value

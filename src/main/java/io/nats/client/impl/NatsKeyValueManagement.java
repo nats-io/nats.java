@@ -51,6 +51,9 @@ public class NatsKeyValueManagement implements KeyValueManagement {
         return new KeyValueStatus(jsm.addStream(sc));
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public KeyValueStatus update(KeyValueConfiguration config) throws IOException, JetStreamApiException {
         return new KeyValueStatus(jsm.updateStream(config.getBackingConfig()));

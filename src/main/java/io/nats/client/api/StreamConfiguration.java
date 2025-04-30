@@ -557,7 +557,7 @@ public class StreamConfiguration implements JsonSerializable {
         private Map<String, String> metadata;
         private long firstSequence = 1;
         private boolean allowMessageTtl = false;
-        private Duration subjectDeleteMarkerTtl = Duration.ZERO;
+        private Duration subjectDeleteMarkerTtl;
 
         /**
          * Default Builder
@@ -1081,12 +1081,22 @@ public class StreamConfiguration implements JsonSerializable {
 
         /**
          * The time delete marker TTL duration. Server accepts 1 second or more.
-         * CLIENT DOES NOT VALIDATE
          * @param subjectDeleteMarkerTtl the TTL duration
          * @return The Builder
          */
         public Builder subjectDeleteMarkerTtl(Duration subjectDeleteMarkerTtl) {
-            this.subjectDeleteMarkerTtl = subjectDeleteMarkerTtl;
+            this.subjectDeleteMarkerTtl = validateDurationNotRequiredGtOrEqSeconds(1, subjectDeleteMarkerTtl, null);
+            return this;
+        }
+
+        /**
+         * The time delete marker TTL duration in milliseconds. Server accepts 1 second or more.
+         * @param subjectDeleteMarkerTtlMillis the TTL duration
+         * @return The Builder
+         */
+        public Builder subjectDeleteMarkerTtl(long subjectDeleteMarkerTtlMillis) {
+            this.subjectDeleteMarkerTtl = subjectDeleteMarkerTtlMillis <= 0 ? null
+                : validateDurationGtOrEqSeconds(1, subjectDeleteMarkerTtlMillis);
             return this;
         }
 
