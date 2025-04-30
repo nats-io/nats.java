@@ -38,7 +38,7 @@ public class MessageTtl {
      */
     public static MessageTtl seconds(int msgTtlSeconds) {
         if (msgTtlSeconds < 1) {
-            throw new IllegalArgumentException("msgTtlSeconds must be at least 1 second.");
+            throw new IllegalArgumentException("Must be at least 1 second.");
         }
         return new MessageTtl(msgTtlSeconds + "s");
     }

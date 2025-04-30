@@ -399,7 +399,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
                 this.limitMarkerTtl = null;
             }
             else {
-                this.limitMarkerTtl = validateDurationNotRequiredGtOrEqSeconds(1, limitMarkerTtlMillis);
+                this.limitMarkerTtl = validateDurationGtOrEqSeconds(1, limitMarkerTtlMillis);
             }
             return this;
         }

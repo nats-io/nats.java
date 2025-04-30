@@ -364,12 +364,12 @@ public abstract class Validator {
     }
 
     public static Duration validateDurationNotRequiredGtOrEqSeconds(long minSeconds, Duration d, Duration ifNull) {
-        return d == null ? ifNull : validateDurationNotRequiredGtOrEqSeconds(minSeconds, d.toMillis());
+        return d == null ? ifNull : validateDurationGtOrEqSeconds(minSeconds, d.toMillis());
     }
 
-    public static Duration validateDurationNotRequiredGtOrEqSeconds(long minSeconds, long millis) {
+    public static Duration validateDurationGtOrEqSeconds(long minSeconds, long millis) {
         if (millis < (minSeconds * 1000)) {
-            throw new IllegalArgumentException("Duration must be greater than or equal to " + minSeconds + " seconds.");
+            throw new IllegalArgumentException("Must be greater than or equal to " + minSeconds + " second(s).");
         }
         return Duration.ofMillis(millis);
     }

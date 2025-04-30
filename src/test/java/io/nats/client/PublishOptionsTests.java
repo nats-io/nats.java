@@ -85,40 +85,44 @@ public class PublishOptionsTests extends TestBase {
 
     @Test
     public void testMessageTtl() {
-        PublishOptions po = PublishOptions.builder()
-            .messageTtlSeconds(3)
-            .build();
+        PublishOptions po = PublishOptions.builder().messageTtlSeconds(3).build();
         assertEquals("3s", po.getMessageTtl());
 
-        po = PublishOptions.builder()
-            .messageTtlCustom("abcd")
-            .build();
+        po = PublishOptions.builder().messageTtlCustom("abcd").build();
         assertEquals("abcd", po.getMessageTtl());
 
-        po = PublishOptions.builder()
-            .messageTtlNever()
-            .build();
+        po = PublishOptions.builder().messageTtlNever().build();
         assertEquals("never", po.getMessageTtl());
 
-        po = PublishOptions.builder()
-            .messageTtl(MessageTtl.seconds(3))
-            .build();
+        po = PublishOptions.builder().messageTtl(MessageTtl.seconds(3)).build();
         assertEquals("3s", po.getMessageTtl());
 
-        po = PublishOptions.builder()
-            .messageTtl(MessageTtl.custom("abcd"))
-            .build();
+        po = PublishOptions.builder().messageTtl(MessageTtl.custom("abcd")).build();
         assertEquals("abcd", po.getMessageTtl());
 
-        po = PublishOptions.builder()
-            .messageTtl(MessageTtl.never())
-            .build();
+        po = PublishOptions.builder().messageTtl(MessageTtl.never()).build();
         assertEquals("never", po.getMessageTtl());
+
+        po = PublishOptions.builder().messageTtlSeconds(0).build();
+        assertNull(po.getMessageTtl());
+
+        po = PublishOptions.builder().messageTtlSeconds(-1).build();
+        assertNull(po.getMessageTtl());
+
+        po = PublishOptions.builder().messageTtlCustom(null).build();
+        assertNull(po.getMessageTtl());
+
+        po = PublishOptions.builder().messageTtlCustom("").build();
+        assertNull(po.getMessageTtl());
+
+        po = PublishOptions.builder().messageTtl(null).build();
+        assertNull(po.getMessageTtl());
 
         assertThrows(IllegalArgumentException.class, () -> MessageTtl.seconds(0));
         assertThrows(IllegalArgumentException.class, () -> MessageTtl.seconds(-1));
         assertThrows(IllegalArgumentException.class, () -> MessageTtl.custom(null));
         assertThrows(IllegalArgumentException.class, () -> MessageTtl.custom(""));
+
         assertTrue(MessageTtl.seconds(3).toString().contains("3s")); // COVERAGE
     }
 }

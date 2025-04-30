@@ -284,7 +284,7 @@ public class PublishOptions {
          * @return The Builder
          */
         public Builder messageTtlCustom(String messageTtlCustom) {
-            this.messageTtl = messageTtlCustom == null ? null : MessageTtl.custom(messageTtlCustom);
+            this.messageTtl = nullOrEmpty(messageTtlCustom) ? null : MessageTtl.custom(messageTtlCustom);
             return this;
         }
 
