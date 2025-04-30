@@ -115,6 +115,10 @@ public class PublishOptionsTests extends TestBase {
             .build();
         assertEquals("never", po.getMessageTtl());
 
+        assertThrows(IllegalArgumentException.class, () -> MessageTtl.seconds(0));
+        assertThrows(IllegalArgumentException.class, () -> MessageTtl.seconds(-1));
+        assertThrows(IllegalArgumentException.class, () -> MessageTtl.custom(null));
+        assertThrows(IllegalArgumentException.class, () -> MessageTtl.custom(""));
         assertTrue(MessageTtl.seconds(3).toString().contains("3s")); // COVERAGE
     }
 }

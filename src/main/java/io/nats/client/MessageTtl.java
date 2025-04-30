@@ -13,6 +13,8 @@
 
 package io.nats.client;
 
+import io.nats.client.support.Validator;
+
 public class MessageTtl {
     private final String messageTtl;
 
@@ -35,7 +37,7 @@ public class MessageTtl {
      * @return The Builder
      */
     public static MessageTtl seconds(int msgTtlSeconds) {
-        if (msgTtlSeconds < 0) {
+        if (msgTtlSeconds < 1) {
             throw new IllegalArgumentException("msgTtlSeconds must be at least 1 second.");
         }
         return new MessageTtl(msgTtlSeconds + "s");
@@ -48,7 +50,7 @@ public class MessageTtl {
      * @return The Builder
      */
     public static MessageTtl custom(String messageTtlCustom) {
-        if (messageTtlCustom == null) {
+        if (Validator.nullOrEmpty(messageTtlCustom)) {
             throw new IllegalArgumentException("messageTtlCustom required.");
         }
         return new MessageTtl(messageTtlCustom);
