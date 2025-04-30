@@ -1802,7 +1802,7 @@ public class KeyValueTests extends JetStreamTestBase {
             KeyValueEntry kve = kv.get(key);
             assertNotNull(kve);
 
-            Thread.sleep(1200);
+            Thread.sleep(2000); // a good amount of time to make sure a CI server works
 
             kve = kv.get(key);
             assertNull(kve);
