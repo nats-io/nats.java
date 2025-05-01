@@ -242,12 +242,12 @@ public class ValidatorTests {
     @Test
     public void testValidateDurationGtOrEqSeconds() {
         Duration ifNull = Duration.ofMillis(999);
-        assertEquals(ifNull, validateDurationNotRequiredGtOrEqSeconds(1, null, ifNull));
-        assertEquals(Duration.ofSeconds(1), validateDurationNotRequiredGtOrEqSeconds(1, Duration.ofSeconds(1), ifNull));
-        assertThrows(IllegalArgumentException.class, () -> validateDurationNotRequiredGtOrEqSeconds(1, Duration.ofMillis(999), ifNull));
+        assertEquals(ifNull, validateDurationNotRequiredGtOrEqSeconds(1, null, ifNull, ""));
+        assertEquals(Duration.ofSeconds(1), validateDurationNotRequiredGtOrEqSeconds(1, Duration.ofSeconds(1), ifNull, ""));
+        assertThrows(IllegalArgumentException.class, () -> validateDurationNotRequiredGtOrEqSeconds(1, Duration.ofMillis(999), ifNull, ""));
 
-        assertEquals(Duration.ofSeconds(1), validateDurationGtOrEqSeconds(1, 1000));
-        assertThrows(IllegalArgumentException.class, () -> validateDurationGtOrEqSeconds(1, 999));
+        assertEquals(Duration.ofSeconds(1), validateDurationGtOrEqSeconds(1, 1000, ""));
+        assertThrows(IllegalArgumentException.class, () -> validateDurationGtOrEqSeconds(1, 999, ""));
     }
 
     @Test

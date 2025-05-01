@@ -81,6 +81,14 @@ public class KeyValueConfiguration extends FeatureConfiguration {
         return sc.getSources();
     }
 
+    /**
+     * The limit marker ttl if set
+     * @return the duration
+     */
+    public Duration getLimitMarkerTtl() {
+        return sc.getSubjectDeleteMarkerTtl();
+    }
+
     @Override
     public String toString() {
         return "KeyValueConfiguration" + toJson();
@@ -95,6 +103,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
         mb.put("republish", getRepublish());
         mb.put("mirror", getMirror());
         mb.put("sources", getSources());
+        mb.put("limitMarkerTtl", getLimitMarkerTtl());
         mb.jv.mapOrder.add("metaData");
         return mb.toJsonValue();
     }
@@ -381,16 +390,18 @@ public class KeyValueConfiguration extends FeatureConfiguration {
 
         /**
          * The limit marker TTL duration. Server accepts 1 second or more.
+         * Null or empty has the effect of clearing the limit marker ttl
          * @param limitMarkerTtl the TTL duration
          * @return The Builder
          */
         public Builder limitMarker(Duration limitMarkerTtl) {
-            this.limitMarkerTtl = validateDurationNotRequiredGtOrEqSeconds(1, limitMarkerTtl, null);
+            this.limitMarkerTtl = validateDurationNotRequiredGtOrEqSeconds(1, limitMarkerTtl, null, "Limit Marker Ttl");
             return this;
         }
 
         /**
-         * The limit marker TTL duration. Server accepts 1 second or more.
+         * The limit marker TTL duration in milliseconds. Server accepts 1 second or more.
+         * 0 or less has the effect of clearing the limit marker ttl
          * @param limitMarkerTtlMillis the TTL duration
          * @return The Builder
          */
@@ -399,7 +410,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
                 this.limitMarkerTtl = null;
             }
             else {
-                this.limitMarkerTtl = validateDurationGtOrEqSeconds(1, limitMarkerTtlMillis);
+                this.limitMarkerTtl = validateDurationGtOrEqSeconds(1, limitMarkerTtlMillis, "Limit Marker Ttl");
             }
             return this;
         }

@@ -1080,23 +1080,25 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
-         * The time delete marker TTL duration. Server accepts 1 second or more.
+         * Set the subject delete marker TTL duration. Server accepts 1 second or more.
+         * null has the effect of clearing the subject delete marker TTL
          * @param subjectDeleteMarkerTtl the TTL duration
          * @return The Builder
          */
         public Builder subjectDeleteMarkerTtl(Duration subjectDeleteMarkerTtl) {
-            this.subjectDeleteMarkerTtl = validateDurationNotRequiredGtOrEqSeconds(1, subjectDeleteMarkerTtl, null);
+            this.subjectDeleteMarkerTtl = validateDurationNotRequiredGtOrEqSeconds(1, subjectDeleteMarkerTtl, null, "Subject Delete Marker Ttl");
             return this;
         }
 
         /**
-         * The time delete marker TTL duration in milliseconds. Server accepts 1 second or more.
-         * @param subjectDeleteMarkerTtlMillis the TTL duration
+         * Set the subject delete marker TTL duration in milliseconds. Server accepts 1 second or more.
+         * 0 or less has the effect of clearing the subject delete marker TTL
+         * @param subjectDeleteMarkerTtlMillis the TTL duration in milliseconds
          * @return The Builder
          */
         public Builder subjectDeleteMarkerTtl(long subjectDeleteMarkerTtlMillis) {
             this.subjectDeleteMarkerTtl = subjectDeleteMarkerTtlMillis <= 0 ? null
-                : validateDurationGtOrEqSeconds(1, subjectDeleteMarkerTtlMillis);
+                : validateDurationGtOrEqSeconds(1, subjectDeleteMarkerTtlMillis, "Subject Delete Marker Ttl");
             return this;
         }
 

@@ -144,7 +144,7 @@ public class PublishOptions {
      * @return the message ttl string
      */
     public String getMessageTtl() {
-        return messageTtl == null ? null : messageTtl.getMessageTtl();
+        return messageTtl == null ? null : messageTtl.getTtlString();
     }
 
     /**
@@ -268,7 +268,8 @@ public class PublishOptions {
         }
 
         /**
-         * Sets the TTL for this specific message to be published
+         * Sets the TTL for this specific message to be published.
+         * Less than 1 has the effect of clearing the message ttl
          * @param msgTtlSeconds the ttl in seconds
          * @return The Builder
          */
@@ -280,11 +281,12 @@ public class PublishOptions {
         /**
          * Sets the TTL for this specific message to be published. Use at your own risk.
          * The current specification can be found here @see <a href="https://github.com/nats-io/nats-architecture-and-design/blob/main/adr/ADR-43.md#per-message-ttl">JetStream Per-Message TTL</a>
-         * @param messageTtlCustom the ttl in seconds
+         * Null or empty has the effect of clearing the message ttl
+         * @param msgTtlCustom the custom ttl string
          * @return The Builder
          */
-        public Builder messageTtlCustom(String messageTtlCustom) {
-            this.messageTtl = nullOrEmpty(messageTtlCustom) ? null : MessageTtl.custom(messageTtlCustom);
+        public Builder messageTtlCustom(String msgTtlCustom) {
+            this.messageTtl = nullOrEmpty(msgTtlCustom) ? null : MessageTtl.custom(msgTtlCustom);
             return this;
         }
 
@@ -299,6 +301,7 @@ public class PublishOptions {
 
         /**
          * Sets the TTL for this specific message to be published
+         * @param messageTtl the message ttl instance
          * @return The Builder
          */
         public Builder messageTtl(MessageTtl messageTtl) {
