@@ -1784,7 +1784,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testLimitMarker() throws Exception {
-        jsServer.run(TestBase::atLeast2_10, nc -> {
+        jsServer.run(TestBase::atLeast2_11, nc -> {
             KeyValueManagement kvm = nc.keyValueManagement();
             String bucket = bucket();
             KeyValueConfiguration config = KeyValueConfiguration.builder()
@@ -1792,8 +1792,8 @@ public class KeyValueTests extends JetStreamTestBase {
                 .storageType(StorageType.Memory)
                 .limitMarker(1000)
                 .build();
-            KeyValueStatus kvs = kvm.create(config);
-            assertEquals(1000, kvs.getLimitMarkerTtl().toMillis());
+            KeyValueStatus status = kvm.create(config);
+            assertEquals(1000, status.getLimitMarkerTtl().toMillis());
 
             String key = key();
             KeyValue kv = nc.keyValue(bucket);
@@ -1802,7 +1802,7 @@ public class KeyValueTests extends JetStreamTestBase {
             KeyValueEntry kve = kv.get(key);
             assertNotNull(kve);
 
-            Thread.sleep(2000); // a good amount of time to make sure a CI server works
+            sleep(2000); // a good amount of time to make sure a CI server works
 
             kve = kv.get(key);
             assertNull(kve);
@@ -1812,8 +1812,8 @@ public class KeyValueTests extends JetStreamTestBase {
                 .storageType(StorageType.Memory)
                 .limitMarker(Duration.ofSeconds(2)) // coverage of duration api vs ms api
                 .build();
-            kvs = kvm.create(config);
-            assertEquals(2000, kvs.getLimitMarkerTtl().toMillis());
+            status = kvm.create(config);
+            assertEquals(2000, status.getLimitMarkerTtl().toMillis());
 
             assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder()
                 .name(bucket)

@@ -42,6 +42,7 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
             .placement(p)
             .republish(r)
             .compression(true)
+            .limitMarker(8888)
             .build();
         validate(bc);
 
@@ -63,6 +64,7 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
         assertEquals(44, kvc.getMaxHistoryPerKey());
         assertEquals(555, kvc.getMaxBucketSize());
         assertEquals(666, kvc.getMaxValueSize());
+        assertEquals(666, kvc.getMaximumValueSize());
         assertEquals(Duration.ofMillis(777), kvc.getTtl());
         assertEquals(StorageType.Memory, kvc.getStorageType());
         assertEquals(2, kvc.getReplicas());
@@ -74,6 +76,7 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
         assertEquals("dest", kvc.getRepublish().getDestination());
         assertTrue(kvc.getRepublish().isHeadersOnly());
         assertTrue(kvc.isCompressed());
+        assertEquals(8888, kvc.getLimitMarkerTtl().toMillis());
 
         assertTrue(kvc.toString().contains("bucketName"));
     }
