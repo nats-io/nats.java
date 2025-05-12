@@ -130,19 +130,20 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                 case MESSAGE:
                     return msg;
                 case STATUS_TERMINUS:
-                    // if the status applies return null, otherwise it's ignored, fall through
+                    // if the status applies, return null, otherwise it's ignored, fall through
                     if (expectedPullSubject == null || expectedPullSubject.equals(msg.getSubject())) {
                         return null;
                     }
                     break;
                 case STATUS_ERROR:
-                    // if the status applies throw exception, otherwise it's ignored, fall through
+                    // if the status applies, throw exception, otherwise it's ignored, fall through
                     if (expectedPullSubject == null || expectedPullSubject.equals(msg.getSubject())) {
                         throw new JetStreamStatusException(msg.getStatus(), this);
                     }
                     break;
             }
-            // Check again when, regular messages might have arrived
+            // These statuses don't apply to the message that came in,
+            // so we just loop and move on to the next message.
             // 1. Any STATUS_HANDLED
             // 2. STATUS_TERMINUS or STATUS_ERRORS that aren't for expected pullSubject
         }

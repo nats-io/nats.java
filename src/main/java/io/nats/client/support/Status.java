@@ -37,6 +37,7 @@ public class Status {
     public static String CONSUMER_IS_PUSH_BASED         = "Consumer is push based"; // 409
 
     public static String MESSAGE_SIZE_EXCEEDS_MAX_BYTES = "Message Size Exceeds MaxBytes"; // 409
+    public static String EXCEEDED_MAX_PREFIX            = "Exceeded Max";
     public static String EXCEEDED_MAX_WAITING           = "Exceeded MaxWaiting"; // 409
     public static String EXCEEDED_MAX_REQUEST_BATCH     = "Exceeded MaxRequestBatch"; // 409
     public static String EXCEEDED_MAX_REQUEST_EXPIRES   = "Exceeded MaxRequestExpires"; // 409
