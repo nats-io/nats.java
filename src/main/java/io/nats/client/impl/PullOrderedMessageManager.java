@@ -51,7 +51,7 @@ class PullOrderedMessageManager extends PullMessageManager {
     @Override
     protected ManageResult manage(Message msg) {
         if (!msg.getSID().equals(targetSid.get())) {
-            return STATUS_HANDLED; // wrong sid is throwaway from previous consumer that errored
+            return STATUS_HANDLED; // wrong sid. message is a throwaway from previous consumer that errored
         }
 
         if (msg.isJetStream()) {

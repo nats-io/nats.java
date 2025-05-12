@@ -53,7 +53,7 @@ class OrderedMessageManager extends PushMessageManager {
     @Override
     protected ManageResult manage(Message msg) {
         if (!msg.getSID().equals(targetSid.get())) {
-            return STATUS_HANDLED; // wrong sid is throwaway from previous consumer that errored
+            return STATUS_HANDLED; // wrong sid. message is a throwaway from previous consumer that errored
         }
 
         if (msg.isJetStream()) {
@@ -90,14 +90,14 @@ class OrderedMessageManager extends PushMessageManager {
             }
             catch (Exception ignore) {}
 
-            // 2. re-subscribe. This means kill the sub then make a new one
+            // 2. re-subscribe. This means killing the sub then making a new one.
             //    New sub needs a new deliverSubject
             String newDeliverSubject = sub.connection.createInbox();
             sub.reSubscribe(newDeliverSubject);
             targetSid.set(sub.getSID());
 
-            // 3. make a new consumer using the same deliver subject but
-            //    with a new starting point
+            // 3. make a new consumer using the same "deliver" subject
+            //    but with a new starting point
             ConsumerConfiguration userCC = js.consumerConfigurationForOrdered(originalCc, lastStreamSeq, newDeliverSubject, actualConsumerName, null);
             ConsumerInfo ci = js._createConsumer(stream, userCC, ConsumerCreateRequest.Action.Create); // this can fail when a server is down.
             sub.setConsumerName(ci.getName());
