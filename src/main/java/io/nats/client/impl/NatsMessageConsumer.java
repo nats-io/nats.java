@@ -27,12 +27,13 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
     protected final MessageHandler userMessageHandler;
 
     NatsMessageConsumer(SimplifiedSubscriptionMaker subscriptionMaker,
+                        String consumerName,
                         ConsumerInfo cachedConsumerInfo,
                         ConsumeOptions consumeOpts,
                         Dispatcher userDispatcher,
                         final MessageHandler userMessageHandler) throws IOException, JetStreamApiException
     {
-        super(cachedConsumerInfo);
+        super(consumerName, cachedConsumerInfo);
 
         this.subscriptionMaker = subscriptionMaker;
         this.consumeOpts = consumeOpts;

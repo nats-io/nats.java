@@ -896,6 +896,11 @@ public class KeyValueTests extends JetStreamTestBase {
         }
 
         @Override
+        public String consumerName() {
+            return name;
+        }
+
+        @Override
         public String toString() {
             return "TestKeyValueWatcher{" +
                 "name='" + name + '\'' +
@@ -1071,6 +1076,9 @@ public class KeyValueTests extends JetStreamTestBase {
         if (!watcher.beforeWatcher) {
             sub = supplier.get(kv);
         }
+
+        // this will throw an exception if the consumer does not exist, so no need to assert anything.
+        nc.jetStreamManagement().getConsumerInfo("KV_" + bucket, watcher.consumerName());
 
         sleep(1500); // give time for the watches to get messages
 

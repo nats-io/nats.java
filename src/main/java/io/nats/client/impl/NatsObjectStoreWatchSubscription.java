@@ -59,6 +59,6 @@ public class NatsObjectStoreWatchSubscription extends NatsWatchSubscription<Obje
                 }
             };
 
-        finishInit(os, Collections.singletonList(os.rawAllMetaSubject()), deliverPolicy, headersOnly, ULONG_UNSET, handler);
+        finishInit(os, Collections.singletonList(os.rawAllMetaSubject()), deliverPolicy, headersOnly, ULONG_UNSET, handler, watcher.consumerName());
     }
 }

@@ -26,8 +26,10 @@ class NatsMessageConsumerBase implements MessageConsumer {
     protected final AtomicBoolean stopped;
     protected final AtomicBoolean finished;
     protected ConsumerInfo cachedConsumerInfo;
+    protected String consumerName;
 
-    NatsMessageConsumerBase(ConsumerInfo cachedConsumerInfo) {
+    NatsMessageConsumerBase(String consumerName, ConsumerInfo cachedConsumerInfo) {
+        this.consumerName = consumerName;
         this.cachedConsumerInfo = cachedConsumerInfo;
         this.stopped = new AtomicBoolean(false);
         this.finished = new AtomicBoolean(false);
@@ -57,7 +59,7 @@ class NatsMessageConsumerBase implements MessageConsumer {
      */
     @Override
     public String getConsumerName() {
-        return sub.getConsumerName();
+        return consumerName;
     }
 
     /**

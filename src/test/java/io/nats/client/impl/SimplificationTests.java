@@ -757,7 +757,9 @@ public class SimplificationTests extends JetStreamTestBase {
 
             // New pomm factory in place before each subscription is made
             ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedNextTestDropSimulator::new;
-            _testOrderedNext(sctx, 1, new OrderedConsumerConfiguration().filterSubject(tsc.subject()));
+            _testOrderedNext(sctx, 1, new OrderedConsumerConfiguration()
+                .consumerNamePrefix("pfx-")
+                .filterSubject(tsc.subject()));
 
             ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedNextTestDropSimulator::new;
             _testOrderedNext(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
@@ -783,6 +785,13 @@ public class SimplificationTests extends JetStreamTestBase {
         // Loop through the messages to make sure I get stream sequence 1 to 6
         while (expectedStreamSeq <= 6) {
             Message m = occtx.next(1000);
+            String cn = occtx.getConsumerName();
+            if (cn == null) {
+                assertNull(occ.getConsumerNamePrefix());
+            }
+            else {
+                assertTrue(cn.startsWith(occ.getConsumerNamePrefix()));
+            }
             if (m != null) {
                 assertEquals(expectedStreamSeq, m.metaData().streamSequence());
                 assertEquals(1, m.metaData().consumerSequence());

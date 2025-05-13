@@ -67,17 +67,18 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
             // Get this in place before any subscriptions are made
             ((NatsJetStream)js)._pushOrderedMessageManagerFactory = OrderedTestDropSimulator::new;
 
-            // The options will be used in various ways
-            PushSubscribeOptions pso = PushSubscribeOptions.builder().ordered(true).build();
-
             // Test queue exception
-            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(tsc.subject(), QUEUE, pso));
+            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
+                () -> js.subscribe(tsc.subject(), QUEUE, PushSubscribeOptions.builder().ordered(true).build()));
             assertTrue(iae.getMessage().contains(JsSubOrderedNotAllowOnQueues.id()));
 
             // Setup sync subscription
+            String consumerName = "tocs-" + variant();
+            PushSubscribeOptions pso = PushSubscribeOptions.builder().name(consumerName).ordered(true).build();
             JetStreamSubscription sub = js.subscribe(tsc.subject(), pso);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
             sleep(1000);
+            assertEquals(consumerName, sub.getConsumerName());
 
             // Published messages will be intercepted by the OrderedTestDropSimulator
             jsPublish(js, tsc.subject(), 101, 6);
@@ -92,6 +93,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
                     ++expectedStreamSeq;
                 }
             }
+            assertEquals(consumerName, sub.getConsumerName());
         });
     }
 
@@ -117,7 +119,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
             IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(tsc.subject(), QUEUE, d, m -> {}, false, pso));
             assertTrue(iae.getMessage().contains(JsSubOrderedNotAllowOnQueues.id()));
 
-            // Setup async subscription
+            // Set up an async subscription
             CountDownLatch msgLatch = new CountDownLatch(6);
             AtomicInteger received = new AtomicInteger();
             AtomicLong[] ssFlags = new AtomicLong[6];

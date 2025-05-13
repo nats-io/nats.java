@@ -29,10 +29,11 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
     private long startNanos;
 
     NatsFetchConsumer(SimplifiedSubscriptionMaker subscriptionMaker,
+                      String consumerName,
                       ConsumerInfo cachedConsumerInfo,
                       FetchConsumeOptions fetchConsumeOptions) throws IOException, JetStreamApiException
     {
-        super(cachedConsumerInfo);
+        super(consumerName, cachedConsumerInfo);
 
         boolean isNoWait = fetchConsumeOptions.isNoWait();
         long expiresInMillis = fetchConsumeOptions.getExpiresInMillis();
