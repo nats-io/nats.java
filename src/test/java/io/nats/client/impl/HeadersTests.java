@@ -333,20 +333,18 @@ public class HeadersTests {
         // ctrl characters, except for tab not allowed
         for (char c = 0; c < 9; c++) {
             final String val = "val" + c;
-            assertThrows(IllegalArgumentException.class, () -> headers.put(KEY1, val));
+            assertDoesNotThrow(() -> headers.put(KEY1, val));
         }
-        for (char c = 10; c < 32; c++) {
+        assertThrows(IllegalArgumentException.class, () -> headers.put(KEY1, "val" + (char)10));
+        for (char c = 11; c < 13; c++) {
             final String val = "val" + c;
-            assertThrows(IllegalArgumentException.class, () -> headers.put(KEY1, val));
+            assertDoesNotThrow(() -> headers.put(KEY1, val));
         }
-        assertThrows(IllegalArgumentException.class, () -> headers.put(KEY1, "val" + (char)127));
-
-        // printable and tab are allowed
-        for (char c = 32; c < 127; c++) {
-            headers.put(KEY1, "" + c);
+        assertThrows(IllegalArgumentException.class, () -> headers.put(KEY1, "val" + (char)13));
+        for (char c = 14; c < 255; c++) {
+            final String val = "val" + c;
+            assertDoesNotThrow(() -> headers.put(KEY1, val));
         }
-
-        headers.put(KEY1, "val" + (char)9);
     }
 
     @Test

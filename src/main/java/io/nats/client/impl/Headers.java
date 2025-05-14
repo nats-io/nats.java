@@ -533,11 +533,10 @@ public class Headers {
 	 * @throws IllegalArgumentException if the value contains an invalid character
 	 */
 	private void checkValue(String val) {
-		// Generally more permissive than HTTP.  Allow only printable
-		// characters and include tab (0x9) to cover what's allowed
-		// in quoted strings and comments.
+		// Like rfc822 section 3.1.2 (quoted in ADR 4)
+		// The field-body may be composed of any ASCII characters, except CR or LF.
 		val.chars().forEach(c -> {
-			if ((c < 32 && c != 9) || c > 126) {
+			if (c < 0 || c > 255 || c == 10 || c == 13) {
 				throw new IllegalArgumentException(VALUE_INVALID_CHARACTERS + c);
 			}
 		});
