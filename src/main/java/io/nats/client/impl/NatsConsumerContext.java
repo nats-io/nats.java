@@ -86,7 +86,6 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         }
     }
 
-    int x = 0;
     @Override
     public NatsJetStreamPullSubscription subscribe(MessageHandler messageHandler, Dispatcher userDispatcher, PullMessageManager optionalPmm, Long optionalInactiveThreshold) throws IOException, JetStreamApiException {
         PullSubscribeOptions pso;
@@ -199,12 +198,13 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
 
             try {
                 long inactiveThreshold = maxWaitMillis * 110 / 100; // 10% longer than the wait
-                nmcb = new NatsMessageConsumerBase(consumerName.get(), cachedConsumerInfo.get());
+                nmcb = new NatsMessageConsumerBase(cachedConsumerInfo.get());
                 nmcb.initSub(subscribe(null, null, null, inactiveThreshold));
+                nmcb.setConsumerName(consumerName.get()); // the call to subscribe sets this
+                trackConsume(nmcb); // this has to be done after the nmcb is fully set up
                 nmcb.sub._pull(PullRequestOptions.builder(1)
                     .expiresIn(maxWaitMillis - EXPIRE_ADJUSTMENT)
                     .build(), false, null);
-                trackConsume(nmcb);
             }
             catch (Exception e) {
                 if (nmcb != null) {
@@ -220,7 +220,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             stateLock.unlock();
         }
 
-        // intentionally outside of lock
+        // intentionally outside the lock
         try {
             return nmcb.sub.nextMessage(maxWaitMillis);
         }
@@ -260,7 +260,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             stateLock.lock();
             checkState();
             Validator.required(fetchConsumeOptions, "Fetch Consume Options");
-            return (FetchConsumer)trackConsume(new NatsFetchConsumer(this, consumerName.get(), cachedConsumerInfo.get(), fetchConsumeOptions));
+            return (FetchConsumer)trackConsume(new NatsFetchConsumer(this, cachedConsumerInfo.get(), fetchConsumeOptions));
         }
         finally {
             stateLock.unlock();
@@ -284,7 +284,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             stateLock.lock();
             checkState();
             Validator.required(consumeOptions, "Consume Options");
-            return (IterableConsumer) trackConsume(new NatsIterableConsumer(this, consumerName.get(), cachedConsumerInfo.get(), consumeOptions));
+            return (IterableConsumer) trackConsume(new NatsIterableConsumer(this, cachedConsumerInfo.get(), consumeOptions));
         }
         finally {
             stateLock.unlock();
@@ -325,7 +325,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             checkState();
             Validator.required(handler, "Message Handler");
             Validator.required(consumeOptions, "Consume Options");
-            return trackConsume(new NatsMessageConsumer(this, consumerName.get(), cachedConsumerInfo.get(), consumeOptions, userDispatcher, handler));
+            return trackConsume(new NatsMessageConsumer(this, cachedConsumerInfo.get(), consumeOptions, userDispatcher, handler));
         }
         finally {
             stateLock.unlock();

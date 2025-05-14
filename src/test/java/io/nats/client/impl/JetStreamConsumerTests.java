@@ -18,9 +18,11 @@ import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -30,9 +32,9 @@ import static org.junit.jupiter.api.Assertions.*;
 public class JetStreamConsumerTests extends JetStreamTestBase {
 
     // ------------------------------------------------------------------------------------------
-    // This allows me to intercept messages before it gets to the connection queue
-    // which is before the messages is available for nextMessage, or before
-    // it gets dispatched to a handler.
+    // This allows me to intercept messages before it gets to the connection queue,
+    // which is before the messages are available for "nextMessage",
+    // or before it gets dispatched to a handler.
     static class OrderedTestDropSimulator extends OrderedMessageManager {
         public OrderedTestDropSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode) {
             super(conn, js, stream, so, serverCC, queueMode, syncMode);
@@ -73,28 +75,37 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
             assertTrue(iae.getMessage().contains(JsSubOrderedNotAllowOnQueues.id()));
 
             // Setup sync subscription
-            String consumerName = "tocs-" + variant();
-            PushSubscribeOptions pso = PushSubscribeOptions.builder().name(consumerName).ordered(true).build();
-            JetStreamSubscription sub = js.subscribe(tsc.subject(), pso);
-            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
-            sleep(1000);
-            assertEquals(consumerName, sub.getConsumerName());
+            _testOrderedConsumerSync(nc, js, tsc, null, PushSubscribeOptions.builder().ordered(true).build());
 
-            // Published messages will be intercepted by the OrderedTestDropSimulator
-            jsPublish(js, tsc.subject(), 101, 6);
-
-            // Loop through the messages to make sure I get stream sequence 1 to 6
-            int expectedStreamSeq = 1;
-            while (expectedStreamSeq <= 6) {
-                Message m = sub.nextMessage(Duration.ofSeconds(1)); // use duration version here for coverage
-                if (m != null) {
-                    assertEquals(expectedStreamSeq, m.metaData().streamSequence());
-                    assertEquals(EXPECTED_CON_SEQ_NUMS[expectedStreamSeq-1], m.metaData().consumerSequence());
-                    ++expectedStreamSeq;
-                }
-            }
-            assertEquals(consumerName, sub.getConsumerName());
+            String consumerName = variant();
+            _testOrderedConsumerSync(nc, js, tsc, consumerName, PushSubscribeOptions.builder().name(consumerName).ordered(true).build());
         });
+    }
+
+    private static void _testOrderedConsumerSync(Connection nc, JetStream js, TestingStreamContainer tsc, String consumerName, PushSubscribeOptions pso) throws IOException, JetStreamApiException, TimeoutException, InterruptedException {
+        JetStreamSubscription sub = js.subscribe(tsc.subject(), pso);
+        nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+        sleep(1000);
+        if (consumerName != null) {
+            assertEquals(consumerName, sub.getConsumerInfo().getName());
+        }
+
+        // Published messages will be intercepted by the OrderedTestDropSimulator
+        jsPublish(js, tsc.subject(), 101, 6);
+
+        // Loop through the messages to make sure I get stream sequence 1 to 6
+        int expectedStreamSeq = 1;
+        while (expectedStreamSeq <= 6) {
+            Message m = sub.nextMessage(Duration.ofSeconds(1)); // use the duration version here for coverage
+            if (m != null) {
+                assertEquals(expectedStreamSeq, m.metaData().streamSequence());
+                assertEquals(EXPECTED_CON_SEQ_NUMS[expectedStreamSeq-1], m.metaData().consumerSequence());
+                ++expectedStreamSeq;
+            }
+        }
+        if (consumerName != null) {
+            assertEquals(consumerName, sub.getConsumerInfo().getName());
+        }
     }
 
     @Test
@@ -103,53 +114,58 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
             // Setup
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
-
-            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
-
-            // Get this in place before any subscriptions are made
-            ((NatsJetStream)js)._pushOrderedMessageManagerFactory = OrderedTestDropSimulator::new;
-
-            // The options will be used in various ways
-            PushSubscribeOptions pso = PushSubscribeOptions.builder().ordered(true).build();
-
-            // We'll need a dispatcher
-            Dispatcher d = nc.createDispatcher();
-
-            // Test queue exception
-            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(tsc.subject(), QUEUE, d, m -> {}, false, pso));
-            assertTrue(iae.getMessage().contains(JsSubOrderedNotAllowOnQueues.id()));
-
-            // Set up an async subscription
-            CountDownLatch msgLatch = new CountDownLatch(6);
-            AtomicInteger received = new AtomicInteger();
-            AtomicLong[] ssFlags = new AtomicLong[6];
-            AtomicLong[] csFlags = new AtomicLong[6];
-            MessageHandler handler = hmsg -> {
-                int i = received.incrementAndGet() - 1;
-                ssFlags[i] = new AtomicLong(hmsg.metaData().streamSequence());
-                csFlags[i] = new AtomicLong(hmsg.metaData().consumerSequence());
-                msgLatch.countDown();
-            };
-
-            js.subscribe(tsc.subject(), d, handler, false, pso);
-            nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
-            sleep(1000);
-
-            // publish after sub b/c interceptor is set during sub, so before messages come in
-            jsPublish(js, tsc.subject(), 201, 6);
-
-            // wait for the messages
-            awaitAndAssert(msgLatch);
-
-            // Loop through the messages to make sure I get stream sequence 1 to 6
-            int expectedStreamSeq = 1;
-            while (expectedStreamSeq <= 6) {
-                int idx = expectedStreamSeq - 1;
-                assertEquals(expectedStreamSeq, ssFlags[idx].get());
-                assertEquals(EXPECTED_CON_SEQ_NUMS[idx], csFlags[idx].get());
-                ++expectedStreamSeq;
-            }
+            _testOrderedConsumerAsync(nc, jsm, js, null, PushSubscribeOptions.builder().ordered(true).build());
+            String customName = variant();
+            _testOrderedConsumerAsync(nc, jsm, js, customName, PushSubscribeOptions.builder().name(customName).ordered(true).build());
         });
+    }
+
+    private static void _testOrderedConsumerAsync(Connection nc, JetStreamManagement jsm, JetStream js, String customName, PushSubscribeOptions pso) throws JetStreamApiException, IOException, TimeoutException, InterruptedException {
+        TestingStreamContainer tsc = new TestingStreamContainer(jsm);
+
+        // Get this in place before any subscriptions are made
+        ((NatsJetStream) js)._pushOrderedMessageManagerFactory = OrderedTestDropSimulator::new;
+
+        // We'll need a dispatcher
+        Dispatcher d = nc.createDispatcher();
+
+        // Test queue exception
+        IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(tsc.subject(), QUEUE, d, m -> {}, false, pso));
+        assertTrue(iae.getMessage().contains(JsSubOrderedNotAllowOnQueues.id()));
+
+        // Set up an async subscription
+        CountDownLatch msgLatch = new CountDownLatch(6);
+        AtomicInteger received = new AtomicInteger();
+        AtomicLong[] ssFlags = new AtomicLong[6];
+        AtomicLong[] csFlags = new AtomicLong[6];
+        MessageHandler handler = hmsg -> {
+            int i = received.incrementAndGet() - 1;
+            ssFlags[i] = new AtomicLong(hmsg.metaData().streamSequence());
+            csFlags[i] = new AtomicLong(hmsg.metaData().consumerSequence());
+            msgLatch.countDown();
+        };
+
+        JetStreamSubscription sub = js.subscribe(tsc.subject(), d, handler, false, pso);
+        if (customName != null) {
+            assertEquals(customName, sub.getConsumerInfo().getName());
+        }
+        nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
+        sleep(1000);
+
+        // publish after sub b/c interceptor is set during sub, so before messages come in
+        jsPublish(js, tsc.subject(), 201, 6);
+
+        // wait for the messages
+        awaitAndAssert(msgLatch);
+
+        // Loop through the messages to make sure I get stream sequence 1 to 6
+        int expectedStreamSeq = 1;
+        while (expectedStreamSeq <= 6) {
+            int idx = expectedStreamSeq - 1;
+            assertEquals(expectedStreamSeq, ssFlags[idx].get());
+            assertEquals(EXPECTED_CON_SEQ_NUMS[idx], csFlags[idx].get());
+            ++expectedStreamSeq;
+        }
     }
 
     static class HeartbeatErrorSimulator extends PushMessageManager {
@@ -281,7 +297,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
     }
 
     private static CountDownLatch setupPullFactory(JetStream js) {
-        // expected latch count is 1 b/c pull is dead once there is a hb error
+        // the expected latch count is 1 b/c pull is dead once there is a hb error
         CountDownLatch latch = new CountDownLatch(1);
         ((NatsJetStream)js)._pullMessageManagerFactory =
             (conn, lJs, stream, so, serverCC, qmode, dispatcher) ->

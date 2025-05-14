@@ -70,6 +70,6 @@ public class NatsKeyValueWatchSubscription extends NatsWatchSubscription<KeyValu
             readSubjects.add(kv.readSubject(keyPattern.trim()));
         }
 
-        finishInit(kv, readSubjects, deliverPolicy, headersOnly, fromRevision, handler, watcher.consumerName());
+        finishInit(kv, readSubjects, deliverPolicy, headersOnly, fromRevision, handler, watcher.getConsumerNamePrefix());
     }
 }

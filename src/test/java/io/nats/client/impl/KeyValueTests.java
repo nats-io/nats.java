@@ -896,8 +896,8 @@ public class KeyValueTests extends JetStreamTestBase {
         }
 
         @Override
-        public String consumerName() {
-            return name;
+        public String getConsumerNamePrefix() {
+            return metaOnly ? null : name + "-";
         }
 
         @Override
@@ -1077,8 +1077,13 @@ public class KeyValueTests extends JetStreamTestBase {
             sub = supplier.get(kv);
         }
 
-        // this will throw an exception if the consumer does not exist, so no need to assert anything.
-        nc.jetStreamManagement().getConsumerInfo("KV_" + bucket, watcher.consumerName());
+        // only testing this consumer name prefix on not meta only tests
+        // this way there is coverage on working with and without a prefix
+        if (!watcher.metaOnly) {
+            List<String> names = nc.jetStreamManagement().getConsumerNames("KV_" + bucket);
+            assertEquals(1, names.size());
+            assertTrue(names.get(0).startsWith(watcher.getConsumerNamePrefix()));
+        }
 
         sleep(1500); // give time for the watches to get messages
 

@@ -31,11 +31,12 @@ public interface Watcher<T> {
     void endOfData();
 
     /**
-     * The watcher can supply a consumer name to be used when creating the internal watch consumer,
-     * improving the ability to monitor the consumer.
+     * The watcher can supply a prefix to use on the consumer name
+     * that is generated when creating the internal watch consumer.
+     * This can be useful for monitoring the consumer.
      * @return the name, or null if not needed, which is the default interface implementation.
      */
-    default String consumerName() {
+    default String getConsumerNamePrefix() {
         return null;
     }
 }

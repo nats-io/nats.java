@@ -39,7 +39,7 @@ public class NatsWatchSubscription<T> implements AutoCloseable {
                               boolean headersOnly,
                               long fromRevision,
                               WatchMessageHandler<T> handler,
-                              String consumerName)
+                              String consumerNamePrefix)
         throws IOException, JetStreamApiException
     {
         if (fromRevision > ULONG_UNSET) {
@@ -52,6 +52,7 @@ public class NatsWatchSubscription<T> implements AutoCloseable {
             }
         }
 
+        String consumerName = consumerNamePrefix == null ? null : consumerNamePrefix + NUID.nextGlobalSequence();
         PushSubscribeOptions pso = PushSubscribeOptions.builder()
             .stream(fb.getStreamName())
             .ordered(true)

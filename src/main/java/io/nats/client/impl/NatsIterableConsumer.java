@@ -21,8 +21,8 @@ import java.time.Duration;
 
 class NatsIterableConsumer extends NatsMessageConsumer implements IterableConsumer {
 
-    NatsIterableConsumer(SimplifiedSubscriptionMaker subscriptionMaker, String consumerName, ConsumerInfo cachedConsumerInfo, ConsumeOptions opts) throws IOException, JetStreamApiException {
-        super(subscriptionMaker, consumerName, cachedConsumerInfo, opts, null, null);
+    NatsIterableConsumer(SimplifiedSubscriptionMaker subscriptionMaker, ConsumerInfo cachedConsumerInfo, ConsumeOptions opts) throws IOException, JetStreamApiException {
+        super(subscriptionMaker, cachedConsumerInfo, opts, null, null);
     }
 
     /**

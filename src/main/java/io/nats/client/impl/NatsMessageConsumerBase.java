@@ -28,11 +28,17 @@ class NatsMessageConsumerBase implements MessageConsumer {
     protected ConsumerInfo cachedConsumerInfo;
     protected String consumerName;
 
-    NatsMessageConsumerBase(String consumerName, ConsumerInfo cachedConsumerInfo) {
-        this.consumerName = consumerName;
+    NatsMessageConsumerBase(ConsumerInfo cachedConsumerInfo) {
         this.cachedConsumerInfo = cachedConsumerInfo;
+        if (cachedConsumerInfo != null) {
+            this.consumerName = cachedConsumerInfo.getName();
+        }
         this.stopped = new AtomicBoolean(false);
         this.finished = new AtomicBoolean(false);
+    }
+
+    void setConsumerName(String consumerName) {
+        this.consumerName = consumerName;
     }
 
     void initSub(NatsJetStreamPullSubscription sub) {
@@ -59,6 +65,9 @@ class NatsMessageConsumerBase implements MessageConsumer {
      */
     @Override
     public String getConsumerName() {
+        if (consumerName == null) {
+            consumerName = cachedConsumerInfo.getName();
+        }
         return consumerName;
     }
 
@@ -67,9 +76,9 @@ class NatsMessageConsumerBase implements MessageConsumer {
      */
     @Override
     public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
-        // don't look up consumer info if it was never set - this check is for ordered consumer
-        if (cachedConsumerInfo != null) {
+        if (cachedConsumerInfo == null) {
             cachedConsumerInfo = sub.getConsumerInfo();
+            consumerName = cachedConsumerInfo.getName();
         }
         return cachedConsumerInfo;
     }
