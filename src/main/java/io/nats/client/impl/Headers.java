@@ -534,9 +534,9 @@ public class Headers {
 	 */
 	private void checkValue(String val) {
 		// Like rfc822 section 3.1.2 (quoted in ADR 4)
-		// The field-body may be composed of any ASCII characters, except CR or LF.
+		// The field-body may be composed of any US-ASCII characters, except CR or LF.
 		val.chars().forEach(c -> {
-			if (c < 0 || c > 255 || c == 10 || c == 13) {
+			if (c > 127 || c == 10 || c == 13) {
 				throw new IllegalArgumentException(VALUE_INVALID_CHARACTERS + c);
 			}
 		});

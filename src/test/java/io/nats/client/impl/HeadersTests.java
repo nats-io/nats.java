@@ -328,22 +328,16 @@ public class HeadersTests {
     }
 
     @Test
-    public void valueCharactersMustBePrintableOrTab() {
+    public void valueCharactersMustBeUSAsciiExceptForCRLF() {
         Headers headers = new Headers();
-        // ctrl characters, except for tab not allowed
-        for (char c = 0; c < 9; c++) {
+        for (char c = 0; c < 256; c++) {
             final String val = "val" + c;
-            assertDoesNotThrow(() -> headers.put(KEY1, val));
-        }
-        assertThrows(IllegalArgumentException.class, () -> headers.put(KEY1, "val" + (char)10));
-        for (char c = 11; c < 13; c++) {
-            final String val = "val" + c;
-            assertDoesNotThrow(() -> headers.put(KEY1, val));
-        }
-        assertThrows(IllegalArgumentException.class, () -> headers.put(KEY1, "val" + (char)13));
-        for (char c = 14; c < 255; c++) {
-            final String val = "val" + c;
-            assertDoesNotThrow(() -> headers.put(KEY1, val));
+            if (c == 10 || c == 13 || c > 127) {
+                assertThrows(IllegalArgumentException.class, () -> headers.put(KEY1, val));
+            }
+            else {
+                assertDoesNotThrow(() -> headers.put(KEY1, val));
+            }
         }
     }
 
