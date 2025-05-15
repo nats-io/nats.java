@@ -505,6 +505,10 @@ public class TestBase {
         return NUID.nextGlobalSequence();
     }
 
+    public static String prefix() {
+        return variant() + "-";
+    }
+
     public static String stream() {
         return STREAM + "-" + variant(null);
     }

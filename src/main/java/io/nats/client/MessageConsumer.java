@@ -24,7 +24,8 @@ import java.io.IOException;
 public interface MessageConsumer extends AutoCloseable {
     /**
      * Gets the consumer name associated with the subscription.
-     * Some simplified consumer types do not support this, so it might be null.
+     * For simplified consumers, this value can be null unless
+     * the consumer info was manually read via {@link #getConsumerInfo()}.
      * @return the consumer name
      */
     String getConsumerName();
@@ -33,21 +34,22 @@ public interface MessageConsumer extends AutoCloseable {
      * Gets information about the consumer behind this subscription.
      * @return consumer information
      * @throws IOException covers various communication issues with the NATS
-     *         server such as timeout or interruption
+     *         server, such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
     ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException;
 
     /**
      * Gets information about the consumer behind this subscription.
-     * This returns the last read version of Consumer Info, which could technically be out of date.
+     * This returns the last read version of Consumer Info,
+     * which could be null or out of date.
      * @return consumer information
      */
     ConsumerInfo getCachedConsumerInfo();
 
     /**
-     * Use {@link close()} to unsubscribe. Stop will not unsubcribe or clean up resources.
-     * The consumer will finish all pull request already in progress, but will not start any new ones.
+     * Use {@link #close()} to unsubscribe. Stop will not unsubcribe or clean up resources.
+     * The consumer will finish all pull requests already in progress, but will not start any new ones.
      */
     void stop();
 

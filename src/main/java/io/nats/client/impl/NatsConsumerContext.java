@@ -37,8 +37,8 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
     private final ReentrantLock stateLock;
     private final NatsStreamContext streamCtx;
     private final boolean ordered;
-    private final ConsumerConfiguration originalOrderedCc;
-    private final String subscribeSubject;
+    private final ConsumerConfiguration orderedConsumerConfigTemplate;
+    private final String orderedConsumerNamePrefix;
     private final PullSubscribeOptions unorderedBindPso;
 
     private final AtomicReference<ConsumerInfo> cachedConsumerInfo;
@@ -47,7 +47,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
     private final AtomicReference<Dispatcher> defaultDispatcher;
     private final AtomicReference<NatsMessageConsumerBase> lastConsumer;
 
-    NatsConsumerContext(NatsStreamContext sc, ConsumerInfo unorderedConsumerInfo, OrderedConsumerConfiguration orderedCc) {
+    NatsConsumerContext(NatsStreamContext sc, ConsumerInfo unorderedConsumerInfo, OrderedConsumerConfiguration occ) {
         stateLock = new ReentrantLock();
         streamCtx = sc;
         cachedConsumerInfo = new AtomicReference<>();
@@ -57,23 +57,23 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         lastConsumer = new AtomicReference<>();
         if (unorderedConsumerInfo != null) {
             ordered = false;
-            originalOrderedCc = null;
-            subscribeSubject = null;
+            orderedConsumerNamePrefix = null;
+            orderedConsumerConfigTemplate = null;
             cachedConsumerInfo.set(unorderedConsumerInfo);
             consumerName.set(unorderedConsumerInfo.getName());
             unorderedBindPso = PullSubscribeOptions.fastBind(sc.streamName, unorderedConsumerInfo.getName());
         }
         else {
             ordered = true;
-            originalOrderedCc = ConsumerConfiguration.builder()
-                .filterSubjects(orderedCc.getFilterSubjects())
-                .deliverPolicy(orderedCc.getDeliverPolicy())
-                .startSequence(orderedCc.getStartSequence())
-                .startTime(orderedCc.getStartTime())
-                .replayPolicy(orderedCc.getReplayPolicy())
-                .headersOnly(orderedCc.getHeadersOnly())
+            orderedConsumerNamePrefix = occ.getConsumerNamePrefix();
+            orderedConsumerConfigTemplate = ConsumerConfiguration.builder()
+                .filterSubjects(occ.getFilterSubjects())
+                .deliverPolicy(occ.getDeliverPolicy())
+                .startSequence(occ.getStartSequence())
+                .startTime(occ.getStartTime())
+                .replayPolicy(occ.getReplayPolicy())
+                .headersOnly(occ.getHeadersOnly())
                 .build();
-            subscribeSubject = Validator.validateSubject(originalOrderedCc.getFilterSubject(), false);
             unorderedBindPso = null;
         }
     }
@@ -94,8 +94,9 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             if (lastCon != null) {
                 highestSeq.set(Math.max(highestSeq.get(), lastCon.pmm.lastStreamSeq));
             }
+            consumerName.set(orderedConsumerNamePrefix == null ? null : orderedConsumerNamePrefix + NUID.nextGlobalSequence());
             ConsumerConfiguration cc = streamCtx.js.consumerConfigurationForOrdered(
-                originalOrderedCc, highestSeq.get(), null, null, optionalInactiveThreshold);
+                orderedConsumerConfigTemplate, highestSeq.get(), null, consumerName.get(), optionalInactiveThreshold);
             pso = new OrderedPullSubscribeOptionsBuilder(streamCtx.streamName, cc).build();
         }
         else {
@@ -104,7 +105,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
 
         if (messageHandler == null) {
             return (NatsJetStreamPullSubscription) streamCtx.js.createSubscription(
-                subscribeSubject, null, pso, null, null, null, false, optionalPmm);
+                null, null, pso, null, null, null, false, optionalPmm);
         }
 
         Dispatcher d = userDispatcher;
@@ -116,7 +117,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             }
         }
         return (NatsJetStreamPullSubscription) streamCtx.js.createSubscription(
-            subscribeSubject, null, pso, null, (NatsDispatcher) d, messageHandler, false, optionalPmm);
+            null, null, pso, null, (NatsDispatcher) d, messageHandler, false, optionalPmm);
     }
 
     private void checkState() throws IOException {
@@ -199,10 +200,11 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
                 long inactiveThreshold = maxWaitMillis * 110 / 100; // 10% longer than the wait
                 nmcb = new NatsMessageConsumerBase(cachedConsumerInfo.get());
                 nmcb.initSub(subscribe(null, null, null, inactiveThreshold));
+                nmcb.setConsumerName(consumerName.get()); // the call to subscribe sets this
+                trackConsume(nmcb); // this has to be done after the nmcb is fully set up
                 nmcb.sub._pull(PullRequestOptions.builder(1)
                     .expiresIn(maxWaitMillis - EXPIRE_ADJUSTMENT)
                     .build(), false, null);
-                trackConsume(nmcb);
             }
             catch (Exception e) {
                 if (nmcb != null) {
@@ -218,7 +220,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             stateLock.unlock();
         }
 
-        // intentionally outside of lock
+        // intentionally outside the lock
         try {
             return nmcb.sub.nextMessage(maxWaitMillis);
         }

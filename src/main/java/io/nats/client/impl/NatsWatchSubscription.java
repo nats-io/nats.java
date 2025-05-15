@@ -33,7 +33,13 @@ public class NatsWatchSubscription<T> implements AutoCloseable {
         this.js = js;
     }
 
-    protected void finishInit(NatsFeatureBase fb, List<String> subscribeSubjects, DeliverPolicy deliverPolicy, boolean headersOnly, long fromRevision, WatchMessageHandler<T> handler)
+    protected void finishInit(NatsFeatureBase fb,
+                              List<String> subscribeSubjects,
+                              DeliverPolicy deliverPolicy,
+                              boolean headersOnly,
+                              long fromRevision,
+                              WatchMessageHandler<T> handler,
+                              String consumerNamePrefix)
         throws IOException, JetStreamApiException
     {
         if (fromRevision > ULONG_UNSET) {
@@ -46,10 +52,12 @@ public class NatsWatchSubscription<T> implements AutoCloseable {
             }
         }
 
+        String consumerName = consumerNamePrefix == null ? null : consumerNamePrefix + NUID.nextGlobalSequence();
         PushSubscribeOptions pso = PushSubscribeOptions.builder()
             .stream(fb.getStreamName())
             .ordered(true)
             .configuration(ConsumerConfiguration.builder()
+                .name(consumerName)
                 .ackPolicy(AckPolicy.None)
                 .deliverPolicy(deliverPolicy)
                 .startSequence(fromRevision)
@@ -85,6 +93,7 @@ public class NatsWatchSubscription<T> implements AutoCloseable {
     public void unsubscribe() {
         if (dispatcher != null) {
             dispatcher.unsubscribe(sub);
+            //noinspection SizeReplaceableByIsEmpty
             if (dispatcher.getSubscriptionHandlers().size() == 0) {
                 dispatcher.connection.closeDispatcher(dispatcher);
                 dispatcher = null;

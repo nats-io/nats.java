@@ -84,6 +84,9 @@ class OrderedMessageManager extends PushMessageManager {
             // 1. delete the consumer by name so we can recreate it with a different delivery policy
             //    b/c we cannot edit a push consumer's delivery policy
             JetStreamManagement jsm = conn.jetStreamManagement(js.jso);
+
+            // We ask for the "actual" consumer name because it will
+            // be a generated name if the user had not supplied one
             String actualConsumerName = sub.getConsumerName();
             try {
                 jsm.deleteConsumer(stream, actualConsumerName);
@@ -96,8 +99,7 @@ class OrderedMessageManager extends PushMessageManager {
             sub.reSubscribe(newDeliverSubject);
             targetSid.set(sub.getSID());
 
-            // 3. make a new consumer using the same "deliver" subject
-            //    but with a new starting point
+            // 3. make a new consumer using the same "deliver" subject but with a new starting point
             ConsumerConfiguration userCC = js.consumerConfigurationForOrdered(originalCc, lastStreamSeq, newDeliverSubject, actualConsumerName, null);
             ConsumerInfo ci = js._createConsumer(stream, userCC, ConsumerCreateRequest.Action.Create); // this can fail when a server is down.
             sub.setConsumerName(ci.getName());
