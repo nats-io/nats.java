@@ -91,6 +91,7 @@ public final class NUID {
     }
 
     /**
+     * The next global sequence is excellent for an app-specific random string.
      * @return the next sequence portion of the NUID string from a shared global NUID instance
      */
     public static String nextGlobalSequence() {
