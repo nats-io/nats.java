@@ -186,7 +186,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
     // General Utils
     // ----------------------------------------------------------------------------------------------------
     String generateConsumerName() {
-        return NUID.nextGlobalSequence();
+        return NUID.nextGlobal();
     }
 
     ConsumerConfiguration consumerConfigurationForOrdered(
