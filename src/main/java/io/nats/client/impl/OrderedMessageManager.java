@@ -13,7 +13,6 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.JetStreamManagement;
 import io.nats.client.Message;
 import io.nats.client.SubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
@@ -24,6 +23,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.impl.MessageManager.ManageResult.MESSAGE;
 import static io.nats.client.impl.MessageManager.ManageResult.STATUS_HANDLED;
+import static io.nats.client.support.NatsJetStreamUtil.generateConsumerName;
 
 class OrderedMessageManager extends PushMessageManager {
 
@@ -81,30 +81,26 @@ class OrderedMessageManager extends PushMessageManager {
             targetSid.set(null);
             expectedExternalConsumerSeq = 1; // consumer always starts with consumer sequence 1
 
-            // 1. delete the consumer by name so we can recreate it with a different delivery policy
-            //    b/c we cannot edit a push consumer's delivery policy
-            JetStreamManagement jsm = conn.jetStreamManagement(js.jso);
-
-            // We ask for the "actual" consumer name because it will
-            // be a generated name if the user had not supplied one
-            String actualConsumerName = sub.getConsumerName();
-            try {
-                jsm.deleteConsumer(stream, actualConsumerName);
-            }
-            catch (Exception ignore) {}
-
-            // 2. re-subscribe. This means killing the sub then making a new one.
+            // 1. re-subscribe. This means killing the sub then making a new one.
             //    New sub needs a new deliverSubject
             String newDeliverSubject = sub.connection.createInbox();
             sub.reSubscribe(newDeliverSubject);
             targetSid.set(sub.getSID());
 
-            // 3. make a new consumer using the same "deliver" subject but with a new starting point
-            ConsumerConfiguration userCC = js.consumerConfigurationForOrdered(originalCc, lastStreamSeq, newDeliverSubject, actualConsumerName, null);
+            // 2a. make a new consumer using the same "deliver" subject but with a new starting point, and a new name
+            ConsumerConfiguration.Builder b = js.consumerConfigurationForOrdered(initialCc, lastStreamSeq, newDeliverSubject, null);
+
+            // 2b. because we bypass the normal create-subscription workflow,
+            //     we have to handle the fact that ordered consumers must always have a unique name.
+            //     if the user supplied a name, well call generateConsumerName with the original name as a prefix
+            if (initialCc.getName() != null) {
+                b.name(generateConsumerName(initialCc.getName()));
+            }
+            ConsumerConfiguration userCC = b.build();
             ConsumerInfo ci = js._createConsumer(stream, userCC, ConsumerCreateRequest.Action.Create); // this can fail when a server is down.
             sub.setConsumerName(ci.getName());
 
-            // 4. restart the manager.
+            // 3. restart the manager.
             startup(sub);
         }
         catch (Exception e) {

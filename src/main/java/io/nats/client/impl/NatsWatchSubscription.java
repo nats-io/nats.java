@@ -52,12 +52,11 @@ public class NatsWatchSubscription<T> implements AutoCloseable {
             }
         }
 
-        String consumerName = consumerNamePrefix == null ? null : consumerNamePrefix + NUID.nextGlobalSequence();
         PushSubscribeOptions pso = PushSubscribeOptions.builder()
             .stream(fb.getStreamName())
             .ordered(true)
             .configuration(ConsumerConfiguration.builder()
-                .name(consumerName)
+                .name(consumerNamePrefix)
                 .ackPolicy(AckPolicy.None)
                 .deliverPolicy(deliverPolicy)
                 .startSequence(fromRevision)

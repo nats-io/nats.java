@@ -37,8 +37,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
     private final ReentrantLock stateLock;
     private final NatsStreamContext streamCtx;
     private final boolean ordered;
-    private final ConsumerConfiguration orderedConsumerConfigTemplate;
-    private final String orderedConsumerNamePrefix;
+    private final ConsumerConfiguration initialOrderedConsumerConfig;
     private final PullSubscribeOptions unorderedBindPso;
 
     private final AtomicReference<ConsumerInfo> cachedConsumerInfo;
@@ -57,16 +56,15 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         lastConsumer = new AtomicReference<>();
         if (unorderedConsumerInfo != null) {
             ordered = false;
-            orderedConsumerNamePrefix = null;
-            orderedConsumerConfigTemplate = null;
+            initialOrderedConsumerConfig = null;
             cachedConsumerInfo.set(unorderedConsumerInfo);
             consumerName.set(unorderedConsumerInfo.getName());
             unorderedBindPso = PullSubscribeOptions.fastBind(sc.streamName, unorderedConsumerInfo.getName());
         }
         else {
             ordered = true;
-            orderedConsumerNamePrefix = occ.getConsumerNamePrefix();
-            orderedConsumerConfigTemplate = ConsumerConfiguration.builder()
+            initialOrderedConsumerConfig = ConsumerConfiguration.builder()
+                .name(occ.getConsumerNamePrefix())
                 .filterSubjects(occ.getFilterSubjects())
                 .deliverPolicy(occ.getDeliverPolicy())
                 .startSequence(occ.getStartSequence())
@@ -94,30 +92,32 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             if (lastCon != null) {
                 highestSeq.set(Math.max(highestSeq.get(), lastCon.pmm.lastStreamSeq));
             }
-            consumerName.set(orderedConsumerNamePrefix == null ? null : orderedConsumerNamePrefix + NUID.nextGlobalSequence());
-            ConsumerConfiguration cc = streamCtx.js.consumerConfigurationForOrdered(
-                orderedConsumerConfigTemplate, highestSeq.get(), null, consumerName.get(), optionalInactiveThreshold);
+            ConsumerConfiguration cc = streamCtx.js.consumerConfigurationForOrdered(initialOrderedConsumerConfig, highestSeq.get(), null, optionalInactiveThreshold).build();
             pso = new OrderedPullSubscribeOptionsBuilder(streamCtx.streamName, cc).build();
         }
         else {
             pso = unorderedBindPso;
         }
 
+        NatsJetStreamPullSubscription sub;
         if (messageHandler == null) {
-            return (NatsJetStreamPullSubscription) streamCtx.js.createSubscription(
+            sub = (NatsJetStreamPullSubscription) streamCtx.js.createSubscription(
                 null, null, pso, null, null, null, false, optionalPmm);
         }
-
-        Dispatcher d = userDispatcher;
-        if (d == null) {
-            d = defaultDispatcher.get();
+        else {
+            Dispatcher d = userDispatcher;
             if (d == null) {
-                d = streamCtx.js.conn.createDispatcher();
-                defaultDispatcher.set(d);
+                d = defaultDispatcher.get();
+                if (d == null) {
+                    d = streamCtx.js.conn.createDispatcher();
+                    defaultDispatcher.set(d);
+                }
             }
+            sub = (NatsJetStreamPullSubscription) streamCtx.js.createSubscription(
+                null, null, pso, null, (NatsDispatcher) d, messageHandler, false, optionalPmm);
         }
-        return (NatsJetStreamPullSubscription) streamCtx.js.createSubscription(
-            null, null, pso, null, (NatsDispatcher) d, messageHandler, false, optionalPmm);
+        consumerName.set(sub.getConsumerName());
+        return sub;
     }
 
     private void checkState() throws IOException {

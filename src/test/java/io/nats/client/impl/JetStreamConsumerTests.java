@@ -75,20 +75,16 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
             assertTrue(iae.getMessage().contains(JsSubOrderedNotAllowOnQueues.id()));
 
             // Setup sync subscription
-            _testOrderedConsumerSync(nc, js, tsc, null, PushSubscribeOptions.builder().ordered(true).build());
+            _testOrderedConsumerSync(js, tsc, null, PushSubscribeOptions.builder().ordered(true).build());
 
-            String consumerName = variant();
-            _testOrderedConsumerSync(nc, js, tsc, consumerName, PushSubscribeOptions.builder().name(consumerName).ordered(true).build());
+            String consumerName = "prefix"; // prefix();
+            _testOrderedConsumerSync(js, tsc, consumerName, PushSubscribeOptions.builder().name(consumerName).ordered(true).build());
         });
     }
 
-    private static void _testOrderedConsumerSync(Connection nc, JetStream js, TestingStreamContainer tsc, String consumerName, PushSubscribeOptions pso) throws IOException, JetStreamApiException, TimeoutException, InterruptedException {
+    private static void _testOrderedConsumerSync(JetStream js, TestingStreamContainer tsc, String consumerNamePrefix, PushSubscribeOptions pso) throws IOException, JetStreamApiException, TimeoutException, InterruptedException {
         JetStreamSubscription sub = js.subscribe(tsc.subject(), pso);
-        nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
-        sleep(1000);
-        if (consumerName != null) {
-            assertEquals(consumerName, sub.getConsumerInfo().getName());
-        }
+        String firstConsumerName = checkPrefix(sub, consumerNamePrefix);
 
         // Published messages will be intercepted by the OrderedTestDropSimulator
         jsPublish(js, tsc.subject(), 101, 6);
@@ -103,8 +99,26 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
                 ++expectedStreamSeq;
             }
         }
-        if (consumerName != null) {
-            assertEquals(consumerName, sub.getConsumerInfo().getName());
+        reCheckPrefix(sub, consumerNamePrefix, firstConsumerName);
+    }
+
+    private static String checkPrefix(JetStreamSubscription sub, String consumerNamePrefix) throws IOException, JetStreamApiException {
+        String firstConsumerName = null;
+        if (consumerNamePrefix != null) {
+            firstConsumerName = sub.getConsumerName();
+            assertEquals(firstConsumerName, sub.getConsumerInfo().getName());
+            assertNotEquals(consumerNamePrefix, firstConsumerName);
+            assertTrue(firstConsumerName.startsWith(consumerNamePrefix));
+        }
+        return firstConsumerName;
+    }
+
+    private static void reCheckPrefix(JetStreamSubscription sub, String consumerNamePrefix, String firstConsumerName) throws IOException, JetStreamApiException {
+        if (consumerNamePrefix != null) {
+            String currentConsumerName = sub.getConsumerName();
+            assertEquals(currentConsumerName, sub.getConsumerInfo().getName());
+            assertNotEquals(firstConsumerName, currentConsumerName);
+            assertTrue(currentConsumerName.startsWith(consumerNamePrefix));
         }
     }
 
@@ -120,7 +134,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
         });
     }
 
-    private static void _testOrderedConsumerAsync(Connection nc, JetStreamManagement jsm, JetStream js, String customName, PushSubscribeOptions pso) throws JetStreamApiException, IOException, TimeoutException, InterruptedException {
+    private static void _testOrderedConsumerAsync(Connection nc, JetStreamManagement jsm, JetStream js, String consumerNamePrefix, PushSubscribeOptions pso) throws JetStreamApiException, IOException, TimeoutException, InterruptedException {
         TestingStreamContainer tsc = new TestingStreamContainer(jsm);
 
         // Get this in place before any subscriptions are made
@@ -146,11 +160,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
         };
 
         JetStreamSubscription sub = js.subscribe(tsc.subject(), d, handler, false, pso);
-        if (customName != null) {
-            assertEquals(customName, sub.getConsumerInfo().getName());
-        }
-        nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
-        sleep(1000);
+        String firstConsumerName = checkPrefix(sub, consumerNamePrefix);
 
         // publish after sub b/c interceptor is set during sub, so before messages come in
         jsPublish(js, tsc.subject(), 201, 6);
@@ -166,6 +176,8 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
             assertEquals(EXPECTED_CON_SEQ_NUMS[idx], csFlags[idx].get());
             ++expectedStreamSeq;
         }
+
+        reCheckPrefix(sub, consumerNamePrefix, firstConsumerName);
     }
 
     static class HeartbeatErrorSimulator extends PushMessageManager {

@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
+import io.nats.client.support.NatsJetStreamUtil;
 import io.nats.client.support.RandomUtils;
 import org.junit.jupiter.api.Test;
 
@@ -1108,5 +1109,13 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(tsc.subject(), "cantHaveQ", psoPushCcHb));
             assertTrue(iae.getMessage().contains(JsSubFcHbNotValidQueue.id()));
         });
+    }
+
+    @Test
+    public void testNatsJetStreamUtil() {
+        assertNotNull(NatsJetStreamUtil.generateConsumerName());
+        String gen = NatsJetStreamUtil.generateConsumerName("prefix");
+        assertNotNull(gen);
+        assertTrue(gen.startsWith("prefix-"));
     }
 }

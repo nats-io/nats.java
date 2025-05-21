@@ -863,17 +863,17 @@ public class SimplificationTests extends JetStreamTestBase {
             jsPublish(js, tsc.subject(), 101, 6, 100);
             ZonedDateTime startTime = getStartTimeFirstMessage(js, tsc);
 
-            // New pomm factory in place before each subscription is made
+            // New pomm factory in place before subscriptions are made
+            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
+
             // Set the Consumer Sequence For Stream Sequence 3 statically for ease
             CS_FOR_SS_3 = 3;
-            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
             _testOrderedFetch(sctx, 1, new OrderedConsumerConfiguration().filterSubject(tsc.subject()));
             _testOrderedFetch(sctx, 1, new OrderedConsumerConfiguration()
                 .consumerNamePrefix(prefix())
                 .filterSubject(tsc.subject()));
 
             CS_FOR_SS_3 = 2;
-            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
             _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
                 .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
             _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
@@ -881,7 +881,6 @@ public class SimplificationTests extends JetStreamTestBase {
                 .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
 
             CS_FOR_SS_3 = 2;
-            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
             _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
                 .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
             _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
