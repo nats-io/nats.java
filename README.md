@@ -18,7 +18,7 @@
 1. [**Java API Docs**](https://javadoc.io/doc/io.nats/jnats/latest/index.html) - the latest Java API docs.
 1. [**NATS by Example**](https://natsbyexample.com) is an evolving collection of runnable, cross-client reference examples for NATS.
 1. The [**examples directory**](https://github.com/nats-io/nats.java/tree/main/src/examples/java/io/nats/examples) covers basic api use.
-1. The [**Java Nats Examples**](https://github.com/nats-io/java-nats-examples) github repo, a collection of simple use case examples.
+1. The [**Java Nats Examples**](https://github.com/nats-io/java-nats-examples) GitHub repo, a collection of simple use case examples.
 1. [**Java Orbit**](https://github.com/synadia-io/orbit.java) is a set of independent utilities or extensions for this client. 
 
 ## Table of Contents
@@ -30,6 +30,7 @@
 * [Connection Options](#connection-options)
 * [JetStream](#jetstream)
 * [Connection Security](#connection-security)
+* [Manual Pull Subscriptions](#manual-pull-subscriptions)
 * [Version Notes](#version-notes)
 * [Benchmarking](#benchmarking)
 * [Building From Source](#building-from-source)
@@ -52,17 +53,26 @@ Check out the examples:
 
 The service API allows you to easily build NATS services. The Service Framework is released as of 2.16.14
 
-The Services Framework introduces a higher-level API for implementing services with NATS. NATS has always been a strong technology on which to build services, as they are easy to write, are location and DNS independent and can be scaled up or down by simply adding or removing instances of the service.
+The Services Framework introduces a higher-level API for implementing services with NATS. NATS has always been a strong technology on which to build services, 
+as they are straightforward to write, are location and DNS independent, and can be scaled up or down by simply adding or removing instances of the service.
 
-The Services Framework further streamlines their development by providing observability and standardization. The Service Framework allows your services to be discovered and queried for status without additional work.
+The Services Framework further streamlines their development by providing observability and standardization. 
+The Service Framework allows your services to be discovered and queried for status without additional work.
 
 Check out the [ServiceExample](src/examples/java/io/nats/examples/service/ServiceExample.java)
 
 ## Recent Version Notes
 
+### Version 2.21.2
+
+Starting with 2.21.2 snapshots, the project has been migrated to Sonatype's Maven Central Repository. 
+Releases will still propagate to Maven Central as usual, but releases that are just published and not yet propagated,
+and `-SNAPSHOTS` are available at a different urls. 
+See [Using Gradle](#using-gradle) or [Using Maven](#using-maven) for more information
+
 ### Version 2.18.0 (AKA 2.17.7)
 
-2.18.0 attempts to start us on the road to properly [Semantic Version (semver)](https://semver.org/). 
+2.18.0 attempts to start us on the road to proper [Semantic Version (semver)](https://semver.org/). 
 In the last few patch releases, there were technically things that should cause a minor version bump, 
 but were numbered as a patch.
 
@@ -87,9 +97,9 @@ See the [Reverse Proxy Section](#reverse-proxy) for more details.
 
 ### Version 2.17.4 Core Improvements
 
-This release was full of core improvements which improve use of more asynchronous behaviors including
+This release was full of core improvements which improve the use of more asynchronous behaviors including
 * removing use of `synchronized` in favor of `ReentrantLock`
-* The ability to have a dispatcher use an executor to dispatch messages instead of the dispatcher thread being blocking to deliver a message.
+* The ability to have a dispatcher use an executor to dispatch listener event messages instead of the dispatcher thread blocking to deliver the event.
 
 ### Version 2.17.3 Socket Write Timeout
 
@@ -98,7 +108,7 @@ This java.net.Socket implementation does not support a write timeout, so writing
 
 Under some conditions it will block indefinitely, freezing that connection on the client.
 One way this could happen is if the server was too busy to read what was being sent.
-Or, it could be a device, network or connection issue.
+Or, it could be a device, network, or connection issue.
 Whatever it is, it blocks the jvm Socket write implementation which _used to_ block us.
 It's rare, but it does happen.
 
@@ -108,8 +118,8 @@ The default is 1 minute if you don't set it.
 You can turn the watching off by setting a null duration or 0 milliseconds.
 
 When the watcher is turned on, a background task watches the write operations and makes sure they complete within the timeout. 
-If a write fails to complete, the task tells the connection to close the socket, which triggers the retry logic.
-There may still be messages in the output queue and messages that were in transit are in an unknown state. 
+If a write operation fails to complete, the task tells the connection to close the socket, which triggers the retry logic.
+There may still be messages in the output queue, and messages that were in transit are in an unknown state. 
 Handling disconnections and output queue is left for another discussion.
 
 ### Version Notes for older releases
@@ -127,8 +137,6 @@ You can download the latest jar at [https://search.maven.org/remotecontent?filep
 
 The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.21.1/jnats-2.21.1-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.21.1/jnats-2.21.1-examples.jar).
 
-To use NKeys, you will need the ed25519 library, which can be downloaded at [https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar).
-
 ### Using Gradle
 
 The NATS client is available in the Maven central repository, and can be imported as a standard dependency in your `build.gradle` file:
@@ -145,7 +153,7 @@ If you need the latest and greatest before Maven central updates, you can use:
 repositories {
     mavenCentral()
     maven {
-        url "https://oss.sonatype.org/content/repositories/releases"
+        url "https://repo1.maven.org/maven2/"
     }
 }
 ```
@@ -167,7 +175,7 @@ dependencies {
 
 ### Using Maven
 
-The NATS client is available on the Maven central repository, and can be imported as a normal dependency in your pom.xml file:
+The NATS client is available on the Maven Central Repository and can be imported as a normal dependency in your pom.xml file:
 
 ```xml
 <dependency>
@@ -183,7 +191,7 @@ If you need the absolute latest, before it propagates to maven central, you can 
 <repositories>
     <repository>
         <id>sonatype releases</id>
-        <url>https://oss.sonatype.org/content/repositories/releases</url>
+        <url>https://repo1.maven.org/maven2/</url>
         <releases>
            <enabled>true</enabled>
         </releases>
@@ -211,19 +219,17 @@ If you need a snapshot version, you must enable snapshots and change your depend
 </dependency>
 ```
 
-If you are using the 1.x version of java-nats and don't want to upgrade to 2.0.0 please use ranges in your POM file, java-nats-streaming 1.x is using [1.1, 1.9.9) for this.
-
 ### Integration with GraalVM
 
-To inlcude this library with a GraalVM project, there are 2 important configurations you must use: 
+To include this library with a GraalVM project, there are two important configurations you must use: 
 * `--initialize-at-run-time=io.nats.client.support.RandomUtils`
 * `--initialize-at-run-time=java.security.SecureRandom`. 
 
-These will instruct GraalVM to initialize specified classes at runtime, so that these instances don't have fixed seeds. 
+These will instruct GraalVM to initialize specified classes at runtime so that these instances don't have fixed seeds. 
 GraalVM won't compile without these parameters.
 
 For a much more thorough discussion of the subject, please visit the [nats-graalvm-example](https://github.com/YunaBraska/nats-graalvm-example) repository 
-made by one of our contributors. There is detailed demonstration for creating an efficient NATS clients with GraalVM.
+made by one of our contributors. There is a detailed demonstration for creating an efficient NATS client with GraalVM.
 This example leverages the client to connect to a server.
 
 ## Basic Usage
@@ -237,8 +243,8 @@ There are also examples in the [java-nats-examples](https://github.com/nats-io/j
 ### Connecting
 
 There are five different ways to connect using the Java library, 
-each with a parallel method that will allow doing reconnect logic if the initial connect fails.
-The ability to reconnect on  the initial connection failure is _NOT_ an Options setting.
+each with a parallel method that will allow doing reconnect logic if the initial connection fails.
+The ability to reconnect on the initial connection failure is _NOT_ an Options setting.
 
 1. Connect to a local server on the default url. From the Options class: `DEFAULT_URL = "nats://localhost:4222";`
 
@@ -285,7 +291,7 @@ The ability to reconnect on  the initial connection failure is _NOT_ an Options 
     Nats.connectAsynchronously(options, true);
     ```
 
-1. Connect with authentication handler:
+1. Connect with an authentication handler:
 
     ```java
     AuthHandler authHandler = Nats.credentials(System.getenv("NATS_CREDS"));
@@ -305,19 +311,21 @@ The ability to reconnect on  the initial connection failure is _NOT_ an Options 
 
 #### Clusters & Reconnecting
 
-The Java client will automatically reconnect if it loses its connection the nats-server. If given a single server, the client will keep trying that one. If given a list of servers, the client will rotate between them. When the nats servers are in a cluster, they will tell the client about the other servers, so that in the simplest case a client could connect to one server, learn about the cluster and reconnect to another server if its initial one goes down.
+The Java client will automatically reconnect if it loses its connection to the nats-server. If given a single server, the client will keep trying that one. 
+If given a list of servers, the client will rotate between them. When the NATS servers are in a cluster, they will tell the client about the other servers. 
+In the simplest case a client could connect to one server, learn about the cluster, and reconnect to another server if its initial one goes down.
 
-To tell the connection about multiple servers for the initial connection, use the `servers()` method on the options builder, or call `server()` multiple times.
+To tell the connection about multiple servers for the initial connection, use the `servers()` method on the Options builder, or call `server()` multiple times.
 
 ```Java
 String[] serverUrls = {"nats://serverOne:4222", "nats://serverTwo:4222"};
 Options o = new Options.Builder().servers(serverUrls).build();
 ```
-Reconnection behavior is controlled via a few options, see the javadoc for the Options.Builder class for specifics on reconnect limits, delays and buffers.
+Reconnection behavior is controlled via a few options. See the Javadoc for the Options.Builder class for specifics on reconnection limits, delays, and buffers.
 
 ## Connection Options
 
-Connection options are configured using the `Options` class. There is a Builder which uses a fluent interface.
+Connection options are configured using the `Options` class. There is a Builder that uses a fluent interface.
 It can accept `Properties` object or a path to a Properties file.
 
 ### Property Names
@@ -330,9 +338,9 @@ io.nats.client.servers=nats://localhost:4222
 servers=nats://localhost:4222
 ```
 
-### Last one wins
+### Last-One Wins
 The Options builder allows you to use both properties and code. When it comes to the builder, the last one called wins.
-This applies to each individual property.
+This applies to each property.
 
 ```java
 props.setProperty(Options.PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE, "7000");
@@ -546,9 +554,9 @@ The Java NATS library provides two mechanisms to listen for messages, three if y
 
 ## JetStream
 
-Publishing and subscribing to JetStream-enabled servers is straightforward. A 
+Publishing and subscribing to JetStream-enabled servers are straightforward. A 
 JetStream-enabled application will connect to a server, establish a JetStream 
-context, and then publish or subscribe.  This can be mixed and matched with standard
+context, and then publish or subscribe.  This can be mixed and matched with a standard
 NATS subject, and JetStream subscribers, depending on configuration, receive messages
 from both streams and directly from other NATS producers.
 
@@ -573,7 +581,7 @@ For subjects, the client was strict when validating subject names for consumer s
 It only allowed printable ascii characters except for `*`, `>`, `.`, `\\` and `/`. 
 This restriction has been changed to the following:
 * cannot contain spaces \r \n \t
-* cannot start or end with subject token delimiter .
+* cannot start or end with a subject token delimiter
 * cannot have empty segments
 
 This means that UTF characters are now allowed in subjects in this client.
@@ -582,7 +590,7 @@ For queue names, there has been inconsistent validation, if any. Queue names now
 
 #### Subscribe Subject Validation
 
-Additionally, for subjects used in subscribe api, applications may start throwing an exception:
+Additionally, for subjects used in the subscribe api, applications may start throwing an exception:
 
 ```text
 90011 Subject does not match consumer configuration filter
@@ -593,7 +601,7 @@ When you don't supply a filter subject on a consumer, it becomes `>`, which mean
 So this is a problem, because you think you are subscribing to `foo.a` but in reality, without this check,
 you will be getting all messages `foo.>` subjects, not just `foo.a`
 
-Validating the subscribe subject against the filter subject is needed to prevent this.
+Validating a subscribe subject against the filter subject is needed to prevent this.
 Unfortunately, this makes existing code throw the `90011` exception.
 
 ### Publishing
@@ -615,15 +623,14 @@ PublishAck pa = js.publish(msg);
 
 See `NatsJsPub.java` in the JetStream examples for a detailed and runnable example.
 
-If there is a problem an exception will be thrown, and the message may not have been
-persisted.  Otherwise, the stream name and sequence number is returned in the publish
+If there is a problem, an exception will be thrown, and the message may not have been
+persisted.  Otherwise, the stream name and sequence number are returned in the Publish
 acknowledgement.
 
 There are a variety of publish options that can be set when publishing.  When duplicate
 checking has been enabled on the stream, a message ID should be set. One set of options
-are expectations.  You can set a publish expectation such as a particular stream name,
-previous message ID, or previous sequence number.  These are hints to the server that
-it should reject messages where these are not met, primarily for enforcing your ordering
+are publish expectations, such as a particular stream name, previous message ID, or previous sequence number.
+These are hints to the server that it should reject messages where these are not met, primarily for enforcing your ordering
 or ensuring messages are not stored on the wrong stream.
 
 The PublishOptions are immutable, but the builder an be re-used for expectations by clearing the expected.
@@ -669,7 +676,7 @@ See the `NatsJsPubAsync.java` in the JetStream examples for a detailed and runna
 
 #### ReplyTo When Publishing
 
-The Message object allows you to set a replyTo, but in publish requests,
+The Message object allows you to set a replyTo, but in a Publish,
 the replyTo is reserved for internal use as the address for the
 server to respond to the client with the PublishAck.
 
@@ -703,19 +710,19 @@ See the `NatsJsPushSubWithHandler.java` in the JetStream examples for a detailed
 #### Subscribe Subject
 
 With the introduction of simplification, the various original subscribe methods available will eventually be deprecated.
-But since they are available, we need to address the concept of the subscribe subject.
+But since they are available, we need to address the concept of the "subscribe subject".
 
 Consider the example:
 ```java
 js.subscribe("my-subject", disp, handler, autoAck);
 ```
 
-The subscribe method takes a "subject" as the first parameter. We call this the subscribe subject.
+The subscribe method takes a "subject" as the first parameter. We call this the "subscribe subject".
 The subject could be something like `my.subject` or `my.star.*` or `my.gt.>` or even `>`.
 This parameter is used and validated in different ways depending on the context of the call,
-including looking up the stream, if stream is not provided via subscribe options.
+including looking up the stream if the stream is not provided via subscribe options.
 
-The subscribe subject could be used to make a simple subscription. In this case it is required.
+The "subscribe subject" could be used to make a simple subscription. In this case it is required.
 An ephemeral consumer will be created for that subject, assuming that subject can be looked up in a stream.
 
 ```java
@@ -723,16 +730,16 @@ JetStream js = nc.jetStream();
 JetStreamSubscription sub = subscribe(subject)
 ```
 
-If subscribe call has either a PushSubscribeOptions or PullSubscribeOptions that have a ConsumerConfiguration
-with one or more filter subjects, the subscribe subject is optional since we can use the first filter subject as
-the subscribe subject.
+If a subscribe call has either a PushSubscribeOptions or PullSubscribeOptions that have a ConsumerConfiguration
+with one or more filter subjects, the "subscribe subject" is optional since we can use the first filter subject as
+the "subscribe subject".
 
 ```java
 PushSubscribeOptions pso = ConsumerConfiguration.builder().filterSubject("my.subject").buildPushSubscribeOptions();
 js.subscribe(null, pso);
 ```
 
-The other time you can skip the subject parameter is when you "bind". Since the stream name and consumer name are
+The other time you can skip the subject parameter is when you bind. Since the stream name and consumer name are
 part of the bind, the subject will be retrieved from the consumer looked-up via the bind stream and consumer name information.
 
 #### Synchronous Consuming
@@ -768,169 +775,28 @@ ConsumerConfiguration cc = ConsumerConfiguration.builder()
 There are multiple types of acknowledgements in JetStream:
 
 * `Message.ack()`: Acknowledges a message.
-* `Message.ackSync(Duration)`: Acknowledges a message and waits for a confirmation. When used with deduplications this creates exactly once delivery guarantees (within the deduplication window).  This may significantly impact performance of the system.
+* `Message.ackSync(Duration)`: Acknowledges a message and waits for a confirmation. When used with deduplication, this creates exactly once delivery guarantees (within the deduplication window).  This may significantly impact the performance of the system.
 * `Message.nak()`: A negative acknowledgment indicating processing failed and the message should be resent later.
 * `Message.term()`: Never send this message again, regardless of configuration.
 * `Message.inProgress()`:  The message is being processed and reset the redelivery timer in the server.  The message must be acknowledged later when processing is complete.
 
-Note that exactly once delivery guarantee can be achieved by using a consumer with explicit ack mode attached to stream setup with a deduplication window and using the `ackSync` to acknowledge messages.  The guarantee is only valid for the duration of the deduplication window.
-
-### Pull Subscriptions
-
-Pull subscriptions are always synchronous. The server organizes messages into a batch
-which it sends when requested.
-
-```java
-PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
-   .durable("durable-name-is-optional")
-   .build();
-JetStreamSubscription sub = js.subscribe("subject", pullOptions);
-```
-
-#### Bind
-
-Pull subscriptions allow for binding to existing consumers.
-The best practice is to provide `null` for the subscribe subject, but if you do
-provide it, it must match the consumer subject filter, or you will receive an
-`IllegalArgumentException`. See client errors below and `JsSubSubjectDoesNotMatchFilter 90011`
-
-1. Short Form
-
-    ```java
-    PullSubscribeOptions pullOptions = PullSubscribeOptions.bind("stream", "durable-name");
-    JetStreamSubscription sub = js.subscribe(null, pullOptions);
-    ```
-
-2. Long Form
-
-    ```java
-    PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
-        .stream("stream")
-        .durable("durable-name")
-        .bind(true)
-        .build();
-    ```
-
-#### Fetch
-
-```java
-List<Message> message = sub.fetch(100, Duration.ofSeconds(1));
-for (Message m : messages) {
-   // process message
-   m.ack();
-}
-```
-
-The fetch method is a *macro* pull that uses advanced pulls under the covers to return a list of messages.
-The list may be empty or contain at most the batch size. 
-All status messages are handled for you except terminal status messages. See Pull Exception Handling below.
-The client can provide a timeout to wait for the first message in a batch.
-The fetch call returns when the batch is ready.
-If the timeout is exceeded while messages are in flight, but before they reach the client,
-those messages will be available via nextMessage or will be used to fulfill the next fetch. 
-
-One important thing to consider when using this is ack wait. Once the server sends a message,
-it's specific ack wait timer is started. If you ask for too many messages, you may fail to 
-ack all messages in time and can get redeliveries. 
-
-See `NatsJsPullSubFetch.java` and `NatsJsPullSubFetchUseCases.java`
-in the JetStream examples for a detailed and runnable example.
-
-#### Iterate
-
-```java
-        Iterator<Message> iter = sub.iterate(100, Duration.ofSeconds(1));
-        while (iter.hasNext()) {
-            Message m = iter.next();
-            // process message
-            m.ack();
-        }
-```
-
-The iterate method is a *macro* pull that uses advanced pulls under the covers to return an iterator.
-The iterator may have no messages up to at most the batch size.
-All status messages are handled for you except terminal status messages. See Pull Exception Handling below.
-The client can provide a timeout to wait for the first message in a batch.
-The iterate call returns the iterator immediately, but under the covers it will wait for the first
-message based on the timeout.
-
-The iterate method is usually preferred to the fetch method as it allows you to start processing messages 
-right away instead of waiting until the entire batch is filled. This reduces problems with ack wait
-and generally is more efficient.
-
-See `NatsJsPullSubIterate.java` and `NatsJsPullSubIterateUseCases.java`
-in the JetStream examples for a detailed and runnable example.
-
-#### Batch Size
-
-```java
-sub.pull(100);
-...
-Message m = sub.nextMessage(Duration.ofSeconds(1));
-```
-
-This is an advanced / raw pull that specifies a batch size. When asked, the server will send whatever
-messages it has up to the batch size. If it has no messages it will wait until it has some to send.
-The pull request only completes on the server once the entire batch has been sent. 
-It's up to you to track this and only send pulls when the batch is complete, or you risk having 
-pulls stack up and possibly receiving a status `409 Exceeded MaxWaiting` warning.
-The nextMessage request may time out but that does not indicate that there are no more messages in the pull.
-Instead, it indicates that there is no message available at that time.
-Once the entire batch size has been filled, you must make another pull request. 
-
-See `NatsJsPullSubBatchSize.java` and `NatsJsPullSubBatchSizeUseCases.java` 
-in the JetStream examples for detailed and runnable example.
-
-#### No Wait and Batch Size
-
-```java
-sub.pullNoWait(100);
-...
-Message m = sub.nextMessage(Duration.ofSeconds(1));
-```
-
-This is an advanced / raw pull that also specifies a batch size. 
-When asked, the server will send whatever messages it has at the moment
-the pull request is processed by the server, up to the batch size.
-If there are less than the batch size available, you will get what is
-available.
-You must make a pull request every time. 
-
-See the `NatsJsPullSubNoWaitUseCases.java` in the JetStream examples for a detailed and runnable example.
-
-#### Expires In and Batch Size
-
-```java
-sub.pullExpiresIn(100, Duration.ofSeconds(3));
-...
-Message m = sub.nextMessage(Duration.ofSeconds(4));
-```
-
-Another advanced version of pull specifies a maximum time to wait for the batch to fill.
-The server sends messages up until the batch is filled or the time expires. It's important to
-set your client's nextMessage timeout to be longer than the time you've asked the server to expire in.
-Once nextMessage returns null, you know your pull is done, and you can make another one.
-
-See `NatsJsPullSubExpire.java` and `NatsJsPullSubExpireUseCases.java`
-in the JetStream examples for detailed and runnable examples.
-
-#### Pull Exception Handling 
+Note that the exactly once delivery guarantee can be achieved by using a consumer with explicit ack mode attached to stream setup with a deduplication window and using the `ackSync` to acknowledge messages.  The guarantee is only valid for the duration of the deduplication window.
 
 ### Ordered Push Subscription Option
 
-You can now set a Push Subscription option called "Ordered". 
-When you set this flag, library will take over creation of the consumer and create a subscription that guarantees the order of messages.
+You can now configure a Push Subscription to be "Ordered". 
+When you set this flag, the library will take over the creation of the consumer and create a subscription that guarantees the order of messages.
 This consumer will use flow control with a default heartbeat of 5 seconds. Messages will not require acks as the Ack Policy will be set to No Ack.
 When creating the subscription, there are some restrictions for the consumer configuration settings.
 
-- Ack policy must be AckPolicy.None (or left un-set). maxAckPending will be ignored.
+- Ack policy must be AckPolicy.None (or left unset). maxAckPending will be ignored.
 - Deliver Group (aka Queue) cannot be used
 - You cannot set a durable consumer name
-- You cannot set the deliver subject
-- max deliver can only be set to 1 (or left un-set)  
+- You cannot set the Deliver Subject
+- max deliver can only be set to 1 (or left unset)  
 - The idle heartbeat cannot be less than 5 seconds. Flow control will automatically be used.
 
-You can however set the deliver policy which will be used to start the subscription. 
+You can, however, set the Deliver Policy which will be used to start the subscription. 
 
 ### Client Error Messages
 
@@ -993,9 +859,9 @@ You can however set the deliver policy which will be used to start the subscript
 
 ## Connection Security
 
-NATS supports TLS 1.2. The server can be configured to verify client certificates or not. Depending on this setting the client has several options.
+NATS supports TLS 1.2. The server can be configured to verify client certificates or not. Depending on this setting, the client has several options.
 
-1. The Java library allows the use of the tls:// protocol in its urls. This setting expects a default SSLContext to be set. You can set this default context using System properties, or in code. For example, you could run the publish example using:
+1. The Java library allows the use of the tls:// protocol in its urls. This setting expects a default SSLContext to be set. You can set this default context using System properties, or in code. For example, you could run the Publish example using:
 
     ```bash
     java -Djavax.net.ssl.keyStore=src/test/resources/keystore.jks -Djavax.net.ssl.keyStorePassword=password -Djavax.net.ssl.trustStore=src/test/resources/truststore.jks -Djavax.net.ssl.trustStorePassword=password io.nats.examples.NatsPub tls://localhost:4443 test "hello world"
@@ -1012,7 +878,7 @@ NATS supports TLS 1.2. The server can be configured to verify client certificate
 
     This method can be used with or without client verification.
 
-2. During development, or behind a firewall where the client can trust the server, the library supports the opentls:// protocol which will use a special SSLContext that trusts all server certificates, but provides no client certificates.
+2. During development, or behind a firewall where the client can trust the server, the library supports the opentls:// protocol which will use a special SSLContext that trusts all server certificates but provides no client certificates.
 
     ```bash
     java io.nats.examples.NatsSub opentls://localhost:4443 test 3
@@ -1056,7 +922,7 @@ There are two ways one exists:
 1. The user directly supplied one 
 2. A default one was created since one was not supplied, but a supplied server url has a secure protocol such as `tls`, `wss` or `opentls`
 
-If there is a mismatch, an IOException will be thrown during connect.
+If there is a mismatch, an IOException will be thrown while connecting.
 
 | server config | client options    | result                                       |
 |---------------|-------------------|----------------------------------------------|
@@ -1080,14 +946,14 @@ tls {
 }
 ```
 
-TLS Handshake First is used to instruct the library perform
-the TLS handshake right after the connect and before receiving
+TLS Handshake First is used to instruct the library to perform
+the TLS handshake right after connecting but before receiving
 the INFO protocol from the server. If this option is enabled
 but the server is not configured to perform the TLS handshake
 first, the connection will fail.
 
 ### Reverse Proxy
-In a reverse proxy configuration, the client connects securely to the reverse proxy
+In a reverse proxy configuration, the client connects securely to the reverse proxy, 
 and the proxy may connect securely or insecurely to the server.
 
 If the proxy connects securely to the server,
@@ -1112,7 +978,7 @@ The latest version of the client is able to recognize this server configuration
 and understands that it's okay to connect securely to the proxy regardless of the
 server configuration.
 
-You just have to make sure you can properly connect securely to the proxy
+You have to make sure you can properly connect securely to the proxy,
 and that's where the code in this sample comes in.
 
 ### NKey-based Challenge Response Authentication
@@ -1122,7 +988,7 @@ the Java client supports this scheme via an AuthHandler interface. *Version 2.3.
 
 ### OCSP Stapling
 The server supports OCSP stapling. To enable Java to automatically check the stapling
-when making TLS connections, you must set system properties. Please be aware that this affect the entire JVM,
+when making TLS connections, you must set system properties. Please be aware that this affects the _entire_ JVM,
 so all connections.
 
 These properties can be set from your command line or from your Java code:
@@ -1138,15 +1004,154 @@ Also, there is a detailed [OCSP Example](https://github.com/nats-io/java-nats-ex
 
 ### SSL/TLS Performance
 
-After recent tests we realized that TLS performance is lower than we would like. After researching the problem and possible solutions we came to a few conclusions:
+After recent tests we realized that TLS performance is lower than we would like. After researching the problem and possible solutions, we came to a few conclusions:
 
 * TLS performance for the native JDK has not been historically great
 * TLS performance is better in JDK12 than JDK8
-* A small fix to the library in 2.5.1 allows the use of https://github.com/google/conscrypt and https://github.com/wildfly/wildfly-openssl, conscrypt provides the best performance in our tests
-* TLS still comes at a price (1gb/s vs 4gb/s in some tests), but using the JNI libraries can result in a 10x boost in our testing
-* If TLS performance is reasonable for your application we recommend using the j2se implementation for simplicity
+* A small fix to the library in 2.5.1 allows the use of https://github.com/google/conscrypt and https://github.com/wildfly/wildfly-openssl, Conscrypt provides the best performance in our tests
+* TLS still comes at a price (1gb/s vs. 4gb/s in some tests), but using the JNI libraries can result in a 10x boost in our testing
+* If TLS performance is reasonable for your application, we recommend using the j2se implementation for simplicity
 
-To use conscrypt or wildfly, you will need to add the appropriate jars to your class path and create an SSL context manually. This context can be passed to the Options used when creating a connection. The NATSAutoBench example provides a conscrypt flag which can be used to try out the library,  manually including the jar is required.
+To use Conscrypt or Wildfly, you will need to add the appropriate jars to your class path and create an SSL context manually. This context can be passed to the Options used when creating a connection. 
+The NATSAutoBench example provides a Conscrypt flag which can be used to try out the library, manually including the jar is required.
+
+## Manual Pull Subscriptions
+
+Pull subscriptions are always synchronous. The server organizes messages into a batch
+which it sends when requested. You must make a new pull request for each batch.
+
+
+```java
+PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
+   .durable("durable-name-is-optional")
+   .build();
+JetStreamSubscription sub = js.subscribe("subject", pullOptions);
+```
+
+#### Bind
+
+Pull subscriptions allow for binding to existing consumers.
+The best practice is to provide `null` for the "subscribe subject", but if you do
+provide it, it must match the consumer subject filter, or you will receive an
+`IllegalArgumentException`. See client errors below and `JsSubSubjectDoesNotMatchFilter 90011`
+
+1. Short Form
+
+    ```java
+    PullSubscribeOptions pullOptions = PullSubscribeOptions.bind("stream", "durable-name");
+    JetStreamSubscription sub = js.subscribe(null, pullOptions);
+    ```
+
+2. Long Form
+
+    ```java
+    PullSubscribeOptions pullOptions = PullSubscribeOptions.builder()
+        .stream("stream")
+        .durable("durable-name")
+        .bind(true)
+        .build();
+    ```
+
+#### Fetch
+
+```java
+List<Message> message = sub.fetch(100, Duration.ofSeconds(1));
+for (Message m : messages) {
+   // process message
+   m.ack();
+}
+```
+
+The fetch method is a *macro* pull that uses advanced pulls under the covers to return a list of messages.
+The list may be empty or contain at most the batch size.
+All status messages are handled for you except terminal status messages.
+The client can provide a timeout to wait for the first message in a batch.
+The fetch call returns when the batch is ready.
+If the timeout is exceeded while messages are in flight, but before they reach the client,
+those messages will be available via nextMessage or will be used to fulfill the next fetch.
+
+One important thing to consider when using this is ack wait. Once the server sends a message,
+its specific ack-wait timer is started. If you ask for too many messages, you may fail to
+ack all messages in time and can get redeliveries.
+
+See `NatsJsPullSubFetch.java` and `NatsJsPullSubFetchUseCases.java`
+in the JetStream examples for a detailed and runnable example.
+
+#### Iterate
+
+```java
+        Iterator<Message> iter = sub.iterate(100, Duration.ofSeconds(1));
+        while (iter.hasNext()) {
+            Message m = iter.next();
+            // process message
+            m.ack();
+        }
+```
+
+The iterate method is a *macro* pull that uses advanced pulls under the covers to return an iterator.
+The iterator may have no messages up to at most the batch size.
+All status messages are handled for you except terminal status messages.
+The client can provide a timeout to wait for the first message in a batch.
+The iterate method call returns the iterator immediately, but under the covers it will wait for the first
+message based on the timeout.
+
+The iterate method is usually preferred to the fetch method as it allows you to start processing messages
+right away instead of waiting until the entire batch is filled. This reduces problems with ack wait
+and generally is more efficient.
+
+See `NatsJsPullSubIterate.java` and `NatsJsPullSubIterateUseCases.java`
+in the JetStream examples for a detailed and runnable example.
+
+#### Batch Size
+
+```java
+sub.pull(100);
+...
+Message m = sub.nextMessage(Duration.ofSeconds(1));
+```
+
+This is an advanced / raw pull that specifies a batch size. When asked, the server will send whatever
+messages it has up to the batch size. If it has no messages, it will wait until it has some to send.
+The pull request only completes on the server once the entire batch has been sent.
+It's up to you to track this and only send pulls when the batch is complete, or you risk having
+pulls stack up and possibly receiving a status `409 Exceeded MaxWaiting` warning.
+The nextMessage request may time out, but that does not indicate that there are no more messages in the pull.
+Instead, it indicates that there is no message available at that time.
+Once the entire batch size has been filled, you must make another pull request.
+
+See `NatsJsPullSubBatchSize.java` and `NatsJsPullSubBatchSizeUseCases.java`
+in the JetStream examples for detailed and runnable example.
+
+#### No Wait and Batch Size
+
+```java
+sub.pullNoWait(100);
+...
+Message m = sub.nextMessage(Duration.ofSeconds(1));
+```
+
+This is an advanced / raw pull that also specifies a batch size.
+When asked, the server will send whatever messages it has at the moment
+the pull request is processed by the server, up to the batch size.
+If there is less than the batch size available, you will get what is available.
+
+See the `NatsJsPullSubNoWaitUseCases.java` in the JetStream examples for a detailed and runnable example.
+
+#### Expires In and Batch Size
+
+```java
+sub.pullExpiresIn(100, Duration.ofSeconds(3));
+...
+Message m = sub.nextMessage(Duration.ofSeconds(4));
+```
+
+Another advanced version of pull specifies a maximum time to wait for the batch to fill.
+The server sends messages up until the batch is filled or the time expires. It's important to
+set your client's nextMessage timeout to be longer than the time you've asked the server to expire in.
+Once "nextMessage()" returns null, you know your pull is done, and you can make another one.
+
+See `NatsJsPullSubExpire.java` and `NatsJsPullSubExpireUseCases.java`
+in the JetStream examples for detailed and runnable examples.
 
 ## Version Notes
 
@@ -1181,7 +1186,7 @@ The release has support for Server 2.10 features and client validation improveme
 ### Version 2.16.14: Options properties improvements
 
 In this release, support was added to
-* support properties keys with or without the prefix 'io.nats.client.'
+* support property keys with or without the prefix 'io.nats.client.'
 * allow creation of connections requiring an AuthHandler for JWT to specify the credentials file in a properties files, instead of needing to provide an instance of AuthHandler in code.
 * allow creation of connections requiring an SSL context to specify key and trust store information in a properties files so an SSLContext can be created automatically instead of needing to provide an instance of an SSLContext in code.
 
@@ -1203,7 +1208,7 @@ If you use secure websockets (wss), your connection must be securely configured 
 This release by default will use a new JetStream consumer create API when interacting with nats-server version 2.9.0 or higher.
 This changes the subjects used by the client to create consumers, which might in some cases require changes in access and import/export configuration.
 The developer can opt out of using this feature by using a custom JetStreamOptions and using it when creating
-JetStream, Key Value and Object Store regular and management contexts.
+JetStream, Key Value, and Object Store regular and management contexts.
 
 ```java
 JetStreamOptions jso = JetStreamOptions.builder().optOut290ConsumerCreate(true).build();
