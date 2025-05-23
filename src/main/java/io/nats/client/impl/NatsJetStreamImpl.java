@@ -16,7 +16,6 @@ package io.nats.client.impl;
 import io.nats.client.JetStreamApiException;
 import io.nats.client.JetStreamOptions;
 import io.nats.client.Message;
-import io.nats.client.NUID;
 import io.nats.client.api.*;
 import io.nats.client.support.NatsJetStreamConstants;
 
@@ -28,6 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import static io.nats.client.support.NatsConstants.GREATER_THAN;
 import static io.nats.client.support.NatsJetStreamClientError.JsConsumerCreate290NotAvailable;
 import static io.nats.client.support.NatsJetStreamClientError.JsMultipleFilterSubjects210NotAvailable;
+import static io.nats.client.support.NatsJetStreamUtil.generateConsumerName;
 import static io.nats.client.support.NatsRequestCompletableFuture.CancelAction;
 
 class NatsJetStreamImpl implements NatsJetStreamConstants {
@@ -112,7 +112,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
                 // if both consumerName and durable are null, generate a name
                 consumerName = durable == null ? generateConsumerName() : durable;
             }
-            String fs = config.getFilterSubject(); // we've already determined not multiple so this gives us 1 or null
+            String fs = config.getFilterSubject(); // we've already determined there are not more than 1 filter subjects, so this gives us one or null
             if (fs == null || fs.equals(GREATER_THAN)) {
                 subj = String.format(JSAPI_CONSUMER_CREATE_V290, streamName, consumerName);
             }
@@ -185,19 +185,20 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
     // ----------------------------------------------------------------------------------------------------
     // General Utils
     // ----------------------------------------------------------------------------------------------------
-    String generateConsumerName() {
-        return NUID.nextGlobal();
-    }
-
-    ConsumerConfiguration consumerConfigurationForOrdered(
-        ConsumerConfiguration originalCc,
+    ConsumerConfiguration.Builder consumerConfigurationForOrdered(
+        ConsumerConfiguration initial,
         long lastStreamSeq,
         String newDeliverSubject,
-        String consumerName,
         Long inactiveThreshold)
     {
-        ConsumerConfiguration.Builder builder = ConsumerConfiguration.builder(originalCc).deliverSubject(newDeliverSubject);
+        ConsumerConfiguration.Builder builder = ConsumerConfiguration.builder(initial);
 
+        // push will always give one, pull will always give null
+        if (newDeliverSubject != null) {
+            builder.deliverSubject(newDeliverSubject);
+        }
+
+        // if the last stream seq is > 0, this means this config is for an ordered restart at a sequence
         if (lastStreamSeq > 0) {
             builder
                 .deliverPolicy(DeliverPolicy.ByStartSequence)
@@ -205,15 +206,11 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
                 .startTime(null); // clear start time in case it was originally set
         }
 
-        if (consumerName != null && consumerCreate290Available) {
-            builder.name(consumerName);
-        }
-
         if (inactiveThreshold != null) {
             builder.inactiveThreshold(inactiveThreshold);
         }
 
-        return builder.build();
+        return builder;
     }
 
     ConsumerInfo lookupConsumerInfo(String streamName, String consumerName) throws IOException, JetStreamApiException {
@@ -221,7 +218,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
             return _getConsumerInfo(streamName, consumerName);
         }
         catch (JetStreamApiException e) {
-            // the right side of this condition...  ( starting here \/ ) is for backward compatibility with server versions that did not provide api error codes
+            // The right side of this condition (after the ||) is for backward compatibility with server versions that did not provide api error codes
             if (e.getApiErrorCode() == JS_CONSUMER_NOT_FOUND_ERR || (e.getErrorCode() == 404 && e.getErrorDescription().contains("consumer"))) {
                 return null;
             }

@@ -20,10 +20,10 @@ import io.nats.client.support.JsonValue;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonValueUtils.*;
 import static io.nats.client.support.JsonValueUtils.readBoolean;
 import static io.nats.client.support.JsonValueUtils.readInteger;
 import static io.nats.client.support.JsonValueUtils.readLong;
-import static io.nats.client.support.JsonValueUtils.*;
 
 /**
  * Base Consume Options are provided to customize the way the consume and
@@ -208,7 +208,7 @@ public class BaseConsumeOptions implements JsonSerializable {
 
         /**
          * Raise status warning turns on sending status messages to the error listener.
-         * The default of to not raise status warning
+         * The default is to not raise status warnings
          * @return the builder
          */
         public B raiseStatusWarnings() {
@@ -218,7 +218,8 @@ public class BaseConsumeOptions implements JsonSerializable {
 
         /**
          * Turn on or off raise status warning turns. When on, status messages are sent to the error listener.
-         * The default of to not raise status warning
+         * The default is to not raise status warnings
+         * @param raiseStatusWarnings flag indicating whether to raise status messages
          * @return the builder
          */
         public B raiseStatusWarnings(boolean raiseStatusWarnings) {

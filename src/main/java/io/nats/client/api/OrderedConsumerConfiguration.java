@@ -36,11 +36,12 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
     private ZonedDateTime startTime;
     private ReplayPolicy replayPolicy;
     private Boolean headersOnly;
+    private String consumerNamePrefix;
 
     /**
      * OrderedConsumerConfiguration creation works like a builder.
      * The builder supports chaining and will create a default set of options if
-     * no methods are calls, including setting the filter subject to "&gt;"
+     * no methods are calls, including setting the filter subject to &gt;
      */
     public OrderedConsumerConfiguration() {
         startSequence = ConsumerConfiguration.LONG_UNSET;
@@ -67,7 +68,7 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
 
     /**
      * Returns a JSON representation of this ordered consumer configuration.
-     * @return json ordered consumer configuration json string
+     * @return JSON ordered consumer configuration JSON string
      */
     public String toJson() {
         StringBuilder sb = beginJson();
@@ -89,7 +90,7 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
     /**
      * Sets the filter subject of the OrderedConsumerConfiguration.
      * @param filterSubject the filter subject
-     * @return Builder
+     * @return The Builder
      */
     public OrderedConsumerConfiguration filterSubject(String filterSubject) {
         return filterSubjects(Collections.singletonList(filterSubject));
@@ -98,7 +99,7 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
     /**
      * Sets the filter subjects of the OrderedConsumerConfiguration.
      * @param filterSubject the filter subject
-     * @return Builder
+     * @return The Builder
      */
     public OrderedConsumerConfiguration filterSubjects(String... filterSubject) {
         return filterSubjects(Arrays.asList(filterSubject));
@@ -107,14 +108,14 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
     /**
      * Sets the filter subject of the OrderedConsumerConfiguration.
      * @param filterSubjects one or more filter subjects
-     * @return Builder
+     * @return The Builder
      */
     public OrderedConsumerConfiguration filterSubjects(List<String> filterSubjects) {
         this.filterSubjects.clear();
         for (String fs : filterSubjects) {
-            String fsean = emptyAsNull(fs);
-            if (fsean != null) {
-                this.filterSubjects.add(fsean);
+            String fsEan = emptyAsNull(fs);
+            if (fsEan != null) {
+                this.filterSubjects.add(fsEan);
             }
         }
         if (this.filterSubjects.isEmpty()) {
@@ -126,7 +127,7 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
     /**
      * Sets the delivery policy of the OrderedConsumerConfiguration.
      * @param deliverPolicy the delivery policy.
-     * @return Builder
+     * @return The Builder
      */
     public OrderedConsumerConfiguration deliverPolicy(DeliverPolicy deliverPolicy) {
         this.deliverPolicy = deliverPolicy;
@@ -136,7 +137,7 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
     /**
      * Sets the start sequence of the OrderedConsumerConfiguration.
      * @param startSequence the start sequence
-     * @return Builder
+     * @return The Builder
      */
     public OrderedConsumerConfiguration startSequence(long startSequence) {
         this.startSequence = startSequence < 1 ? ConsumerConfiguration.LONG_UNSET : startSequence;
@@ -146,7 +147,7 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
     /**
      * Sets the start time of the OrderedConsumerConfiguration.
      * @param startTime the start time
-     * @return Builder
+     * @return The Builder
      */
     public OrderedConsumerConfiguration startTime(ZonedDateTime startTime) {
         this.startTime = startTime;
@@ -156,7 +157,7 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
     /**
      * Sets the replay policy of the OrderedConsumerConfiguration.
      * @param replayPolicy the replay policy.
-     * @return Builder
+     * @return The Builder
      */
     public OrderedConsumerConfiguration replayPolicy(ReplayPolicy replayPolicy) {
         this.replayPolicy = replayPolicy;
@@ -167,10 +168,20 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
      * set the headers only flag saying to deliver only the headers of
      * messages in the stream and not the bodies
      * @param headersOnly the flag
-     * @return Builder
+     * @return The Builder
      */
     public OrderedConsumerConfiguration headersOnly(Boolean headersOnly) {
         this.headersOnly = headersOnly != null && headersOnly ? true : null;
+        return this;
+    }
+
+    /**
+     * Sets the consumer name prefix for consumers created by this configuration.
+     * @param consumerNamePrefix the prefix or null to clear.
+     * @return The Builder
+     */
+    public OrderedConsumerConfiguration consumerNamePrefix(String consumerNamePrefix) {
+        this.consumerNamePrefix = emptyAsNull(consumerNamePrefix);
         return this;
     }
 
@@ -204,5 +215,9 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
 
     public Boolean getHeadersOnly() {
         return headersOnly;
+    }
+
+    public String getConsumerNamePrefix() {
+        return consumerNamePrefix;
     }
 }

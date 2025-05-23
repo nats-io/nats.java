@@ -28,7 +28,7 @@ class PushMessageManager extends MessageManager {
 
     protected final NatsJetStream js;
     protected final String stream;
-    protected final ConsumerConfiguration originalCc;
+    protected final ConsumerConfiguration initialCc;
 
     protected final boolean queueMode;
     protected final boolean fc;
@@ -38,22 +38,22 @@ class PushMessageManager extends MessageManager {
                        NatsJetStream js,
                        String stream,
                        SubscribeOptions so,
-                       ConsumerConfiguration originalCc,
+                       ConsumerConfiguration initialCc,
                        boolean queueMode,
                        boolean syncMode)
     {
         super(conn, so, syncMode);
         this.js = js;
         this.stream = stream;
-        this.originalCc = originalCc;
+        this.initialCc = initialCc;
         this.queueMode = queueMode;
 
         if (queueMode) {
             fc = false;
         }
         else {
-            configureIdleHeartbeat(originalCc.getIdleHeartbeat(), so.getMessageAlarmTime());
-            fc = hb && originalCc.isFlowControl(); // can't have fc w/o heartbeat
+            configureIdleHeartbeat(initialCc.getIdleHeartbeat(), so.getMessageAlarmTime());
+            fc = hb && initialCc.isFlowControl(); // can't have fc w/o heartbeat
         }
     }
 

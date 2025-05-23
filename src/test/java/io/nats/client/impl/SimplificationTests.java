@@ -135,44 +135,57 @@ public class SimplificationTests extends JetStreamTestBase {
             for (int f = FETCH_EPHEMERAL; f <= FETCH_ORDERED; f++) {
                 // 1. Different fetch sizes demonstrate expiration behavior
 
-                // 1A. equal number of messages than the fetch size
-                _testFetch("1A", nc, tsc, 20, 0, 20, f);
+                // 1A. equal number of messages to the fetch size
+                _testFetch("1A", nc, tsc, 20, 0, 20, f, false);
 
                 // 1B. more messages than the fetch size
-                _testFetch("1B", nc, tsc, 10, 0, 10, f);
+                _testFetch("1B", nc, tsc, 10, 0, 10, f, false);
 
                 // 1C. fewer messages than the fetch size
-                _testFetch("1C", nc, tsc, 40, 0, 40, f);
+                _testFetch("1C", nc, tsc, 40, 0, 40, f, false);
 
                 // 1D. simple-consumer-40msgs was created in 1C and has no messages available
-                _testFetch("1D", nc, tsc, 40, 0, 40, f);
+                _testFetch("1D", nc, tsc, 40, 0, 40, f, false);
 
                 // 2. Different max bytes sizes demonstrate expiration behavior
                 //    - each test message is approximately 100 bytes
 
-                // 2A. max bytes is reached before message count
-                _testFetch("2A", nc, tsc, 0, 750, 20, f);
+                // 2A. max bytes are reached before message count
+                _testFetch("2A", nc, tsc, 0, 750, 20, f, false);
 
                 // 2B. fetch size is reached before byte count
-                _testFetch("2B", nc, tsc, 10, 1500, 10, f);
+                _testFetch("2B", nc, tsc, 10, 1500, 10, f, false);
 
-                if (f > FETCH_EPHEMERAL) {
+                if (f == FETCH_DURABLE) {
+                    // this is long-running, so don't want to test every time
                     // 2C. fewer bytes than the byte count
-                    _testFetch("2C", nc, tsc, 0, 3000, 40, f);
+                    _testFetch("2C", nc, tsc, 0, 3000, 40, f, false);
                 }
+                else if (f == FETCH_ORDERED) {
+                    // just to get coverage of testing with a consumer name prefix
+                    _testFetch("1A", nc, tsc, 20, 0, 20, f, true);
+                    _testFetch("2A", nc, tsc, 0, 750, 20, f, true);
+                }
+
             }
         });
     }
 
-    private static void _testFetch(String label, Connection nc, TestingStreamContainer tsc, int maxMessages, int maxBytes, int testAmount, int fetchType) throws Exception {
+    private static void _testFetch(String label, Connection nc, TestingStreamContainer tsc, int maxMessages, int maxBytes, int testAmount, int fetchType, boolean useConsumerPrefix) throws Exception {
         JetStreamManagement jsm = nc.jetStreamManagement();
         JetStream js = nc.jetStream();
 
         StreamContext ctx = js.getStreamContext(tsc.stream);
 
+        String consumerNamePrefix = null;
         BaseConsumerContext consumerContext;
         if (fetchType == FETCH_ORDERED) {
-            consumerContext = ctx.createOrderedConsumer(new OrderedConsumerConfiguration());
+            OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration();
+            if (useConsumerPrefix) {
+                consumerNamePrefix = prefix();
+                occ.consumerNamePrefix(consumerNamePrefix);
+            }
+            consumerContext = ctx.createOrderedConsumer(occ);
             // coverage
         }
         else {
@@ -213,6 +226,9 @@ public class SimplificationTests extends JetStreamTestBase {
         long elapsed;
         // create the consumer then use it
         try (FetchConsumer consumer = consumerContext.fetch(fetchConsumeOptions)) {
+            if (consumerNamePrefix != null) {
+                assertTrue(consumer.getConsumerInfo().getName().startsWith(consumerNamePrefix));
+            }
             Message msg = consumer.nextMessage();
             while (msg != null) {
                 ++rcvd;
@@ -244,8 +260,8 @@ public class SimplificationTests extends JetStreamTestBase {
 
     private static String generateConsumerName(int maxMessages, int maxBytes) {
         return maxBytes == 0
-            ? NAME + "-" + maxMessages + "msgs"
-            : NAME + "-" + maxBytes + "bytes-" + maxMessages + "msgs";
+            ? variant() + "-" + maxMessages + "msgs"
+            : variant() + "-" + maxBytes + "bytes-" + maxMessages + "msgs";
     }
 
     @Test
@@ -396,6 +412,14 @@ public class SimplificationTests extends JetStreamTestBase {
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(tsc.subject());
             OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
             try (IterableConsumer consumer = occtx.iterate()) {
+                _testIterableBasic(js, stopCount, consumer, tsc.subject());
+            }
+
+            String consumerNamePrefix = prefix();
+            occ = new OrderedConsumerConfiguration().filterSubject(tsc.subject()).consumerNamePrefix(consumerNamePrefix);
+            occtx = sctx.createOrderedConsumer(occ);
+            try (IterableConsumer consumer = occtx.iterate()) {
+                assertTrue(consumer.getConsumerInfo().getName().startsWith(consumerNamePrefix));
                 _testIterableBasic(js, stopCount, consumer, tsc.subject());
             }
         });
@@ -756,15 +780,27 @@ public class SimplificationTests extends JetStreamTestBase {
             ZonedDateTime startTime = getStartTimeFirstMessage(js, tsc);
 
             // New pomm factory in place before each subscription is made
+            // test with and without a consumer name prefix
+
             ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedNextTestDropSimulator::new;
-            _testOrderedNext(sctx, 1, new OrderedConsumerConfiguration().filterSubject(tsc.subject()));
+            _testOrderedNext(sctx, 1, new OrderedConsumerConfiguration()
+                .filterSubject(tsc.subject()));
+            _testOrderedNext(sctx, 1, new OrderedConsumerConfiguration()
+                .consumerNamePrefix(prefix())
+                .filterSubject(tsc.subject()));
 
             ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedNextTestDropSimulator::new;
             _testOrderedNext(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
                 .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
+            _testOrderedNext(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
+                .consumerNamePrefix(prefix())
+                .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
 
             ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedNextTestDropSimulator::new;
             _testOrderedNext(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
+                .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
+            _testOrderedNext(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
+                .consumerNamePrefix(prefix())
                 .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
         });
     }
@@ -784,6 +820,9 @@ public class SimplificationTests extends JetStreamTestBase {
         while (expectedStreamSeq <= 6) {
             Message m = occtx.next(1000);
             if (m != null) {
+                if (occ.getConsumerNamePrefix() != null) {
+                    assertTrue(occtx.getConsumerName().startsWith(occ.getConsumerNamePrefix()));
+                }
                 assertEquals(expectedStreamSeq, m.metaData().streamSequence());
                 assertEquals(1, m.metaData().consumerSequence());
                 ++expectedStreamSeq;
@@ -824,20 +863,28 @@ public class SimplificationTests extends JetStreamTestBase {
             jsPublish(js, tsc.subject(), 101, 6, 100);
             ZonedDateTime startTime = getStartTimeFirstMessage(js, tsc);
 
-            // New pomm factory in place before each subscription is made
+            // New pomm factory in place before subscriptions are made
+            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
+
             // Set the Consumer Sequence For Stream Sequence 3 statically for ease
             CS_FOR_SS_3 = 3;
-            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
             _testOrderedFetch(sctx, 1, new OrderedConsumerConfiguration().filterSubject(tsc.subject()));
+            _testOrderedFetch(sctx, 1, new OrderedConsumerConfiguration()
+                .consumerNamePrefix(prefix())
+                .filterSubject(tsc.subject()));
 
             CS_FOR_SS_3 = 2;
-            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
             _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
+                .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
+            _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
+                .consumerNamePrefix(prefix())
                 .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
 
             CS_FOR_SS_3 = 2;
-            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
             _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
+                .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
+            _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
+                .consumerNamePrefix(prefix())
                 .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
         });
     }
@@ -846,6 +893,11 @@ public class SimplificationTests extends JetStreamTestBase {
         OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
         FetchConsumeOptions fco = FetchConsumeOptions.builder().maxMessages(6).expiresIn(1000).build();
         try (FetchConsumer fcon = occtx.fetch(fco)) {
+            if (occ.getConsumerNamePrefix() != null) {
+                assertTrue(occtx.getConsumerName().startsWith(occ.getConsumerNamePrefix()));
+                assertEquals(occtx.getConsumerName(), fcon.getConsumerInfo().getName());
+            }
+
             Message m = fcon.nextMessage();
             while (m != null) {
                 assertEquals(expectedStreamSeq++, m.metaData().streamSequence());
@@ -887,15 +939,24 @@ public class SimplificationTests extends JetStreamTestBase {
             CS_FOR_SS_3 = 3;
             ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
             _testOrderedIterate(sctx, 1, new OrderedConsumerConfiguration().filterSubject(tsc.subject()));
+            _testOrderedIterate(sctx, 1, new OrderedConsumerConfiguration()
+                .consumerNamePrefix(prefix())
+                .filterSubject(tsc.subject()));
 
             CS_FOR_SS_3 = 2;
             ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
             _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
                 .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
+            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
+                .consumerNamePrefix(prefix())
+                .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
 
             CS_FOR_SS_3 = 2;
             ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
             _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
+                .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
+            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
+                .consumerNamePrefix(prefix())
                 .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
         });
     }
@@ -903,9 +964,13 @@ public class SimplificationTests extends JetStreamTestBase {
     private static void _testOrderedIterate(StreamContext sctx, int expectedStreamSeq, OrderedConsumerConfiguration occ) throws Exception {
         OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
         try (IterableConsumer icon = occtx.iterate()) {
+            if (occ.getConsumerNamePrefix() != null) {
+                assertTrue(occtx.getConsumerName().startsWith(occ.getConsumerNamePrefix()));
+                assertEquals(occtx.getConsumerName(), icon.getConsumerInfo().getName());
+            }
             // Loop through the messages to make sure I get stream sequence 1 to 5
             while (expectedStreamSeq <= 5) {
-                Message m = icon.nextMessage(Duration.ofSeconds(1)); // use duration version here for coverage
+                Message m = icon.nextMessage(Duration.ofSeconds(1)); // use the duration version here for coverage
                 if (m != null) {
                     assertEquals(expectedStreamSeq++, m.metaData().streamSequence());
                 }
@@ -921,37 +986,49 @@ public class SimplificationTests extends JetStreamTestBase {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
             TestingStreamContainer tsc = new TestingStreamContainer(jsm);
-
-            StreamContext sctx = js.getStreamContext(tsc.stream);
-
-            // Get this in place before subscriptions are made
-            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
-
-            CountDownLatch msgLatch = new CountDownLatch(6);
-            AtomicInteger received = new AtomicInteger();
-            AtomicLong[] ssFlags = new AtomicLong[6];
-            MessageHandler handler = hmsg -> {
-                int i = received.incrementAndGet() - 1;
-                ssFlags[i] = new AtomicLong(hmsg.metaData().streamSequence());
-                msgLatch.countDown();
-            };
-
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(tsc.subject());
-            OrderedConsumerContext octx = sctx.createOrderedConsumer(occ);
-            try (MessageConsumer mcon = octx.consume(handler)) {
-                jsPublish(js, tsc.subject(), 201, 6);
+            _testOrderedConsume(js, tsc, occ);
 
-                // wait for the messages
-                awaitAndAssert(msgLatch);
-
-                // Loop through the messages to make sure I get stream sequence 1 to 6
-                int expectedStreamSeq = 1;
-                while (expectedStreamSeq <= 6) {
-                    int idx = expectedStreamSeq - 1;
-                    assertEquals(expectedStreamSeq++, ssFlags[idx].get());
-                }
-            }
+            tsc = new TestingStreamContainer(jsm);
+            occ = new OrderedConsumerConfiguration()
+                .consumerNamePrefix(prefix())
+                .filterSubject(tsc.subject());
+            _testOrderedConsume(js, tsc, occ);
         });
+    }
+
+    private static void _testOrderedConsume(JetStream js, TestingStreamContainer tsc, OrderedConsumerConfiguration occ) throws Exception {
+        StreamContext sctx = js.getStreamContext(tsc.stream);
+
+        // Get this in place before subscriptions are made
+        ((NatsJetStream) js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
+
+        CountDownLatch msgLatch = new CountDownLatch(6);
+        AtomicInteger received = new AtomicInteger();
+        AtomicLong[] ssFlags = new AtomicLong[6];
+        MessageHandler handler = hmsg -> {
+            int i = received.incrementAndGet() - 1;
+            ssFlags[i] = new AtomicLong(hmsg.metaData().streamSequence());
+            msgLatch.countDown();
+        };
+        OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
+        try (MessageConsumer mcon = occtx.consume(handler)) {
+            if (occ.getConsumerNamePrefix() != null) {
+                assertTrue(occtx.getConsumerName().startsWith(occ.getConsumerNamePrefix()));
+                assertEquals(occtx.getConsumerName(), mcon.getConsumerInfo().getName());
+            }
+            jsPublish(js, tsc.subject(), 201, 6);
+
+            // wait for the messages
+            awaitAndAssert(msgLatch);
+
+            // Loop through the messages to make sure I get stream sequence 1 to 6
+            int expectedStreamSeq = 1;
+            while (expectedStreamSeq <= 6) {
+                int idx = expectedStreamSeq - 1;
+                assertEquals(expectedStreamSeq++, ssFlags[idx].get());
+            }
+        }
     }
 
     @Test
