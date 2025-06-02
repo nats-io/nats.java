@@ -1,5 +1,25 @@
 # Change Log
 
+## 2.21.2
+### Core
+* Changed header value validation to accept any ascii except CR & LF #1316 @francoisprunier
+
+### JetStream
+* Update account ApiStats with level and inflight #1304 @scottf
+* Update account AccountTier with reserved memory and reserved storage #1305 @scottf
+* Add StreamAlternate structure to StreamInfo response #1306 @scottf
+* Better workflow for leadership change while pull consuming. #1313 @scottf
+* Ability to supply a prefix for watches. Fixed ordered consumer naming bug. #1314 @scottf
+* Use full NUID for generated consumer names #1317 @scottf
+
+### Key Value
+* Update KV consumeKeys() to return the BlockingQueue immediately. #1308 @scottf
+* KV Limit Marker #1310  @scottf
+* KV LimitMarker add missing getter, additional docs and tests #1311 @scottf
+
+### General
+* Update repository info and cleanup readme. #1318 @scottf
+
 ## 2.21.1
 ### KV
 * KV TTL (stream max_age) versus stream duplicate_window #1301 @scottf

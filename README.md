@@ -4,7 +4,7 @@
 
 ### A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
-**Current Release**: 2.21.1 &nbsp; **Current Snapshot**: 2.21.2-SNAPSHOT
+**Current Release**: 2.21.2 &nbsp; **Current Snapshot**: 2.21.3-SNAPSHOT
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
@@ -133,9 +133,9 @@ Replace `{major.minor.patch}` with the correct version in the examples.
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.21.1/jnats-2.21.1.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.21.1/jnats-2.21.1.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.21.2/jnats-2.21.2.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.21.2/jnats-2.21.2.jar).
 
-The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.21.1/jnats-2.21.1-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.21.1/jnats-2.21.1-examples.jar).
+The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.21.2/jnats-2.21.2-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.21.2/jnats-2.21.2-examples.jar).
 
 ### Using Gradle
 
