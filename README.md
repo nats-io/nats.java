@@ -164,7 +164,7 @@ If you need a snapshot version, you must add the url for the snapshots and chang
 repositories {
     mavenCentral()
     maven {
-        url "https://oss.sonatype.org/content/repositories/snapshots"
+        url "https://central.sonatype.com/repository/maven-snapshots"
     }
 }
 
@@ -205,7 +205,7 @@ If you need a snapshot version, you must enable snapshots and change your depend
 <repositories>
     <repository>
         <id>sonatype snapshots</id>
-        <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        <url>https://central.sonatype.com/repository/maven-snapshots</url>
         <snapshots>
             <enabled>true</enabled>
         </snapshots>
