@@ -896,6 +896,11 @@ public class KeyValueTests extends JetStreamTestBase {
         }
 
         @Override
+        public String getConsumerNamePrefix() {
+            return metaOnly ? null : name + "-";
+        }
+
+        @Override
         public String toString() {
             return "TestKeyValueWatcher{" +
                 "name='" + name + '\'' +
@@ -1070,6 +1075,14 @@ public class KeyValueTests extends JetStreamTestBase {
 
         if (!watcher.beforeWatcher) {
             sub = supplier.get(kv);
+        }
+
+        // only testing this consumer name prefix on not meta only tests
+        // this way there is coverage on working with and without a prefix
+        if (!watcher.metaOnly) {
+            List<String> names = nc.jetStreamManagement().getConsumerNames("KV_" + bucket);
+            assertEquals(1, names.size());
+            assertTrue(names.get(0).startsWith(watcher.getConsumerNamePrefix()));
         }
 
         sleep(1500); // give time for the watches to get messages

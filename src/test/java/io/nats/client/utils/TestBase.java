@@ -496,6 +496,7 @@ public class TestBase {
     public static final String BUCKET = "bucket";
     public static final String KEY = "key";
     public static final String DATA = "data";
+    public static final String PREFIX = "prefix";
 
     public static String variant(Object variant) {
         return variant == null ? NUID.nextGlobalSequence() : "" + variant;
@@ -505,8 +506,12 @@ public class TestBase {
         return NUID.nextGlobalSequence();
     }
 
+    public static String prefix() {
+        return PREFIX + "-"+ variant();
+    }
+
     public static String stream() {
-        return STREAM + "-" + variant(null);
+        return STREAM + "-" + variant();
     }
 
     public static String stream(Object variant) {
@@ -514,7 +519,7 @@ public class TestBase {
     }
 
     public static String mirror() {
-        return MIRROR + "-" + variant(null);
+        return MIRROR + "-" + variant();
     }
 
     public static String mirror(Object variant) {
@@ -522,7 +527,7 @@ public class TestBase {
     }
 
     public static String source() {
-        return SOURCE + "-" + variant(null);
+        return SOURCE + "-" + variant();
     }
 
     public static String source(Object variant) {
@@ -530,7 +535,7 @@ public class TestBase {
     }
 
     public static String subject() {
-        return SUBJECT + "-" + variant(null);
+        return SUBJECT + "-" + variant();
     }
     public static String subject(Object variant) {
         return SUBJECT + "-" + variant(variant);
@@ -545,7 +550,7 @@ public class TestBase {
     }
 
     public static String durable() {
-        return DURABLE + "-" + variant(null);
+        return DURABLE + "-" + variant();
     }
 
     public static String durable(Object variant) {
@@ -557,7 +562,7 @@ public class TestBase {
     }
 
     public static String name() {
-        return NAME + "-" + variant(null);
+        return NAME + "-" + variant();
     }
 
     public static String name(Object variant) {
@@ -565,7 +570,7 @@ public class TestBase {
     }
 
     public static String deliver() {
-        return DELIVER + "-" + variant(null);
+        return DELIVER + "-" + variant();
     }
 
     public static String deliver(Object variant) {
@@ -585,7 +590,7 @@ public class TestBase {
     }
 
     public static String key() {
-        return KEY + "-" + variant(null);
+        return KEY + "-" + variant();
     }
 
     public static String messageId(Object variant) {

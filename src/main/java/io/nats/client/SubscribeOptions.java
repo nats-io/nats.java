@@ -34,8 +34,8 @@ public abstract class SubscribeOptions {
     protected final boolean ordered;
     protected final long messageAlarmTime;
     protected final ConsumerConfiguration consumerConfig;
-    protected final long pendingMessageLimit; // Only applicable for non dispatched (sync) push consumers.
-    protected final long pendingByteLimit; // Only applicable for non dispatched (sync) push consumers.
+    protected final long pendingMessageLimit; // Only applicable for non-dispatched (sync) push consumers.
+    protected final long pendingByteLimit; // Only applicable for non-dispatched (sync) push consumers.
     protected final String name;
 
     protected SubscribeOptions(Builder<?, ?> builder, boolean isPull,
@@ -210,7 +210,7 @@ public abstract class SubscribeOptions {
     }
 
     /**
-     * Gets the pending message limit. Only applicable for non dispatched (sync) push consumers.
+     * Gets the pending message limit. Only applicable for non-dispatched (sync) push consumers.
      * @return the message limit
      */
     public long getPendingMessageLimit() {
@@ -218,7 +218,7 @@ public abstract class SubscribeOptions {
     }
 
     /**
-     * Gets the pending byte limit. Only applicable for non dispatched (sync) push consumers.
+     * Gets the pending byte limit. Only applicable for non-dispatched (sync) push consumers.
      * @return the byte limit
      */
     public long getPendingByteLimit() {
@@ -256,7 +256,7 @@ public abstract class SubscribeOptions {
         protected abstract B getThis();
 
         /**
-         * Specify the stream to attach to. If not supplied the stream will be looked up by subject.
+         * Specify the stream to attach to. If not supplied, the stream will look up by the stream by subject.
          * Null or empty clears the field.
          * @param stream the name of the stream
          * @return the builder
@@ -269,8 +269,8 @@ public abstract class SubscribeOptions {
         /**
          * Specify binding to an existing consumer via name.
          * The client validates regular (non-fast)
-         * binds to ensure that provided consumer configuration
-         * is consistent with the server version and that
+         * binds to ensure that the provided consumer configuration
+         * is consistent with the server version and that the
          * consumer type (push versus pull) matches the subscription type.
          * @return the builder
          * @param bind whether to bind or not

@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import static io.nats.client.PushSubscribeOptions.DEFAULT_PUSH_OPTS;
 import static io.nats.client.impl.MessageManager.ManageResult;
 import static io.nats.client.support.NatsJetStreamClientError.*;
+import static io.nats.client.support.NatsJetStreamUtil.generateConsumerName;
 import static io.nats.client.support.NatsRequestCompletableFuture.CancelAction;
 import static io.nats.client.support.Validator.*;
 
@@ -255,6 +256,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         SubscribeOptions so;
         String stream;
         ConsumerConfiguration userCC;
+        boolean ordered;
         String settledDeliverGroup = null; // push might set this
 
         if (isPullMode) {
@@ -290,7 +292,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             }
         }
 
-        // 1B. Flow Control / heartbeat not always valid
+        // 1B. Flow Control / heartbeat is not always valid
         if (userCC.getIdleHeartbeat() != null && userCC.getIdleHeartbeat().toMillis() > 0) {
             if (isPullMode) {
                 throw JsSubFcHbNotValidPull.instance();
@@ -300,7 +302,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             }
         }
 
-        // 2. figure out user provided subjects and prepare the settledFilterSubjects
+        // 2. figure out user-provided subjects and prepare the settledFilterSubjects
         userSubscribeSubject = emptyAsNull(userSubscribeSubject);
         List<String> settledFilterSubjects = new ArrayList<>();
         if (userCC.getFilterSubjects() == null) { // empty filterSubjects gives null
@@ -312,13 +314,13 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         else {
             // userCC.filterSubjects not empty, validate them
             settledFilterSubjects.addAll(userCC.getFilterSubjects());
-            // If userSubscribeSubject is provided it must be one of the filter subjects.
+            // If userSubscribeSubject is provided, it must be one of the filter subjects.
             if (userSubscribeSubject != null && !settledFilterSubjects.contains(userSubscribeSubject)) {
                 throw JsSubSubjectDoesNotMatchFilter.instance();
             }
         }
 
-        // 3. Did they tell me what stream? No? look it up.
+        // 3. Did they tell me what stream? No? Look it up.
         final String settledStream;
         if (stream == null) {
             if (settledFilterSubjects.isEmpty()) {
@@ -338,18 +340,20 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         if (consumerName == null) {
             consumerName = userCC.getName();
         }
+
         String inboxDeliver = userCC.getDeliverSubject();
 
-        // 4. Does this consumer already exist? FastBind bypasses the lookup;
-        //    the dev better know what they are doing...
-        if (!so.isFastBind() && consumerName != null) {
+        // 4. Does this consumer already exist?
+        //    * FastBind bypasses the lookup; the dev better know what they are doing...
+        //    * ordered also bypasses the lookup b/c we know it's always a new name
+        if (!so.isFastBind() && !so.isOrdered() && consumerName != null) {
             ConsumerInfo serverInfo = lookupConsumerInfo(settledStream, consumerName);
 
             if (serverInfo != null) { // the consumer for that durable already exists
                 serverCC = serverInfo.getConsumerConfiguration();
 
                 // check to see if the user sent a different version than the server has
-                // because modifications are not allowed during create subscription
+                // because modifications are not allowed during "create" subscription
                 ConsumerConfigurationComparer userCCC = new ConsumerConfigurationComparer(userCC);
                 List<String> changes = userCCC.getChanges(serverCC);
                 if (!changes.isEmpty()) {
@@ -367,15 +371,15 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
                 }
 
                 if (serverCC.getDeliverGroup() == null) {
-                    // lookedUp was null, means existing consumer is not a queue consumer
+                    // lookedUp was null, means the existing consumer is not a queue consumer
                     if (settledDeliverGroup == null) {
-                        // ok fine, no queue requested and the existing consumer is also not a queue consumer
+                        // ok fine, no queue was requested, and the existing consumer is also not a queue consumer
                         // we must check if the consumer is in use though
                         if (serverInfo.isPushBound()) {
                             throw JsSubConsumerAlreadyBound.instance();
                         }
                     }
-                    else { // else they requested a queue but this durable was not configured as queue
+                    else { // else they requested a queue, but this durable was not configured as a queue.
                         throw JsSubExistingConsumerNotQueue.instance();
                     }
                 }
@@ -399,7 +403,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
                     throw JsSubSubjectDoesNotMatchFilter.instance();
                 }
 
-                inboxDeliver = serverCC.getDeliverSubject(); // use the deliver subject as the inbox. It may be null, that's ok, we'll fix that later
+                inboxDeliver = serverCC.getDeliverSubject(); // Use the deliverSubject as the inbox. It may be null, that's ok, we'll fix that later
             }
             else if (so.isBind()) {
                 throw JsSubConsumerNotFoundRequiredInBind.instance();
@@ -418,7 +422,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             settledInboxDeliver = inboxDeliver;
         }
 
-        // 6. If consumer does not exist, create and settle on the config. Name will have to wait
+        // 6. If the consumer does not exist, create and settle on the config. Name will have to wait
         //    If the consumer exists, I know what the settled info is
         final ConsumerConfiguration settledCC;
         final String settledConsumerName;
@@ -429,20 +433,32 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         else {
             ConsumerConfiguration.Builder ccBuilder = ConsumerConfiguration.builder(userCC);
 
-            // Pull mode doesn't maintain a deliver subject. It's actually an error if we send it.
+            // Pull mode doesn't maintain a deliverSubject. It's actually an error if we send it.
             if (!isPullMode) {
                 ccBuilder.deliverSubject(settledInboxDeliver);
             }
 
-            // userCC.filterSubjects might have originally been empty
+            // userCC.filterSubjects might have originally been empty,
             // but there might have been a userSubscribeSubject,
             // so this makes sure it's resolved either way
             ccBuilder.filterSubjects(settledFilterSubjects);
 
             ccBuilder.deliverGroup(settledDeliverGroup);
 
+            if (so.isOrdered()) {
+                // we have to handle the fact that ordered consumers must always have a unique name
+                // if the user supplied a name, well call generateConsumerName with the original name as a prefix
+                if (consumerName != null) {
+                    consumerName = generateConsumerName(userCC.getName());
+                    ccBuilder.name(consumerName);
+                }
+                settledConsumerName = consumerName;
+            }
+            else {
+                settledConsumerName = null; // the server will give us a name if the user's was null
+            }
+
             settledCC = ccBuilder.build();
-            settledConsumerName = null; // the server will give us a name
         }
 
         // 7. create the subscription. lambda needs final or effectively final vars
@@ -481,8 +497,12 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         }
 
         // 8. The consumer might need to be created, do it here
-        if (settledConsumerName == null) {
+        if (settledConsumerName == null || so.isOrdered()) {
+            // the _create method sets the consumer name for us
             _createConsumerUnsubscribeOnException(settledStream, settledCC, sub);
+        }
+        else {
+            sub.setConsumerName(settledConsumerName);
         }
 
         return sub;
