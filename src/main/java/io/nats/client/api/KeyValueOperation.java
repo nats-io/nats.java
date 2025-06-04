@@ -12,19 +12,23 @@
 // limitations under the License.
 package io.nats.client.api;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
  * Key Value Operations Enum
  */
 public enum KeyValueOperation {
-    PUT("PUT"), DELETE("DEL"), PURGE("PURGE");
+    PUT("PUT"), DELETE("DEL", "MaxAge", "Remove"), PURGE("PURGE", "Purge");
 
     private final String headerValue;
+    private final List<String> markerReasons;
 
-    KeyValueOperation(String headerValue) {
+    KeyValueOperation(String headerValue, String... markerReasons) {
         this.headerValue = headerValue;
+        this.markerReasons = markerReasons == null || markerReasons.length == 0 ? null : Arrays.asList(markerReasons);
     }
 
     private static final Map<String, KeyValueOperation> strEnumHash = new HashMap<>();
@@ -42,5 +46,14 @@ public enum KeyValueOperation {
     public static KeyValueOperation getOrDefault(String s, KeyValueOperation dflt) {
         KeyValueOperation kvo = s == null ? null : strEnumHash.get(s.toUpperCase());
         return kvo == null ? dflt : kvo;
+    }
+
+    public static KeyValueOperation getByMarkerReason(String markerReason) {
+        for (KeyValueOperation kvo : KeyValueOperation.values()) {
+            if (kvo.markerReasons != null && kvo.markerReasons.contains(markerReason)) {
+                return kvo;
+            }
+        }
+        return null;
     }
 }

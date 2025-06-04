@@ -20,8 +20,7 @@ import io.nats.client.api.KeyValueOperation;
 import io.nats.client.impl.Headers;
 
 import static io.nats.client.support.NatsConstants.DOT;
-import static io.nats.client.support.NatsJetStreamConstants.ROLLUP_HDR;
-import static io.nats.client.support.NatsJetStreamConstants.ROLLUP_HDR_SUBJECT;
+import static io.nats.client.support.NatsJetStreamConstants.*;
 
 public abstract class NatsKeyValueUtil {
 
@@ -64,8 +63,19 @@ public abstract class NatsKeyValueUtil {
         return h == null ? null : h.getFirst(KV_OPERATION_HEADER_KEY);
     }
 
+    public static String getNatsMarkerReasonHeader(Headers h) {
+        return h == null ? null : h.getFirst(NATS_MARKER_REASON_HDR);
+    }
+
     public static KeyValueOperation getOperation(Headers h) {
-        return KeyValueOperation.getOrDefault(getOperationHeader(h), KeyValueOperation.PUT);
+        KeyValueOperation kvo = KeyValueOperation.getOrDefault(getOperationHeader(h), null);
+        if (kvo == null) {
+            String rh = getNatsMarkerReasonHeader(h);
+            if (rh != null) {
+                kvo = KeyValueOperation.getByMarkerReason(rh);
+            }
+        }
+        return kvo == null ? KeyValueOperation.PUT : kvo;
     }
 
     public static Headers getDeleteHeaders() {
