@@ -21,7 +21,7 @@ import java.util.Map;
  * Key Value Operations Enum
  */
 public enum KeyValueOperation {
-    PUT("PUT"), DELETE("DEL", "MaxAge", "Remove"), PURGE("PURGE", "Purge");
+    PUT("PUT"), DELETE("DEL", "Remove"), PURGE("PURGE", "MaxAge", "Purge");
 
     private final String headerValue;
     private final List<String> markerReasons;
