@@ -638,7 +638,7 @@ class NatsConnection implements Connection {
                 }
 
                 this.currentServer = cur;
-                this.serverAuthErrors.remove(resolved); // reset on successful connection
+                this.serverAuthErrors.clear(); // reset on successful connection
                 updateStatus(Status.CONNECTED); // will signal status change, we also signal in finally
             } finally {
                 statusLock.unlock();
@@ -1059,7 +1059,7 @@ class NatsConnection implements Connection {
         if (after > 0) {
             bab.append(SP).append(after);
         }
-        queueInternalOutgoing(new ProtocolMessage(bab));
+        queueOutgoing(new ProtocolMessage(bab));
     }
 
     // Assumes the null/empty checks were handled elsewhere
