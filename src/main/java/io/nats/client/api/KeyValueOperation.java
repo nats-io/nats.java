@@ -12,47 +12,40 @@
 // limitations under the License.
 package io.nats.client.api;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 /**
  * Key Value Operations Enum
  */
 public enum KeyValueOperation {
-    PUT("PUT"), DELETE("DEL", "Remove"), PURGE("PURGE", "MaxAge", "Purge");
+    PUT("PUT"), DELETE("DEL"), PURGE("PURGE");
 
     private final String headerValue;
-    private final List<String> markerReasons;
 
-    KeyValueOperation(String headerValue, String... markerReasons) {
+    KeyValueOperation(String headerValue) {
         this.headerValue = headerValue;
-        this.markerReasons = markerReasons == null || markerReasons.length == 0 ? null : Arrays.asList(markerReasons);
     }
-
-    private static final Map<String, KeyValueOperation> strEnumHash = new HashMap<>();
 
     public String getHeaderValue() {
         return headerValue;
     }
 
-    static {
-        for (KeyValueOperation kvo : KeyValueOperation.values()) {
-            strEnumHash.put(kvo.headerValue, kvo);
-        }
+    public static KeyValueOperation instance(String s) {
+        if (PUT.headerValue.equals(s)) return PUT;
+        if (DELETE.headerValue.equals(s)) return DELETE;
+        if (PURGE.headerValue.equals(s)) return PURGE;
+        return null;
     }
 
     public static KeyValueOperation getOrDefault(String s, KeyValueOperation dflt) {
-        KeyValueOperation kvo = s == null ? null : strEnumHash.get(s.toUpperCase());
+        KeyValueOperation kvo = instance(s);
         return kvo == null ? dflt : kvo;
     }
 
-    public static KeyValueOperation getByMarkerReason(String markerReason) {
-        for (KeyValueOperation kvo : KeyValueOperation.values()) {
-            if (kvo.markerReasons != null && kvo.markerReasons.contains(markerReason)) {
-                return kvo;
-            }
+    public static KeyValueOperation instanceByMarkerReason(String markerReason) {
+        if ("Remove".equals(markerReason)) {
+            return DELETE;
+        }
+        if ("MaxAge".equals(markerReason) || "Purge".equals(markerReason)) {
+            return PURGE;
         }
         return null;
     }

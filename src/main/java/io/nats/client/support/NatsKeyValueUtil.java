@@ -68,11 +68,15 @@ public abstract class NatsKeyValueUtil {
     }
 
     public static KeyValueOperation getOperation(Headers h) {
-        KeyValueOperation kvo = KeyValueOperation.getOrDefault(getOperationHeader(h), null);
+        KeyValueOperation kvo = null;
+        String hs = getOperationHeader(h);
+        if (hs != null) {
+            kvo = KeyValueOperation.instance(hs);
+        }
         if (kvo == null) {
-            String rh = getNatsMarkerReasonHeader(h);
-            if (rh != null) {
-                kvo = KeyValueOperation.getByMarkerReason(rh);
+            hs = getNatsMarkerReasonHeader(h);
+            if (hs != null) {
+                kvo = KeyValueOperation.instanceByMarkerReason(hs);
             }
         }
         return kvo == null ? KeyValueOperation.PUT : kvo;
