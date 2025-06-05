@@ -25,6 +25,7 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.JetStreamOptions.DEFAULT_JS_OPTIONS;
 import static io.nats.client.api.KeyValuePurgeOptions.DEFAULT_THRESHOLD_MILLIS;
@@ -764,7 +765,7 @@ public class KeyValueTests extends JetStreamTestBase {
             kv.delete(key);
             kv.create(key, "abc".getBytes());
 
-            // 7. allowed to update a key that is deleted, as long as you have it's revision
+            // 7. allowed to update a key that is deleted, as long as you have its revision
             kv.delete(key);
             nc.flush(Duration.ofSeconds(1));
 
@@ -1839,6 +1840,66 @@ public class KeyValueTests extends JetStreamTestBase {
                 .storageType(StorageType.Memory)
                 .limitMarker(Duration.ofMillis(999)) // coverage of duration api vs ms api
                 .build());
+        });
+    }
+
+    @Test
+    public void testLimitMarkerAlso() throws Exception {
+        jsServer.run(TestBase::atLeast2_11, nc -> {
+            String bucket = bucket();
+            String key = key();
+
+            KeyValueManagement kvm = nc.keyValueManagement();
+            KeyValueConfiguration config = KeyValueConfiguration.builder()
+                .name(bucket)
+                .storageType(StorageType.Memory)
+                .limitMarker(Duration.ofSeconds(6))
+                .build();
+            kvm.create(config);
+
+            KeyValue kv = nc.keyValue(bucket);
+
+            AtomicInteger puts = new AtomicInteger();
+            AtomicInteger dels = new AtomicInteger();
+            AtomicInteger purge = new AtomicInteger();
+            AtomicInteger eod = new AtomicInteger();
+
+            KeyValueWatcher watcher = new KeyValueWatcher() {
+                @Override
+                public void watch(KeyValueEntry keyValueEntry) {
+                    if (keyValueEntry.getOperation() == KeyValueOperation.PUT) {
+                        puts.incrementAndGet();
+                    }
+                    else if (keyValueEntry.getOperation() == KeyValueOperation.DELETE) {
+                        dels.incrementAndGet();
+                    }
+                    else if (keyValueEntry.getOperation() == KeyValueOperation.PURGE) {
+                        purge.incrementAndGet();
+                    }
+                }
+
+                @Override
+                public void endOfData() {
+                    eod.incrementAndGet();
+                }
+            };
+
+            NatsKeyValueWatchSubscription watch = kv.watchAll(watcher);
+
+            kv.create(key, dataBytes(), MessageTtl.seconds(2));
+
+            KeyValueEntry kve = kv.get(key);
+            assertNotNull(kve);
+
+            sleep(2100); // longer than the message ttl
+
+            kve = kv.get(key);
+            assertNull(kve);
+
+            assertEquals(1, puts.get());
+            assertEquals(0, dels.get());
+            assertEquals(1, purge.get());
+            assertEquals(1, eod.get());
         });
     }
 }

@@ -12,9 +12,6 @@
 // limitations under the License.
 package io.nats.client.api;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * Key Value Operations Enum
  */
@@ -27,20 +24,29 @@ public enum KeyValueOperation {
         this.headerValue = headerValue;
     }
 
-    private static final Map<String, KeyValueOperation> strEnumHash = new HashMap<>();
-
     public String getHeaderValue() {
         return headerValue;
     }
 
-    static {
-        for (KeyValueOperation kvo : KeyValueOperation.values()) {
-            strEnumHash.put(kvo.headerValue, kvo);
-        }
+    public static KeyValueOperation instance(String s) {
+        if (PUT.headerValue.equals(s)) return PUT;
+        if (DELETE.headerValue.equals(s)) return DELETE;
+        if (PURGE.headerValue.equals(s)) return PURGE;
+        return null;
     }
 
     public static KeyValueOperation getOrDefault(String s, KeyValueOperation dflt) {
-        KeyValueOperation kvo = s == null ? null : strEnumHash.get(s.toUpperCase());
+        KeyValueOperation kvo = instance(s);
         return kvo == null ? dflt : kvo;
+    }
+
+    public static KeyValueOperation instanceByMarkerReason(String markerReason) {
+        if ("Remove".equals(markerReason)) {
+            return DELETE;
+        }
+        if ("MaxAge".equals(markerReason) || "Purge".equals(markerReason)) {
+            return PURGE;
+        }
+        return null;
     }
 }
