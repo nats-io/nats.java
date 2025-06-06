@@ -2683,8 +2683,11 @@ public class Options {
             if (uriToken != null) {
                 appendOption(connectString, Options.OPTION_AUTH_TOKEN, uriToken, true, true);
             }
-            else if (this.tokenSupplier.get() != null) {
-                appendOption(connectString, Options.OPTION_AUTH_TOKEN, this.tokenSupplier.get(), true);
+            else {
+                char[] token = this.tokenSupplier.get();
+                if (token != null) {
+                    appendOption(connectString, Options.OPTION_AUTH_TOKEN, token, true);
+                }
             }
         }
 
