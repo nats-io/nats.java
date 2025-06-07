@@ -20,7 +20,6 @@ import io.nats.client.support.NatsUri;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
 import io.nats.client.utils.CoverageServerPool;
 import io.nats.client.utils.ResourceUtils;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
@@ -862,16 +861,37 @@ public class OptionsTests {
     @Test
     public void testTokenSupplier() {
         String serverURI = "nats://localhost:2222";
-        AtomicInteger counter = new AtomicInteger(0);
-        Supplier<char[]> tokenSupplier = () -> {
-            counter.incrementAndGet();
-            return "short-lived-token".toCharArray();
-        };
-        Options o = new Options.Builder().tokenSupplier(tokenSupplier).build();
-
+        Options o = new Options.Builder().build();
         String connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
-        assertTrue(connectString.contains("\"auth_token\":\"short-lived-token\""));
-        assertEquals(1, counter.get());
+        assertFalse(connectString.contains("\"auth_token\""));
+
+        //noinspection deprecation
+        o = new Options.Builder().token((String)null).build();
+        connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
+        assertFalse(connectString.contains("\"auth_token\""));
+
+        //noinspection deprecation
+        o = new Options.Builder().token("   ").build();
+        connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
+        assertFalse(connectString.contains("\"auth_token\""));
+
+        o = new Options.Builder().token((char[])null).build();
+        connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
+        assertFalse(connectString.contains("\"auth_token\""));
+
+        o = new Options.Builder().token(new char[0]).build();
+        connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
+        assertFalse(connectString.contains("\"auth_token\""));
+
+        AtomicInteger counter = new AtomicInteger(0);
+        Supplier<char[]> tokenSupplier = () -> ("short-lived-token-" + counter.incrementAndGet()).toCharArray();
+        o = new Options.Builder().tokenSupplier(tokenSupplier).build();
+
+        connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
+        assertTrue(connectString.contains("\"auth_token\":\"short-lived-token-1\""));
+
+        connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
+        assertTrue(connectString.contains("\"auth_token\":\"short-lived-token-2\""));
     }
 
     @Test

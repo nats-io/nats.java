@@ -14,10 +14,7 @@
 package io.nats.client;
 
 import io.nats.client.impl.*;
-import io.nats.client.support.HttpRequest;
-import io.nats.client.support.NatsConstants;
-import io.nats.client.support.NatsUri;
-import io.nats.client.support.SSLUtils;
+import io.nats.client.support.*;
 
 import javax.net.ssl.SSLContext;
 import java.io.File;
@@ -708,10 +705,11 @@ public class Options {
         }
 
         public DefaultTokenSupplier(char[] token) {
-            this.token = token;
+            this.token = token == null || token.length == 0 ? null : token;
         }
 
         public DefaultTokenSupplier(String token) {
+            token = Validator.emptyAsNull(token);
             this.token = token == null ? null : token.toCharArray();
         }
 
