@@ -20,6 +20,7 @@ import io.nats.client.support.NatsUri;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
 import io.nats.client.utils.CoverageServerPool;
 import io.nats.client.utils.ResourceUtils;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
@@ -33,6 +34,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 
 import static io.nats.client.Options.*;
 import static io.nats.client.support.Encoding.base64UrlEncodeToString;
@@ -854,6 +857,21 @@ public class OptionsTests {
         assertTrue(connectString.contains("\"auth_token\":\"alberto\""));
         assertFalse(connectString.contains("\"user\":"));
         assertFalse(connectString.contains("\"pass\":"));
+    }
+
+    @Test
+    public void testTokenSupplier() {
+        String serverURI = "nats://localhost:2222";
+        AtomicInteger counter = new AtomicInteger(0);
+        Supplier<char[]> tokenSupplier = () -> {
+            counter.incrementAndGet();
+            return "short-lived-token".toCharArray();
+        };
+        Options o = new Options.Builder().tokenSupplier(tokenSupplier).build();
+
+        String connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
+        assertTrue(connectString.contains("\"auth_token\":\"short-lived-token\""));
+        assertEquals(1, counter.get());
     }
 
     @Test
