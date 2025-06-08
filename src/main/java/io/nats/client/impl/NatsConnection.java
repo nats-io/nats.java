@@ -1301,12 +1301,7 @@ class NatsConnection implements Connection {
             inboxDispatcherLock.lock();
             try {
                 if (inboxDispatcher.get() == null) {
-                    NatsDispatcher d = dispatcherFactory.createDispatcher(this, this::deliverReply);
-
-                    // Ensure the dispatcher is started before publishing messages
-                    String id = this.nuid.next();
-                    this.dispatchers.put(id, d);
-                    d.start(id);
+                    NatsDispatcher d = (NatsDispatcher) createDispatcher(this::deliverReply);
                     d.subscribe(this.mainInbox);
                     inboxDispatcher.set(d);
                 }
