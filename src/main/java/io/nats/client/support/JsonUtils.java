@@ -459,6 +459,11 @@ public abstract class JsonUtils {
     }
 
     private static final int INDENT_WIDTH = 4;
+    private static final String INDENT = "                                        ";
+    private static String indent(int level) {
+        return level == 0 ? "" : INDENT.substring(0, level * INDENT_WIDTH);
+    }
+
     public static String getFormatted(Object o) {
         String s = o.toString();
         String newline = System.lineSeparator();
@@ -467,14 +472,14 @@ public abstract class JsonUtils {
         boolean begin_quotes = false;
 
         boolean opened = false;
-        int indent = 0;
+        int indentLevel = 0;
+        String indent = "";
         for (int x = 0; x < s.length(); x++) {
             char c = s.charAt(x);
 
             if (c == '\"') {
                 if (opened) {
-                    sb.append(newline)
-                        .append(String.format("%" + (indent += INDENT_WIDTH) + "s", ""));
+                    sb.append(newline).append(indent);
                     opened = false;
                 }
                 sb.append(c);
@@ -488,12 +493,13 @@ public abstract class JsonUtils {
                     case '[':
                         sb.append(c);
                         opened = true;
+                        indent = indent(++indentLevel);
                         continue;
                     case '}':
                     case ']':
+                        indent = indent(--indentLevel);
                         if (!opened) {
-                            sb.append(newline)
-                                .append((indent -= INDENT_WIDTH) > 0 ? String.format("%" + indent + "s", "") : "");
+                            sb.append(newline).append(indent);
                         }
                         sb.append(c);
                         opened = false;
@@ -502,13 +508,12 @@ public abstract class JsonUtils {
                         sb.append(c).append(" ");
                         continue;
                     case ',':
-                        sb.append(c).append(newline).append(indent > 0 ? String.format("%" + indent + "s", "") : "");
+                        sb.append(c).append(newline).append(indentLevel > 0 ? indent : "");
                         continue;
                     default:
                         if (Character.isWhitespace(c)) continue;
                         if (opened) {
-                            sb.append(newline)
-                                .append(String.format("%" + (indent += INDENT_WIDTH) + "s", ""));
+                            sb.append(newline).append(indent);
                             opened = false;
                         }
                 }
