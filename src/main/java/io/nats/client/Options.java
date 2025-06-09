@@ -640,7 +640,7 @@ public class Options {
     private final long reconnectBufferSize;
     private final char[] username;
     private final char[] password;
-    private final char[] token;
+    private final Supplier<char[]> tokenSupplier;
     private final String inboxPrefix;
     private boolean useOldRequestStyle;
     private final int bufferSize;
@@ -697,6 +697,27 @@ public class Options {
                 t.setPriority(Thread.NORM_PRIORITY);
             }
             return t;
+        }
+    }
+
+    static class DefaultTokenSupplier implements Supplier<char[]> {
+        final char[] token;
+
+        public DefaultTokenSupplier() {
+            token = null;
+        }
+
+        public DefaultTokenSupplier(char[] token) {
+            this.token = token;
+        }
+
+        public DefaultTokenSupplier(String token) {
+            this.token = token == null ? null : token.toCharArray();
+        }
+
+        @Override
+        public char[] get() {
+            return token;
         }
     }
 
@@ -758,7 +779,7 @@ public class Options {
         private long reconnectBufferSize = DEFAULT_RECONNECT_BUF_SIZE;
         private char[] username = null;
         private char[] password = null;
-        private char[] token = null;
+        private Supplier<char[]> tokenSupplier = new DefaultTokenSupplier();
         private boolean useOldRequestStyle = false;
         private int bufferSize = DEFAULT_BUFFER_SIZE;
         private boolean trackAdvancedStats = false;
@@ -855,7 +876,7 @@ public class Options {
 
             charArrayProperty(props, PROP_USERNAME, ca -> this.username = ca);
             charArrayProperty(props, PROP_PASSWORD, ca -> this.password = ca);
-            charArrayProperty(props, PROP_TOKEN, ca -> this.token = ca);
+            charArrayProperty(props, PROP_TOKEN, ca -> this.tokenSupplier = new DefaultTokenSupplier(ca));
 
             booleanProperty(props, PROP_SECURE, b -> this.useDefaultTls = b);
             booleanProperty(props, PROP_OPENTLS, b -> this.useTrustAllTls = b);
@@ -1477,7 +1498,7 @@ public class Options {
 
         /**
          * Set the token for token-based authentication.
-         * If a token is provided in a server URI it overrides this value.
+         * If a token is provided in a server URI, it overrides this value.
          *
          * @param token The token
          * @return the Builder for chaining
@@ -1485,19 +1506,31 @@ public class Options {
          */
         @Deprecated
         public Builder token(String token) {
-            this.token = token.toCharArray();
+            this.tokenSupplier = new DefaultTokenSupplier(token);
             return this;
         }
 
         /**
          * Set the token for token-based authentication.
-         * If a token is provided in a server URI it overrides this value.
+         * If a token is provided in a server URI, it overrides this value.
          *
          * @param token The token
          * @return the Builder for chaining
          */
         public Builder token(char[] token) {
-            this.token = token;
+            this.tokenSupplier = new DefaultTokenSupplier(token);
+            return this;
+        }
+
+        /**
+         * Set the token supplier for token-based authentication.
+         * If a token is provided in a server URI, it overrides this value.
+         *
+         * @param tokenSupplier The tokenSupplier
+         * @return the Builder for chaining
+         */
+        public Builder tokenSupplier(Supplier<char[]> tokenSupplier) {
+            this.tokenSupplier = tokenSupplier == null ? new DefaultTokenSupplier() : tokenSupplier;
             return this;
         }
 
@@ -1784,7 +1817,7 @@ public class Options {
             // ----------------------------------------------------------------------------------------------------
             // BUILD IMPL
             // ----------------------------------------------------------------------------------------------------
-            if (this.username != null && this.token != null) {
+            if (this.username != null && tokenSupplier.get() != null) {
                 throw new IllegalStateException("Options can't have token and username");
             }
 
@@ -1958,7 +1991,7 @@ public class Options {
             this.reconnectBufferSize = o.reconnectBufferSize;
             this.username = o.username;
             this.password = o.password;
-            this.token = o.token;
+            this.tokenSupplier = o.tokenSupplier;
             this.useOldRequestStyle = o.useOldRequestStyle;
             this.maxControlLine = o.maxControlLine;
             this.bufferSize = o.bufferSize;
@@ -2026,7 +2059,7 @@ public class Options {
         this.reconnectBufferSize = b.reconnectBufferSize;
         this.username = b.username;
         this.password = b.password;
-        this.token = b.token;
+        this.tokenSupplier = b.tokenSupplier;
         this.useOldRequestStyle = b.useOldRequestStyle;
         this.maxControlLine = b.maxControlLine;
         this.bufferSize = b.bufferSize;
@@ -2456,6 +2489,7 @@ public class Options {
      */
     @Deprecated
     public String getToken() {
+        char[] token = tokenSupplier.get();
         return token == null ? null : new String(token);
     }
 
@@ -2463,7 +2497,7 @@ public class Options {
      * @return the token to be used for token-based authentication, see {@link Builder#token(String) token()} in the builder doc
      */
     public char[] getTokenChars() {
-        return token;
+        return tokenSupplier.get();
     }
 
     /**
@@ -2649,8 +2683,11 @@ public class Options {
             if (uriToken != null) {
                 appendOption(connectString, Options.OPTION_AUTH_TOKEN, uriToken, true, true);
             }
-            else if (this.token != null) {
-                appendOption(connectString, Options.OPTION_AUTH_TOKEN, this.token, true);
+            else {
+                char[] token = this.tokenSupplier.get();
+                if (token != null) {
+                    appendOption(connectString, Options.OPTION_AUTH_TOKEN, token, true);
+                }
             }
         }
 
