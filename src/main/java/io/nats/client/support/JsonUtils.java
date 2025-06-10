@@ -458,63 +458,70 @@ public abstract class JsonUtils {
         return o.toString();
     }
 
+    private static final int INDENT_WIDTH = 4;
     private static final String INDENT = "                                        ";
     private static String indent(int level) {
-        return level == 0 ? "" : INDENT.substring(0, level * 4);
+        return level == 0 ? "" : INDENT.substring(0, level * INDENT_WIDTH);
     }
 
-    /**
-     * This isn't perfect but good enough for debugging
-     * @param o the object
-     * @return the formatted string
-     */
     public static String getFormatted(Object o) {
-        StringBuilder sb = new StringBuilder();
-        int level = 0;
-        int arrayLevel = 0;
-        boolean lastWasClose = false;
-        boolean indentNext = true;
-        String indent = "";
         String s = o.toString();
+        String newline = System.lineSeparator();
+
+        StringBuilder sb = new StringBuilder();
+        boolean begin_quotes = false;
+
+        boolean opened = false;
+        int indentLevel = 0;
+        String indent = "";
         for (int x = 0; x < s.length(); x++) {
             char c = s.charAt(x);
-            if (c == '{') {
-                if (arrayLevel > 0 && lastWasClose) {
-                    sb.append(indent);
+
+            if (c == '\"') {
+                if (opened) {
+                    sb.append(newline).append(indent);
+                    opened = false;
                 }
-                sb.append(c).append('\n');
-                indent = indent(++level);
-                indentNext = true;
-                lastWasClose = false;
+                sb.append(c);
+                begin_quotes = !begin_quotes;
+                continue;
             }
-            else if (c == '}') {
-                indent = indent(--level);
-                sb.append('\n').append(indent).append(c);
-                lastWasClose = true;
+
+            if (!begin_quotes) {
+                switch (c) {
+                    case '{':
+                    case '[':
+                        sb.append(c);
+                        opened = true;
+                        indent = indent(++indentLevel);
+                        continue;
+                    case '}':
+                    case ']':
+                        indent = indent(--indentLevel);
+                        if (!opened) {
+                            sb.append(newline).append(indent);
+                        }
+                        sb.append(c);
+                        opened = false;
+                        continue;
+                    case ':':
+                        sb.append(c).append(" ");
+                        continue;
+                    case ',':
+                        sb.append(c).append(newline).append(indentLevel > 0 ? indent : "");
+                        continue;
+                    default:
+                        if (Character.isWhitespace(c)) continue;
+                        if (opened) {
+                            sb.append(newline).append(indent);
+                            opened = false;
+                        }
+                }
             }
-            else if (c == ',') {
-                sb.append(",\n");
-                indentNext = true;
-            }
-            else {
-                if (c == '[') {
-                    arrayLevel++;
-                }
-                else if (c == ']') {
-                    arrayLevel--;
-                }
-                if (indentNext) {
-                    if (c != ' ') {
-                        sb.append(indent).append(c);
-                        indentNext = false;
-                    }
-                }
-                else {
-                    sb.append(c);
-                }
-                lastWasClose = lastWasClose && Character.isWhitespace(c);
-            }
+
+            sb.append(c).append(c == '\\' ? "" + s.charAt(++x) : "");
         }
+
         return sb.toString();
     }
 
