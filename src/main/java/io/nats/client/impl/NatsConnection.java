@@ -638,7 +638,7 @@ class NatsConnection implements Connection {
                 }
 
                 this.currentServer = cur;
-                this.serverAuthErrors.remove(resolved); // reset on successful connection
+                this.serverAuthErrors.clear(); // reset on successful connection
                 updateStatus(Status.CONNECTED); // will signal status change, we also signal in finally
             } finally {
                 statusLock.unlock();
