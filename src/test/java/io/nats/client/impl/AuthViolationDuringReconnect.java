@@ -66,6 +66,7 @@ public class AuthViolationDuringReconnect {
 
     private static void restartServer(AtomicReference<NatsTestServer> ts, int port) {
         try {
+            System.out.println("Restarting server");
             ts.get().shutdown();
             ts.set(new NatsTestServer(new String[]{"--auth", "1234", "-m", "8222"}, port, false));
         } catch (Exception e) {
