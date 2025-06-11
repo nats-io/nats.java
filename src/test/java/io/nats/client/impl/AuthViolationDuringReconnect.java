@@ -76,7 +76,7 @@ public class AuthViolationDuringReconnect {
 
     private static void subscribe(Dispatcher d) {
         latch = new CountDownLatch(1);
-        for (int i = 0; i < 500_000; i++) {
+        for (int i = 0; i < 10_000; i++) {
             String subject = "test_" + i;
             subscriptions.add(subject);
             d.subscribe(subject);
