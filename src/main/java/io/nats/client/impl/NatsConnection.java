@@ -379,6 +379,7 @@ class NatsConnection implements Connection {
         }
 
         writer.setReconnectMode(true);
+        Thread.sleep(2);
 
         if (!isConnected() && !isClosed() && !this.isClosing()) {
             boolean keepGoing = true;
@@ -762,6 +763,7 @@ class NatsConnection implements Connection {
 
             statusLock.lock();
             try {
+                Thread.sleep(1);
                 updateStatus(Status.DISCONNECTED);
                 this.exceptionDuringConnectChange = null; // Ignore IOExceptions during closeSocketImpl()
                 this.disconnecting = false;
@@ -1058,6 +1060,11 @@ class NatsConnection implements Connection {
             new ByteArrayBuilder().append(UNSUB_SP_BYTES).append(sub.getSID());
         if (after > 0) {
             bab.append(SP).append(after);
+        }
+        try {
+            Thread.sleep(1, 500_000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
         queueInternalOutgoing(new ProtocolMessage(bab));
     }
