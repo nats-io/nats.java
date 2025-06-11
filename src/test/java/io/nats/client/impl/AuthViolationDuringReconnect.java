@@ -6,13 +6,12 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.LockSupport;
 
 /* Program to reproduce #1320 */
 public class AuthViolationDuringReconnect {
     private static final ConcurrentHashMap.KeySetView<String, Boolean> subscriptions = ConcurrentHashMap.newKeySet();
     private static final ScheduledExecutorService serverRestarter = Executors.newSingleThreadScheduledExecutor();
-    private static final ExecutorService unsubThreadpool = Executors.newFixedThreadPool(64);
+    private static final ExecutorService unsubThreadpool = Executors.newFixedThreadPool(512);
     private static final AtomicReference<NatsTestServer> ts = new AtomicReference<>();
     private static final ErrorListener AUTHORIZATION_VIOLATION_LISTENER = new ErrorListener() {
         @Override
@@ -42,25 +41,25 @@ public class AuthViolationDuringReconnect {
         reconnectedHandler.setConsumer((ignored) -> subscribe(d));
         subscribe(d);
 
-        serverRestarter.scheduleWithFixedDelay(() -> restartServer(ts, port), 2, 1, TimeUnit.SECONDS);
+        serverRestarter.scheduleWithFixedDelay(() -> restartServer(ts, port), 2000, 3000, TimeUnit.MILLISECONDS);
 
         new Thread(waitCloseSocket(nc)).start();
     }
 
     private static Runnable waitCloseSocket(NatsConnection nc) {
         return () -> {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
             while (true) {
                 if (nc.closeSocketLock.isLocked()) {
-                    try {
-                        System.out.printf("Unsubscribing all subscriptions due to disconnection %d \n", subscriptions.size());
-                        latch.countDown();
-                        Thread.sleep(500);
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
+                    System.out.printf("Unsubscribing all subscriptions due to disconnection %d \n", subscriptions.size());
+                    latch.countDown();
+                    while (nc.closeSocketLock.isLocked()) {
                     }
-
                 }
-                LockSupport.parkNanos(5);
             }
         };
     }
@@ -76,7 +75,7 @@ public class AuthViolationDuringReconnect {
 
     private static void subscribe(Dispatcher d) {
         latch = new CountDownLatch(1);
-        for (int i = 0; i < 300_000; i++) {
+        for (int i = 0; i < 500_000; i++) {
             String subject = "test_" + i;
             subscriptions.add(subject);
             d.subscribe(subject);
@@ -96,7 +95,7 @@ public class AuthViolationDuringReconnect {
                 .servers(new String[]{"nats://localhost:" + port})
                 .token(new char[]{'1', '2', '3', '4'})
                 .maxReconnects(-1)
-                .reconnectWait(Duration.ofMillis(200))
+                .reconnectWait(Duration.ofMillis(2000))
                 .connectionTimeout(Duration.ofMillis(500))
                 .connectionListener(reconnectedHandler)
                 .errorListener(AUTHORIZATION_VIOLATION_LISTENER);
