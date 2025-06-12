@@ -55,7 +55,7 @@ class NatsConnection implements Connection {
     private boolean disconnecting; // you can only disconnect in one thread
     private boolean closing; // respect a close call regardless
     private Exception exceptionDuringConnectChange; // exception occurred in another thread while dis/connecting
-    private final ReentrantLock closeSocketLock;
+    final ReentrantLock closeSocketLock;
 
     private Status status;
     private final ReentrantLock statusLock;
