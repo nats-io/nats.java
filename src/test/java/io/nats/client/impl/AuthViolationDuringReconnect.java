@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class AuthViolationDuringReconnect {
     private static final ConcurrentHashMap.KeySetView<String, Boolean> subscriptions = ConcurrentHashMap.newKeySet();
     private static final ScheduledExecutorService serverRestarter = Executors.newSingleThreadScheduledExecutor();
-    private static final ExecutorService unsubThreadpool = Executors.newFixedThreadPool(512);
+    private static final ExecutorService unsubThreadpool = Executors.newFixedThreadPool(2);
     private static final AtomicReference<NatsTestServer> ts = new AtomicReference<>();
     private static final ErrorListener AUTHORIZATION_VIOLATION_LISTENER = new ErrorListener() {
         @Override
@@ -35,7 +35,8 @@ public class AuthViolationDuringReconnect {
         ts.set(new NatsTestServer(new String[]{"--auth", "1234", "-m", "8222"}, port, false));
 
         ReconnectedHandler reconnectedHandler = new ReconnectedHandler();
-        NatsConnection nc = (NatsConnection) Nats.connect(buildOptions(port, reconnectedHandler));
+        NatsConnection nc = new MockPausingNatsConnection(buildOptions(port, reconnectedHandler));
+        nc.connect(true);
         Dispatcher d = nc.createDispatcher();
 
         reconnectedHandler.setConsumer((ignored) -> subscribe(d));
@@ -49,7 +50,7 @@ public class AuthViolationDuringReconnect {
     private static Runnable waitCloseSocket(NatsConnection nc) {
         return () -> {
             try {
-                Thread.sleep(1000);
+                Thread.sleep(200);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -76,7 +77,7 @@ public class AuthViolationDuringReconnect {
 
     private static void subscribe(Dispatcher d) {
         latch = new CountDownLatch(1);
-        for (int i = 0; i < 10_000; i++) {
+        for (int i = 0; i < 1_000; i++) {
             String subject = "test_" + i;
             subscriptions.add(subject);
             d.subscribe(subject);
@@ -93,7 +94,8 @@ public class AuthViolationDuringReconnect {
 
     private static Options buildOptions(int port, ReconnectedHandler reconnectedHandler) {
         Options.Builder natsOptions = new Options.Builder()
-                .servers(new String[]{"nats://localhost:" + port})
+                .servers(new String[]{"nats://incorrect:1111", "nats://localhost:" + port})
+                .noRandomize()
                 .token(new char[]{'1', '2', '3', '4'})
                 .maxReconnects(-1)
                 .reconnectWait(Duration.ofMillis(2000))
@@ -117,6 +119,32 @@ public class AuthViolationDuringReconnect {
             if (type == Events.RECONNECTED) {
                 consumer.accept(null);
             }
+        }
+    }
+
+    static class MockPausingNatsConnection extends NatsConnection {
+        MockPausingNatsConnection(Options options) {
+            super(options);
+        }
+
+        @Override
+        void closeSocketImpl(boolean forceClose) {
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            super.closeSocketImpl(forceClose);
+        }
+
+        @Override
+        void sendUnsub(NatsSubscription sub, int after) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            super.sendUnsub(sub, after);
         }
     }
 }
