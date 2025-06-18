@@ -17,6 +17,7 @@ import io.nats.client.PullSubscribeOptions;
 import io.nats.client.PushSubscribeOptions;
 import io.nats.client.support.*;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
@@ -221,6 +222,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the name of the description of this consumer configuration.
      * @return name of the description.
      */
+    @Nullable
     public String getDescription() {
         return description;
     }
@@ -229,6 +231,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the name of the durable name for this consumer configuration.
      * @return name of the durable.
      */
+    @Nullable
     public String getDurable() {
         return durable;
     }
@@ -237,6 +240,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the name of the consumer name for this consumer configuration.
      * @return name of the consumer.
      */
+    @Nullable
     public String getName() {
         return name;
     }
@@ -245,6 +249,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the deliver subject of this consumer configuration.
      * @return the deliver subject.
      */
+    @Nullable
     public String getDeliverSubject() {
         return deliverSubject;
     }
@@ -253,6 +258,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the deliver group of this consumer configuration.
      * @return the deliver group.
      */
+    @Nullable
     public String getDeliverGroup() {
         return deliverGroup;
     }
@@ -261,6 +267,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the deliver policy of this consumer configuration.
      * @return the deliver policy.
      */
+    @NotNull
     public DeliverPolicy getDeliverPolicy() {
         return GetOrDefault(deliverPolicy);
     }
@@ -277,6 +284,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the start time of this consumer configuration.
      * @return the start time.
      */
+    @Nullable
     public ZonedDateTime getStartTime() {
         return startTime;
     }
@@ -285,6 +293,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the acknowledgment policy of this consumer configuration.
      * @return the acknowledgment policy.
      */
+    @NotNull
     public AckPolicy getAckPolicy() {
         return GetOrDefault(ackPolicy);
     }
@@ -293,6 +302,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the acknowledgment wait of this consumer configuration.
      * @return the acknowledgment wait duration.
      */
+    @Nullable
     public Duration getAckWait() {
         return ackWait;
     }
@@ -311,6 +321,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * return null if there are not exactly one filter subjects
      * @return the first filter subject.
      */
+    @Nullable
     public String getFilterSubject() {
         return filterSubjects == null || filterSubjects.size() != 1 ? null : filterSubjects.get(0);
     }
@@ -319,6 +330,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the filter subjects as a list. May be null, otherwise won't be empty
      * @return the list
      */
+    @Nullable
     public List<String> getFilterSubjects() {
         return filterSubjects;
     }
@@ -327,6 +339,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the priority groups as a list. May be null, otherwise won't be empty
      * @return the list
      */
+    @Nullable
     public List<String> getPriorityGroups() {
         return priorityGroups;
     }
@@ -343,6 +356,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the replay policy of this consumer configuration.
      * @return the replay policy.
      */
+    @NotNull
     public ReplayPolicy getReplayPolicy() {
         return GetOrDefault(replayPolicy);
     }
@@ -367,15 +381,16 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the sample frequency.
      * @return sampleFrequency.
      */
+    @Nullable
     public String getSampleFrequency() {
         return sampleFrequency;
     }
-
 
     /**
      * Gets the idle heart beat wait time
      * @return the idle heart beat wait duration.
      */
+    @Nullable
     public Duration getIdleHeartbeat() {
         return idleHeartbeat;
     }
@@ -434,6 +449,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Get the max amount of expire time for the server to allow on pull requests.
      * @return the max expire
      */
+    @Nullable
     public Duration getMaxExpires() {
         return maxExpires;
     }
@@ -442,6 +458,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Get the amount of time before the consumer is deemed inactive.
      * @return the inactive threshold
      */
+    @Nullable
     public Duration getInactiveThreshold() {
         return inactiveThreshold;
     }
@@ -450,6 +467,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Get the backoff list; may be empty, will never be null.
      * @return the list
      */
+    @NotNull
     public List<Duration> getBackoff() {
         return backoff == null ? Collections.emptyList() : backoff;
     }
@@ -458,6 +476,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Metadata for the consumer; may be empty, will never be null.
      * @return the metadata map
      */
+    @NotNull
     public Map<String, String> getMetadata() {
         return metadata == null ? Collections.emptyMap() : metadata;
     }
@@ -472,6 +491,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Get the time until the consumer is paused.
      * @return paused until time
      */
+    @Nullable
     public ZonedDateTime getPauseUntil() {
         return pauseUntil;
     }
@@ -480,6 +500,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the priority policy of this consumer configuration.
      * @return the priority policy.
      */
+    @NotNull
     public PriorityPolicy getPriorityPolicy() {
         return GetOrDefault(priorityPolicy);
     }

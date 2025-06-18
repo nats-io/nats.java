@@ -72,7 +72,7 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
     @NotNull
     public String toJson() {
         StringBuilder sb = beginJson();
-        JsonUtils.addStrings(sb, FILTER_SUBJECTS, filterSubjects); // filter will always have at lease a GREATER_THAN
+        JsonUtils.addStrings(sb, FILTER_SUBJECTS, filterSubjects); // filter will always have at least a GREATER_THAN
         if (deliverPolicy != null) {
             JsonUtils.addField(sb, DELIVER_POLICY, deliverPolicy.toString());
         }
