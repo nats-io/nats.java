@@ -51,11 +51,13 @@ public class Error implements JsonSerializable {
     }
 
     @Override
+    @NotNull
     public String toJson() {
         return jv.toJson();
     }
 
     @Override
+    @NotNull
     public JsonValue toJsonValue() {
         return jv;
     }

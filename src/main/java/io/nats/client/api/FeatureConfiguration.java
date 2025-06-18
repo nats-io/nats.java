@@ -33,11 +33,13 @@ public abstract class FeatureConfiguration implements JsonSerializable {
     protected final String bucketName;
 
     @Override
+    @NotNull
     public String toJson() {
         return toJsonValue().toString();
     }
 
     @Override
+    @NotNull
     public JsonValue toJsonValue() {
         JsonValueUtils.MapBuilder mb = new JsonValueUtils.MapBuilder();
         mb.put("name", bucketName);

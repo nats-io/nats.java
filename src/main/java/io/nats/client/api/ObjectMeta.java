@@ -55,6 +55,7 @@ public class ObjectMeta implements JsonSerializable {
     }
 
     @Override
+    @NotNull
     public String toJson() {
         StringBuilder sb = beginJson();
         embedJson(sb);

@@ -63,6 +63,8 @@ public abstract class SourceBase implements JsonSerializable {
      * Returns a JSON representation of this mirror
      * @return json mirror json string
      */
+    @Override
+    @NotNull
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, name);

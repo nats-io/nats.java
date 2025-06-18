@@ -16,6 +16,7 @@ package io.nats.client.api;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
@@ -66,6 +67,8 @@ public class ConsumerLimits implements JsonSerializable {
         return getOrUnset(maxAckPending);
     }
 
+    @Override
+    @NotNull
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addFieldAsNanos(sb, INACTIVE_THRESHOLD, inactiveThreshold);

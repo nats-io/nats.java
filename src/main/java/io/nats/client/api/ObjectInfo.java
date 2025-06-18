@@ -69,6 +69,7 @@ public class ObjectInfo implements JsonSerializable {
     }
 
     @Override
+    @NotNull
     public String toJson() {
         // never write MTIME (modified)
         StringBuilder sb = beginJson();

@@ -75,6 +75,8 @@ public class SubjectTransform implements JsonSerializable {
         return destination;
     }
 
+    @Override
+    @NotNull
     public String toJson() {
         StringBuilder sb = beginJson();
         addField(sb, SRC, source);

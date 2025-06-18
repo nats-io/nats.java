@@ -68,6 +68,8 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
      * Returns a JSON representation of this ordered consumer configuration.
      * @return JSON ordered consumer configuration JSON string
      */
+    @Override
+    @NotNull
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addStrings(sb, FILTER_SUBJECTS, filterSubjects); // filter will always have at lease a GREATER_THAN

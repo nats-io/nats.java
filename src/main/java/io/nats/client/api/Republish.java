@@ -81,6 +81,8 @@ public class Republish implements JsonSerializable {
         return headersOnly;
     }
 
+    @Override
+    @NotNull
     public String toJson() {
         StringBuilder sb = beginJson();
         addField(sb, SRC, source);

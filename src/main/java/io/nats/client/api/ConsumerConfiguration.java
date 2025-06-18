@@ -16,6 +16,7 @@ package io.nats.client.api;
 import io.nats.client.PullSubscribeOptions;
 import io.nats.client.PushSubscribeOptions;
 import io.nats.client.support.*;
+import org.jetbrains.annotations.NotNull;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
@@ -170,6 +171,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return json consumer configuration json string
      */
     @Override
+    @NotNull
 	public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, DESCRIPTION, description);

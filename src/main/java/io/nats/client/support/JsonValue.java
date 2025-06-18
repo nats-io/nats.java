@@ -13,6 +13,8 @@
 
 package io.nats.client.support;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.*;
@@ -184,11 +186,13 @@ public class JsonValue implements JsonSerializable {
     }
 
     @Override
+    @NotNull
     public JsonValue toJsonValue() {
         return this;
     }
 
     @Override
+    @NotNull
     public String toJson() {
         switch (type) {
             case STRING:      return valueString(string);

@@ -48,6 +48,7 @@ public class ObjectLink implements JsonSerializable {
     }
 
     @Override
+    @NotNull
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, BUCKET, bucket);

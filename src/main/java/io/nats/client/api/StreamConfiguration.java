@@ -14,18 +14,19 @@
 package io.nats.client.api;
 
 import io.nats.client.support.*;
+import org.jetbrains.annotations.NotNull;
 
 import java.time.Duration;
 import java.util.*;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonValueUtils.*;
 import static io.nats.client.support.JsonValueUtils.readBoolean;
 import static io.nats.client.support.JsonValueUtils.readInteger;
 import static io.nats.client.support.JsonValueUtils.readLong;
 import static io.nats.client.support.JsonValueUtils.readNanos;
 import static io.nats.client.support.JsonValueUtils.readString;
-import static io.nats.client.support.JsonValueUtils.*;
 import static io.nats.client.support.Validator.*;
 
 /**
@@ -164,6 +165,8 @@ public class StreamConfiguration implements JsonSerializable {
      *
      * @return json consumer configuration to send to the server.
      */
+    @Override
+    @NotNull
     public String toJson() {
 
         StringBuilder sb = beginJson();

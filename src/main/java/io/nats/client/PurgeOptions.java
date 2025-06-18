@@ -15,6 +15,7 @@ package io.nats.client;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
+import org.jetbrains.annotations.NotNull;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
@@ -37,6 +38,7 @@ public class PurgeOptions implements JsonSerializable {
     }
 
     @Override
+    @NotNull
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, FILTER, subject);
