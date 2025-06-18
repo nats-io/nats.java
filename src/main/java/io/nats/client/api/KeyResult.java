@@ -12,6 +12,8 @@
 // limitations under the License.
 package io.nats.client.api;
 
+import org.jetbrains.annotations.Nullable;
+
 public class KeyResult {
 
     private final String key;
@@ -32,10 +34,12 @@ public class KeyResult {
         this.e = e;
     }
 
+    @Nullable
     public String getKey() {
         return key;
     }
 
+    @Nullable
     public Exception getException() {
         return e;
     }

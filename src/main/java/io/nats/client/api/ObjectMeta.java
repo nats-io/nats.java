@@ -17,6 +17,8 @@ import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.Validator;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
@@ -71,18 +73,22 @@ public class ObjectMeta implements JsonSerializable {
         }
     }
 
+    @NotNull
     public String getObjectName() {
         return objectName;
     }
 
+    @Nullable
     public String getDescription() {
         return description;
     }
 
+    @Nullable
     public Headers getHeaders() {
         return headers;
     }
 
+    @Nullable
     public ObjectMetaOptions getObjectMetaOptions() {
         return objectMetaOptions;
     }

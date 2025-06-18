@@ -16,6 +16,8 @@ package io.nats.client.api;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
+import io.nats.client.support.Validator;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.Objects;
@@ -50,15 +52,16 @@ public class SubjectTransform implements JsonSerializable {
      * @param source the subject matching filter
      * @param destination the SubjectTransform Subject template
      */
-    public SubjectTransform(String source, String destination) {
-        this.source = source;
-        this.destination = destination;
+    public SubjectTransform(@NotNull String source, @NotNull String destination) {
+        this.source = Validator.required(source, "Source");
+        this.destination = Validator.required(destination, "Destination");
     }
 
     /**
      * Get source, the subject matching filter
      * @return the source
      */
+    @NotNull
     public String getSource() {
         return source;
     }
@@ -67,6 +70,7 @@ public class SubjectTransform implements JsonSerializable {
      * Get destination, the SubjectTransform Subject template
      * @return the destination
      */
+    @NotNull
     public String getDestination() {
         return destination;
     }

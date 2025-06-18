@@ -461,7 +461,7 @@ public abstract class JsonUtils {
     private static final int INDENT_WIDTH = 4;
     private static final String INDENT = "                                        ";
     private static String indent(int level) {
-        return level == 0 ? "" : INDENT.substring(0, level * INDENT_WIDTH);
+        return level <= 0 ? "" : INDENT.substring(0, level * INDENT_WIDTH);
     }
 
     public static String getFormatted(Object o) {
@@ -498,9 +498,7 @@ public abstract class JsonUtils {
                     case '}':
                     case ']':
                         indent = indent(--indentLevel);
-                        if (!opened) {
-                            sb.append(newline).append(indent);
-                        }
+                        sb.append(newline).append(indent);
                         sb.append(c);
                         opened = false;
                         continue;

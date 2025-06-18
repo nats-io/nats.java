@@ -15,6 +15,7 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
@@ -59,6 +60,7 @@ public class Placement implements JsonSerializable {
      * The desired cluster name to place the stream.
      * @return The cluster name
      */
+    @Nullable
     public String getCluster() {
         return cluster;
     }
@@ -67,6 +69,7 @@ public class Placement implements JsonSerializable {
      * Tags required on servers hosting this stream
      * @return the list of tags
      */
+    @Nullable
     public List<String> getTags() {
         return tags;
     }

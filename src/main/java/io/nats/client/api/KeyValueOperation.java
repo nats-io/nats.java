@@ -12,6 +12,8 @@
 // limitations under the License.
 package io.nats.client.api;
 
+import org.jetbrains.annotations.Nullable;
+
 /**
  * Key Value Operations Enum
  */
@@ -28,6 +30,7 @@ public enum KeyValueOperation {
         return headerValue;
     }
 
+    @Nullable
     public static KeyValueOperation instance(String s) {
         if (PUT.headerValue.equals(s)) return PUT;
         if (DELETE.headerValue.equals(s)) return DELETE;
@@ -35,11 +38,13 @@ public enum KeyValueOperation {
         return null;
     }
 
+    @Nullable
     public static KeyValueOperation getOrDefault(String s, KeyValueOperation dflt) {
         KeyValueOperation kvo = instance(s);
         return kvo == null ? dflt : kvo;
     }
 
+    @Nullable
     public static KeyValueOperation instanceByMarkerReason(String markerReason) {
         if ("Remove".equals(markerReason)) {
             return DELETE;

@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonValue;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.ZonedDateTime;
 
@@ -37,6 +38,7 @@ public class SequenceInfo extends SequencePair {
      * The last time a message was delivered or acknowledged (for ack_floor)
      * @return the last active time
      */
+    @Nullable
     public ZonedDateTime getLastActive() {
         return lastActive;
     }

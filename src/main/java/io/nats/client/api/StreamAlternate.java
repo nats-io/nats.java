@@ -15,6 +15,8 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -36,14 +38,29 @@ public class StreamAlternate {
         cluster = readString(vLost, CLUSTER);
     }
 
+    /**
+     * The mirror stream name
+     * @return the name
+     */
+    @NotNull
     public String getName() {
         return name;
     }
 
+    /**
+     * The domain
+     * @return the domain
+     */
+    @Nullable
     public String getDomain() {
         return domain;
     }
 
+    /**
+     * The name of the cluster holding the stream
+     * @return the cluster
+     */
+    @NotNull
     public String getCluster() {
         return cluster;
     }

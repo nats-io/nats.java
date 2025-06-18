@@ -14,6 +14,8 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.ZonedDateTime;
 
@@ -29,26 +31,32 @@ public class MessageGetRequest implements JsonSerializable {
     private final String nextBySubject;
     private final ZonedDateTime startTime;
 
+    @NotNull
     public static MessageGetRequest forSequence(long sequence) {
         return new MessageGetRequest(sequence, null, null, null);
     }
 
+    @NotNull
     public static MessageGetRequest lastForSubject(String subject) {
         return new MessageGetRequest(-1, subject, null, null);
     }
 
+    @NotNull
     public static MessageGetRequest firstForSubject(String subject) {
         return new MessageGetRequest(-1, null, subject, null);
     }
 
+    @NotNull
     public static MessageGetRequest firstForStartTime(ZonedDateTime startTime) {
         return new MessageGetRequest(-1, null, null, startTime);
     }
 
+    @NotNull
     public static MessageGetRequest firstForStartTimeAndSubject(ZonedDateTime startTime, String subject) {
         return new MessageGetRequest(-1, null, subject, startTime);
     }
 
+    @NotNull
     public static MessageGetRequest nextForSubject(long sequence, String subject) {
         return new MessageGetRequest(sequence, null, subject, null);
     }
@@ -64,10 +72,12 @@ public class MessageGetRequest implements JsonSerializable {
         return sequence;
     }
 
+    @Nullable
     public String getLastBySubject() {
         return lastBySubject;
     }
 
+    @Nullable
     public String getNextBySubject() {
         return nextBySubject;
     }

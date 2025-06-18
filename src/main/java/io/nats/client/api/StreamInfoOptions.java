@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
+import org.jetbrains.annotations.Nullable;
 
 import static io.nats.client.support.ApiConstants.DELETED_DETAILS;
 import static io.nats.client.support.ApiConstants.SUBJECTS_FILTER;
@@ -33,6 +34,7 @@ public class StreamInfoOptions implements JsonSerializable {
         this.deletedDetails = deletedDetails;
     }
 
+    @Nullable
     public String getSubjectsFilter() {
         return subjectsFilter;
     }
