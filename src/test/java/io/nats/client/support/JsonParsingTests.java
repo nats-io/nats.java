@@ -15,6 +15,7 @@ package io.nats.client.support;
 
 import nl.jqno.equalsverifier.EqualsVerifier;
 import nl.jqno.equalsverifier.Warning;
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -705,6 +706,7 @@ public final class JsonParsingTests {
 
     static class TestSerializableMap implements JsonSerializable {
         @Override
+        @NotNull
         public String toJson() {
             JsonValue v = new JsonValue(new HashMap<>());
             v.map.put("a", new JsonValue("A"));
@@ -716,6 +718,7 @@ public final class JsonParsingTests {
 
     static class TestSerializableList implements JsonSerializable {
         @Override
+        @NotNull
         public String toJson() {
             JsonValue v = new JsonValue(new ArrayList<>());
             v.array.add(new JsonValue("X"));

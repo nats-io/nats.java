@@ -16,6 +16,7 @@ package io.nats.client.api;
 import io.nats.client.JetStreamApiException;
 import io.nats.client.Message;
 import io.nats.client.support.*;
+import org.jetbrains.annotations.Nullable;
 
 import static io.nats.client.support.ApiConstants.ERROR;
 import static io.nats.client.support.ApiConstants.TYPE;
@@ -90,6 +91,7 @@ public abstract class ApiResponse<T> {
         return (T)this;
     }
 
+    @Nullable
     public JsonValue getJv() {
         return jv;
     }
@@ -98,6 +100,7 @@ public abstract class ApiResponse<T> {
         return error != null;
     }
 
+    @Nullable
     public String getType() {
         return type;
     }
@@ -110,14 +113,17 @@ public abstract class ApiResponse<T> {
         return error == null ? Error.NOT_SET : error.getApiErrorCode();
     }
 
+    @Nullable
     public String getDescription() {
         return error == null ? null : error.getDescription();
     }
 
+    @Nullable
     public String getError() {
         return error == null ? null : error.toString();
     }
 
+    @Nullable
     public Error getErrorObject() {
         return error;
     }

@@ -37,6 +37,7 @@ repositories {
 
 dependencies {
     implementation 'org.bouncycastle:bcprov-lts8on:2.73.7'
+    implementation 'org.jetbrains:annotations:26.0.2'
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.9.0'
     testImplementation 'io.nats:jnats-server-runner:2.0.0'

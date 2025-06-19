@@ -14,6 +14,7 @@
 package io.nats.service;
 
 import io.nats.client.support.*;
+import org.jetbrains.annotations.NotNull;
 
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -67,7 +68,7 @@ public abstract class ServiceResponse implements JsonSerializable {
     }
 
     @Override
-    public byte[] serialize() {
+    public byte @NotNull [] serialize() {
         // lazy since endpoints can be added after creation
         if (serialized.get() == null) {
             serialized.set(toJson().getBytes(StandardCharsets.UTF_8));
@@ -127,6 +128,7 @@ public abstract class ServiceResponse implements JsonSerializable {
     protected void subToJson(StringBuilder sb) {}
 
     @Override
+    @NotNull
     public String toJson() {
         StringBuilder sb = JsonUtils.beginJson();
         JsonUtils.addField(sb, ID, id);

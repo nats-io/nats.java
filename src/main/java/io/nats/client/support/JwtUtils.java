@@ -14,6 +14,7 @@
 package io.nats.client.support;
 
 import io.nats.client.NKey;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -292,6 +293,7 @@ public abstract class JwtUtils {
         }
 
         @Override
+        @NotNull
         public String toJson() {
             StringBuilder sb = beginJson();
             JsonUtils.addField(sb, "issuer_account", issuerAccount);
@@ -383,6 +385,7 @@ public abstract class JwtUtils {
         }
 
         @Override
+        @NotNull
         public String toJson() {
             StringBuilder sb = beginJson();
             JsonUtils.addField(sb, "start", start);
@@ -411,6 +414,7 @@ public abstract class JwtUtils {
         }
 
         @Override
+        @NotNull
         public String toJson() {
             StringBuilder sb = beginJson();
             JsonUtils.addField(sb, "max", maxMsgs);
@@ -434,6 +438,7 @@ public abstract class JwtUtils {
         }
 
         @Override
+        @NotNull
         public String toJson() {
             StringBuilder sb = beginJson();
             JsonUtils.addStrings(sb, "allow", allow);
@@ -453,6 +458,7 @@ public abstract class JwtUtils {
         JsonSerializable nats;
 
         @Override
+        @NotNull
         public String toJson() {
             StringBuilder sb = beginJson();
             JsonUtils.addField(sb, "aud", aud);

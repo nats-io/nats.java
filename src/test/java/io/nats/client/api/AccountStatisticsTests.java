@@ -32,6 +32,8 @@ public class AccountStatisticsTests extends JetStreamTestBase {
         assertEquals(102, as.getStorage());
         assertEquals(103, as.getStreams());
         assertEquals(104, as.getConsumers());
+        assertEquals(105, as.getReservedMemory());
+        assertEquals(106, as.getReservedStorage());
         validateAccountLimits(as.getLimits(), 200);
 
         assertEquals("ngs", as.getDomain());

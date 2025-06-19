@@ -13,6 +13,8 @@
 
 package io.nats.client.api;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -42,6 +44,7 @@ public enum CompressionOption {
         }
     }
 
+    @Nullable
     public static CompressionOption get(String value) {
         return strEnumHash.get(value);
     }

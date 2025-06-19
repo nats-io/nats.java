@@ -15,6 +15,7 @@ package io.nats.client;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
+import org.jetbrains.annotations.NotNull;
 
 import java.time.Duration;
 
@@ -47,6 +48,7 @@ public class PullRequestOptions implements JsonSerializable {
     }
 
     @Override
+    @NotNull
     public String toJson() {
         StringBuilder sb = JsonUtils.beginJson();
         JsonUtils.addField(sb, BATCH, batchSize);

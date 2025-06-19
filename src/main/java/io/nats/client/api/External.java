@@ -16,6 +16,8 @@ package io.nats.client.api;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import static io.nats.client.support.ApiConstants.API;
 import static io.nats.client.support.ApiConstants.DELIVER;
@@ -52,6 +54,8 @@ public class External implements JsonSerializable {
      *
      * @return json mirror json string
      */
+    @Override
+    @NotNull
     public String toJson() {
         StringBuilder sb = beginJson();
         addField(sb, API, api);
@@ -61,18 +65,18 @@ public class External implements JsonSerializable {
 
     /**
      * The subject prefix that imports the other account <code>$JS.API.CONSUMER.&gt; subjects</code>
-     *
      * @return the api prefix
      */
+    @Nullable
     public String getApi() {
         return api;
     }
 
     /**
      * The delivery subject to use for the push consumer.
-     *
      * @return delivery subject
      */
+    @Nullable
     public String getDeliver() {
         return deliver;
     }

@@ -15,6 +15,8 @@ package io.nats.client.api;
 import io.nats.client.JetStreamApiException;
 import io.nats.client.Message;
 import io.nats.client.support.JsonValueUtils;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 
@@ -64,6 +66,7 @@ public class PublishAck extends ApiResponse<PublishAck> {
      * Get the name of the stream a published message was stored in.
      * @return the name of the stream.
      */
+    @NotNull
     public String getStream() {
         return stream;
     }
@@ -72,6 +75,7 @@ public class PublishAck extends ApiResponse<PublishAck> {
      * Gets the domain of a stream
      * @return the domain name
      */
+    @Nullable
     public String getDomain() {
         return domain;
     }
