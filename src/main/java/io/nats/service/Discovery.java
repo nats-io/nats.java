@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
 import static io.nats.service.Service.*;
 
 /**
@@ -38,7 +39,7 @@ public class Discovery {
     public static final int DEFAULT_DISCOVERY_MAX_RESULTS = 10;
 
     private final Connection conn;
-    private final long maxTimeMillis;
+    private final long maxTimeNanos;
     private final int maxResults;
 
     private Supplier<String> inboxSupplier;
@@ -59,7 +60,7 @@ public class Discovery {
      */
     public Discovery(Connection conn, long maxTimeMillis, int maxResults) {
         this.conn = conn;
-        this.maxTimeMillis = maxTimeMillis < 1 ? DEFAULT_DISCOVERY_MAX_TIME_MILLIS : maxTimeMillis;
+        this.maxTimeNanos = (maxTimeMillis < 1 ? DEFAULT_DISCOVERY_MAX_TIME_MILLIS : maxTimeMillis) * NANOS_PER_MILLI;
         this.maxResults = maxResults < 1 ? DEFAULT_DISCOVERY_MAX_RESULTS : maxResults;
         setInboxSupplier(null);
     }
@@ -180,7 +181,7 @@ public class Discovery {
     private byte[] discoverOne(String action, String serviceName, String serviceId) {
         String subject = Service.toDiscoverySubject(action, serviceName, serviceId);
         try {
-            Message m = conn.request(subject, null, Duration.ofMillis(maxTimeMillis));
+            Message m = conn.request(subject, null, Duration.ofNanos(maxTimeNanos));
             if (m != null) {
                 return m.getData();
             }
@@ -203,17 +204,17 @@ public class Discovery {
             conn.publish(subject, replyTo, null);
 
             int resultsLeft = maxResults;
-            long start = System.currentTimeMillis();
-            long timeLeft = maxTimeMillis;
+            long start = System.nanoTime();
+            long timeLeft = maxTimeNanos;
             while (resultsLeft > 0 && timeLeft > 0) {
-                Message msg = sub.nextMessage(timeLeft);
+                Message msg = sub.nextMessage(Duration.ofNanos(timeLeft));
                 if (msg == null) {
                     return;
                 }
                 dataConsumer.accept(msg.getData());
                 resultsLeft--;
                 // try again while we have time
-                timeLeft = maxTimeMillis - (System.currentTimeMillis() - start);
+                timeLeft = maxTimeNanos - (System.nanoTime() - start);
             }
         }
         catch (InterruptedException e) {

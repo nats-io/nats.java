@@ -22,6 +22,8 @@ import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
 
+import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
+
 /**
  * This is a JetStream specific subscription.
  */
@@ -84,11 +86,11 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         if (timeout == null) {
             return _nextUnmanagedNoWait(null);
         }
-        long millis = timeout.toMillis();
-        if (millis <= 0) {
+        long timeoutNanos = timeout.toNanos();
+        if (timeoutNanos <= 0) {
             return _nextUnmanagedWaitForever(null);
         }
-        return _nextUnmanaged(millis, null);
+        return _nextUnmanaged(timeoutNanos, null);
     }
 
     @Override
@@ -96,7 +98,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         if (timeoutMillis <= 0) {
             return _nextUnmanagedWaitForever(null);
         }
-        return _nextUnmanaged(timeoutMillis, null);
+        return _nextUnmanaged(timeoutMillis * NANOS_PER_MILLI, null);
     }
 
     protected Message _nextUnmanagedWaitForever(String expectedPullSubject) throws InterruptedException {
@@ -149,8 +151,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         }
     }
 
-    protected Message _nextUnmanaged(long timeout, String expectedPullSubject) throws InterruptedException {
-        long timeoutNanos = timeout * 1_000_000;
+    protected Message _nextUnmanaged(long timeoutNanos, String expectedPullSubject) throws InterruptedException {
         long timeLeftNanos = timeoutNanos;
         long start = System.nanoTime();
         while (timeLeftNanos > 0) {

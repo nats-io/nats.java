@@ -25,14 +25,14 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
 
-import static io.nats.client.support.NatsConstants.EMPTY_BODY;
-import static io.nats.client.support.NatsConstants.OUTPUT_QUEUE_IS_FULL;
+import static io.nats.client.support.NatsConstants.*;
 
 class MessageQueue {
     protected static final int STOPPED = 0;
     protected static final int RUNNING = 1;
     protected static final int DRAINING = 2;
     protected static final String POISON = "_poison";
+    protected static final long MIN_OFFER_TIMEOUT_NANOS = 100 * NANOS_PER_MILLI;
 
     protected final AtomicLong length;
     protected final AtomicLong sizeInBytes;
@@ -42,8 +42,8 @@ class MessageQueue {
     protected final Lock editLock;
     protected final int maxMessagesInOutgoingQueue;
     protected final boolean discardWhenFull;
-    protected final long offerLockMillis;
-    protected final long offerTimeoutMillis;
+    protected final long offerLockNanos;
+    protected final long offerTimeoutNanos;
     protected final Duration requestCleanupInterval;
 
     // Poison pill is a graphic, but common term for an item that breaks loops or stop something.
@@ -68,7 +68,7 @@ class MessageQueue {
      * @param singleReaderMode allows the use of "accumulate"
      * @param maxMessagesInOutgoingQueue sets a limit on the size of the underlying queue
      * @param discardWhenFull allows to discard messages when the underlying queue is full
-     * @param requestCleanupInterval is used to figure the offerTimeoutMillis
+     * @param requestCleanupInterval is used to figure the offer timeout
      */
     MessageQueue(boolean singleReaderMode, int maxMessagesInOutgoingQueue, boolean discardWhenFull, Duration requestCleanupInterval) {
         this(singleReaderMode, maxMessagesInOutgoingQueue, discardWhenFull, requestCleanupInterval, null);
@@ -81,8 +81,8 @@ class MessageQueue {
         this.running = new AtomicInteger(RUNNING);
         this.sizeInBytes = new AtomicLong(0);
         this.length = new AtomicLong(0);
-        this.offerLockMillis = requestCleanupInterval.toMillis();
-        this.offerTimeoutMillis = Math.max(1, requestCleanupInterval.toMillis() * 95 / 100);
+        this.offerLockNanos = requestCleanupInterval.toNanos();
+        this.offerTimeoutNanos = Math.max(MIN_OFFER_TIMEOUT_NANOS, requestCleanupInterval.toMillis() * NANOS_PER_MILLI * 95 / 100) ;
 
         editLock = new ReentrantLock();
         
@@ -140,9 +140,9 @@ class MessageQueue {
     }
 
     boolean push(NatsMessage msg, boolean internal) {
-        long start = System.currentTimeMillis();
         boolean lockWasSuccessful = false;
         try {
+            long startNanos = System.nanoTime();
             /*
                 This was essentially a Head-Of-Line blocking problem.
 
@@ -161,9 +161,9 @@ class MessageQueue {
                 This ensures that the max total time each thread can take is 5100 millis in parallel.
 
                 Notes: The 5 seconds and the 4750 seconds is derived from the Options requestCleanupInterval, which defaults to 5 seconds and can be modified.
-                The 4750 is 95% of that time. The 100 ms minimum is arbitrary.
+                The 4750 is 95% of that time. The MIN_OFFER_TIMEOUT_NANOS 100 ms minimum is arbitrary.
              */
-            if (!editLock.tryLock(offerLockMillis, TimeUnit.MILLISECONDS)) {
+            if (!editLock.tryLock(offerLockNanos, TimeUnit.NANOSECONDS)) {
                 throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
             }
 
@@ -173,9 +173,9 @@ class MessageQueue {
                 return this.queue.offer(msg);
             }
 
-            long timeoutLeft = Math.max(100, offerTimeoutMillis - (System.currentTimeMillis() - start));
+            long timeoutNanosLeft = Math.max(MIN_OFFER_TIMEOUT_NANOS, offerTimeoutNanos - (System.nanoTime() - startNanos));
 
-            if (!this.queue.offer(msg, timeoutLeft, TimeUnit.MILLISECONDS)) {
+            if (!this.queue.offer(msg, timeoutNanosLeft, TimeUnit.NANOSECONDS)) {
                 throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
             }
             this.sizeInBytes.getAndAdd(msg.getSizeInBytes());

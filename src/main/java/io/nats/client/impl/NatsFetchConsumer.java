@@ -97,12 +97,12 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
             if (startNanos == -1) {
                 startNanos = System.nanoTime();
             }
-            long timeLeftMillis = (maxWaitNanos - (System.nanoTime() - startNanos)) / 1_000_000;
+            long timeLeftNanos = maxWaitNanos - (System.nanoTime() - startNanos);
 
             // if the timer has run out, don't allow waiting
             // this might happen once, but it should already be noMorePending
-            if (timeLeftMillis < 1) {
-                Message m = sub._nextUnmanagedNoWait(pullSubject); // null means don't wait
+            if (timeLeftNanos < NANOS_PER_MILLI) {
+                Message m = sub._nextUnmanagedNoWait(pullSubject);
                 if (m == null) {
                     // no message and no time left, go ahead and finish
                     finished.set(true);
@@ -111,7 +111,7 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
                 return m;
             }
 
-            Message m = sub._nextUnmanaged(timeLeftMillis, pullSubject);
+            Message m = sub._nextUnmanaged(timeLeftNanos, pullSubject);
             if (m == null && isNoWaitNoExpires) {
                 // no message and no wait, go ahead and finish
                 finished.set(true);
