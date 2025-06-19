@@ -13,10 +13,7 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.JetStreamReader;
-import io.nats.client.JetStreamStatusException;
-import io.nats.client.Message;
-import io.nats.client.PullRequestOptions;
+import io.nats.client.*;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -139,7 +136,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
         }
 
         try {
-            long start = System.nanoTime();
+            long start = NatsSystemClock.nanoTime();
 
             Duration expires = Duration.ofMillis(
                 maxWaitMillis > MIN_EXPIRE_MILLIS ? maxWaitMillis - EXPIRE_ADJUSTMENT : maxWaitMillis);
@@ -174,7 +171,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                         break;
                 }
                 // anything else, try again while we have time
-                timeLeftNanos = maxWaitNanos - (System.nanoTime() - start);
+                timeLeftNanos = maxWaitNanos - (NatsSystemClock.nanoTime() - start);
             }
         }
         catch (InterruptedException e) {

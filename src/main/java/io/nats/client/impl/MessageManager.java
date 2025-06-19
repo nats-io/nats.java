@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.Message;
+import io.nats.client.NatsSystemClock;
 import io.nats.client.PullRequestOptions;
 import io.nats.client.SubscribeOptions;
 import io.nats.client.support.NatsConstants;
@@ -60,7 +61,7 @@ abstract class MessageManager {
         hb = false;
         idleHeartbeatSetting = 0;
         alarmPeriodSettingNanos = 0;
-        lastMsgReceivedNanoTime = new AtomicLong(System.nanoTime());
+        lastMsgReceivedNanoTime = new AtomicLong(NatsSystemClock.nanoTime());
     }
 
     protected boolean isSyncMode()              { return syncMode; }
@@ -130,7 +131,7 @@ abstract class MessageManager {
     }
 
     protected void updateLastMessageReceived() {
-        lastMsgReceivedNanoTime.set(System.nanoTime());
+        lastMsgReceivedNanoTime.set(NatsSystemClock.nanoTime());
     }
 
     class MmTimerTask extends TimerTask {
@@ -153,7 +154,7 @@ abstract class MessageManager {
         @Override
         public void run() {
             if (alive.get() && !Thread.interrupted()) {
-                long sinceLast = System.nanoTime() - lastMsgReceivedNanoTime.get();
+                long sinceLast = NatsSystemClock.nanoTime() - lastMsgReceivedNanoTime.get();
                 if (alive.get() && sinceLast > alarmPeriodNanos) {
                     handleHeartbeatError();
                 }
@@ -162,7 +163,7 @@ abstract class MessageManager {
 
         @Override
         public String toString() {
-            long sinceLastMillis = (System.nanoTime() - lastMsgReceivedNanoTime.get()) / NatsConstants.NANOS_PER_MILLI;
+            long sinceLastMillis = (NatsSystemClock.nanoTime() - lastMsgReceivedNanoTime.get()) / NatsConstants.NANOS_PER_MILLI;
             return "MmTimerTask{" +
                 ", alarmPeriod=" + (alarmPeriodNanos / NatsConstants.NANOS_PER_MILLI) +
                 "ms, alive=" + alive.get() +

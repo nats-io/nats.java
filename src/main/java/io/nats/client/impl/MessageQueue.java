@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.Message;
+import io.nats.client.NatsSystemClock;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -142,7 +143,7 @@ class MessageQueue {
     boolean push(NatsMessage msg, boolean internal) {
         boolean lockWasSuccessful = false;
         try {
-            long startNanos = System.nanoTime();
+            long startNanos = NatsSystemClock.nanoTime();
             /*
                 This was essentially a Head-Of-Line blocking problem.
 
@@ -173,7 +174,7 @@ class MessageQueue {
                 return this.queue.offer(msg);
             }
 
-            long timeoutNanosLeft = Math.max(MIN_OFFER_TIMEOUT_NANOS, offerTimeoutNanos - (System.nanoTime() - startNanos));
+            long timeoutNanosLeft = Math.max(MIN_OFFER_TIMEOUT_NANOS, offerTimeoutNanos - (NatsSystemClock.nanoTime() - startNanos));
 
             if (!this.queue.offer(msg, timeoutNanosLeft, TimeUnit.NANOSECONDS)) {
                 throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());

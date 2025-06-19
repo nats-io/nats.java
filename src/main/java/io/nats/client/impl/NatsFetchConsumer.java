@@ -95,9 +95,9 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
             // by not starting the timer until the first call, it gives a little buffer around
             // the next message to account for latency of incoming messages
             if (startNanos == -1) {
-                startNanos = System.nanoTime();
+                startNanos = NatsSystemClock.nanoTime();
             }
-            long timeLeftNanos = maxWaitNanos - (System.nanoTime() - startNanos);
+            long timeLeftNanos = maxWaitNanos - (NatsSystemClock.nanoTime() - startNanos);
 
             // if the timer has run out, don't allow waiting
             // this might happen once, but it should already be noMorePending

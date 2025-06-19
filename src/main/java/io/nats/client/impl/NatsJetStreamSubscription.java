@@ -153,7 +153,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
 
     protected Message _nextUnmanaged(long timeoutNanos, String expectedPullSubject) throws InterruptedException {
         long timeLeftNanos = timeoutNanos;
-        long start = System.nanoTime();
+        long start = NatsSystemClock.nanoTime();
         while (timeLeftNanos > 0) {
             Message msg = nextMessageInternal( Duration.ofNanos(timeLeftNanos) );
             if (msg == null) {
@@ -176,7 +176,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                     break;
             }
             // anything else, try again while we have time
-            timeLeftNanos = timeoutNanos - (System.nanoTime() - start);
+            timeLeftNanos = timeoutNanos - (NatsSystemClock.nanoTime() - start);
         }
         return null;
     }

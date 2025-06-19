@@ -1,6 +1,7 @@
 package io.nats.client.support;
 
 import io.nats.client.Message;
+import io.nats.client.NatsSystemClock;
 import io.nats.client.Options;
 
 import java.time.Duration;
@@ -32,7 +33,7 @@ public class NatsRequestCompletableFuture extends CompletableFuture<Message> {
 
     public NatsRequestCompletableFuture(CancelAction cancelAction, Duration timeout, boolean useTimeoutException) {
         this.cancelAction = cancelAction;
-        timeOutAfterNanoTime = System.nanoTime() + HYDRATION_TIME + (timeout == null ? DEFAULT_TIMEOUT_NANOS : timeout.toNanos());
+        timeOutAfterNanoTime = NatsSystemClock.nanoTime() + HYDRATION_TIME + (timeout == null ? DEFAULT_TIMEOUT_NANOS : timeout.toNanos());
         this.useTimeoutException = useTimeoutException;
     }
 
@@ -58,7 +59,7 @@ public class NatsRequestCompletableFuture extends CompletableFuture<Message> {
     }
 
     public boolean hasExceededTimeout() {
-        return System.nanoTime() > timeOutAfterNanoTime;
+        return NatsSystemClock.nanoTime() > timeOutAfterNanoTime;
     }
 
     public boolean wasCancelledClosing() {

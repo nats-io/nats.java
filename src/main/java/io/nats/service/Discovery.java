@@ -15,6 +15,7 @@ package io.nats.service;
 
 import io.nats.client.Connection;
 import io.nats.client.Message;
+import io.nats.client.NatsSystemClock;
 import io.nats.client.Subscription;
 
 import java.time.Duration;
@@ -204,7 +205,7 @@ public class Discovery {
             conn.publish(subject, replyTo, null);
 
             int resultsLeft = maxResults;
-            long start = System.nanoTime();
+            long start = NatsSystemClock.nanoTime();
             long timeLeft = maxTimeNanos;
             while (resultsLeft > 0 && timeLeft > 0) {
                 Message msg = sub.nextMessage(Duration.ofNanos(timeLeft));
@@ -214,7 +215,7 @@ public class Discovery {
                 dataConsumer.accept(msg.getData());
                 resultsLeft--;
                 // try again while we have time
-                timeLeft = maxTimeNanos - (System.nanoTime() - start);
+                timeLeft = maxTimeNanos - (NatsSystemClock.nanoTime() - start);
             }
         }
         catch (InterruptedException e) {
