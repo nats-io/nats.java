@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.ForceReconnectOptions;
+import io.nats.client.NatsSystemClock;
 import io.nats.client.Options;
 import io.nats.client.support.NatsUri;
 
@@ -36,7 +37,7 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
         @Override
         public void run() {
             //  if now is after when it was supposed to be done by
-            if (System.nanoTime() > writeMustBeDoneBy) {
+            if (NatsSystemClock.nanoTime() > writeMustBeDoneBy) {
                 writeWatcherTimer.cancel(); // we don't need to repeat this
                 connection.executeCallback((c, el) -> el.socketWriteTimeout(c));
                 try {
@@ -76,7 +77,7 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
     }
 
     public void write(byte[] src, int toWrite) throws IOException {
-        writeMustBeDoneBy = System.nanoTime() + writeTimeoutNanos;
+        writeMustBeDoneBy = NatsSystemClock.nanoTime() + writeTimeoutNanos;
         out.write(src, 0, toWrite);
         writeMustBeDoneBy = Long.MAX_VALUE;
     }

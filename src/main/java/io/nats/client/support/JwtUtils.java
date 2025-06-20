@@ -14,6 +14,7 @@
 package io.nats.client.support;
 
 import io.nats.client.NKey;
+import io.nats.client.NatsSystemClock;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -69,7 +70,7 @@ public abstract class JwtUtils {
      * @return the time
      */
     public static long currentTimeSeconds() {
-        return System.currentTimeMillis() / 1000;
+        return NatsSystemClock.currentTimeMillis() / 1000;
     }
 
     /**
