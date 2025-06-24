@@ -2141,6 +2141,9 @@ public class Options {
         return this.executor;
     }
 
+    /**
+     * @return the ScheduledExecutorService, see {@link Builder#scheduledExecutor(ScheduledExecutorService) scheduledExecutor()} in the builder doc
+     */
     public ScheduledExecutorService getScheduledExecutor() {
         return scheduledExecutor;
     }
