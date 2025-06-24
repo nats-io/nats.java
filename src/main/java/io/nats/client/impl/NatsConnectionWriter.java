@@ -106,9 +106,13 @@ class NatsConnectionWriter implements Runnable {
                 this.outgoing.pause();
                 this.reconnectOutgoing.pause();
                 // Clear old ping/pong requests
-                this.outgoing.filter((msg) ->
-                    msg.isProtocol() &&
-                        (msg.getProtocolBab().equals(OP_PING_BYTES) || msg.getProtocolBab().equals(OP_PONG_BYTES)));
+                this.outgoing.filter((msg) ->{
+                    if (msg.isProtocol()) {
+                        ByteArrayBuilder bab = msg.getProtocolBab();
+                        return bab.equals(OP_PING_BYTES) || bab.equals(OP_PONG_BYTES) || bab.equals(OP_UNSUB_BYTES);
+                    }
+                    return false;
+                });
             }
             finally {
                 this.startStopLock.unlock();

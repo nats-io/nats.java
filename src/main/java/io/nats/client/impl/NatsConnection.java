@@ -1059,7 +1059,7 @@ class NatsConnection implements Connection {
         if (after > 0) {
             bab.append(SP).append(after);
         }
-        queueInternalOutgoing(new ProtocolMessage(bab));
+        queueOutgoing(new ProtocolMessage(bab));
     }
 
     // Assumes the null/empty checks were handled elsewhere
