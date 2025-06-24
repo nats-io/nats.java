@@ -15,48 +15,77 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 /* Test to reproduce #1320 */
 public class AuthViolationDuringReconnectTest {
 
-    static class Context {
+    static class Context implements AutoCloseable {
         int port;
         NatsConnection nc;
         Dispatcher d;
         CountDownLatch latch;
         ConcurrentHashMap.KeySetView<String, Boolean> subscriptions = ConcurrentHashMap.newKeySet();
         ScheduledExecutorService serverRestarter = Executors.newSingleThreadScheduledExecutor();
-        ExecutorService unsubThreadpool = Executors.newFixedThreadPool(2);
-        AtomicReference<NatsTestServer> ts = new AtomicReference<>();
+        ExecutorService unsubThreadPool = Executors.newFixedThreadPool(2);
+        AtomicReference<NatsTestServer> server = new AtomicReference<>();
         AtomicBoolean violated = new AtomicBoolean(false);
         AtomicInteger restartsLeft = new AtomicInteger(10);
         ErrorListener errorListener = new ErrorListener() {
             @Override
             public void errorOccurred(Connection conn, String error) {
                 if (error.contains("Authorization Violation")) {
-                    // System.out.println("Authorization Violation");
                     violated.set(true);
                 }
             }
         };
+
+        @Override
+        public void close() throws Exception {
+            serverRestarter.shutdown();
+            unsubThreadPool.shutdown();
+            server.get().shutdown();
+        }
     }
 
     @Test
     public void testAuthViolationDuringReconnect() throws Exception {
-        Context ctx = new Context();
-        ctx.port = NatsTestServer.nextPort();
+        try (Context ctx = new Context()) {
+            ctx.port = NatsTestServer.nextPort();
+            startServer(ctx);
 
-        startNatsServer(ctx);
+            Options options = new Options.Builder()
+                .servers(new String[]{"nats://incorrect:1111", "nats://localhost:" + ctx.port})
+                .noRandomize()
+                .token(new char[]{'1', '2', '3', '4'})
+                .reconnectWait(Duration.ofMillis(2000))
+                .connectionTimeout(Duration.ofMillis(500))
+                .errorListener(ctx.errorListener)
+                .build();
 
-        ctx.nc = new MockPausingNatsConnection(buildOptions(ctx));
-        ctx.nc.connect(true);
-        ctx.d = ctx.nc.createDispatcher();
-        subscribe(ctx);
+            ctx.nc = new MockPausingNatsConnection(options);
+            ctx.nc.connect(true);
+            ctx.d = ctx.nc.createDispatcher();
 
-        ctx.serverRestarter.scheduleWithFixedDelay(() -> restartServer(ctx), 2000, 3000, TimeUnit.MILLISECONDS);
+            ctx.latch = new CountDownLatch(1);
+            for (int i = 0; i < 1_000; i++) {
+                String subject = "test_" + i;
+                ctx.subscriptions.add(subject);
+                ctx.d.subscribe(subject);
+                ctx.unsubThreadPool.execute(() -> {
+                    try {
+                        ctx.latch.await();
+                        ctx.d.unsubscribe(subject);
+                    }
+                    catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+            }
 
-        Thread t = new Thread(waitCloseSocket(ctx));
-        t.start();
-        t.join();
+            ctx.serverRestarter.scheduleWithFixedDelay(() -> restartServer(ctx), 2000, 3000, TimeUnit.MILLISECONDS);
 
-        assertFalse(ctx.violated.get());
-        ctx.ts.get().shutdown();
+            Thread t = new Thread(waitCloseSocket(ctx));
+            t.start();
+            t.join();
+
+            assertFalse(ctx.violated.get());
+        }
     }
 
     private static Runnable waitCloseSocket(Context ctx) {
@@ -82,63 +111,17 @@ public class AuthViolationDuringReconnectTest {
         };
     }
 
+    private static void startServer(Context ctx) throws IOException {
+        ctx.server.set(new NatsTestServer(new String[]{"--auth", "1234"}, ctx.port, false));
+    }
+
     private static void restartServer(Context ctx) {
         try {
             ctx.restartsLeft.decrementAndGet();
-            // System.out.println("Restarting server " + ctx.restartsLeft.get());
-            ctx.ts.get().shutdown();
-            startNatsServer(ctx);
+            ctx.server.get().shutdown();
+            startServer(ctx);
         } catch (Exception e) {
             throw new RuntimeException(e);
-        }
-    }
-
-    private static void startNatsServer(Context ctx) throws IOException {
-        ctx.ts.set(new NatsTestServer(new String[]{"--auth", "1234"}, ctx.port, false));
-    }
-
-    private static void subscribe(Context ctx) {
-        ctx.latch = new CountDownLatch(1);
-        for (int i = 0; i < 1_000; i++) {
-            String subject = "test_" + i;
-            ctx.subscriptions.add(subject);
-            ctx.d.subscribe(subject);
-            ctx.unsubThreadpool.execute(() -> {
-                try {
-                    ctx.latch.await();
-                    ctx.d.unsubscribe(subject);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-        }
-    }
-
-    private static Options buildOptions(Context ctx) {
-        Options.Builder natsOptions = new Options.Builder()
-                .servers(new String[]{"nats://incorrect:1111", "nats://localhost:" + ctx.port})
-                .noRandomize()
-                .token(new char[]{'1', '2', '3', '4'})
-                .reconnectWait(Duration.ofMillis(2000))
-                .connectionTimeout(Duration.ofMillis(500))
-                .errorListener(ctx.errorListener);
-
-        return natsOptions.build();
-    }
-
-    private static class ReconnectedHandler implements ConnectionListener {
-
-        private java.util.function.Consumer<Void> consumer;
-
-        public void setConsumer(java.util.function.Consumer<Void> consumer) {
-            this.consumer = consumer;
-        }
-
-        @Override
-        public void connectionEvent(Connection conn, Events type) {
-            if (type == Events.RECONNECTED) {
-                consumer.accept(null);
-            }
         }
     }
 
