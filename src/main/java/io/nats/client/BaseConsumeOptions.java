@@ -17,6 +17,7 @@ import io.nats.client.support.JsonParseException;
 import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
+import org.jetbrains.annotations.NotNull;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
@@ -72,6 +73,7 @@ public class BaseConsumeOptions implements JsonSerializable {
     }
 
     @Override
+    @NotNull
     public String toJson() {
         StringBuilder sb = beginJson();
         addField(sb, MESSAGES, messages);

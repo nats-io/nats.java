@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonValue;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -39,14 +40,29 @@ public class ClusterInfo {
         replicas = Replica.optionalListOf(readValue(v, REPLICAS));
     }
 
+    /**
+     * The cluster name. Technically can be null
+     * @return the cluster or null
+     */
+    @Nullable
     public String getName() {
         return name;
     }
 
+    /**
+     * The server name of the RAFT leader
+     * @return the leader or null
+     */
+    @Nullable
     public String getLeader() {
         return leader;
     }
 
+    /**
+     * The members of the RAFT cluster. May be null if there are no replicas.
+     * @return the replicas or null
+     */
+    @Nullable
     public List<Replica> getReplicas() {
         return replicas;
     }

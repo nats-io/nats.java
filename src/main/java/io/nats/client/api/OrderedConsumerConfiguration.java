@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.support.*;
+import org.jetbrains.annotations.NotNull;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -49,16 +50,13 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
         filterSubjects.add(GREATER_THAN);
     }
 
-    public OrderedConsumerConfiguration(String json) throws JsonParseException {
+    public OrderedConsumerConfiguration(@NotNull String json) throws JsonParseException {
         this(JsonParser.parse(json));
     }
 
-    public OrderedConsumerConfiguration(JsonValue v) throws JsonParseException {
+    public OrderedConsumerConfiguration(@NotNull JsonValue v) throws JsonParseException {
         this();
-        List<String> list = readOptionalStringList(v, FILTER_SUBJECTS);
-        if (list != null) {
-            filterSubjects(list);
-        }
+        filterSubjects(readStringList(v, FILTER_SUBJECTS)); // readStringList won't return null but can return empty
         deliverPolicy(DeliverPolicy.get(readString(v, DELIVER_POLICY)));
         startSequence(readLong(v, OPT_START_SEQ, ConsumerConfiguration.LONG_UNSET));
         startTime(readDate(v, OPT_START_TIME));
@@ -70,11 +68,11 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
      * Returns a JSON representation of this ordered consumer configuration.
      * @return JSON ordered consumer configuration JSON string
      */
+    @Override
+    @NotNull
     public String toJson() {
         StringBuilder sb = beginJson();
-        if (filterSubjects != null && !filterSubjects.isEmpty()) {
-            JsonUtils.addStrings(sb, FILTER_SUBJECTS, filterSubjects);
-        }
+        JsonUtils.addStrings(sb, FILTER_SUBJECTS, filterSubjects); // filter will always have at least a GREATER_THAN
         if (deliverPolicy != null) {
             JsonUtils.addField(sb, DELIVER_POLICY, deliverPolicy.toString());
         }
@@ -89,6 +87,7 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
 
     /**
      * Sets the filter subject of the OrderedConsumerConfiguration.
+     * null or empty string means no filter.
      * @param filterSubject the filter subject
      * @return The Builder
      */
@@ -98,24 +97,30 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
 
     /**
      * Sets the filter subjects of the OrderedConsumerConfiguration.
-     * @param filterSubject the filter subject
+     * A null or empty array or no items that are not null or empty means no filter
+     * @param filterSubjects the filter subject
      * @return The Builder
      */
-    public OrderedConsumerConfiguration filterSubjects(String... filterSubject) {
-        return filterSubjects(Arrays.asList(filterSubject));
+    public OrderedConsumerConfiguration filterSubjects(String... filterSubjects) {
+        return filterSubjects == null
+            ? filterSubjects((List<String>)null)
+            : filterSubjects(Arrays.asList(filterSubjects)); // Arrays.asList would throw a NPE
     }
 
     /**
      * Sets the filter subject of the OrderedConsumerConfiguration.
+     * A null or empty list or no items that are not null or empty means no filter
      * @param filterSubjects one or more filter subjects
      * @return The Builder
      */
     public OrderedConsumerConfiguration filterSubjects(List<String> filterSubjects) {
         this.filterSubjects.clear();
-        for (String fs : filterSubjects) {
-            String fsEan = emptyAsNull(fs);
-            if (fsEan != null) {
-                this.filterSubjects.add(fsEan);
+        if (filterSubjects != null) {
+            for (String fs : filterSubjects) {
+                String fsEan = emptyAsNull(fs);
+                if (fsEan != null) {
+                    this.filterSubjects.add(fsEan);
+                }
             }
         }
         if (this.filterSubjects.isEmpty()) {

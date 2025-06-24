@@ -13,16 +13,15 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.JetStreamReader;
-import io.nats.client.JetStreamStatusException;
-import io.nats.client.Message;
-import io.nats.client.PullRequestOptions;
+import io.nats.client.*;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+
+import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
 
 public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
 
@@ -137,7 +136,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
         }
 
         try {
-            long start = System.nanoTime();
+            long start = NatsSystemClock.nanoTime();
 
             Duration expires = Duration.ofMillis(
                 maxWaitMillis > MIN_EXPIRE_MILLIS ? maxWaitMillis - EXPIRE_ADJUSTMENT : maxWaitMillis);
@@ -172,7 +171,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                         break;
                 }
                 // anything else, try again while we have time
-                timeLeftNanos = maxWaitNanos - (System.nanoTime() - start);
+                timeLeftNanos = maxWaitNanos - (NatsSystemClock.nanoTime() - start);
             }
         }
         catch (InterruptedException e) {
@@ -226,7 +225,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
     @Override
     public Iterator<Message> iterate(int batchSize, Duration maxWait) {
         durationGtZeroRequired(maxWait, "Iterate");
-        return _iterate(batchSize, maxWait.toMillis());
+        return _iterate(batchSize, maxWait.toNanos());
     }
 
     /**
@@ -235,10 +234,10 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
     @Override
     public Iterator<Message> iterate(final int batchSize, long maxWaitMillis) {
         durationGtZeroRequired(maxWaitMillis, "Iterate");
-        return _iterate(batchSize, maxWaitMillis);
+        return _iterate(batchSize, maxWaitMillis * NANOS_PER_MILLI);
     }
 
-    private Iterator<Message> _iterate(final int batchSize, long maxWaitMillis) {
+    private Iterator<Message> _iterate(final int batchSize, long maxWaitNanos) {
         final List<Message> buffered = drainAlreadyBuffered(batchSize);
 
         // if there was a full batch buffered, no need to pull, just iterate over the list you already have
@@ -258,9 +257,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
         }
 
         // if there were some messages buffered, reduce the raw pull batch size
-        String pullSubject = _pull(PullRequestOptions.builder(batchLeft).expiresIn(maxWaitMillis).build(), false, null);
-
-        final long timeout = maxWaitMillis;
+        String pullSubject = _pull(PullRequestOptions.builder(batchLeft).expiresIn(Duration.ofNanos(maxWaitNanos)).build(), false, null);
 
         // the iterator is also more complicated
         return new Iterator<Message>() {
@@ -280,7 +277,7 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
                     }
 
                     if (buffered.isEmpty()) {
-                        msg = _nextUnmanaged(timeout, pullSubject);
+                        msg = _nextUnmanaged(maxWaitNanos, pullSubject);
                         if (msg == null) {
                             done = true;
                             return false;

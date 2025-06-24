@@ -666,9 +666,9 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals("src.>", st.getSource());
         assertEquals("dest.>", st.getDestination());
 
-        st = SubjectTransform.builder().build();
-        assertNull(st.getSource());
-        assertNull(st.getDestination());
+        assertThrows(IllegalArgumentException.class, () -> SubjectTransform.builder().build());
+        assertThrows(IllegalArgumentException.class, () -> SubjectTransform.builder().source("source").build());
+        assertThrows(IllegalArgumentException.class, () -> SubjectTransform.builder().destination("dest").build());
 
         EqualsVerifier.simple().forClass(SubjectTransform.class).verify();
     }

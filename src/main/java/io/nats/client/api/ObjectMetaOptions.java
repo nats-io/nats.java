@@ -15,6 +15,8 @@ package io.nats.client.api;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import static io.nats.client.support.ApiConstants.LINK;
 import static io.nats.client.support.ApiConstants.MAX_CHUNK_SIZE;
@@ -42,6 +44,7 @@ public class ObjectMetaOptions implements JsonSerializable {
     }
 
     @Override
+    @NotNull
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, LINK, link);
@@ -53,6 +56,7 @@ public class ObjectMetaOptions implements JsonSerializable {
         return link != null || chunkSize > 0;
     }
 
+    @Nullable
     public ObjectLink getLink() {
         return link;
     }

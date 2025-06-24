@@ -15,6 +15,8 @@ package io.nats.client.api;
 import io.nats.client.Message;
 import io.nats.client.impl.Headers;
 import io.nats.client.support.NatsKeyValueUtil;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
@@ -57,22 +59,26 @@ public class KeyValueEntry {
         op = NatsKeyValueUtil.getOperation(h);
     }
 
+    @NotNull
     public String getBucket() {
         return bucketAndKey.bucket;
     }
 
+    @NotNull
     public String getKey() {
         return bucketAndKey.key;
     }
 
-    public byte[] getValue() {
+    public byte @Nullable [] getValue() {
         return value;
     }
 
+    @Nullable
     public String getValueAsString() {
         return value == null ? null : new String(value, StandardCharsets.UTF_8);
     }
 
+    @Nullable
     public Long getValueAsLong() {
         return value == null ? null : Long.parseLong(new String(value, StandardCharsets.US_ASCII));
     }
@@ -81,6 +87,7 @@ public class KeyValueEntry {
         return dataLen;
     }
 
+    @NotNull
     public ZonedDateTime getCreated() {
         return created;
     }
@@ -93,6 +100,7 @@ public class KeyValueEntry {
         return delta;
     }
 
+    @NotNull
     public KeyValueOperation getOperation() {
         return op;
     }

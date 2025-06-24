@@ -13,6 +13,8 @@
 
 package io.nats.client.api;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -52,6 +54,7 @@ public enum AckPolicy {
         }
     }
 
+    @Nullable
     public static AckPolicy get(String value) {
         return strEnumHash.get(value);
     }

@@ -3,6 +3,7 @@ package io.nats.service;
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import io.nats.client.Message;
+import io.nats.client.NatsSystemClock;
 import io.nats.client.support.DateTimeUtils;
 
 import java.time.Duration;
@@ -71,7 +72,7 @@ class EndpointContext {
     }
 
     public void onMessage(Message msg) throws InterruptedException {
-        long start = System.nanoTime();
+        long start = NatsSystemClock.nanoTime();
         ServiceMessage smsg = new ServiceMessage(msg);
         try {
             if (recordStats) {
@@ -90,7 +91,7 @@ class EndpointContext {
         }
         finally {
             if (recordStats) {
-                processingTime.addAndGet(System.nanoTime() - start);
+                processingTime.addAndGet(NatsSystemClock.nanoTime() - start);
             }
         }
     }

@@ -1,4 +1,4 @@
-// Copyright 2021-2023 The NATS Authors
+// Copyright 2025 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -11,22 +11,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client.support;
+package io.nats.client;
 
-import org.jetbrains.annotations.NotNull;
+public class NatsSystemClock {
+    private static NatsSystemClockProvider PROVIDER = new NatsSystemClockProvider() {};
 
-import java.nio.charset.StandardCharsets;
-
-public interface JsonSerializable {
-    @NotNull
-    String toJson();
-
-    default byte @NotNull [] serialize() {
-        return toJson().getBytes(StandardCharsets.UTF_8);
+    public static void setProvider(final NatsSystemClockProvider provider) {
+        PROVIDER = provider == null ? new NatsSystemClockProvider() {} : provider;
     }
 
-    @NotNull
-    default JsonValue toJsonValue() {
-        return JsonParser.parseUnchecked(toJson());
+    public static long currentTimeMillis() {
+        return PROVIDER.currentTimeMillis();
+    }
+
+    public static long nanoTime() {
+        return PROVIDER.nanoTime();
     }
 }

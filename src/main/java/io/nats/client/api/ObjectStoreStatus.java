@@ -13,6 +13,8 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonValueUtils;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
 import java.util.Map;
@@ -34,6 +36,7 @@ public class ObjectStoreStatus {
      * Get the name of the object store
      * @return the name
      */
+    @NotNull
     public String getBucketName() {
         return config.getBucketName();
     }
@@ -42,6 +45,7 @@ public class ObjectStoreStatus {
      * Gets the description of this bucket.
      * @return the description of the bucket.
      */
+    @Nullable
     public String getDescription() {
         return config.getDescription();
     }
@@ -50,6 +54,7 @@ public class ObjectStoreStatus {
      * Gets the info for the stream which backs the bucket. Valid for BackingStore "JetStream"
      * @return the stream info
      */
+    @NotNull
     public StreamInfo getBackingStreamInfo() {
         return streamInfo;
     }
@@ -58,6 +63,7 @@ public class ObjectStoreStatus {
      * Gets the configuration object directly
      * @return the configuration.
      */
+    @NotNull
     public ObjectStoreConfiguration getConfiguration() {
         return config;
     }
@@ -90,6 +96,7 @@ public class ObjectStoreStatus {
      * Gets the maximum age for a value in this store.
      * @return the maximum age.
      */
+    @Nullable
     public Duration getTtl() {
         return config.getTtl();
     }
@@ -98,7 +105,10 @@ public class ObjectStoreStatus {
      * Gets the storage type for this bucket.
      * @return the storage type for this stream.
      */
+    @NotNull
     public StorageType getStorageType() {
+        // Storage type will never be null because this is a read from the server
+        //noinspection DataFlowIssue
         return config.getStorageType();
     }
 
@@ -114,6 +124,7 @@ public class ObjectStoreStatus {
      * Gets the placement directive for the store.
      * @return the placement
      */
+    @Nullable
     public Placement getPlacement() {
         return config.getPlacement();
     }
@@ -130,6 +141,7 @@ public class ObjectStoreStatus {
      * Get the metadata for the store
      * @return the metadata map. Might be null.
      */
+    @Nullable
     public Map<String, String> getMetadata() {
         return config.getMetadata();
     }
@@ -138,6 +150,7 @@ public class ObjectStoreStatus {
      * Gets the name of the type of backing store, currently only "JetStream"
      * @return the name of the store, currently only "JetStream"
      */
+    @NotNull
     public String getBackingStore() {
         return "JetStream";
     }

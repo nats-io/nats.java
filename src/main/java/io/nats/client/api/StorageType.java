@@ -13,6 +13,8 @@
 
 package io.nats.client.api;
 
+import org.jetbrains.annotations.Nullable;
+
 /**
  * Stream storage types.
  */
@@ -31,6 +33,7 @@ public enum StorageType {
         return policy;
     }
 
+    @Nullable
     public static StorageType get(String value) {
         if (File.policy.equalsIgnoreCase(value)) { return File; }
         if (Memory.policy.equalsIgnoreCase(value)) { return Memory; }

@@ -16,6 +16,8 @@ package io.nats.client.api;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
 
@@ -49,21 +51,24 @@ public class ConsumerLimits implements JsonSerializable {
     }
 
     /**
-     * Get the amount of time before the consumer is deemed inactive.
-     * @return the inactive threshold
+     * Maximum value for inactive_threshold for consumers of this stream. Acts as a default when consumers do not set this value.
+     * @return the inactive threshold limit
      */
+    @Nullable
     public Duration getInactiveThreshold() {
         return inactiveThreshold;
     }
 
     /**
-     * Gets the maximum ack pending configuration.
-     * @return maximum ack pending.
+     * Maximum value for max_ack_pending for consumers of this stream. Acts as a default when consumers do not set this value.
+     * @return maximum ack pending limit
      */
     public long getMaxAckPending() {
         return getOrUnset(maxAckPending);
     }
 
+    @Override
+    @NotNull
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addFieldAsNanos(sb, INACTIVE_THRESHOLD, inactiveThreshold);

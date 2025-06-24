@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.Consumer;
+import io.nats.client.NatsSystemClock;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -207,8 +208,8 @@ abstract class NatsConsumer implements Consumer {
             try {
                 long stop = (timeout == null || timeout.equals(Duration.ZERO))
                     ? Long.MAX_VALUE
-                    : System.nanoTime() + timeout.toNanos();
-                while (System.nanoTime() < stop && !Thread.interrupted()) {
+                    : NatsSystemClock.nanoTime() + timeout.toNanos();
+                while (NatsSystemClock.nanoTime() < stop && !Thread.interrupted()) {
                     if (this.isDrained()) {
                         break;
                     }

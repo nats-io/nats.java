@@ -16,6 +16,7 @@ package io.nats.client.api;
 import io.nats.client.Message;
 import io.nats.client.impl.Headers;
 import io.nats.client.support.*;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.ZonedDateTime;
 
@@ -131,6 +132,7 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
      * Get the message subject
      * @return the subject
      */
+    @Nullable
     public String getSubject() {
         return subject;
     }
@@ -147,7 +149,7 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
      * Get the message data
      * @return the data bytes
      */
-    public byte[] getData() {
+    public byte @Nullable [] getData() {
         return data;
     }
 
@@ -155,6 +157,7 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
      * Get the time the message was received
      * @return the time
      */
+    @Nullable
     public ZonedDateTime getTime() {
         return time;
     }
@@ -163,6 +166,7 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
      * Get the headers
      * @return the headers object or null if there were no headers
      */
+    @Nullable
     public Headers getHeaders() {
         return headers;
     }
@@ -171,6 +175,7 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
      * Get the name of the stream. Not always set.
      * @return the stream name or null if the name is not known.
      */
+    @Nullable
     public String getStream() {
         return stream;
     }
@@ -195,6 +200,7 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
      * Get the Status object. Null if this MessageInfo is not a Status.
      * @return the status object
      */
+    @Nullable
     public Status getStatus() {
         return status;
     }

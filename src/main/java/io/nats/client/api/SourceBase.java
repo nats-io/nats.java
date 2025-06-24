@@ -17,6 +17,8 @@ import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -61,6 +63,8 @@ public abstract class SourceBase implements JsonSerializable {
      * Returns a JSON representation of this mirror
      * @return json mirror json string
      */
+    @Override
+    @NotNull
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, name);
@@ -76,6 +80,7 @@ public abstract class SourceBase implements JsonSerializable {
      * Get the name of the source. Same as getName()
      * @return get the source name
      */
+    @NotNull
     public String getSourceName() {
         return name;
     }
@@ -84,6 +89,7 @@ public abstract class SourceBase implements JsonSerializable {
      * Get the name of the source. Same as getSourceName()
      * @return the source name
      */
+    @NotNull
     public String getName() {
         return name;
     }
@@ -92,18 +98,22 @@ public abstract class SourceBase implements JsonSerializable {
         return startSeq;
     }
 
+    @Nullable
     public ZonedDateTime getStartTime() {
         return startTime;
     }
 
+    @Nullable
     public String getFilterSubject() {
         return filterSubject;
     }
 
+    @Nullable
     public External getExternal() {
         return external;
     }
 
+    @Nullable
     public List<SubjectTransform> getSubjectTransforms() {
         return subjectTransforms;
     }
@@ -200,7 +210,7 @@ public abstract class SourceBase implements JsonSerializable {
     @Override
     public int hashCode() {
         int result = name != null ? name.hashCode() : 0;
-        result = 31 * result + (int) (startSeq ^ (startSeq >>> 32));
+        result = 31 * result + Long.hashCode(startSeq);
         result = 31 * result + (startTime != null ? startTime.hashCode() : 0);
         result = 31 * result + (filterSubject != null ? filterSubject.hashCode() : 0);
         result = 31 * result + (external != null ? external.hashCode() : 0);

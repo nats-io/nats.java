@@ -14,6 +14,8 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonValue;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -40,9 +42,10 @@ public class LostStreamData {
     }
 
     /**
-     * Get the lost message ids
+     * Get the lost message ids. May be empty
      * @return the list of message ids
      */
+    @NotNull
     public List<Long> getMessages() {
         return messages;
     }
@@ -51,6 +54,7 @@ public class LostStreamData {
      * Get the number of bytes that were lost
      * @return the number of lost bytes
      */
+    @Nullable
     public Long getBytes() {
         return bytes;
     }

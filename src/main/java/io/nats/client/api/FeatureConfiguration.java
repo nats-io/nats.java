@@ -16,6 +16,8 @@ package io.nats.client.api;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
 import java.util.Map;
@@ -31,11 +33,13 @@ public abstract class FeatureConfiguration implements JsonSerializable {
     protected final String bucketName;
 
     @Override
+    @NotNull
     public String toJson() {
         return toJsonValue().toString();
     }
 
     @Override
+    @NotNull
     public JsonValue toJsonValue() {
         JsonValueUtils.MapBuilder mb = new JsonValueUtils.MapBuilder();
         mb.put("name", bucketName);
@@ -59,6 +63,7 @@ public abstract class FeatureConfiguration implements JsonSerializable {
      * Gets the stream configuration for the stream which backs the bucket
      * @return the stream configuration
      */
+    @NotNull
     public StreamConfiguration getBackingConfig() {
         return sc;
     }
@@ -67,6 +72,7 @@ public abstract class FeatureConfiguration implements JsonSerializable {
      * Gets the name of this bucket.
      * @return the name of the bucket.
      */
+    @NotNull
     public String getBucketName() {
         return bucketName;
     }
@@ -75,6 +81,7 @@ public abstract class FeatureConfiguration implements JsonSerializable {
      * Gets the description of this bucket.
      * @return the description of the bucket.
      */
+    @Nullable
     public String getDescription() {
         return sc.getDescription();
     }
@@ -91,6 +98,7 @@ public abstract class FeatureConfiguration implements JsonSerializable {
      * Gets the maximum age for a value in this bucket.
      * @return the maximum age.
      */
+    @Nullable
     public Duration getTtl() {
         return sc.getMaxAge();
     }
@@ -99,6 +107,7 @@ public abstract class FeatureConfiguration implements JsonSerializable {
      * Gets the storage type for this bucket.
      * @return the storage type for this stream.
      */
+    @Nullable
     public StorageType getStorageType() {
         return sc.getStorageType();
     }
@@ -116,6 +125,7 @@ public abstract class FeatureConfiguration implements JsonSerializable {
      * random placement when unset
      * @return the placement [directive object]
      */
+    @Nullable
     public Placement getPlacement() {
         return sc.getPlacement();
     }
@@ -132,6 +142,7 @@ public abstract class FeatureConfiguration implements JsonSerializable {
      * Get the metadata for the feature
      * @return the metadata map. Might be null.
      */
+    @Nullable
     public Map<String, String> getMetadata() {
         return sc.getMetadata();
     }
