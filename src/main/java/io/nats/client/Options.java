@@ -505,6 +505,11 @@ public class Options {
      */
     public static final String PROP_EXECUTOR_SERVICE_CLASS = "executor.service.class";
     /**
+     * Property used to set class name for the Executor Service (executor) class
+     * {@link Builder#executor(ExecutorService) executor}.
+     */
+    public static final String PROP_SCHEDULED_EXECUTOR_SERVICE_CLASS = "scheduled.executor.service.class";
+    /**
      * Property used to set class name for the Connect Thread Factory
      * {@link Builder#connectThreadFactory(ThreadFactory) connectThreadFactory}.
      */
@@ -660,7 +665,7 @@ public class Options {
     private final ErrorListener errorListener;
     private final TimeTraceLogger timeTraceLogger;
     private final ConnectionListener connectionListener;
-    private ReadListener readListener;
+    private final ReadListener readListener;
     private final StatisticsCollector statisticsCollector;
     private final String dataPortType;
 
@@ -668,6 +673,7 @@ public class Options {
     private final boolean traceConnection;
 
     private final ExecutorService executor;
+    private final ScheduledExecutorService scheduledExecutor;
     private final ThreadFactory connectThreadFactory;
     private final ThreadFactory callbackThreadFactory;
     private final ServerPool serverPool;
@@ -808,6 +814,7 @@ public class Options {
         private StatisticsCollector statisticsCollector = null;
         private String dataPortType = DEFAULT_DATA_PORT_TYPE;
         private ExecutorService executor;
+        private ScheduledExecutorService scheduledExecutor;
         private ThreadFactory connectThreadFactory;
         private ThreadFactory callbackThreadFactory;
         private List<java.util.function.Consumer<HttpRequest>> httpRequestInterceptors;
@@ -939,6 +946,7 @@ public class Options {
             classnameProperty(props, PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, o -> this.serverPool = (ServerPool) o);
             classnameProperty(props, PROP_DISPATCHER_FACTORY_CLASS, o -> this.dispatcherFactory = (DispatcherFactory) o);
             classnameProperty(props, PROP_EXECUTOR_SERVICE_CLASS, o -> this.executor = (ExecutorService) o);
+            classnameProperty(props, PROP_SCHEDULED_EXECUTOR_SERVICE_CLASS, o -> this.scheduledExecutor = (ScheduledExecutorService) o);
             classnameProperty(props, PROP_CONNECT_THREAD_FACTORY_CLASS, o -> this.connectThreadFactory = (ThreadFactory) o);
             classnameProperty(props, PROP_CALLBACK_THREAD_FACTORY_CLASS, o -> this.callbackThreadFactory = (ThreadFactory) o);
             return this;
@@ -1631,6 +1639,19 @@ public class Options {
         }
 
         /**
+         * Set the {@link ScheduledExecutorService ScheduledExecutorService} used to run scheduled task like
+         * heartbeat timers
+         * The default is a ScheduledThreadPoolExecutor that does not
+         *  execute delayed tasks after shutdown and removes tasks on cancel;
+         * @param scheduledExecutor The ScheduledExecutorService to use for timer tasks
+         * @return the Builder for chaining
+         */
+        public Builder scheduledExecutor(ScheduledExecutorService scheduledExecutor) {
+            this.scheduledExecutor = scheduledExecutor;
+            return this;
+        }
+
+        /**
          * Sets custom thread factory for the executor service
          *
          * @param threadFactory the thread factory to use for the executor service
@@ -1910,6 +1931,17 @@ public class Options {
                     new DefaultThreadFactory(threadPrefix));
             }
 
+            if (this.scheduledExecutor == null) {
+                String threadPrefix = nullOrEmpty(this.connectionName) ? DEFAULT_THREAD_NAME_PREFIX : this.connectionName;
+                // the core pool size of 3 is chosen considering where we know the scheduler is used.
+                // 1. Ping timer, 2. cleanup timer, 3. SocketDataPortWithWriteTimeout
+                // Pull message managers also use a scheduler, but we don't even know if this will be consuming
+                ScheduledThreadPoolExecutor stpe = new ScheduledThreadPoolExecutor(3, new DefaultThreadFactory(threadPrefix));
+                stpe.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+                stpe.setRemoveOnCancelPolicy(true);
+                this.scheduledExecutor = stpe;
+            }
+
             if (socketReadTimeoutMillis > 0) {
                 long srtMin = pingInterval.toMillis() + MINIMUM_SOCKET_WRITE_TIMEOUT_GT_CONNECTION_TIMEOUT;
                 if (socketReadTimeoutMillis < srtMin) {
@@ -2014,6 +2046,7 @@ public class Options {
             this.dataPortType = o.dataPortType;
             this.trackAdvancedStats = o.trackAdvancedStats;
             this.executor = o.executor;
+            this.scheduledExecutor = o.scheduledExecutor;
             this.callbackThreadFactory = o.callbackThreadFactory;
             this.connectThreadFactory = o.connectThreadFactory;
             this.httpRequestInterceptors = o.httpRequestInterceptors;
@@ -2082,6 +2115,7 @@ public class Options {
         this.dataPortType = b.dataPortType;
         this.trackAdvancedStats = b.trackAdvancedStats;
         this.executor = b.executor;
+        this.scheduledExecutor = b.scheduledExecutor;
         this.callbackThreadFactory = b.callbackThreadFactory;
         this.connectThreadFactory = b.connectThreadFactory;
         this.httpRequestInterceptors = b.httpRequestInterceptors;
@@ -2105,6 +2139,10 @@ public class Options {
      */
     public ExecutorService getExecutor() {
         return this.executor;
+    }
+
+    public ScheduledExecutorService getScheduledExecutor() {
+        return scheduledExecutor;
     }
 
     /**

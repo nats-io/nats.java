@@ -250,7 +250,6 @@ public class MessageManagerTests extends JetStreamTestBase {
             pullMgr.startup(sub);
             pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).build(), false, null);
             assertEquals(0, listener.getHeartbeatAlarms().size());
-            assertNull(pullMgr.heartbeatTimer);
 
             listener.reset();
             listener.prepForHeartbeatAlarm();

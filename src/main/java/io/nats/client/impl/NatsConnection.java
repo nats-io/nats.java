@@ -16,10 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.api.ServerInfo;
-import io.nats.client.support.ByteArrayBuilder;
-import io.nats.client.support.NatsRequestCompletableFuture;
-import io.nats.client.support.NatsUri;
-import io.nats.client.support.Validator;
+import io.nats.client.support.*;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -82,7 +79,8 @@ class NatsConnection implements Connection {
     private final String mainInbox;
     private final AtomicReference<NatsDispatcher> inboxDispatcher;
     private final ReentrantLock inboxDispatcherLock;
-    private Timer timer;
+    private ScheduledTask pingTask;
+    private ScheduledTask cleanupTask;
 
     private final AtomicBoolean needPing;
 
@@ -98,6 +96,7 @@ class NatsConnection implements Connection {
     private final ExecutorService callbackRunner;
     private final ExecutorService executor;
     private final ExecutorService connectExecutor;
+    private final ScheduledExecutorService scheduledExecutor;
     private final boolean advancedTracking;
 
     private final ServerPool serverPool;
@@ -159,6 +158,7 @@ class NatsConnection implements Connection {
         this.executor = options.getExecutor();
         this.callbackRunner = options.getCallbackExecutor();
         this.connectExecutor = options.getConnectExecutor();
+        this.scheduledExecutor = options.getScheduledExecutor();
 
         timeTraceLogger.trace("creating reader and writer");
         this.reader = new NatsConnectionReader(this);
@@ -595,35 +595,27 @@ class NatsConnection implements Connection {
                 pongFuture.get(timeoutNanos, TimeUnit.NANOSECONDS);
             }
 
-            if (this.timer == null) {
+            if (pingTask == null) {
                 timeCheck(end, "starting ping and cleanup timers");
-                this.timer = new Timer("Nats Connection Timer");
-
                 long pingMillis = this.options.getPingInterval().toMillis();
 
                 if (pingMillis > 0) {
-                    this.timer.schedule(new TimerTask() {
-                        public void run() {
-                            if (isConnected()) {
-                                try {
-                                    softPing(); // The timer always uses the standard queue
-                                }
-                                catch (Exception e) {
-                                    // it's running in a thread, there is no point throwing here
-                                }
+                    pingTask = new ScheduledTask(scheduledExecutor, pingMillis, () -> {
+                        if (isConnected()) {
+                            try {
+                                softPing(); // The timer always uses the standard queue
+                            }
+                            catch (Exception e) {
+                                // it's running in a thread, there is no point throwing here
                             }
                         }
-                    }, pingMillis, pingMillis);
+                    });
                 }
 
                 long cleanMillis = this.options.getRequestCleanupInterval().toMillis();
 
                 if (cleanMillis > 0) {
-                    this.timer.schedule(new TimerTask() {
-                        public void run() {
-                            cleanResponses(false);
-                        }
-                    }, cleanMillis, cleanMillis);
+                    cleanupTask = new ScheduledTask(scheduledExecutor, cleanMillis, () -> cleanResponses(false));
                 }
             }
 
@@ -826,9 +818,13 @@ class NatsConnection implements Connection {
         this.dispatchers.clear();
         this.subscribers.clear();
 
-        if (timer != null) {
-            timer.cancel();
-            timer = null;
+        if (pingTask != null) {
+            pingTask.shutdown();
+            pingTask = null;
+        }
+        if (cleanupTask != null) {
+            cleanupTask.shutdown();
+            cleanupTask = null;
         }
 
         cleanResponses(true);
@@ -1964,6 +1960,10 @@ class NatsConnection implements Connection {
 
     ExecutorService getExecutor() {
         return executor;
+    }
+
+    ScheduledExecutorService getScheduledExecutor() {
+        return scheduledExecutor;
     }
 
     void updateStatus(Status newStatus) {
