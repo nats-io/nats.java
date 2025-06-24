@@ -170,8 +170,8 @@ abstract class MessageManager {
             if (heartbeatTask != null) {
                 heartbeatTask.shutdown();
                 heartbeatTask = null;
-                currentAlarmPeriodNanos.set(0);
             }
+            currentAlarmPeriodNanos.set(0);
         }
         finally {
             stateChangeLock.unlock();
