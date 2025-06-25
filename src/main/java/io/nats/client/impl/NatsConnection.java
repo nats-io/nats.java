@@ -1055,7 +1055,7 @@ class NatsConnection implements Connection {
         if (after > 0) {
             bab.append(SP).append(after);
         }
-        queueInternalOutgoing(new ProtocolMessage(bab));
+        queueOutgoing(new ProtocolMessage(bab, true));
     }
 
     // Assumes the null/empty checks were handled elsewhere
@@ -1103,8 +1103,11 @@ class NatsConnection implements Connection {
         }
         bab.append(SP).append(sid);
 
-        ProtocolMessage subMsg = new ProtocolMessage(bab);
-
+        // setting this to filter on stop.
+        // if it's an "internal" message, it won't be filtered
+        // if it's a normal message, the subscription will already be registered
+        // and therefore will be re-subscribed after a stop anyway
+        ProtocolMessage subMsg = new ProtocolMessage(bab, true);
         if (treatAsInternal) {
             queueInternalOutgoing(subMsg);
         } else {
@@ -1495,7 +1498,7 @@ class NatsConnection implements Connection {
             ByteArrayBuilder bab =
                 new ByteArrayBuilder(OP_CONNECT_SP_LEN + connectOptions.limit(), UTF_8)
                     .append(CONNECT_SP_BYTES).append(connectOptions);
-            queueInternalOutgoing(new ProtocolMessage(bab));
+            queueInternalOutgoing(new ProtocolMessage(bab, false));
         } catch (Exception exp) {
             throw new IOException("Error sending connect string", exp);
         }
@@ -1523,7 +1526,7 @@ class NatsConnection implements Connection {
         pongQueue.add(pongFuture);
         try {
             long time = NatsSystemClock.nanoTime();
-            writer.queueInternalMessage(new ProtocolMessage(OP_PING_BYTES));
+            writer.queueInternalMessage(new ProtocolMessage(PING_PROTO));
             pongFuture.get(timeout, TimeUnit.MILLISECONDS);
             return Duration.ofNanos(NatsSystemClock.nanoTime() - time);
         }
