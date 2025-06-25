@@ -70,7 +70,6 @@ public interface NatsConstants {
 
     byte[] OP_PING_BYTES = OP_PING.getBytes();
     byte[] OP_PONG_BYTES = OP_PONG.getBytes();
-    byte[] OP_UNSUB_BYTES = OP_UNSUB.getBytes();
 
     byte[] PUB_SP_BYTES = (OP_PUB + SPACE).getBytes(US_ASCII);
     byte[] HPUB_SP_BYTES = (OP_HPUB + SPACE).getBytes(US_ASCII);
