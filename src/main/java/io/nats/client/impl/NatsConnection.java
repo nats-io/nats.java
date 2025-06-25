@@ -1527,7 +1527,7 @@ class NatsConnection implements Connection {
         pongQueue.add(pongFuture);
         try {
             long time = NatsSystemClock.nanoTime();
-            writer.queueInternalMessage(new ProtocolMessage(PONG_PROTO));
+            writer.queueInternalMessage(new ProtocolMessage(PING_PROTO));
             pongFuture.get(timeout, TimeUnit.MILLISECONDS);
             return Duration.ofNanos(NatsSystemClock.nanoTime() - time);
         }
