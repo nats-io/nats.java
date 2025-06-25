@@ -1107,8 +1107,11 @@ class NatsConnection implements Connection {
         }
         bab.append(SP).append(sid);
 
-        ProtocolMessage subMsg = new ProtocolMessage(bab, false);
-
+        // setting this to filter on stop.
+        // if it's an "internal" message, it won't be filtered
+        // if it's a normal message, the subscription will already be registered
+        // and therefore will be re-subscribed after a stop anyway
+        ProtocolMessage subMsg = new ProtocolMessage(bab, true);
         if (treatAsInternal) {
             queueInternalOutgoing(subMsg);
         } else {
