@@ -22,16 +22,18 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 
+import static io.nats.client.support.NatsConstants.OP_PING;
+import static io.nats.client.support.NatsConstants.OP_PING_BYTES;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class NatsMessageTests extends JetStreamTestBase {
     @Test
     public void testSizeOnProtocolMessage() {
-        NatsMessage msg = new ProtocolMessage("PING".getBytes());
+        NatsMessage msg = new ProtocolMessage(OP_PING_BYTES);
         assertEquals(msg.getProtocolBytes().length + 2, msg.getSizeInBytes(), "Size is set, with CRLF");
-        assertEquals("PING".getBytes(StandardCharsets.UTF_8).length + 2, msg.getSizeInBytes(), "Size is correct");
-        assertTrue(msg.toString().endsWith("PING")); // toString COVERAGE
+        assertEquals(OP_PING_BYTES.length + 2, msg.getSizeInBytes(), "Size is correct");
+        assertTrue(msg.toString().endsWith(OP_PING)); // toString COVERAGE
     }
 
     @Test
@@ -192,6 +194,8 @@ public class NatsMessageTests extends JetStreamTestBase {
         assertFalse(m.isStatusMessage());
         assertNotNull(m.toString());
         assertNotNull(m.toDetailString());
+        assertFalse(m.isProtocol());
+        assertFalse(m.isProtocolFilterOnStop());
 
         m = NatsMessage.builder()
             .subject("test").replyTo("reply")
@@ -230,8 +234,7 @@ public class NatsMessageTests extends JetStreamTestBase {
         m = testMessage();
         assertTrue(m.hasHeaders());
         assertNotNull(m.getHeaders());
-        //noinspection deprecation
-        assertFalse(m.isUtf8mode()); // coverage, ALWAYS FALSE SINCE DEPRECATED
+        assertFalse(m.isUtf8mode()); // coverage, ALWAYS FALSE SINCE DISUSED
         assertFalse(m.getHeaders().isEmpty());
         assertNull(m.getSubscription());
         assertNull(m.getNatsSubscription());
@@ -244,17 +247,29 @@ public class NatsMessageTests extends JetStreamTestBase {
         assertNull(m.getHeaders());
         assertNotNull(m.toString()); // COVERAGE
 
-        ProtocolMessage pm = new ProtocolMessage(new byte[0]);
-        assertNotNull(pm.getProtocolBab());
-        assertEquals(0, pm.getProtocolBab().length());
-        assertEquals(2, pm.getSizeInBytes());
-        assertEquals(2, pm.getControlLineLength());
+        ProtocolMessage pmFilterOnStop = new ProtocolMessage(new byte[0]);
+        ProtocolMessage pmNotFilterOnStop = new ProtocolMessage(pmFilterOnStop.getProtocolBab(), false);
+
+        validateProto(pmFilterOnStop, true);
+        validateProto(pmNotFilterOnStop, false);
+
+        // retains filter on stop
+        validateProto(new ProtocolMessage(pmFilterOnStop), true);
+        validateProto(new ProtocolMessage(pmNotFilterOnStop), false);
+
+        // sets filter on stop
+        validateProto(new ProtocolMessage(pmFilterOnStop.getProtocolBab(), true), true);
+        validateProto(new ProtocolMessage(pmFilterOnStop.getProtocolBab(), false), false);
+        validateProto(new ProtocolMessage(pmNotFilterOnStop.getProtocolBab(), true), true);
+        validateProto(new ProtocolMessage(pmNotFilterOnStop.getProtocolBab(), false), false);
 
         IncomingMessage scm = new IncomingMessage() {};
         assertEquals(0, scm.getSizeInBytes());
         assertThrows(IllegalStateException.class, scm::getProtocolBab);
         assertThrows(IllegalStateException.class, scm::getProtocolBytes);
         assertThrows(IllegalStateException.class, scm::getControlLineLength);
+        assertFalse(scm.isProtocol());
+        assertFalse(scm.isProtocolFilterOnStop());
 
         // coverage coverage coverage
         //noinspection deprecation
@@ -262,6 +277,15 @@ public class NatsMessageTests extends JetStreamTestBase {
         nmCov.calculate();
 
         assertTrue(nmCov.toDetailString().contains("PUB sub reply 0"));
+    }
+
+    private static void validateProto(ProtocolMessage pm, boolean isProtocolFilterOnStop) {
+        assertNotNull(pm.getProtocolBab());
+        assertEquals(0, pm.getProtocolBab().length());
+        assertEquals(2, pm.getSizeInBytes());
+        assertEquals(2, pm.getControlLineLength());
+        assertTrue(pm.isProtocol());
+        assertEquals(isProtocolFilterOnStop, pm.isProtocolFilterOnStop());
     }
 
     @Test

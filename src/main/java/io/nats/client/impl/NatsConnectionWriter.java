@@ -30,7 +30,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static io.nats.client.support.BuilderBase.bufferAllocSize;
-import static io.nats.client.support.NatsConstants.*;
+import static io.nats.client.support.NatsConstants.CR;
+import static io.nats.client.support.NatsConstants.LF;
 
 class NatsConnectionWriter implements Runnable {
     private static final int BUFFER_BLOCK_SIZE = 256;
@@ -105,10 +106,7 @@ class NatsConnectionWriter implements Runnable {
             try {
                 this.outgoing.pause();
                 this.reconnectOutgoing.pause();
-                // Clear old ping/pong requests
-                this.outgoing.filter((msg) ->
-                    msg.isProtocol() &&
-                        (msg.getProtocolBab().equals(OP_PING_BYTES) || msg.getProtocolBab().equals(OP_PONG_BYTES)));
+                this.outgoing.filter(NatsMessage::isProtocolFilterOnStop);
             }
             finally {
                 this.startStopLock.unlock();
@@ -151,7 +149,7 @@ class NatsConnectionWriter implements Runnable {
                 sendBuffer[sendPosition++] = CR;
                 sendBuffer[sendPosition++] = LF;
 
-                if (!msg.isProtocol()) { // because a protocol message does not have headers
+                if (!msg.isProtocol()) { // because a protocol message does not have headers or data
                     sendPosition += msg.copyNotEmptyHeaders(sendPosition, sendBuffer);
 
                     byte[] bytes = msg.getData(); // guaranteed to not be null
