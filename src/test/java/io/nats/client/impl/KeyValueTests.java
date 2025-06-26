@@ -1798,7 +1798,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testLimitMarker() throws Exception {
-        jsServer.run(TestBase::atLeast2_11, nc -> {
+        jsServer.run(TestBase::atLeast2_11_2, nc -> {
             KeyValueManagement kvm = nc.keyValueManagement();
             String bucket = bucket();
             KeyValueConfiguration config = KeyValueConfiguration.builder()
@@ -1845,7 +1845,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testLimitMarkerAlso() throws Exception {
-        jsServer.run(TestBase::atLeast2_11, nc -> {
+        jsServer.run(TestBase::atLeast2_11_2, nc -> {
             String bucket = bucket();
             String key = key();
 
