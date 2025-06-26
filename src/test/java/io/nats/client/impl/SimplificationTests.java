@@ -1303,20 +1303,20 @@ public class SimplificationTests extends JetStreamTestBase {
 
             FetchConsumeOptions fcoNoMin = FetchConsumeOptions.builder()
                 .maxMessages(5)
-                .expiresIn(2000)
+                .expiresIn(3000)
                 .group(group)
                 .build();
 
             FetchConsumeOptions fcoOverA = FetchConsumeOptions.builder()
                 .maxMessages(5)
-                .expiresIn(2000)
+                .expiresIn(3000)
                 .group(group)
                 .minAckPending(5)
                 .build();
 
             FetchConsumeOptions fcoOverB = FetchConsumeOptions.builder()
                 .maxMessages(5)
-                .expiresIn(2000)
+                .expiresIn(3000)
                 .group(group)
                 .minAckPending(6)
                 .build();
@@ -1493,6 +1493,36 @@ public class SimplificationTests extends JetStreamTestBase {
 
             assertTrue(primeCount.get() > 0);
             assertEquals(0, overCount.get());
+        });
+    }
+
+    @Test
+    public void testFinishEmptyStream() throws Exception {
+        ListenerForTesting l = new ListenerForTesting();
+        Options.Builder b = Options.builder().errorListener(l);
+        runInJsServer(b, nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
+
+            String name = variant();
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                .name(name)
+                .filterSubjects(tsc.subject()).build();
+            jsm.addOrUpdateConsumer(tsc.stream, cc);
+
+            ConsumerContext cctx = nc.getConsumerContext(tsc.stream, name);
+
+            MessageHandler handler = m -> {
+                System.out.println(m);
+                m.ack();
+            };
+
+            ConsumeOptions co = ConsumeOptions.builder().expiresIn(1000).build();
+            MessageConsumer consumer = cctx.consume(co, handler);
+            consumer.stop();
+            sleep(1200); // more than the expires period for the consume
+            assertTrue(consumer.isFinished());
         });
     }
 }

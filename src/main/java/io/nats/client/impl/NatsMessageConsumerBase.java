@@ -104,6 +104,16 @@ class NatsMessageConsumerBase implements MessageConsumer {
         lenientClose();
     }
 
+    protected void finish(boolean close) {
+        finished.set(true);
+        if (pmm != null) {
+            pmm.shutdownHeartbeatTimer();
+        }
+        if (close) {
+            lenientClose();
+        }
+    }
+
     protected void lenientClose() {
         try {
             if (!stopped.get() || sub.isActive()) {
