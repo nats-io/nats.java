@@ -104,14 +104,12 @@ class NatsMessageConsumerBase implements MessageConsumer {
         lenientClose();
     }
 
-    protected void finish(boolean close) {
-        finished.set(true);
+    protected void finishAndClose() {
         if (pmm != null) {
             pmm.shutdownHeartbeatTimer();
         }
-        if (close) {
-            lenientClose();
-        }
+        finished.set(true);
+        lenientClose();
     }
 
     protected void lenientClose() {

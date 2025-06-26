@@ -55,7 +55,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
             // just close the current sub and make another one.
             // this could go on endlessly - unless the user had called stop
             if (stopped.get()) {
-                finish(true);
+                finishAndClose();
             }
             else {
                 lenientClose();
@@ -72,7 +72,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
         MessageHandler mh = userMessageHandler == null ? null : msg -> {
             userMessageHandler.onMessage(msg);
             if (stopped.get() && pmm.noMorePending()) {
-                finish(false);
+                finishAndClose();
             }
         };
         super.initSub(subscriptionMaker.subscribe(mh, userDispatcher, pmm, null));
@@ -85,7 +85,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
     public void pendingUpdated() {
         if (stopped.get()) {
             if (pmm.noMorePending()) {
-                finish(false);
+                finishAndClose();
             }
         }
         else if (pmm.pendingMessages <= thresholdMessages || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes))
