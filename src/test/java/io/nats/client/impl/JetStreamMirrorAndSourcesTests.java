@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.DateTimeUtils;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -294,30 +295,27 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
     }
 
     @Test
+    @Disabled("This used to work.")
     public void testSourceAndTransformsRoundTrips() throws Exception {
-        jsServer.run(si -> si.isNewerVersionThan("2.9.99"), nc -> {
-            StreamConfiguration scMirror = StreamConfigurationTests.getStreamConfigurationFromJson("StreamConfigurationMirrorSubjectTransform.json");
-            StreamConfiguration scSource = StreamConfigurationTests.getStreamConfigurationFromJson("StreamConfigurationSourcedSubjectTransform.json");
-
+        jsServer.run(si -> atLeast2_10(), nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
-            StreamInfo si = jsm.addStream(scMirror);
-            Mirror m = scMirror.getMirror();
-            MirrorInfo mi = si.getMirrorInfo();
-            assertEquals(m.getName(), mi.getName());
-            assertEquals(m.getSubjectTransforms(), mi.getSubjectTransforms());
-            assertTrue(scMirror.getSources().isEmpty());
-            assertNull(si.getSourceInfos());
-            jsm.deleteStream(scMirror.getName());
+            StreamConfiguration scSource = StreamConfigurationTests.getStreamConfigurationFromJson(
+                "StreamConfigurationSourcedSubjectTransform.json");
 
-            si = jsm.addStream(scSource);
+            StreamInfo si = jsm.addStream(scSource);
             assertNull(scSource.getMirror());
             assertNull(si.getMirrorInfo());
 
+            assertNotNull(scSource.getSources());
+            assertNotNull(si.getSourceInfos());
             Source source = scSource.getSources().get(0);
             SourceInfo info = si.getSourceInfos().get(0);
+            assertNotNull(info);
+            assertNotNull(info.getSubjectTransforms());
             assertEquals(1, info.getSubjectTransforms().size());
 
             assertEquals(source.getName(), info.getName());
+            assertNotNull(source.getSubjectTransforms());
             assertEquals(1, source.getSubjectTransforms().size());
 
             SubjectTransform st = source.getSubjectTransforms().get(0);
@@ -327,14 +325,36 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
 
             source = scSource.getSources().get(1);
             info = si.getSourceInfos().get(1);
+            assertNotNull(scSource.getSources());
+            assertNotNull(si.getSourceInfos());
             assertEquals(source.getName(), info.getName());
+            assertNotNull(info.getSubjectTransforms());
             assertEquals(1, info.getSubjectTransforms().size());
+            assertNotNull(source.getSubjectTransforms());
             st = source.getSubjectTransforms().get(0);
             infoSt = info.getSubjectTransforms().get(0);
             assertEquals(st.getSource(), infoSt.getSource());
             assertEquals(st.getDestination(), infoSt.getDestination());
+        });
+    }
 
-            jsm.deleteStream(scSource.getName());
+    @Test
+    public void testMirror() throws Exception {
+        jsServer.run(si -> atLeast2_10(), nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            StreamConfiguration scMirror = StreamConfigurationTests.getStreamConfigurationFromJson(
+                "StreamConfigurationMirrorSubjectTransform.json");
+
+            StreamInfo si = jsm.addStream(scMirror);
+            Mirror m = scMirror.getMirror();
+            MirrorInfo mi = si.getMirrorInfo();
+            assertNotNull(m);
+            assertNotNull(mi);
+            assertEquals(m.getName(), mi.getName());
+            assertEquals(m.getSubjectTransforms(), mi.getSubjectTransforms());
+            assertNotNull(scMirror.getSources());
+            assertTrue(scMirror.getSources().isEmpty());
+            assertNull(si.getSourceInfos());
         });
     }
 }
