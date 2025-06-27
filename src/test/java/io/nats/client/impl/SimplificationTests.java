@@ -1294,7 +1294,7 @@ public class SimplificationTests extends JetStreamTestBase {
                 .name(consumer)
                 .priorityPolicy(PriorityPolicy.Overflow)
                 .priorityGroups(group)
-                .ackWait(3000)
+                .ackWait(10_000)
                 .filterSubjects(tsc.subject()).build();
             jsm.addOrUpdateConsumer(tsc.stream, cc);
 
