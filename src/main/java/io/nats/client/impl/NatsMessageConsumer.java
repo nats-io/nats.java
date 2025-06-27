@@ -53,9 +53,14 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
     public void heartbeatError() {
         try {
             // just close the current sub and make another one.
-            // this could go on endlessly
-            lenientClose();
-            doSub();
+            // this could go on endlessly - unless the user had called stop
+            if (stopped.get()) {
+                finishAndClose();
+            }
+            else {
+                lenientClose();
+                doSub();
+            }
         }
         catch (JetStreamApiException | IOException e) {
             pmm.resetTracking();
@@ -67,7 +72,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
         MessageHandler mh = userMessageHandler == null ? null : msg -> {
             userMessageHandler.onMessage(msg);
             if (stopped.get() && pmm.noMorePending()) {
-                finished.set(true);
+                finishAndClose();
             }
         };
         super.initSub(subscriptionMaker.subscribe(mh, userDispatcher, pmm, null));
@@ -78,7 +83,12 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
 
     @Override
     public void pendingUpdated() {
-        if (!stopped.get() && (pmm.pendingMessages <= thresholdMessages || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes)))
+        if (stopped.get()) {
+            if (pmm.noMorePending()) {
+                finishAndClose();
+            }
+        }
+        else if (pmm.pendingMessages <= thresholdMessages || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes))
         {
             repull();
         }
