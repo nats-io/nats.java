@@ -118,7 +118,7 @@ class PullMessageManager extends MessageManager {
 
         // heartbeat just needed to be recorded
         if (status.isHeartbeat()) {
-            trackIncoming(Integer.MIN_VALUE, Integer.MIN_VALUE);
+            updateLastMessageReceived(); // no need to call track incoming, this is all it does
             return false;
         }
 
