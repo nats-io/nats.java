@@ -1294,7 +1294,7 @@ public class SimplificationTests extends JetStreamTestBase {
                 .name(consumer)
                 .priorityPolicy(PriorityPolicy.Overflow)
                 .priorityGroups(group)
-                .ackWait(60_000)
+                .ackWait(10_000)
                 .filterSubjects(tsc.subject()).build();
             jsm.addOrUpdateConsumer(tsc.stream, cc);
 
@@ -1302,35 +1302,27 @@ public class SimplificationTests extends JetStreamTestBase {
             ConsumerContext ctxOver = nc.getConsumerContext(tsc.stream, consumer);
 
             FetchConsumeOptions fcoNoMin = FetchConsumeOptions.builder()
-                .maxMessages(5)
-                .expiresIn(3000)
-                .group(group)
+                .maxMessages(5).expiresIn(1000).group(group)
                 .build();
 
             FetchConsumeOptions fcoOverA = FetchConsumeOptions.builder()
-                .maxMessages(5)
-                .expiresIn(3000)
-                .group(group)
-                .minAckPending(5)
+                .maxMessages(5).expiresIn(1000).group(group).minAckPending(5)
                 .build();
 
             FetchConsumeOptions fcoOverB = FetchConsumeOptions.builder()
-                .maxMessages(5)
-                .expiresIn(3000)
-                .group(group)
-                .minAckPending(6)
+                .maxMessages(5).expiresIn(1000).group(group).minAckPending(10)
                 .build();
 
-            _overflowFetch(ctxPrime, fcoNoMin, true, 5);
-            _overflowFetch(ctxOver, fcoNoMin, true, 5);
+            _overflowFetch(ctxPrime, fcoNoMin, true, 5, 0);
+            _overflowFetch(ctxOver, fcoNoMin, true, 5, 0);
 
-            _overflowFetch(ctxPrime, fcoNoMin, false, 5);
-            _overflowFetch(ctxOver, fcoOverA, true, 5);
-            _overflowFetch(ctxOver, fcoOverB, true, 0);
+            _overflowFetch(ctxPrime, fcoNoMin, false, 5, 5);
+            _overflowFetch(ctxOver, fcoOverA, true, 5, 5);
+            _overflowFetch(ctxOver, fcoOverB, true, 0, 5);
         });
     }
 
-    private static void _overflowFetch(ConsumerContext cctx, FetchConsumeOptions fco, boolean ack, int expected) throws Exception {
+    private static void _overflowFetch(ConsumerContext cctx, FetchConsumeOptions fco, boolean ack, int expected, int ackPendingWhenDone) throws Exception {
         try (FetchConsumer fc = cctx.fetch(fco)) {
             int count = 0;
             Message m = fc.nextMessage();
@@ -1342,6 +1334,10 @@ public class SimplificationTests extends JetStreamTestBase {
                 m = fc.nextMessage();
             }
             assertEquals(expected, count);
+            if (ack) {
+                sleep(50); // give the server time to process acks given
+            }
+            assertEquals(ackPendingWhenDone, cctx.getConsumerInfo().getNumAckPending());
         }
     }
 
