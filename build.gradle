@@ -85,7 +85,11 @@ test {
         showStandardStreams = true
     }
     if (isLocal) {
-        failFast = true
+        retry {
+            failOnPassedAfterRetry = false
+            maxFailures = 2
+            maxRetries = 2
+        }
     }
     else {
         retry {

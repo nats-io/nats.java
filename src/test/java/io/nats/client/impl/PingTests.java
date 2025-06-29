@@ -70,18 +70,16 @@ public class PingTests {
     @Test
     public void testPingTimer() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false)) {
-            Options options = new Options.Builder().server(ts.getURI()).pingInterval(Duration.ofMillis(5)).build();
+            Options options = new Options.Builder().server(ts.getURI())
+                .pingInterval(Duration.ofMillis(5))
+                .maxPingsOut(10000) // just don't want this to be what fails the test
+                .build();
             NatsConnection nc = (NatsConnection) Nats.connect(options);
             StatisticsCollector stats = nc.getNatsStatistics();
 
             try {
                 assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-                try {
-                    Thread.sleep(200); // should get 10+ pings
-                } catch (Exception exp)
-                {
-                    //Ignore
-                }
+                try { Thread.sleep(200); } catch (Exception ignore) {} // 1200 / 100 ... should get 10+ pings
                 assertTrue(stats.getPings() > 10, "got pings");
             } finally {
                 nc.close();
@@ -186,10 +184,13 @@ public class PingTests {
         ListenerForTesting listener = new ListenerForTesting();
         try (NatsTestServer ts = new NatsTestServer(false)) {
             try (NatsTestServer ts2 = new NatsTestServer()) {
-                Options options = new Options.Builder().connectionListener(listener).
-                                        server(ts.getURI()).
-                                        server(ts2.getURI()).
-                                        pingInterval(Duration.ofMillis(5)).build();
+                Options options = new Options.Builder()
+                    .connectionListener(listener)
+                    .server(ts.getURI())
+                    .server(ts2.getURI())
+                    .pingInterval(Duration.ofMillis(5))
+                    .maxPingsOut(10000) // just don't want this to be what fails the test
+                    .build();
                 NatsConnection nc = (NatsConnection) Nats.connect(options);
                 StatisticsCollector stats = nc.getNatsStatistics();
 

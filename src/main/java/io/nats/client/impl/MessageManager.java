@@ -18,11 +18,10 @@ import io.nats.client.NatsSystemClock;
 import io.nats.client.PullRequestOptions;
 import io.nats.client.SubscribeOptions;
 import io.nats.client.support.NatsConstants;
+import io.nats.client.support.ScheduledTask;
 
 import java.time.Duration;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -46,8 +45,8 @@ abstract class MessageManager {
     protected boolean hb;
     protected long idleHeartbeatSetting;
     protected long alarmPeriodSettingNanos;
-    protected MmTimerTask heartbeatTimerTask;
-    protected Timer heartbeatTimer;
+    protected ScheduledTask heartbeatTask;
+    protected final AtomicLong currentAlarmPeriodNanos;
 
     protected MessageManager(NatsConnection conn, SubscribeOptions so, boolean syncMode) {
         stateChangeLock = new ReentrantLock();
@@ -62,6 +61,7 @@ abstract class MessageManager {
         idleHeartbeatSetting = 0;
         alarmPeriodSettingNanos = 0;
         lastMsgReceivedNanoTime = new AtomicLong(NatsSystemClock.nanoTime());
+        currentAlarmPeriodNanos = new AtomicLong();
     }
 
     protected boolean isSyncMode()              { return syncMode; }
@@ -134,50 +134,12 @@ abstract class MessageManager {
         lastMsgReceivedNanoTime.set(NatsSystemClock.nanoTime());
     }
 
-    class MmTimerTask extends TimerTask {
-        long alarmPeriodNanos;
-        final AtomicBoolean alive;
-
-        public MmTimerTask(long alarmPeriodNanos) {
-            this.alarmPeriodNanos = alarmPeriodNanos;
-            alive = new AtomicBoolean(true);
-        }
-
-        public void reuse() {
-            alive.getAndSet(true);
-        }
-
-        public void shutdown() {
-            alive.getAndSet(false);
-        }
-
-        @Override
-        public void run() {
-            if (alive.get() && !Thread.interrupted()) {
-                long sinceLast = NatsSystemClock.nanoTime() - lastMsgReceivedNanoTime.get();
-                if (alive.get() && sinceLast > alarmPeriodNanos) {
-                    handleHeartbeatError();
-                }
-            }
-        }
-
-        @Override
-        public String toString() {
-            long sinceLastMillis = (NatsSystemClock.nanoTime() - lastMsgReceivedNanoTime.get()) / NatsConstants.NANOS_PER_MILLI;
-            return "MmTimerTask{" +
-                ", alarmPeriod=" + (alarmPeriodNanos / NatsConstants.NANOS_PER_MILLI) +
-                "ms, alive=" + alive.get() +
-                ", sinceLast=" + sinceLastMillis + "ms}";
-        }
-    }
-
     protected void initOrResetHeartbeatTimer() {
         stateChangeLock.lock();
         try {
-            if (heartbeatTimer != null) {
+            if (heartbeatTask != null) {
                 // Same settings, just reuse the existing timer
-                if (heartbeatTimerTask.alarmPeriodNanos == alarmPeriodSettingNanos) {
-                    heartbeatTimerTask.reuse();
+                if (currentAlarmPeriodNanos.get() == alarmPeriodSettingNanos) {
                     updateLastMessageReceived();
                     return;
                 }
@@ -185,11 +147,16 @@ abstract class MessageManager {
                 // Replace timer since settings have changed
                 shutdownHeartbeatTimer();
             }
+
             // replacement or new comes here
-            heartbeatTimer = new Timer();
-            heartbeatTimerTask = new MmTimerTask(alarmPeriodSettingNanos);
-            long alarmPeriodSettingMillis = alarmPeriodSettingNanos / NatsConstants.NANOS_PER_MILLI;
-            heartbeatTimer.schedule(heartbeatTimerTask, alarmPeriodSettingMillis, alarmPeriodSettingMillis);
+            this.currentAlarmPeriodNanos.set(alarmPeriodSettingNanos);
+            heartbeatTask = new ScheduledTask(conn.getScheduledExecutor(), alarmPeriodSettingNanos, TimeUnit.NANOSECONDS,
+                () -> {
+                    long sinceLast = NatsSystemClock.nanoTime() - lastMsgReceivedNanoTime.get();
+                    if (sinceLast > currentAlarmPeriodNanos.get()) {
+                        handleHeartbeatError();
+                    }
+                });
             updateLastMessageReceived();
         }
         finally {
@@ -200,12 +167,11 @@ abstract class MessageManager {
     protected void shutdownHeartbeatTimer() {
         stateChangeLock.lock();
         try {
-            if (heartbeatTimer != null) {
-                heartbeatTimerTask.shutdown();
-                heartbeatTimerTask = null;
-                heartbeatTimer.cancel();
-                heartbeatTimer = null;
+            if (heartbeatTask != null) {
+                heartbeatTask.shutdown();
+                heartbeatTask = null;
             }
+            currentAlarmPeriodNanos.set(0);
         }
         finally {
             stateChangeLock.unlock();
