@@ -495,10 +495,14 @@ public class SimplificationTests extends JetStreamTestBase {
             try (MessageConsumer consumer = consumerContext.consume(handler)) {
                 latch.await();
                 consumer.stop();
-                while (!consumer.isFinished()) {
+                long elapsed = 0;
+                long startTime = System.currentTimeMillis();
+                while (!consumer.isFinished() && elapsed < 5000) {
                     //noinspection BusyWait
                     Thread.sleep(10);
+                    elapsed = System.currentTimeMillis() - startTime;
                 }
+                assertTrue(elapsed < 5000);
                 assertTrue(atomicCount.get() > 500);
             }
         });
