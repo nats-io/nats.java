@@ -165,6 +165,14 @@ public class TestBase {
         return si.isSameOrNewerThanVersion("2.11.2");
     }
 
+    public static boolean before2_11_6() {
+        return before2_11_6(RUN_SERVER_INFO);
+    }
+
+    public static boolean before2_11_6(ServerInfo si) {
+        return si.isOlderThanVersion("2.11.6");
+    }
+
     public static void runInServer(InServerTest inServerTest) throws Exception {
         runInServer(false, false, null, null, inServerTest);
     }

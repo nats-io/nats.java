@@ -99,6 +99,7 @@ test {
         }
     }
     maxParallelForks = Runtime.runtime.availableProcessors()
+    systemProperty 'junit.jupiter.execution.timeout.default', '3m'
 }
 
 javadoc {
