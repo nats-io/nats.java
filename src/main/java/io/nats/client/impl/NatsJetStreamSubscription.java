@@ -151,10 +151,22 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         }
     }
 
+    public static boolean INTERNAL_DEBUG__nextUnmanaged = false;
+
     protected Message _nextUnmanaged(long timeoutNanos, String expectedPullSubject) throws InterruptedException {
+        if (INTERNAL_DEBUG__nextUnmanaged) {
+            System.out.println("_nextUnmanaged | "
+                + "timeoutNanos: " + timeoutNanos + "ns |"
+            );
+        }
         long timeLeftNanos = timeoutNanos;
         long start = NatsSystemClock.nanoTime();
         while (timeLeftNanos > 0) {
+            if (INTERNAL_DEBUG__nextUnmanaged) {
+                System.out.println("_nextUnmanaged | "
+                    + "timeLeftNanos: " + timeLeftNanos + "ns |"
+                );
+            }
             Message msg = nextMessageInternal( Duration.ofNanos(timeLeftNanos) );
             if (msg == null) {
                 return null; // normal timeout

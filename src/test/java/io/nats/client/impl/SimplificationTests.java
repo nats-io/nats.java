@@ -17,17 +17,12 @@ import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.*;
 import io.nats.client.utils.TestBase;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInfo;
 
 import java.io.*;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -37,25 +32,6 @@ import static io.nats.client.BaseConsumeOptions.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class SimplificationTests extends JetStreamTestBase {
-
-    static Map<String, String> TM = new HashMap<>();
-
-    @BeforeEach
-    public void BeforeEach(TestInfo testInfo) {
-        String dn = testInfo.getDisplayName();
-        System.out.println("BEFORE " + dn);
-        TM.put(dn, dn);
-    }
-
-    @AfterEach
-    public void AfterEach(TestInfo testInfo) {
-        String dn = testInfo.getDisplayName();
-        System.out.println("AFTER " + dn);
-        TM.remove(dn);
-        for (String key : TM.keySet()) {
-            System.out.println("STILL RUNNING: " + key);
-        }
-    }
 
     @Test
     public void testStreamContext() throws Exception {
@@ -959,6 +935,9 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedBehaviorIterable() throws Exception {
+        NatsJetStreamSubscription.INTERNAL_DEBUG__nextUnmanaged = true;
+        System.out.println("testOrderedBehaviorIterable IN");
+
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
             // Setup
             JetStream js = nc.jetStream();
@@ -995,9 +974,17 @@ public class SimplificationTests extends JetStreamTestBase {
                 .consumerNamePrefix(prefix())
                 .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
         });
+        System.out.println("testOrderedBehaviorIterable OUT");
+        NatsJetStreamSubscription.INTERNAL_DEBUG__nextUnmanaged = false;
     }
 
     private static void _testOrderedIterate(StreamContext sctx, int expectedStreamSeq, OrderedConsumerConfiguration occ) throws Exception {
+        System.out.println("_testOrderedIterate | "
+                + "CS_FOR_SS_3: " + CS_FOR_SS_3 + " | "
+                + "seq: " + expectedStreamSeq + " | "
+                + "prefix: " + occ.getConsumerNamePrefix() + " | "
+                + "occ: " + occ.toJson()
+            );
         OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
         try (IterableConsumer icon = occtx.iterate()) {
             if (occ.getConsumerNamePrefix() != null) {
