@@ -933,6 +933,9 @@ public class SimplificationTests extends JetStreamTestBase {
         System.out.println("testOrderedBehaviorIterable IN");
 
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
+            jsServer.setExitOnDisconnect();
+            jsServer.setExitOnHeartbeatError();
+
             // Setup
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -986,12 +989,8 @@ public class SimplificationTests extends JetStreamTestBase {
                 assertTrue(occtx.getConsumerName().startsWith(occ.getConsumerNamePrefix()));
                 assertEquals(occtx.getConsumerName(), icon.getConsumerInfo().getName());
             }
-            int alarmCount = jsServer.listenerForTesting.getHeartbeatAlarms().size();
             // Loop through the messages to make sure I get stream sequence 1 to 5
             while (expectedStreamSeq <= 5) {
-                if (jsServer.listenerForTesting.getHeartbeatAlarms().size() > alarmCount) {
-                    fail("UNEXPECTED HEARTBEAT ALARM #" + TEST_NO.get() + " | ");
-                }
                 Message m = icon.nextMessage(Duration.ofSeconds(1)); // use the duration version here for coverage
                 if (m != null) {
                     assertEquals(expectedStreamSeq++, m.metaData().streamSequence());

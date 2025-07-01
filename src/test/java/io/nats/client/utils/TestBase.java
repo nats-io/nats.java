@@ -278,6 +278,18 @@ public class TestBase {
             }
         }
 
+        public void setExitOnDisconnect() {
+            if (listenerForTesting != null) {
+                listenerForTesting.setExitOnDisconnect();
+            }
+        }
+
+        public void setExitOnHeartbeatError() {
+            if (listenerForTesting != null) {
+                listenerForTesting.setExitOnHeartbeatError();
+            }
+        }
+
         public Connection connect() throws IOException, InterruptedException {
             return standardConnection(builder.server(getURI()).build());
         }
