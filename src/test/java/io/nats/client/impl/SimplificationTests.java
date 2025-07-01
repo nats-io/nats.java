@@ -972,8 +972,9 @@ public class SimplificationTests extends JetStreamTestBase {
         NatsJetStreamSubscription.INTERNAL_DEBUG__nextUnmanaged = false;
     }
 
+    static AtomicLong TEST_NO = new AtomicLong();
     private static void _testOrderedIterate(StreamContext sctx, int expectedStreamSeq, OrderedConsumerConfiguration occ) throws Exception {
-        System.out.println("_testOrderedIterate | "
+        System.out.println("_testOrderedIterate #" + TEST_NO.getAndIncrement() + " | "
             + "CS_FOR_SS_3: " + CS_FOR_SS_3 + " | "
             + "seq: " + expectedStreamSeq + " | "
             + "prefix: " + occ.getConsumerNamePrefix() + " | "
@@ -985,8 +986,12 @@ public class SimplificationTests extends JetStreamTestBase {
                 assertTrue(occtx.getConsumerName().startsWith(occ.getConsumerNamePrefix()));
                 assertEquals(occtx.getConsumerName(), icon.getConsumerInfo().getName());
             }
+            int alarmCountAtStart = jsServer.listenerForTesting.getHeartbeatAlarms().size();
             // Loop through the messages to make sure I get stream sequence 1 to 5
             while (expectedStreamSeq <= 5) {
+                if (jsServer.listenerForTesting.getHeartbeatAlarms().size() > alarmCountAtStart) {
+                    fail("UNEXPECTED HEARTBEAT ALARM #" + TEST_NO.get() + " | ");
+                }
                 Message m = icon.nextMessage(Duration.ofSeconds(1)); // use the duration version here for coverage
                 if (m != null) {
                     assertEquals(expectedStreamSeq++, m.metaData().streamSequence());

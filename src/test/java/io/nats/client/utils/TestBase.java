@@ -263,11 +263,19 @@ public class TestBase {
     public static class LongRunningNatsTestServer extends NatsTestServer {
         public final boolean jetstream;
         public final Options.Builder builder;
+        public final ListenerForTesting listenerForTesting;
 
         public LongRunningNatsTestServer(boolean debug, boolean jetstream, Options.Builder builder) throws IOException, InterruptedException {
             super(debug, jetstream);
             this.jetstream = jetstream;
-            this.builder = builder == null ? new Options.Builder() : builder;
+            if (builder == null) {
+                this.builder = new Options.Builder();
+                listenerForTesting = new ListenerForTesting();
+            }
+            else {
+                this.builder = builder;
+                listenerForTesting = null;
+            }
         }
 
         public Connection connect() throws IOException, InterruptedException {
