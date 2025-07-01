@@ -47,6 +47,7 @@ public class JetStreamTestBase extends TestBase {
 
     @BeforeAll
     public static void beforeAll() throws IOException, InterruptedException {
+        System.out.println("JetStreamTestBase Before All");
         jsServer = new LongRunningNatsTestServer(false, true, null);
     }
 
