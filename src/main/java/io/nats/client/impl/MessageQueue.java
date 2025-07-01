@@ -184,6 +184,7 @@ class MessageQueue {
             return true;
         }
         catch (InterruptedException e) {
+            System.out.println("MESSAGE QUEUE INTERRUPTED");
             Thread.currentThread().interrupt();
             return false;
         }
