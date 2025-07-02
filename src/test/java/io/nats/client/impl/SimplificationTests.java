@@ -935,9 +935,6 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedBehaviorIterable() throws Exception {
-        NatsJetStreamSubscription.INTERNAL_DEBUG__nextUnmanaged = true;
-        System.out.println("testOrderedBehaviorIterable IN");
-
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
             // Setup
             JetStream js = nc.jetStream();
@@ -974,17 +971,9 @@ public class SimplificationTests extends JetStreamTestBase {
                 .consumerNamePrefix(prefix())
                 .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
         });
-        System.out.println("testOrderedBehaviorIterable OUT");
-        NatsJetStreamSubscription.INTERNAL_DEBUG__nextUnmanaged = false;
     }
 
     private static void _testOrderedIterate(StreamContext sctx, int expectedStreamSeq, OrderedConsumerConfiguration occ) throws Exception {
-        System.out.println("_testOrderedIterate | "
-                + "CS_FOR_SS_3: " + CS_FOR_SS_3 + " | "
-                + "seq: " + expectedStreamSeq + " | "
-                + "prefix: " + occ.getConsumerNamePrefix() + " | "
-                + "occ: " + occ.toJson()
-            );
         OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
         try (IterableConsumer icon = occtx.iterate()) {
             if (occ.getConsumerNamePrefix() != null) {

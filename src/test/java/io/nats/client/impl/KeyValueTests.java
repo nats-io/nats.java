@@ -1847,9 +1847,9 @@ public class KeyValueTests extends JetStreamTestBase {
     public void testLimitMarkerAlso() throws Exception {
         jsServer.run(TestBase::atLeast2_11_2, nc -> {
             String bucket = bucket();
-            String key1 = "k1"; //key();
-            String key2 = "k2"; //key();
-            String key3 = "k3"; //key();
+            String key1 = key();
+            String key2 = key();
+            String key3 = key();
 
             KeyValueManagement kvm = nc.keyValueManagement();
             KeyValueConfiguration config = KeyValueConfiguration.builder()
@@ -1918,8 +1918,13 @@ public class KeyValueTests extends JetStreamTestBase {
                     }
                 }
             };
+
             JetStreamSubscription sub = nc.jetStream().subscribe(null, d, rawHandler, true,
-                PushSubscribeOptions.builder().stream("KV_" + bucket).configuration(ConsumerConfiguration.builder().filterSubject(">").build()).build());
+                PushSubscribeOptions.builder()
+                    .stream("KV_" + bucket)
+                    .configuration(ConsumerConfiguration.builder().filterSubject(">")
+                        .build())
+                    .build());
 
             kv.create(key1, dataBytes(), MessageTtl.seconds(2));
             kv.create(key2, dataBytes());
@@ -1932,25 +1937,25 @@ public class KeyValueTests extends JetStreamTestBase {
             kv.purge(key2, MessageTtl.seconds(2));
             kv.purge(key3);
 
-            if (before2_11_6()) {
-                sleep(8000); // longer than the message ttl plus the limit marker since double purge plus some extra
+            // This section will have to be modified if there are changes
+            // to how purge markers are handled (double purge on ttl purge, fix for no purge of non-ttl purge)
+            sleep(8000); // longer than the message ttl plus the limit marker since double purge plus some extra
 
-                assertNull(kv.get(key1));
-                assertNull(kv.get(key2));
-                assertNull(kv.get(key3));
+            assertNull(kv.get(key1));
+            assertNull(kv.get(key2));
+            assertNull(kv.get(key3));
 
-                // create and put
-                assertEquals(3, wPuts.get());
-                assertEquals(4, wPurges.get()); // the 2 message ttl purge markers, the manual purge and the manual purge's purge.
-                assertEquals(0, wDels.get());
-                assertEquals(1, wEod.get());
+            // create and put
+            assertEquals(3, wPuts.get());
+            assertEquals(4, wPurges.get()); // the 2 message ttl purge markers, the manual purge and the manual purge's purge.
+            assertEquals(0, wDels.get());
+            assertEquals(1, wEod.get());
 
-                assertEquals(7, rMessages.get());
-                assertEquals(2, rPurges.get());
-                assertEquals(2, rMaxAges.get());
-                assertEquals(2, rTtl2.get());
-                assertEquals(2, rTtl5.get());
-            }
+            assertEquals(7, rMessages.get());
+            assertEquals(2, rPurges.get());
+            assertEquals(2, rMaxAges.get());
+            assertEquals(2, rTtl2.get());
+            assertEquals(2, rTtl5.get());
         });
     }
 }
