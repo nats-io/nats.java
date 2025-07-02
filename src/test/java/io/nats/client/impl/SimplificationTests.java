@@ -970,7 +970,6 @@ public class SimplificationTests extends JetStreamTestBase {
         });
     }
 
-    static AtomicLong TEST_NO = new AtomicLong();
     private static void _testOrderedIterate(StreamContext sctx, int expectedStreamSeq, OrderedConsumerConfiguration occ) throws Exception {
         OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
         try (IterableConsumer icon = occtx.iterate()) {
