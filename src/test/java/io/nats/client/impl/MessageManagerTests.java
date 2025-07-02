@@ -98,7 +98,7 @@ public class MessageManagerTests extends JetStreamTestBase {
         assertTrue(manager.beforeQueueProcessorImpl(getTestJsMessage(1, sid)));
         assertEquals(ManageResult.MESSAGE, manager.manage(getTestJsMessage(1, sid)));
 
-        assertEquals(!manager.hb, manager.beforeQueueProcessorImpl(getHeartbeat(sid)));
+        assertEquals(!manager.hb.get(), manager.beforeQueueProcessorImpl(getHeartbeat(sid)));
 
         List<Integer> unhandledCodes = new ArrayList<>();
         assertTrue(manager.beforeQueueProcessorImpl(getFlowControl(1, sid)));
@@ -374,7 +374,7 @@ public class MessageManagerTests extends JetStreamTestBase {
         assertTrue(pmm.beforeQueueProcessorImpl(getTestJsMessage(3, sid)));
         assertTrue(pmm.beforeQueueProcessorImpl(getRequestTimeoutStatus(sid)));
         assertTrue(pmm.beforeQueueProcessorImpl(getFcHeartbeat(9, sid)));
-        assertEquals(!pmm.hb, pmm.beforeQueueProcessorImpl(getHeartbeat(sid)));
+        assertEquals(!pmm.hb.get(), pmm.beforeQueueProcessorImpl(getHeartbeat(sid)));
 
         // coverage extractFcSubject
         assertNull(pmm.extractFcSubject(getTestJsMessage()));

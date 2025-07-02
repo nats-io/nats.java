@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
 
 import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
 
@@ -152,20 +151,12 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         }
     }
 
-    public static boolean INTERNAL_DEBUG__nextUnmanaged = false;
-    private static final AtomicLong INTERNAL_DEBUG_ID = new AtomicLong();
-
     protected Message _nextUnmanaged(long timeoutNanos, String expectedPullSubject) throws InterruptedException {
         long id = -1;
         long timeLeftNanos = timeoutNanos;
         long start = NatsSystemClock.nanoTime();
         long loop = 0;
         while (timeLeftNanos > 0) {
-            if (INTERNAL_DEBUG__nextUnmanaged) {
-                System.out.println("_nextUnmanaged [" + id + "." + (++loop) + "] "
-                    + "timeLeftNanos: " + timeLeftNanos + "ns |"
-                );
-            }
             Message msg = nextMessageInternal( Duration.ofNanos(timeLeftNanos) );
             if (msg == null) {
                 return null; // normal timeout
