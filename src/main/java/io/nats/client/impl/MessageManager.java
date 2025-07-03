@@ -144,16 +144,20 @@ abstract class MessageManager {
                 hbTask.shutdown();
             }
 
+            // do this before so the alarm doesn't trigger to soon
+            updateLastMessageReceived();
+
             // replacement or new comes here
             heartbeatTask.set(new ScheduledTask(conn.getScheduledExecutor(), alarmPeriodSettingNanos.get(), TimeUnit.NANOSECONDS,
                 () -> {
                     long sinceLast = NatsSystemClock.nanoTime() - lastMsgReceivedNanoTime.get();
                     if (sinceLast > alarmPeriodSettingNanos.get()) {
-                        shutdownHeartbeatTimer(); // a new one will get started when needed.
+                        // updates lastMsgReceivedNanoTime so this doesn't so this
+                        // alarm won't be triggered to soon
+                        updateLastMessageReceived();
                         handleHeartbeatError();
                     }
                 }));
-            updateLastMessageReceived();
         }
         finally {
             stateChangeLock.unlock();

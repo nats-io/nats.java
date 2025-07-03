@@ -52,15 +52,8 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
     @Override
     public void heartbeatError() {
         try {
-            // just close the current sub and make another one.
-            // this could go on endlessly - unless the user had called stop
-            if (stopped.get()) {
-                finishAndClose();
-            }
-            else {
-                lenientClose();
-                doSub();
-            }
+            lenientClose();
+            doSub();
         }
         catch (JetStreamApiException | IOException e) {
             pmm.resetTracking();

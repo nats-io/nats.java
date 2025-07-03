@@ -121,8 +121,8 @@ public class ScheduledTask implements Runnable {
         else {
             sb.append(" [shutdown");
         }
-        sb.append(isDone() ? "/done" : "/not done");
-        sb.append(executing.get() ? "/executing" : "/not executing");
+        sb.append(isDone() ? "/done" : "/!done");
+        sb.append(executing.get() ? "/executing" : "/!executing");
         sb.append("]");
         return sb.toString();
     }
