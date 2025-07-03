@@ -52,12 +52,16 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
     @Override
     public void heartbeatError() {
         try {
-            lenientClose();
-            doSub();
+            if (stopped.get()) {
+                finishAndShutdownSub();
+            }
+            else {
+                shutdownSub();
+                doSub();
+            }
         }
         catch (JetStreamApiException | IOException e) {
-            pmm.resetTracking();
-            pmm.initOrResetHeartbeatTimer();
+            setupHbAlarmToTrigger();
         }
     }
 
@@ -65,23 +69,33 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
         MessageHandler mh = userMessageHandler == null ? null : msg -> {
             userMessageHandler.onMessage(msg);
             if (stopped.get() && pmm.noMorePending()) {
-                finishAndClose();
+                finished.set(true);
             }
         };
-        super.initSub(subscriptionMaker.subscribe(mh, userDispatcher, pmm, null));
-        repull();
-        stopped.set(false);
-        finished.set(false);
+        try {
+            stopped.set(false);
+            finished.set(false);
+            super.initSub(subscriptionMaker.subscribe(mh, userDispatcher, pmm, null));
+            repull();
+        }
+        catch (JetStreamApiException | IOException e) {
+            setupHbAlarmToTrigger();
+        }
+    }
+
+    private void setupHbAlarmToTrigger() {
+        pmm.resetTracking();
+        pmm.initOrResetHeartbeatTimer();
     }
 
     @Override
     public void pendingUpdated() {
         if (stopped.get()) {
             if (pmm.noMorePending()) {
-                finishAndClose();
+                finishAndShutdownSub();
             }
         }
-        else if (pmm.pendingMessages <= thresholdMessages || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes))
+        else if ((pmm.pendingMessages <= thresholdMessages || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes)))
         {
             repull();
         }

@@ -101,21 +101,19 @@ class NatsMessageConsumerBase implements MessageConsumer {
 
     @Override
     public void close() throws Exception {
-        lenientClose();
+        stopped.set(true);
+        shutdownSub();
     }
 
-    protected void finishAndClose() {
-        if (pmm != null) {
-            pmm.shutdownHeartbeatTimer();
-        }
+    protected void finishAndShutdownSub() {
+        stopped.set(true);
         finished.set(true);
-        lenientClose();
+        shutdownSub();
     }
 
-    protected void lenientClose() {
+    protected void shutdownSub() {
         try {
-            if (!stopped.get() || sub.isActive()) {
-                stopped.set(true);
+            if (sub.isActive()) {
                 if (sub.getNatsDispatcher() != null) {
                     sub.getDispatcher().unsubscribe(sub);
                 }
@@ -126,6 +124,14 @@ class NatsMessageConsumerBase implements MessageConsumer {
         }
         catch (Throwable ignore) {
             // nothing to do
+        }
+        if (pmm != null) {
+            try {
+                pmm.shutdownHeartbeatTimer();
+            }
+            catch (Throwable ignore) {
+                // nothing to do
+            }
         }
     }
 }

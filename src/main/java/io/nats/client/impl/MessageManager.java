@@ -141,23 +141,31 @@ abstract class MessageManager {
         try {
             ScheduledTask hbTask = heartbeatTask.get();
             if (hbTask != null) {
+                // Same settings, just reuse the existing scheduled task
+                if (hbTask.getPeriodNanos() == alarmPeriodSettingNanos.get()) {
+                    updateLastMessageReceived();
+                    return;
+                }
+
+                // Replace timer since settings have changed
                 hbTask.shutdown();
             }
 
-            // do this before so the alarm doesn't trigger to soon
+            // so the alarm doesn't trigger too soon
             updateLastMessageReceived();
 
             // replacement or new comes here
-            heartbeatTask.set(new ScheduledTask(conn.getScheduledExecutor(), alarmPeriodSettingNanos.get(), TimeUnit.NANOSECONDS,
+            heartbeatTask.set(new ScheduledTask(
+                conn.getScheduledExecutor(),
+                alarmPeriodSettingNanos.get(), TimeUnit.NANOSECONDS,
                 () -> {
                     long sinceLast = NatsSystemClock.nanoTime() - lastMsgReceivedNanoTime.get();
                     if (sinceLast > alarmPeriodSettingNanos.get()) {
-                        // updates lastMsgReceivedNanoTime so this doesn't so this
-                        // alarm won't be triggered to soon
-                        updateLastMessageReceived();
+                        updateLastMessageReceived(); // allow the system time to re-sub before alarming
                         handleHeartbeatError();
                     }
                 }));
+
         }
         finally {
             stateChangeLock.unlock();

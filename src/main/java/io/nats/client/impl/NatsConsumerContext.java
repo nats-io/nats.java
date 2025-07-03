@@ -129,7 +129,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
                 }
             }
             if (lastCon.finished.get() && !lastCon.stopped.get()) {
-                lastCon.lenientClose(); // finished, might as well make sure the sub is closed.
+                lastCon.shutdownSub(); // finished, might as well make sure the sub is closed.
             }
         }
     }

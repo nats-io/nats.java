@@ -67,7 +67,7 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
 
     @Override
     public void heartbeatError() {
-        finishAndClose();
+        finishAndShutdownSub();
     }
 
     @Override
@@ -85,7 +85,7 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
                 if (m == null) {
                     // if there are no messages in the internal cache AND there are no more pending,
                     // they all have been read and we can go ahead and finish
-                    finishAndClose();
+                    finishAndShutdownSub();
                 }
                 return m;
             }
@@ -103,7 +103,7 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
                 Message m = sub._nextUnmanagedNoWait(pullSubject);
                 if (m == null) {
                     // no message and no time left, go ahead and finish
-                    finishAndClose();
+                    finishAndShutdownSub();
                 }
                 return m;
             }
@@ -111,7 +111,7 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
             Message m = sub._nextUnmanaged(timeLeftNanos, pullSubject);
             if (m == null && isNoWaitNoExpires) {
                 // no message and no wait, go ahead and finish
-                finishAndClose();
+                finishAndShutdownSub();
             }
             return m;
         }

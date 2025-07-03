@@ -20,14 +20,17 @@ public class ScheduledTaskTests {
         AtomicInteger counter400 = new AtomicInteger();
         SttRunnable sttr400 = new SttRunnable(100, counter400);
         ScheduledTask task400 = new ScheduledTask(stpe, 0, 400, TimeUnit.MILLISECONDS, sttr400);
+        assertEquals(TimeUnit.MILLISECONDS.toNanos(400), task400.getPeriodNanos());
 
         AtomicInteger counter200 = new AtomicInteger();
         SttRunnable sttr200 = new SttRunnable(300, counter200);
         ScheduledTask task200 = new ScheduledTask(stpe, 0, 200, TimeUnit.MILLISECONDS, sttr200);
+        assertEquals(TimeUnit.MILLISECONDS.toNanos(200), task200.getPeriodNanos());
 
         AtomicInteger counter100 = new AtomicInteger();
         SttRunnable sttr100 = new SttRunnable(400, counter100);
         ScheduledTask task100 = new ScheduledTask(stpe, 0, 100, TimeUnit.MILLISECONDS, sttr100);
+        assertEquals(TimeUnit.MILLISECONDS.toNanos(100), task100.getPeriodNanos());
 
         validateState(task400, false, false, null);
         validateState(task200, false, false, null);
