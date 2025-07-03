@@ -20,17 +20,17 @@ public class ScheduledTaskTests {
         AtomicInteger counter400 = new AtomicInteger();
         SttRunnable sttr400 = new SttRunnable(100, counter400);
         ScheduledTask task400 = new ScheduledTask(stpe, 0, 400, TimeUnit.MILLISECONDS, sttr400);
-        assertEquals(TimeUnit.MILLISECONDS.toNanos(400), task400.getPeriodNanos());
+        validateTaskPeriods(task400, 0, 400);
 
         AtomicInteger counter200 = new AtomicInteger();
         SttRunnable sttr200 = new SttRunnable(300, counter200);
         ScheduledTask task200 = new ScheduledTask(stpe, 0, 200, TimeUnit.MILLISECONDS, sttr200);
-        assertEquals(TimeUnit.MILLISECONDS.toNanos(200), task200.getPeriodNanos());
+        validateTaskPeriods(task200, 0, 200);
 
         AtomicInteger counter100 = new AtomicInteger();
         SttRunnable sttr100 = new SttRunnable(400, counter100);
         ScheduledTask task100 = new ScheduledTask(stpe, 0, 100, TimeUnit.MILLISECONDS, sttr100);
-        assertEquals(TimeUnit.MILLISECONDS.toNanos(100), task100.getPeriodNanos());
+        validateTaskPeriods(task100, 0, 100);
 
         validateState(task400, false, false, null);
         validateState(task200, false, false, null);
@@ -54,6 +54,12 @@ public class ScheduledTaskTests {
         assertTrue(counter400.get() >= 3);
         assertTrue(counter200.get() >= 3);
         assertTrue(counter100.get() >= 3);
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private static void validateTaskPeriods(ScheduledTask task, long expectedDelay, long expectedPeriod) {
+        assertEquals(TimeUnit.MILLISECONDS.toNanos(expectedDelay), task.getInitialDelayNanos());
+        assertEquals(TimeUnit.MILLISECONDS.toNanos(expectedPeriod), task.getPeriodNanos());
     }
 
     static void validateState(ScheduledTask task, boolean shutdown, boolean done, Boolean executing) {
