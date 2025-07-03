@@ -52,7 +52,7 @@ class PullMessageManager extends MessageManager {
             pendingBytes += pro.getMaxBytes();
             trackingBytes = (pendingBytes > 0);
             configureIdleHeartbeat(pro.getIdleHeartbeat(), -1);
-            if (hb) {
+            if (hb.get()) {
                 initOrResetHeartbeatTimer();
             }
             else {

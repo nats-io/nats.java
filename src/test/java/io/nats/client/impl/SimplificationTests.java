@@ -466,7 +466,6 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testConsumeWithHandler() throws Exception {
-        System.out.println("CON W HANDLER");
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
@@ -487,7 +486,6 @@ public class SimplificationTests extends JetStreamTestBase {
             CountDownLatch latch = new CountDownLatch(1);
             AtomicInteger atomicCount = new AtomicInteger();
             MessageHandler handler = msg -> {
-                System.out.println("CON W HANDLER: HANDLER: " + msg);
                 msg.ack();
                 if (atomicCount.incrementAndGet() == stopCount) {
                     latch.countDown();
@@ -495,22 +493,18 @@ public class SimplificationTests extends JetStreamTestBase {
             };
 
             try (MessageConsumer consumer = consumerContext.consume(handler)) {
-                System.out.println("CON W HANDLER: BEFORE LATCH AWAIT");
                 latch.await();
 
-                System.out.println("CON W HANDLER: AFTER LATCH AWAIT");
                 consumer.stop();
                 int fin = 0;
                 while (!consumer.isFinished()) {
                     //noinspection BusyWait
                     Thread.sleep(10);
                     if (++fin >= 10000) {
-                        System.out.println("CON W HANDLER: WAIT FOR FINISHED: " + fin);
                         fin = -1;
                         break;
                     }
                 }
-                System.out.println("CON W HANDLER: FIN???: " + fin);
                 assertTrue(atomicCount.get() > 500);
             }
         });
@@ -936,6 +930,9 @@ public class SimplificationTests extends JetStreamTestBase {
     @Test
     public void testOrderedBehaviorIterable() throws Exception {
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
+            jsServer.setExitOnDisconnect();
+            jsServer.setExitOnHeartbeatError();
+
             // Setup
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -1082,7 +1079,6 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedMultipleWays() throws Exception {
-        System.out.println("Ordered Multiple");
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
             // Setup
             JetStream js = nc.jetStream();
@@ -1115,21 +1111,16 @@ public class SimplificationTests extends JetStreamTestBase {
             validateCantCallOtherMethods(occtx);
 
             //noinspection ResultOfMethodCallIgnored
-            boolean b = latch.await(3000, TimeUnit.MILLISECONDS);
-            System.out.println("Ordered Multiple: LATCH: " + b);
+            latch.await(3000, TimeUnit.MILLISECONDS);
 
             for (int x = 0 ; x < 10_000; x++) {
                 js.publish(tsc.subject(), ("multiple" + x).getBytes());
             }
 
-            System.out.println("Ordered Multiple: AFTER PUB");
-
             // can do others now
             Message m = occtx.next(1000);
             assertNotNull(m);
             assertEquals(1, m.metaData().streamSequence());
-
-            System.out.println("Ordered Multiple: AFTER NEXT");
 
             // can't do others while doing next
             int seq = 2;
@@ -1147,7 +1138,6 @@ public class SimplificationTests extends JetStreamTestBase {
                 assertTrue(fc.isFinished());
                 assertNull(fc.nextMessage()); // just some coverage
             }
-            System.out.println("Ordered Multiple: AFTER FETCH");
 
             // can do others now
             m = occtx.next(1000);
@@ -1168,7 +1158,6 @@ public class SimplificationTests extends JetStreamTestBase {
                     m = ic.nextMessage(1000);
                 }
             }
-            System.out.println("Ordered Multiple: AFTER ITERATE");
 
             // can do others now
             m = occtx.next(1000);
@@ -1187,7 +1176,6 @@ public class SimplificationTests extends JetStreamTestBase {
                     seq++;
                 }
             }
-            System.out.println("Ordered Multiple: AFTER 2nd FETCH");
         });
     }
 
@@ -1501,7 +1489,7 @@ public class SimplificationTests extends JetStreamTestBase {
             };
 
             try (MessageConsumer mcOver = ctxOver.consume(coOver, overHandler);
-            MessageConsumer mcPrime = ctxPrime.consume(coPrime, primeHandler)) {
+                 MessageConsumer mcPrime = ctxPrime.consume(coPrime, primeHandler)) {
                 while (left.get() > 0) {
                     sleep(100);
                 }
