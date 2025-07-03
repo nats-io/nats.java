@@ -105,7 +105,7 @@ class NatsMessageConsumerBase implements MessageConsumer {
         shutdownSub();
     }
 
-    protected void finishAndShutdownSub() {
+    protected void fullClose() {
         stopped.set(true);
         finished.set(true);
         shutdownSub();

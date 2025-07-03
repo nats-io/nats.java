@@ -53,7 +53,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
     public void heartbeatError() {
         try {
             if (stopped.get()) {
-                finishAndShutdownSub();
+                fullClose();
             }
             else {
                 shutdownSub();
@@ -92,10 +92,10 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
     public void pendingUpdated() {
         if (stopped.get()) {
             if (pmm.noMorePending()) {
-                finishAndShutdownSub();
+                fullClose();
             }
         }
-        else if ((pmm.pendingMessages <= thresholdMessages || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes)))
+        else if (pmm.pendingMessages <= thresholdMessages || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes))
         {
             repull();
         }
