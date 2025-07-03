@@ -601,7 +601,7 @@ class NatsConnection implements Connection {
 
                 if (pingMillis > 0) {
                     pingTask = new ScheduledTask(scheduledExecutor, pingMillis, () -> {
-                        if (isConnected()) {
+                        if (isConnected() && !isClosing()) {
                             try {
                                 softPing(); // The timer always uses the standard queue
                             }

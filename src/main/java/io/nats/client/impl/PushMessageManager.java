@@ -53,7 +53,7 @@ class PushMessageManager extends MessageManager {
         }
         else {
             configureIdleHeartbeat(initialCc.getIdleHeartbeat(), so.getMessageAlarmTime());
-            fc = hb && initialCc.isFlowControl(); // can't have fc w/o heartbeat
+            fc = hb.get() && initialCc.isFlowControl(); // can't have fc w/o heartbeat
         }
     }
 
@@ -65,14 +65,14 @@ class PushMessageManager extends MessageManager {
     protected void startup(NatsJetStreamSubscription sub) {
         super.startup(sub);
         sub.setBeforeQueueProcessor(this::beforeQueueProcessorImpl);
-        if (hb) {
+        if (hb.get()) {
             initOrResetHeartbeatTimer();
         }
     }
 
     @Override
     protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
-        if (hb) {
+        if (hb.get()) {
             updateLastMessageReceived(); // only need to track when heartbeats are expected
             Status status = msg.getStatus();
             if (status != null) {

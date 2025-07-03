@@ -180,64 +180,78 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
         reCheckPrefix(sub, consumerNamePrefix, firstConsumerName);
     }
 
+    static class SimulatorState {
+        public final CountDownLatch latch = new CountDownLatch(1);
+        public final AtomicInteger hbCounter = new AtomicInteger();
+    }
+
     static class HeartbeatErrorSimulator extends PushMessageManager {
-        public final CountDownLatch latch;
+        final SimulatorState state;
 
         public HeartbeatErrorSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode,
-                                       CountDownLatch latch) {
+                                       SimulatorState state) {
             super(conn, js, stream, so, serverCC, queueMode, syncMode);
-            this.latch = latch;
+            this.state = state;
         }
 
         @Override
         protected void handleHeartbeatError() {
             super.handleHeartbeatError();
-            latch.countDown();
+            state.latch.countDown();
         }
 
         @Override
         protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
+            if (msg.isStatusMessage() && msg.getStatus().isHeartbeat()) {
+                state.hbCounter.incrementAndGet();
+            }
             return false;
         }
     }
 
     static class OrderedHeartbeatErrorSimulator extends OrderedMessageManager {
-        public final CountDownLatch latch;
+        final SimulatorState state;
 
         public OrderedHeartbeatErrorSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode,
-                                              CountDownLatch latch) {
+                                              SimulatorState state) {
             super(conn, js, stream, so, serverCC, queueMode, syncMode);
-            this.latch = latch;
+            this.state = state;
         }
 
         @Override
         protected void handleHeartbeatError() {
             super.handleHeartbeatError();
-            latch.countDown();
+            state.latch.countDown();
         }
 
         @Override
         protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
+            if (msg.isStatusMessage() && msg.getStatus().isHeartbeat()) {
+                state.hbCounter.incrementAndGet();
+            }
             return false;
         }
     }
 
     static class PullHeartbeatErrorSimulator extends PullMessageManager {
-        public final CountDownLatch latch;
+        public final SimulatorState state;
 
-        public PullHeartbeatErrorSimulator(NatsConnection conn, boolean syncMode, CountDownLatch latch) {
+        public PullHeartbeatErrorSimulator(NatsConnection conn, boolean syncMode, SimulatorState state) {
             super(conn, PullSubscribeOptions.DEFAULT_PULL_OPTS, syncMode);
-            this.latch = latch;
+            this.state = state;
         }
 
         @Override
         protected void handleHeartbeatError() {
             super.handleHeartbeatError();
-            latch.countDown();
+            state.latch.countDown();
         }
 
         @Override
         protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
+            if (msg.isStatusMessage() && msg.getStatus().isHeartbeat()) {
+                state.hbCounter.incrementAndGet();
+            }
             return false;
         }
     }
@@ -254,67 +268,77 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
             ConsumerConfiguration cc = ConsumerConfiguration.builder().idleHeartbeat(100).build();
 
             PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
-            CountDownLatch latch = setupFactory(js);
+            SimulatorState state = setupFactory(js);
             JetStreamSubscription sub = js.subscribe(tsc.subject(), pso);
-            validate(sub, listenerForTesting, latch, null);
+            validate(sub, listenerForTesting, state, null);
 
-            latch = setupFactory(js);
+            state = setupFactory(js);
             sub = js.subscribe(tsc.subject(), d, m -> {}, false, pso);
-            validate(sub, listenerForTesting, latch, d);
+            validate(sub, listenerForTesting, state, d);
 
             pso = PushSubscribeOptions.builder().ordered(true).configuration(cc).build();
-            latch = setupOrderedFactory(js);
+            state = setupOrderedFactory(js);
             sub = js.subscribe(tsc.subject(), pso);
-            validate(sub, listenerForTesting, latch, null);
+            validate(sub, listenerForTesting, state, null);
 
-            latch = setupOrderedFactory(js);
+            state = setupOrderedFactory(js);
             sub = js.subscribe(tsc.subject(), d, m -> {}, false, pso);
-            validate(sub, listenerForTesting, latch, d);
+            validate(sub, listenerForTesting, state, d);
 
-            latch = setupPullFactory(js);
+            state = setupPullFactory(js);
             sub = js.subscribe(tsc.subject(), PullSubscribeOptions.DEFAULT_PULL_OPTS);
             sub.pull(PullRequestOptions.builder(1).idleHeartbeat(100).expiresIn(2000).build());
-            validate(sub, listenerForTesting, latch, null);
+            validate(sub, listenerForTesting, state, null);
         });
     }
 
-    private static void validate(JetStreamSubscription sub, ListenerForTesting listener, CountDownLatch latch, Dispatcher d) throws InterruptedException {
+    private static void validate(JetStreamSubscription sub, ListenerForTesting listener, SimulatorState state, Dispatcher d) throws InterruptedException {
         //noinspection ResultOfMethodCallIgnored
-        latch.await(2, TimeUnit.SECONDS);
+        state.latch.await(2, TimeUnit.SECONDS);
         if (d == null) {
             sub.unsubscribe();
         }
         else {
             d.unsubscribe(sub);
         }
-        assertEquals(0, latch.getCount());
-        assertFalse(listener.getHeartbeatAlarms().isEmpty());
+        assertEquals(0, state.latch.getCount());
+        assertTrue(state.hbCounter.get() > 0);
+        boolean gotHbAlarm = false;
+        for (int x = 0; x < 50; x++) {
+            gotHbAlarm = !listener.getHeartbeatAlarms().isEmpty();
+            if (gotHbAlarm) {
+                break;
+            }
+            sleep(10);
+        }
+        assertTrue(gotHbAlarm);
         listener.reset();
     }
 
-    private static CountDownLatch setupFactory(JetStream js) {
-        CountDownLatch latch = new CountDownLatch(2);
+    private static SimulatorState setupFactory(JetStream js) {
+        SimulatorState state = new SimulatorState();
         ((NatsJetStream)js)._pushMessageManagerFactory =
             (conn, lJs, stream, so, serverCC, qmode, dispatcher) ->
-                new HeartbeatErrorSimulator(conn, lJs, stream, so, serverCC, qmode, dispatcher, latch);
-        return latch;
+                new HeartbeatErrorSimulator(conn, lJs, stream, so, serverCC, qmode, dispatcher, state);
+        return state;
     }
 
-    private static CountDownLatch setupOrderedFactory(JetStream js) {
-        CountDownLatch latch = new CountDownLatch(2);
+    private static SimulatorState setupOrderedFactory(JetStream js) {
+        SimulatorState state = new SimulatorState();
         ((NatsJetStream)js)._pushOrderedMessageManagerFactory =
             (conn, lJs, stream, so, serverCC, qmode, dispatcher) ->
-                new OrderedHeartbeatErrorSimulator(conn, lJs, stream, so, serverCC, qmode, dispatcher, latch);
-        return latch;
+                new OrderedHeartbeatErrorSimulator(conn, lJs, stream, so, serverCC, qmode, dispatcher, state);
+        return state;
     }
 
-    private static CountDownLatch setupPullFactory(JetStream js) {
+    private static SimulatorState setupPullFactory(JetStream js) {
+        SimulatorState state = new SimulatorState();
         // the expected latch count is 1 b/c pull is dead once there is a hb error
         CountDownLatch latch = new CountDownLatch(1);
         ((NatsJetStream)js)._pullMessageManagerFactory =
             (conn, lJs, stream, so, serverCC, qmode, dispatcher) ->
-                new PullHeartbeatErrorSimulator(conn, false, latch);
-        return latch;
+                new PullHeartbeatErrorSimulator(conn, false, state);
+        return state;
     }
 
     @Test

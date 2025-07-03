@@ -17,14 +17,12 @@ import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.*;
 import io.nats.client.utils.TestBase;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Test;
 
 import java.io.*;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -35,27 +33,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class SimplificationTests extends JetStreamTestBase {
 
-    static Map<String, String> TM = new HashMap<>();
-
-    @BeforeEach
-    public void BeforeEach(TestInfo testInfo) {
-        String dn = testInfo.getDisplayName();
-        System.out.println("BEFORE " + dn);
-        TM.put(dn, dn);
-    }
-
-    @AfterEach
-    public void AfterEach(TestInfo testInfo) {
-        String dn = testInfo.getDisplayName();
-        System.out.println("AFTER " + dn);
-        TM.remove(dn);
-        for (String key : TM.keySet()) {
-            System.out.println("STILL RUNNING: " + key);
-        }
-    }
-
     @Test
-    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     public void testStreamContext() throws Exception {
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -146,7 +124,6 @@ public class SimplificationTests extends JetStreamTestBase {
     static int FETCH_DURABLE = 2;
     static int FETCH_ORDERED = 3;
     @Test
-    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     public void testFetch() throws Exception {
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
             TestingStreamContainer tsc = new TestingStreamContainer(nc);
@@ -288,7 +265,6 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     public void testFetchNoWaitPlusExpires() throws Exception {
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -358,7 +334,6 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     public void testIterableConsumer() throws Exception {
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -382,12 +357,11 @@ public class SimplificationTests extends JetStreamTestBase {
             // coverage
             IterableConsumer consumer = consumerContext.iterate(ConsumeOptions.DEFAULT_CONSUME_OPTIONS);
             consumer.close();
-            assertThrows(IllegalArgumentException.class, () -> consumerContext.iterate((ConsumeOptions)null));
+            assertThrows(IllegalArgumentException.class, () -> consumerContext.iterate(null));
         });
     }
 
     @Test
-    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     public void testOrderedConsumerDeliverPolices() throws Exception {
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
             // Setup
@@ -426,7 +400,6 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     public void testOrderedIterableConsumerBasic() throws Exception {
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -492,9 +465,7 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     public void testConsumeWithHandler() throws Exception {
-        System.out.println("CON W HANDLER");
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
@@ -515,7 +486,6 @@ public class SimplificationTests extends JetStreamTestBase {
             CountDownLatch latch = new CountDownLatch(1);
             AtomicInteger atomicCount = new AtomicInteger();
             MessageHandler handler = msg -> {
-                System.out.println("CON W HANDLER: HANDLER: " + msg);
                 msg.ack();
                 if (atomicCount.incrementAndGet() == stopCount) {
                     latch.countDown();
@@ -523,29 +493,24 @@ public class SimplificationTests extends JetStreamTestBase {
             };
 
             try (MessageConsumer consumer = consumerContext.consume(handler)) {
-                System.out.println("CON W HANDLER: BEFORE LATCH AWAIT");
                 latch.await();
 
-                System.out.println("CON W HANDLER: AFTER LATCH AWAIT");
                 consumer.stop();
                 int fin = 0;
                 while (!consumer.isFinished()) {
                     //noinspection BusyWait
                     Thread.sleep(10);
                     if (++fin >= 10000) {
-                        System.out.println("CON W HANDLER: WAIT FOR FINISHED: " + fin);
                         fin = -1;
                         break;
                     }
                 }
-                System.out.println("CON W HANDLER: FIN???: " + fin);
                 assertTrue(atomicCount.get() > 500);
             }
         });
     }
 
     @Test
-    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     public void testNext() throws Exception {
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -581,7 +546,6 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     public void testCoverage() throws Exception {
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -626,7 +590,6 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     public void testFetchConsumeOptionsBuilder() throws IOException, ClassNotFoundException {
         FetchConsumeOptions fco = FetchConsumeOptions.builder().build();
         check_default_values(fco);
@@ -699,7 +662,6 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     public void testConsumeOptionsBuilder() throws IOException, ClassNotFoundException {
         ConsumeOptions co = ConsumeOptions.builder().build();
         check_default_values(co);
@@ -758,7 +720,7 @@ public class SimplificationTests extends JetStreamTestBase {
         assertEquals(2, co.getMinAckPending());
     }
 
-    private static void check_default_values(ConsumeOptions co) throws IOException, ClassNotFoundException {
+    private static void check_default_values(ConsumeOptions co) {
         assertEquals(DEFAULT_MESSAGE_COUNT, co.getBatchSize());
         assertEquals(DEFAULT_EXPIRES_IN_MILLIS, co.getExpiresInMillis());
         assertEquals(DEFAULT_THRESHOLD_PERCENT, co.getThresholdPercent());
@@ -811,7 +773,6 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     public void testOrderedBehaviorNext() throws Exception {
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
             // Setup
@@ -896,7 +857,6 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     public void testOrderedBehaviorFetch() throws Exception {
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
             // Setup
@@ -968,9 +928,11 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     public void testOrderedBehaviorIterable() throws Exception {
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
+            jsServer.setExitOnDisconnect();
+            jsServer.setExitOnHeartbeatError();
+
             // Setup
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -1026,7 +988,6 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     public void testOrderedConsume() throws Exception {
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
             // Setup
@@ -1080,7 +1041,6 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     public void testOrderedConsumeMultipleSubjects() throws Exception {
         jsServer.run(TestBase::atLeast2_10, nc -> {
             // Setup
@@ -1118,9 +1078,7 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     public void testOrderedMultipleWays() throws Exception {
-        System.out.println("Ordered Multiple");
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
             // Setup
             JetStream js = nc.jetStream();
@@ -1153,21 +1111,16 @@ public class SimplificationTests extends JetStreamTestBase {
             validateCantCallOtherMethods(occtx);
 
             //noinspection ResultOfMethodCallIgnored
-            boolean b = latch.await(3000, TimeUnit.MILLISECONDS);
-            System.out.println("Ordered Multiple: LATCH: " + b);
+            latch.await(3000, TimeUnit.MILLISECONDS);
 
             for (int x = 0 ; x < 10_000; x++) {
                 js.publish(tsc.subject(), ("multiple" + x).getBytes());
             }
 
-            System.out.println("Ordered Multiple: AFTER PUB");
-
             // can do others now
             Message m = occtx.next(1000);
             assertNotNull(m);
             assertEquals(1, m.metaData().streamSequence());
-
-            System.out.println("Ordered Multiple: AFTER NEXT");
 
             // can't do others while doing next
             int seq = 2;
@@ -1185,7 +1138,6 @@ public class SimplificationTests extends JetStreamTestBase {
                 assertTrue(fc.isFinished());
                 assertNull(fc.nextMessage()); // just some coverage
             }
-            System.out.println("Ordered Multiple: AFTER FETCH");
 
             // can do others now
             m = occtx.next(1000);
@@ -1206,7 +1158,6 @@ public class SimplificationTests extends JetStreamTestBase {
                     m = ic.nextMessage(1000);
                 }
             }
-            System.out.println("Ordered Multiple: AFTER ITERATE");
 
             // can do others now
             m = occtx.next(1000);
@@ -1225,10 +1176,10 @@ public class SimplificationTests extends JetStreamTestBase {
                     seq++;
                 }
             }
-            System.out.println("Ordered Multiple: AFTER 2nd FETCH");
         });
     }
 
+    @SuppressWarnings("resource")
     private static void validateCantCallOtherMethods(OrderedConsumerContext ctx) {
         assertThrows(IOException.class, () -> ctx.next(1000));
         assertThrows(IOException.class, () -> ctx.fetchMessages(1));
@@ -1236,7 +1187,6 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     public void testOrderedConsumerBuilder() throws IOException, ClassNotFoundException {
         OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration();
         check_default_values(occ);
@@ -1337,7 +1287,6 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     public void testOverflowFetch() throws Exception {
         ListenerForTesting l = new ListenerForTesting();
         Options.Builder b = Options.builder().errorListener(l);
@@ -1403,7 +1352,6 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     public void testOverflowIterate() throws Exception {
         ListenerForTesting l = new ListenerForTesting();
         Options.Builder b = Options.builder().errorListener(l);
@@ -1490,7 +1438,6 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     public void testOverflowConsume() throws Exception {
         ListenerForTesting l = new ListenerForTesting();
         Options.Builder b = Options.builder().errorListener(l);
@@ -1541,14 +1488,14 @@ public class SimplificationTests extends JetStreamTestBase {
                 left.decrementAndGet();
             };
 
-            MessageConsumer mcOver = ctxOver.consume(coOver, overHandler);
-            MessageConsumer mcPrime = ctxPrime.consume(coPrime, primeHandler);
-
-            while (left.get() > 0) {
-                sleep(100);
+            try (MessageConsumer mcOver = ctxOver.consume(coOver, overHandler);
+                 MessageConsumer mcPrime = ctxPrime.consume(coPrime, primeHandler)) {
+                while (left.get() > 0) {
+                    sleep(100);
+                }
+                mcOver.stop();
+                mcPrime.stop();
             }
-            mcOver.stop();
-            mcPrime.stop();
 
             assertTrue(primeCount.get() > 0);
             assertEquals(0, overCount.get());
@@ -1556,7 +1503,6 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     public void testFinishEmptyStream() throws Exception {
         ListenerForTesting l = new ListenerForTesting();
         Options.Builder b = Options.builder().errorListener(l);
@@ -1573,15 +1519,14 @@ public class SimplificationTests extends JetStreamTestBase {
 
             ConsumerContext cctx = nc.getConsumerContext(tsc.stream, name);
 
-            MessageHandler handler = m -> {
-                m.ack();
-            };
+            MessageHandler handler = Message::ack;
 
             ConsumeOptions co = ConsumeOptions.builder().expiresIn(1000).build();
-            MessageConsumer consumer = cctx.consume(co, handler);
-            consumer.stop();
-            sleep(1200); // more than the expires period for the consume
-            assertTrue(consumer.isFinished());
+            try (MessageConsumer consumer = cctx.consume(co, handler)) {
+                consumer.stop();
+                sleep(1200); // more than the expires period for the consume
+                assertTrue(consumer.isFinished());
+            }
         });
     }
 }
