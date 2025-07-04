@@ -44,6 +44,7 @@ class PullOrderedMessageManager extends PullMessageManager {
 
     @Override
     protected void startup(NatsJetStreamSubscription sub) {
+        expectedExternalConsumerSeq = 1; // consumer always starts with consumer sequence 1
         super.startup(sub);
         targetSid.set(sub.getSID());
     }

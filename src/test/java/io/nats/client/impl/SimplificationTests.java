@@ -25,6 +25,7 @@ import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -1528,5 +1529,99 @@ public class SimplificationTests extends JetStreamTestBase {
                 assertTrue(consumer.isFinished());
             }
         });
+    }
+
+    @Test
+    public void testReconnectOverOrdered() throws Exception {
+        // ------------------------------------------------------------
+        // The idea here is...
+        // 1. connect with an ordered consumer and start consuming
+        // 2. stop the server then restart it causing a disconnect,
+        //    but reconnect before the idle heartbeat alarm kicks in
+        // 3. stop the server but wait a little before restarting
+        //    so the alarm goes off but still disconnected
+        //    to make sure the consumer continues after that condition
+        // ------------------------------------------------------------
+        int port = NatsTestServer.nextPort();
+        ListenerForTesting lft = new ListenerForTesting();
+        Options options = new Options.Builder()
+            .connectionListener(lft)
+            .errorListener(lft)
+            .server(NatsTestServer.getNatsLocalhostUri(port)).build();
+        NatsConnection nc;
+
+        String stream = stream();
+        String subject = subject();
+
+        AtomicBoolean allInOrder = new AtomicBoolean(true);
+        AtomicInteger atomicCount = new AtomicInteger();
+        AtomicLong nextExpectedSequence = new AtomicLong(0);
+
+        MessageHandler handler = msg -> {
+            if (msg.metaData().streamSequence() != nextExpectedSequence.incrementAndGet()) {
+                allInOrder.set(false);
+            }
+            msg.ack();
+            atomicCount.incrementAndGet();
+            sleep(50); // simulate some work and to slow the endless consume
+        };
+
+        StreamContext streamContext;
+        OrderedConsumerContext orderedConsumerContext;
+        MessageConsumer consumer;
+
+        try (NatsTestServer ts = new NatsTestServer(port, false, true)) {
+            nc = (NatsConnection) standardConnection(options);
+            StreamConfiguration sc = StreamConfiguration.builder()
+                .name(stream)
+                .storageType(StorageType.File) // file since we are killing the server and bringing it back up.
+                .subjects(subject).build();
+            nc.jetStreamManagement().addStream(sc);
+
+            jsPublish(nc, subject, 10000);
+
+            ConsumeOptions consumeOptions = ConsumeOptions.builder()
+                .batchSize(100) // small batch size means more round trips
+                .expiresIn(2000) // idle heartbeat is half of this, alarm time is 3 * ihb
+                .build();
+
+            OrderedConsumerConfiguration ocConfig = new OrderedConsumerConfiguration()
+                .filterSubjects(subject);
+            streamContext = nc.getStreamContext(stream);
+            orderedConsumerContext = streamContext.createOrderedConsumer(ocConfig);
+            //noinspection resource
+            consumer = orderedConsumerContext.consume(consumeOptions, handler);
+
+            sleep(500); // time enough to get some messages
+        }
+
+        assertTrue(allInOrder.get());
+        int count1 = atomicCount.get();
+        assertTrue(count1 > 0);
+        assertEquals(count1, nextExpectedSequence.get());
+
+        // reconnect and get some more messages
+        try (NatsTestServer ignored = new NatsTestServer(port, false, true)) {
+            standardConnectionWait(nc);
+            sleep(5000); // long enough to get messages and for the hb alarm to have tripped
+        }
+
+        assertTrue(allInOrder.get());
+        int count2 = atomicCount.get();
+        assertTrue(count2 > count1);
+        assertEquals(count2, nextExpectedSequence.get());
+
+        sleep(4000); // enough delay before reconnect to trip hb alarm again
+        try (NatsTestServer ignored = new NatsTestServer(port, false, true)) {
+            standardConnectionWait(nc);
+            sleep(4000); // long enough to get messages and for the hb alarm to have tripped
+
+            nc.jetStreamManagement().deleteStream(stream); // it was a file stream clean it up
+        }
+
+        assertTrue(allInOrder.get());
+        int count3 = atomicCount.get();
+        assertTrue(count3 > count2);
+        assertEquals(count3, nextExpectedSequence.get());
     }
 }

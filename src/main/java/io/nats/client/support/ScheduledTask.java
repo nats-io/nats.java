@@ -36,6 +36,8 @@ public class ScheduledTask implements Runnable {
 
     protected final AtomicBoolean notShutdown;
     protected final AtomicBoolean executing;
+    protected final long initialDelayNanos;
+    protected final long periodNanos;
 
     public ScheduledTask(ScheduledExecutorService ses, long initialAndPeriodMillis, Runnable runnable) {
         this(null, ses, initialAndPeriodMillis, initialAndPeriodMillis, TimeUnit.MILLISECONDS, runnable);
@@ -53,17 +55,27 @@ public class ScheduledTask implements Runnable {
         this(id, ses, initialAndPeriod, initialAndPeriod, unit, runnable);
     }
 
-    public ScheduledTask(ScheduledExecutorService ses, long initialDelay, long initialAndPeriod, TimeUnit unit, Runnable runnable) {
-        this(null, ses, initialDelay, initialAndPeriod, unit, runnable);
+    public ScheduledTask(ScheduledExecutorService ses, long initialDelay, long period, TimeUnit unit, Runnable runnable) {
+        this(null, ses, initialDelay, period, unit, runnable);
     }
 
-    public ScheduledTask(String id, ScheduledExecutorService ses, long initialDelay, long initialAndPeriod, TimeUnit unit, Runnable runnable) {
+    public ScheduledTask(String id, ScheduledExecutorService ses, long initialDelay, long period, TimeUnit unit, Runnable runnable) {
         this.id = id == null || id.isEmpty() ? "st-" + ID_GENERATOR.getAndIncrement() : id;
         this.runnable = runnable;
         notShutdown = new AtomicBoolean(true);
         executing = new AtomicBoolean(false);
+        this.initialDelayNanos = unit.toNanos(initialDelay);
+        this.periodNanos = unit.toNanos(period);
         scheduledFutureRef = new AtomicReference<>(
-            ses.scheduleAtFixedRate(this, initialDelay, initialAndPeriod, unit));
+            ses.scheduleAtFixedRate(this, initialDelay, period, unit));
+    }
+
+    public long getInitialDelayNanos() {
+        return initialDelayNanos;
+    }
+
+    public long getPeriodNanos() {
+        return periodNanos;
     }
 
     @Override
@@ -121,8 +133,8 @@ public class ScheduledTask implements Runnable {
         else {
             sb.append(" [shutdown");
         }
-        sb.append(isDone() ? "/done" : "/not done");
-        sb.append(executing.get() ? "/executing" : "/not executing");
+        sb.append(isDone() ? "/done" : "/!done");
+        sb.append(executing.get() ? "/executing" : "/!executing");
         sb.append("]");
         return sb.toString();
     }
