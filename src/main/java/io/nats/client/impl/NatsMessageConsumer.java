@@ -52,19 +52,16 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
     @Override
     public void heartbeatError() {
         try {
-            // just close the current sub and make another one.
-            // this could go on endlessly - unless the user had called stop
             if (stopped.get()) {
-                finishAndClose();
+                fullClose();
             }
             else {
-                lenientClose();
+                shutdownSub();
                 doSub();
             }
         }
         catch (JetStreamApiException | IOException e) {
-            pmm.resetTracking();
-            pmm.initOrResetHeartbeatTimer();
+            setupHbAlarmToTrigger();
         }
     }
 
@@ -72,20 +69,30 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
         MessageHandler mh = userMessageHandler == null ? null : msg -> {
             userMessageHandler.onMessage(msg);
             if (stopped.get() && pmm.noMorePending()) {
-                finishAndClose();
+                finished.set(true);
             }
         };
-        super.initSub(subscriptionMaker.subscribe(mh, userDispatcher, pmm, null));
-        repull();
-        stopped.set(false);
-        finished.set(false);
+        try {
+            stopped.set(false);
+            finished.set(false);
+            super.initSub(subscriptionMaker.subscribe(mh, userDispatcher, pmm, null));
+            repull();
+        }
+        catch (JetStreamApiException | IOException e) {
+            setupHbAlarmToTrigger();
+        }
+    }
+
+    private void setupHbAlarmToTrigger() {
+        pmm.resetTracking();
+        pmm.initOrResetHeartbeatTimer();
     }
 
     @Override
     public void pendingUpdated() {
         if (stopped.get()) {
             if (pmm.noMorePending()) {
-                finishAndClose();
+                fullClose();
             }
         }
         else if (pmm.pendingMessages <= thresholdMessages || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes))
