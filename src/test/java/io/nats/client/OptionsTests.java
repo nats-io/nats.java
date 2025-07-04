@@ -892,6 +892,16 @@ public class OptionsTests {
 
         connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
         assertTrue(connectString.contains("\"auth_token\":\"short-lived-token-2\""));
+
+        Properties properties = new Properties();
+        properties.setProperty(PROP_TOKEN_SUPPLIER, TestingDynamicTokenSupplier.class.getCanonicalName());
+        o = new Options.Builder().properties(properties).build();
+
+        connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
+        assertTrue(connectString.contains("\"auth_token\":\"dynamic-token-1\""));
+
+        connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
+        assertTrue(connectString.contains("\"auth_token\":\"dynamic-token-2\""));
     }
 
     @Test

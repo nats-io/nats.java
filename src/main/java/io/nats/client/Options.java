@@ -380,6 +380,10 @@ public class Options {
      */
     public static final String PROP_TOKEN = PFX + "token";
     /**
+     * Property used to configure the token supplier from a Properties object. {@value}, see {@link Builder#tokenSupplier(Supplier) tokenSupplier}.
+     */
+    public static final String PROP_TOKEN_SUPPLIER = PFX + "token.supplier";
+    /**
      * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#server(String) server}.
      */
     public static final String PROP_URL = PFX + "url";
@@ -882,6 +886,8 @@ public class Options {
             charArrayProperty(props, PROP_USERNAME, ca -> this.username = ca);
             charArrayProperty(props, PROP_PASSWORD, ca -> this.password = ca);
             charArrayProperty(props, PROP_TOKEN, ca -> this.tokenSupplier = new DefaultTokenSupplier(ca));
+            //noinspection unchecked
+            classnameProperty(props, PROP_TOKEN_SUPPLIER, o -> this.tokenSupplier = (Supplier<char[]>) o);
 
             booleanProperty(props, PROP_SECURE, b -> this.useDefaultTls = b);
             booleanProperty(props, PROP_OPENTLS, b -> this.useTrustAllTls = b);
