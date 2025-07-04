@@ -380,7 +380,7 @@ public class Options {
      */
     public static final String PROP_TOKEN = PFX + "token";
     /**
-     * Property used to configure the token supplier from a Properties object. {@value}, see {@link Builder#tokenSupplier(Supplier<char[]) tokenSupplier}.
+     * Property used to configure the token supplier from a Properties object. {@value}, see {@link Builder#tokenSupplier(Supplier) tokenSupplier}.
      */
     public static final String PROP_TOKEN_SUPPLIER = PFX + "token.supplier";
     /**
