@@ -183,6 +183,27 @@ public interface KeyValue {
     void purge(String key, long expectedRevision) throws IOException, JetStreamApiException;
 
     /**
+     * Purge all values/history from the specific key
+     * @param key the key
+     * @param messageTtl the individual ttl for the key
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    void purge(String key, MessageTtl messageTtl) throws IOException, JetStreamApiException;
+
+    /**
+     * Purge all values/history from the specific key iff the key exists and its last revision matches the expected
+     * @param key the key
+     * @param expectedRevision the expected last revision
+     * @param messageTtl the individual ttl for the key
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     */
+    void purge(String key, long expectedRevision, MessageTtl messageTtl) throws IOException, JetStreamApiException;
+
+    /**
      * Watch updates for a specific key.
      * @param key the key.
      * @param watcher the watcher the implementation to receive changes
