@@ -4,7 +4,7 @@
 
 ### A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
-**Current Release**: 2.21.3 &nbsp; **Current Snapshot**: 2.21.4-SNAPSHOT
+**Current Release**: 2.21.4 &nbsp; **Current Snapshot**: 2.21.5-SNAPSHOT
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
@@ -133,9 +133,9 @@ Replace `{major.minor.patch}` with the correct version in the examples.
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.21.3/jnats-2.21.3.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.21.3/jnats-2.21.3.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.21.4/jnats-2.21.4.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.21.4/jnats-2.21.4.jar).
 
-The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.21.3/jnats-2.21.3-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.21.3/jnats-2.21.3-examples.jar).
+The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.21.4/jnats-2.21.4-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.21.4/jnats-2.21.4-examples.jar).
 
 ### Using Gradle
 
@@ -221,9 +221,10 @@ If you need a snapshot version, you must enable snapshots and change your depend
 
 ### Integration with GraalVM
 
-To include this library with a GraalVM project, there are two important configurations you must use: 
+To include this library with a GraalVM project, you must use configure thse `initialize-at-run-time` classes. 
+* `--initialize-at-run-time=java.security.SecureRandom`.
 * `--initialize-at-run-time=io.nats.client.support.RandomUtils`
-* `--initialize-at-run-time=java.security.SecureRandom`. 
+* `--initialize-at-run-time=io.nats.client.NUID`
 
 These will instruct GraalVM to initialize specified classes at runtime so that these instances don't have fixed seeds. 
 GraalVM won't compile without these parameters.

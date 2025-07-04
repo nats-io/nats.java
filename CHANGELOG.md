@@ -1,28 +1,40 @@
 # Change Log
 
-## 2.21.3
+## 2.21.4
+
 ### Core
 * Fix race condition during reconnect sends UNSUB messages #1321 @ajax-surovskyi-y
 * Add connection auth token supplier option #1324 @buleuszmatak
 * Nano time for elapsed timings and Nats System Clock #1334 @scottf
 * Replace Timer with scheduled tasks #1335 @scottf
-* [BUG] Fix UNSUBs after disconnect can cause auth violations #1336 @scottf @ajax-surovskyi-y
+* [Bug] Fix UNSUBs after disconnect can cause auth violations #1336 @scottf @ajax-surovskyi-y
+* Options allow token supplier from property, not just api method #1349 @scottf
 
 ### JetStream
 * Annotating API objects with NotNull and Nullable #1333 @scottf
-* [BUG] MessageConsumer.isFinished() not set properly in certain conditions #1339 @scottf
+* [Bug] MessageConsumer.isFinished() not set properly in certain conditions #1339 @scottf
+* [Bug] Pull Heartbeat handler intermittent failure after switch to scheduler #1345 @scottf
+* Fix heartbeat timer handling broken when replacing timer with scheduler. #1348 @scottf
 
 ### Key Value
 * Nats-Marker-Reason must be mapped to a Key Value Operation #1323 @scottf
+* KV Purge Per Message TTL #1344 @scottf
 
 ### Tests
 * Addition validation and test for token / token supplier #1325 @scottf
 * Add test for auth violations during reconnect #1328 @ajax-surovskyi-y
 * Fixed KV Limit Marker Test to only run against 2.11.2 or later #1338 @scottf
 * Fix flapping test: testOverflowFetch #1340 @scottf
+* Set the test timeout default to 3 minutes. #1343 @scottf
 
 ###  Misc
 * Better Json Print Formatter #1327 @scottf
+
+## 2.21.3
+
+** DO NOT USE **
+
+Use 2.21.4 instead
 
 ```
 ┌─────────────────────┬───────────────────┬─────────────────┬──────────────────────────┬──────────────────┐
