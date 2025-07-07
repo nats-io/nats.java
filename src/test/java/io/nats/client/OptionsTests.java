@@ -98,6 +98,7 @@ public class OptionsTests {
         assertNull(o.getConnectionListener(), "disconnect listener");
         assertNull(o.getStatisticsCollector(), "statistics collector");
         assertFalse(o.isOldRequestStyle(), "default oldstyle");
+        assertFalse(o.isEnableFastFallback(), "fast fallback");
     }
 
     @Test
@@ -1142,6 +1143,12 @@ public class OptionsTests {
         assertEquals("user", o.getUsername());
         assertEquals("pass", o.getPassword());
         assertNull(o.getToken());
+    }
+
+    @Test
+    public void testFastFallback() {
+        Options options = new Options.Builder().enableFastFallback().build();
+        assertTrue(options.isEnableFastFallback());
     }
 
 /* These next three require that no default is set anywhere, if another test

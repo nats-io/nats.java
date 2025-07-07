@@ -678,6 +678,7 @@ public class Options {
 
     private final List<java.util.function.Consumer<HttpRequest>> httpRequestInterceptors;
     private final Proxy proxy;
+    private final boolean enableFastFallback;
 
     static class DefaultThreadFactory implements ThreadFactory {
         String name;
@@ -802,6 +803,7 @@ public class Options {
         private char[] truststorePassword;
         private String tlsAlgorithm = DEFAULT_TLS_ALGORITHM;
         private String credentialPath;
+        private boolean enableFastFallback = false;
 
         /**
          * Constructs a new Builder with the default values.
@@ -1763,6 +1765,15 @@ public class Options {
         }
 
         /**
+         * Whether to enable Fast fallback algorithm for socket connect
+         * @return the Builder for chaining
+         */
+        public Builder enableFastFallback() {
+            this.enableFastFallback = true;
+            return this;
+        }
+
+        /**
          * Build an Options object from this Builder.
          *
          * <p>If the Options builder was not provided with a server, a default one will be included
@@ -1996,6 +2007,7 @@ public class Options {
 
             this.serverPool = o.serverPool;
             this.dispatcherFactory = o.dispatcherFactory;
+            this.enableFastFallback = o.enableFastFallback;
         }
     }
 
@@ -2064,6 +2076,7 @@ public class Options {
 
         this.serverPool = b.serverPool;
         this.dispatcherFactory = b.dispatcherFactory;
+        this.enableFastFallback = b.enableFastFallback;
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -2548,6 +2561,14 @@ public class Options {
      */
     public DispatcherFactory getDispatcherFactory() {
         return dispatcherFactory;
+    }
+
+    /**
+     * Whether Fast fallback algorithm is enabled for socket connect
+     * @return the flag
+     */
+    public boolean isEnableFastFallback() {
+        return enableFastFallback;
     }
 
     public URI createURIForServer(String serverURI) throws URISyntaxException {
