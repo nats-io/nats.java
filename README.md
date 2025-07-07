@@ -221,7 +221,7 @@ If you need a snapshot version, you must enable snapshots and change your depend
 
 ### Integration with GraalVM
 
-To include this library with a GraalVM project, you must use configure thse `initialize-at-run-time` classes. 
+To include this library with a GraalVM project, you must use configure these `initialize-at-run-time` classes. 
 * `--initialize-at-run-time=java.security.SecureRandom`.
 * `--initialize-at-run-time=io.nats.client.support.RandomUtils`
 * `--initialize-at-run-time=io.nats.client.NUID`

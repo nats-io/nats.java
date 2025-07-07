@@ -18,6 +18,7 @@ import io.nats.client.api.*;
 import io.nats.client.support.*;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Isolated;
 
 import java.io.*;
 import java.time.Duration;
@@ -32,6 +33,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import static io.nats.client.BaseConsumeOptions.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+@Isolated
 public class SimplificationTests extends JetStreamTestBase {
 
     @Test

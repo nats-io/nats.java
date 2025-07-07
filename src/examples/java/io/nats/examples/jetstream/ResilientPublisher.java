@@ -152,8 +152,12 @@ public class ResilientPublisher implements Runnable {
         return this;
     }
 
+    boolean lastPublishOk = false;
+
     public ResilientPublisher afterPublish(BiConsumer<Connection, PublishAck> afterPublish) {
-        this.afterPublish = afterPublish == null ? (c, l) -> {} : afterPublish;
+        this.afterPublish = afterPublish == null
+            ? (c, l) -> { if (!lastPublishOk) { report("Publish Start/Resume: " + l); lastPublishOk = true; } }
+            : afterPublish;
         return this;
     }
 
@@ -166,7 +170,7 @@ public class ResilientPublisher implements Runnable {
 
     public ResilientPublisher exceptionReporter(BiConsumer<Connection, Exception> exceptionReporter) {
         this.exceptionReporter = exceptionReporter == null
-            ? (c, e) -> report("Publish Exception: " + e)
+            ? (c, e) -> { if (lastPublishOk) {report("Publish Exception: " + e); lastPublishOk = false; }}
             : exceptionReporter;
         return this;
     }
