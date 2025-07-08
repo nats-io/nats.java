@@ -26,9 +26,9 @@ public class AccountLimits {
 
     private final long maxMemory;
     private final long maxStorage;
-    private final long maxStreams;
-    private final long maxConsumers;
-    private final long maxAckPending;
+    private final long maxStreams;     // should be an int
+    private final long maxConsumers;   // should be an int
+    private final long maxAckPending;  // should be an int
     private final long memoryMaxStreamBytes;
     private final long storageMaxStreamBytes;
     private final boolean maxBytesRequired;

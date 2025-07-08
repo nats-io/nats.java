@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Predicate;
@@ -33,6 +34,8 @@ public class ListenerForTesting implements ErrorListener, ConnectionListener {
     private final AtomicInteger exceptionCount = new AtomicInteger();
     private final HashMap<Events,AtomicInteger> eventCounts = new HashMap<>();
     private final HashMap<String,AtomicInteger> errorCounts = new HashMap<>();
+    private final AtomicBoolean exitOnDisconnect = new AtomicBoolean(false);
+    private final AtomicBoolean exitOnHeartbeatError = new AtomicBoolean(false);
 
     private Connection lastEventConnection;
 
@@ -74,6 +77,8 @@ public class ListenerForTesting implements ErrorListener, ConnectionListener {
         exceptionCount.set(0);
         eventCounts.clear();
         errorCounts.clear();
+        exitOnDisconnect.set(false);
+        exitOnHeartbeatError.set(false);
         lastEventConnection = null;
         statusChanged = null;
         slowSubscriber = null;
@@ -119,6 +124,14 @@ public class ListenerForTesting implements ErrorListener, ConnectionListener {
             System.err.print("LFT " + label + ": ");
             e.printStackTrace();
         }
+    }
+
+    public void setExitOnDisconnect() {
+        exitOnDisconnect.set(true);
+    }
+
+    public void setExitOnHeartbeatError() {
+        exitOnHeartbeatError.set(true);
     }
 
     public void prepForStatusChange(Events waitFor) {
@@ -224,6 +237,10 @@ public class ListenerForTesting implements ErrorListener, ConnectionListener {
         lastEventConnection = conn;
         connectionEvents.add(type);
         count.incrementAndGet();
+
+        if (exitOnDisconnect.get() && type == Events.DISCONNECTED) {
+            System.exit(-1);
+        }
 
         prepLock.lock();
         try {
@@ -491,6 +508,9 @@ public class ListenerForTesting implements ErrorListener, ConnectionListener {
     public void heartbeatAlarm(Connection conn, JetStreamSubscription sub, long lastStreamSequence, long lastConsumerSequence) {
         prepLock.lock();
         try {
+            if (exitOnHeartbeatError.get()) {
+                System.exit(-2);
+            }
             HeartbeatAlarmEvent event = new HeartbeatAlarmEvent(sub, lastStreamSequence, lastConsumerSequence);
             if (verbose) {
                 report("heartbeatAlarm",  event);

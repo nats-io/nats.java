@@ -18,10 +18,11 @@ import io.nats.client.MessageTtl;
 import io.nats.client.PublishOptions;
 import io.nats.client.api.KeyValueOperation;
 import io.nats.client.impl.Headers;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import static io.nats.client.support.NatsConstants.DOT;
-import static io.nats.client.support.NatsJetStreamConstants.ROLLUP_HDR;
-import static io.nats.client.support.NatsJetStreamConstants.ROLLUP_HDR_SUBJECT;
+import static io.nats.client.support.NatsJetStreamConstants.*;
 
 public abstract class NatsKeyValueUtil {
 
@@ -33,18 +34,22 @@ public abstract class NatsKeyValueUtil {
     public static final String KV_SUBJECT_SUFFIX = ".>";
     public static final String KV_OPERATION_HEADER_KEY = "KV-Operation";
 
+    @NotNull
     public static String extractBucketName(String streamName) {
         return streamName.substring(KV_STREAM_PREFIX_LEN);
     }
 
+    @NotNull
     public static String toStreamName(String bucketName) {
         return KV_STREAM_PREFIX + bucketName;
     }
 
+    @NotNull
     public static String toStreamSubject(String bucketName) {
         return KV_SUBJECT_PREFIX + bucketName + KV_SUBJECT_SUFFIX;
     }
 
+    @NotNull
     public static String toKeyPrefix(String bucketName) {
         return KV_SUBJECT_PREFIX + bucketName + DOT;
     }
@@ -53,6 +58,7 @@ public abstract class NatsKeyValueUtil {
         return bucketName.startsWith(KV_STREAM_PREFIX);
     }
 
+    @NotNull
     public static String trimPrefix(String bucketName) {
         if (bucketName.startsWith(KV_STREAM_PREFIX)) {
             return bucketName.substring(KV_STREAM_PREFIX.length());
@@ -60,25 +66,46 @@ public abstract class NatsKeyValueUtil {
         return bucketName;
     }
 
+    @Nullable
     public static String getOperationHeader(Headers h) {
         return h == null ? null : h.getFirst(KV_OPERATION_HEADER_KEY);
     }
 
-    public static KeyValueOperation getOperation(Headers h) {
-        return KeyValueOperation.getOrDefault(getOperationHeader(h), KeyValueOperation.PUT);
+    @Nullable
+    public static String getNatsMarkerReasonHeader(Headers h) {
+        return h == null ? null : h.getFirst(NATS_MARKER_REASON_HDR);
     }
 
+    @NotNull
+    public static KeyValueOperation getOperation(Headers h) {
+        KeyValueOperation kvo = null;
+        String hs = getOperationHeader(h);
+        if (hs != null) {
+            kvo = KeyValueOperation.instance(hs);
+        }
+        if (kvo == null) {
+            hs = getNatsMarkerReasonHeader(h);
+            if (hs != null) {
+                kvo = KeyValueOperation.instanceByMarkerReason(hs);
+            }
+        }
+        return kvo == null ? KeyValueOperation.PUT : kvo;
+    }
+
+    @NotNull
     public static Headers getDeleteHeaders() {
         return new Headers()
             .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.DELETE.getHeaderValue());
     }
 
+    @NotNull
     public static Headers getPurgeHeaders() {
         return new Headers()
             .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.PURGE.getHeaderValue())
             .put(ROLLUP_HDR, ROLLUP_HDR_SUBJECT);
     }
 
+    @Nullable
     public static PublishOptions getPublishOptions(long expectedRevision, MessageTtl messageTtl) {
         boolean returnNull = true;
         PublishOptions.Builder b = PublishOptions.builder();

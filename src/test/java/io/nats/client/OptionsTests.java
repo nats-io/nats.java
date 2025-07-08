@@ -33,6 +33,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 
 import static io.nats.client.Options.*;
 import static io.nats.client.support.Encoding.base64UrlEncodeToString;
@@ -855,6 +857,52 @@ public class OptionsTests {
         assertTrue(connectString.contains("\"auth_token\":\"alberto\""));
         assertFalse(connectString.contains("\"user\":"));
         assertFalse(connectString.contains("\"pass\":"));
+    }
+
+    @Test
+    public void testTokenSupplier() {
+        String serverURI = "nats://localhost:2222";
+        Options o = new Options.Builder().build();
+        String connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
+        assertFalse(connectString.contains("\"auth_token\""));
+
+        //noinspection deprecation
+        o = new Options.Builder().token((String)null).build();
+        connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
+        assertFalse(connectString.contains("\"auth_token\""));
+
+        //noinspection deprecation
+        o = new Options.Builder().token("   ").build();
+        connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
+        assertFalse(connectString.contains("\"auth_token\""));
+
+        o = new Options.Builder().token((char[])null).build();
+        connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
+        assertFalse(connectString.contains("\"auth_token\""));
+
+        o = new Options.Builder().token(new char[0]).build();
+        connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
+        assertFalse(connectString.contains("\"auth_token\""));
+
+        AtomicInteger counter = new AtomicInteger(0);
+        Supplier<char[]> tokenSupplier = () -> ("short-lived-token-" + counter.incrementAndGet()).toCharArray();
+        o = new Options.Builder().tokenSupplier(tokenSupplier).build();
+
+        connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
+        assertTrue(connectString.contains("\"auth_token\":\"short-lived-token-1\""));
+
+        connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
+        assertTrue(connectString.contains("\"auth_token\":\"short-lived-token-2\""));
+
+        Properties properties = new Properties();
+        properties.setProperty(PROP_TOKEN_SUPPLIER, TestingDynamicTokenSupplier.class.getCanonicalName());
+        o = new Options.Builder().properties(properties).build();
+
+        connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
+        assertTrue(connectString.contains("\"auth_token\":\"dynamic-token-1\""));
+
+        connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
+        assertTrue(connectString.contains("\"auth_token\":\"dynamic-token-2\""));
     }
 
     @Test

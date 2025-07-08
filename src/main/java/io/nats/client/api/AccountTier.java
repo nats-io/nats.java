@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonValue;
+import org.jetbrains.annotations.NotNull;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonValueUtils.readInteger;
@@ -110,6 +111,7 @@ public class AccountTier {
      * The limits of this tier.
      * @return the limits object
      */
+    @NotNull
     public AccountLimits getLimits() {
         return limits;
     }

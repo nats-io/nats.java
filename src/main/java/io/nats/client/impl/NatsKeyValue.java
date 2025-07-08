@@ -233,6 +233,22 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
         _write(key, null, getPurgeHeaders(), getPublishOptions(expectedRevision, null));
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void purge(String key, MessageTtl messageTtl) throws IOException, JetStreamApiException {
+        _write(key, null, getPurgeHeaders(), getPublishOptions(-1, messageTtl));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void purge(String key, long expectedRevision, MessageTtl messageTtl) throws IOException, JetStreamApiException {
+        _write(key, null, getPurgeHeaders(), getPublishOptions(expectedRevision, messageTtl));
+    }
+
     private PublishAck _write(String key, byte[] data, Headers h, PublishOptions popts) throws IOException, JetStreamApiException {
         validateNonWildcardKvKeyRequired(key);
         return js.publish(NatsMessage.builder().subject(writeSubject(key)).data(data).headers(h).build(), popts);

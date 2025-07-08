@@ -1,5 +1,85 @@
 # Change Log
 
+## 2.21.4
+
+### Core
+* Fix race condition during reconnect sends UNSUB messages #1321 @ajax-surovskyi-y
+* Add connection auth token supplier option #1324 @buleuszmatak
+* Nano time for elapsed timings and Nats System Clock #1334 @scottf
+* Replace Timer with scheduled tasks #1335 @scottf
+* [Bug] Fix UNSUBs after disconnect can cause auth violations #1336 @scottf @ajax-surovskyi-y
+* Options allow token supplier from property, not just api method #1349 @scottf
+
+### JetStream
+* Annotating API objects with NotNull and Nullable #1333 @scottf
+* [Bug] MessageConsumer.isFinished() not set properly in certain conditions #1339 @scottf
+* [Bug] Pull Heartbeat handler intermittent failure after switch to scheduler #1345 @scottf
+* Fix heartbeat timer handling broken when replacing timer with scheduler. #1348 @scottf
+
+### Key Value
+* Nats-Marker-Reason must be mapped to a Key Value Operation #1323 @scottf
+* KV Purge Per Message TTL #1344 @scottf
+
+### Tests
+* Addition validation and test for token / token supplier #1325 @scottf
+* Add test for auth violations during reconnect #1328 @ajax-surovskyi-y
+* Fixed KV Limit Marker Test to only run against 2.11.2 or later #1338 @scottf
+* Fix flapping test: testOverflowFetch #1340 @scottf
+* Set the test timeout default to 3 minutes. #1343 @scottf
+
+###  Misc
+* Better Json Print Formatter #1327 @scottf
+
+## 2.21.3
+
+** DO NOT USE **
+
+Use 2.21.4 instead
+
+```
+┌─────────────────────┬───────────────────┬─────────────────┬──────────────────────────┬──────────────────┐
+│                     │             count │            time │                 msgs/sec │        bytes/sec │
+├─────────────────────┼───────────────────┼─────────────────┼──────────────────────────┼──────────────────┤
+│ PubAsync            │  250,000,000 msgs │       136.2:821 │      30,863.438 msgs/sec │      7.36 mb/sec │
+├─────────────────────┼───────────────────┼─────────────────┼──────────────────────────┼──────────────────┤
+│ SubFetch            │  250,000,000 msgs │      174.52:136 │      23,914.410 msgs/sec │      5.70 mb/sec │
+├─────────────────────┼───────────────────┼─────────────────┼──────────────────────────┼──────────────────┤
+│ SubIterate          │  250,000,000 msgs │       100.7:909 │      41,654.780 msgs/sec │      9.93 mb/sec │
+└─────────────────────┴───────────────────┴─────────────────┴──────────────────────────┴──────────────────┘
+```
+
+## 2.21.2
+### Core
+* Changed header value validation to accept any ascii except CR & LF #1316 @francoisprunier
+
+### JetStream
+* Update account ApiStats with level and inflight #1304 @scottf
+* Update account AccountTier with reserved memory and reserved storage #1305 @scottf
+* Add StreamAlternate structure to StreamInfo response #1306 @scottf
+* Better workflow for leadership change while pull consuming. #1313 @scottf
+* Ability to supply a prefix for watches. Fixed ordered consumer naming bug. #1314 @scottf
+* Use full NUID for generated consumer names #1317 @scottf
+
+### Key Value
+* Update KV consumeKeys() to return the BlockingQueue immediately. #1308 @scottf
+* KV Limit Marker #1310  @scottf
+* KV LimitMarker add missing getter, additional docs and tests #1311 @scottf
+
+### General
+* Update repository info and cleanup readme. #1318 @scottf
+
+```
+┌─────────────────────┬───────────────────┬─────────────────┬──────────────────────────┬──────────────────┐
+│                     │             count │            time │                 msgs/sec │        bytes/sec │
+├─────────────────────┼───────────────────┼─────────────────┼──────────────────────────┼──────────────────┤
+│ PubAsync            │   50,000,000 msgs │       28:02.729 │      29,713.638 msgs/sec │      7.08 mb/sec │
+├─────────────────────┼───────────────────┼─────────────────┼──────────────────────────┼──────────────────┤
+│ SubFetch            │   49,999,991 msgs │       36:03.206 │      23,113.837 msgs/sec │      5.51 mb/sec │
+├─────────────────────┼───────────────────┼─────────────────┼──────────────────────────┼──────────────────┤
+│ SubIterate          │   50,000,000 msgs │       20:02.740 │      41,571.745 msgs/sec │      9.91 mb/sec │
+└─────────────────────┴───────────────────┴─────────────────┴──────────────────────────┴──────────────────┘
+```
+
 ## 2.21.1
 ### KV
 * KV TTL (stream max_age) versus stream duplicate_window #1301 @scottf
@@ -9,6 +89,18 @@
 
 ### Misc
 * Remove STAN references #1300 @scottf
+
+```
+┌─────────────────────┬───────────────────┬─────────────────┬──────────────────────────┬──────────────────┐
+│                     │             count │            time │                 msgs/sec │        bytes/sec │
+├─────────────────────┼───────────────────┼─────────────────┼──────────────────────────┼──────────────────┤
+│ PubAsync            │   50,000,000 msgs │       28:01.156 │      29,741.440 msgs/sec │      7.09 mb/sec │
+├─────────────────────┼───────────────────┼─────────────────┼──────────────────────────┼──────────────────┤
+│ SubFetch            │   50,000,000 msgs │       38:01.867 │      21,911.882 msgs/sec │      5.22 mb/sec │
+├─────────────────────┼───────────────────┼─────────────────┼──────────────────────────┼──────────────────┤
+│ SubIterate          │   50,000,000 msgs │       20:27.331 │      40,738.806 msgs/sec │      9.71 mb/sec │
+└─────────────────────┴───────────────────┴─────────────────┴──────────────────────────┴──────────────────┘
+```
 
 ## 2.21.0
 ### Core
@@ -23,6 +115,18 @@ Main 2 11 merge safe #1294 is actually a compilation of PRs related to 2.11 feat
 * Consumer Priority Group Overflow #1233
 * Add Message TTL Stream Configuration #1280
 * Per Message TTL Support for 2.11 #1295
+
+```
+┌─────────────────────┬───────────────────┬─────────────────┬──────────────────────────┬──────────────────┐
+│                     │             count │            time │                 msgs/sec │        bytes/sec │
+├─────────────────────┼───────────────────┼─────────────────┼──────────────────────────┼──────────────────┤
+│ PubAsync            │   50,000,000 msgs │       29:10.069 │      28,570.302 msgs/sec │      6.81 mb/sec │
+├─────────────────────┼───────────────────┼─────────────────┼──────────────────────────┼──────────────────┤
+│ SubFetch            │   49,999,993 msgs │       36:15.122 │      22,987.213 msgs/sec │      5.48 mb/sec │
+├─────────────────────┼───────────────────┼─────────────────┼──────────────────────────┼──────────────────┤
+│ SubIterate          │   50,000,000 msgs │       21:02.180 │      39,614.001 msgs/sec │      9.44 mb/sec │
+└─────────────────────┴───────────────────┴─────────────────┴──────────────────────────┴──────────────────┘
+```
 
 ## 2.20.6
 ### Core
@@ -241,7 +345,7 @@ Going forward, when a release contains only bug fixes, it's appropriate to simpl
 
 ## 2.17.6 / 2.17.5
 
-2.17.6 was released immediately after 2.17.5. The allowing of a comma delimited list of keys was removed. 
+2.17.6 was released immediately after 2.17.5. The allowing of a comma delimited list of keys was removed.
 This is noted since it was technically available for several hours even though it was never publicly announced,
 and will be considered a bug fix.
 
@@ -568,7 +672,7 @@ This release takes the experimental tag off both the Simplification API and the 
 
 * Update docs and examples #846 @scottf
 * 2.10 allows filter subject that doesn't match stream subjects #849 @scottf
-* 
+*
 ## 2.16.8
 
 #### Core and JetStream
@@ -729,7 +833,7 @@ This release is a re-release of 2.15.7 with an additional opt-out and the minor 
 * Allow direct configuration for KV #718 #724 @scottf
 
 #### Object Store
-* Initial implementation, experimental. #705 #714 #720 @scottf 
+* Initial implementation, experimental. #705 #714 #720 @scottf
 
 #### Core
 * Static Memory Auth Handler #702 @scottf
@@ -887,7 +991,7 @@ KV Experimental
 
 This release is the first release to support v2.4.0 of the NATS server. The change covers how queueing is supported in JetStream using the Deliver Group subscribe option.
 
-## 2.11.6 KV beta last release compatible with Server v2.3.4 and older 
+## 2.11.6 KV beta last release compatible with Server v2.3.4 and older
 
 1. Key Value (KV) Beta: This release includes a beta version of the Key Value functionality. There were multiple PR's involved in KV including new interfaces and new api / protocol enhancements designed to support KV
 2. Support for API error code allowing server generated errors to be identified by number instead of text.
@@ -913,7 +1017,7 @@ Revert performance fix due to high cpu during idle.
 - [ENHANCEMENT] PR #472 / #477 benchmark improvements (@scottf)
 - [ENHANCEMENT] PR #473 performance improvements(@scottf)
 - [FIXED] PR #475 fixed filter subject (@scottf)
-- [EXAMPLES] PR #478 Clarify examples with deliver subjects (@scottf) 
+- [EXAMPLES] PR #478 Clarify examples with deliver subjects (@scottf)
 
 ## Version 2.11.2
 
@@ -948,7 +1052,7 @@ JetStream Multi Tool enhancements and documentation
 - [DOCUMENTED] Issue #402 Unable to connect to NATS server via Android Studio
 - [DOCUMENTED] Issue #445 NatsConnection.request(Message) does not use Message.replyTo (@scottf)
 - [DOCUMENTED] Issue #423 createContext() not documented (@scottf)
-  
+
 ## Version 2.10.0
 
 1. JetStream (message and management) support added.
@@ -987,12 +1091,12 @@ JetStream Multi Tool enhancements and documentation
 
 ## Version 2.8.0
 
- - [ADDED] #323 Nats.connect v2 credentials (@olicuzo)
- - [CHANGED]  #320 Update MAINTAINERS.md (@gcolliso)
- - [FIXED] #318 Printing trace when NUID initialization takes long (@matthiashanel)
- - [FIXED] #327 Subject Remapping Fix (@brimworks)
- - [FIXED] #331 Close connection when flush fails during drain (@matthiashanel)
- - [FIXED] #330 Reconnect wait was not being honored (@ColinSullivan1)
+- [ADDED] #323 Nats.connect v2 credentials (@olicuzo)
+- [CHANGED]  #320 Update MAINTAINERS.md (@gcolliso)
+- [FIXED] #318 Printing trace when NUID initialization takes long (@matthiashanel)
+- [FIXED] #327 Subject Remapping Fix (@brimworks)
+- [FIXED] #331 Close connection when flush fails during drain (@matthiashanel)
+- [FIXED] #330 Reconnect wait was not being honored (@ColinSullivan1)
 
 ## Version 2.6.8
 

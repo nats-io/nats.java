@@ -28,7 +28,7 @@ class PushMessageManager extends MessageManager {
 
     protected final NatsJetStream js;
     protected final String stream;
-    protected final ConsumerConfiguration originalCc;
+    protected final ConsumerConfiguration initialCc;
 
     protected final boolean queueMode;
     protected final boolean fc;
@@ -38,22 +38,22 @@ class PushMessageManager extends MessageManager {
                        NatsJetStream js,
                        String stream,
                        SubscribeOptions so,
-                       ConsumerConfiguration originalCc,
+                       ConsumerConfiguration initialCc,
                        boolean queueMode,
                        boolean syncMode)
     {
         super(conn, so, syncMode);
         this.js = js;
         this.stream = stream;
-        this.originalCc = originalCc;
+        this.initialCc = initialCc;
         this.queueMode = queueMode;
 
         if (queueMode) {
             fc = false;
         }
         else {
-            configureIdleHeartbeat(originalCc.getIdleHeartbeat(), so.getMessageAlarmTime());
-            fc = hb && originalCc.isFlowControl(); // can't have fc w/o heartbeat
+            configureIdleHeartbeat(initialCc.getIdleHeartbeat(), so.getMessageAlarmTime());
+            fc = hb.get() && initialCc.isFlowControl(); // can't have fc w/o heartbeat
         }
     }
 
@@ -65,14 +65,14 @@ class PushMessageManager extends MessageManager {
     protected void startup(NatsJetStreamSubscription sub) {
         super.startup(sub);
         sub.setBeforeQueueProcessor(this::beforeQueueProcessorImpl);
-        if (hb) {
+        if (hb.get()) {
             initOrResetHeartbeatTimer();
         }
     }
 
     @Override
     protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
-        if (hb) {
+        if (hb.get()) {
             updateLastMessageReceived(); // only need to track when heartbeats are expected
             Status status = msg.getStatus();
             if (status != null) {

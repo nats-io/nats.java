@@ -52,14 +52,16 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
     @Override
     public void heartbeatError() {
         try {
-            // just close the current sub and make another one.
-            // this could go on endlessly
-            lenientClose();
-            doSub();
+            if (stopped.get()) {
+                fullClose();
+            }
+            else {
+                shutdownSub();
+                doSub();
+            }
         }
         catch (JetStreamApiException | IOException e) {
-            pmm.resetTracking();
-            pmm.initOrResetHeartbeatTimer();
+            setupHbAlarmToTrigger();
         }
     }
 
@@ -70,15 +72,30 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
                 finished.set(true);
             }
         };
-        super.initSub(subscriptionMaker.subscribe(mh, userDispatcher, pmm, null));
-        repull();
-        stopped.set(false);
-        finished.set(false);
+        try {
+            stopped.set(false);
+            finished.set(false);
+            super.initSub(subscriptionMaker.subscribe(mh, userDispatcher, pmm, null));
+            repull();
+        }
+        catch (JetStreamApiException | IOException e) {
+            setupHbAlarmToTrigger();
+        }
+    }
+
+    private void setupHbAlarmToTrigger() {
+        pmm.resetTracking();
+        pmm.initOrResetHeartbeatTimer();
     }
 
     @Override
     public void pendingUpdated() {
-        if (!stopped.get() && (pmm.pendingMessages <= thresholdMessages || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes)))
+        if (stopped.get()) {
+            if (pmm.noMorePending()) {
+                fullClose();
+            }
+        }
+        else if (pmm.pendingMessages <= thresholdMessages || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes))
         {
             repull();
         }

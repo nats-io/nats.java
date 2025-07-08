@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static io.nats.client.impl.MessageManager.ManageResult;
+import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
 import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 import static io.nats.client.support.Status.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -97,7 +98,7 @@ public class MessageManagerTests extends JetStreamTestBase {
         assertTrue(manager.beforeQueueProcessorImpl(getTestJsMessage(1, sid)));
         assertEquals(ManageResult.MESSAGE, manager.manage(getTestJsMessage(1, sid)));
 
-        assertEquals(!manager.hb, manager.beforeQueueProcessorImpl(getHeartbeat(sid)));
+        assertEquals(!manager.hb.get(), manager.beforeQueueProcessorImpl(getHeartbeat(sid)));
 
         List<Integer> unhandledCodes = new ArrayList<>();
         assertTrue(manager.beforeQueueProcessorImpl(getFlowControl(1, sid)));
@@ -249,7 +250,6 @@ public class MessageManagerTests extends JetStreamTestBase {
             pullMgr.startup(sub);
             pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).build(), false, null);
             assertEquals(0, listener.getHeartbeatAlarms().size());
-            assertNull(pullMgr.heartbeatTimer);
 
             listener.reset();
             listener.prepForHeartbeatAlarm();
@@ -374,7 +374,7 @@ public class MessageManagerTests extends JetStreamTestBase {
         assertTrue(pmm.beforeQueueProcessorImpl(getTestJsMessage(3, sid)));
         assertTrue(pmm.beforeQueueProcessorImpl(getRequestTimeoutStatus(sid)));
         assertTrue(pmm.beforeQueueProcessorImpl(getFcHeartbeat(9, sid)));
-        assertEquals(!pmm.hb, pmm.beforeQueueProcessorImpl(getHeartbeat(sid)));
+        assertEquals(!pmm.hb.get(), pmm.beforeQueueProcessorImpl(getHeartbeat(sid)));
 
         // coverage extractFcSubject
         assertNull(pmm.extractFcSubject(getTestJsMessage()));
@@ -396,14 +396,14 @@ public class MessageManagerTests extends JetStreamTestBase {
     }
 
     private void _received_time_yes(PushSubscribeOptions so, JetStream js, String subject) throws Exception {
-        long before = System.currentTimeMillis();
+        long before = System.nanoTime();
         NatsJetStreamSubscription sub = (NatsJetStreamSubscription) js.subscribe(subject, so);
 
         // during the sleep, the heartbeat is delivered and is checked
         // by the heartbeat listener and recorded as received
         sleep(1050); // slightly longer than the idle heartbeat
 
-        long preTime = findStatusManager(sub).getLastMsgReceived();
+        long preTime = findStatusManager(sub).getLastMsgReceivedNanoTime();
         assertTrue(preTime > before);
         sub.unsubscribe();
     }
@@ -420,7 +420,7 @@ public class MessageManagerTests extends JetStreamTestBase {
         js.publish(subject, dataBytes(0));
         sub.nextMessage(1000);
         NatsJetStreamSubscription nsub = (NatsJetStreamSubscription)sub;
-        assertTrue(findStatusManager(nsub).getLastMsgReceived() <= System.currentTimeMillis());
+        assertTrue(findStatusManager(nsub).getLastMsgReceivedNanoTime() <= System.nanoTime());
         jsm.purgeStream(stream);
         sub.unsubscribe();
     }
@@ -436,25 +436,25 @@ public class MessageManagerTests extends JetStreamTestBase {
             PushSubscribeOptions so = new PushSubscribeOptions.Builder().configuration(cc).build();
             PushMessageManager manager = getPushManager(nc, so, sub, false);
             assertEquals(1000, manager.getIdleHeartbeatSetting());
-            assertEquals(3000, manager.getAlarmPeriodSetting());
+            assertEquals(3000 * NANOS_PER_MILLI, manager.getAlarmPeriodSettingNanos());
 
             // MessageAlarmTime < idleHeartbeat
             so = new PushSubscribeOptions.Builder().configuration(cc).messageAlarmTime(999).build();
             manager = getPushManager(nc, so, sub, false);
             assertEquals(1000, manager.getIdleHeartbeatSetting());
-            assertEquals(3000, manager.getAlarmPeriodSetting());
+            assertEquals(3000 * NANOS_PER_MILLI, manager.getAlarmPeriodSettingNanos());
 
             // MessageAlarmTime == idleHeartbeat
             so = new PushSubscribeOptions.Builder().configuration(cc).messageAlarmTime(1000).build();
             manager = getPushManager(nc, so, sub, false);
             assertEquals(1000, manager.getIdleHeartbeatSetting());
-            assertEquals(1000, manager.getAlarmPeriodSetting());
+            assertEquals(1000 * NANOS_PER_MILLI, manager.getAlarmPeriodSettingNanos());
 
             // MessageAlarmTime > idleHeartbeat
             so = new PushSubscribeOptions.Builder().configuration(cc).messageAlarmTime(2000).build();
             manager = getPushManager(nc, so, sub, false);
             assertEquals(1000, manager.getIdleHeartbeatSetting());
-            assertEquals(2000, manager.getAlarmPeriodSetting());
+            assertEquals(2000 * NANOS_PER_MILLI, manager.getAlarmPeriodSettingNanos());
         });
     }
 
@@ -465,7 +465,7 @@ public class MessageManagerTests extends JetStreamTestBase {
             SubscribeOptions so = push_xhb_xfc();
             PushMessageManager manager = getPushManager(nc, so, sub, false);
             assertEquals(0, manager.getIdleHeartbeatSetting());
-            assertEquals(0, manager.getAlarmPeriodSetting());
+            assertEquals(0, manager.getAlarmPeriodSettingNanos());
         });
     }
 

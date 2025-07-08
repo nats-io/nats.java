@@ -15,6 +15,7 @@ package io.nats.client.support;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -439,6 +440,14 @@ public abstract class Validator {
     // ----------------------------------------------------------------------------------------------------
     public static boolean nullOrEmpty(String s) {
         return s == null || s.trim().isEmpty();
+    }
+
+    public static boolean nullOrEmpty(String[] a) {
+        return a == null || a.length == 0;
+    }
+
+    public static boolean nullOrEmpty(Collection<?> c) {
+        return c == null || c.isEmpty();
     }
 
     public static boolean notPrintable(String s) {

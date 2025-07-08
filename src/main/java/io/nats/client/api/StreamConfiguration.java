@@ -14,18 +14,20 @@
 package io.nats.client.api;
 
 import io.nats.client.support.*;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
 import java.util.*;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
+import static io.nats.client.support.JsonValueUtils.*;
 import static io.nats.client.support.JsonValueUtils.readBoolean;
 import static io.nats.client.support.JsonValueUtils.readInteger;
 import static io.nats.client.support.JsonValueUtils.readLong;
 import static io.nats.client.support.JsonValueUtils.readNanos;
 import static io.nats.client.support.JsonValueUtils.readString;
-import static io.nats.client.support.JsonValueUtils.*;
 import static io.nats.client.support.Validator.*;
 
 /**
@@ -164,6 +166,8 @@ public class StreamConfiguration implements JsonSerializable {
      *
      * @return json consumer configuration to send to the server.
      */
+    @Override
+    @NotNull
     public String toJson() {
 
         StringBuilder sb = beginJson();
@@ -212,6 +216,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Gets the name of this stream configuration.
      * @return the name of the stream.
      */
+    @NotNull
     public String getName() {
         return name;
     }
@@ -220,6 +225,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Gets the description of this stream configuration.
      * @return the description of the stream.
      */
+    @Nullable
     public String getDescription() {
         return description;
     }
@@ -228,6 +234,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Gets the subjects for this stream configuration.
      * @return the subject of the stream.
      */
+    @NotNull
     public List<String> getSubjects() {
         return subjects;
     }
@@ -236,6 +243,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Gets the discard policy for this stream configuration.
      * @return the discard policy of the stream.
      */
+    @Nullable
     public DiscardPolicy getDiscardPolicy() {
         return discardPolicy;
     }
@@ -244,6 +252,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Gets the retention policy for this stream configuration.
      * @return the retention policy for this stream.
      */
+    @NotNull
     public RetentionPolicy getRetentionPolicy() {
         return retentionPolicy;
     }
@@ -252,6 +261,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Gets the compression option for this stream configuration.
      * @return the compression option for this stream.
      */
+    @Nullable
     public CompressionOption getCompressionOption() {
         return compressionOption;
     }
@@ -291,7 +301,8 @@ public class StreamConfiguration implements JsonSerializable {
     /**
      * Gets the maximum message age for this stream configuration.
      * @return the maximum message age for this stream.
-     */  
+     */
+    @NotNull
     public Duration getMaxAge() {
         return maxAge;
     }
@@ -318,6 +329,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Gets the storage type for this stream configuration.
      * @return the storage type for this stream.
      */
+    @NotNull
     public StorageType getStorageType() {
         return storageType;
     }
@@ -341,7 +353,8 @@ public class StreamConfiguration implements JsonSerializable {
     /**
      * Gets the template json for this stream configuration.
      * @return the template for this stream.
-     */    
+     */
+    @Nullable
     public String getTemplateOwner() {
         return templateOwner;
     }
@@ -350,7 +363,8 @@ public class StreamConfiguration implements JsonSerializable {
      * Gets the duplicate checking window stream configuration.  Duration.ZERO
      * means duplicate checking is not enabled.
      * @return the duration of the window.
-     */    
+     */
+    @Nullable
     public Duration getDuplicateWindow() {
         return duplicateWindow;
     }
@@ -360,6 +374,7 @@ public class StreamConfiguration implements JsonSerializable {
      * random placement when unset. May be null.
      * @return the placement object
      */
+    @Nullable
     public Placement getPlacement() {
         return placement;
     }
@@ -368,6 +383,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Get the republish configuration. May be null.
      * @return the republish object
      */
+    @Nullable
     public Republish getRepublish() {
         return republish;
     }
@@ -376,6 +392,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Get the subjectTransform configuration. May be null.
      * @return the subjectTransform object
      */
+    @Nullable
     public SubjectTransform getSubjectTransform() {
         return subjectTransform;
     }
@@ -384,6 +401,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Get the consumerLimits configuration. May be null.
      * @return the consumerLimits object
      */
+    @Nullable
     public ConsumerLimits getConsumerLimits() {
         return consumerLimits;
     }
@@ -392,6 +410,7 @@ public class StreamConfiguration implements JsonSerializable {
      * The mirror definition for this stream
      * @return the mirror
      */
+    @Nullable
     public Mirror getMirror() {
         return mirror;
     }
@@ -400,6 +419,7 @@ public class StreamConfiguration implements JsonSerializable {
      * The sources for this stream
      * @return the sources
      */
+    @Nullable
     public List<Source> getSources() {
         return sources;
     }
@@ -465,6 +485,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Metadata for the stream
      * @return the metadata map. Might be null.
      */
+    @Nullable
     public Map<String, String> getMetadata() {
         return metadata;
     }
@@ -489,6 +510,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Get the Subject Delete Marker TTL duration. May be null.
      * @return The duration
      */
+    @Nullable
     public Duration getSubjectDeleteMarkerTtl() {
         return subjectDeleteMarkerTtl;
     }

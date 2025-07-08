@@ -25,6 +25,7 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.JetStreamOptions.DEFAULT_JS_OPTIONS;
 import static io.nats.client.api.KeyValuePurgeOptions.DEFAULT_THRESHOLD_MILLIS;
@@ -764,7 +765,7 @@ public class KeyValueTests extends JetStreamTestBase {
             kv.delete(key);
             kv.create(key, "abc".getBytes());
 
-            // 7. allowed to update a key that is deleted, as long as you have it's revision
+            // 7. allowed to update a key that is deleted, as long as you have its revision
             kv.delete(key);
             nc.flush(Duration.ofSeconds(1));
 
@@ -893,6 +894,11 @@ public class KeyValueTests extends JetStreamTestBase {
                     break;
                 }
             }
+        }
+
+        @Override
+        public String getConsumerNamePrefix() {
+            return metaOnly ? null : name + "-";
         }
 
         @Override
@@ -1070,6 +1076,14 @@ public class KeyValueTests extends JetStreamTestBase {
 
         if (!watcher.beforeWatcher) {
             sub = supplier.get(kv);
+        }
+
+        // only testing this consumer name prefix on not meta only tests
+        // this way there is coverage on working with and without a prefix
+        if (!watcher.metaOnly) {
+            List<String> names = nc.jetStreamManagement().getConsumerNames("KV_" + bucket);
+            assertEquals(1, names.size());
+            assertTrue(names.get(0).startsWith(watcher.getConsumerNamePrefix()));
         }
 
         sleep(1500); // give time for the watches to get messages
@@ -1784,7 +1798,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testLimitMarker() throws Exception {
-        jsServer.run(TestBase::atLeast2_11, nc -> {
+        jsServer.run(TestBase::atLeast2_11_2, nc -> {
             KeyValueManagement kvm = nc.keyValueManagement();
             String bucket = bucket();
             KeyValueConfiguration config = KeyValueConfiguration.builder()
@@ -1826,6 +1840,122 @@ public class KeyValueTests extends JetStreamTestBase {
                 .storageType(StorageType.Memory)
                 .limitMarker(Duration.ofMillis(999)) // coverage of duration api vs ms api
                 .build());
+        });
+    }
+
+    @Test
+    public void testLimitMarkerAlso() throws Exception {
+        jsServer.run(TestBase::atLeast2_11_2, nc -> {
+            String bucket = bucket();
+            String key1 = key();
+            String key2 = key();
+            String key3 = key();
+
+            KeyValueManagement kvm = nc.keyValueManagement();
+            KeyValueConfiguration config = KeyValueConfiguration.builder()
+                .name(bucket)
+                .storageType(StorageType.Memory)
+                .limitMarker(Duration.ofSeconds(5))
+                .build();
+            kvm.create(config);
+
+            Dispatcher d = nc.createDispatcher();
+
+            KeyValue kv = nc.keyValue(bucket);
+
+            AtomicInteger wPuts = new AtomicInteger();
+            AtomicInteger wDels = new AtomicInteger();
+            AtomicInteger wPurges = new AtomicInteger();
+            AtomicInteger wEod = new AtomicInteger();
+
+            KeyValueWatcher watcher = new KeyValueWatcher() {
+                @Override
+                public void watch(KeyValueEntry keyValueEntry) {
+                    if (keyValueEntry.getOperation() == KeyValueOperation.PUT) {
+                        wPuts.incrementAndGet();
+                    }
+                    else if (keyValueEntry.getOperation() == KeyValueOperation.DELETE) {
+                        wDels.incrementAndGet();
+                    }
+                    else if (keyValueEntry.getOperation() == KeyValueOperation.PURGE) {
+                        wPurges.incrementAndGet();
+                    }
+                }
+
+                @Override
+                public void endOfData() {
+                    wEod.incrementAndGet();
+                }
+            };
+
+            NatsKeyValueWatchSubscription watch = kv.watchAll(watcher);
+
+            AtomicInteger rMessages = new AtomicInteger();
+            AtomicInteger rPurges = new AtomicInteger();
+            AtomicInteger rMaxAges = new AtomicInteger();
+            AtomicInteger rTtl2 = new AtomicInteger();
+            AtomicInteger rTtl5 = new AtomicInteger();
+
+            MessageHandler rawHandler = msg -> {
+                rMessages.incrementAndGet();
+                if (msg.hasHeaders()) {
+                    String h = msg.getHeaders().getFirst("KV-Operation");
+                    if (h != null && h.equals("PURGE")) {
+                        rPurges.incrementAndGet();
+                    }
+                    h = msg.getHeaders().getFirst("Nats-Marker-Reason");
+                    if (h != null && h.equals("MaxAge")) {
+                        rMaxAges.incrementAndGet();
+                    }
+                    h = msg.getHeaders().getFirst("Nats-TTL");
+                    if (h != null) {
+                        if (h.equals("2s")) {
+                            rTtl2.incrementAndGet();
+                        }
+                        else {
+                            rTtl5.incrementAndGet();
+                        }
+                    }
+                }
+            };
+
+            JetStreamSubscription sub = nc.jetStream().subscribe(null, d, rawHandler, true,
+                PushSubscribeOptions.builder()
+                    .stream("KV_" + bucket)
+                    .configuration(ConsumerConfiguration.builder().filterSubject(">")
+                        .build())
+                    .build());
+
+            kv.create(key1, dataBytes(), MessageTtl.seconds(2));
+            kv.create(key2, dataBytes());
+            kv.create(key3, dataBytes());
+
+            assertNotNull(kv.get(key1));
+            assertNotNull(kv.get(key2));
+            assertNotNull(kv.get(key3));
+
+            kv.purge(key2, MessageTtl.seconds(2));
+            kv.purge(key3);
+
+            // This section will have to be modified if there are changes
+            // to how purge markers are handled (double purge on ttl purge, fix for no purge of non-ttl purge)
+            sleep(8000); // longer than the message ttl plus the limit marker since double purge plus some extra
+
+            assertNull(kv.get(key1));
+            assertNull(kv.get(key2));
+            assertNull(kv.get(key3));
+
+            // create and put
+            assertEquals(3, wPuts.get());
+            assertEquals(4, wPurges.get()); // the 2 message ttl purge markers, the manual purge and the manual purge's purge.
+            assertEquals(0, wDels.get());
+            assertEquals(1, wEod.get());
+
+            assertEquals(7, rMessages.get());
+            assertEquals(2, rPurges.get());
+            assertEquals(2, rMaxAges.get());
+            assertEquals(2, rTtl2.get());
+            assertEquals(2, rTtl5.get());
         });
     }
 }

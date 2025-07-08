@@ -14,14 +14,17 @@
 package io.nats.client.impl;
 
 import io.nats.client.Message;
+import io.nats.client.NatsSystemClock;
 import io.nats.client.PullRequestOptions;
 import io.nats.client.SubscribeOptions;
+import io.nats.client.support.NatsConstants;
+import io.nats.client.support.ScheduledTask;
 
 import java.time.Duration;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
 abstract class MessageManager {
@@ -38,14 +41,13 @@ abstract class MessageManager {
 
     protected long lastStreamSeq;
     protected long lastConsumerSeq;
-    protected AtomicLong lastMsgReceived;
+    protected AtomicLong lastMsgReceivedNanoTime;
 
     // heartbeat stuff
-    protected boolean hb;
-    protected long idleHeartbeatSetting;
-    protected long alarmPeriodSetting;
-    protected MmTimerTask heartbeatTimerTask;
-    protected Timer heartbeatTimer;
+    protected final AtomicBoolean hb;
+    protected final AtomicLong idleHeartbeatSettingMillis;
+    protected final AtomicLong alarmPeriodSettingNanos;
+    protected final AtomicReference<ScheduledTask> heartbeatTaskRef;
 
     protected MessageManager(NatsConnection conn, SubscribeOptions so, boolean syncMode) {
         stateChangeLock = new ReentrantLock();
@@ -56,19 +58,20 @@ abstract class MessageManager {
         lastStreamSeq = 0;
         lastConsumerSeq = 0;
 
-        hb = false;
-        idleHeartbeatSetting = 0;
-        alarmPeriodSetting = 0;
-        lastMsgReceived = new AtomicLong(System.currentTimeMillis());
+        hb = new AtomicBoolean(false);
+        idleHeartbeatSettingMillis = new AtomicLong();
+        alarmPeriodSettingNanos = new AtomicLong();
+        lastMsgReceivedNanoTime = new AtomicLong(NatsSystemClock.nanoTime());
+        heartbeatTaskRef = new AtomicReference<>();
     }
 
-    protected boolean isSyncMode()           { return syncMode; }
-    protected long getLastStreamSequence()   { return lastStreamSeq; }
-    protected long getLastConsumerSequence() { return lastConsumerSeq; }
-    protected long getLastMsgReceived()      { return lastMsgReceived.get(); }
-    protected boolean isHb()                 { return hb; }
-    protected long getIdleHeartbeatSetting() { return idleHeartbeatSetting; }
-    protected long getAlarmPeriodSetting()   { return alarmPeriodSetting; }
+    protected boolean isSyncMode()              { return syncMode; }
+    protected long getLastStreamSequence()      { return lastStreamSeq; }
+    protected long getLastConsumerSequence()    { return lastConsumerSeq; }
+    protected long getLastMsgReceivedNanoTime() { return lastMsgReceivedNanoTime.get(); }
+    protected boolean isHb()                    { return hb.get(); }
+    protected long getIdleHeartbeatSetting()    { return idleHeartbeatSettingMillis.get(); }
+    protected long getAlarmPeriodSettingNanos() { return alarmPeriodSettingNanos.get(); }
 
     protected void startup(NatsJetStreamSubscription sub) {
         this.sub = sub;
@@ -106,19 +109,22 @@ abstract class MessageManager {
     protected void configureIdleHeartbeat(Duration configIdleHeartbeat, long configMessageAlarmTime) {
         stateChangeLock.lock();
         try {
-            idleHeartbeatSetting = configIdleHeartbeat == null ? 0 : configIdleHeartbeat.toMillis();
-            if (idleHeartbeatSetting <= 0) {
-                alarmPeriodSetting = 0;
-                hb = false;
+            long idleSettingMillis = configIdleHeartbeat == null ? 0 : configIdleHeartbeat.toMillis();
+            idleHeartbeatSettingMillis.set(idleSettingMillis);
+            if (idleSettingMillis <= 0) {
+                alarmPeriodSettingNanos.set(0);
+                hb.set(false);
             }
             else {
-                if (configMessageAlarmTime < idleHeartbeatSetting) {
-                    alarmPeriodSetting = idleHeartbeatSetting * THRESHOLD;
+                long alarmPeriodSettingMillis;
+                if (configMessageAlarmTime < idleSettingMillis) {
+                    alarmPeriodSettingMillis = idleSettingMillis * THRESHOLD;
                 }
                 else {
-                    alarmPeriodSetting = configMessageAlarmTime;
+                    alarmPeriodSettingMillis = configMessageAlarmTime;
                 }
-                hb = true;
+                alarmPeriodSettingNanos.set(alarmPeriodSettingMillis * NatsConstants.NANOS_PER_MILLI);
+                hb.set(true);
             }
         }
         finally {
@@ -127,65 +133,31 @@ abstract class MessageManager {
     }
 
     protected void updateLastMessageReceived() {
-        lastMsgReceived.set(System.currentTimeMillis());
-    }
-
-    class MmTimerTask extends TimerTask {
-        long alarmPeriod;
-        final AtomicBoolean alive;
-
-        public MmTimerTask(long alarmPeriod) {
-            this.alarmPeriod = alarmPeriod;
-            alive = new AtomicBoolean(true);
-        }
-
-        public void reuse() {
-            alive.getAndSet(true);
-        }
-
-        public void shutdown() {
-            alive.getAndSet(false);
-        }
-
-        @Override
-        public void run() {
-            if (alive.get() && !Thread.interrupted()) {
-                long sinceLast = System.currentTimeMillis() - lastMsgReceived.get();
-                if (alive.get() && sinceLast > alarmPeriodSetting) {
-                    handleHeartbeatError();
-                }
-            }
-        }
-
-        @Override
-        public String toString() {
-            long sinceLast = System.currentTimeMillis() - lastMsgReceived.get();
-            return "MmTimerTask{" +
-                ", alarmPeriod=" + alarmPeriod +
-                ", alive=" + alive.get() +
-                ", sinceLast=" + sinceLast +
-                '}';
-        }
+        lastMsgReceivedNanoTime.set(NatsSystemClock.nanoTime());
     }
 
     protected void initOrResetHeartbeatTimer() {
         stateChangeLock.lock();
         try {
-            if (heartbeatTimer != null) {
-                // Same settings, just reuse the existing timer
-                if (heartbeatTimerTask.alarmPeriod == alarmPeriodSetting) {
-                    heartbeatTimerTask.reuse();
-                    updateLastMessageReceived();
-                    return;
-                }
-
-                // Replace timer since settings have changed
-                shutdownHeartbeatTimer();
+            ScheduledTask hbTask = heartbeatTaskRef.get();
+            if (hbTask != null) {
+                // we always want a fresh schedule because it will have the initial delay
+                hbTask.shutdown();
             }
-            // replacement or new comes here
-            heartbeatTimer = new Timer();
-            heartbeatTimerTask = new MmTimerTask(alarmPeriodSetting);
-            heartbeatTimer.schedule(heartbeatTimerTask, alarmPeriodSetting, alarmPeriodSetting);
+
+            // set the ref with a new ScheduledTask
+            // reminder that ScheduledTask schedules itself, which is why we pass the executor
+            heartbeatTaskRef.set(
+                new ScheduledTask(conn.getScheduledExecutor(), alarmPeriodSettingNanos.get(), TimeUnit.NANOSECONDS,
+                    () -> {
+                        long sinceLast = NatsSystemClock.nanoTime() - lastMsgReceivedNanoTime.get();
+                        if (sinceLast > alarmPeriodSettingNanos.get()) {
+                            handleHeartbeatError();
+                        }
+                    })
+            );
+
+            // since we just scheduled, reset this otherwise it may alarm too soon
             updateLastMessageReceived();
         }
         finally {
@@ -196,11 +168,10 @@ abstract class MessageManager {
     protected void shutdownHeartbeatTimer() {
         stateChangeLock.lock();
         try {
-            if (heartbeatTimer != null) {
-                heartbeatTimerTask.shutdown();
-                heartbeatTimerTask = null;
-                heartbeatTimer.cancel();
-                heartbeatTimer = null;
+            ScheduledTask hbTask = heartbeatTaskRef.get();
+            if (hbTask != null) {
+                hbTask.shutdown();
+                heartbeatTaskRef.set(null);
             }
         }
         finally {

@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonValue;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +47,7 @@ public class Subject implements Comparable<Subject> {
      * Get the subject name
      * @return the subject
      */
+    @NotNull
     public String getName() {
         return name;
     }

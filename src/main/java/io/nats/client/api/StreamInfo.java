@@ -15,6 +15,8 @@ package io.nats.client.api;
 
 import io.nats.client.Message;
 import io.nats.client.support.JsonValue;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -55,10 +57,20 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
     }
 
     /**
-     * Gets the stream configuration.
+     * Gets the stream configuration. Same as getConfig
      * @return the stream configuration.
      */
+    @NotNull
     public StreamConfiguration getConfiguration() {
+        return config;
+    }
+
+    /**
+     * Gets the stream configuration. Same as getConfiguration
+     * @return the stream configuration.
+     */
+    @NotNull
+    public StreamConfiguration getConfig() {
         return config;
     }
 
@@ -66,6 +78,7 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
      * Gets the stream state.
      * @return the stream state
      */
+    @NotNull
     public StreamState getStreamState() {
         return streamState;
     }
@@ -74,26 +87,27 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
      * Gets the creation time of the stream.
      * @return the creation date and time.
      */
+    @NotNull
     public ZonedDateTime getCreateTime() {
         return createTime;
     }
 
+    @Nullable
     public MirrorInfo getMirrorInfo() {
         return mirrorInfo;
     }
 
+    @Nullable
     public List<SourceInfo> getSourceInfos() {
         return sourceInfos;
     }
 
+    @Nullable
     public ClusterInfo getClusterInfo() {
         return clusterInfo;
     }
 
-    public StreamConfiguration getConfig() {
-        return config;
-    }
-
+    @Nullable
     public List<StreamAlternate> getAlternates() {
         return alternates;
     }
@@ -102,6 +116,7 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
      * Gets the server time the info was gathered
      * @return the server gathered timed
      */
+    @Nullable // doesn't exist in some versions of the server
     public ZonedDateTime getTimestamp() {
         return timestamp;
     }

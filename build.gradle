@@ -13,9 +13,11 @@ plugins {
     id 'signing'
 }
 
-def jarVersion = "2.21.2"
+def jarVersion = "2.21.5"
 
-def isRelease = System.getenv("BUILD_EVENT") == "release"
+def buildEvent = System.getenv("BUILD_EVENT")
+def isLocal = buildEvent == null
+def isRelease = buildEvent == "release"
 def brn = System.getenv("BRANCH_REF_NAME")
 def snap = brn == null || brn.equals("") ? "-SNAPSHOT" : "." + brn + "-SNAPSHOT"
 
@@ -37,6 +39,7 @@ repositories {
 
 dependencies {
     implementation 'org.bouncycastle:bcprov-lts8on:2.73.7'
+    implementation 'org.jetbrains:annotations:26.0.2'
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.9.0'
     testImplementation 'io.nats:jnats-server-runner:2.0.0'
@@ -81,12 +84,22 @@ test {
         events "started", "passed", "skipped", "failed"
         showStandardStreams = true
     }
-    retry {
-        failOnPassedAfterRetry = false
-        maxFailures = 5
-        maxRetries = 5
+    if (isLocal) {
+        retry {
+            failOnPassedAfterRetry = false
+            maxFailures = 2
+            maxRetries = 2
+        }
+    }
+    else {
+        retry {
+            failOnPassedAfterRetry = false
+            maxFailures = 5
+            maxRetries = 5
+        }
     }
     maxParallelForks = Runtime.runtime.availableProcessors()
+    systemProperty 'junit.jupiter.execution.timeout.default', '3m'
 }
 
 javadoc {

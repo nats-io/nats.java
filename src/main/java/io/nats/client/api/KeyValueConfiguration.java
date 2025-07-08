@@ -15,6 +15,8 @@ package io.nats.client.api;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
 import io.nats.client.support.NatsKeyValueUtil;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.Duration;
 import java.util.*;
@@ -61,6 +63,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
      * Get the republish configuration. Might be null.
      * @return the republish object
      */
+    @Nullable
     public Republish getRepublish() {
         return sc.getRepublish();
     }
@@ -69,6 +72,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
      * The mirror definition for this configuration
      * @return the mirror
      */
+    @Nullable
     public Mirror getMirror() {
         return sc.getMirror();
     }
@@ -77,6 +81,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
      * The sources for this configuration
      * @return the sources
      */
+    @Nullable
     public List<Source> getSources() {
         return sc.getSources();
     }
@@ -85,6 +90,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
      * The limit marker ttl if set
      * @return the duration
      */
+    @Nullable
     public Duration getLimitMarkerTtl() {
         return sc.getSubjectDeleteMarkerTtl();
     }
@@ -95,6 +101,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
     }
 
     @Override
+    @NotNull
     public JsonValue toJsonValue() {
         JsonValueUtils.MapBuilder mb = new JsonValueUtils.MapBuilder(super.toJsonValue());
         mb.jv.mapOrder.remove("metaData");

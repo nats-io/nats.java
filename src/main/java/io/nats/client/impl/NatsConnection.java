@@ -16,10 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.api.ServerInfo;
-import io.nats.client.support.ByteArrayBuilder;
-import io.nats.client.support.NatsRequestCompletableFuture;
-import io.nats.client.support.NatsUri;
-import io.nats.client.support.Validator;
+import io.nats.client.support.*;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -55,7 +52,7 @@ class NatsConnection implements Connection {
     private boolean disconnecting; // you can only disconnect in one thread
     private boolean closing; // respect a close call regardless
     private Exception exceptionDuringConnectChange; // exception occurred in another thread while dis/connecting
-    private final ReentrantLock closeSocketLock;
+    final ReentrantLock closeSocketLock;
 
     private Status status;
     private final ReentrantLock statusLock;
@@ -82,7 +79,8 @@ class NatsConnection implements Connection {
     private final String mainInbox;
     private final AtomicReference<NatsDispatcher> inboxDispatcher;
     private final ReentrantLock inboxDispatcherLock;
-    private Timer timer;
+    private ScheduledTask pingTask;
+    private ScheduledTask cleanupTask;
 
     private final AtomicBoolean needPing;
 
@@ -98,6 +96,7 @@ class NatsConnection implements Connection {
     private final ExecutorService callbackRunner;
     private final ExecutorService executor;
     private final ExecutorService connectExecutor;
+    private final ScheduledExecutorService scheduledExecutor;
     private final boolean advancedTracking;
 
     private final ServerPool serverPool;
@@ -159,6 +158,7 @@ class NatsConnection implements Connection {
         this.executor = options.getExecutor();
         this.callbackRunner = options.getCallbackExecutor();
         this.connectExecutor = options.getConnectExecutor();
+        this.scheduledExecutor = options.getScheduledExecutor();
 
         timeTraceLogger.trace("creating reader and writer");
         this.reader = new NatsConnectionReader(this);
@@ -194,7 +194,7 @@ class NatsConnection implements Connection {
         }
 
         boolean trace = options.isTraceConnection();
-        long start = System.nanoTime();
+        long start = NatsSystemClock.nanoTime();
 
         this.lastError.set("");
 
@@ -226,7 +226,7 @@ class NatsConnection implements Connection {
                 updateStatus(Status.CONNECTING);
 
                 timeTraceLogger.trace("trying to connect to %s", cur);
-                tryToConnect(cur, resolved, System.nanoTime());
+                tryToConnect(cur, resolved, NatsSystemClock.nanoTime());
 
                 if (isConnected()) {
                     serverPool.connectSucceeded(cur);
@@ -265,7 +265,7 @@ class NatsConnection implements Connection {
             }
         }
         else if (trace) {
-            long end = System.nanoTime();
+            long end = NatsSystemClock.nanoTime();
             double seconds = ((double) (end - start)) / NANOS_PER_SECOND;
             timeTraceLogger.trace("connect complete in %.3f seconds", seconds);
         }
@@ -410,7 +410,7 @@ class NatsConnection implements Connection {
                     updateStatus(Status.RECONNECTING);
 
                     timeTraceLogger.trace("reconnecting to server %s", cur);
-                    tryToConnect(cur, resolved, System.nanoTime());
+                    tryToConnect(cur, resolved, NatsSystemClock.nanoTime());
 
                     if (isConnected()) {
                         serverPool.connectSucceeded(cur);
@@ -463,7 +463,7 @@ class NatsConnection implements Connection {
     }
 
     long timeCheck(long endNanos, String message) throws TimeoutException {
-        long remaining = endNanos - System.nanoTime();
+        long remaining = endNanos - NatsSystemClock.nanoTime();
         if (trace) {
             traceTimeCheck(message, remaining);
         }
@@ -556,13 +556,13 @@ class NatsConnection implements Connection {
                     readInitialInfo();
                     checkVersionRequirements();
                 }
-                long start = System.nanoTime();
+                long start = NatsSystemClock.nanoTime();
                 upgradeToSecureIfNeeded(resolved);
                 if (trace && options.isTLSRequired()) {
                     // If the time appears too long it might be related to
                     // https://github.com/nats-io/nats.java#linux-platform-note
                     timeTraceLogger.trace("TLS upgrade took: %.3f (s)",
-                            ((double) (System.nanoTime() - start)) / NANOS_PER_SECOND);
+                            ((double) (NatsSystemClock.nanoTime() - start)) / NANOS_PER_SECOND);
                 }
                 if (options.isTlsFirst()) {
                     readInitialInfo();
@@ -595,35 +595,27 @@ class NatsConnection implements Connection {
                 pongFuture.get(timeoutNanos, TimeUnit.NANOSECONDS);
             }
 
-            if (this.timer == null) {
+            if (pingTask == null) {
                 timeCheck(end, "starting ping and cleanup timers");
-                this.timer = new Timer("Nats Connection Timer");
-
                 long pingMillis = this.options.getPingInterval().toMillis();
 
                 if (pingMillis > 0) {
-                    this.timer.schedule(new TimerTask() {
-                        public void run() {
-                            if (isConnected()) {
-                                try {
-                                    softPing(); // The timer always uses the standard queue
-                                }
-                                catch (Exception e) {
-                                    // it's running in a thread, there is no point throwing here
-                                }
+                    pingTask = new ScheduledTask(scheduledExecutor, pingMillis, () -> {
+                        if (isConnected() && !isClosing()) {
+                            try {
+                                softPing(); // The timer always uses the standard queue
+                            }
+                            catch (Exception e) {
+                                // it's running in a thread, there is no point throwing here
                             }
                         }
-                    }, pingMillis, pingMillis);
+                    });
                 }
 
                 long cleanMillis = this.options.getRequestCleanupInterval().toMillis();
 
                 if (cleanMillis > 0) {
-                    this.timer.schedule(new TimerTask() {
-                        public void run() {
-                            cleanResponses(false);
-                        }
-                    }, cleanMillis, cleanMillis);
+                    cleanupTask = new ScheduledTask(scheduledExecutor, cleanMillis, () -> cleanResponses(false));
                 }
             }
 
@@ -638,7 +630,7 @@ class NatsConnection implements Connection {
                 }
 
                 this.currentServer = cur;
-                this.serverAuthErrors.remove(resolved); // reset on successful connection
+                this.serverAuthErrors.clear(); // reset on successful connection
                 updateStatus(Status.CONNECTED); // will signal status change, we also signal in finally
             } finally {
                 statusLock.unlock();
@@ -826,9 +818,13 @@ class NatsConnection implements Connection {
         this.dispatchers.clear();
         this.subscribers.clear();
 
-        if (timer != null) {
-            timer.cancel();
-            timer = null;
+        if (pingTask != null) {
+            pingTask.shutdown();
+            pingTask = null;
+        }
+        if (cleanupTask != null) {
+            cleanupTask.shutdown();
+            cleanupTask = null;
         }
 
         cleanResponses(true);
@@ -1059,7 +1055,7 @@ class NatsConnection implements Connection {
         if (after > 0) {
             bab.append(SP).append(after);
         }
-        queueInternalOutgoing(new ProtocolMessage(bab));
+        queueOutgoing(new ProtocolMessage(bab, true));
     }
 
     // Assumes the null/empty checks were handled elsewhere
@@ -1107,8 +1103,11 @@ class NatsConnection implements Connection {
         }
         bab.append(SP).append(sid);
 
-        ProtocolMessage subMsg = new ProtocolMessage(bab);
-
+        // setting this to filter on stop.
+        // if it's an "internal" message, it won't be filtered
+        // if it's a normal message, the subscription will already be registered
+        // and therefore will be re-subscribed after a stop anyway
+        ProtocolMessage subMsg = new ProtocolMessage(bab, true);
         if (treatAsInternal) {
             queueInternalOutgoing(subMsg);
         } else {
@@ -1499,7 +1498,7 @@ class NatsConnection implements Connection {
             ByteArrayBuilder bab =
                 new ByteArrayBuilder(OP_CONNECT_SP_LEN + connectOptions.limit(), UTF_8)
                     .append(CONNECT_SP_BYTES).append(connectOptions);
-            queueInternalOutgoing(new ProtocolMessage(bab));
+            queueInternalOutgoing(new ProtocolMessage(bab, false));
         } catch (Exception exp) {
             throw new IOException("Error sending connect string", exp);
         }
@@ -1526,10 +1525,10 @@ class NatsConnection implements Connection {
         CompletableFuture<Boolean> pongFuture = new CompletableFuture<>();
         pongQueue.add(pongFuture);
         try {
-            long time = System.nanoTime();
-            writer.queueInternalMessage(new ProtocolMessage(OP_PING_BYTES));
+            long time = NatsSystemClock.nanoTime();
+            writer.queueInternalMessage(new ProtocolMessage(PING_PROTO));
             pongFuture.get(timeout, TimeUnit.MILLISECONDS);
-            return Duration.ofNanos(System.nanoTime() - time);
+            return Duration.ofNanos(NatsSystemClock.nanoTime() - time);
         }
         catch (ExecutionException e) {
             throw new IOException(e.getCause());
@@ -1966,6 +1965,10 @@ class NatsConnection implements Connection {
         return executor;
     }
 
+    ScheduledExecutorService getScheduledExecutor() {
+        return scheduledExecutor;
+    }
+
     void updateStatus(Status newStatus) {
         Status oldStatus = this.status;
 
@@ -2046,11 +2049,11 @@ class NatsConnection implements Connection {
         statusLock.lock();
         try {
             long currentWaitNanos = (timeout != null) ? timeout.toNanos() : -1;
-            long start = System.nanoTime();
+            long start = NatsSystemClock.nanoTime();
             while (currentWaitNanos >= 0 && test.test(null)) {
                 if (currentWaitNanos > 0) {
                     statusChanged.await(currentWaitNanos, TimeUnit.NANOSECONDS);
-                    long now = System.nanoTime();
+                    long now = NatsSystemClock.nanoTime();
                     currentWaitNanos = currentWaitNanos - (now - start);
                     start = now;
 
@@ -2089,14 +2092,14 @@ class NatsConnection implements Connection {
 
         this.reconnectWaiter = new CompletableFuture<>();
 
-        long start = System.nanoTime();
+        long start = NatsSystemClock.nanoTime();
         while (currentWaitNanos > 0 && !isDisconnectingOrClosed() && !isConnected() && !this.reconnectWaiter.isDone()) {
             try {
                 this.reconnectWaiter.get(currentWaitNanos, TimeUnit.NANOSECONDS);
             } catch (Exception exp) {
                 // ignore, try to loop again
             }
-            long now = System.nanoTime();
+            long now = NatsSystemClock.nanoTime();
             currentWaitNanos = currentWaitNanos - (now - start);
             start = now;
         }
@@ -2203,8 +2206,8 @@ class NatsConnection implements Connection {
             try {
                 long stop = (timeout == null || timeout.equals(Duration.ZERO))
                     ? Long.MAX_VALUE
-                    : System.nanoTime() + timeout.toNanos();
-                while (System.nanoTime() < stop && !Thread.interrupted())
+                    : NatsSystemClock.nanoTime() + timeout.toNanos();
+                while (NatsSystemClock.nanoTime() < stop && !Thread.interrupted())
                 {
                     consumers.removeIf(NatsConsumer::isDrained);
                     if (consumers.isEmpty()) {

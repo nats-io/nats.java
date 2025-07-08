@@ -15,6 +15,8 @@ package io.nats.client.api;
 import io.nats.client.Message;
 import io.nats.client.impl.Headers;
 import io.nats.client.support.*;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.time.ZonedDateTime;
 
@@ -33,8 +35,7 @@ public class ObjectInfo implements JsonSerializable {
     private final String digest;
     private final boolean deleted;
     private final ObjectMeta objectMeta;
-
-    private ZonedDateTime modified;
+    private final ZonedDateTime modified;
 
     private ObjectInfo(Builder b) {
         bucket = b.bucket;
@@ -68,6 +69,7 @@ public class ObjectInfo implements JsonSerializable {
     }
 
     @Override
+    @NotNull
     public String toJson() {
         // never write MTIME (modified)
         StringBuilder sb = beginJson();
@@ -81,10 +83,12 @@ public class ObjectInfo implements JsonSerializable {
         return endJson(sb).toString();
     }
 
+    @NotNull
     public String getBucket() {
         return bucket;
     }
 
+    @Nullable
     public String getNuid() {
         return nuid;
     }
@@ -93,6 +97,7 @@ public class ObjectInfo implements JsonSerializable {
         return size;
     }
 
+    @Nullable
     public ZonedDateTime getModified() {
         return modified;
     }
@@ -101,6 +106,7 @@ public class ObjectInfo implements JsonSerializable {
         return chunks;
     }
 
+    @Nullable
     public String getDigest() {
         return digest;
     }
@@ -109,18 +115,22 @@ public class ObjectInfo implements JsonSerializable {
         return deleted;
     }
 
+    @NotNull
     public ObjectMeta getObjectMeta() {
         return objectMeta;
     }
 
+    @Nullable
     public String getObjectName() {
         return objectMeta.getObjectName();
     }
 
+    @Nullable
     public String getDescription() {
         return objectMeta.getDescription();
     }
 
+    @Nullable
     public Headers getHeaders() {
         return objectMeta.getHeaders();
     }
@@ -129,6 +139,7 @@ public class ObjectInfo implements JsonSerializable {
         return objectMeta.getObjectMetaOptions().getLink() != null;
     }
 
+    @Nullable
     public ObjectLink getLink() {
         return objectMeta.getObjectMetaOptions().getLink();
     }

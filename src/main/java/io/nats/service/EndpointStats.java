@@ -17,6 +17,7 @@ import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
+import org.jetbrains.annotations.NotNull;
 
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -112,6 +113,7 @@ public class EndpointStats implements JsonSerializable {
     }
 
     @Override
+    @NotNull
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, name);

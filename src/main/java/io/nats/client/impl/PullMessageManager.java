@@ -52,7 +52,7 @@ class PullMessageManager extends MessageManager {
             pendingBytes += pro.getMaxBytes();
             trackingBytes = (pendingBytes > 0);
             configureIdleHeartbeat(pro.getIdleHeartbeat(), -1);
-            if (hb) {
+            if (hb.get()) {
                 initOrResetHeartbeatTimer();
             }
             else {
@@ -118,7 +118,7 @@ class PullMessageManager extends MessageManager {
 
         // heartbeat just needed to be recorded
         if (status.isHeartbeat()) {
-            trackIncoming(Integer.MIN_VALUE, Integer.MIN_VALUE);
+            updateLastMessageReceived(); // no need to call track incoming, this is all it does
             return false;
         }
 

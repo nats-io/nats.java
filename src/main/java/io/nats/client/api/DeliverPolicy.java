@@ -13,6 +13,8 @@
 
 package io.nats.client.api;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -46,6 +48,7 @@ public enum DeliverPolicy {
         }
     }
 
+    @Nullable
     public static DeliverPolicy get(String value) {
         return strEnumHash.get(value);
     }

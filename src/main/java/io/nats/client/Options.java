@@ -14,10 +14,7 @@
 package io.nats.client;
 
 import io.nats.client.impl.*;
-import io.nats.client.support.HttpRequest;
-import io.nats.client.support.NatsConstants;
-import io.nats.client.support.NatsUri;
-import io.nats.client.support.SSLUtils;
+import io.nats.client.support.*;
 
 import javax.net.ssl.SSLContext;
 import java.io.File;
@@ -383,6 +380,10 @@ public class Options {
      */
     public static final String PROP_TOKEN = PFX + "token";
     /**
+     * Property used to configure the token supplier from a Properties object. {@value}, see {@link Builder#tokenSupplier(Supplier) tokenSupplier}.
+     */
+    public static final String PROP_TOKEN_SUPPLIER = PFX + "token.supplier";
+    /**
      * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#server(String) server}.
      */
     public static final String PROP_URL = PFX + "url";
@@ -507,6 +508,11 @@ public class Options {
      * {@link Builder#executor(ExecutorService) executor}.
      */
     public static final String PROP_EXECUTOR_SERVICE_CLASS = "executor.service.class";
+    /**
+     * Property used to set class name for the Executor Service (executor) class
+     * {@link Builder#executor(ExecutorService) executor}.
+     */
+    public static final String PROP_SCHEDULED_EXECUTOR_SERVICE_CLASS = "scheduled.executor.service.class";
     /**
      * Property used to set class name for the Connect Thread Factory
      * {@link Builder#connectThreadFactory(ThreadFactory) connectThreadFactory}.
@@ -640,7 +646,7 @@ public class Options {
     private final long reconnectBufferSize;
     private final char[] username;
     private final char[] password;
-    private final char[] token;
+    private final Supplier<char[]> tokenSupplier;
     private final String inboxPrefix;
     private boolean useOldRequestStyle;
     private final int bufferSize;
@@ -663,7 +669,7 @@ public class Options {
     private final ErrorListener errorListener;
     private final TimeTraceLogger timeTraceLogger;
     private final ConnectionListener connectionListener;
-    private ReadListener readListener;
+    private final ReadListener readListener;
     private final StatisticsCollector statisticsCollector;
     private final String dataPortType;
 
@@ -671,6 +677,7 @@ public class Options {
     private final boolean traceConnection;
 
     private final ExecutorService executor;
+    private final ScheduledExecutorService scheduledExecutor;
     private final ThreadFactory connectThreadFactory;
     private final ThreadFactory callbackThreadFactory;
     private final ServerPool serverPool;
@@ -698,6 +705,28 @@ public class Options {
                 t.setPriority(Thread.NORM_PRIORITY);
             }
             return t;
+        }
+    }
+
+    static class DefaultTokenSupplier implements Supplier<char[]> {
+        final char[] token;
+
+        public DefaultTokenSupplier() {
+            token = null;
+        }
+
+        public DefaultTokenSupplier(char[] token) {
+            this.token = token == null || token.length == 0 ? null : token;
+        }
+
+        public DefaultTokenSupplier(String token) {
+            token = Validator.emptyAsNull(token);
+            this.token = token == null ? null : token.toCharArray();
+        }
+
+        @Override
+        public char[] get() {
+            return token;
         }
     }
 
@@ -759,7 +788,7 @@ public class Options {
         private long reconnectBufferSize = DEFAULT_RECONNECT_BUF_SIZE;
         private char[] username = null;
         private char[] password = null;
-        private char[] token = null;
+        private Supplier<char[]> tokenSupplier = new DefaultTokenSupplier();
         private boolean useOldRequestStyle = false;
         private int bufferSize = DEFAULT_BUFFER_SIZE;
         private boolean trackAdvancedStats = false;
@@ -790,6 +819,7 @@ public class Options {
         private StatisticsCollector statisticsCollector = null;
         private String dataPortType = DEFAULT_DATA_PORT_TYPE;
         private ExecutorService executor;
+        private ScheduledExecutorService scheduledExecutor;
         private ThreadFactory connectThreadFactory;
         private ThreadFactory callbackThreadFactory;
         private List<java.util.function.Consumer<HttpRequest>> httpRequestInterceptors;
@@ -857,7 +887,9 @@ public class Options {
 
             charArrayProperty(props, PROP_USERNAME, ca -> this.username = ca);
             charArrayProperty(props, PROP_PASSWORD, ca -> this.password = ca);
-            charArrayProperty(props, PROP_TOKEN, ca -> this.token = ca);
+            charArrayProperty(props, PROP_TOKEN, ca -> this.tokenSupplier = new DefaultTokenSupplier(ca));
+            //noinspection unchecked
+            classnameProperty(props, PROP_TOKEN_SUPPLIER, o -> this.tokenSupplier = (Supplier<char[]>) o);
 
             booleanProperty(props, PROP_SECURE, b -> this.useDefaultTls = b);
             booleanProperty(props, PROP_OPENTLS, b -> this.useTrustAllTls = b);
@@ -922,6 +954,7 @@ public class Options {
             classnameProperty(props, PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, o -> this.serverPool = (ServerPool) o);
             classnameProperty(props, PROP_DISPATCHER_FACTORY_CLASS, o -> this.dispatcherFactory = (DispatcherFactory) o);
             classnameProperty(props, PROP_EXECUTOR_SERVICE_CLASS, o -> this.executor = (ExecutorService) o);
+            classnameProperty(props, PROP_SCHEDULED_EXECUTOR_SERVICE_CLASS, o -> this.scheduledExecutor = (ScheduledExecutorService) o);
             classnameProperty(props, PROP_CONNECT_THREAD_FACTORY_CLASS, o -> this.connectThreadFactory = (ThreadFactory) o);
             classnameProperty(props, PROP_CALLBACK_THREAD_FACTORY_CLASS, o -> this.callbackThreadFactory = (ThreadFactory) o);
             return this;
@@ -1479,7 +1512,7 @@ public class Options {
 
         /**
          * Set the token for token-based authentication.
-         * If a token is provided in a server URI it overrides this value.
+         * If a token is provided in a server URI, it overrides this value.
          *
          * @param token The token
          * @return the Builder for chaining
@@ -1487,19 +1520,31 @@ public class Options {
          */
         @Deprecated
         public Builder token(String token) {
-            this.token = token.toCharArray();
+            this.tokenSupplier = new DefaultTokenSupplier(token);
             return this;
         }
 
         /**
          * Set the token for token-based authentication.
-         * If a token is provided in a server URI it overrides this value.
+         * If a token is provided in a server URI, it overrides this value.
          *
          * @param token The token
          * @return the Builder for chaining
          */
         public Builder token(char[] token) {
-            this.token = token;
+            this.tokenSupplier = new DefaultTokenSupplier(token);
+            return this;
+        }
+
+        /**
+         * Set the token supplier for token-based authentication.
+         * If a token is provided in a server URI, it overrides this value.
+         *
+         * @param tokenSupplier The tokenSupplier
+         * @return the Builder for chaining
+         */
+        public Builder tokenSupplier(Supplier<char[]> tokenSupplier) {
+            this.tokenSupplier = tokenSupplier == null ? new DefaultTokenSupplier() : tokenSupplier;
             return this;
         }
 
@@ -1598,6 +1643,19 @@ public class Options {
          */
         public Builder executor(ExecutorService executor) {
             this.executor = executor;
+            return this;
+        }
+
+        /**
+         * Set the {@link ScheduledExecutorService ScheduledExecutorService} used to run scheduled task like
+         * heartbeat timers
+         * The default is a ScheduledThreadPoolExecutor that does not
+         *  execute delayed tasks after shutdown and removes tasks on cancel;
+         * @param scheduledExecutor The ScheduledExecutorService to use for timer tasks
+         * @return the Builder for chaining
+         */
+        public Builder scheduledExecutor(ScheduledExecutorService scheduledExecutor) {
+            this.scheduledExecutor = scheduledExecutor;
             return this;
         }
 
@@ -1795,7 +1853,7 @@ public class Options {
             // ----------------------------------------------------------------------------------------------------
             // BUILD IMPL
             // ----------------------------------------------------------------------------------------------------
-            if (this.username != null && this.token != null) {
+            if (this.username != null && tokenSupplier.get() != null) {
                 throw new IllegalStateException("Options can't have token and username");
             }
 
@@ -1890,6 +1948,17 @@ public class Options {
                     new DefaultThreadFactory(threadPrefix));
             }
 
+            if (this.scheduledExecutor == null) {
+                String threadPrefix = nullOrEmpty(this.connectionName) ? DEFAULT_THREAD_NAME_PREFIX : this.connectionName;
+                // the core pool size of 3 is chosen considering where we know the scheduler is used.
+                // 1. Ping timer, 2. cleanup timer, 3. SocketDataPortWithWriteTimeout
+                // Pull message managers also use a scheduler, but we don't even know if this will be consuming
+                ScheduledThreadPoolExecutor stpe = new ScheduledThreadPoolExecutor(3, new DefaultThreadFactory(threadPrefix));
+                stpe.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+                stpe.setRemoveOnCancelPolicy(true);
+                this.scheduledExecutor = stpe;
+            }
+
             if (socketReadTimeoutMillis > 0) {
                 long srtMin = pingInterval.toMillis() + MINIMUM_SOCKET_WRITE_TIMEOUT_GT_CONNECTION_TIMEOUT;
                 if (socketReadTimeoutMillis < srtMin) {
@@ -1969,7 +2038,7 @@ public class Options {
             this.reconnectBufferSize = o.reconnectBufferSize;
             this.username = o.username;
             this.password = o.password;
-            this.token = o.token;
+            this.tokenSupplier = o.tokenSupplier;
             this.useOldRequestStyle = o.useOldRequestStyle;
             this.maxControlLine = o.maxControlLine;
             this.bufferSize = o.bufferSize;
@@ -1994,6 +2063,7 @@ public class Options {
             this.dataPortType = o.dataPortType;
             this.trackAdvancedStats = o.trackAdvancedStats;
             this.executor = o.executor;
+            this.scheduledExecutor = o.scheduledExecutor;
             this.callbackThreadFactory = o.callbackThreadFactory;
             this.connectThreadFactory = o.connectThreadFactory;
             this.httpRequestInterceptors = o.httpRequestInterceptors;
@@ -2038,7 +2108,7 @@ public class Options {
         this.reconnectBufferSize = b.reconnectBufferSize;
         this.username = b.username;
         this.password = b.password;
-        this.token = b.token;
+        this.tokenSupplier = b.tokenSupplier;
         this.useOldRequestStyle = b.useOldRequestStyle;
         this.maxControlLine = b.maxControlLine;
         this.bufferSize = b.bufferSize;
@@ -2063,6 +2133,7 @@ public class Options {
         this.dataPortType = b.dataPortType;
         this.trackAdvancedStats = b.trackAdvancedStats;
         this.executor = b.executor;
+        this.scheduledExecutor = b.scheduledExecutor;
         this.callbackThreadFactory = b.callbackThreadFactory;
         this.connectThreadFactory = b.connectThreadFactory;
         this.httpRequestInterceptors = b.httpRequestInterceptors;
@@ -2087,6 +2158,13 @@ public class Options {
      */
     public ExecutorService getExecutor() {
         return this.executor;
+    }
+
+    /**
+     * @return the ScheduledExecutorService, see {@link Builder#scheduledExecutor(ScheduledExecutorService) scheduledExecutor()} in the builder doc
+     */
+    public ScheduledExecutorService getScheduledExecutor() {
+        return scheduledExecutor;
     }
 
     /**
@@ -2469,6 +2547,7 @@ public class Options {
      */
     @Deprecated
     public String getToken() {
+        char[] token = tokenSupplier.get();
         return token == null ? null : new String(token);
     }
 
@@ -2476,7 +2555,7 @@ public class Options {
      * @return the token to be used for token-based authentication, see {@link Builder#token(String) token()} in the builder doc
      */
     public char[] getTokenChars() {
-        return token;
+        return tokenSupplier.get();
     }
 
     /**
@@ -2670,8 +2749,11 @@ public class Options {
             if (uriToken != null) {
                 appendOption(connectString, Options.OPTION_AUTH_TOKEN, uriToken, true, true);
             }
-            else if (this.token != null) {
-                appendOption(connectString, Options.OPTION_AUTH_TOKEN, this.token, true);
+            else {
+                char[] token = this.tokenSupplier.get();
+                if (token != null) {
+                    appendOption(connectString, Options.OPTION_AUTH_TOKEN, token, true);
+                }
             }
         }
 

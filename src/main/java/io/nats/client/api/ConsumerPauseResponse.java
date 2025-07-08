@@ -14,16 +14,13 @@
 package io.nats.client.api;
 
 import io.nats.client.Message;
+import org.jetbrains.annotations.Nullable;
+
 import java.time.Duration;
 import java.time.ZonedDateTime;
 
-import static io.nats.client.support.ApiConstants.PAUSED;
-import static io.nats.client.support.ApiConstants.PAUSE_REMAINING;
-import static io.nats.client.support.ApiConstants.PAUSE_UNTIL;
-import static io.nats.client.support.JsonValueUtils.readBoolean;
-import static io.nats.client.support.JsonValueUtils.readDate;
-import static io.nats.client.support.JsonValueUtils.readLong;
-import static io.nats.client.support.JsonValueUtils.readNanos;
+import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonValueUtils.*;
 
 public class ConsumerPauseResponse extends ApiResponse<ConsumerPauseResponse> {
 
@@ -50,6 +47,7 @@ public class ConsumerPauseResponse extends ApiResponse<ConsumerPauseResponse> {
      * Returns the time until the consumer is paused
      * @return pause until time
      */
+    @Nullable
     public ZonedDateTime getPauseUntil() {
         return pauseUntil;
     }
@@ -58,6 +56,7 @@ public class ConsumerPauseResponse extends ApiResponse<ConsumerPauseResponse> {
      * Returns how much time is remaining for this consumer to be paused
      * @return remaining paused time
      */
+    @Nullable
     public Duration getPauseRemaining() {
         return pauseRemaining;
     }

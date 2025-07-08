@@ -27,7 +27,7 @@ import static io.nats.client.support.NatsConstants.DOT;
  * <ul>
  * <li>It allows the endpoint to be grouped.</li>
  * <li>It is where you can define the handler that will respond to incoming requests</li>
- * <li>It allows you to define it's dispatcher if desired giving granularity to threads running subscribers</li>
+ * <li>It allows you to define its dispatcher if desired giving granularity to threads running subscribers</li>
  * <li>It gives you a hook to provide custom data for the {@link EndpointStats}</li>
  * </ul>
  * <p>To create a ServiceEndpoint, use the ServiceEndpoint builder, which can be instantiated

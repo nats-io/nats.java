@@ -67,8 +67,7 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
 
     @Override
     public void heartbeatError() {
-        stopped.set(true);
-        finished.set(true);
+        fullClose();
     }
 
     @Override
@@ -86,8 +85,7 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
                 if (m == null) {
                     // if there are no messages in the internal cache AND there are no more pending,
                     // they all have been read and we can go ahead and finish
-                    finished.set(true);
-                    lenientClose();
+                    fullClose();
                 }
                 return m;
             }
@@ -95,27 +93,25 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
             // by not starting the timer until the first call, it gives a little buffer around
             // the next message to account for latency of incoming messages
             if (startNanos == -1) {
-                startNanos = System.nanoTime();
+                startNanos = NatsSystemClock.nanoTime();
             }
-            long timeLeftMillis = (maxWaitNanos - (System.nanoTime() - startNanos)) / 1_000_000;
+            long timeLeftNanos = maxWaitNanos - (NatsSystemClock.nanoTime() - startNanos);
 
             // if the timer has run out, don't allow waiting
             // this might happen once, but it should already be noMorePending
-            if (timeLeftMillis < 1) {
-                Message m = sub._nextUnmanagedNoWait(pullSubject); // null means don't wait
+            if (timeLeftNanos < NANOS_PER_MILLI) {
+                Message m = sub._nextUnmanagedNoWait(pullSubject);
                 if (m == null) {
                     // no message and no time left, go ahead and finish
-                    finished.set(true);
-                    lenientClose();
+                    fullClose();
                 }
                 return m;
             }
 
-            Message m = sub._nextUnmanaged(timeLeftMillis, pullSubject);
+            Message m = sub._nextUnmanaged(timeLeftNanos, pullSubject);
             if (m == null && isNoWaitNoExpires) {
                 // no message and no wait, go ahead and finish
-                finished.set(true);
-                lenientClose();
+                fullClose();
             }
             return m;
         }
