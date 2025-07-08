@@ -18,6 +18,7 @@ import io.nats.client.ConnectionListener.Events;
 import io.nats.client.api.ServerInfo;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Isolated;
 
 import java.io.IOException;
 import java.net.URI;
@@ -38,6 +39,7 @@ import static io.nats.client.support.NatsConstants.OUTPUT_QUEUE_IS_FULL;
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+@Isolated
 public class ReconnectTests {
 
     void checkReconnectingStatus(Connection nc) {
