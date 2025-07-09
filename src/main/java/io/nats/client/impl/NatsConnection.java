@@ -1900,10 +1900,10 @@ class NatsConnection implements Connection {
     }
 
     protected List<NatsUri> resolveHost(NatsUri nuri) {
-        // 1. If the nuri host is not already an ip address or the nuri is not for websocket
+        // 1. If the nuri host is not already an ip address or the nuri is not for websocket or fast fallback is disabled,
         //    let the pool resolve it.
         List<NatsUri> results = new ArrayList<>();
-        if (!nuri.hostIsIpAddress() && !nuri.isWebsocket()) {
+        if (!nuri.hostIsIpAddress() && !nuri.isWebsocket() && !options.isEnableFastFallback()) {
             List<String> ips = serverPool.resolveHostToIps(nuri.getHost());
             if (ips != null) {
                 for (String ip : ips) {
@@ -1920,6 +1920,7 @@ class NatsConnection implements Connection {
         // 2. If there were no results,
         //    - host was already an ip address or
         //    - host was for websocket or
+        //    - fast fallback is enabled
         //    - pool returned nothing or
         //    - resolving failed...
         //    so the list just becomes the original host.
