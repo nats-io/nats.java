@@ -529,6 +529,12 @@ public class Options {
      */
     public static final String PROP_READ_LISTENER_CLASS = "read.listener.class";
 
+    /**
+     * Property used to enable fast fallback algorithm for socket connection.
+     * {@link Builder#enableFastFallback() enableFastFallback}.
+     */
+    public static final String PROP_FAST_FALLBACK = PFX + "fast.fallback";
+
     // ----------------------------------------------------------------------------------------------------
     // PROTOCOL CONNECT OPTION CONSTANTS
     // ----------------------------------------------------------------------------------------------------
@@ -685,6 +691,7 @@ public class Options {
 
     private final List<java.util.function.Consumer<HttpRequest>> httpRequestInterceptors;
     private final Proxy proxy;
+    private final boolean enableFastFallback;
 
     static class DefaultThreadFactory implements ThreadFactory {
         String name;
@@ -832,6 +839,7 @@ public class Options {
         private char[] truststorePassword;
         private String tlsAlgorithm = DEFAULT_TLS_ALGORITHM;
         private String credentialPath;
+        private boolean enableFastFallback = false;
 
         /**
          * Constructs a new Builder with the default values.
@@ -948,6 +956,7 @@ public class Options {
             booleanProperty(props, PROP_USE_TIMEOUT_EXCEPTION, b -> this.useTimeoutException = b);
             booleanProperty(props, PROP_USE_DISPATCHER_WITH_EXECUTOR, b -> this.useDispatcherWithExecutor = b);
             booleanProperty(props, PROP_FORCE_FLUSH_ON_REQUEST, b -> this.forceFlushOnRequest = b);
+            booleanProperty(props, PROP_FAST_FALLBACK, b -> this.enableFastFallback = b);
 
             classnameProperty(props, PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, o -> this.serverPool = (ServerPool) o);
             classnameProperty(props, PROP_DISPATCHER_FACTORY_CLASS, o -> this.dispatcherFactory = (DispatcherFactory) o);
@@ -1821,6 +1830,15 @@ public class Options {
         }
 
         /**
+         * Whether to enable Fast fallback algorithm for socket connect
+         * @return the Builder for chaining
+         */
+        public Builder enableFastFallback() {
+            this.enableFastFallback = true;
+            return this;
+        }
+
+        /**
          * Build an Options object from this Builder.
          *
          * <p>If the Options builder was not provided with a server, a default one will be included
@@ -2066,6 +2084,7 @@ public class Options {
 
             this.serverPool = o.serverPool;
             this.dispatcherFactory = o.dispatcherFactory;
+            this.enableFastFallback = o.enableFastFallback;
         }
     }
 
@@ -2135,6 +2154,7 @@ public class Options {
 
         this.serverPool = b.serverPool;
         this.dispatcherFactory = b.dispatcherFactory;
+        this.enableFastFallback = b.enableFastFallback;
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -2627,6 +2647,14 @@ public class Options {
      */
     public DispatcherFactory getDispatcherFactory() {
         return dispatcherFactory;
+    }
+
+    /**
+     * Whether Fast fallback algorithm is enabled for socket connect
+     * @return the flag
+     */
+    public boolean isEnableFastFallback() {
+        return enableFastFallback;
     }
 
     public URI createURIForServer(String serverURI) throws URISyntaxException {

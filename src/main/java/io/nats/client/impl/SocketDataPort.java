@@ -23,13 +23,12 @@ import javax.net.ssl.SSLSocketFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.net.SocketException;
-import java.net.URISyntaxException;
+import java.net.*;
 import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.*;
 
 import static io.nats.client.support.NatsConstants.SECURE_WEBSOCKET_PROTOCOL;
 
@@ -72,16 +71,13 @@ public class SocketDataPort implements DataPort {
         port = nuri.getPort();
 
         try {
-            if (options.getProxy() != null) {
-                socket = new Socket(options.getProxy());
+            if (options.isEnableFastFallback()) {
+                socket = connectToFastestIp(options, host, port, (int) timeout);
+            } else {
+                socket = createSocket(options);
+                socket.connect(new InetSocketAddress(host, port), (int) timeout);
             }
-            else {
-                socket = new Socket();
-            }
-            socket.setTcpNoDelay(true);
-            socket.setReceiveBufferSize(2 * 1024 * 1024);
-            socket.setSendBufferSize(2 * 1024 * 1024);
-            socket.connect(new InetSocketAddress(host, port), (int) timeout);
+
             if (soLinger > -1) {
                 socket.setSoLinger(true, soLinger);
             }
@@ -120,7 +116,7 @@ public class SocketDataPort implements DataPort {
     public void upgradeToSecure() throws IOException {
         Options options = connection.getOptions();
         SSLContext context = options.getSslContext();
-        
+
         SSLSocketFactory factory = context.getSocketFactory();
         Duration timeout = options.getConnectionTimeout();
 
@@ -128,7 +124,7 @@ public class SocketDataPort implements DataPort {
         sslSocket.setUseClientMode(true);
 
         final CompletableFuture<Void> waitForHandshake = new CompletableFuture<>();
-        
+
         sslSocket.addHandshakeCompletedListener((evt) -> {
             waitForHandshake.complete(null);
         });
@@ -186,5 +182,64 @@ public class SocketDataPort implements DataPort {
     protected static boolean isWebsocketScheme(String scheme) {
         return "ws".equalsIgnoreCase(scheme) ||
             "wss".equalsIgnoreCase(scheme);
+    }
+
+    /**
+     * Implements the "Happy Eyeballs" algorithm as described in RFC 6555,
+     * which attempts to connect to multiple IP addresses in parallel to reduce
+     * connection setup delays.
+     */
+    private Socket connectToFastestIp(Options options, String hostname, int port,
+                                      int timeoutMillis) throws IOException {
+        // Get all IP addresses for the hostname
+        List<InetAddress> ips = Arrays.asList(InetAddress.getAllByName(hostname));
+
+        ExecutorService executor = options.getExecutor();
+        long CONNECT_DELAY_MILLIS = 250;
+        // Create connection tasks for each address
+        // with delays for each address (0ms, 250ms, 500ms, ...)
+        List<Callable<Socket>> connectionTasks = new ArrayList<>();
+
+        for (int i = 0; i < ips.size(); i++) {
+            final InetAddress ip = ips.get(i);
+            final int delayMillis = i * (int) CONNECT_DELAY_MILLIS;
+
+            connectionTasks.add(() -> {
+                if (delayMillis > 0) {
+                    try {
+                        Thread.sleep(delayMillis);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+
+                Socket socket = createSocket(options);
+                socket.connect(new InetSocketAddress(ip, port), timeoutMillis);
+                return socket;
+            });
+        }
+
+        try {
+            // Use invokeAny to return the first successful connection and cancel other tasks
+            return executor.invokeAny(connectionTasks);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException ignored) {
+        }
+        // Could not connect to any IP address
+        throw new IOException("No responsive IP found for " + hostname);
+    }
+
+    private Socket createSocket(Options options) throws SocketException {
+        Socket socket;
+        if (options.getProxy() != null) {
+            socket = new Socket(options.getProxy());
+        } else {
+            socket = new Socket();
+        }
+        socket.setTcpNoDelay(true);
+        socket.setReceiveBufferSize(2 * 1024 * 1024);
+        socket.setSendBufferSize(2 * 1024 * 1024);
+        return socket;
     }
 }

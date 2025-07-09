@@ -630,4 +630,13 @@ public class ConnectTests {
             nc.close();
         });
     }
+
+    @Test
+    void testConnectWithFastFallback() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false)) {
+            Options options = new Options.Builder().server(ts.getURI()).enableFastFallback().build();
+            Connection nc = standardConnection(options);
+            standardCloseConnection(nc);
+        }
+    }
 }
