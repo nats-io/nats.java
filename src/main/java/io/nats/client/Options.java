@@ -529,6 +529,12 @@ public class Options {
      */
     public static final String PROP_READ_LISTENER_CLASS = "read.listener.class";
 
+    /**
+     * Property used to enable fast fallback algorithm for socket connection.
+     * {@link Builder#enableFastFallback() enableFastFallback}.
+     */
+    public static final String PROP_FAST_FALLBACK = PFX + "fast.fallback";
+
     // ----------------------------------------------------------------------------------------------------
     // PROTOCOL CONNECT OPTION CONSTANTS
     // ----------------------------------------------------------------------------------------------------
@@ -950,6 +956,7 @@ public class Options {
             booleanProperty(props, PROP_USE_TIMEOUT_EXCEPTION, b -> this.useTimeoutException = b);
             booleanProperty(props, PROP_USE_DISPATCHER_WITH_EXECUTOR, b -> this.useDispatcherWithExecutor = b);
             booleanProperty(props, PROP_FORCE_FLUSH_ON_REQUEST, b -> this.forceFlushOnRequest = b);
+            booleanProperty(props, PROP_FAST_FALLBACK, b -> this.enableFastFallback = b);
 
             classnameProperty(props, PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, o -> this.serverPool = (ServerPool) o);
             classnameProperty(props, PROP_DISPATCHER_FACTORY_CLASS, o -> this.dispatcherFactory = (DispatcherFactory) o);

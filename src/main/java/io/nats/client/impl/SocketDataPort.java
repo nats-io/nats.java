@@ -194,7 +194,7 @@ public class SocketDataPort implements DataPort {
         // Get all IP addresses for the hostname
         List<InetAddress> ips = Arrays.asList(InetAddress.getAllByName(hostname));
 
-        ExecutorService executor = Executors.newFixedThreadPool(ips.size());
+        ExecutorService executor = options.getExecutor();
         long CONNECT_DELAY_MILLIS = 250;
         try {
             // Create connection tasks for each address
