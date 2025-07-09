@@ -116,7 +116,7 @@ public class SocketDataPort implements DataPort {
     public void upgradeToSecure() throws IOException {
         Options options = connection.getOptions();
         SSLContext context = options.getSslContext();
-        
+
         SSLSocketFactory factory = context.getSocketFactory();
         Duration timeout = options.getConnectionTimeout();
 
@@ -124,7 +124,7 @@ public class SocketDataPort implements DataPort {
         sslSocket.setUseClientMode(true);
 
         final CompletableFuture<Void> waitForHandshake = new CompletableFuture<>();
-        
+
         sslSocket.addHandshakeCompletedListener((evt) -> {
             waitForHandshake.complete(null);
         });
@@ -196,42 +196,35 @@ public class SocketDataPort implements DataPort {
 
         ExecutorService executor = options.getExecutor();
         long CONNECT_DELAY_MILLIS = 250;
-        try {
-            // Create connection tasks for each address
-            // with delays for each address (0ms, 250ms, 500ms, ...)
-            List<Callable<Socket>> connectionTasks = new ArrayList<>();
+        // Create connection tasks for each address
+        // with delays for each address (0ms, 250ms, 500ms, ...)
+        List<Callable<Socket>> connectionTasks = new ArrayList<>();
 
-            for (int i = 0; i < ips.size(); i++) {
-                final InetAddress ip = ips.get(i);
-                final int delayMillis = i * (int) CONNECT_DELAY_MILLIS;
+        for (int i = 0; i < ips.size(); i++) {
+            final InetAddress ip = ips.get(i);
+            final int delayMillis = i * (int) CONNECT_DELAY_MILLIS;
 
-                connectionTasks.add(() -> {
-                    if (delayMillis > 0) {
-                        try {
-                            Thread.sleep(delayMillis);
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                        }
+            connectionTasks.add(() -> {
+                if (delayMillis > 0) {
+                    try {
+                        Thread.sleep(delayMillis);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
                     }
+                }
 
-                    Socket socket = createSocket(options);
-                    socket.connect(new InetSocketAddress(ip, port), timeoutMillis);
-                    return socket;
-                });
-            }
+                Socket socket = createSocket(options);
+                socket.connect(new InetSocketAddress(ip, port), timeoutMillis);
+                return socket;
+            });
+        }
 
-            try {
-                // Use invokeAny to return the first successful connection
-                Socket connectedSocket = executor.invokeAny(connectionTasks);
-                // Shutdown service immediately after a successful connection
-                executor.shutdownNow();
-                return connectedSocket;
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            } catch (ExecutionException ignored) {
-            }
-        } finally {
-            executor.shutdownNow();
+        try {
+            // Use invokeAny to return the first successful connection and cancel other tasks
+            return executor.invokeAny(connectionTasks);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException ignored) {
         }
         // Could not connect to any IP address
         throw new IOException("No responsive IP found for " + hostname);
