@@ -421,6 +421,7 @@ assertEquals(8000, o.getMaxMessagesInOutgoingQueue());
 | tls.first                         | Property used to set TLS Handshake First behavior                                    |
 | use.timeout.exception             | Instruct the client to throw TimeoutException instead of CancellationException       |
 | use.dispatcher.with.executor      | Instruct dispatchers to dispatch all messages as a task                              |
+| fast.fallback                     | Use fast fallback algorithm for socket connection                                    |
 ```
 
 ### AuthHandler and JWT Credentials
@@ -441,6 +442,15 @@ Options options = new Options.Builder()
 The developer can also set the credential path in a properties file:
 ```properties
 io.nats.client.credential.path=path/to/my.creds
+```
+### Fast Fallback
+For mobile or frontend clients, you can enable fast fallback ([RFC](https://datatracker.ietf.org/doc/html/rfc6555)) to improve connection speed and reliability when connecting 
+to hostnames that resolve to multiple IP addresses (IPv4/IPv6). This feature helps the client quickly select the fastest 
+available address, reducing latency and improving resiliency in diverse network environments.
+```java
+Options options = new Options.Builder()
+    .enableFastFallback()
+    .build();
 ```
 
 ### SSLContext
