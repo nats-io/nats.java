@@ -17,6 +17,7 @@ import io.nats.client.Options;
 import io.nats.client.support.NatsUri;
 import io.nats.client.support.WebSocket;
 
+import javax.net.ssl.HandshakeCompletedListener;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
@@ -124,11 +125,9 @@ public class SocketDataPort implements DataPort {
         sslSocket.setUseClientMode(true);
 
         final CompletableFuture<Void> waitForHandshake = new CompletableFuture<>();
+        final HandshakeCompletedListener hcl = (evt) -> waitForHandshake.complete(null);
 
-        sslSocket.addHandshakeCompletedListener((evt) -> {
-            waitForHandshake.complete(null);
-        });
-
+        sslSocket.addHandshakeCompletedListener(hcl);
         sslSocket.startHandshake();
 
         try {
@@ -136,6 +135,9 @@ public class SocketDataPort implements DataPort {
         } catch (Exception ex) {
             connection.handleCommunicationIssue(ex);
             return;
+        }
+        finally {
+            sslSocket.removeHandshakeCompletedListener(hcl);
         }
 
         socket = sslSocket;
