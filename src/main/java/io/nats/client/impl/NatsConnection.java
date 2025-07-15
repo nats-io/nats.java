@@ -855,6 +855,17 @@ class NatsConnection implements Connection {
         // There's no need to wait for running tasks since we're told to close
         connectExecutor.shutdownNow();
 
+        // The callbackRunner and connectExecutor always come from a factory
+        // so we always shut them down.
+        // The executor and scheduledExecutor come from a factory iff
+        // the user does not supply them, so we shut them down in that case.
+        if (options.executorIsInternal()) {
+            executor.shutdownNow();
+        }
+        if (options.scheduledExecutorIsInternal()) {
+            scheduledExecutor.shutdownNow();
+        }
+
         statusLock.lock();
         try {
             this.disconnecting = false;
@@ -862,6 +873,22 @@ class NatsConnection implements Connection {
         } finally {
             statusLock.unlock();
         }
+    }
+
+    boolean callbackRunnerIsShutdown() {
+        return callbackRunner == null || callbackRunner.isShutdown();
+    }
+
+    boolean executorIsShutdown() {
+        return executor == null || executor.isShutdown();
+    }
+
+    boolean connectExecutorIsShutdown() {
+        return connectExecutor == null || connectExecutor.isShutdown();
+    }
+
+    boolean scheduledExecutorIsShutdown() {
+        return scheduledExecutor == null || scheduledExecutor.isShutdown();
     }
 
     // Should only be called from closeSocket or close
