@@ -38,7 +38,7 @@ public class ChaosTestApp {
             + " --stream jchaos-stream"
             + " --subject jchaos-subject"
 //            + " --runtime 3600 // 1 hour in seconds
-            + " --screen left"
+//            + " --screen left"
 //            + " --work"
             + " --create"
 //            + " --r3"
@@ -46,10 +46,10 @@ public class ChaosTestApp {
             + " --pubjitter 30"
 //            + " --simple ephemeral,100,5000"
             + " --simple ordered 100 5000"
-            + " --simple durable 100 5000" // space or commas work, the parser figures it out
-            + " --fetch durable,100,5000"
-            + " --push ordered"
-            + " --push durable"
+//            + " --simple durable 100 5000" // space or commas work, the parser figures it out
+//            + " --fetch durable,100,5000"
+//            + " --push ordered"
+//            + " --push durable"
 //            + " --logdir c:\\temp"
     ).split(" ");
 
