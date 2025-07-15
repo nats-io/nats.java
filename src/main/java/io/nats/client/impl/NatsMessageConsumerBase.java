@@ -43,6 +43,7 @@ class NatsMessageConsumerBase implements MessageConsumer {
 
     void initSub(NatsJetStreamPullSubscription sub) {
         this.sub = sub;
+        this.consumerName = sub.getConsumerName();
         pmm = (PullMessageManager)sub.manager;
     }
 
@@ -65,7 +66,7 @@ class NatsMessageConsumerBase implements MessageConsumer {
      */
     @Override
     public String getConsumerName() {
-        if (consumerName == null) {
+        if (consumerName == null && cachedConsumerInfo != null) {
             consumerName = cachedConsumerInfo.getName();
         }
         return consumerName;

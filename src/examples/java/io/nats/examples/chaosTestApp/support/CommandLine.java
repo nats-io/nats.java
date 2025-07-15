@@ -32,7 +32,7 @@ public class CommandLine {
             "----------------------------------------------------------------------------------------------------\n" +
             "--servers <natsServerUrl>[,<natsServerUrl>]*\n" +
             "  * i.e. --servers nats://localhost:4000,nats://localhost:4001,nats://localhost:4002\n" +
-            "  * not supplied uses \"ats://localhost:4222\"\n" +
+            "  * not supplied uses \"nats://localhost:4222\"\n" +
             "--stream <stream name>\n" +
             "  * not supplied uses \"app-stream\"\n" +
             "--subject <subject>\n" +
