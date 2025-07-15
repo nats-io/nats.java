@@ -62,7 +62,7 @@ class NatsConnection implements Connection {
     private DataPort dataPort;
     private NatsUri currentServer;
     private CompletableFuture<Boolean> reconnectWaiter;
-    private final HashMap<NatsUri, String> serverAuthErrors;
+    private final ConcurrentHashMap<NatsUri, String> serverAuthErrors;
 
     private NatsConnectionReader reader;
     private NatsConnectionWriter writer;
@@ -135,8 +135,7 @@ class NatsConnection implements Connection {
         this.subscribers = new ConcurrentHashMap<>();
         this.responsesAwaiting = new ConcurrentHashMap<>();
         this.responsesRespondedTo = new ConcurrentHashMap<>();
-
-        this.serverAuthErrors = new HashMap<>();
+        this.serverAuthErrors = new ConcurrentHashMap<>();
 
         this.nextSid = new AtomicLong(1);
         timeTraceLogger.trace("creating NUID");
