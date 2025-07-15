@@ -1947,25 +1947,6 @@ public class Options {
                 authHandler = Nats.credentials(file.toString());
             }
 
-            if (this.executor == null) {
-                String threadPrefix = nullOrEmpty(this.connectionName) ? DEFAULT_THREAD_NAME_PREFIX : this.connectionName;
-                this.executor = new ThreadPoolExecutor(0, Integer.MAX_VALUE,
-                    500L, TimeUnit.MILLISECONDS,
-                    new SynchronousQueue<>(),
-                    new DefaultThreadFactory(threadPrefix));
-            }
-
-            if (this.scheduledExecutor == null) {
-                String threadPrefix = nullOrEmpty(this.connectionName) ? DEFAULT_THREAD_NAME_PREFIX : this.connectionName;
-                // the core pool size of 3 is chosen considering where we know the scheduler is used.
-                // 1. Ping timer, 2. cleanup timer, 3. SocketDataPortWithWriteTimeout
-                // Pull message managers also use a scheduler, but we don't even know if this will be consuming
-                ScheduledThreadPoolExecutor stpe = new ScheduledThreadPoolExecutor(3, new DefaultThreadFactory(threadPrefix));
-                stpe.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
-                stpe.setRemoveOnCancelPolicy(true);
-                this.scheduledExecutor = stpe;
-            }
-
             if (socketReadTimeoutMillis > 0) {
                 long srtMin = pingInterval.toMillis() + MINIMUM_SOCKET_WRITE_TIMEOUT_GT_CONNECTION_TIMEOUT;
                 if (socketReadTimeoutMillis < srtMin) {
@@ -2164,14 +2145,41 @@ public class Options {
      * @return the executor, see {@link Builder#executor(ExecutorService) executor()} in the builder doc
      */
     public ExecutorService getExecutor() {
-        return this.executor;
+        return this.executor == null ? _getInternalExecutor() : this.executor;
+    }
+
+    private ExecutorService _getInternalExecutor() {
+        String threadPrefix = nullOrEmpty(this.connectionName) ? DEFAULT_THREAD_NAME_PREFIX : this.connectionName;
+        return new ThreadPoolExecutor(0, Integer.MAX_VALUE,
+            500L, TimeUnit.MILLISECONDS,
+            new SynchronousQueue<>(),
+            new DefaultThreadFactory(threadPrefix));
     }
 
     /**
      * @return the ScheduledExecutorService, see {@link Builder#scheduledExecutor(ScheduledExecutorService) scheduledExecutor()} in the builder doc
      */
     public ScheduledExecutorService getScheduledExecutor() {
-        return scheduledExecutor;
+        return this.scheduledExecutor == null ? _getInternalScheduledExecutor() : this.scheduledExecutor;
+    }
+
+    private ScheduledExecutorService _getInternalScheduledExecutor() {
+        String threadPrefix = nullOrEmpty(this.connectionName) ? DEFAULT_THREAD_NAME_PREFIX : this.connectionName;
+        // the core pool size of 3 is chosen considering where we know the scheduler is used.
+        // 1. Ping timer, 2. cleanup timer, 3. SocketDataPortWithWriteTimeout
+        // Pull message managers also use a scheduler, but we don't even know if this will be consuming
+        ScheduledThreadPoolExecutor stpe = new ScheduledThreadPoolExecutor(3, new DefaultThreadFactory(threadPrefix));
+        stpe.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+        stpe.setRemoveOnCancelPolicy(true);
+        return stpe;
+    }
+
+    public boolean executorIsInternal() {
+        return this.executor == null;
+    }
+
+    public boolean scheduledExecutorIsInternal() {
+        return this.scheduledExecutor == null;
     }
 
     /**
