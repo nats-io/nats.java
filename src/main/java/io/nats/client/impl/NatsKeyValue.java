@@ -171,9 +171,14 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
         catch (JetStreamApiException e) {
             if (e.getApiErrorCode() == JS_WRONG_LAST_SEQUENCE) {
                 // must check if the last message for this subject is a delete or purge
+                // if it was, it's okay to "create" it, as long as someone doesn't create in the meantime
+                // which is why I use the revision, which must be greater than zero b/c I just tried zero
                 KeyValueEntry kve = _get(key);
                 if (kve != null && kve.getOperation() != KeyValueOperation.PUT) {
-                    return _update(key, value, kve.getRevision(), messageTtl);
+                    long revision = kve.getRevision();
+                    if (revision > 0) {
+                        return _update(key, value, kve.getRevision(), messageTtl);
+                    }
                 }
             }
             throw e;
