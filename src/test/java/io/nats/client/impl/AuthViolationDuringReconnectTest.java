@@ -60,7 +60,7 @@ public class AuthViolationDuringReconnectTest {
 
             ctx.nc = new MockPausingNatsConnection(options);
             ctx.nc.connect(true);
-            ctx.d = ctx.nc.createDispatcher();
+            ctx.d = ctx.nc.createDispatcher(m -> {});
 
             ctx.latch = new CountDownLatch(1);
             for (int i = 0; i < 1_000; i++) {

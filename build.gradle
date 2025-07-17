@@ -16,7 +16,6 @@ plugins {
 def jarVersion = "2.21.5"
 
 def buildEvent = System.getenv("BUILD_EVENT")
-def isLocal = buildEvent == null
 def isRelease = buildEvent == "release"
 def brn = System.getenv("BRANCH_REF_NAME")
 def snap = brn == null || brn.equals("") ? "-SNAPSHOT" : "." + brn + "-SNAPSHOT"
@@ -84,19 +83,10 @@ test {
         events "started", "passed", "skipped", "failed"
         showStandardStreams = true
     }
-    if (isLocal) {
-        retry {
-            failOnPassedAfterRetry = false
-            maxFailures = 2
-            maxRetries = 2
-        }
-    }
-    else {
-        retry {
-            failOnPassedAfterRetry = false
-            maxFailures = 5
-            maxRetries = 5
-        }
+    retry {
+        failOnPassedAfterRetry = false
+        maxFailures = 2
+        maxRetries = 2
     }
     maxParallelForks = Runtime.runtime.availableProcessors()
     systemProperty 'junit.jupiter.execution.timeout.default', '3m'

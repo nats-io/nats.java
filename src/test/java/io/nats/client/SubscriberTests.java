@@ -477,7 +477,7 @@ public class SubscriberTests {
         try (NatsTestServer ts = new NatsTestServer(false);
             Connection nc = Nats.connect(ts.getURI())) {
             standardConnectionWait(nc);
-            Dispatcher d = nc.createDispatcher();
+            Dispatcher d = nc.createDispatcher(m -> {});
             for (String bad : BAD_SUBJECTS_OR_QUEUES) {
                 assertThrows(IllegalArgumentException.class, () -> nc.subscribe(bad));
                 assertThrows(IllegalArgumentException.class, () -> d.subscribe(bad));
