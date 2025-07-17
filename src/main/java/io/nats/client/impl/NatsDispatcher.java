@@ -217,6 +217,9 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
     }
 
     public Dispatcher subscribe(String subject) {
+        if (defaultHandler == null) {
+            throw new IllegalStateException("Dispatcher was made without a default handler.");
+        }
         validateSubject(subject, true);
         this.subscribeImplCore(subject, null, null);
         return this;

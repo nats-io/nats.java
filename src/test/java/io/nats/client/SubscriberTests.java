@@ -492,7 +492,7 @@ public class SubscriberTests {
     }
 
     @Test
-    public void testDispatcherMultipleBySubject() throws Exception {
+    public void testDispatcherMultipleSubscriptionsBySubject() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
              Connection nc = Nats.connect(ts.getURI())) {
             standardConnectionWait(nc);
@@ -525,5 +525,17 @@ public class SubscriberTests {
 
     private static int getDataId(Message m) {
         return Integer.parseInt(new String(m.getData()));
+    }
+
+    @Test
+    public void testDispatcherDefaultSubscribeWhenNoDefaultHandler() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false);
+             Connection nc = Nats.connect(ts.getURI())) {
+            standardConnectionWait(nc);
+            String subject = subject();
+
+            Dispatcher d = nc.createDispatcher();
+            assertThrows(IllegalStateException.class, () -> d.subscribe(subject));
+        }
     }
 }
