@@ -58,7 +58,7 @@ public class SimplificationTests extends JetStreamTestBase {
         });
     }
 
-    private static void _testStreamContext(JetStream js, TestingStreamContainer tsc, StreamContext streamContext) throws IOException, JetStreamApiException {
+    private void _testStreamContext(JetStream js, TestingStreamContainer tsc, StreamContext streamContext) throws IOException, JetStreamApiException {
         String durable = durable();
         assertThrows(JetStreamApiException.class, () -> streamContext.getConsumerContext(durable));
         assertThrows(JetStreamApiException.class, () -> streamContext.deleteConsumer(durable));
@@ -123,6 +123,35 @@ public class SimplificationTests extends JetStreamTestBase {
         assertThrows(JetStreamApiException.class, () -> streamContext.getMessage(1));
     }
 
+    private void validateConsumerName(BaseConsumerContext bcc, MessageConsumer consumer, String consumerName) throws IOException, JetStreamApiException {
+        assertEquals(consumerName, bcc.getConsumerName());
+        if (consumer != null) {
+            assertNotNull(consumer.getCachedConsumerInfo());
+            assertEquals(consumerName, consumer.getConsumerName());
+            assertEquals(consumerName, consumer.getConsumerInfo().getName());
+        }
+    }
+
+    private void validateConsumerNameForOrdered(BaseConsumerContext bcc, MessageConsumer consumer, String prefix) throws IOException, JetStreamApiException {
+        if (prefix == null) {
+            assertNotNull(bcc.getConsumerName());
+        }
+        else {
+            assertTrue(bcc.getConsumerName().startsWith(prefix));
+        }
+
+        if (consumer != null) {
+            if (prefix == null) {
+                assertNotNull(consumer.getConsumerName());
+                assertNotNull(consumer.getConsumerInfo().getName());
+            }
+            else {
+                assertTrue(consumer.getConsumerName().startsWith(prefix));
+                assertTrue(consumer.getConsumerInfo().getName().startsWith(prefix));
+            }
+        }
+    }
+
     static int FETCH_EPHEMERAL = 1;
     static int FETCH_DURABLE = 2;
     static int FETCH_ORDERED = 3;
@@ -174,12 +203,13 @@ public class SimplificationTests extends JetStreamTestBase {
         });
     }
 
-    private static void _testFetch(String label, Connection nc, TestingStreamContainer tsc, int maxMessages, int maxBytes, int testAmount, int fetchType, boolean useConsumerPrefix) throws Exception {
+    private void _testFetch(String label, Connection nc, TestingStreamContainer tsc, int maxMessages, int maxBytes, int testAmount, int fetchType, boolean useConsumerPrefix) throws Exception {
         JetStreamManagement jsm = nc.jetStreamManagement();
         JetStream js = nc.jetStream();
 
         StreamContext ctx = js.getStreamContext(tsc.stream);
 
+        String consumerName = null;
         String consumerNamePrefix = null;
         BaseConsumerContext consumerContext;
         if (fetchType == FETCH_ORDERED) {
@@ -189,25 +219,26 @@ public class SimplificationTests extends JetStreamTestBase {
                 occ.consumerNamePrefix(consumerNamePrefix);
             }
             consumerContext = ctx.createOrderedConsumer(occ);
-            // coverage
+            assertNull(consumerContext.getConsumerName());
         }
         else {
             // Pre define a consumer
-            String name = generateConsumerName(maxMessages, maxBytes);
+            consumerName = generateConsumerName(maxMessages, maxBytes);
             ConsumerConfiguration.Builder builder = ConsumerConfiguration.builder();
             ConsumerConfiguration cc;
             if (fetchType == FETCH_DURABLE) {
-                name = name + "D";
-                cc = builder.durable(name).build();
+                consumerName = consumerName + "D";
+                cc = builder.durable(consumerName).build();
             }
             else {
-                name = name + "E";
-                cc = builder.name(name).inactiveThreshold(10_000).build();
+                consumerName = consumerName + "E";
+                cc = builder.name(consumerName).inactiveThreshold(10_000).build();
             }
             jsm.addOrUpdateConsumer(tsc.stream, cc);
 
             // Consumer[Context]
-            consumerContext = ctx.getConsumerContext(name);
+            consumerContext = ctx.getConsumerContext(consumerName);
+            assertEquals(consumerName, consumerContext.getConsumerName());
         }
 
         // Custom consume options
@@ -229,8 +260,11 @@ public class SimplificationTests extends JetStreamTestBase {
         long elapsed;
         // create the consumer then use it
         try (FetchConsumer consumer = consumerContext.fetch(fetchConsumeOptions)) {
-            if (consumerNamePrefix != null) {
-                assertTrue(consumer.getConsumerInfo().getName().startsWith(consumerNamePrefix));
+            if (fetchType == FETCH_ORDERED) {
+                validateConsumerNameForOrdered(consumerContext, consumer, consumerNamePrefix);
+            }
+            else {
+                validateConsumerName(consumerContext, consumer, consumerName);
             }
             Message msg = consumer.nextMessage();
             while (msg != null) {
@@ -261,7 +295,7 @@ public class SimplificationTests extends JetStreamTestBase {
         }
     }
 
-    private static String generateConsumerName(int maxMessages, int maxBytes) {
+    private String generateConsumerName(int maxMessages, int maxBytes) {
         return maxBytes == 0
             ? variant() + "-" + maxMessages + "msgs"
             : variant() + "-" + maxBytes + "bytes-" + maxMessages + "msgs";
@@ -324,7 +358,7 @@ public class SimplificationTests extends JetStreamTestBase {
         });
     }
 
-    private static int readMessages(FetchConsumer fc) throws InterruptedException, JetStreamStatusCheckedException {
+    private int readMessages(FetchConsumer fc) throws InterruptedException, JetStreamStatusCheckedException {
         int count = 0;
         while (!fc.isFinished()) {
             Message m = fc.nextMessage();
@@ -350,15 +384,18 @@ public class SimplificationTests extends JetStreamTestBase {
 
             // Consumer[Context]
             ConsumerContext consumerContext = js.getConsumerContext(tsc.stream, tsc.consumerName());
+            validateConsumerName(consumerContext, null, tsc.consumerName());
 
             int stopCount = 500;
             // create the consumer then use it
             try (IterableConsumer consumer = consumerContext.iterate()) {
+                validateConsumerName(consumerContext, consumer, tsc.consumerName());
                 _testIterableBasic(js, stopCount, consumer, tsc.subject());
             }
 
             // coverage
             IterableConsumer consumer = consumerContext.iterate(ConsumeOptions.DEFAULT_CONSUME_OPTIONS);
+            validateConsumerName(consumerContext, consumer, tsc.consumerName());
             consumer.close();
             assertThrows(IllegalArgumentException.class, () -> consumerContext.iterate(null));
         });
@@ -414,21 +451,24 @@ public class SimplificationTests extends JetStreamTestBase {
             int stopCount = 500;
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(tsc.subject());
             OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
+            assertNull(occtx.getConsumerName());
             try (IterableConsumer consumer = occtx.iterate()) {
+                validateConsumerNameForOrdered(occtx, consumer, null);
                 _testIterableBasic(js, stopCount, consumer, tsc.subject());
             }
 
             String consumerNamePrefix = prefix();
             occ = new OrderedConsumerConfiguration().filterSubject(tsc.subject()).consumerNamePrefix(consumerNamePrefix);
             occtx = sctx.createOrderedConsumer(occ);
+            assertNull(occtx.getConsumerName());
             try (IterableConsumer consumer = occtx.iterate()) {
-                assertTrue(consumer.getConsumerInfo().getName().startsWith(consumerNamePrefix));
+                validateConsumerNameForOrdered(occtx, consumer, consumerNamePrefix);
                 _testIterableBasic(js, stopCount, consumer, tsc.subject());
             }
         });
     }
 
-    private static void _testIterableBasic(JetStream js, int stopCount, IterableConsumer consumer, String subject) throws InterruptedException {
+    private void _testIterableBasic(JetStream js, int stopCount, IterableConsumer consumer, String subject) throws InterruptedException {
         AtomicInteger count = new AtomicInteger();
         Thread consumeThread = new Thread(() -> {
             try {
@@ -483,6 +523,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
             // Consumer[Context]
             ConsumerContext consumerContext = js.getConsumerContext(tsc.stream, tsc.consumerName());
+            validateConsumerName(consumerContext, null, tsc.consumerName());
 
             int stopCount = 500;
 
@@ -495,22 +536,68 @@ public class SimplificationTests extends JetStreamTestBase {
                 }
             };
 
-            try (MessageConsumer consumer = consumerContext.consume(handler)) {
+            try (MessageConsumer mcon = consumerContext.consume(handler)) {
+                validateConsumerName(consumerContext, mcon, tsc.consumerName());
                 latch.await();
+                stopAndWaitForFinished(mcon);
+                assertTrue(atomicCount.get() > 500);
+            }
 
-                consumer.stop();
-                int fin = 0;
-                while (!consumer.isFinished()) {
-                    //noinspection BusyWait
-                    Thread.sleep(10);
-                    if (++fin >= 10000) {
-                        fin = -1;
-                        break;
-                    }
+            StreamContext sctx = nc.getStreamContext(tsc.stream);
+
+            OrderedConsumerContext orderedConsumerContext =
+                sctx.createOrderedConsumer(new OrderedConsumerConfiguration().filterSubject(tsc.subject()));
+            assertNull(orderedConsumerContext.getConsumerName());
+
+            CountDownLatch orderedLatch = new CountDownLatch(1);
+            atomicCount.set(0);
+            handler = msg -> {
+                msg.ack();
+                if (atomicCount.incrementAndGet() == stopCount) {
+                    orderedLatch.countDown();
                 }
+            };
+
+            try (MessageConsumer mcon = orderedConsumerContext.consume(handler)) {
+                validateConsumerNameForOrdered(orderedConsumerContext, mcon, null);
+                orderedLatch.await();
+                stopAndWaitForFinished(mcon);
+                assertTrue(atomicCount.get() > 500);
+            }
+
+            String prefix = prefix();
+            OrderedConsumerContext orderedConsumerContextPrefixed =
+                sctx.createOrderedConsumer(new OrderedConsumerConfiguration().filterSubject(tsc.subject()).consumerNamePrefix(prefix));
+            assertNull(orderedConsumerContextPrefixed.getConsumerName());
+
+            CountDownLatch orderedLatchPrefixed = new CountDownLatch(1);
+            atomicCount.set(0);
+            handler = msg -> {
+                msg.ack();
+                if (atomicCount.incrementAndGet() == stopCount) {
+                    orderedLatchPrefixed.countDown();
+                }
+            };
+
+            try (MessageConsumer mcon = orderedConsumerContextPrefixed.consume(handler)) {
+                validateConsumerNameForOrdered(orderedConsumerContextPrefixed, mcon, prefix);
+                orderedLatchPrefixed.await();
+                stopAndWaitForFinished(mcon);
                 assertTrue(atomicCount.get() > 500);
             }
         });
+    }
+
+    private static void stopAndWaitForFinished(MessageConsumer mcon) throws InterruptedException {
+        mcon.stop();
+        int fin = 0;
+        while (!mcon.isFinished()) {
+            //noinspection BusyWait
+            Thread.sleep(10);
+            if (++fin >= 500) {
+                break;
+            }
+        }
     }
 
     @Test
@@ -530,6 +617,8 @@ public class SimplificationTests extends JetStreamTestBase {
 
             // Consumer[Context]
             ConsumerContext consumerContext = js.getConsumerContext(tsc.stream, name);
+            validateConsumerName(consumerContext, null, name);
+
             assertThrows(IllegalArgumentException.class, () -> consumerContext.next(1)); // max wait too small
             assertNotNull(consumerContext.next(1000));
             assertNotNull(consumerContext.next(Duration.ofMillis(1000)));
@@ -539,12 +628,25 @@ public class SimplificationTests extends JetStreamTestBase {
 
             StreamContext sctx = js.getStreamContext(tsc.stream);
             OrderedConsumerContext occtx = sctx.createOrderedConsumer(new OrderedConsumerConfiguration());
+            assertNull(occtx.getConsumerName());
             assertThrows(IllegalArgumentException.class, () -> occtx.next(1)); // max wait too small
             assertNotNull(occtx.next(1000));
             assertNotNull(occtx.next(Duration.ofMillis(1000)));
             assertNotNull(occtx.next(null));
             assertNotNull(occtx.next());
             assertNull(occtx.next(1000));
+            validateConsumerNameForOrdered(occtx, null, null);
+
+            String prefix = prefix();
+            OrderedConsumerContext occtxPrefixed = sctx.createOrderedConsumer(new OrderedConsumerConfiguration().consumerNamePrefix(prefix));
+            assertNull(occtxPrefixed.getConsumerName());
+            assertThrows(IllegalArgumentException.class, () -> occtxPrefixed.next(1)); // max wait too small
+            assertNotNull(occtxPrefixed.next(1000));
+            assertNotNull(occtxPrefixed.next(Duration.ofMillis(1000)));
+            assertNotNull(occtxPrefixed.next(null));
+            assertNotNull(occtxPrefixed.next());
+            assertNull(occtxPrefixed.next(1000));
+            validateConsumerNameForOrdered(occtxPrefixed, null, prefix);
         });
     }
 
@@ -635,7 +737,7 @@ public class SimplificationTests extends JetStreamTestBase {
         assertEquals(2, fco.getMinAckPending());
     }
 
-    private static void check_default_values(FetchConsumeOptions fco) {
+    private void check_default_values(FetchConsumeOptions fco) {
         assertEquals(DEFAULT_MESSAGE_COUNT, fco.getMaxMessages());
         assertEquals(DEFAULT_EXPIRES_IN_MILLIS, fco.getExpiresInMillis());
         assertEquals(DEFAULT_THRESHOLD_PERCENT, fco.getThresholdPercent());
@@ -643,13 +745,13 @@ public class SimplificationTests extends JetStreamTestBase {
         assertEquals(DEFAULT_EXPIRES_IN_MILLIS * MAX_IDLE_HEARTBEAT_PERCENT / 100, fco.getIdleHeartbeat());
     }
 
-    private static void check_values(FetchConsumeOptions fco, int maxMessages, int maxBytes, int thresholdPercent) throws IOException, ClassNotFoundException {
+    private void check_values(FetchConsumeOptions fco, int maxMessages, int maxBytes, int thresholdPercent) throws IOException, ClassNotFoundException {
         _check_values(fco, maxMessages, maxBytes, thresholdPercent);
         fco = roundTripSerialize(fco);
         _check_values(fco, maxMessages, maxBytes, thresholdPercent);
     }
 
-    private static void _check_values(FetchConsumeOptions fco, int maxMessages, int maxBytes, int thresholdPercent) {
+    private void _check_values(FetchConsumeOptions fco, int maxMessages, int maxBytes, int thresholdPercent) {
         assertEquals(maxMessages, fco.getMaxMessages());
         assertEquals(maxBytes, fco.getMaxBytes());
         assertEquals(thresholdPercent, fco.getThresholdPercent());
@@ -658,7 +760,7 @@ public class SimplificationTests extends JetStreamTestBase {
         assertEquals(-1, fco.getMinAckPending());
     }
 
-    private static FetchConsumeOptions roundTripSerialize(FetchConsumeOptions fco) throws IOException, ClassNotFoundException {
+    private FetchConsumeOptions roundTripSerialize(FetchConsumeOptions fco) throws IOException, ClassNotFoundException {
         SerializableFetchConsumeOptions sfco = new SerializableFetchConsumeOptions(fco);
         sfco = (SerializableFetchConsumeOptions)roundTripSerialize(sfco);
         return sfco.getFetchConsumeOptions();
@@ -723,7 +825,7 @@ public class SimplificationTests extends JetStreamTestBase {
         assertEquals(2, co.getMinAckPending());
     }
 
-    private static void check_default_values(ConsumeOptions co) {
+    private void check_default_values(ConsumeOptions co) {
         assertEquals(DEFAULT_MESSAGE_COUNT, co.getBatchSize());
         assertEquals(DEFAULT_EXPIRES_IN_MILLIS, co.getExpiresInMillis());
         assertEquals(DEFAULT_THRESHOLD_PERCENT, co.getThresholdPercent());
@@ -731,7 +833,7 @@ public class SimplificationTests extends JetStreamTestBase {
         assertEquals(DEFAULT_EXPIRES_IN_MILLIS * MAX_IDLE_HEARTBEAT_PERCENT / 100, co.getIdleHeartbeat());
     }
 
-    private static void check_values(ConsumeOptions co, int batchSize, int batchBytes, int thresholdPercent) throws IOException, ClassNotFoundException {
+    private void check_values(ConsumeOptions co, int batchSize, int batchBytes, int thresholdPercent) {
         assertEquals(batchSize, co.getBatchSize());
         assertEquals(batchBytes, co.getBatchBytes());
         assertEquals(thresholdPercent, co.getThresholdPercent());
@@ -740,7 +842,7 @@ public class SimplificationTests extends JetStreamTestBase {
         assertEquals(-1, co.getMinAckPending());
     }
 
-    private static ConsumeOptions roundTripSerialize(ConsumeOptions co) throws IOException, ClassNotFoundException {
+    private ConsumeOptions roundTripSerialize(ConsumeOptions co) throws IOException, ClassNotFoundException {
         SerializableConsumeOptions sco = new SerializableConsumeOptions(co);
         sco = (SerializableConsumeOptions)roundTripSerialize(sco);
         return sco.getConsumeOptions();
@@ -814,7 +916,7 @@ public class SimplificationTests extends JetStreamTestBase {
         });
     }
 
-    private static ZonedDateTime getStartTimeFirstMessage(JetStream js, TestingStreamContainer tsc) throws IOException, JetStreamApiException, InterruptedException {
+    private ZonedDateTime getStartTimeFirstMessage(JetStream js, TestingStreamContainer tsc) throws IOException, JetStreamApiException, InterruptedException {
         ZonedDateTime startTime;
         JetStreamSubscription sub = js.subscribe(tsc.subject());
         Message mt = sub.nextMessage(1000);
@@ -823,8 +925,9 @@ public class SimplificationTests extends JetStreamTestBase {
         return startTime;
     }
 
-    private static void _testOrderedNext(StreamContext sctx, int expectedStreamSeq, OrderedConsumerConfiguration occ) throws IOException, JetStreamApiException, InterruptedException, JetStreamStatusCheckedException {
+    private void _testOrderedNext(StreamContext sctx, int expectedStreamSeq, OrderedConsumerConfiguration occ) throws IOException, JetStreamApiException, InterruptedException, JetStreamStatusCheckedException {
         OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
+        assertNull(occtx.getConsumerName());
         // Loop through the messages to make sure I get stream sequence 1 to 6
         while (expectedStreamSeq <= 6) {
             Message m = occtx.next(1000);
@@ -837,6 +940,7 @@ public class SimplificationTests extends JetStreamTestBase {
                 ++expectedStreamSeq;
             }
         }
+        validateConsumerNameForOrdered(occtx, null, occ.getConsumerNamePrefix());
     }
 
     public static long CS_FOR_SS_3 = 3;
@@ -898,15 +1002,14 @@ public class SimplificationTests extends JetStreamTestBase {
         });
     }
 
-    private static void _testOrderedFetch(StreamContext sctx, int expectedStreamSeq, OrderedConsumerConfiguration occ) throws Exception {
+    private void _testOrderedFetch(StreamContext sctx, int expectedStreamSeq, OrderedConsumerConfiguration occ) throws Exception {
         OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
+        assertNull(occtx.getConsumerName());
         FetchConsumeOptions fco = FetchConsumeOptions.builder().maxMessages(6).expiresIn(1000).build();
+        String firstConsumerName;
         try (FetchConsumer fcon = occtx.fetch(fco)) {
-            if (occ.getConsumerNamePrefix() != null) {
-                assertTrue(occtx.getConsumerName().startsWith(occ.getConsumerNamePrefix()));
-                assertEquals(occtx.getConsumerName(), fcon.getConsumerInfo().getName());
-            }
-
+            validateConsumerNameForOrdered(occtx, null, occ.getConsumerNamePrefix());
+            firstConsumerName = occtx.getConsumerName();
             Message m = fcon.nextMessage();
             while (m != null) {
                 assertEquals(expectedStreamSeq++, m.metaData().streamSequence());
@@ -922,6 +1025,8 @@ public class SimplificationTests extends JetStreamTestBase {
         }
         // this should finish without error
         try (FetchConsumer fcon = occtx.fetch(fco)) {
+            validateConsumerNameForOrdered(occtx, null, occ.getConsumerNamePrefix());
+            assertNotEquals(firstConsumerName, occtx.getConsumerName());
             Message m = fcon.nextMessage();
             while (expectedStreamSeq <= 6) {
                 assertEquals(expectedStreamSeq++, m.metaData().streamSequence());
@@ -973,9 +1078,11 @@ public class SimplificationTests extends JetStreamTestBase {
         });
     }
 
-    private static void _testOrderedIterate(StreamContext sctx, int expectedStreamSeq, OrderedConsumerConfiguration occ) throws Exception {
+    private void _testOrderedIterate(StreamContext sctx, int expectedStreamSeq, OrderedConsumerConfiguration occ) throws Exception {
         OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
+        assertNull(occtx.getConsumerName());
         try (IterableConsumer icon = occtx.iterate()) {
+            validateConsumerNameForOrdered(occtx, icon, occ.getConsumerNamePrefix());
             if (occ.getConsumerNamePrefix() != null) {
                 assertTrue(occtx.getConsumerName().startsWith(occ.getConsumerNamePrefix()));
                 assertEquals(occtx.getConsumerName(), icon.getConsumerInfo().getName());
@@ -1009,7 +1116,7 @@ public class SimplificationTests extends JetStreamTestBase {
         });
     }
 
-    private static void _testOrderedConsume(JetStream js, TestingStreamContainer tsc, OrderedConsumerConfiguration occ) throws Exception {
+    private void _testOrderedConsume(JetStream js, TestingStreamContainer tsc, OrderedConsumerConfiguration occ) throws Exception {
         StreamContext sctx = js.getStreamContext(tsc.stream);
 
         // Get this in place before subscriptions are made
@@ -1024,11 +1131,9 @@ public class SimplificationTests extends JetStreamTestBase {
             msgLatch.countDown();
         };
         OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
+        assertNull(occtx.getConsumerName());
         try (MessageConsumer mcon = occtx.consume(handler)) {
-            if (occ.getConsumerNamePrefix() != null) {
-                assertTrue(occtx.getConsumerName().startsWith(occ.getConsumerNamePrefix()));
-                assertEquals(occtx.getConsumerName(), mcon.getConsumerInfo().getName());
-            }
+            validateConsumerNameForOrdered(occtx, mcon, occ.getConsumerNamePrefix());
             jsPublish(js, tsc.subject(), 201, 6);
 
             // wait for the messages
@@ -1183,7 +1288,7 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @SuppressWarnings("resource")
-    private static void validateCantCallOtherMethods(OrderedConsumerContext ctx) {
+    private void validateCantCallOtherMethods(OrderedConsumerContext ctx) {
         assertThrows(IOException.class, () -> ctx.next(1000));
         assertThrows(IOException.class, () -> ctx.fetchMessages(1));
         assertThrows(IOException.class, () -> ctx.consume(null));
@@ -1254,7 +1359,7 @@ public class SimplificationTests extends JetStreamTestBase {
         assertEquals("fs1", occ.getFilterSubjects().get(1));
     }
 
-    private static void check_default_values(OrderedConsumerConfiguration occ) {
+    private void check_default_values(OrderedConsumerConfiguration occ) {
         assertEquals(">", occ.getFilterSubject());
         assertNotNull(occ.getFilterSubject());
         assertFalse(occ.hasMultipleFilterSubjects());
@@ -1265,7 +1370,7 @@ public class SimplificationTests extends JetStreamTestBase {
         assertNull(occ.getHeadersOnly());
     }
 
-    private static void check_values(OrderedConsumerConfiguration occ, ZonedDateTime zdt) {
+    private void check_values(OrderedConsumerConfiguration occ, ZonedDateTime zdt) {
         assertEquals("fs", occ.getFilterSubject());
         assertEquals(DeliverPolicy.All, occ.getDeliverPolicy());
         assertEquals(42, occ.getStartSequence());
@@ -1274,13 +1379,13 @@ public class SimplificationTests extends JetStreamTestBase {
         assertTrue(occ.getHeadersOnly());
     }
 
-    private static OrderedConsumerConfiguration roundTripSerialize(OrderedConsumerConfiguration occ) throws IOException, ClassNotFoundException {
+    private OrderedConsumerConfiguration roundTripSerialize(OrderedConsumerConfiguration occ) throws IOException, ClassNotFoundException {
         SerializableOrderedConsumerConfiguration socc = new SerializableOrderedConsumerConfiguration(occ);
         socc = (SerializableOrderedConsumerConfiguration)roundTripSerialize(socc);
         return socc.getOrderedConsumerConfiguration();
     }
 
-    private static Object roundTripSerialize(Serializable s) throws IOException, ClassNotFoundException {
+    private Object roundTripSerialize(Serializable s) throws IOException, ClassNotFoundException {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
             ObjectOutputStream oos = new ObjectOutputStream(baos);
             oos.writeObject(s);
@@ -1301,18 +1406,18 @@ public class SimplificationTests extends JetStreamTestBase {
 
             // Testing min ack pending
             String group = variant();
-            String consumer = variant();
+            String cname = variant();
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                .name(consumer)
+                .name(cname)
                 .priorityPolicy(PriorityPolicy.Overflow)
                 .priorityGroups(group)
                 .ackWait(10_000)
                 .filterSubjects(tsc.subject()).build();
             jsm.addOrUpdateConsumer(tsc.stream, cc);
 
-            ConsumerContext ctxPrime = nc.getConsumerContext(tsc.stream, consumer);
-            ConsumerContext ctxOver = nc.getConsumerContext(tsc.stream, consumer);
+            ConsumerContext ctxPrime = nc.getConsumerContext(tsc.stream, cname);
+            ConsumerContext ctxOver = nc.getConsumerContext(tsc.stream, cname);
 
             FetchConsumeOptions fcoNoMin = FetchConsumeOptions.builder()
                 .maxMessages(5).expiresIn(1000).group(group)
@@ -1326,17 +1431,18 @@ public class SimplificationTests extends JetStreamTestBase {
                 .maxMessages(5).expiresIn(1000).group(group).minAckPending(10)
                 .build();
 
-            _overflowFetch(ctxPrime, fcoNoMin, true, 5, 0);
-            _overflowFetch(ctxOver, fcoNoMin, true, 5, 0);
+            _overflowFetch(cname, ctxPrime, fcoNoMin, true, 5, 0);
+            _overflowFetch(cname, ctxOver, fcoNoMin, true, 5, 0);
 
-            _overflowFetch(ctxPrime, fcoNoMin, false, 5, 5);
-            _overflowFetch(ctxOver, fcoOverA, true, 5, 5);
-            _overflowFetch(ctxOver, fcoOverB, true, 0, 5);
+            _overflowFetch(cname, ctxPrime, fcoNoMin, false, 5, 5);
+            _overflowFetch(cname, ctxOver, fcoOverA, true, 5, 5);
+            _overflowFetch(cname, ctxOver, fcoOverB, true, 0, 5);
         });
     }
 
-    private static void _overflowFetch(ConsumerContext cctx, FetchConsumeOptions fco, boolean ack, int expected, int ackPendingWhenDone) throws Exception {
+    private void _overflowFetch(String cname, ConsumerContext cctx, FetchConsumeOptions fco, boolean ack, int expected, int ackPendingWhenDone) throws Exception {
         try (FetchConsumer fc = cctx.fetch(fco)) {
+            validateConsumerName(cctx, fc, cname);
             int count = 0;
             Message m = fc.nextMessage();
             while (m != null) {
@@ -1366,18 +1472,20 @@ public class SimplificationTests extends JetStreamTestBase {
 
             // Testing min ack pending
             String group = variant();
-            String consumer = variant();
+            String cname = variant();
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                .name(consumer)
+                .name(cname)
                 .priorityPolicy(PriorityPolicy.Overflow)
                 .priorityGroups(group)
                 .ackWait(30_000)
                 .filterSubjects(tsc.subject()).build();
             jsm.addOrUpdateConsumer(tsc.stream, cc);
 
-            ConsumerContext ctxPrime = nc.getConsumerContext(tsc.stream, consumer);
-            ConsumerContext ctxOver = nc.getConsumerContext(tsc.stream, consumer);
+            ConsumerContext ctxPrime = nc.getConsumerContext(tsc.stream, cname);
+            ConsumerContext ctxOver = nc.getConsumerContext(tsc.stream, cname);
+            validateConsumerName(ctxPrime, null, cname);
+            validateConsumerName(ctxOver, null, cname);
 
             ConsumeOptions coPrime = ConsumeOptions.builder()
                 .group(group)
@@ -1396,6 +1504,7 @@ public class SimplificationTests extends JetStreamTestBase {
             Thread tOver = new Thread(() -> {
                 try {
                     IterableConsumer ic = ctxOver.iterate(coOver);
+                    validateConsumerName(ctxOver, ic, cname);
                     while (left.get() > 0 && !Thread.currentThread().isInterrupted()) {
                         Message m = ic.nextMessage(100);
                         if (m != null) {
@@ -1416,6 +1525,7 @@ public class SimplificationTests extends JetStreamTestBase {
             Thread tPrime = new Thread(() -> {
                 try {
                     IterableConsumer ic = ctxPrime.iterate(coPrime);
+                    validateConsumerName(ctxPrime, ic, cname);
                     while (left.get() > 0 && !Thread.currentThread().isInterrupted()) {
                         Message m = ic.nextMessage(100);
                         if (m != null) {
@@ -1452,18 +1562,20 @@ public class SimplificationTests extends JetStreamTestBase {
 
             // Testing min ack pending
             String group = variant();
-            String consumer = variant();
+            String cname = variant();
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                .name(consumer)
+                .name(cname)
                 .priorityPolicy(PriorityPolicy.Overflow)
                 .priorityGroups(group)
                 .ackWait(30_000)
                 .filterSubjects(tsc.subject()).build();
             jsm.addOrUpdateConsumer(tsc.stream, cc);
 
-            ConsumerContext ctxPrime = nc.getConsumerContext(tsc.stream, consumer);
-            ConsumerContext ctxOver = nc.getConsumerContext(tsc.stream, consumer);
+            ConsumerContext ctxPrime = nc.getConsumerContext(tsc.stream, cname);
+            ConsumerContext ctxOver = nc.getConsumerContext(tsc.stream, cname);
+            validateConsumerName(ctxPrime, null, cname);
+            validateConsumerName(ctxOver, null, cname);
 
             ConsumeOptions coPrime = ConsumeOptions.builder()
                 .group(group)
@@ -1492,7 +1604,10 @@ public class SimplificationTests extends JetStreamTestBase {
             };
 
             try (MessageConsumer mcOver = ctxOver.consume(coOver, overHandler);
-                 MessageConsumer mcPrime = ctxPrime.consume(coPrime, primeHandler)) {
+                 MessageConsumer mcPrime = ctxPrime.consume(coPrime, primeHandler))
+            {
+                validateConsumerName(ctxPrime, mcPrime, cname);
+                validateConsumerName(ctxOver, mcOver, cname);
                 while (left.get() > 0) {
                     sleep(100);
                 }
@@ -1568,10 +1683,13 @@ public class SimplificationTests extends JetStreamTestBase {
             sleep(50); // simulate some work and to slow the endless consume
         };
 
+        // variable are here. initialized during first server, but used after.
         StreamContext streamContext;
         OrderedConsumerContext orderedConsumerContext;
-        MessageConsumer consumer;
+        MessageConsumer mcon;
+        String firstConsumerName;
 
+        //noinspection unused
         try (NatsTestServer ts = new NatsTestServer(port, false, true)) {
             nc = (NatsConnection) standardConnection(options);
             StreamConfiguration sc = StreamConfiguration.builder()
@@ -1587,12 +1705,13 @@ public class SimplificationTests extends JetStreamTestBase {
                 .expiresIn(2000) // idle heartbeat is half of this, alarm time is 3 * ihb
                 .build();
 
-            OrderedConsumerConfiguration ocConfig = new OrderedConsumerConfiguration()
-                .filterSubjects(subject);
+            OrderedConsumerConfiguration ocConfig = new OrderedConsumerConfiguration().filterSubjects(subject);
             streamContext = nc.getStreamContext(stream);
             orderedConsumerContext = streamContext.createOrderedConsumer(ocConfig);
-            //noinspection resource
-            consumer = orderedConsumerContext.consume(consumeOptions, handler);
+            assertNull(orderedConsumerContext.getConsumerName());
+            mcon = orderedConsumerContext.consume(consumeOptions, handler);
+            validateConsumerNameForOrdered(orderedConsumerContext, mcon, null);
+            firstConsumerName = orderedConsumerContext.getConsumerName();
 
             sleep(500); // time enough to get some messages
         }
@@ -1607,6 +1726,8 @@ public class SimplificationTests extends JetStreamTestBase {
             standardConnectionWait(nc);
             sleep(5000); // long enough to get messages and for the hb alarm to have tripped
         }
+        validateConsumerNameForOrdered(orderedConsumerContext, mcon, null);
+        assertNotEquals(firstConsumerName, orderedConsumerContext.getConsumerName());
 
         assertTrue(allInOrder.get());
         int count2 = atomicCount.get();

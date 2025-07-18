@@ -17,4 +17,13 @@ package io.nats.client;
  * The Ordered Consumer and it's context provide a simplification interface to the ordered consumer behavior.
  */
 public interface OrderedConsumerContext extends BaseConsumerContext {
+    /**
+     * Gets the consumer name created for the underlying Ordered Consumer
+     * This will return null until the first consume (next, iterate, fetch, consume)
+     * is executed because the JetStream consumer, which carries the name,
+     * has not been created yet.
+     * @return the consumer name or null
+     */
+    @Override
+    String getConsumerName();
 }

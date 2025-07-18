@@ -84,7 +84,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
 
     private static void _testOrderedConsumerSync(JetStream js, TestingStreamContainer tsc, String consumerNamePrefix, PushSubscribeOptions pso) throws IOException, JetStreamApiException, TimeoutException, InterruptedException {
         JetStreamSubscription sub = js.subscribe(tsc.subject(), pso);
-        String firstConsumerName = checkPrefix(sub, consumerNamePrefix);
+        String firstConsumerName = validateOrderedConsumerNamePrefix(sub, consumerNamePrefix);
 
         // Published messages will be intercepted by the OrderedTestDropSimulator
         jsPublish(js, tsc.subject(), 101, 6);
@@ -99,13 +99,12 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
                 ++expectedStreamSeq;
             }
         }
-        reCheckPrefix(sub, consumerNamePrefix, firstConsumerName);
+        reValidateOrderedConsumerNamePrefix(sub, consumerNamePrefix, firstConsumerName);
     }
 
-    private static String checkPrefix(JetStreamSubscription sub, String consumerNamePrefix) throws IOException, JetStreamApiException {
-        String firstConsumerName = null;
+    private static String validateOrderedConsumerNamePrefix(JetStreamSubscription sub, String consumerNamePrefix) throws IOException, JetStreamApiException {
+        String firstConsumerName = sub.getConsumerName();
         if (consumerNamePrefix != null) {
-            firstConsumerName = sub.getConsumerName();
             assertEquals(firstConsumerName, sub.getConsumerInfo().getName());
             assertNotEquals(consumerNamePrefix, firstConsumerName);
             assertTrue(firstConsumerName.startsWith(consumerNamePrefix));
@@ -113,7 +112,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
         return firstConsumerName;
     }
 
-    private static void reCheckPrefix(JetStreamSubscription sub, String consumerNamePrefix, String firstConsumerName) throws IOException, JetStreamApiException {
+    private static void reValidateOrderedConsumerNamePrefix(JetStreamSubscription sub, String consumerNamePrefix, String firstConsumerName) throws IOException, JetStreamApiException {
         if (consumerNamePrefix != null) {
             String currentConsumerName = sub.getConsumerName();
             assertEquals(currentConsumerName, sub.getConsumerInfo().getName());
@@ -160,7 +159,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
         };
 
         JetStreamSubscription sub = js.subscribe(tsc.subject(), d, handler, false, pso);
-        String firstConsumerName = checkPrefix(sub, consumerNamePrefix);
+        String firstConsumerName = validateOrderedConsumerNamePrefix(sub, consumerNamePrefix);
 
         // publish after sub b/c interceptor is set during sub, so before messages come in
         jsPublish(js, tsc.subject(), 201, 6);
@@ -177,7 +176,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
             ++expectedStreamSeq;
         }
 
-        reCheckPrefix(sub, consumerNamePrefix, firstConsumerName);
+        reValidateOrderedConsumerNamePrefix(sub, consumerNamePrefix, firstConsumerName);
     }
 
     static class SimulatorState {
