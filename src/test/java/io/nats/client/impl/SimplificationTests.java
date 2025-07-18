@@ -132,12 +132,13 @@ public class SimplificationTests extends JetStreamTestBase {
         }
     }
 
-    private void validateConsumerNameForOrdered(BaseConsumerContext bcc, MessageConsumer consumer, String prefix) throws IOException, JetStreamApiException {
+    private String validateConsumerNameForOrdered(BaseConsumerContext bcc, MessageConsumer consumer, String prefix) throws IOException, JetStreamApiException {
+        String bccConsumerName = bcc.getConsumerName();
         if (prefix == null) {
-            assertNotNull(bcc.getConsumerName());
+            assertNotNull(bccConsumerName);
         }
         else {
-            assertTrue(bcc.getConsumerName().startsWith(prefix));
+            assertTrue(bccConsumerName.startsWith(prefix));
         }
 
         if (consumer != null) {
@@ -150,6 +151,7 @@ public class SimplificationTests extends JetStreamTestBase {
                 assertTrue(consumer.getConsumerInfo().getName().startsWith(prefix));
             }
         }
+        return bccConsumerName;
     }
 
     static int FETCH_EPHEMERAL = 1;
@@ -630,23 +632,49 @@ public class SimplificationTests extends JetStreamTestBase {
             OrderedConsumerContext occtx = sctx.createOrderedConsumer(new OrderedConsumerConfiguration());
             assertNull(occtx.getConsumerName());
             assertThrows(IllegalArgumentException.class, () -> occtx.next(1)); // max wait too small
+
             assertNotNull(occtx.next(1000));
+            String cname1 = validateConsumerNameForOrdered(occtx, null, null);
+
             assertNotNull(occtx.next(Duration.ofMillis(1000)));
+            String cname2 = validateConsumerNameForOrdered(occtx, null, null);
+            assertNotEquals(cname1, cname2);
+
             assertNotNull(occtx.next(null));
+            cname1 = validateConsumerNameForOrdered(occtx, null, null);
+            assertNotEquals(cname1, cname2);
+
             assertNotNull(occtx.next());
+            cname2 = validateConsumerNameForOrdered(occtx, null, null);
+            assertNotEquals(cname1, cname2);
+
             assertNull(occtx.next(1000));
-            validateConsumerNameForOrdered(occtx, null, null);
+            cname1 = validateConsumerNameForOrdered(occtx, null, null);
+            assertNotEquals(cname1, cname2);
 
             String prefix = prefix();
             OrderedConsumerContext occtxPrefixed = sctx.createOrderedConsumer(new OrderedConsumerConfiguration().consumerNamePrefix(prefix));
             assertNull(occtxPrefixed.getConsumerName());
             assertThrows(IllegalArgumentException.class, () -> occtxPrefixed.next(1)); // max wait too small
+
             assertNotNull(occtxPrefixed.next(1000));
+            cname1 = validateConsumerNameForOrdered(occtxPrefixed, null, prefix);
+
             assertNotNull(occtxPrefixed.next(Duration.ofMillis(1000)));
+            cname2 = validateConsumerNameForOrdered(occtxPrefixed, null, prefix);
+            assertNotEquals(cname1, cname2);
+
             assertNotNull(occtxPrefixed.next(null));
+            cname1 = validateConsumerNameForOrdered(occtxPrefixed, null, prefix);
+            assertNotEquals(cname1, cname2);
+
             assertNotNull(occtxPrefixed.next());
+            cname2 = validateConsumerNameForOrdered(occtxPrefixed, null, prefix);
+            assertNotEquals(cname1, cname2);
+
             assertNull(occtxPrefixed.next(1000));
-            validateConsumerNameForOrdered(occtxPrefixed, null, prefix);
+            cname1 = validateConsumerNameForOrdered(occtxPrefixed, null, prefix);
+            assertNotEquals(cname1, cname2);
         });
     }
 
@@ -1008,8 +1036,7 @@ public class SimplificationTests extends JetStreamTestBase {
         FetchConsumeOptions fco = FetchConsumeOptions.builder().maxMessages(6).expiresIn(1000).build();
         String firstConsumerName;
         try (FetchConsumer fcon = occtx.fetch(fco)) {
-            validateConsumerNameForOrdered(occtx, null, occ.getConsumerNamePrefix());
-            firstConsumerName = occtx.getConsumerName();
+            firstConsumerName = validateConsumerNameForOrdered(occtx, null, occ.getConsumerNamePrefix());
             Message m = fcon.nextMessage();
             while (m != null) {
                 assertEquals(expectedStreamSeq++, m.metaData().streamSequence());
@@ -1083,10 +1110,6 @@ public class SimplificationTests extends JetStreamTestBase {
         assertNull(occtx.getConsumerName());
         try (IterableConsumer icon = occtx.iterate()) {
             validateConsumerNameForOrdered(occtx, icon, occ.getConsumerNamePrefix());
-            if (occ.getConsumerNamePrefix() != null) {
-                assertTrue(occtx.getConsumerName().startsWith(occ.getConsumerNamePrefix()));
-                assertEquals(occtx.getConsumerName(), icon.getConsumerInfo().getName());
-            }
             // Loop through the messages to make sure I get stream sequence 1 to 5
             while (expectedStreamSeq <= 5) {
                 Message m = icon.nextMessage(Duration.ofSeconds(1)); // use the duration version here for coverage
@@ -1710,8 +1733,7 @@ public class SimplificationTests extends JetStreamTestBase {
             orderedConsumerContext = streamContext.createOrderedConsumer(ocConfig);
             assertNull(orderedConsumerContext.getConsumerName());
             mcon = orderedConsumerContext.consume(consumeOptions, handler);
-            validateConsumerNameForOrdered(orderedConsumerContext, mcon, null);
-            firstConsumerName = orderedConsumerContext.getConsumerName();
+            firstConsumerName = validateConsumerNameForOrdered(orderedConsumerContext, mcon, null);
 
             sleep(500); // time enough to get some messages
         }
