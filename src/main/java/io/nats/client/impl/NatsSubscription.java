@@ -57,7 +57,7 @@ class NatsSubscription extends NatsConsumer implements Subscription {
             sid = connection.reSubscribe(this, newDeliverSubject, queueName);
         }
         else {
-            MessageHandler handler = dispatcher.getSubscriptionHandlers().get(sid);
+            MessageHandler handler = dispatcher.getNonDefaultHandlerBySid(sid);
             dispatcher.remove(this);
             sid = dispatcher.reSubscribe(this, newDeliverSubject, queueName, handler);
         }

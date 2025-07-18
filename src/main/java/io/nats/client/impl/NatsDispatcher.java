@@ -36,17 +36,18 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
     protected String id;
 
-    // We will use the subject as the key for subscriptions that use the
-    // default handler.
-    protected final Map<String, NatsSubscription> subscriptionsUsingDefaultHandler;
+    // This tracks subscriptions made with the default handlers
+    // There can only be one default handler subscription for any given subject
+    protected final Map<String, NatsSubscription> subWithDefaultHandlerBySubject;
 
-    // We will use the SID as the key. Since  these subscriptions provide
-    // their own handlers, we allow duplicates. There is a subtle but very
-    // important difference here.
-    protected final Map<String, NatsSubscription> subscriptionsWithHandlers;
+    // This tracks subscriptions made with non-default handlers
+    protected final Map<String, NatsSubscription> subWithNonDefaultHandlerBySid;
 
-    // We use the SID as the key here.
-    protected final Map<String, MessageHandler> subscriptionHandlers;
+    // There can be multiple non default handlers for any given subject, this track them
+    protected final Map<String, Map<String, NatsSubscription>> subsBySidNonDefaultHandlersBySubject;
+
+    // This tracks the non-default handler by sid
+    protected final Map<String, MessageHandler> nonDefaultHandlerBySid;
 
     protected final Duration waitForMessage;
 
@@ -54,9 +55,10 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         super(conn);
         this.defaultHandler = handler;
         this.incoming = new MessageQueue(true, conn.getOptions().getRequestCleanupInterval());
-        this.subscriptionsUsingDefaultHandler = new ConcurrentHashMap<>();
-        this.subscriptionsWithHandlers = new ConcurrentHashMap<>();
-        this.subscriptionHandlers = new ConcurrentHashMap<>();
+        this.subWithDefaultHandlerBySubject = new ConcurrentHashMap<>();
+        this.subWithNonDefaultHandlerBySid = new ConcurrentHashMap<>();
+        this.subsBySidNonDefaultHandlersBySubject = new ConcurrentHashMap<>();
+        this.nonDefaultHandlerBySid = new ConcurrentHashMap<>();
         this.running = new AtomicBoolean(false);
         this.started = new AtomicBoolean(false);
         this.waitForMessage = Duration.ofMinutes(5); // This can be long since we aren't doing anything
@@ -67,6 +69,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         internalStart(id, true);
     }
 
+    @SuppressWarnings("SameParameterValue")
     protected void internalStart(String id, boolean threaded) {
         if (!started.get()) {
             this.id = id;
@@ -89,7 +92,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
                 if (msg != null) {
                     NatsSubscription sub = msg.getNatsSubscription();
                     if (sub != null && sub.isActive()) {
-                        MessageHandler handler = subscriptionHandlers.get(sub.getSID());
+                        MessageHandler handler = nonDefaultHandlerBySid.get(sub.getSID());
                         if (handler == null) {
                             handler = defaultHandler;
                         }
@@ -147,17 +150,14 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         }
 
         if (unsubscribeAll) {
-            this.subscriptionsUsingDefaultHandler.forEach((subj, sub) -> {
-                this.connection.unsubscribe(sub, -1);
-            });
-            this.subscriptionsWithHandlers.forEach((sid, sub) -> {
-                this.connection.unsubscribe(sub, -1);
-            });
+            subWithDefaultHandlerBySubject.forEach((subject, sub) -> connection.unsubscribe(sub, -1));
+            subWithNonDefaultHandlerBySid.forEach((sid, sub) -> connection.unsubscribe(sub, -1));
         }
 
-        this.subscriptionsUsingDefaultHandler.clear();
-        this.subscriptionsWithHandlers.clear();
-        this.subscriptionHandlers.clear();
+        subWithDefaultHandlerBySubject.clear();
+        subWithNonDefaultHandlerBySid.clear();
+        subsBySidNonDefaultHandlersBySubject.clear();
+        nonDefaultHandlerBySid.clear();
     }
 
     public boolean isActive() {
@@ -172,37 +172,54 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         return incoming;
     }
 
-    Map<String, MessageHandler> getSubscriptionHandlers() {
-        return subscriptionHandlers;
+    MessageHandler getNonDefaultHandlerBySid(String sid) {
+        return nonDefaultHandlerBySid.get(sid);
+    }
+
+    boolean hasNoSubs() {
+        return subWithDefaultHandlerBySubject.isEmpty() && subWithNonDefaultHandlerBySid.isEmpty();
     }
 
     void resendSubscriptions() {
-        this.subscriptionsUsingDefaultHandler.forEach((id, sub)->{
-            this.connection.sendSubscriptionMessage(sub.getSID(), sub.getSubject(), sub.getQueueName(), true);
-        });
-        this.subscriptionsWithHandlers.forEach((sid, sub)->{
-            this.connection.sendSubscriptionMessage(sub.getSID(), sub.getSubject(), sub.getQueueName(), true);
-        });
+        this.subWithDefaultHandlerBySubject.forEach((subject, sub) ->
+            connection.sendSubscriptionMessage(sub.getSID(), subject, sub.getQueueName(), true));
+        this.subWithNonDefaultHandlerBySid.forEach((sid, sub) ->
+            connection.sendSubscriptionMessage(sid, sub.getSubject(), sub.getQueueName(), true));
     }
 
-    // Called by the connection when a subscription is removed.
-    // We will first attempt to remove from subscriptionsWithHandlers
-    // using the sub's SID, and if we don't find it there, we'll check
-    // the subscriptionsUsingDefaultHandler Map and verify the SID
-    // matches before removing. By verifying the SID in all cases we can
-    // be certain we're removing the correct Subscription.
+    // Remove this sub from all of our tracking maps.
+    // Instead of logic to figure where the sub is in the first place,
+    //   we try all tracking maps, with guard rails.
+    // It's possible multiple threads/workflow could be hitting this,
+    //   but all the maps are ConcurrentHashMap, we're safe.
+    // For the case when we do find the sub's subject mapped to the default handler,
+    //   we double-check that what is mapped is the same sub, again mostly a code guard.
     void remove(NatsSubscription sub) {
-        if (this.subscriptionsWithHandlers.remove(sub.getSID()) != null) {
-            this.subscriptionHandlers.remove(sub.getSID());
-        } else {
-            NatsSubscription s = this.subscriptionsUsingDefaultHandler.get(sub.getSubject());
-            if (s.getSID().equals(sub.getSID())) {
-                this.subscriptionsUsingDefaultHandler.remove(sub.getSubject());
+        // remove from all maps
+        // lots of code guards here instead of checking where the sub might be
+        String sid = sub.getSID();
+        NatsSubscription defaultSub = subWithDefaultHandlerBySubject.get(sub.getSubject());
+        if (defaultSub != null && defaultSub.getSID().equals(sid)) {
+            subWithDefaultHandlerBySubject.remove(sub.getSubject());
+        }
+        subWithNonDefaultHandlerBySid.remove(sid);
+        nonDefaultHandlerBySid.remove(sid);
+        Map<String, NatsSubscription> subsBySid = subsBySidNonDefaultHandlersBySubject.get(sub.getSubject());
+        if (subsBySid != null) {
+            // it could be null, I know it's weird
+            subsBySid.remove(sid);
+            if (subsBySid.isEmpty()) {
+                // if there are no more for the subject, we can remove the entry
+                // from the map to avoid empty entries/memory leak
+                subsBySidNonDefaultHandlersBySubject.remove(sub.getSubject());
             }
         }
     }
 
     public Dispatcher subscribe(String subject) {
+        if (defaultHandler == null) {
+            throw new IllegalStateException("Dispatcher was made without a default handler.");
+        }
         validateSubject(subject, true);
         this.subscribeImplCore(subject, null, null);
         return this;
@@ -242,11 +259,11 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         // If the handler is null, then we use the default handler, which will not allow
         // duplicate subscriptions to exist.
         if (handler == null) {
-            NatsSubscription sub = this.subscriptionsUsingDefaultHandler.get(subject);
+            NatsSubscription sub = this.subWithDefaultHandlerBySubject.get(subject);
 
             if (sub == null) {
                 sub = connection.createSubscription(subject, queueName, this, null);
-                NatsSubscription wonTheRace = this.subscriptionsUsingDefaultHandler.putIfAbsent(subject, sub);
+                NatsSubscription wonTheRace = this.subWithDefaultHandlerBySubject.putIfAbsent(subject, sub);
                 if (wonTheRace != null) {
                     this.connection.unsubscribe(sub, -1); // Could happen on very bad timing
                 }
@@ -265,16 +282,22 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
     private NatsSubscription _subscribeImplHandlerProvided(String subject, String queueName, MessageHandler handler, NatsSubscriptionFactory nsf) {
         NatsSubscription sub = connection.createSubscription(subject, queueName, this, nsf);
-        this.subscriptionsWithHandlers.put(sub.getSID(), sub);
-        this.subscriptionHandlers.put(sub.getSID(), handler);
+        trackSubWithUserHandler(sub.getSID(), sub, handler);
         return sub;
     }
 
     String reSubscribe(NatsSubscription sub, String subject, String queueName, MessageHandler handler) {
         String sid = connection.reSubscribe(sub, subject, queueName);
-        this.subscriptionsWithHandlers.put(sid, sub);
-        this.subscriptionHandlers.put(sid, handler);
+        trackSubWithUserHandler(sid, sub, handler);
         return sid;
+    }
+
+    private void trackSubWithUserHandler(String sid, NatsSubscription sub, MessageHandler handler) {
+        subWithNonDefaultHandlerBySid.put(sid, sub);
+        Map<String, NatsSubscription> subsBySid =
+            subsBySidNonDefaultHandlersBySubject.computeIfAbsent(sub.getSubject(), k -> new ConcurrentHashMap<>());
+        subsBySid.put(sid, sub);
+        nonDefaultHandlerBySid.put(sid, handler);
     }
 
     private void checkBeforeSubImpl() {
@@ -308,11 +331,14 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
             throw new IllegalArgumentException("Subject is required in unsubscribe");
         }
 
-        NatsSubscription sub = this.subscriptionsUsingDefaultHandler.get(subject);
-
-        if (sub != null) {
-            this.connection.unsubscribe(sub, after); // Connection will tell us when to remove from the map
+        // Connection unsubscribe ends up calling invalidate on the sub which calls dispatcher.remove
+        // meaning all we do is call this unsubscribe method and the workflow takes care of the rest
+        NatsSubscription defaultHandlerSub = subWithDefaultHandlerBySubject.get(subject);
+        if (defaultHandlerSub != null) {
+            connection.unsubscribe(defaultHandlerSub, after);
         }
+
+        subWithNonDefaultHandlerBySid.forEach((sid, sub) -> connection.unsubscribe(sub, after));
 
         return this;
     }
@@ -337,22 +363,18 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         
         NatsSubscription ns = ((NatsSubscription) subscription);
         // Grab the NatsSubscription to verify we weren't given a different manager's subscription.
-        NatsSubscription sub = this.subscriptionsWithHandlers.get(ns.getSID());
+        NatsSubscription sub = subWithNonDefaultHandlerBySid.get(ns.getSID());
 
         if (sub != null) {
-            this.connection.unsubscribe(sub, after); // Connection will tell us when to remove from the map
+            connection.unsubscribe(sub, after); // Connection will tell us when to remove from the map
         }
 
         return this;
     }
 
     void sendUnsubForDrain() {
-        this.subscriptionsUsingDefaultHandler.forEach((id, sub)->{
-            this.connection.sendUnsub(sub, -1);
-        });
-        this.subscriptionsWithHandlers.forEach((sid, sub)->{
-            this.connection.sendUnsub(sub, -1);
-        });
+        subWithDefaultHandlerBySubject.forEach((id, sub) -> connection.sendUnsub(sub, -1));
+        subWithNonDefaultHandlerBySid.forEach((sid, sub) -> connection.sendUnsub(sub, -1));
     }
 
     void cleanUpAfterDrain() {

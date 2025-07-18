@@ -29,7 +29,7 @@ class NatsDispatcherWithExecutor extends NatsDispatcher {
                 if (msg != null) {
                     NatsSubscription sub = msg.getNatsSubscription();
                     if (sub != null && sub.isActive()) {
-                        MessageHandler handler = subscriptionHandlers.get(sub.getSID());
+                        MessageHandler handler = nonDefaultHandlerBySid.get(sub.getSID());
                         if (handler == null) {
                             handler = defaultHandler;
                         }

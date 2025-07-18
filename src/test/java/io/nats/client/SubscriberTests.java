@@ -16,7 +16,10 @@ package io.nats.client;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
@@ -474,7 +477,7 @@ public class SubscriberTests {
         try (NatsTestServer ts = new NatsTestServer(false);
             Connection nc = Nats.connect(ts.getURI())) {
             standardConnectionWait(nc);
-            Dispatcher d = nc.createDispatcher();
+            Dispatcher d = nc.createDispatcher(m -> {});
             for (String bad : BAD_SUBJECTS_OR_QUEUES) {
                 assertThrows(IllegalArgumentException.class, () -> nc.subscribe(bad));
                 assertThrows(IllegalArgumentException.class, () -> d.subscribe(bad));
@@ -485,6 +488,54 @@ public class SubscriberTests {
                 assertThrows(IllegalArgumentException.class, () -> d.subscribe("s", bad));
                 assertThrows(IllegalArgumentException.class, () -> d.subscribe("s", bad, m -> {}));
             }
+        }
+    }
+
+    @Test
+    public void testDispatcherMultipleSubscriptionsBySubject() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false);
+             Connection nc = Nats.connect(ts.getURI())) {
+            standardConnectionWait(nc);
+            String subject = subject();
+
+            List<Integer> dflt = Collections.synchronizedList(new ArrayList<>());
+            List<Integer> nd1 = Collections.synchronizedList(new ArrayList<>());
+            List<Integer> nd2 = Collections.synchronizedList(new ArrayList<>());
+            Dispatcher d = nc.createDispatcher(m -> dflt.add(getDataId(m)));
+            d.subscribe(subject);
+            d.subscribe(subject, m -> nd1.add(getDataId(m)));
+            d.subscribe(subject, m -> nd2.add(getDataId(m)));
+
+            nc.publish(subject, "1".getBytes());
+            Thread.sleep(1000);
+            d.unsubscribe(subject);
+            nc.publish(subject, "2".getBytes());
+            Thread.sleep(1000);
+
+            assertTrue(dflt.contains(1));
+            assertTrue(nd1.contains(1));
+            assertTrue(nd2.contains(1));
+
+            assertFalse(dflt.contains(2));
+            assertFalse(nd1.contains(2));
+            assertFalse(nd2.contains(2));
+
+        }
+    }
+
+    private static int getDataId(Message m) {
+        return Integer.parseInt(new String(m.getData()));
+    }
+
+    @Test
+    public void testDispatcherDefaultSubscribeWhenNoDefaultHandler() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false);
+             Connection nc = Nats.connect(ts.getURI())) {
+            standardConnectionWait(nc);
+            String subject = subject();
+
+            Dispatcher d = nc.createDispatcher();
+            assertThrows(IllegalStateException.class, () -> d.subscribe(subject));
         }
     }
 }
