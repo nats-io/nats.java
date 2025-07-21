@@ -18,7 +18,7 @@ import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
 import io.nats.service.*;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -234,13 +234,13 @@ public class ServiceExample {
         }
 
         @Override
-        @NotNull
+        @NonNull
         public String toJson() {
             return toJsonValue().toJson();
         }
 
         @Override
-        @NotNull
+        @NonNull
         public JsonValue toJsonValue() {
             Map<String, JsonValue> map = new HashMap<>();
             map.put("sdata", new JsonValue(sData));

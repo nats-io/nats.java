@@ -13,7 +13,7 @@
 
 package io.nats.client.api;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Stream storage types.

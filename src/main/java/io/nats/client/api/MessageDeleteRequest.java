@@ -14,7 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 import static io.nats.client.support.ApiConstants.NO_ERASE;
 import static io.nats.client.support.ApiConstants.SEQ;
@@ -45,7 +45,7 @@ public class MessageDeleteRequest implements JsonSerializable {
     }
 
     @Override
-    @NotNull
+    @NonNull
     public String toJson() {
         StringBuilder sb = beginJson();
         addField(sb, SEQ, sequence);

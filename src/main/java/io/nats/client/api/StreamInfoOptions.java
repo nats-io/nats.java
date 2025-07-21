@@ -14,8 +14,8 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import static io.nats.client.support.ApiConstants.DELETED_DETAILS;
 import static io.nats.client.support.ApiConstants.SUBJECTS_FILTER;
@@ -74,7 +74,7 @@ public class StreamInfoOptions implements JsonSerializable {
     }
 
     @Override
-    @NotNull
+    @NonNull
     public String toJson() {
         StringBuilder sb = beginJson();
         addField(sb, SUBJECTS_FILTER, subjectsFilter);

@@ -17,7 +17,7 @@ import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
 import io.nats.client.support.Status;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 import static io.nats.client.support.ApiConstants.*;
 
@@ -51,13 +51,13 @@ public class Error implements JsonSerializable {
     }
 
     @Override
-    @NotNull
+    @NonNull
     public String toJson() {
         return jv.toJson();
     }
 
     @Override
-    @NotNull
+    @NonNull
     public JsonValue toJsonValue() {
         return jv;
     }
@@ -70,7 +70,7 @@ public class Error implements JsonSerializable {
         return JsonValueUtils.readInteger(jv, ERR_CODE, NOT_SET);
     }
 
-    @NotNull
+    @NonNull
     public String getDescription() {
         return JsonValueUtils.readString(jv, DESCRIPTION, "Unknown JetStream Error");
     }
@@ -91,7 +91,7 @@ public class Error implements JsonSerializable {
         return getDescription() + " [" + apiErrorCode + "]";
     }
 
-    @NotNull
+    @NonNull
     public static Error convert(Status status) {
         switch (status.getCode()) {
             case 404:
@@ -105,12 +105,12 @@ public class Error implements JsonSerializable {
     /**
      * Error representing 400 / 10003 / "bad request"
      */
-    @NotNull
+    @NonNull
     public static final Error JsBadRequestErr = new Error(400, 10003, "bad request");
 
     /**
      * Error representing 404 / 10037 / "no message found"
      */
-    @NotNull
+    @NonNull
     public static final Error JsNoMessageFoundErr = new Error(404, 10037, "no message found");
 }

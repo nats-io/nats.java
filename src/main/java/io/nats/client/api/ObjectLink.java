@@ -16,8 +16,8 @@ import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.Validator;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import static io.nats.client.support.ApiConstants.BUCKET;
 import static io.nats.client.support.ApiConstants.NAME;
@@ -48,7 +48,7 @@ public class ObjectLink implements JsonSerializable {
     }
 
     @Override
-    @NotNull
+    @NonNull
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, BUCKET, bucket);
@@ -56,7 +56,7 @@ public class ObjectLink implements JsonSerializable {
         return endJson(sb).toString();
     }
 
-    @NotNull
+    @NonNull
     public String getBucket() {
         return bucket;
     }

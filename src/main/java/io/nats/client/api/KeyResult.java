@@ -12,7 +12,7 @@
 // limitations under the License.
 package io.nats.client.api;
 
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public class KeyResult {
 

@@ -14,8 +14,8 @@
 package io.nats.client.api;
 
 import io.nats.client.support.*;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
 import java.util.*;
@@ -167,7 +167,7 @@ public class StreamConfiguration implements JsonSerializable {
      * @return json consumer configuration to send to the server.
      */
     @Override
-    @NotNull
+    @NonNull
     public String toJson() {
 
         StringBuilder sb = beginJson();
@@ -216,7 +216,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Gets the name of this stream configuration.
      * @return the name of the stream.
      */
-    @NotNull
+    @NonNull
     public String getName() {
         return name;
     }
@@ -234,7 +234,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Gets the subjects for this stream configuration.
      * @return the subject of the stream.
      */
-    @NotNull
+    @NonNull
     public List<String> getSubjects() {
         return subjects;
     }
@@ -252,7 +252,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Gets the retention policy for this stream configuration.
      * @return the retention policy for this stream.
      */
-    @NotNull
+    @NonNull
     public RetentionPolicy getRetentionPolicy() {
         return retentionPolicy;
     }
@@ -302,7 +302,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Gets the maximum message age for this stream configuration.
      * @return the maximum message age for this stream.
      */
-    @NotNull
+    @NonNull
     public Duration getMaxAge() {
         return maxAge;
     }
@@ -329,7 +329,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Gets the storage type for this stream configuration.
      * @return the storage type for this stream.
      */
-    @NotNull
+    @NonNull
     public StorageType getStorageType() {
         return storageType;
     }

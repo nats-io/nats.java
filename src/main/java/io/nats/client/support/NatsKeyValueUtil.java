@@ -18,8 +18,8 @@ import io.nats.client.MessageTtl;
 import io.nats.client.PublishOptions;
 import io.nats.client.api.KeyValueOperation;
 import io.nats.client.impl.Headers;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsJetStreamConstants.*;
@@ -34,22 +34,22 @@ public abstract class NatsKeyValueUtil {
     public static final String KV_SUBJECT_SUFFIX = ".>";
     public static final String KV_OPERATION_HEADER_KEY = "KV-Operation";
 
-    @NotNull
+    @NonNull
     public static String extractBucketName(String streamName) {
         return streamName.substring(KV_STREAM_PREFIX_LEN);
     }
 
-    @NotNull
+    @NonNull
     public static String toStreamName(String bucketName) {
         return KV_STREAM_PREFIX + bucketName;
     }
 
-    @NotNull
+    @NonNull
     public static String toStreamSubject(String bucketName) {
         return KV_SUBJECT_PREFIX + bucketName + KV_SUBJECT_SUFFIX;
     }
 
-    @NotNull
+    @NonNull
     public static String toKeyPrefix(String bucketName) {
         return KV_SUBJECT_PREFIX + bucketName + DOT;
     }
@@ -58,7 +58,7 @@ public abstract class NatsKeyValueUtil {
         return bucketName.startsWith(KV_STREAM_PREFIX);
     }
 
-    @NotNull
+    @NonNull
     public static String trimPrefix(String bucketName) {
         if (bucketName.startsWith(KV_STREAM_PREFIX)) {
             return bucketName.substring(KV_STREAM_PREFIX.length());
@@ -76,7 +76,7 @@ public abstract class NatsKeyValueUtil {
         return h == null ? null : h.getFirst(NATS_MARKER_REASON_HDR);
     }
 
-    @NotNull
+    @NonNull
     public static KeyValueOperation getOperation(Headers h) {
         KeyValueOperation kvo = null;
         String hs = getOperationHeader(h);
@@ -92,13 +92,13 @@ public abstract class NatsKeyValueUtil {
         return kvo == null ? KeyValueOperation.PUT : kvo;
     }
 
-    @NotNull
+    @NonNull
     public static Headers getDeleteHeaders() {
         return new Headers()
             .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.DELETE.getHeaderValue());
     }
 
-    @NotNull
+    @NonNull
     public static Headers getPurgeHeaders() {
         return new Headers()
             .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.PURGE.getHeaderValue())

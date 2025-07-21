@@ -16,7 +16,7 @@ package io.nats.client.api;
 import io.nats.client.JetStreamApiException;
 import io.nats.client.Message;
 import io.nats.client.support.*;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import static io.nats.client.support.ApiConstants.ERROR;
 import static io.nats.client.support.ApiConstants.TYPE;

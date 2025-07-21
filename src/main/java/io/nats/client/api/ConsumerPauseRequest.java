@@ -14,7 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 import java.time.ZonedDateTime;
 
@@ -32,7 +32,7 @@ public class ConsumerPauseRequest implements JsonSerializable {
     }
 
     @Override
-    @NotNull
+    @NonNull
     public String toJson() {
         StringBuilder sb = beginJson();
 

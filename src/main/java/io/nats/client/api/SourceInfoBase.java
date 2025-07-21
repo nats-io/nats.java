@@ -14,8 +14,8 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonValue;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
 import java.util.List;
@@ -46,7 +46,7 @@ abstract class SourceInfoBase {
      * The name of the Stream being replicated
      * @return the name
      */
-    @NotNull
+    @NonNull
     public String getName() {
         return name;
     }
@@ -63,7 +63,7 @@ abstract class SourceInfoBase {
      * Time since this peer was last seen
      * @return the time
      */
-    @NotNull
+    @NonNull
     public Duration getActive() {
         return active;
     }

@@ -14,7 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.Message;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;

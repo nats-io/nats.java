@@ -23,7 +23,7 @@ import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 import nl.jqno.equalsverifier.EqualsVerifier;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -1475,13 +1475,13 @@ public class ServiceTests extends JetStreamTestBase {
         }
 
         @Override
-        @NotNull
+        @NonNull
         public String toJson() {
             return JsonUtils.toKey(getClass()) + toJsonValue().toJson();
         }
 
         @Override
-        @NotNull
+        @NonNull
         public JsonValue toJsonValue() {
             Map<String, JsonValue> map = new HashMap<>();
             map.put("sdata", new JsonValue(sData));

@@ -13,7 +13,7 @@
 
 package io.nats.client.support;
 
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -332,13 +332,13 @@ public abstract class JsonValueUtils {
         }
 
         @Override
-        @NotNull
+        @NonNull
         public String toJson() {
             return jv.toJson();
         }
 
         @Override
-        @NotNull
+        @NonNull
         public JsonValue toJsonValue() {
             return jv;
         }
@@ -366,13 +366,13 @@ public abstract class JsonValueUtils {
         }
 
         @Override
-        @NotNull
+        @NonNull
         public String toJson() {
             return jv.toJson();
         }
 
         @Override
-        @NotNull
+        @NonNull
         public JsonValue toJsonValue() {
             return jv;
         }

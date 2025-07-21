@@ -17,8 +17,8 @@ import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -64,7 +64,7 @@ public abstract class SourceBase implements JsonSerializable {
      * @return json mirror json string
      */
     @Override
-    @NotNull
+    @NonNull
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, NAME, name);
@@ -80,7 +80,7 @@ public abstract class SourceBase implements JsonSerializable {
      * Get the name of the source. Same as getName()
      * @return get the source name
      */
-    @NotNull
+    @NonNull
     public String getSourceName() {
         return name;
     }
@@ -89,7 +89,7 @@ public abstract class SourceBase implements JsonSerializable {
      * Get the name of the source. Same as getSourceName()
      * @return the source name
      */
-    @NotNull
+    @NonNull
     public String getName() {
         return name;
     }
