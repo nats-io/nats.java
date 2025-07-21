@@ -1845,7 +1845,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testLimitMarkerAlso() throws Exception {
-        jsServer.run(TestBase::atLeast2_11_2, nc -> {
+        jsServer.run(TestBase::atLeast2_12, nc -> {
             String bucket = bucket();
             String key1 = key();
             String key2 = key();
@@ -1947,16 +1947,15 @@ public class KeyValueTests extends JetStreamTestBase {
 
             // create and put
             assertEquals(3, wPuts.get());
-            assertEquals(4, wPurges.get()); // the 2 message ttl purge markers, the manual purge and the manual purge's purge.
+            assertEquals(3, wPurges.get()); // the 2 message ttl purge markers, and the manual purge.
             assertEquals(0, wDels.get());
             assertEquals(1, wEod.get());
 
-            assertEquals(7, rMessages.get());
+            assertEquals(6, rMessages.get());
             assertEquals(2, rPurges.get());
-            assertEquals(2, rMaxAges.get());
+            assertEquals(1, rMaxAges.get());
             assertEquals(2, rTtl2.get());
-            assertEquals(2, rTtl5.get());
+            assertEquals(1, rTtl5.get());
         });
     }
 }
-
