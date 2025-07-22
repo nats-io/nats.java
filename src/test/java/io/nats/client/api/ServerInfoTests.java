@@ -123,9 +123,7 @@ public class ServerInfoTests {
         assertEquals(1, info.getConnectURLs().size());
         assertEquals("one", info.getConnectURLs().get(0));
 
-        json = "INFO {" +
-            "\"server_id\":\"myserver\"" + "," +
-            "}";
+        json = "INFO {\"server_id\":\"myserver\"}";
         info = new ServerInfo(json);
         assertNotNull(info.getConnectURLs());
         assertEquals(0, info.getConnectURLs().size());
