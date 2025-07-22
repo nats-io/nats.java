@@ -1588,7 +1588,7 @@ class NatsConnection implements Connection {
     // for a specific pong. Note, if no pong returns, the wait will not return
     // without setting a timeout.
     CompletableFuture<Boolean> sendPing(boolean treatAsInternal) {
-        if (isNotConnectedAndNotConnecting()) {
+        if (!isConnectedOrConnecting()) {
             CompletableFuture<Boolean> retVal = new CompletableFuture<>();
             retVal.complete(Boolean.FALSE);
             return retVal;
@@ -2052,10 +2052,10 @@ class NatsConnection implements Connection {
         return this.status == Status.DISCONNECTED;
     }
 
-    boolean isNotConnectedAndNotConnecting() {
+    boolean isConnectedOrConnecting() {
         statusLock.lock();
         try {
-            return this.status != Status.CONNECTED && !this.connecting;
+            return this.status == Status.CONNECTED || this.connecting;
         } finally {
             statusLock.unlock();
         }
