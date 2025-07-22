@@ -147,7 +147,7 @@ public class AuthTests extends TestBase {
         listener.prepForStatusChange(Events.RESUBSCRIBED);
 
         try (NatsTestServer ignored = new NatsTestServer(customArgs, port, false)) {
-            standardConnectionWait(nc, listener);
+            listenerConnectionWait(nc, listener);
 
             nc.publish("test", null);
             flushConnection(nc, MEDIUM_FLUSH_TIMEOUT_MS);
@@ -218,7 +218,7 @@ public class AuthTests extends TestBase {
         listener.prepForStatusChange(Events.RESUBSCRIBED);
 
         try (NatsTestServer ignored = new NatsTestServer(customArgs, port, false)) {
-            standardConnectionWait(nc, listener);
+            listenerConnectionWait(nc, listener);
             nc.publish("test", null);
             flushConnection(nc, MEDIUM_FLUSH_TIMEOUT_MS);
             Message msg = sub.nextMessage(Duration.ofSeconds(5));
@@ -243,7 +243,7 @@ public class AuthTests extends TestBase {
 
             listener.prepForStatusChange(Events.RESUBSCRIBED);
             ts1.close();
-            standardConnectionWait(nc, listener);
+            listenerConnectionWait(nc, listener);
             assertEquals(nc.getConnectedUrl(), "nats://alberto:casadecampo@localhost:" + ts2.getPort());
             standardCloseConnection(nc);
         }
@@ -316,7 +316,7 @@ public class AuthTests extends TestBase {
             ts1.close();
 
             listener.waitForStatusChange(STANDARD_CONNECTION_WAIT_MS, TimeUnit.MILLISECONDS);
-            standardConnectionWait(nc, listener);
+            listenerConnectionWait(nc, listener);
             assertEquals(nc.getConnectedUrl(), "nats://localhost:" + ts2.getPort());
             standardCloseConnection(nc);
         }
@@ -620,7 +620,7 @@ public class AuthTests extends TestBase {
                 ts2.close();
 
                 // reconnect should work because we are now running with the good config
-                standardConnectionWait(nc, listener, 10000);
+                listenerConnectionWait(nc, listener, 10000);
 
                 assertEquals(ts3.getURI(), nc.getConnectedUrl());
                 assertEquals(tsURI, ts3.getURI());
@@ -631,7 +631,7 @@ public class AuthTests extends TestBase {
 
                 try (NatsTestServer ignored = new NatsTestServer("src/test/resources/operator_noacct.conf", port1, false);
                      NatsTestServer ts5 = new NatsTestServer("src/test/resources/operator.conf", port2, false)) {
-                    standardConnectionWait(nc, listener, 10000);
+                    listenerConnectionWait(nc, listener, 10000);
                     assertEquals(ts5.getURI(), nc.getConnectedUrl());
                 }
             }
@@ -690,7 +690,7 @@ public class AuthTests extends TestBase {
 
             f.complete(true);
 
-            standardConnectionWait(nc, listener);
+            listenerConnectionWait(nc, listener);
             assertEquals(ts2.getURI(), nc.getConnectedUrl());
 
             String err = nc.getLastError();

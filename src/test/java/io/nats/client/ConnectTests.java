@@ -280,7 +280,7 @@ public class ConnectTests {
 
         listener.prepForStatusChange(Events.RECONNECTED);
         try (NatsTestServer ignored = new NatsTestServer(port, false)) {
-            standardConnectionWait(nc, listener);
+            listenerConnectionWait(nc, listener);
             standardCloseConnection(nc);
         }
     }
