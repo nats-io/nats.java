@@ -14,7 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonValue;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 import java.time.Duration;
 
@@ -41,7 +41,7 @@ public class PeerInfo {
      * The server name of the peer
      * @return the name
      */
-    @NotNull
+    @NonNull
     public String getName() {
         return name;
     }
@@ -66,7 +66,7 @@ public class PeerInfo {
      * Time since this peer was last seen
      * @return the active time
      */
-    @NotNull
+    @NonNull
     public Duration getActive() {
         return active;
     }

@@ -16,7 +16,7 @@ package io.nats.client.api;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.Validator;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
@@ -59,7 +59,7 @@ public class Republish implements JsonSerializable {
      * Get source, the Published subject matching filter
      * @return the source
      */
-    @NotNull
+    @NonNull
     public String getSource() {
         return source;
     }
@@ -68,7 +68,7 @@ public class Republish implements JsonSerializable {
      * Get destination, the RePublish Subject template
      * @return the destination
      */
-    @NotNull
+    @NonNull
     public String getDestination() {
         return destination;
     }
@@ -82,7 +82,7 @@ public class Republish implements JsonSerializable {
     }
 
     @Override
-    @NotNull
+    @NonNull
     public String toJson() {
         StringBuilder sb = beginJson();
         addField(sb, SRC, source);

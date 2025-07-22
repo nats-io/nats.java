@@ -16,8 +16,8 @@ package io.nats.client.api;
 import io.nats.client.PullSubscribeOptions;
 import io.nats.client.PushSubscribeOptions;
 import io.nats.client.support.*;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
@@ -172,7 +172,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * @return json consumer configuration json string
      */
     @Override
-    @NotNull
+    @NonNull
 	public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addField(sb, DESCRIPTION, description);
@@ -267,7 +267,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the deliver policy of this consumer configuration.
      * @return the deliver policy.
      */
-    @NotNull
+    @NonNull
     public DeliverPolicy getDeliverPolicy() {
         return GetOrDefault(deliverPolicy);
     }
@@ -293,7 +293,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the acknowledgment policy of this consumer configuration.
      * @return the acknowledgment policy.
      */
-    @NotNull
+    @NonNull
     public AckPolicy getAckPolicy() {
         return GetOrDefault(ackPolicy);
     }
@@ -356,7 +356,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the replay policy of this consumer configuration.
      * @return the replay policy.
      */
-    @NotNull
+    @NonNull
     public ReplayPolicy getReplayPolicy() {
         return GetOrDefault(replayPolicy);
     }
@@ -467,7 +467,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Get the backoff list; may be empty, will never be null.
      * @return the list
      */
-    @NotNull
+    @NonNull
     public List<Duration> getBackoff() {
         return backoff == null ? Collections.emptyList() : backoff;
     }
@@ -476,7 +476,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Metadata for the consumer; may be empty, will never be null.
      * @return the metadata map
      */
-    @NotNull
+    @NonNull
     public Map<String, String> getMetadata() {
         return metadata == null ? Collections.emptyMap() : metadata;
     }
@@ -500,7 +500,7 @@ public class ConsumerConfiguration implements JsonSerializable {
      * Gets the priority policy of this consumer configuration.
      * @return the priority policy.
      */
-    @NotNull
+    @NonNull
     public PriorityPolicy getPriorityPolicy() {
         return GetOrDefault(priorityPolicy);
     }

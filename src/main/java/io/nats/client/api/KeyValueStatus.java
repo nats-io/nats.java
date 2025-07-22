@@ -13,8 +13,8 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonValueUtils;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
 import java.util.Map;
@@ -36,7 +36,7 @@ public class KeyValueStatus {
      * Get the name of the bucket
      * @return the name
      */
-    @NotNull
+    @NonNull
     public String getBucketName() {
         return config.getBucketName();
     }
@@ -54,7 +54,7 @@ public class KeyValueStatus {
      * Gets the info for the stream which backs the bucket. Valid for BackingStore "JetStream"
      * @return the stream info
      */
-    @NotNull
+    @NonNull
     public StreamInfo getBackingStreamInfo() {
         return streamInfo;
     }
@@ -63,7 +63,7 @@ public class KeyValueStatus {
      * Gets the configuration object directly
      * @return the configuration.
      */
-    @NotNull
+    @NonNull
     public KeyValueConfiguration getConfiguration() {
         return config;
     }
@@ -131,7 +131,7 @@ public class KeyValueStatus {
      * Gets the storage type for this bucket.
      * @return the storage type for this stream.
      */
-    @NotNull
+    @NonNull
     public StorageType getStorageType() {
         return config.getStorageType();
     }
@@ -192,7 +192,7 @@ public class KeyValueStatus {
      * Gets the name of the type of backing store, currently only "JetStream"
      * @return the name of the store, currently only "JetStream"
      */
-    @NotNull
+    @NonNull
     public String getBackingStore() {
         return "JetStream";
     }

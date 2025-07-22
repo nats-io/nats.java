@@ -15,8 +15,8 @@ package io.nats.client.api;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
 import io.nats.client.support.NatsKeyValueUtil;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
 import java.util.*;
@@ -101,7 +101,7 @@ public class KeyValueConfiguration extends FeatureConfiguration {
     }
 
     @Override
-    @NotNull
+    @NonNull
     public JsonValue toJsonValue() {
         JsonValueUtils.MapBuilder mb = new JsonValueUtils.MapBuilder(super.toJsonValue());
         mb.jv.mapOrder.remove("metaData");

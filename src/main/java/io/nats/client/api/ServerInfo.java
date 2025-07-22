@@ -17,8 +17,8 @@ import io.nats.client.support.JsonParseException;
 import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.ServerVersion;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
@@ -87,27 +87,27 @@ public class ServerInfo {
         return lameDuckMode;
     }
 
-    @NotNull
+    @NonNull
     public String getServerId() {
         return this.serverId;
     }
 
-    @NotNull
+    @NonNull
     public String getServerName() {
         return serverName;
     }
 
-    @NotNull
+    @NonNull
     public String getVersion() {
         return this.version;
     }
 
-    @NotNull
+    @NonNull
     public String getGoVersion() {
         return this.go;
     }
 
-    @NotNull
+    @NonNull
     public String getHost() {
         return this.host;
     }
@@ -138,7 +138,7 @@ public class ServerInfo {
         return this.maxPayload;
     }
 
-    @NotNull
+    @NonNull
     public List<String> getConnectURLs() {
         return this.connectURLs;
     }
@@ -155,7 +155,7 @@ public class ServerInfo {
         return clientId;
     }
 
-    @NotNull
+    @NonNull
     public String getClientIp() {
         return clientIp;
     }

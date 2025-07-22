@@ -13,19 +13,19 @@
 
 package io.nats.client.support;
 
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 import java.nio.charset.StandardCharsets;
 
 public interface JsonSerializable {
-    @NotNull
+    @NonNull
     String toJson();
 
-    default byte @NotNull [] serialize() {
+    default byte @NonNull [] serialize() {
         return toJson().getBytes(StandardCharsets.UTF_8);
     }
 
-    @NotNull
+    @NonNull
     default JsonValue toJsonValue() {
         return JsonParser.parseUnchecked(toJson());
     }

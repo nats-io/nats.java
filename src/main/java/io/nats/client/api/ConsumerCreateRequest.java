@@ -15,7 +15,7 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.*;
@@ -52,23 +52,23 @@ public class ConsumerCreateRequest implements JsonSerializable {
         this.action = action;
     }
 
-    @NotNull
+    @NonNull
     public String getStreamName() {
         return streamName;
     }
 
-    @NotNull
+    @NonNull
     public ConsumerConfiguration getConfig() {
         return config;
     }
 
-    @NotNull
+    @NonNull
     public Action getAction() {
         return action;
     }
 
     @Override
-    @NotNull
+    @NonNull
     public String toJson() {
         StringBuilder sb = beginJson();
 

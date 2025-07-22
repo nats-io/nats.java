@@ -20,7 +20,7 @@ import io.nats.client.api.PriorityPolicy;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.Status;
 import io.nats.client.utils.TestBase;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -983,7 +983,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
         }
 
         @Override
-        @NotNull
+        @NonNull
         public String toJson() {
             StringBuilder sb = JsonUtils.beginJson();
             JsonUtils.addField(sb, BATCH, 1);

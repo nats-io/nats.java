@@ -15,8 +15,8 @@ package io.nats.client.api;
 
 import io.nats.client.Message;
 import io.nats.client.support.JsonValue;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -60,7 +60,7 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
      * Gets the stream configuration. Same as getConfig
      * @return the stream configuration.
      */
-    @NotNull
+    @NonNull
     public StreamConfiguration getConfiguration() {
         return config;
     }
@@ -69,7 +69,7 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
      * Gets the stream configuration. Same as getConfiguration
      * @return the stream configuration.
      */
-    @NotNull
+    @NonNull
     public StreamConfiguration getConfig() {
         return config;
     }
@@ -78,7 +78,7 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
      * Gets the stream state.
      * @return the stream state
      */
-    @NotNull
+    @NonNull
     public StreamState getStreamState() {
         return streamState;
     }
@@ -87,7 +87,7 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
      * Gets the creation time of the stream.
      * @return the creation date and time.
      */
-    @NotNull
+    @NonNull
     public ZonedDateTime getCreateTime() {
         return createTime;
     }

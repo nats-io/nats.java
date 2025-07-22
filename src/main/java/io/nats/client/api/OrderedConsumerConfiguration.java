@@ -14,7 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.support.*;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -50,11 +50,11 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
         filterSubjects.add(GREATER_THAN);
     }
 
-    public OrderedConsumerConfiguration(@NotNull String json) throws JsonParseException {
+    public OrderedConsumerConfiguration(@NonNull String json) throws JsonParseException {
         this(JsonParser.parse(json));
     }
 
-    public OrderedConsumerConfiguration(@NotNull JsonValue v) throws JsonParseException {
+    public OrderedConsumerConfiguration(@NonNull JsonValue v) throws JsonParseException {
         this();
         filterSubjects(readStringList(v, FILTER_SUBJECTS)); // readStringList won't return null but can return empty
         deliverPolicy(DeliverPolicy.get(readString(v, DELIVER_POLICY)));
@@ -69,7 +69,7 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
      * @return JSON ordered consumer configuration JSON string
      */
     @Override
-    @NotNull
+    @NonNull
     public String toJson() {
         StringBuilder sb = beginJson();
         JsonUtils.addStrings(sb, FILTER_SUBJECTS, filterSubjects); // filter will always have at least a GREATER_THAN

@@ -15,8 +15,8 @@ package io.nats.client.api;
 import io.nats.client.Message;
 import io.nats.client.impl.Headers;
 import io.nats.client.support.*;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.time.ZonedDateTime;
 
@@ -69,7 +69,7 @@ public class ObjectInfo implements JsonSerializable {
     }
 
     @Override
-    @NotNull
+    @NonNull
     public String toJson() {
         // never write MTIME (modified)
         StringBuilder sb = beginJson();
@@ -83,7 +83,7 @@ public class ObjectInfo implements JsonSerializable {
         return endJson(sb).toString();
     }
 
-    @NotNull
+    @NonNull
     public String getBucket() {
         return bucket;
     }
@@ -115,7 +115,7 @@ public class ObjectInfo implements JsonSerializable {
         return deleted;
     }
 
-    @NotNull
+    @NonNull
     public ObjectMeta getObjectMeta() {
         return objectMeta;
     }

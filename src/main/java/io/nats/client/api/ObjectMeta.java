@@ -17,8 +17,8 @@ import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.Validator;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
@@ -55,7 +55,7 @@ public class ObjectMeta implements JsonSerializable {
     }
 
     @Override
-    @NotNull
+    @NonNull
     public String toJson() {
         StringBuilder sb = beginJson();
         embedJson(sb);
@@ -74,7 +74,7 @@ public class ObjectMeta implements JsonSerializable {
         }
     }
 
-    @NotNull
+    @NonNull
     public String getObjectName() {
         return objectName;
     }

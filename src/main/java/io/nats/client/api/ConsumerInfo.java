@@ -15,8 +15,8 @@ package io.nats.client.api;
 
 import io.nats.client.Message;
 import io.nats.client.support.JsonValue;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
@@ -77,7 +77,7 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
      * The consumer configuration representing this consumer.
      * @return the config
      */
-    @NotNull
+    @NonNull
     public ConsumerConfiguration getConsumerConfiguration() {
         return configuration;
     }
@@ -86,7 +86,7 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
      * A unique name for the consumer, either machine generated or the durable name
      * @return the name
      */
-    @NotNull
+    @NonNull
     public String getName() {
         return name;
     }
@@ -95,7 +95,7 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
      * The Stream the consumer belongs to
      * @return the stream name
      */
-    @NotNull
+    @NonNull
     public String getStreamName() {
         return stream;
     }
@@ -104,7 +104,7 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
      * Gets the creation time of the consumer.
      * @return the creation date and time.
      */
-    @NotNull
+    @NonNull
     public ZonedDateTime getCreationTime() {
         return created;
     }
@@ -113,7 +113,7 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
      * The last message delivered from this Consumer
      * @return the last delivered sequence info
      */
-    @NotNull
+    @NonNull
     public SequenceInfo getDelivered() {
         return delivered;
     }
@@ -122,7 +122,7 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
      * The highest contiguous acknowledged message
      * @return the sequence info
      */
-    @NotNull
+    @NonNull
     public SequenceInfo getAckFloor() {
         return ackFloor;
     }

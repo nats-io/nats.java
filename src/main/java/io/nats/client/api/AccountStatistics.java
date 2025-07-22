@@ -15,8 +15,8 @@ package io.nats.client.api;
 
 import io.nats.client.Message;
 import io.nats.client.support.JsonValue;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -124,7 +124,7 @@ public class AccountStatistics extends ApiResponse<AccountStatistics> {
      * Gets the account api stats
      * @return the ApiStats object
      */
-    @NotNull
+    @NonNull
     public ApiStats getApi() {
         return api;
     }
@@ -133,7 +133,7 @@ public class AccountStatistics extends ApiResponse<AccountStatistics> {
      * Gets the map of the Account Tiers by tier name. May be empty, but never null.
      * @return the map
      */
-    @NotNull
+    @NonNull
     public Map<String, AccountTier> getTiers() {
         return tiers;
     }

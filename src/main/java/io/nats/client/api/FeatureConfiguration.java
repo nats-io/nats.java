@@ -16,8 +16,8 @@ package io.nats.client.api;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
 import java.util.Map;
@@ -33,13 +33,13 @@ public abstract class FeatureConfiguration implements JsonSerializable {
     protected final String bucketName;
 
     @Override
-    @NotNull
+    @NonNull
     public String toJson() {
         return toJsonValue().toString();
     }
 
     @Override
-    @NotNull
+    @NonNull
     public JsonValue toJsonValue() {
         JsonValueUtils.MapBuilder mb = new JsonValueUtils.MapBuilder();
         mb.put("name", bucketName);
@@ -63,7 +63,7 @@ public abstract class FeatureConfiguration implements JsonSerializable {
      * Gets the stream configuration for the stream which backs the bucket
      * @return the stream configuration
      */
-    @NotNull
+    @NonNull
     public StreamConfiguration getBackingConfig() {
         return sc;
     }
@@ -72,7 +72,7 @@ public abstract class FeatureConfiguration implements JsonSerializable {
      * Gets the name of this bucket.
      * @return the name of the bucket.
      */
-    @NotNull
+    @NonNull
     public String getBucketName() {
         return bucketName;
     }

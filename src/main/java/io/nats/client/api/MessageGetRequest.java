@@ -14,8 +14,8 @@
 package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.time.ZonedDateTime;
 
@@ -31,32 +31,32 @@ public class MessageGetRequest implements JsonSerializable {
     private final String nextBySubject;
     private final ZonedDateTime startTime;
 
-    @NotNull
+    @NonNull
     public static MessageGetRequest forSequence(long sequence) {
         return new MessageGetRequest(sequence, null, null, null);
     }
 
-    @NotNull
+    @NonNull
     public static MessageGetRequest lastForSubject(String subject) {
         return new MessageGetRequest(-1, subject, null, null);
     }
 
-    @NotNull
+    @NonNull
     public static MessageGetRequest firstForSubject(String subject) {
         return new MessageGetRequest(-1, null, subject, null);
     }
 
-    @NotNull
+    @NonNull
     public static MessageGetRequest firstForStartTime(ZonedDateTime startTime) {
         return new MessageGetRequest(-1, null, null, startTime);
     }
 
-    @NotNull
+    @NonNull
     public static MessageGetRequest firstForStartTimeAndSubject(ZonedDateTime startTime, String subject) {
         return new MessageGetRequest(-1, null, subject, startTime);
     }
 
-    @NotNull
+    @NonNull
     public static MessageGetRequest nextForSubject(long sequence, String subject) {
         return new MessageGetRequest(sequence, null, subject, null);
     }
@@ -95,7 +95,7 @@ public class MessageGetRequest implements JsonSerializable {
     }
 
     @Override
-    @NotNull
+    @NonNull
     public String toJson() {
         StringBuilder sb = beginJson();
         addField(sb, SEQ, sequence);
