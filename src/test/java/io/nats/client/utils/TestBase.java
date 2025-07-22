@@ -806,6 +806,10 @@ public class TestBase {
     }
 
     public static Connection standardConnectionWait(Connection conn, ListenerForTesting listener, long millis) {
+        return customConnectionWait(conn, listener, millis);
+    }
+
+    public static Connection customConnectionWait(Connection conn, ListenerForTesting listener, long millis) {
         listener.waitForStatusChange(millis, TimeUnit.MILLISECONDS);
         assertConnected(conn);
         return conn;
@@ -817,6 +821,10 @@ public class TestBase {
 
     public static Connection longConnectionWait(Options options) throws IOException, InterruptedException {
         return connectionWait( Nats.connect(options), LONG_CONNECTION_WAIT_MS );
+    }
+
+    public static Connection longConnectionWait(Connection conn, ListenerForTesting listener) throws IOException, InterruptedException {
+        return standardConnectionWait(conn, listener, LONG_CONNECTION_WAIT_MS );
     }
 
     public static Connection connectionWait(Connection conn, long millis) {
