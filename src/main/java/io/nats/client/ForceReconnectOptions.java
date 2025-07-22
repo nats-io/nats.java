@@ -21,6 +21,7 @@ import java.time.Duration;
  */
 public class ForceReconnectOptions {
 
+    public static final ForceReconnectOptions DEFAULT_INSTANCE = ForceReconnectOptions.builder().build();
     public static final ForceReconnectOptions FORCE_CLOSE_INSTANCE = ForceReconnectOptions.builder().forceClose().build();
 
     private final boolean forceClose;
