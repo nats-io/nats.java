@@ -115,13 +115,18 @@ public class ServerInfoTests {
     @Test
     public void testEmptyURLParsing() {
         String json = "INFO {" +
-                        "\"server_id\":\"myserver\"" + "," +
-                        "\"connect_urls\":[\"one\", \"\"]" +
-                       "}";
+            "\"server_id\":\"myserver\"" + "," +
+            "\"connect_urls\":[\"one\", \"\"]" +
+            "}";
         ServerInfo info = new ServerInfo(json);
-        assertEquals(info.getServerId(), "myserver");
+        assertEquals("myserver", info.getServerId());
         assertEquals(1, info.getConnectURLs().size());
         assertEquals("one", info.getConnectURLs().get(0));
+
+        json = "INFO {\"server_id\":\"myserver\"}";
+        info = new ServerInfo(json);
+        assertNotNull(info.getConnectURLs());
+        assertEquals(0, info.getConnectURLs().size());
     }
 
     @Test
@@ -132,7 +137,7 @@ public class ServerInfoTests {
                         "\"max_payload\":100000000000" +
                        "}";
         ServerInfo info = new ServerInfo(json);
-        assertEquals(info.getServerId(), "myserver");
+        assertEquals("myserver", info.getServerId());
         assertEquals(3, info.getConnectURLs().size());
         assertEquals("one:4222", info.getConnectURLs().get(0));
         assertEquals("[a:b:c]:4222", info.getConnectURLs().get(1));

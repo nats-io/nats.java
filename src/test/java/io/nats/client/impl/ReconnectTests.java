@@ -483,7 +483,7 @@ public class ReconnectTests {
             // connect good then bad
             listener.prepForStatusChange(Events.RESUBSCRIBED);
             try (NatsTestServer ignored = new NatsTestServer(port, false)) {
-                standardConnectionWait(nc, listener);
+                longConnectionWait(nc, listener);
                 listener.prepForStatusChange(Events.DISCONNECTED);
             }
 
@@ -497,7 +497,7 @@ public class ReconnectTests {
 
             listener.prepForStatusChange(Events.RESUBSCRIBED);
             try (NatsServerProtocolMock ignored = new NatsServerProtocolMock(receiveMessageCustomizer, port, true)) {
-                standardConnectionWait(nc, listener);
+                longConnectionWait(nc, listener);
                 subRef.get().get();
                 listener.prepForStatusChange(Events.DISCONNECTED);
                 sendRef.get().complete(true);
