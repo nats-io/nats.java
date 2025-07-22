@@ -117,7 +117,7 @@ public class ReconnectTests {
         listener.prepForStatusChange(Events.RESUBSCRIBED);
 
         try (NatsTestServer ignored = ntsSupplier.apply(port)) {
-            standardConnectionWait(nc, listener, LONG_CONNECTION_WAIT_MS);
+            listenerConnectionWait(nc, listener, LONG_CONNECTION_WAIT_MS);
 
             end = System.nanoTime();
 
@@ -170,9 +170,9 @@ public class ReconnectTests {
         listener.prepForStatusChange(Events.RECONNECTED);
 
         try (NatsTestServer ignored = new NatsTestServer(port, false)) {
-            standardConnectionWait(nc, listener);
+            listenerConnectionWait(nc, listener);
 
-            // Make sure dispatcher and subscription are still there
+            // Make sure the dispatcher and subscription are still there
             Future<Message> inc = nc.request("dispatchSubject", "test".getBytes(StandardCharsets.UTF_8));
             Message msg = inc.get();
             assertNotNull(msg);
@@ -239,13 +239,13 @@ public class ReconnectTests {
         listener.prepForStatusChange(Events.RESUBSCRIBED);
 
         try (NatsTestServer ignored = new NatsTestServer(customArgs, port, false)) {
-            standardConnectionWait(nc, listener);
+            listenerConnectionWait(nc, listener);
 
             end = System.nanoTime();
 
             assertTrue(1_000_000 * (end-start) > 1000, "reconnect wait");
 
-            // Check the message we sent to dispatcher
+            // Check the message we sent to the dispatcher
             Message msg = inc.get(500, TimeUnit.MILLISECONDS);
             assertNotNull(msg);
 
@@ -483,7 +483,7 @@ public class ReconnectTests {
             // connect good then bad
             listener.prepForStatusChange(Events.RESUBSCRIBED);
             try (NatsTestServer ignored = new NatsTestServer(port, false)) {
-                longConnectionWait(nc, listener);
+                listenerConnectionWait(nc, listener);
                 listener.prepForStatusChange(Events.DISCONNECTED);
             }
 
@@ -497,7 +497,7 @@ public class ReconnectTests {
 
             listener.prepForStatusChange(Events.RESUBSCRIBED);
             try (NatsServerProtocolMock ignored = new NatsServerProtocolMock(receiveMessageCustomizer, port, true)) {
-                longConnectionWait(nc, listener);
+                listenerConnectionWait(nc, listener);
                 subRef.get().get();
                 listener.prepForStatusChange(Events.DISCONNECTED);
                 sendRef.get().complete(true);

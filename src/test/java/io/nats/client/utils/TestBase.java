@@ -797,22 +797,12 @@ public class TestBase {
         return standardConnectionWait( Nats.connect(options) );
     }
 
-    public static Connection standardConnection(Options options, ListenerForTesting listener) throws IOException, InterruptedException {
-        return standardConnectionWait( Nats.connect(options), listener );
+    public static Connection listenerConnectionWait(Options options, ListenerForTesting listener) throws IOException, InterruptedException {
+        return listenerConnectionWait( Nats.connect(options), listener );
     }
 
-    public static Connection standardConnectionWait(Connection conn, ListenerForTesting listener) {
-        return standardConnectionWait(conn, listener, STANDARD_CONNECTION_WAIT_MS);
-    }
-
-    public static Connection standardConnectionWait(Connection conn, ListenerForTesting listener, long millis) {
-        return customConnectionWait(conn, listener, millis);
-    }
-
-    public static Connection customConnectionWait(Connection conn, ListenerForTesting listener, long millis) {
-        listener.waitForStatusChange(millis, TimeUnit.MILLISECONDS);
-        assertConnected(conn);
-        return conn;
+    public static Connection listenerConnectionWait(Connection conn, ListenerForTesting listener) {
+        return listenerConnectionWait(conn, listener, STANDARD_CONNECTION_WAIT_MS);
     }
 
     public static Connection standardConnectionWait(Connection conn) {
@@ -823,12 +813,14 @@ public class TestBase {
         return connectionWait( Nats.connect(options), LONG_CONNECTION_WAIT_MS );
     }
 
-    public static Connection longConnectionWait(Connection conn, ListenerForTesting listener) throws IOException, InterruptedException {
-        return standardConnectionWait(conn, listener, LONG_CONNECTION_WAIT_MS );
-    }
-
     public static Connection connectionWait(Connection conn, long millis) {
         return waitUntilStatus(conn, millis, Connection.Status.CONNECTED);
+    }
+
+    public static Connection listenerConnectionWait(Connection conn, ListenerForTesting listener, long millis) {
+        listener.waitForStatusChange(millis, TimeUnit.MILLISECONDS);
+        assertConnected(conn);
+        return conn;
     }
 
     // ----------------------------------------------------------------------------------------------------
