@@ -1,0 +1,8 @@
+jdk:
+  - openjdk21
+
+gradle:
+  - version: 8.14.2
+
+install:
+  - ./gradlew clean build publishToMavenLocal --console=plain --continue --warning-mode all
