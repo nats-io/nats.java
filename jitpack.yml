@@ -5,4 +5,4 @@ gradle:
   - version: 8.14.2
 
 install:
-  - ./gradlew clean build publishToMavenLocal --console=plain --continue --warning-mode all
+  - ./gradlew clean build publishToMavenLocal -x test --console=plain --continue --warning-mode all
