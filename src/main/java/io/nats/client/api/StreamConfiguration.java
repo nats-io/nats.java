@@ -13,29 +13,90 @@
 
 package io.nats.client.api;
 
-import io.nats.client.support.*;
+import io.nats.client.support.JsonParseException;
+import io.nats.client.support.JsonParser;
+import io.nats.client.support.JsonSerializable;
+import io.nats.client.support.JsonUtils;
+import io.nats.client.support.JsonValue;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonUtils.*;
-import static io.nats.client.support.JsonValueUtils.*;
+import static io.nats.client.support.ApiConstants.ALLOW_DIRECT;
+import static io.nats.client.support.ApiConstants.ALLOW_MSG_TTL;
+import static io.nats.client.support.ApiConstants.ALLOW_ROLLUP_HDRS;
+import static io.nats.client.support.ApiConstants.COMPRESSION;
+import static io.nats.client.support.ApiConstants.CONSUMER_LIMITS;
+import static io.nats.client.support.ApiConstants.DENY_DELETE;
+import static io.nats.client.support.ApiConstants.DENY_PURGE;
+import static io.nats.client.support.ApiConstants.DESCRIPTION;
+import static io.nats.client.support.ApiConstants.DISCARD;
+import static io.nats.client.support.ApiConstants.DISCARD_NEW_PER_SUBJECT;
+import static io.nats.client.support.ApiConstants.DUPLICATE_WINDOW;
+import static io.nats.client.support.ApiConstants.FIRST_SEQ;
+import static io.nats.client.support.ApiConstants.MAX_AGE;
+import static io.nats.client.support.ApiConstants.MAX_BYTES;
+import static io.nats.client.support.ApiConstants.MAX_CONSUMERS;
+import static io.nats.client.support.ApiConstants.MAX_MSGS;
+import static io.nats.client.support.ApiConstants.MAX_MSGS_PER_SUB;
+import static io.nats.client.support.ApiConstants.MAX_MSG_SIZE;
+import static io.nats.client.support.ApiConstants.METADATA;
+import static io.nats.client.support.ApiConstants.MIRROR;
+import static io.nats.client.support.ApiConstants.MIRROR_DIRECT;
+import static io.nats.client.support.ApiConstants.NAME;
+import static io.nats.client.support.ApiConstants.NO_ACK;
+import static io.nats.client.support.ApiConstants.NUM_REPLICAS;
+import static io.nats.client.support.ApiConstants.PLACEMENT;
+import static io.nats.client.support.ApiConstants.REPUBLISH;
+import static io.nats.client.support.ApiConstants.RETENTION;
+import static io.nats.client.support.ApiConstants.SEALED;
+import static io.nats.client.support.ApiConstants.SOURCES;
+import static io.nats.client.support.ApiConstants.STORAGE;
+import static io.nats.client.support.ApiConstants.SUBJECTS;
+import static io.nats.client.support.ApiConstants.SUBJECT_DELETE_MARKER_TTL;
+import static io.nats.client.support.ApiConstants.SUBJECT_TRANSFORM;
+import static io.nats.client.support.ApiConstants.TEMPLATE_OWNER;
+import static io.nats.client.support.JsonUtils.addEnumWhenNot;
+import static io.nats.client.support.JsonUtils.addField;
+import static io.nats.client.support.JsonUtils.addFieldAsNanos;
+import static io.nats.client.support.JsonUtils.addFieldWhenGreaterThan;
+import static io.nats.client.support.JsonUtils.addFldWhenTrue;
+import static io.nats.client.support.JsonUtils.addJsons;
+import static io.nats.client.support.JsonUtils.addStrings;
+import static io.nats.client.support.JsonUtils.beginJson;
+import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonValueUtils.readBoolean;
 import static io.nats.client.support.JsonValueUtils.readInteger;
 import static io.nats.client.support.JsonValueUtils.readLong;
 import static io.nats.client.support.JsonValueUtils.readNanos;
 import static io.nats.client.support.JsonValueUtils.readString;
-import static io.nats.client.support.Validator.*;
+import static io.nats.client.support.JsonValueUtils.readStringList;
+import static io.nats.client.support.JsonValueUtils.readStringStringMap;
+import static io.nats.client.support.JsonValueUtils.readValue;
+import static io.nats.client.support.Validator.emptyAsNull;
+import static io.nats.client.support.Validator.validateDurationGtOrEqSeconds;
+import static io.nats.client.support.Validator.validateDurationNotRequiredGtOrEqSeconds;
+import static io.nats.client.support.Validator.validateDurationNotRequiredGtOrEqZero;
+import static io.nats.client.support.Validator.validateMaxBytes;
+import static io.nats.client.support.Validator.validateMaxConsumers;
+import static io.nats.client.support.Validator.validateMaxMessageSize;
+import static io.nats.client.support.Validator.validateMaxMessages;
+import static io.nats.client.support.Validator.validateMaxMessagesPerSubject;
+import static io.nats.client.support.Validator.validateNumberOfReplicas;
+import static io.nats.client.support.Validator.validateStreamName;
 
 /**
  * The StreamConfiguration class specifies the configuration for creating a JetStream stream on the server.
  * Options are created using a {@link StreamConfiguration.Builder Builder}.
  */
 public class StreamConfiguration implements JsonSerializable {
-
     // see builder for defaults
     private final String name;
     private final String description;
@@ -113,7 +174,7 @@ public class StreamConfiguration implements JsonSerializable {
 
     // For the builder, assumes all validations are already done in builder
     StreamConfiguration(Builder b) {
-        this.name = b.name;
+        this.name = b.name != null ? b.name : "";
         this.description = b.description;
         this.subjects = b.subjects;
         this.retentionPolicy = b.retentionPolicy;
@@ -167,9 +228,7 @@ public class StreamConfiguration implements JsonSerializable {
      * @return json consumer configuration to send to the server.
      */
     @Override
-    @NonNull
-    public String toJson() {
-
+    public @NonNull String toJson() {
         StringBuilder sb = beginJson();
 
         addField(sb, NAME, name);
@@ -216,8 +275,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Gets the name of this stream configuration.
      * @return the name of the stream.
      */
-    @NonNull
-    public String getName() {
+    public @NonNull String getName() {
         return name;
     }
 
@@ -545,8 +603,7 @@ public class StreamConfiguration implements JsonSerializable {
      * 
      */
     public static class Builder {
-
-        private String name = null;
+        private String name = "";
         private String description = null;
         private final List<String> subjects = new ArrayList<>();
         private RetentionPolicy retentionPolicy = RetentionPolicy.Limits;
@@ -637,7 +694,8 @@ public class StreamConfiguration implements JsonSerializable {
          * @return the builder
          */
         public Builder name(String name) {
-            this.name =  validateStreamName(name, false);
+            String s = validateStreamName(name, false);
+            this.name = s != null ? s : "";
             return this;
         }
 

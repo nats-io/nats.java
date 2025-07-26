@@ -25,13 +25,56 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 import static io.nats.client.api.CompressionOption.None;
 import static io.nats.client.api.CompressionOption.S2;
-import static io.nats.client.api.ConsumerConfiguration.*;
-import static io.nats.client.support.ApiConstants.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static io.nats.client.api.ConsumerConfiguration.DURATION_UNSET;
+import static io.nats.client.api.ConsumerConfiguration.INTEGER_UNSET;
+import static io.nats.client.api.ConsumerConfiguration.STANDARD_MIN;
+import static io.nats.client.support.ApiConstants.ALLOW_DIRECT;
+import static io.nats.client.support.ApiConstants.ALLOW_ROLLUP_HDRS;
+import static io.nats.client.support.ApiConstants.COMPRESSION;
+import static io.nats.client.support.ApiConstants.CONSUMER_LIMITS;
+import static io.nats.client.support.ApiConstants.DENY_DELETE;
+import static io.nats.client.support.ApiConstants.DENY_PURGE;
+import static io.nats.client.support.ApiConstants.DESCRIPTION;
+import static io.nats.client.support.ApiConstants.DISCARD;
+import static io.nats.client.support.ApiConstants.DISCARD_NEW_PER_SUBJECT;
+import static io.nats.client.support.ApiConstants.DUPLICATE_WINDOW;
+import static io.nats.client.support.ApiConstants.FIRST_SEQ;
+import static io.nats.client.support.ApiConstants.MAX_AGE;
+import static io.nats.client.support.ApiConstants.MAX_BYTES;
+import static io.nats.client.support.ApiConstants.MAX_CONSUMERS;
+import static io.nats.client.support.ApiConstants.MAX_MSGS;
+import static io.nats.client.support.ApiConstants.MAX_MSGS_PER_SUB;
+import static io.nats.client.support.ApiConstants.MAX_MSG_SIZE;
+import static io.nats.client.support.ApiConstants.METADATA;
+import static io.nats.client.support.ApiConstants.MIRROR_DIRECT;
+import static io.nats.client.support.ApiConstants.NO_ACK;
+import static io.nats.client.support.ApiConstants.NUM_REPLICAS;
+import static io.nats.client.support.ApiConstants.PLACEMENT;
+import static io.nats.client.support.ApiConstants.REPUBLISH;
+import static io.nats.client.support.ApiConstants.RETENTION;
+import static io.nats.client.support.ApiConstants.SEALED;
+import static io.nats.client.support.ApiConstants.SOURCES;
+import static io.nats.client.support.ApiConstants.STORAGE;
+import static io.nats.client.support.ApiConstants.SUBJECTS;
+import static io.nats.client.support.ApiConstants.SUBJECT_DELETE_MARKER_TTL;
+import static io.nats.client.support.ApiConstants.SUBJECT_TRANSFORM;
+import static io.nats.client.support.ApiConstants.TEMPLATE_OWNER;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class StreamConfigurationTests extends JetStreamTestBase {
 
@@ -277,7 +320,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 .duplicateWindow(2222)
                 .build();
 
-        assertNull(scCov.getName());
+        assertEquals("", scCov.getName());// @NonNull!
         assertEquals(Duration.ofMillis(1111), scCov.getMaxAge());
         assertEquals(Duration.ofMillis(2222), scCov.getDuplicateWindow());
     }
