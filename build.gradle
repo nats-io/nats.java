@@ -1,16 +1,32 @@
 import aQute.bnd.gradle.Bundle
 import org.gradle.internal.os.OperatingSystem
 
+buildscript {
+    repositories {
+        mavenCentral()
+        maven { url = "https://oss.sonatype.org/content/repositories/releases/" }
+        maven { url = "https://plugins.gradle.org/m2/" }
+        maven { url = 'https://jitpack.io' }
+    }
+    dependencies {
+        classpath 'biz.aQute.bnd:biz.aQute.bnd.gradle:latest.release'
+    }
+}
+
 plugins {
     id 'java'
     id 'java-library'
     id 'maven-publish'
     id 'jacoco'
-    id 'com.github.kt3k.coveralls' version '2.12.0'
-    id 'biz.aQute.bnd.builder' version '5.1.2'
-    id "org.gradle.test-retry" version "1.1.9"
-    id 'io.github.gradle-nexus.publish-plugin' version '1.1.0'
+    id 'com.github.kt3k.coveralls' version 'latest.release'
+    id 'biz.aQute.bnd.builder' version 'latest.release'
+    id "org.gradle.test-retry" version "latest.release"
+    id 'io.github.gradle-nexus.publish-plugin' version 'latest.release'
     id 'signing'
+    id "idea" // to download sources and javadoc in IDEA
+    id "net.ltgt.errorprone" version "latest.release"
+    id "io.freefair.lombok" version "latest.release"
+    id "org.gradlex.reproducible-builds" version 'latest.release'
 }
 
 def jarVersion = "2.21.5"
@@ -18,7 +34,7 @@ def jarVersion = "2.21.5"
 def buildEvent = System.getenv("BUILD_EVENT")
 def isRelease = buildEvent == "release"
 def brn = System.getenv("BRANCH_REF_NAME")
-def snap = brn == null || brn.equals("") ? "-SNAPSHOT" : "." + brn + "-SNAPSHOT"
+def snap = brn == null || brn == "" ? "-SNAPSHOT" : "." + brn + "-SNAPSHOT"
 
 // version is the variable the build actually uses.
 version = isRelease ? jarVersion : jarVersion + snap
@@ -26,21 +42,36 @@ version = isRelease ? jarVersion : jarVersion + snap
 archivesBaseName = 'jnats'
 group = 'io.nats'
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs.addAll(['-Xlint:all,-serial', '-parameters'])
+    options.release.set(8) // javac --release 7→8..25+
+    options.deprecation = true
+    options.debug = true
+
+    options.errorprone {
+        enabled = true
+        disableWarningsInGeneratedCode = true
+        excludedPaths = ".*/(generated|test).*/.*"
+        disable("UnusedVariable")
+        disable("MissingSummary")
+        disable("StringConcatToTextBlock")
+        disable("InconsistentCapitalization")
+        errorproneArgs = ["-XepExcludedPaths:.*/test/.*"]
+    }
 }
 
 repositories {
     mavenCentral()
-    maven { url "https://oss.sonatype.org/content/repositories/releases/" }
+    maven { url = "https://oss.sonatype.org/content/repositories/releases/" }
+    maven { url = 'https://jitpack.io' }
 }
 
 dependencies {
     implementation 'org.bouncycastle:bcprov-lts8on:2.73.7'
     implementation 'org.jspecify:jspecify:1.0.0'
 
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.13.+'
     testImplementation 'io.nats:jnats-server-runner:2.0.0'
     testImplementation 'nl.jqno.equalsverifier:equalsverifier:3.12.3'
 }
@@ -48,16 +79,10 @@ dependencies {
 sourceSets {
     main {
         java {
-            srcDirs = ['src/main/java','src/examples/java']
-        }
-    }
-    test {
-        java {
-            srcDirs = ['src/test/java']
+            srcDirs = ['src/main/java', 'src/examples/java']
         }
     }
 }
-
 task bundle(type: Bundle) {
     from sourceSets.main.output
     exclude("io/nats/examples/**")
@@ -67,12 +92,15 @@ jar {
     manifest {
         attributes('Automatic-Module-Name': 'io.nats.jnats')
     }
-    bnd (['Implementation-Title': 'Java Nats',
-          'Implementation-Version': jarVersion,
-          'Implementation-Vendor': 'nats.io',
-          "Import-Package": "!org.bouncycastle:bcprov-lts8on"]
-    )
-    exclude("io/nats/examples/**")
+    bundle {
+        bnd([
+            'Implementation-Title'  : 'Java Nats',
+            'Implementation-Version': jarVersion,
+            'Implementation-Vendor' : 'nats.io',
+            "Import-Package"        : "!org.bouncycastle:bcprov-lts8on"
+        ])
+        exclude("io/nats/examples/**")
+    }
 }
 
 test {
@@ -159,13 +187,13 @@ task fatJar(type: Jar) {
 }
 
 jacoco {
-    toolVersion = "0.8.6"
+    toolVersion = "0.8.13"
 }
 
 jacocoTestReport {
     reports {
-        xml.enabled = true // coveralls plugin depends on xml format report
-        html.enabled = true
+        xml.required = true // coveralls plugin depends on xml format report
+        html.required = true
     }
     afterEvaluate { // only report on main library not examples
         classDirectories.setFrom(files(classDirectories.files.collect {
@@ -237,4 +265,13 @@ if (isRelease) {
         sign configurations.archives
         sign publishing.publications.mavenJava
     }
+}
+
+idea { module { downloadJavadoc = true; downloadSources = true } }
+
+lombok { version = "latest.release" }
+
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
 }

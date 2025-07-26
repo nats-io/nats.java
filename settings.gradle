@@ -1,8 +1,9 @@
 pluginManagement {
     repositories {
         mavenCentral()
-        maven { url "https://oss.sonatype.org/content/repositories/releases/" }
-        maven { url "https://plugins.gradle.org/m2/" }
+        maven { url = "https://oss.sonatype.org/content/repositories/releases/" }
+        maven { url = "https://plugins.gradle.org/m2/" }
+        maven { url = 'https://jitpack.io' }
     }
 }
 rootProject.name = 'java-nats'
