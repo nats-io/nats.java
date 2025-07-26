@@ -15,5 +15,9 @@ package io.nats.client;
 
 public interface NatsSystemClockProvider {
     default long currentTimeMillis() { return System.currentTimeMillis(); }
-    default long nanoTime() { return System.nanoTime(); }
+
+    /// https://github.com/nats-io/nats.java/issues/1371
+    long FIRST_ACCESS_NANOS = System.nanoTime();
+
+    default long nanoTime() { return System.nanoTime() - FIRST_ACCESS_NANOS; }
 }
