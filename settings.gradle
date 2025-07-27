@@ -8,4 +8,5 @@ pluginManagement {
 }
 rootProject.name = 'java-nats'
 
+include "jnats"
 include "examples"
