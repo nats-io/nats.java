@@ -196,7 +196,7 @@ tasks.register('fatJar', Jar) {
                 'Implementation-Version': version,
                 'Implementation-Vendor': 'nats.io')
     }
-    from { configurations.compileClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+    from { configurations.runtimeClasspath .collect { it.isDirectory() ? it : zipTree(it) } }
     with jar
 }
 
