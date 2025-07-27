@@ -17,18 +17,13 @@ plugins {
     id "org.gradlex.reproducible-builds" version 'latest.release'
 }
 
-def jarVersion = "2.21.5"
-
 def buildEvent = System.getenv("BUILD_EVENT")
 def isRelease = buildEvent == "release"
 def brn = System.getenv("BRANCH_REF_NAME")
 def snap = brn == null || "" == brn ? "-SNAPSHOT" : "." + brn + "-SNAPSHOT"
 
-// version is the variable the build actually uses.
-version = isRelease ? jarVersion : jarVersion + snap
-
-archivesBaseName = 'jnats'
-group = 'io.nats'
+// version is the variable the build actually uses
+version = isRelease ? version : version + snap
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
@@ -86,6 +81,7 @@ tasks.register('bundle', Bundle) {
 }
 
 jar {
+    archiveBaseName.set(jarBaseName)
     duplicatesStrategy = DuplicatesStrategy.WARN
     manifest {
         attributes('Automatic-Module-Name': 'io.nats.jnats')
@@ -93,7 +89,7 @@ jar {
     bundle {
         bnd([
             'Implementation-Title'  : 'Java Nats',
-            'Implementation-Version': jarVersion,
+            'Implementation-Version': version,
             'Implementation-Vendor' : 'nats.io',
             "Import-Package"        : "!org.bouncycastle:bcprov-lts8on"
         ])
@@ -155,12 +151,13 @@ javadoc {
 }
 
 tasks.register('examplesJar', Jar) {
+    archiveBaseName.set(jarBaseName)
     archiveClassifier.set('examples')
     duplicatesStrategy = DuplicatesStrategy.WARN
     manifest {
         attributes(
             'Implementation-Title': 'Java Nats Examples',
-            'Implementation-Version': jarVersion,
+            'Implementation-Version': version,
             'Implementation-Vendor': 'nats.io'
         )
     }
@@ -170,27 +167,33 @@ tasks.register('examplesJar', Jar) {
 }
 
 tasks.register('javadocJar', Jar) {
+    archiveBaseName.set(jarBaseName)
     archiveClassifier.set('javadoc')
     from javadoc
 }
 
 tasks.register('sourcesJar', Jar) {
+    archiveBaseName.set(jarBaseName)
     archiveClassifier.set('sources')
     from sourceSets.main.allSource
 }
 
+// to do who needs this?
 tasks.register('testsJar', Jar) {
+    archiveBaseName.set(jarBaseName)
     archiveClassifier.set('tests')
     from sourceSets.test.allSource
 }
 
+// to do the right way is https://plugins.gradle.org/plugin/com.github.johnrengelman.shadow
 tasks.register('fatJar', Jar) {
     dependsOn build // run build before running fat jar to get classes
+    archiveBaseName.set(jarBaseName)
     archiveClassifier.set('fat')
     duplicatesStrategy = DuplicatesStrategy.WARN
     manifest {
         attributes('Implementation-Title': 'Java Nats With Dependencies',
-                'Implementation-Version': jarVersion,
+                'Implementation-Version': version,
                 'Implementation-Vendor': 'nats.io')
     }
     from { configurations.compileClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
@@ -242,7 +245,7 @@ publishing {
                 name = 'jnats'
                 packaging = 'jar'
                 groupId = group
-                artifactId = archivesBaseName
+                artifactId = jarBaseName
                 description = 'Client library for working with the NATS messaging system.'
                 url = 'https://github.com/nats-io/nats.java'
                 licenses {
