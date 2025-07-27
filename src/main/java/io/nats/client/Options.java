@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2015-2025 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -357,7 +357,7 @@ public class Options {
      */
     public static final String PROP_REPORT_NO_RESPONDERS = PFX + "reportNoResponders";
     /**
-     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#clientSideLimitChecks() clientSideLimitChecks}.
+     * Property used to configure a builder from a Properties object. {@value}, see {@link #clientSideLimitChecks() clientSideLimitChecks}.
      */
     public static final String PROP_CLIENT_SIDE_LIMIT_CHECKS = PFX + "clientsidelimitchecks";
     /**
@@ -500,7 +500,7 @@ public class Options {
      */
     public static final String PROP_USE_DISPATCHER_WITH_EXECUTOR = PFX + "use.dispatcher.with.executor";
     /**
-     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#forceFlushOnRequest() forceFlushOnRequest}.
+     * Property used to configure a builder from a Properties object. {@value}, see {@link #forceFlushOnRequest() forceFlushOnRequest}.
      */
     public static final String PROP_FORCE_FLUSH_ON_REQUEST = PFX + "force.flush.on.request";
     /**
