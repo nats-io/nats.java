@@ -9,7 +9,7 @@ plugins {
     id 'com.github.kt3k.coveralls' version 'latest.release'
     id 'biz.aQute.bnd.builder' version 'latest.release'
     id "org.gradle.test-retry" version "latest.release"
-    id 'io.github.gradle-nexus.publish-plugin' version 'latest.release'
+//    id 'io.github.gradle-nexus.publish-plugin' version 'latest.release'
     id 'signing'
     id "idea" // to download sources and javadoc in IDEA
     id "net.ltgt.errorprone" version "latest.release"
@@ -51,12 +51,12 @@ repositories {
 }
 println "[INFO] BUILD: ${project.group}:${project.name}:$version  ⇒  ${tasks.jar.archiveFileName.get()} # JVM: ${System.getProperty("java.version")}  Gradle: ${gradle.gradleVersion}"
 
-
 dependencies {
     errorprone("com.google.errorprone:error_prone_core:latest.release")
 
     implementation 'org.bouncycastle:bcprov-lts8on:2.73.7'
     implementation 'org.jspecify:jspecify:1.0.0'
+    implementation project(":jnats")
 
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.13.4'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.13.4'
@@ -66,58 +66,25 @@ dependencies {
     testImplementation 'nl.jqno.equalsverifier:equalsverifier:3.19.4'
 }
 
-sourceSets {
-    main {
-        java {
-            srcDirs += 'src/main/java'
-            srcDirs += 'src/examples/java'
-        }
-    }
-}
-
-tasks.register('bundle', Bundle) {
-    from sourceSets.main.output
-    exclude("io/nats/examples/**")
-}
-
 jar {
     archiveBaseName.set(jarBaseName)
+    archiveClassifier.set('examples')
     duplicatesStrategy = DuplicatesStrategy.WARN
     manifest {
-        attributes('Automatic-Module-Name': 'io.nats.jnats')
+        attributes(
+                'Implementation-Title': 'Java Nats Examples',
+                'Implementation-Version': version,
+                'Implementation-Vendor': 'nats.io'
+        )
     }
     bundle {
         bnd([
-            'Implementation-Title'  : 'Java Nats',
+            'Implementation-Title'  : 'Java Nats Examples',
             'Implementation-Version': version,
             'Implementation-Vendor' : 'nats.io',
             "Import-Package"        : "!org.bouncycastle:bcprov-lts8on"
         ])
-        exclude("io/nats/examples/**")
     }
-}
-
-test {
-    println "[INFO] TEST: ${project.name} @ $workingDir"
-    useJUnitPlatform()
-    maxHeapSize = "2g"
-    testLogging {
-        exceptionFormat = 'full'
-        events "started", "passed", "skipped", "failed"
-        showStandardStreams = true
-    }
-    retry {
-        failOnPassedAfterRetry = false
-        maxFailures = 2
-        maxRetries = 2
-    }
-    maxParallelForks = Runtime.runtime.availableProcessors()
-    systemProperty 'junit.jupiter.execution.timeout.default', '3m'
-    enableAssertions = true
-
-    systemProperty("file.encoding", "UTF-8")
-    systemProperty("user.timezone", "UTC")
-    systemProperty("user.language", "en") // for 3.14 not 3,14
 }
 
 javadoc {
@@ -128,7 +95,6 @@ javadoc {
     title = "NATS.IO Java API"
     excludes = [
         'io/nats/client/impl',
-        'io/nats/examples',
         "io/nats/client/api/ConsumerCreateRequest.java",
         "io/nats/client/api/MessageGetRequest.java"
     ]
@@ -150,54 +116,16 @@ javadoc {
     }
 }
 
-tasks.register('examplesJar', Jar) {
-    archiveBaseName.set(jarBaseName)
-    archiveClassifier.set('examples')
-    duplicatesStrategy = DuplicatesStrategy.WARN
-    manifest {
-        attributes(
-            'Implementation-Title': 'Java Nats Examples',
-            'Implementation-Version': version,
-            'Implementation-Vendor': 'nats.io'
-        )
-    }
-    from(sourceSets.main.output) {
-        include "io/nats/examples/**"
-    }
-}
-
 tasks.register('javadocJar', Jar) {
     archiveBaseName.set(jarBaseName)
-    archiveClassifier.set('javadoc')
+    archiveClassifier.set('examples-javadoc')
     from javadoc
 }
 
 tasks.register('sourcesJar', Jar) {
     archiveBaseName.set(jarBaseName)
-    archiveClassifier.set('sources')
+    archiveClassifier.set('examples-sources')
     from sourceSets.main.allSource
-}
-
-// to do who needs this?
-tasks.register('testsJar', Jar) {
-    archiveBaseName.set(jarBaseName)
-    archiveClassifier.set('tests')
-    from sourceSets.test.allSource
-}
-
-// to do the right way is https://plugins.gradle.org/plugin/com.github.johnrengelman.shadow
-tasks.register('fatJar', Jar) {
-    dependsOn build // run build before running fat jar to get classes
-    archiveBaseName.set(jarBaseName)
-    archiveClassifier.set('fat')
-    duplicatesStrategy = DuplicatesStrategy.WARN
-    manifest {
-        attributes('Implementation-Title': 'Java Nats With Dependencies',
-                'Implementation-Version': version,
-                'Implementation-Vendor': 'nats.io')
-    }
-    from { configurations.runtimeClasspath .collect { it.isDirectory() ? it : zipTree(it) } }
-    with jar
 }
 
 jacoco {
@@ -219,29 +147,27 @@ jacocoTestReport {
 }
 
 artifacts {
-    archives javadocJar, sourcesJar, examplesJar, testsJar
+    archives javadocJar, sourcesJar
 }
 
-nexusPublishing {
-    repositories {
-        sonatype {
-            nexusUrl.set(uri("https://ossrh-staging-api.central.sonatype.com/service/local/"))
-            snapshotRepositoryUrl.set(uri("https://central.sonatype.com/repository/maven-snapshots/"))
-            username = System.getenv('OSSRH_USERNAME')
-            password = System.getenv('OSSRH_PASSWORD')
-        }
-    }
-}
+//nexusPublishing {
+//    repositories {
+//        sonatype {
+//            nexusUrl.set(uri("https://ossrh-staging-api.central.sonatype.com/service/local/"))
+//            snapshotRepositoryUrl.set(uri("https://central.sonatype.com/repository/maven-snapshots/"))
+//            username = System.getenv('OSSRH_USERNAME')
+//            password = System.getenv('OSSRH_PASSWORD')
+//        }
+//    }
+//}
 
 publishing {
     publications {
         mavenJava(MavenPublication) {
             from components.java
             artifact sourcesJar
-            artifact examplesJar
             artifact javadocJar
-            artifact testsJar
-            pom {
+             pom {
                 name = 'jnats'
                 packaging = 'jar'
                 groupId = group

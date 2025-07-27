@@ -1,0 +1,54 @@
+plugins {
+    id 'maven-publish'
+    id 'com.github.kt3k.coveralls' version 'latest.release'
+    id 'biz.aQute.bnd.builder' version 'latest.release'
+    id "org.gradle.test-retry" version "latest.release"
+    id 'io.github.gradle-nexus.publish-plugin' version 'latest.release'
+    id 'signing'
+    id "idea" // to download sources and javadoc in IDEA
+    id "org.gradlex.reproducible-builds" version 'latest.release'
+}
+
+def buildEvent = System.getenv("BUILD_EVENT")
+def isRelease = buildEvent == "release"
+def brn = System.getenv("BRANCH_REF_NAME")
+def snap = brn == null || "" == brn ? "-SNAPSHOT" : "." + brn + "-SNAPSHOT"
+
+// version is the variable the build actually uses
+version = isRelease ? version : version + snap
+
+repositories {
+    mavenCentral()
+    maven { url = "https://oss.sonatype.org/content/repositories/releases/" }
+    maven { url = 'https://jitpack.io' }
+}
+println "[INFO] BUILD: ${project.group}:${project.name}:$version  ⇒  ${tasks.jar.archiveFileName.get()} # JVM: ${System.getProperty("java.version")}  Gradle: ${gradle.gradleVersion}"
+
+nexusPublishing {
+    repositories {
+        sonatype {
+            nexusUrl.set(uri("https://ossrh-staging-api.central.sonatype.com/service/local/"))
+            snapshotRepositoryUrl.set(uri("https://central.sonatype.com/repository/maven-snapshots/"))
+            username = System.getenv('OSSRH_USERNAME')
+            password = System.getenv('OSSRH_PASSWORD')
+        }
+    }
+}
+
+if (isRelease) {
+    signing {
+        def signingKeyId = System.getenv('SIGNING_KEY_ID')
+        def signingKey = System.getenv('SIGNING_KEY')
+        def signingPassword = System.getenv('SIGNING_PASSWORD')
+        useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
+        sign configurations.archives
+        sign publishing.publications.mavenJava
+    }
+}
+
+idea { module { downloadJavadoc = true; downloadSources = true } }
+
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
