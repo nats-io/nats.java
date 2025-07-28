@@ -2247,7 +2247,7 @@ class NatsConnection implements Connection {
 
         consumers.forEach(NatsConsumer::markUnsubedForDrain);
 
-        // Wait for the timeout or the all consumers are drained
+        // Wait for the timeout or all consumers are drained
         executor.submit(() -> {
             try {
                 long timeoutNanos = (timeout == null || timeout.toNanos() <= 0)
