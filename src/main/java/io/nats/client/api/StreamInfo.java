@@ -47,7 +47,8 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
     public StreamInfo(JsonValue vStreamInfo) {
         super(vStreamInfo);
         createTime = readDate(jv, CREATED);
-        config = StreamConfiguration.instance(readValue(jv, CONFIG));
+        JsonValue jvConfig = readValue(jv, CONFIG); // null when it's an error
+        config = jvConfig == null ? null : StreamConfiguration.instance(jvConfig);
         streamState = new StreamState(readValue(jv, STATE));
         clusterInfo = ClusterInfo.optionalInstance(readValue(jv, CLUSTER));
         mirrorInfo = MirrorInfo.optionalInstance(readValue(jv, MIRROR));

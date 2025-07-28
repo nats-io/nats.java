@@ -1129,6 +1129,10 @@ public class StreamConfiguration implements JsonSerializable {
          * @return a stream configuration.
          */
         public StreamConfiguration build() {
+            if (nullOrEmpty(name)) {
+                throw new IllegalArgumentException("Configuration must have a valid stream name");
+            }
+
             return new StreamConfiguration(this);
         }
     }

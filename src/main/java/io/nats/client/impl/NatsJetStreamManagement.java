@@ -14,15 +14,16 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
-import io.nats.client.api.Error;
 import io.nats.client.api.*;
+import io.nats.client.api.Error;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.util.List;
 
-import static io.nats.client.support.Validator.*;
+import static io.nats.client.support.Validator.validateNotNull;
+import static io.nats.client.support.Validator.validateStreamName;
 
 public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStreamManagement {
     private NatsJetStream js; // this is lazy init'ed
@@ -59,10 +60,6 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
     private StreamInfo addOrUpdateStream(StreamConfiguration config, String template) throws IOException, JetStreamApiException {
         validateNotNull(config, "Configuration");
         String streamName = config.getName();
-        if (nullOrEmpty(streamName)) {
-            throw new IllegalArgumentException("Configuration must have a valid stream name");
-        }
-
         String subj = String.format(template, streamName);
         Message resp = makeRequestResponseRequired(subj, config.toJson().getBytes(StandardCharsets.UTF_8), getTimeout());
         return createAndCacheStreamInfoThrowOnError(streamName, resp);

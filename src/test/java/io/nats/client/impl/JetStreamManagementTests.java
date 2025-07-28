@@ -250,9 +250,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         jsServer.run(TestBase::atLeast2_10, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
-            StreamConfiguration scNoName = StreamConfiguration.builder().build();
             assertThrows(IllegalArgumentException.class, () -> jsm.addStream(null));
-            assertThrows(IllegalArgumentException.class, () -> jsm.addStream(scNoName));
 
             String stream = stream();
 
@@ -298,9 +296,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         jsServer.run(nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();
 
-            StreamConfiguration scNoName = StreamConfiguration.builder().build();
             assertThrows(IllegalArgumentException.class, () -> jsm.updateStream(null));
-            assertThrows(IllegalArgumentException.class, () -> jsm.updateStream(scNoName));
 
             String stream = stream();
             String[] subjects = new String[]{subject(), subject()};
