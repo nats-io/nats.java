@@ -113,7 +113,7 @@ public class StreamConfiguration implements JsonSerializable {
 
     // For the builder, assumes all validations are already done in builder
     StreamConfiguration(Builder b) {
-        this.name = b.name;
+        this.name = b.name != null ? b.name : "";
         this.description = b.description;
         this.subjects = b.subjects;
         this.retentionPolicy = b.retentionPolicy;
@@ -167,9 +167,7 @@ public class StreamConfiguration implements JsonSerializable {
      * @return json consumer configuration to send to the server.
      */
     @Override
-    @NonNull
-    public String toJson() {
-
+    public @NonNull String toJson() {
         StringBuilder sb = beginJson();
 
         addField(sb, NAME, name);
@@ -216,8 +214,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Gets the name of this stream configuration.
      * @return the name of the stream.
      */
-    @NonNull
-    public String getName() {
+    public @NonNull String getName() {
         return name;
     }
 
@@ -545,8 +542,7 @@ public class StreamConfiguration implements JsonSerializable {
      * 
      */
     public static class Builder {
-
-        private String name = null;
+        private String name = "";
         private String description = null;
         private final List<String> subjects = new ArrayList<>();
         private RetentionPolicy retentionPolicy = RetentionPolicy.Limits;
@@ -637,7 +633,8 @@ public class StreamConfiguration implements JsonSerializable {
          * @return the builder
          */
         public Builder name(String name) {
-            this.name =  validateStreamName(name, false);
+            String s = validateStreamName(name, false);
+            this.name = s != null ? s : "";
             return this;
         }
 

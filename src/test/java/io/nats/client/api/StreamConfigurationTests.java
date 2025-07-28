@@ -277,7 +277,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 .duplicateWindow(2222)
                 .build();
 
-        assertNull(scCov.getName());
+        assertEquals("", scCov.getName());// @NonNull!
         assertEquals(Duration.ofMillis(1111), scCov.getMaxAge());
         assertEquals(Duration.ofMillis(2222), scCov.getDuplicateWindow());
     }
