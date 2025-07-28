@@ -2247,14 +2247,13 @@ class NatsConnection implements Connection {
 
         consumers.forEach(NatsConsumer::markUnsubedForDrain);
 
-        // Wait for the timeout or the pending count to go to 0
+        // Wait for the timeout or all consumers are drained
         executor.submit(() -> {
             try {
-                long stop = (timeout == null || timeout.equals(Duration.ZERO))
-                    ? Long.MAX_VALUE
-                    : NatsSystemClock.nanoTime() + timeout.toNanos();
-                while (NatsSystemClock.nanoTime() < stop && !Thread.interrupted())
-                {
+                long timeoutNanos = (timeout == null || timeout.toNanos() <= 0)
+                    ? Long.MAX_VALUE : timeout.toNanos();
+                long startTime = System.nanoTime();
+                while (NatsSystemClock.nanoTime() - startTime < timeoutNanos && !Thread.interrupted()) {
                     consumers.removeIf(NatsConsumer::isDrained);
                     if (consumers.isEmpty()) {
                         break;
