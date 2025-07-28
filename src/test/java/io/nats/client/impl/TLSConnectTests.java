@@ -294,7 +294,7 @@ public class TLSConnectTests {
         listener.prepForStatusChange(Events.RESUBSCRIBED);
 
         try (NatsTestServer ignored = new NatsTestServer("src/test/resources/tlsverify.conf", newPort, false)) {
-            standardConnectionWait(nc, listener, 10000);
+            listenerConnectionWait(nc, listener, 10000);
         }
 
         standardCloseConnection(nc);

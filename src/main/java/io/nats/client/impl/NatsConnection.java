@@ -2080,21 +2080,21 @@ class NatsConnection implements Connection {
     }
 
     void waitForDisconnectOrClose(Duration timeout) throws InterruptedException {
-        waitFor(timeout, (Void) -> this.isDisconnecting() && !this.isClosed() );
+        waitWhile(timeout, (Void) -> this.isDisconnecting() && !this.isClosed() );
     }
 
     void waitForConnectOrClose(Duration timeout) throws InterruptedException {
-        waitFor(timeout, (Void) -> !this.isConnected() && !this.isClosed());
+        waitWhile(timeout, (Void) -> !this.isConnected() && !this.isClosed());
     }
 
-    void waitFor(Duration timeout, Predicate<Void> test) throws InterruptedException {
+    void waitWhile(Duration timeout, Predicate<Void> waitWhileTrue) throws InterruptedException {
         statusLock.lock();
         try {
             long currentWaitNanos = (timeout != null) ? timeout.toNanos() : -1;
             long start = NatsSystemClock.nanoTime();
-            while (currentWaitNanos >= 0 && test.test(null)) {
+            while (currentWaitNanos >= 0 && waitWhileTrue.test(null)) {
                 if (currentWaitNanos > 0) {
-                    if (statusChanged.await(currentWaitNanos, TimeUnit.NANOSECONDS) && test.test(null)) {
+                    if (statusChanged.await(currentWaitNanos, TimeUnit.NANOSECONDS) && !waitWhileTrue.test(null)) {
                         break;
                     }
                     long now = NatsSystemClock.nanoTime();

@@ -31,7 +31,7 @@ public class ConnectionListenerTests {
 
     @Test
     public void testToString() {
-        assertEquals(ConnectionListener.Events.CLOSED.toString(), "nats: connection closed");
+        assertEquals("nats: connection closed", Events.CLOSED.toString());
     }
     
     @Test
@@ -64,7 +64,7 @@ public class ConnectionListenerTests {
                                     build();
                                     
                 listener.prepForStatusChange(Events.CONNECTED);
-                standardCloseConnection( standardConnection(options, listener) );
+                standardCloseConnection( listenerConnectionWait(options, listener) );
                 assertEquals(1, listener.getEventCount(Events.DISCOVERED_SERVERS));
             }
         }
