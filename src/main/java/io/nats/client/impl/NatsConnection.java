@@ -1881,7 +1881,7 @@ class NatsConnection implements Connection {
     @Override
     public InetAddress getClientInetAddress() {
         try {
-            return InetAddress.getByName(getInfo().getClientIp());
+            return NatsInetAddress.getByName(getInfo().getClientIp());
         }
         catch (Exception e) {
             return null;

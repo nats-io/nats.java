@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.Options;
+import io.nats.client.support.NatsInetAddress;
 import io.nats.client.support.NatsUri;
 import io.nats.client.support.WebSocket;
 
@@ -194,7 +195,7 @@ public class SocketDataPort implements DataPort {
     private Socket connectToFastestIp(Options options, String hostname, int port,
                                       int timeoutMillis) throws IOException {
         // Get all IP addresses for the hostname
-        List<InetAddress> ips = Arrays.asList(InetAddress.getAllByName(hostname));
+        List<InetAddress> ips = Arrays.asList(NatsInetAddress.getAllByName(hostname));
 
         ExecutorService executor = options.getExecutor();
         long CONNECT_DELAY_MILLIS = 250;

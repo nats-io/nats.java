@@ -15,6 +15,7 @@ package io.nats.client;
 
 import io.nats.client.api.ApiResponse;
 import io.nats.client.api.Error;
+import org.jspecify.annotations.Nullable;
 
 /**
  * JetStreamApiException is used to indicate that the server returned an error while make a request
@@ -32,8 +33,8 @@ public class JetStreamApiException extends Exception {
         this(apiResponse.getErrorObject());
     }
 
-    public JetStreamApiException(Error error) {
-        super(error.toString());
+    public JetStreamApiException(@Nullable Error error) {
+        super(error == null ? null : error.toString());
         this.error = error;
     }
 
