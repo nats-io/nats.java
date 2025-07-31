@@ -164,8 +164,7 @@ public class StreamInfoTests {
         si = new StreamInfo(JsonValue.EMPTY_MAP);
         assertNull(si.getCreateTime());
         assertNotNull(si.getStreamState());
-        assertNotNull(si.getConfiguration());
-        assertNull(si.getConfiguration().getPlacement());
+        assertNull(si.getConfiguration());
         assertNull(si.getClusterInfo());
         assertNull(si.getMirrorInfo());
         assertNull(si.getSourceInfos());

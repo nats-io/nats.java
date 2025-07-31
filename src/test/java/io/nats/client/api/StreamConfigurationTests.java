@@ -77,7 +77,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
     @Test
     public void testSerializationDeserializationDefaults() throws Exception {
-        StreamConfiguration sc = StreamConfiguration.instance("");
+        StreamConfiguration sc = StreamConfiguration.instance("{\"name\":\"name\"}");
         assertNotNull(sc);
         String serializedJson = sc.toJson();
         assertNotNull(StreamConfiguration.instance(serializedJson));
@@ -91,7 +91,6 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 add(COMPRESSION);
                 add(STORAGE);
                 add(DISCARD);
-                add(NAME);
                 add(DESCRIPTION);
                 add(MAX_CONSUMERS);
                 add(MAX_MSGS);
@@ -273,11 +272,12 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
         // coverage for null StreamConfiguration, millis maxAge, millis duplicateWindow
         StreamConfiguration scCov = StreamConfiguration.builder(null)
-                .maxAge(1111)
-                .duplicateWindow(2222)
-                .build();
+            .name(name())
+            .maxAge(1111)
+            .duplicateWindow(2222)
+            .build();
 
-        assertNull(scCov.getName());
+        assertNotNull(scCov.getName());
         assertEquals(Duration.ofMillis(1111), scCov.getMaxAge());
         assertEquals(Duration.ofMillis(2222), scCov.getDuplicateWindow());
     }
@@ -381,7 +381,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
     @Test
     public void testSubjects() {
-        StreamConfiguration.Builder builder = StreamConfiguration.builder();
+        StreamConfiguration.Builder builder = StreamConfiguration.builder().name(name());
 
         // subjects(...) replaces
         builder.subjects(subject(0));
@@ -437,7 +437,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
     @Test
     public void testRetentionPolicy() {
-        StreamConfiguration.Builder builder = StreamConfiguration.builder();
+        StreamConfiguration.Builder builder = StreamConfiguration.builder().name(name());
         assertEquals(RetentionPolicy.Limits, builder.build().getRetentionPolicy());
 
         builder.retentionPolicy(RetentionPolicy.Limits);
@@ -455,7 +455,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
     @Test
     public void testCompressionOption() {
-        StreamConfiguration.Builder builder = StreamConfiguration.builder();
+        StreamConfiguration.Builder builder = StreamConfiguration.builder().name(name());
         assertEquals(None, builder.build().getCompressionOption());
 
         builder.compressionOption(None);
@@ -472,7 +472,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
     @Test
     public void testStorageType() {
-        StreamConfiguration.Builder builder = StreamConfiguration.builder();
+        StreamConfiguration.Builder builder = StreamConfiguration.builder().name(name());
         assertEquals(StorageType.File, builder.build().getStorageType());
 
         builder.storageType(StorageType.Memory);
@@ -484,7 +484,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
     @Test
     public void testDiscardPolicy() {
-        StreamConfiguration.Builder builder = StreamConfiguration.builder();
+        StreamConfiguration.Builder builder = StreamConfiguration.builder().name(name());
         assertEquals(DiscardPolicy.Old, builder.build().getDiscardPolicy());
 
         builder.discardPolicy(DiscardPolicy.New);
