@@ -28,26 +28,26 @@ public final class NatsInetAddress {
     }
 
     public static InetAddress getByAddress(String host, byte[] addr) throws UnknownHostException {
-        return NatsInetAddress.getByAddress(host, addr);
+        return PROVIDER.getByAddress(host, addr);
     }
 
     public static InetAddress getByName(String host) throws UnknownHostException {
-        return NatsInetAddress.getByName(host);
+        return PROVIDER.getByName(host);
     }
 
     public static InetAddress[] getAllByName(String host) throws UnknownHostException {
-        return NatsInetAddress.getAllByName(host);
+        return PROVIDER.getAllByName(host);
     }
 
     public static InetAddress getLoopbackAddress() {
-        return NatsInetAddress.getLoopbackAddress();
+        return PROVIDER.getLoopbackAddress();
     }
 
     public static InetAddress getByAddress(byte[] addr) throws UnknownHostException {
-        return NatsInetAddress.getByAddress(addr);
+        return PROVIDER.getByAddress(addr);
     }
 
     public static InetAddress getLocalHost() throws UnknownHostException {
-        return NatsInetAddress.getLocalHost();
+        return PROVIDER.getLocalHost();
     }
 }
