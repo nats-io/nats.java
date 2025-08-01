@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.Options;
 import io.nats.client.ServerPool;
 import io.nats.client.support.NatsConstants;
+import io.nats.client.support.NatsInetAddress;
 import io.nats.client.support.NatsUri;
 
 import java.net.InetAddress;
@@ -211,7 +212,7 @@ public class NatsServerPool implements ServerPool {
         // 2. else, try to resolve the hostname, adding results to list
         List<String> results = new ArrayList<>();
         try {
-            InetAddress[] addresses = InetAddress.getAllByName(host);
+            InetAddress[] addresses = NatsInetAddress.getAllByName(host);
             for (InetAddress a : addresses) {
                 results.add(a.getHostAddress());
             }
