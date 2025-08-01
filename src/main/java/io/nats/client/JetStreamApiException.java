@@ -15,6 +15,7 @@ package io.nats.client;
 
 import io.nats.client.api.ApiResponse;
 import io.nats.client.api.Error;
+import org.jspecify.annotations.NonNull;
 
 /**
  * JetStreamApiException is used to indicate that the server returned an error while make a request
@@ -24,15 +25,17 @@ public class JetStreamApiException extends Exception {
     private final Error error;
 
     /**
+     * @deprecated Prefer to construct with JetStreamApiException(@NonNull Error error)
      * Construct an exception with the response from the server.
-     *
      * @param apiResponse the response from the server.
      */
+    @Deprecated
     public JetStreamApiException(ApiResponse<?> apiResponse) {
+        // deprecated because of getErrorObject() is marked as @Nullable
         this(apiResponse.getErrorObject());
     }
 
-    public JetStreamApiException(Error error) {
+    public JetStreamApiException(@NonNull Error error) {
         super(error.toString());
         this.error = error;
     }
