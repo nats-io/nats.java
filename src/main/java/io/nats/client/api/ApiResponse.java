@@ -85,8 +85,8 @@ public abstract class ApiResponse<T> {
 
     @SuppressWarnings("unchecked")
     public T throwOnHasError() throws JetStreamApiException {
-        if (hasError()) {
-            throw new JetStreamApiException(this);
+        if (error != null) {
+            throw new JetStreamApiException(error);
         }
         return (T)this;
     }

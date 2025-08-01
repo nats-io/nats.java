@@ -36,8 +36,9 @@ class ListRequestEngine extends ApiResponse<ListRequestEngine> {
 
     ListRequestEngine(Message msg) throws JetStreamApiException {
         super(msg);
-        if (hasError()) {
-            throw new JetStreamApiException(this);
+        io.nats.client.api.Error apiError = super.getErrorObject();
+        if (apiError != null) {
+            throw new JetStreamApiException(apiError);
         }
         total = readInteger(jv, TOTAL, -1);
         limit = readInteger(jv, LIMIT, 0);
