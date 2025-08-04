@@ -71,7 +71,7 @@ public class StabilitySub {
                             Instant finish = Instant.now();
                             System.out.printf("Running for %s\n", Duration.between(start, finish).toString()
                                                                 .substring(2)
-                                                                .replaceAll("(\\d[HMS])(?!$)", "$1 ")
+                                                                .replace("(\\d[HMS])(?!$)", "$1 ")
                                                                 .toLowerCase());
                             System.out.printf("Received %s messages.\n", NumberFormat.getIntegerInstance().format(messageCount));
                             System.out.printf("Received %s payload bytes.\n", Utils.humanBytes(payloadCount));

@@ -85,7 +85,7 @@ public abstract class Log {
             return;
         }
 
-        System.out.println(start + NEWLINE_INDENT + extraStr.replaceAll("\n", NEWLINE_INDENT));
+        System.out.println(start + NEWLINE_INDENT + extraStr.replace("\n", NEWLINE_INDENT));
     }
 
     private static String time() {

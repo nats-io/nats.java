@@ -27,10 +27,10 @@ public class ServerVersion implements Comparable<ServerVersion> {
         try {
             String[] split;
             if (v.startsWith("v")) {
-                split = v.substring(1).replaceAll("-", ".").split("\\Q.\\E");
+                split = v.substring(1).replace("-", ".").split("\\Q.\\E");
             }
             else {
-                split = v.replaceAll("-", ".").split("\\Q.\\E");
+                split = v.replace("-", ".").split("\\Q.\\E");
             }
             mjr = Integer.parseInt(split[0]);
             mnr = Integer.parseInt(split[1]);

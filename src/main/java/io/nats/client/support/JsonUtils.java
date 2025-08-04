@@ -99,7 +99,7 @@ public abstract class JsonUtils {
     public static String endFormattedJson(StringBuilder sb) {
         sb.setLength(sb.length()-1);
         sb.append("\n}");
-        return sb.toString().replaceAll(",", ",\n    ");
+        return sb.toString().replace(",", ",\n    ");
     }
 
     /**
@@ -793,7 +793,7 @@ public abstract class JsonUtils {
      */
     @Deprecated
     public static List<String> getStringList(String objectName, String json) {
-        String flat = json.replaceAll("\r", "").replaceAll("\n", "");
+        String flat = json.replace("\r", "").replace("\n", "");
         Matcher m = string_array_pattern(objectName).matcher(flat);
         if (m.find()) {
             String arrayString = m.group(1);
@@ -823,7 +823,7 @@ public abstract class JsonUtils {
      */
     @Deprecated
     public static List<Long> getLongList(String objectName, String json) {
-        String flat = json.replaceAll("\r", "").replaceAll("\n", "");
+        String flat = json.replace("\r", "").replace("\n", "");
         List<Long> list = new ArrayList<>();
         Matcher m = number_array_pattern(objectName).matcher(flat);
         if (m.find()) {
