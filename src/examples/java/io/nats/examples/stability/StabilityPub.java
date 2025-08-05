@@ -79,7 +79,7 @@ public class StabilityPub {
                     Instant finish = Instant.now();
                     System.out.printf("Running for %s\n", Duration.between(start, finish).toString()
                                                         .substring(2)
-                                                        .replace("(\\d[HMS])(?!$)", "$1 ")
+                                                        .replaceAll("(\\d[HMS])(?!$)", "$1 ")
                                                         .toLowerCase());
                     System.out.printf("Sent %s messages.\n", NumberFormat.getIntegerInstance().format(messageCount));
                     System.out.printf("Sent %s payload bytes.\n", Utils.humanBytes(payloadCount));
