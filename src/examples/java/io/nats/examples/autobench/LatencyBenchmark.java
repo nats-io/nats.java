@@ -190,7 +190,7 @@ public class LatencyBenchmark extends AutoBenchmark {
                                             sum()) / (1e3 * (count-1));
 
         System.out.printf("| %-11s | %7s | %6s | %8.2f | %8s | +/- %6.2f |\n",
-                            getName().replaceAll("Latency ", "") + " bytes",
+                            getName().replace("Latency ", "") + " bytes",
                             NumberFormat.getIntegerInstance().format(count),
                             NumberFormat.getIntegerInstance().format(min),
                             median,
