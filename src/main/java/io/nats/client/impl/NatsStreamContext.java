@@ -15,6 +15,8 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.util.List;
@@ -22,13 +24,14 @@ import java.util.List;
 /**
  * Implementation of Stream Context
  */
+@NullMarked
 class NatsStreamContext implements StreamContext {
     final String streamName;
     final NatsJetStream js;
     final NatsJetStreamManagement jsm;
 
     // for when this is constructed from the NatsJetStream itself
-    NatsStreamContext(String streamName, NatsJetStream js, NatsConnection connection, JetStreamOptions jsOptions) throws IOException, JetStreamApiException {
+    NatsStreamContext(String streamName, @Nullable NatsJetStream js, NatsConnection connection, @Nullable JetStreamOptions jsOptions) throws IOException, JetStreamApiException {
         this.streamName = streamName;
         this.js = js == null ? new NatsJetStream(connection, jsOptions) : js;
         jsm = new NatsJetStreamManagement(connection, jsOptions);

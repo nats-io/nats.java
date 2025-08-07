@@ -75,7 +75,7 @@ public class PingTests {
                 .maxPingsOut(10000) // just don't want this to be what fails the test
                 .build();
             NatsConnection nc = (NatsConnection) Nats.connect(options);
-            StatisticsCollector stats = nc.getNatsStatistics();
+            StatisticsCollector stats = nc.getStatisticsCollector();
 
             try {
                 assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
@@ -192,7 +192,7 @@ public class PingTests {
                     .maxPingsOut(10000) // just don't want this to be what fails the test
                     .build();
                 NatsConnection nc = (NatsConnection) Nats.connect(options);
-                StatisticsCollector stats = nc.getNatsStatistics();
+                StatisticsCollector stats = nc.getStatisticsCollector();
 
                 try {
                     assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
@@ -226,7 +226,7 @@ public class PingTests {
             Options options = new Options.Builder().server(ts.getURI()).
                                     pingInterval(Duration.ofMillis(200)).build();
             NatsConnection nc = (NatsConnection) Nats.connect(options);
-            StatisticsCollector stats = nc.getNatsStatistics();
+            StatisticsCollector stats = nc.getStatisticsCollector();
 
             try {
                 final CompletableFuture<Boolean> done = new CompletableFuture<>();

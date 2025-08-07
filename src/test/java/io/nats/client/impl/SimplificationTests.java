@@ -110,6 +110,9 @@ public class SimplificationTests extends JetStreamTestBase {
         MessageInfo mi = streamContext.getMessage(1);
         assertEquals(1, mi.getSeq());
 
+        mi = streamContext.getFirstMessage(tsc.subject());
+        assertEquals(1, mi.getSeq());
+
         mi = streamContext.getLastMessage(tsc.subject());
         assertEquals(6, mi.getSeq());
 

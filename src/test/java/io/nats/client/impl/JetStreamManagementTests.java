@@ -733,7 +733,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     @Test
     public void testAddDeleteConsumer() throws Exception {
         runInJsServer(nc -> {
-            boolean atLeast2dot9 = ((NatsConnection)nc).getInfo().isSameOrNewerThanVersion("2.9");
+            boolean atLeast2dot9 = nc.getServerInfo().isSameOrNewerThanVersion("2.9");
 
             JetStreamManagement jsm = nc.jetStreamManagement();
 

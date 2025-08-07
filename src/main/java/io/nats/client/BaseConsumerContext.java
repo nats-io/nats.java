@@ -13,6 +13,9 @@
 
 package io.nats.client;
 
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+
 import java.io.IOException;
 import java.time.Duration;
 
@@ -20,11 +23,13 @@ import java.time.Duration;
  * The Consumer Context provides a convenient interface around a defined JetStream Consumer
  * <p> Note: ConsumerContext requires a <b>pull consumer</b>.
  */
+@NullMarked
 public interface BaseConsumerContext {
     /**
      * Gets the consumer name that was used to create the context.
      * @return the consumer name
      */
+    @Nullable
     String getConsumerName();
 
     /**
@@ -37,11 +42,13 @@ public interface BaseConsumerContext {
      *         such as the consumer was deleted on the server in the middle of use.
      * @throws JetStreamApiException the request had an error related to the data
      */
+    @Nullable
     Message next() throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException;
 
     /**
      * Read the next message with provided max wait
      * @param maxWait duration of max wait. Cannot be less than {@value BaseConsumeOptions#MIN_EXPIRES_MILLS} milliseconds.
+     *                If null, {@value BaseConsumeOptions#DEFAULT_EXPIRES_IN_MILLIS} will be used.
      * @return the next message or null if the max wait expires
      * @throws IOException covers various communication issues with the NATS
      *         server, such as timeout or interruption
@@ -49,8 +56,10 @@ public interface BaseConsumerContext {
      * @throws JetStreamStatusCheckedException an exception representing a status that requires attention,
      *         such as the consumer was deleted on the server in the middle of use.
      * @throws JetStreamApiException the request had an error related to the data
+     * @throws IllegalArgumentException if maxWait less than {@value BaseConsumeOptions#MIN_EXPIRES_MILLS}
      */
-    Message next(Duration maxWait) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException;
+    @Nullable
+    Message next(@Nullable Duration maxWait) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException;
 
     /**
      * Read the next message with provided max wait
@@ -62,7 +71,9 @@ public interface BaseConsumerContext {
      * @throws JetStreamStatusCheckedException an exception representing a status that requires attention,
      *         such as the consumer was deleted on the server in the middle of use.
      * @throws JetStreamApiException the request had an error related to the data
+     * @throws IllegalArgumentException if maxWait less than {@value BaseConsumeOptions#MIN_EXPIRES_MILLS}
      */
+    @Nullable
     Message next(long maxWaitMillis) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException;
 
     /**
@@ -161,5 +172,5 @@ public interface BaseConsumerContext {
      *         server, such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    MessageConsumer consume(ConsumeOptions consumeOptions, Dispatcher dispatcher, MessageHandler handler) throws IOException, JetStreamApiException;
+    MessageConsumer consume(ConsumeOptions consumeOptions, @Nullable Dispatcher dispatcher, MessageHandler handler) throws IOException, JetStreamApiException;
 }

@@ -15,6 +15,8 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.OrderedConsumerConfiguration;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -22,6 +24,7 @@ import java.time.Duration;
 /**
  * Implementation of Ordered Consumer Context
  */
+@NullMarked
 public class NatsOrderedConsumerContext implements OrderedConsumerContext {
     private final NatsConsumerContext impl;
 
@@ -53,6 +56,7 @@ public class NatsOrderedConsumerContext implements OrderedConsumerContext {
      * {@inheritDoc}
      */
     @Override
+    @Nullable
     public Message next() throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
         return impl.next();
     }
@@ -61,7 +65,8 @@ public class NatsOrderedConsumerContext implements OrderedConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public Message next(Duration maxWait) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
+    @Nullable
+    public Message next(@Nullable Duration maxWait) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
         return impl.next(maxWait);
     }
 
@@ -69,6 +74,7 @@ public class NatsOrderedConsumerContext implements OrderedConsumerContext {
      * {@inheritDoc}
      */
     @Override
+    @Nullable
     public Message next(long maxWaitMillis) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
         return impl.next(maxWaitMillis);
     }
@@ -141,7 +147,7 @@ public class NatsOrderedConsumerContext implements OrderedConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public MessageConsumer consume(ConsumeOptions consumeOptions, Dispatcher dispatcher, MessageHandler handler) throws IOException, JetStreamApiException {
+    public MessageConsumer consume(ConsumeOptions consumeOptions, @Nullable Dispatcher dispatcher, MessageHandler handler) throws IOException, JetStreamApiException {
         return impl.consume(consumeOptions, dispatcher, handler);
     }
 }

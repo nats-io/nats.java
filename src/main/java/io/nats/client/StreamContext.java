@@ -14,6 +14,7 @@
 package io.nats.client;
 
 import io.nats.client.api.*;
+import org.jspecify.annotations.NullMarked;
 
 import java.io.IOException;
 import java.util.List;
@@ -23,6 +24,7 @@ import java.util.List;
  * and its contents and for managing consumers.
  * <p> For basic usage examples see {@link JetStream JetStream}
  */
+@NullMarked
 public interface StreamContext {
     /**
      * Gets the stream name that was used to create the context.

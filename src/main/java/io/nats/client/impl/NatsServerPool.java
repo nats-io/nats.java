@@ -18,6 +18,9 @@ import io.nats.client.ServerPool;
 import io.nats.client.support.NatsConstants;
 import io.nats.client.support.NatsInetAddress;
 import io.nats.client.support.NatsUri;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import java.net.InetAddress;
 import java.net.URISyntaxException;
@@ -28,18 +31,21 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.locks.ReentrantLock;
 
+@NullMarked
 public class NatsServerPool implements ServerPool {
 
     protected final ReentrantLock listLock;
     protected List<ServerPoolEntry> entryList;
     protected Options options;
     protected int maxConnectAttempts;
-    protected NatsUri lastConnected;
     protected boolean hasSecureServer;
-    protected String defaultScheme;
+    protected @Nullable NatsUri lastConnected;
+    protected @Nullable String defaultScheme;
 
     public NatsServerPool() {
         listLock = new ReentrantLock();
+        entryList = new ArrayList<>(); // this gets updated occasionally
+        options = Options.builder().build(); // this will get updated when initialize is called
     }
 
     /**
@@ -56,7 +62,6 @@ public class NatsServerPool implements ServerPool {
         //    FYI bootstrap will always have at least the default url
         listLock.lock();
         try {
-            entryList = new ArrayList<>();
             for (NatsUri nuri : options.getNatsServerUris()) {
                 // 1. If item is not found in the list being built, add to the list
                 boolean notAlreadyInList = true;
@@ -173,6 +178,7 @@ public class NatsServerPool implements ServerPool {
     }
 
     @Override
+    @Nullable
     public NatsUri peekNextServer() {
         listLock.lock();
         try {
@@ -184,6 +190,7 @@ public class NatsServerPool implements ServerPool {
     }
 
     @Override
+    @Nullable
     public NatsUri nextServer() {
         // 0. The list is already managed for qualified by connectFailed
         // 1. Get the first item in the list, update it's time, add back to the end of list
@@ -203,7 +210,8 @@ public class NatsServerPool implements ServerPool {
     }
 
     @Override
-    public List<String> resolveHostToIps(String host) {
+    @Nullable
+    public List<String> resolveHostToIps(@NonNull String host) {
         // 1. if options.isNoResolveHostnames(), return empty list
         if (options.isNoResolveHostnames()) {
             return null;
@@ -280,6 +288,7 @@ public class NatsServerPool implements ServerPool {
     }
 
     @Override
+    @NonNull
     public List<String> getServerList() {
         listLock.lock();
         try {

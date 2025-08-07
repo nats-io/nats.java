@@ -13,7 +13,6 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.Statistics;
 import io.nats.client.StatisticsCollector;
 
 import java.text.NumberFormat;
@@ -21,29 +20,29 @@ import java.util.LongSummaryStatistics;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
-class NatsStatistics implements Statistics, StatisticsCollector {
+class NatsStatistics implements StatisticsCollector {
     private final ReentrantLock readStatsLock;
     private final ReentrantLock writeStatsLock;
 
-    private LongSummaryStatistics readStats;
-    private LongSummaryStatistics writeStats;
+    private final LongSummaryStatistics readStats;
+    private final LongSummaryStatistics writeStats;
 
-    private AtomicLong flushCounter;
-    private AtomicLong outstandingRequests;
-    private AtomicLong requestsSent;
-    private AtomicLong repliesReceived;
-    private AtomicLong duplicateRepliesReceived;
-    private AtomicLong orphanRepliesReceived;
-    private AtomicLong reconnects;
-    private AtomicLong inMsgs;
-    private AtomicLong outMsgs;
-    private AtomicLong inBytes;
-    private AtomicLong outBytes;
-    private AtomicLong pingCount;
-    private AtomicLong okCount;
-    private AtomicLong errCount;
-    private AtomicLong exceptionCount;
-    private AtomicLong droppedCount;
+    private final AtomicLong flushCounter;
+    private final AtomicLong outstandingRequests;
+    private final AtomicLong requestsSent;
+    private final AtomicLong repliesReceived;
+    private final AtomicLong duplicateRepliesReceived;
+    private final AtomicLong orphanRepliesReceived;
+    private final AtomicLong reconnects;
+    private final AtomicLong inMsgs;
+    private final AtomicLong outMsgs;
+    private final AtomicLong inBytes;
+    private final AtomicLong outBytes;
+    private final AtomicLong pingCount;
+    private final AtomicLong okCount;
+    private final AtomicLong errCount;
+    private final AtomicLong exceptionCount;
+    private final AtomicLong droppedCount;
 
     private boolean trackAdvanced;
 

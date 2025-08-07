@@ -17,7 +17,10 @@ import io.nats.client.StatisticsCollector;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-public class TestStatisticsCollector implements StatisticsCollector {
+/**
+ * This class is simply to have a concrete implementation to test setting properties and calling the builder in Options
+ */
+public class CoverageStatisticsCollector implements StatisticsCollector {
 
     private final AtomicLong outMsgs = new AtomicLong();
 

@@ -63,9 +63,10 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         timeout = jsOptions == null || jsOptions.getRequestTimeout() == null ? conn.getOptions().getConnectionTimeout() : jsOptions.getRequestTimeout();
         jso = JetStreamOptions.builder(jsOptions).requestTimeout(timeout).build();
 
-        consumerCreate290Available = conn.getInfo().isSameOrNewerThanVersion("2.9.0") && !jso.isOptOut290ConsumerCreate();
-        multipleSubjectFilter210Available = conn.getInfo().isNewerVersionThan("2.9.99");
-        directBatchGet211Available = conn.getInfo().isNewerVersionThan("2.10.99");
+        ServerInfo si = conn.getServerInfo();
+        consumerCreate290Available = si.isSameOrNewerThanVersion("2.9.0") && !jso.isOptOut290ConsumerCreate();
+        multipleSubjectFilter210Available = si.isNewerVersionThan("2.9.99");
+        directBatchGet211Available = si.isNewerVersionThan("2.10.99");
     }
 
     NatsJetStreamImpl(NatsJetStreamImpl impl) {

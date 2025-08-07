@@ -18,6 +18,8 @@ import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerInfo;
 import io.nats.client.api.OrderedConsumerConfiguration;
 import io.nats.client.support.Validator;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -33,20 +35,21 @@ import static io.nats.client.impl.NatsJetStreamSubscription.EXPIRE_ADJUSTMENT;
 /**
  * Implementation of Consumer Context
  */
+@NullMarked
 public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscriptionMaker {
     private final ReentrantLock stateLock;
     private final NatsStreamContext streamCtx;
     private final boolean ordered;
-    private final ConsumerConfiguration initialOrderedConsumerConfig;
-    private final PullSubscribeOptions unorderedBindPso;
+    private final @Nullable ConsumerConfiguration initialOrderedConsumerConfig;
+    private final @Nullable PullSubscribeOptions unorderedBindPso;
 
     private final AtomicReference<ConsumerInfo> cachedConsumerInfo;
     private final AtomicReference<String> consumerName;
     private final AtomicLong highestSeq;
-    private final AtomicReference<Dispatcher> defaultDispatcher;
-    private final AtomicReference<NatsMessageConsumerBase> lastConsumer;
+    private final AtomicReference<@Nullable Dispatcher> defaultDispatcher;
+    private final AtomicReference<@Nullable NatsMessageConsumerBase> lastConsumer;
 
-    NatsConsumerContext(NatsStreamContext sc, ConsumerInfo unorderedConsumerInfo, OrderedConsumerConfiguration occ) {
+    NatsConsumerContext(NatsStreamContext sc, @Nullable ConsumerInfo unorderedConsumerInfo, @Nullable OrderedConsumerConfiguration occ) {
         stateLock = new ReentrantLock();
         streamCtx = sc;
         cachedConsumerInfo = new AtomicReference<>();
@@ -61,7 +64,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             consumerName.set(unorderedConsumerInfo.getName());
             unorderedBindPso = PullSubscribeOptions.fastBind(sc.streamName, unorderedConsumerInfo.getName());
         }
-        else {
+        else if (occ != null) {
             ordered = true;
             initialOrderedConsumerConfig = ConsumerConfiguration.builder()
                 .name(occ.getConsumerNamePrefix())
@@ -74,6 +77,9 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
                 .build();
             unorderedBindPso = null;
         }
+        else {
+            throw new IllegalArgumentException("Internal Error, must be ordered or unordered.");
+        }
     }
 
     static class OrderedPullSubscribeOptionsBuilder extends PullSubscribeOptions.Builder {
@@ -85,7 +91,11 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
     }
 
     @Override
-    public NatsJetStreamPullSubscription subscribe(MessageHandler messageHandler, Dispatcher userDispatcher, PullMessageManager optionalPmm, Long optionalInactiveThreshold) throws IOException, JetStreamApiException {
+    public NatsJetStreamPullSubscription subscribe(@Nullable MessageHandler messageHandler, @Nullable Dispatcher userDispatcher,
+                                                   @SuppressWarnings("ClassEscapesDefinedScope") @Nullable PullMessageManager optionalPmm,
+                                                   @Nullable Long optionalInactiveThreshold)
+        throws IOException, JetStreamApiException
+    {
         PullSubscribeOptions pso;
         if (ordered) {
             NatsMessageConsumerBase lastCon = lastConsumer.get();
@@ -170,6 +180,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
      * {@inheritDoc}
      */
     @Override
+    @Nullable
     public Message next() throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
         return next(DEFAULT_EXPIRES_IN_MILLIS);
     }
@@ -178,7 +189,8 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
      * {@inheritDoc}
      */
     @Override
-    public Message next(Duration maxWait) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
+    @Nullable
+    public Message next(@Nullable Duration maxWait) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
         return maxWait == null ? next(DEFAULT_EXPIRES_IN_MILLIS) : next(maxWait.toMillis());
     }
 
@@ -186,6 +198,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
      * {@inheritDoc}
      */
     @Override
+    @Nullable
     public Message next(long maxWaitMillis) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
         if (maxWaitMillis < MIN_EXPIRES_MILLS) {
             throw new IllegalArgumentException("Max wait must be at least " + MIN_EXPIRES_MILLS + " milliseconds.");
@@ -319,7 +332,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
      * {@inheritDoc}
      */
     @Override
-    public MessageConsumer consume(ConsumeOptions consumeOptions, Dispatcher userDispatcher, MessageHandler handler) throws IOException, JetStreamApiException {
+    public MessageConsumer consume(ConsumeOptions consumeOptions, @Nullable Dispatcher userDispatcher, MessageHandler handler) throws IOException, JetStreamApiException {
         try {
             stateLock.lock();
             checkState();

@@ -267,7 +267,7 @@ public class OptionsTests {
 
     @Test
     public void testChainedStatisticsCollector() {
-        StatisticsCollector cHandler = new TestStatisticsCollector();
+        StatisticsCollector cHandler = new CoverageStatisticsCollector();
         Options o = new Options.Builder().statisticsCollector(cHandler).build();
         _testChainedStatisticsCollector(cHandler, o);
         _testChainedStatisticsCollector(cHandler, new Options.Builder(o).build());
@@ -275,7 +275,7 @@ public class OptionsTests {
 
     private static void _testChainedStatisticsCollector(StatisticsCollector cHandler, Options o) {
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
-        assertInstanceOf(TestStatisticsCollector.class, o.getStatisticsCollector(), "statistics collector");
+        assertInstanceOf(CoverageStatisticsCollector.class, o.getStatisticsCollector(), "statistics collector");
         assertSame(cHandler, o.getStatisticsCollector(), "chained statistics collector");
     }
 
@@ -665,7 +665,7 @@ public class OptionsTests {
     @Test
     public void testPropertyStatisticsCollector() {
         Properties props = new Properties();
-        props.setProperty(Options.PROP_STATISTICS_COLLECTOR, TestStatisticsCollector.class.getCanonicalName());
+        props.setProperty(Options.PROP_STATISTICS_COLLECTOR, CoverageStatisticsCollector.class.getCanonicalName());
 
         Options o = new Options.Builder(props).build();
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
@@ -1066,6 +1066,9 @@ public class OptionsTests {
                 _testNatsUri(-e, schemes[e]);
             }
         }
+
+        //noinspection DataFlowIssue // NatsUri constructor parameters are annotated as @NonNull
+        assertThrows(NullPointerException.class, () -> new NatsUri((String)null));
 
         // coverage
         //noinspection SimplifiableAssertion,ConstantValue

@@ -1,6 +1,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -125,6 +126,7 @@ public class AuthViolationDuringReconnectTest {
         }
     }
 
+    @NullMarked
     static class MockPausingNatsConnection extends NatsConnection {
         MockPausingNatsConnection(Options options) {
             super(options);

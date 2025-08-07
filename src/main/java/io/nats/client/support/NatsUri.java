@@ -14,6 +14,8 @@
 package io.nats.client.support;
 
 import io.nats.client.Options;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -22,6 +24,7 @@ import java.util.regex.Pattern;
 
 import static io.nats.client.support.NatsConstants.*;
 
+@NullMarked
 public class NatsUri {
     private static final int NO_PORT = -1;
     private static final String UNABLE_TO_PARSE = "Unable to parse URI string.";
@@ -114,7 +117,7 @@ public class NatsUri {
         this(url, null);
     }
 
-    public NatsUri(String url, String defaultScheme) throws URISyntaxException {
+    public NatsUri(String url, @Nullable String defaultScheme) throws URISyntaxException {
     /*
         test string --> result of new URI(String)
 
@@ -164,13 +167,14 @@ public class NatsUri {
             }
         }
 
+        url = url.trim();
         Helper helper = parse(url, true, prefix);
         String scheme = helper.uri.getScheme();
         String path = helper.uri.getPath();
         if (scheme == null) {
             if (path != null) {
                 // [3]
-                helper = tryPrefixed(helper, prefix);
+                helper = tryPrefixed(helper.url, prefix);
                 scheme = helper.uri.getScheme();
                 path = helper.uri.getPath();
             }
@@ -184,7 +188,7 @@ public class NatsUri {
         if (host == null) {
             if (path == null) {
                 // [4]
-                helper = tryPrefixed(helper, prefix);
+                helper = tryPrefixed(helper.url, prefix);
                 scheme = helper.uri.getScheme();
                 host = helper.uri.getHost();
             }
@@ -229,23 +233,25 @@ public class NatsUri {
     static class Helper {
         String url;
         URI uri;
+
+        public Helper(String url) throws URISyntaxException {
+            this.url = url;
+            this.uri = new URI(url);
+        }
     }
 
-    private Helper tryPrefixed(Helper helper, String prefix) throws URISyntaxException {
-        return parse(prefix + helper.url, false, prefix);
+    private Helper tryPrefixed(String url, String prefix) throws URISyntaxException {
+        return parse(prefix + url, false, prefix);
     }
 
-    private Helper parse(String inUrl, boolean allowTryPrefixed, String prefix) throws URISyntaxException {
-        Helper helper = new Helper();
+    private Helper parse(String url, boolean allowTryPrefixed, String prefix) throws URISyntaxException {
         try {
-            helper.url = inUrl.trim();
-            helper.uri = new URI(helper.url);
-            return helper;
+            return new Helper(url);
         }
         catch (URISyntaxException e) {
             if (allowTryPrefixed && e.getMessage().contains(URI_E_ALLOW_TRY_PREFIXED)) {
                 // [4]
-                return tryPrefixed(helper, prefix);
+                return tryPrefixed(url, prefix);
             }
             else {
                 // [5]
@@ -260,7 +266,7 @@ public class NatsUri {
             if (i > 0) {
                 sb.append(delimiter);
             }
-            sb.append(uris.get(i).toString());
+            sb.append(uris.get(i));
         }
         return sb.toString();
     }

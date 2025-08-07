@@ -136,7 +136,7 @@ class NatsConnectionReader implements Runnable {
                 int bytesRead = dataPort.read(this.buffer, 0, this.buffer.length);
 
                 if (bytesRead > 0) {
-                    connection.getNatsStatistics().registerRead(bytesRead);
+                    connection.getStatisticsCollector().registerRead(bytesRead);
 
                     while (this.bufferPosition < bytesRead) {
                         if (this.mode == Mode.GATHER_OP) {
@@ -167,7 +167,7 @@ class NatsConnectionReader implements Runnable {
                 } else if (bytesRead < 0) {
                     throw new IOException("Read channel closed.");
                 } else {
-                    this.connection.getNatsStatistics().registerRead(bytesRead); // track the 0
+                    this.connection.getStatisticsCollector().registerRead(bytesRead); // track the 0
                 }
             }
         } catch (IOException io) {

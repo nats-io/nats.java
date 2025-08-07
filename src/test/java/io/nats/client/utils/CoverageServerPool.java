@@ -16,12 +16,16 @@ package io.nats.client.utils;
 import io.nats.client.Options;
 import io.nats.client.ServerPool;
 import io.nats.client.support.NatsUri;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * This class is simply to have a concrete implementation to test setting properties and calling the builder in Options
  */
+@NullMarked
 public class CoverageServerPool implements ServerPool {
     @Override
     public void initialize(Options opts) {
@@ -34,16 +38,16 @@ public class CoverageServerPool implements ServerPool {
 
     @Override
     public NatsUri peekNextServer() {
-        return null;
+        return new NatsUri();
     }
 
     @Override
     public NatsUri nextServer() {
-        return null;
+        return new NatsUri();
     }
 
     @Override
-    public List<String> resolveHostToIps(String host) {
+    @Nullable public List<String> resolveHostToIps(String host) {
         return null;
     }
 
@@ -57,7 +61,7 @@ public class CoverageServerPool implements ServerPool {
 
     @Override
     public List<String> getServerList() {
-        return null;
+        return new ArrayList<>();
     }
 
     @Override

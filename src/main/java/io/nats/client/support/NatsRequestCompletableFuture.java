@@ -3,6 +3,8 @@ package io.nats.client.support;
 import io.nats.client.Message;
 import io.nats.client.NatsSystemClock;
 import io.nats.client.Options;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
 import java.util.concurrent.CancellationException;
@@ -14,6 +16,7 @@ import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
 /**
  * This is an internal class and is only public for access.
  */
+@NullMarked
 public class NatsRequestCompletableFuture extends CompletableFuture<Message> {
 
     // allows a small buffer to account for communication and code execution time, probably more than needed but...
@@ -31,7 +34,7 @@ public class NatsRequestCompletableFuture extends CompletableFuture<Message> {
     private boolean wasCancelledTimedOut;
     private final boolean useTimeoutException;
 
-    public NatsRequestCompletableFuture(CancelAction cancelAction, Duration timeout, boolean useTimeoutException) {
+    public NatsRequestCompletableFuture(CancelAction cancelAction, @Nullable Duration timeout, boolean useTimeoutException) {
         this.cancelAction = cancelAction;
         timeOutAfterNanoTime = NatsSystemClock.nanoTime() + HYDRATION_TIME + (timeout == null ? DEFAULT_TIMEOUT_NANOS : timeout.toNanos());
         this.useTimeoutException = useTimeoutException;
