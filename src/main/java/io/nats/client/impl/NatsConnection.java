@@ -108,7 +108,7 @@ class NatsConnection implements Connection {
     private final boolean trace;
     private final TimeTraceLogger timeTraceLogger;
 
-    NatsConnection(Options options) {
+    NatsConnection(@NonNull Options options) {
         trace = options.isTraceConnection();
         timeTraceLogger = options.getTimeTraceLogger();
         timeTraceLogger.trace("creating connection object");
@@ -1094,7 +1094,7 @@ class NatsConnection implements Connection {
         sendUnsub(sub, after);
     }
 
-    void sendUnsub(NatsSubscription sub, int after) {
+    void sendUnsub(@NonNull NatsSubscription sub, int after) {
         ByteArrayBuilder bab =
             new ByteArrayBuilder().append(UNSUB_SP_BYTES).append(sub.getSID());
         if (after > 0) {
@@ -1105,7 +1105,10 @@ class NatsConnection implements Connection {
 
     // Assumes the null/empty checks were handled elsewhere
     @NonNull
-    NatsSubscription createSubscription(String subject, String queueName, NatsDispatcher dispatcher, NatsSubscriptionFactory factory) {
+    NatsSubscription createSubscription(@NonNull String subject,
+                                        @Nullable String queueName,
+                                        @Nullable NatsDispatcher dispatcher,
+                                        @Nullable NatsSubscriptionFactory factory) {
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
         } else if (isDraining() && (dispatcher == null || dispatcher != this.inboxDispatcher.get())) {

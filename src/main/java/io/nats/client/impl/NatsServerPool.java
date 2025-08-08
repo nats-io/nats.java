@@ -19,7 +19,6 @@ import io.nats.client.support.NatsConstants;
 import io.nats.client.support.NatsInetAddress;
 import io.nats.client.support.NatsUri;
 import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 import java.net.InetAddress;
@@ -31,7 +30,6 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.locks.ReentrantLock;
 
-@NullMarked
 public class NatsServerPool implements ServerPool {
 
     protected final ReentrantLock listLock;
@@ -51,7 +49,7 @@ public class NatsServerPool implements ServerPool {
     /**
      * {@inheritDoc}
      */
-    public void initialize(Options opts) {
+    public void initialize(@NonNull Options opts) {
         // 1. Hold on to options as we need them for settings
         options = opts;
 
@@ -91,7 +89,7 @@ public class NatsServerPool implements ServerPool {
      * {@inheritDoc}
      */
     @Override
-    public boolean acceptDiscoveredUrls(List<String> discoveredServers) {
+    public boolean acceptDiscoveredUrls(@NonNull List<String> discoveredServers) {
         // 1. If ignored discovered servers, don't do anything b/c never want
         //    anything but the explicit, which is already loaded.
         // 2. return false == no new servers discovered
@@ -243,7 +241,7 @@ public class NatsServerPool implements ServerPool {
     }
 
     @Override
-    public void connectSucceeded(NatsUri nuri) {
+    public void connectSucceeded(@NonNull NatsUri nuri) {
         // 1. Work from the end because nextServer moved the one being tried to the end
         // 2. If we find the server in the list...
         //    2.1. remember it and
@@ -265,7 +263,7 @@ public class NatsServerPool implements ServerPool {
     }
 
     @Override
-    public void connectFailed(NatsUri nuri) {
+    public void connectFailed(@NonNull NatsUri nuri) {
         // 1. Work from the end because nextServer moved the one being tried to the end
         // 2. If we find the server in the list...
         //    2.1. increment failed attempts

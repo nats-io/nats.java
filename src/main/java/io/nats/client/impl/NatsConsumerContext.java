@@ -18,7 +18,7 @@ import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerInfo;
 import io.nats.client.api.OrderedConsumerConfiguration;
 import io.nats.client.support.Validator;
-import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
@@ -35,7 +35,6 @@ import static io.nats.client.impl.NatsJetStreamSubscription.EXPIRE_ADJUSTMENT;
 /**
  * Implementation of Consumer Context
  */
-@NullMarked
 public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscriptionMaker {
     private final ReentrantLock stateLock;
     private final NatsStreamContext streamCtx;
@@ -49,7 +48,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
     private final AtomicReference<@Nullable Dispatcher> defaultDispatcher;
     private final AtomicReference<@Nullable NatsMessageConsumerBase> lastConsumer;
 
-    NatsConsumerContext(NatsStreamContext sc, @Nullable ConsumerInfo unorderedConsumerInfo, @Nullable OrderedConsumerConfiguration occ) {
+    NatsConsumerContext(@NonNull NatsStreamContext sc, @Nullable ConsumerInfo unorderedConsumerInfo, @Nullable OrderedConsumerConfiguration occ) {
         stateLock = new ReentrantLock();
         streamCtx = sc;
         cachedConsumerInfo = new AtomicReference<>();
@@ -91,7 +90,8 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
     }
 
     @Override
-    public NatsJetStreamPullSubscription subscribe(@Nullable MessageHandler messageHandler, @Nullable Dispatcher userDispatcher,
+    public NatsJetStreamPullSubscription subscribe(@Nullable MessageHandler messageHandler,
+                                                   @Nullable Dispatcher userDispatcher,
                                                    @SuppressWarnings("ClassEscapesDefinedScope") @Nullable PullMessageManager optionalPmm,
                                                    @Nullable Long optionalInactiveThreshold)
         throws IOException, JetStreamApiException
@@ -161,6 +161,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
      * {@inheritDoc}
      */
     @Override
+    @NonNull
     public ConsumerInfo getConsumerInfo() throws IOException, JetStreamApiException {
         ConsumerInfo ci = streamCtx.jsm.getConsumerInfo(streamCtx.streamName, consumerName.get());
         cachedConsumerInfo.set(ci);
@@ -172,6 +173,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
      * {@inheritDoc}
      */
     @Override
+    @Nullable
     public ConsumerInfo getCachedConsumerInfo() {
         return cachedConsumerInfo.get();
     }
@@ -252,6 +254,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
      * {@inheritDoc}
      */
     @Override
+    @NonNull
     public FetchConsumer fetchMessages(int maxMessages) throws IOException, JetStreamApiException {
         return fetch(FetchConsumeOptions.builder().maxMessages(maxMessages).build());
     }
@@ -260,6 +263,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
      * {@inheritDoc}
      */
     @Override
+    @NonNull
     public FetchConsumer fetchBytes(int maxBytes) throws IOException, JetStreamApiException {
         return fetch(FetchConsumeOptions.builder().maxBytes(maxBytes).build());
     }
@@ -268,11 +272,12 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
      * {@inheritDoc}
      */
     @Override
-    public FetchConsumer fetch(FetchConsumeOptions fetchConsumeOptions) throws IOException, JetStreamApiException {
+    @NonNull
+    public FetchConsumer fetch(@NonNull FetchConsumeOptions fetchConsumeOptions) throws IOException, JetStreamApiException {
+        Validator.required(fetchConsumeOptions, "Fetch Consume Options");
         try {
             stateLock.lock();
             checkState();
-            Validator.required(fetchConsumeOptions, "Fetch Consume Options");
             return (FetchConsumer)trackConsume(new NatsFetchConsumer(this, cachedConsumerInfo.get(), fetchConsumeOptions));
         }
         finally {
@@ -284,6 +289,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
      * {@inheritDoc}
      */
     @Override
+    @NonNull
     public IterableConsumer iterate() throws IOException, JetStreamApiException {
         return iterate(DEFAULT_CONSUME_OPTIONS);
     }
@@ -292,11 +298,12 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
      * {@inheritDoc}
      */
     @Override
-    public IterableConsumer iterate(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+    @NonNull
+    public IterableConsumer iterate(@NonNull ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+        Validator.required(consumeOptions, "Consume Options");
         try {
             stateLock.lock();
             checkState();
-            Validator.required(consumeOptions, "Consume Options");
             return (IterableConsumer) trackConsume(new NatsIterableConsumer(this, cachedConsumerInfo.get(), consumeOptions));
         }
         finally {
@@ -308,7 +315,8 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
      * {@inheritDoc}
      */
     @Override
-    public MessageConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException {
+    @NonNull
+    public MessageConsumer consume(@NonNull MessageHandler handler) throws IOException, JetStreamApiException {
         return consume(DEFAULT_CONSUME_OPTIONS, null, handler);
     }
 
@@ -316,7 +324,9 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
      * {@inheritDoc}
      */
     @Override
-    public MessageConsumer consume(Dispatcher dispatcher, MessageHandler handler) throws IOException, JetStreamApiException {
+    @NonNull
+    public MessageConsumer consume(@Nullable Dispatcher dispatcher,
+                                   @NonNull MessageHandler handler) throws IOException, JetStreamApiException {
         return consume(DEFAULT_CONSUME_OPTIONS, dispatcher, handler);
     }
 
@@ -324,7 +334,9 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
      * {@inheritDoc}
      */
     @Override
-    public MessageConsumer consume(ConsumeOptions consumeOptions, MessageHandler handler) throws IOException, JetStreamApiException {
+    @NonNull
+    public MessageConsumer consume(@NonNull ConsumeOptions consumeOptions,
+                                   @NonNull MessageHandler handler) throws IOException, JetStreamApiException {
         return consume(consumeOptions, null, handler);
     }
 
@@ -332,12 +344,17 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
      * {@inheritDoc}
      */
     @Override
-    public MessageConsumer consume(ConsumeOptions consumeOptions, @Nullable Dispatcher userDispatcher, MessageHandler handler) throws IOException, JetStreamApiException {
+    @NonNull
+    public MessageConsumer consume(@NonNull ConsumeOptions consumeOptions,
+                                   @Nullable Dispatcher userDispatcher,
+                                   @NonNull MessageHandler handler)
+        throws IOException, JetStreamApiException
+    {
+        Validator.required(consumeOptions, "Consume Options");
+        Validator.required(handler, "Message Handler");
         try {
             stateLock.lock();
             checkState();
-            Validator.required(handler, "Message Handler");
-            Validator.required(consumeOptions, "Consume Options");
             return trackConsume(new NatsMessageConsumer(this, cachedConsumerInfo.get(), consumeOptions, userDispatcher, handler));
         }
         finally {

@@ -13,6 +13,8 @@
 
 package io.nats.client;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * The Ordered Consumer and it's context provide a simplification interface to the ordered consumer behavior.
  */
@@ -33,5 +35,6 @@ public interface OrderedConsumerContext extends BaseConsumerContext {
      * @return the consumer name or null
      */
     @Override
+    @Nullable
     String getConsumerName();
 }

@@ -14,7 +14,7 @@
 package io.nats.client;
 
 import io.nats.client.api.*;
-import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.NonNull;
 
 import java.io.IOException;
 import java.util.List;
@@ -24,12 +24,12 @@ import java.util.List;
  * and its contents and for managing consumers.
  * <p> For basic usage examples see {@link JetStream JetStream}
  */
-@NullMarked
 public interface StreamContext {
     /**
      * Gets the stream name that was used to create the context.
      * @return the stream name
      */
+    @NonNull
     String getStreamName();
 
     /**
@@ -42,6 +42,7 @@ public interface StreamContext {
      * @throws JetStreamApiException the request had an error related to the data,
      *         most likely the stream has been removed since the context was created.
      */
+    @NonNull
     StreamInfo getStreamInfo() throws IOException, JetStreamApiException;
 
     /**
@@ -53,6 +54,7 @@ public interface StreamContext {
      * @throws JetStreamApiException the request had an error related to the data,
      *         most likely the stream has been removed since the context was created.
      */
+    @NonNull
     StreamInfo getStreamInfo(StreamInfoOptions options) throws IOException, JetStreamApiException;
 
     /**
@@ -62,6 +64,7 @@ public interface StreamContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
+    @NonNull
     PurgeResponse purge() throws IOException, JetStreamApiException;
 
     /**
@@ -72,6 +75,7 @@ public interface StreamContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
+    @NonNull
     PurgeResponse purge(PurgeOptions options) throws IOException, JetStreamApiException;
 
     /**
@@ -84,7 +88,8 @@ public interface StreamContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data.
      */
-    ConsumerContext getConsumerContext(String consumerName) throws IOException, JetStreamApiException;
+    @NonNull
+    ConsumerContext getConsumerContext(@NonNull String consumerName) throws IOException, JetStreamApiException;
 
     /**
      * Management function to create or update a consumer on this stream.
@@ -95,7 +100,8 @@ public interface StreamContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data.
      */
-    ConsumerContext createOrUpdateConsumer(ConsumerConfiguration config) throws IOException, JetStreamApiException;
+    @NonNull
+    ConsumerContext createOrUpdateConsumer(@NonNull ConsumerConfiguration config) throws IOException, JetStreamApiException;
 
     /**
      * Create an ordered consumer context for the context's stream.
@@ -105,7 +111,8 @@ public interface StreamContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    OrderedConsumerContext createOrderedConsumer(OrderedConsumerConfiguration config) throws IOException, JetStreamApiException;
+    @NonNull
+    OrderedConsumerContext createOrderedConsumer(@NonNull OrderedConsumerConfiguration config) throws IOException, JetStreamApiException;
 
     /**
      * Management function to deletes a consumer.
@@ -115,7 +122,7 @@ public interface StreamContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data, for instance the consumer does not exist.
      */
-    boolean deleteConsumer(String consumerName) throws IOException, JetStreamApiException;
+    boolean deleteConsumer(@NonNull String consumerName) throws IOException, JetStreamApiException;
 
     /**
      * Gets the info for an existing consumer.
@@ -125,7 +132,8 @@ public interface StreamContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    ConsumerInfo getConsumerInfo(String consumerName) throws IOException, JetStreamApiException;
+    @NonNull
+    ConsumerInfo getConsumerInfo(@NonNull String consumerName) throws IOException, JetStreamApiException;
 
     /**
      * Return a list of consumers by name
@@ -134,6 +142,7 @@ public interface StreamContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
+    @NonNull
     List<String> getConsumerNames() throws IOException, JetStreamApiException;
 
     /**
@@ -143,6 +152,7 @@ public interface StreamContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
+    @NonNull
     List<ConsumerInfo> getConsumers() throws IOException, JetStreamApiException;
 
     /**
@@ -153,6 +163,7 @@ public interface StreamContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
+    @NonNull
     MessageInfo getMessage(long seq) throws IOException, JetStreamApiException;
 
     /**
@@ -163,7 +174,8 @@ public interface StreamContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    MessageInfo getLastMessage(String subject) throws IOException, JetStreamApiException;
+    @NonNull
+    MessageInfo getLastMessage(@NonNull String subject) throws IOException, JetStreamApiException;
 
     /**
      * Get MessageInfo for the first message of the subject.
@@ -173,7 +185,8 @@ public interface StreamContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    MessageInfo getFirstMessage(String subject) throws IOException, JetStreamApiException;
+    @NonNull
+    MessageInfo getFirstMessage(@NonNull String subject) throws IOException, JetStreamApiException;
 
     /**
      * Get MessageInfo for the message of the message sequence
@@ -185,7 +198,8 @@ public interface StreamContext {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    MessageInfo getNextMessage(long seq, String subject) throws IOException, JetStreamApiException;
+    @NonNull
+    MessageInfo getNextMessage(long seq, @NonNull String subject) throws IOException, JetStreamApiException;
 
     /**
      * Deletes a message, overwriting the message data with garbage

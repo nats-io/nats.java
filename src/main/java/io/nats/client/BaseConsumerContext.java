@@ -13,7 +13,7 @@
 
 package io.nats.client;
 
-import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
@@ -23,10 +23,10 @@ import java.time.Duration;
  * The Consumer Context provides a convenient interface around a defined JetStream Consumer
  * <p> Note: ConsumerContext requires a <b>pull consumer</b>.
  */
-@NullMarked
 public interface BaseConsumerContext {
     /**
      * Gets the consumer name that was used to create the context.
+     * Some implementations do not guarantee that the name is available.
      * @return the consumer name
      */
     @Nullable
@@ -84,6 +84,7 @@ public interface BaseConsumerContext {
      *         server, such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
+    @NonNull
     FetchConsumer fetchMessages(int maxMessages) throws IOException, JetStreamApiException;
 
     /**
@@ -94,6 +95,7 @@ public interface BaseConsumerContext {
      *         server, such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
+    @NonNull
     FetchConsumer fetchBytes(int maxBytes) throws IOException, JetStreamApiException;
 
     /**
@@ -104,7 +106,8 @@ public interface BaseConsumerContext {
      *         server, such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    FetchConsumer fetch(FetchConsumeOptions fetchConsumeOptions) throws IOException, JetStreamApiException;
+    @NonNull
+    FetchConsumer fetch(@NonNull FetchConsumeOptions fetchConsumeOptions) throws IOException, JetStreamApiException;
 
     /**
      * Start a long-running IterableConsumer with default ConsumeOptions. See {@link IterableConsumer} and {@link ConsumeOptions}
@@ -114,6 +117,7 @@ public interface BaseConsumerContext {
      *         server, such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
+    @NonNull
     IterableConsumer iterate() throws IOException, JetStreamApiException;
 
     /**
@@ -125,7 +129,8 @@ public interface BaseConsumerContext {
      *         server, such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    IterableConsumer iterate(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
+    @NonNull
+    IterableConsumer iterate(@NonNull ConsumeOptions consumeOptions) throws IOException, JetStreamApiException;
 
     /**
      * Start a long-running MessageConsumer with default ConsumeOptions. See {@link MessageConsumer} and  {@link ConsumeOptions}
@@ -135,19 +140,21 @@ public interface BaseConsumerContext {
      *         server, such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    MessageConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException;
+    @NonNull
+    MessageConsumer consume(@NonNull MessageHandler handler) throws IOException, JetStreamApiException;
 
     /**
      * Start a long-running MessageConsumer with default ConsumeOptions. See {@link MessageConsumer} and  {@link ConsumeOptions}
      *
-     * @param dispatcher The dispatcher to handle this subscription
+     * @param dispatcher The dispatcher to handle this subscription. If null, the default dispatcher will be used
      * @param handler the MessageHandler used for receiving messages.
      * @return the MessageConsumer instance
      * @throws IOException covers various communication issues with the NATS
      *         server, such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    MessageConsumer consume(Dispatcher dispatcher, MessageHandler handler) throws IOException, JetStreamApiException;
+    @NonNull
+    MessageConsumer consume(@Nullable Dispatcher dispatcher, @NonNull MessageHandler handler) throws IOException, JetStreamApiException;
 
     /**
      * Start a long-running MessageConsumer with custom ConsumeOptions. See {@link MessageConsumer} and  {@link ConsumeOptions}
@@ -159,7 +166,8 @@ public interface BaseConsumerContext {
      *         server, such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    MessageConsumer consume(ConsumeOptions consumeOptions, MessageHandler handler) throws IOException, JetStreamApiException;
+    @NonNull
+    MessageConsumer consume(@NonNull ConsumeOptions consumeOptions, @NonNull MessageHandler handler) throws IOException, JetStreamApiException;
 
     /**
      * Start a long-running MessageConsumer with custom ConsumeOptions. See {@link MessageConsumer} and  {@link ConsumeOptions}
@@ -172,5 +180,6 @@ public interface BaseConsumerContext {
      *         server, such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    MessageConsumer consume(ConsumeOptions consumeOptions, @Nullable Dispatcher dispatcher, MessageHandler handler) throws IOException, JetStreamApiException;
+    @NonNull
+    MessageConsumer consume(@NonNull ConsumeOptions consumeOptions, @Nullable Dispatcher dispatcher, @NonNull MessageHandler handler) throws IOException, JetStreamApiException;
 }

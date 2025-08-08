@@ -15,7 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.OrderedConsumerConfiguration;
-import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
@@ -24,11 +24,11 @@ import java.time.Duration;
 /**
  * Implementation of Ordered Consumer Context
  */
-@NullMarked
 public class NatsOrderedConsumerContext implements OrderedConsumerContext {
     private final NatsConsumerContext impl;
 
-    NatsOrderedConsumerContext(NatsStreamContext streamContext, OrderedConsumerConfiguration config) {
+    NatsOrderedConsumerContext(@NonNull NatsStreamContext streamContext,
+                               @NonNull OrderedConsumerConfiguration config) {
         impl = new NatsConsumerContext(streamContext, null, config);
     }
 
@@ -83,6 +83,7 @@ public class NatsOrderedConsumerContext implements OrderedConsumerContext {
      * {@inheritDoc}
      */
     @Override
+    @NonNull
     public FetchConsumer fetchMessages(int maxMessages) throws IOException, JetStreamApiException {
         return impl.fetchMessages(maxMessages);
     }
@@ -91,6 +92,7 @@ public class NatsOrderedConsumerContext implements OrderedConsumerContext {
      * {@inheritDoc}
      */
     @Override
+    @NonNull
     public FetchConsumer fetchBytes(int maxBytes) throws IOException, JetStreamApiException {
         return impl.fetchBytes(maxBytes);
     }
@@ -99,7 +101,8 @@ public class NatsOrderedConsumerContext implements OrderedConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public FetchConsumer fetch(FetchConsumeOptions fetchConsumeOptions) throws IOException, JetStreamApiException {
+    @NonNull
+    public FetchConsumer fetch(@NonNull FetchConsumeOptions fetchConsumeOptions) throws IOException, JetStreamApiException {
         return impl.fetch(fetchConsumeOptions);
     }
 
@@ -107,6 +110,7 @@ public class NatsOrderedConsumerContext implements OrderedConsumerContext {
      * {@inheritDoc}
      */
     @Override
+    @NonNull
     public IterableConsumer iterate() throws IOException, JetStreamApiException {
         return impl.iterate();
     }
@@ -115,7 +119,8 @@ public class NatsOrderedConsumerContext implements OrderedConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public IterableConsumer iterate(ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
+    @NonNull
+    public IterableConsumer iterate(@NonNull ConsumeOptions consumeOptions) throws IOException, JetStreamApiException {
         return impl.iterate(consumeOptions);
     }
 
@@ -123,7 +128,8 @@ public class NatsOrderedConsumerContext implements OrderedConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public MessageConsumer consume(MessageHandler handler) throws IOException, JetStreamApiException {
+    @NonNull
+    public MessageConsumer consume(@NonNull MessageHandler handler) throws IOException, JetStreamApiException {
         return impl.consume(handler);
     }
 
@@ -131,7 +137,8 @@ public class NatsOrderedConsumerContext implements OrderedConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public MessageConsumer consume(Dispatcher dispatcher, MessageHandler handler) throws IOException, JetStreamApiException {
+    @NonNull
+    public MessageConsumer consume(@Nullable Dispatcher dispatcher, @NonNull MessageHandler handler) throws IOException, JetStreamApiException {
         return impl.consume(dispatcher, handler);
     }
 
@@ -139,7 +146,8 @@ public class NatsOrderedConsumerContext implements OrderedConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public MessageConsumer consume(ConsumeOptions consumeOptions, MessageHandler handler) throws IOException, JetStreamApiException {
+    @NonNull
+    public MessageConsumer consume(@NonNull ConsumeOptions consumeOptions, @NonNull MessageHandler handler) throws IOException, JetStreamApiException {
         return impl.consume(consumeOptions, handler);
     }
 
@@ -147,7 +155,8 @@ public class NatsOrderedConsumerContext implements OrderedConsumerContext {
      * {@inheritDoc}
      */
     @Override
-    public MessageConsumer consume(ConsumeOptions consumeOptions, @Nullable Dispatcher dispatcher, MessageHandler handler) throws IOException, JetStreamApiException {
+    @NonNull
+    public MessageConsumer consume(@NonNull ConsumeOptions consumeOptions, @Nullable Dispatcher dispatcher, @NonNull MessageHandler handler) throws IOException, JetStreamApiException {
         return impl.consume(consumeOptions, dispatcher, handler);
     }
 }

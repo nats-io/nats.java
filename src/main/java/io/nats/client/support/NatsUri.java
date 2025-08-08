@@ -14,7 +14,7 @@
 package io.nats.client.support;
 
 import io.nats.client.Options;
-import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.net.URI;
@@ -24,7 +24,6 @@ import java.util.regex.Pattern;
 
 import static io.nats.client.support.NatsConstants.*;
 
-@NullMarked
 public class NatsUri {
     private static final int NO_PORT = -1;
     private static final String UNABLE_TO_PARSE = "Unable to parse URI string.";
@@ -40,14 +39,17 @@ public class NatsUri {
     private boolean isWebsocket;
     private boolean hostIsIpAddress;
 
+    @NonNull
     public URI getUri() {
         return uri;
     }
 
+    @Nullable
     public String getScheme() {
         return uri.getScheme();
     }
 
+    @Nullable
     public String getHost() {
         return uri.getHost();
     }
@@ -56,6 +58,7 @@ public class NatsUri {
         return uri.getPort();
     }
 
+    @Nullable
     public String getUserInfo() {
         return uri.getUserInfo();
     }
@@ -72,6 +75,7 @@ public class NatsUri {
         return hostIsIpAddress;
     }
 
+    @NonNull
     public NatsUri reHost(String newHost) throws URISyntaxException {
         String newUrl = (uri.getRawUserInfo() == null)
             ? uri.getScheme() + "://" + newHost + ":" + uri.getPort()
@@ -109,15 +113,15 @@ public class NatsUri {
         postConstruct();
     }
 
-    public NatsUri(URI uri) throws URISyntaxException {
+    public NatsUri(@NonNull URI uri) throws URISyntaxException {
         this(uri.toString(), null);
     }
 
-    public NatsUri(String url) throws URISyntaxException {
+    public NatsUri(@NonNull String url) throws URISyntaxException {
         this(url, null);
     }
 
-    public NatsUri(String url, @Nullable String defaultScheme) throws URISyntaxException {
+    public NatsUri(@NonNull String url, @Nullable String defaultScheme) throws URISyntaxException {
     /*
         test string --> result of new URI(String)
 
@@ -260,7 +264,8 @@ public class NatsUri {
         }
     }
 
-    public static String join(String delimiter, List<NatsUri> uris) {
+    @NonNull
+    public static String join(@NonNull String delimiter, @NonNull List<NatsUri> uris) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < uris.size(); i++) {
             if (i > 0) {
@@ -275,7 +280,7 @@ public class NatsUri {
         return uri.getHost().toLowerCase() + uri.getPort();
     }
 
-    public boolean equivalent(NatsUri other) {
+    public boolean equivalent(@NonNull NatsUri other) {
         return equivalentComparable().compareTo(other.equivalentComparable()) == 0;
     }
 }
