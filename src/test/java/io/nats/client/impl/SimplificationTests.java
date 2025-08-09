@@ -1317,7 +1317,7 @@ public class SimplificationTests extends JetStreamTestBase {
     private void validateCantCallOtherMethods(OrderedConsumerContext ctx) {
         assertThrows(IOException.class, () -> ctx.next(1000));
         assertThrows(IOException.class, () -> ctx.fetchMessages(1));
-        assertThrows(IOException.class, () -> ctx.consume(null));
+        assertThrows(IllegalArgumentException.class, () -> ctx.consume(null));
     }
 
     @Test
