@@ -39,14 +39,14 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
     private final ReentrantLock stateLock;
     private final NatsStreamContext streamCtx;
     private final boolean ordered;
-    private final @Nullable ConsumerConfiguration initialOrderedConsumerConfig;
-    private final @Nullable PullSubscribeOptions unorderedBindPso;
+    private final ConsumerConfiguration initialOrderedConsumerConfig;
+    private final PullSubscribeOptions unorderedBindPso;
 
     private final AtomicReference<ConsumerInfo> cachedConsumerInfo;
     private final AtomicReference<String> consumerName;
     private final AtomicLong highestSeq;
-    private final AtomicReference<@Nullable Dispatcher> defaultDispatcher;
-    private final AtomicReference<@Nullable NatsMessageConsumerBase> lastConsumer;
+    private final AtomicReference<Dispatcher> defaultDispatcher;
+    private final AtomicReference<NatsMessageConsumerBase> lastConsumer;
 
     NatsConsumerContext(@NonNull NatsStreamContext sc, @Nullable ConsumerInfo unorderedConsumerInfo, @Nullable OrderedConsumerConfiguration occ) {
         stateLock = new ReentrantLock();
@@ -193,7 +193,9 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
     @Override
     @Nullable
     public Message next(@Nullable Duration maxWait) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException {
-        return maxWait == null ? next(DEFAULT_EXPIRES_IN_MILLIS) : next(maxWait.toMillis());
+        return maxWait == null || maxWait.isZero() || maxWait.isNegative()
+            ? next(DEFAULT_EXPIRES_IN_MILLIS)
+            : next(maxWait.toMillis());
     }
 
     /**

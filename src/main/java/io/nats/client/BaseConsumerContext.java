@@ -47,8 +47,9 @@ public interface BaseConsumerContext {
 
     /**
      * Read the next message with provided max wait
-     * @param maxWait duration of max wait. Cannot be less than {@value BaseConsumeOptions#MIN_EXPIRES_MILLS} milliseconds.
-     *                If null, {@value BaseConsumeOptions#DEFAULT_EXPIRES_IN_MILLIS} will be used.
+     * @param maxWait duration of max wait.
+     *                If null, zero or negative, {@value BaseConsumeOptions#DEFAULT_EXPIRES_IN_MILLIS} will be used.
+     *                If greater than zero, it cannot be less than {@value BaseConsumeOptions#MIN_EXPIRES_MILLS} milliseconds.
      * @return the next message or null if the max wait expires
      * @throws IOException covers various communication issues with the NATS
      *         server, such as timeout or interruption
@@ -56,7 +57,7 @@ public interface BaseConsumerContext {
      * @throws JetStreamStatusCheckedException an exception representing a status that requires attention,
      *         such as the consumer was deleted on the server in the middle of use.
      * @throws JetStreamApiException the request had an error related to the data
-     * @throws IllegalArgumentException if maxWait less than {@value BaseConsumeOptions#MIN_EXPIRES_MILLS}
+     * @throws IllegalArgumentException if maxWait is provided and less than {@value BaseConsumeOptions#MIN_EXPIRES_MILLS}
      */
     @Nullable
     Message next(@Nullable Duration maxWait) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException;
@@ -71,7 +72,7 @@ public interface BaseConsumerContext {
      * @throws JetStreamStatusCheckedException an exception representing a status that requires attention,
      *         such as the consumer was deleted on the server in the middle of use.
      * @throws JetStreamApiException the request had an error related to the data
-     * @throws IllegalArgumentException if maxWait less than {@value BaseConsumeOptions#MIN_EXPIRES_MILLS}
+     * @throws IllegalArgumentException if maxWait is provided and less than {@value BaseConsumeOptions#MIN_EXPIRES_MILLS}
      */
     @Nullable
     Message next(long maxWaitMillis) throws IOException, InterruptedException, JetStreamStatusCheckedException, JetStreamApiException;
@@ -99,8 +100,8 @@ public interface BaseConsumerContext {
     FetchConsumer fetchBytes(int maxBytes) throws IOException, JetStreamApiException;
 
     /**
-     * Start a one-use Fetch Consumer with complete custom consume options. See {@link FetchConsumer}
-     * @param fetchConsumeOptions the custom fetch consume options. See {@link FetchConsumeOptions}
+     * Start a one-use Fetch Consumer with custom FetchConsumeOptions. See {@link FetchConsumeOptions}
+     * @param fetchConsumeOptions the custom fetch consume options.
      * @return the FetchConsumer instance
      * @throws IOException covers various communication issues with the NATS
      *         server, such as timeout or interruption
@@ -134,6 +135,7 @@ public interface BaseConsumerContext {
 
     /**
      * Start a long-running MessageConsumer with default ConsumeOptions. See {@link MessageConsumer} and  {@link ConsumeOptions}
+     * and the default dispatcher for this consumer context.
      * @param handler the MessageHandler used for receiving messages.
      * @return the MessageConsumer instance
      * @throws IOException covers various communication issues with the NATS
@@ -145,8 +147,7 @@ public interface BaseConsumerContext {
 
     /**
      * Start a long-running MessageConsumer with default ConsumeOptions. See {@link MessageConsumer} and  {@link ConsumeOptions}
-     *
-     * @param dispatcher The dispatcher to handle this subscription. If null, the default dispatcher will be used
+     * @param dispatcher The dispatcher to handle this subscription. If null, the default dispatcher will be used.
      * @param handler the MessageHandler used for receiving messages.
      * @return the MessageConsumer instance
      * @throws IOException covers various communication issues with the NATS
@@ -158,7 +159,7 @@ public interface BaseConsumerContext {
 
     /**
      * Start a long-running MessageConsumer with custom ConsumeOptions. See {@link MessageConsumer} and  {@link ConsumeOptions}
-     *
+     * and the default dispatcher for this consumer context.
      * @param consumeOptions the custom consume options
      * @param handler the MessageHandler used for receiving messages.
      * @return the MessageConsumer instance
@@ -171,9 +172,8 @@ public interface BaseConsumerContext {
 
     /**
      * Start a long-running MessageConsumer with custom ConsumeOptions. See {@link MessageConsumer} and  {@link ConsumeOptions}
-     *
      * @param consumeOptions the custom consume options
-     * @param dispatcher the dispatcher to handle this subscription
+     * @param dispatcher The dispatcher to handle this subscription. If null, the default dispatcher will be used.
      * @param handler the MessageHandler used for receiving messages.
      * @return the MessageConsumer instance
      * @throws IOException covers various communication issues with the NATS

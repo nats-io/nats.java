@@ -1546,7 +1546,7 @@ class NatsConnection implements Connection {
             throw new TimeoutException("Attempted to flush while closed");
         }
 
-        if (timeout == null) {
+        if (timeout == null || timeout.isNegative()) {
             timeout = Duration.ZERO;
         }
 

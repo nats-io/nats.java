@@ -52,7 +52,7 @@ class NatsStreamContext implements StreamContext {
     @Override
     @NonNull
     public StreamInfo getStreamInfo() throws IOException, JetStreamApiException {
-        return jsm.getStreamInfo(streamName);
+        return jsm.getStreamInfo(streamName, null);
     }
 
     /**
@@ -60,7 +60,7 @@ class NatsStreamContext implements StreamContext {
      */
     @Override
     @NonNull
-    public StreamInfo getStreamInfo(StreamInfoOptions options) throws IOException, JetStreamApiException {
+    public StreamInfo getStreamInfo(@Nullable StreamInfoOptions options) throws IOException, JetStreamApiException {
         return jsm.getStreamInfo(streamName, options);
     }
 

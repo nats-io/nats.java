@@ -175,6 +175,8 @@ public class SocketDataPort implements DataPort {
 
     @Override
     public void forceClose() throws IOException {
+        // socket can technically be null, like between states
+        // practically it never will be, but guard it anyway
         if (socket != null) {
             try {
                 // If we are being asked to force close, there is no need to linger.

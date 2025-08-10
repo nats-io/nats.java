@@ -36,7 +36,7 @@ public interface ServerPool {
      * @param discoveredServers the list of discovered servers.
      * @return true if there were any unknown servers provided
      */
-    boolean acceptDiscoveredUrls(@NonNull List<String> discoveredServers);
+    boolean acceptDiscoveredUrls(@NonNull List<@NonNull String> discoveredServers);
 
     /**
      * Just take a peek at the next server without doing any processing.
@@ -55,7 +55,7 @@ public interface ServerPool {
     /**
      * Resolve a host name to an ip address
      * @param host the host to resolve
-     * @return a list of resolved hosts. Can be empty or null.
+     * @return a list of resolved hosts. Can be null.
      */
     @Nullable
     List<String> resolveHostToIps(@NonNull String host);

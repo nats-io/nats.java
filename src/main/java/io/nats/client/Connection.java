@@ -169,11 +169,11 @@ public interface Connection extends AutoCloseable {
      * this exception as a signal to wait for reconnect before continuing.
      * </p>
      * @param subject the subject to send the message to
-     * @param replyTo the subject the receiver should send the response to
+     * @param replyTo the subject the receiver should send any response to
      * @param body the message body
      * @throws IllegalStateException if the reconnect buffer is exceeded
      */
-    void publish(@NonNull String subject, String replyTo, byte @Nullable [] body);
+    void publish(@NonNull String subject, @Nullable String replyTo, byte @Nullable [] body);
 
     /**
      * Send a request to the specified subject, providing a replyTo subject. The
@@ -195,7 +195,7 @@ public interface Connection extends AutoCloseable {
      * this exception as a signal to wait for reconnect before continuing.
      * </p>
      * @param subject the subject to send the message to
-     * @param replyTo the subject the receiver should send the response to
+     * @param replyTo the subject the receiver should send any response to
      * @param headers Optional headers to publish with the message.
      * @param body the message body
      * @throws IllegalStateException if the reconnect buffer is exceeded
@@ -527,8 +527,9 @@ public interface Connection extends AutoCloseable {
     Options getOptions();
 
     /**
-     * Return the server info object. Will never be null, but will be an "empty" instance
-     * before a connection is made and will represent the last connected server while disconnected.
+     * Return the server info object. Will never be null, but will be an instance of {@link ServerInfo#EMPTY_INFO}
+     * before a connection is made, and will represent the last connected server once connected and while disconnected
+     * until a new connection is made.
      * @return the server information such as id, client info, etc.
      */
     @NonNull

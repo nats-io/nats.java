@@ -15,6 +15,7 @@ package io.nats.client;
 
 import io.nats.client.api.*;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.util.List;
@@ -55,7 +56,7 @@ public interface StreamContext {
      *         most likely the stream has been removed since the context was created.
      */
     @NonNull
-    StreamInfo getStreamInfo(StreamInfoOptions options) throws IOException, JetStreamApiException;
+    StreamInfo getStreamInfo(@Nullable StreamInfoOptions options) throws IOException, JetStreamApiException;
 
     /**
      * Purge stream messages

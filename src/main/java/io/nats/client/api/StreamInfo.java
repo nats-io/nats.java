@@ -40,11 +40,11 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
     private final List<StreamAlternate> alternates;
     private final ZonedDateTime timestamp;
 
-    public StreamInfo(Message msg) {
+    public StreamInfo(@NonNull Message msg) {
         this(parseUnchecked(msg.getData()));
     }
 
-    public StreamInfo(JsonValue vStreamInfo) {
+    public StreamInfo(@NonNull JsonValue vStreamInfo) {
         super(vStreamInfo);
         createTime = readDate(jv, CREATED);
         JsonValue jvConfig = readValue(jv, CONFIG); // null when it's an error

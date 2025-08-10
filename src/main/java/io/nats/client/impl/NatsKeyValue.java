@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.Debug;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
@@ -111,6 +112,7 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
     }
 
     KeyValueEntry existingOnly(KeyValueEntry kve) {
+        Debug.info("_get", kve);
         return kve == null || kve.getOperation() != KeyValueOperation.PUT ? null : kve;
     }
 

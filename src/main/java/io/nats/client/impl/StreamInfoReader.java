@@ -17,6 +17,8 @@ import io.nats.client.JetStreamApiException;
 import io.nats.client.Message;
 import io.nats.client.api.StreamInfo;
 import io.nats.client.api.StreamInfoOptions;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import static io.nats.client.support.ApiConstants.DELETED_DETAILS;
 import static io.nats.client.support.ApiConstants.SUBJECTS_FILTER;
@@ -31,7 +33,7 @@ class StreamInfoReader {
         engine = new ListRequestEngine();
     }
 
-    void process(Message msg) throws JetStreamApiException {
+    void process(@NonNull Message msg) throws JetStreamApiException {
         engine = new ListRequestEngine(msg);
         StreamInfo si = new StreamInfo(msg);
         if (streamInfo == null) {
@@ -46,7 +48,7 @@ class StreamInfoReader {
         return engine.hasMore();
     }
 
-    byte[] nextJson(StreamInfoOptions options) {
+    byte @NonNull [] nextJson(@Nullable StreamInfoOptions options) {
         StringBuilder sb = beginJson();
         addField(sb, "offset", engine.nextOffset());
         if (options != null) {

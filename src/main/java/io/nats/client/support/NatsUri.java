@@ -44,12 +44,12 @@ public class NatsUri {
         return uri;
     }
 
-    @Nullable
+    @NonNull
     public String getScheme() {
         return uri.getScheme();
     }
 
-    @Nullable
+    @NonNull
     public String getHost() {
         return uri.getHost();
     }

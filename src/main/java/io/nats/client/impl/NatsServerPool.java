@@ -37,8 +37,8 @@ public class NatsServerPool implements ServerPool {
     protected Options options;
     protected int maxConnectAttempts;
     protected boolean hasSecureServer;
-    protected @Nullable NatsUri lastConnected;
-    protected @Nullable String defaultScheme;
+    protected NatsUri lastConnected;
+    protected String defaultScheme;
 
     public NatsServerPool() {
         listLock = new ReentrantLock();
@@ -89,7 +89,7 @@ public class NatsServerPool implements ServerPool {
      * {@inheritDoc}
      */
     @Override
-    public boolean acceptDiscoveredUrls(@NonNull List<String> discoveredServers) {
+    public boolean acceptDiscoveredUrls(@NonNull List<@NonNull String> discoveredServers) {
         // 1. If ignored discovered servers, don't do anything b/c never want
         //    anything but the explicit, which is already loaded.
         // 2. return false == no new servers discovered
