@@ -14,9 +14,11 @@
 package io.nats.client.impl;
 
 import io.nats.client.support.ByteArrayBuilder;
+import org.jspecify.annotations.Nullable;
 
 import java.util.*;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 
 import static io.nats.client.support.NatsConstants.*;
 import static java.nio.charset.StandardCharsets.US_ASCII;
@@ -36,8 +38,7 @@ public class Headers {
 
 	private final Map<String, List<String>> valuesMap;
 	private final Map<String, Integer> lengthMap;
-	private final boolean readOnly;
-	private byte[] serialized;
+	private byte @Nullable [] serialized;
 	private int dataLength;
 
 	public Headers() {
@@ -52,7 +53,7 @@ public class Headers {
 		this(headers, readOnly, null);
 	}
 
-	public Headers(Headers headers, boolean readOnly, String[] keysNotToCopy) {
+	public Headers(@Nullable Headers headers, boolean readOnly, String @Nullable [] keysNotToCopy) {
 		Map<String, List<String>> tempValuesMap = new HashMap<>();
 		Map<String, Integer> tempLengthMap = new HashMap<>();
 		if (headers != null) {
@@ -69,7 +70,6 @@ public class Headers {
 				}
 			}
 		}
-		this.readOnly = readOnly;
 		if (readOnly) {
 			valuesMap = Collections.unmodifiableMap(tempValuesMap);
 			lengthMap = Collections.unmodifiableMap(tempLengthMap);
@@ -92,7 +92,7 @@ public class Headers {
 	 *         -or- if any value contains invalid characters
 	 */
 	public Headers add(String key, String... values) {
-		if (readOnly) {
+		if (isReadOnly()) {
 			throw new UnsupportedOperationException();
 		}
 		if (values == null || values.length == 0) {
@@ -113,7 +113,7 @@ public class Headers {
 	 *         -or- if any value contains invalid characters
 	 */
 	public Headers add(String key, Collection<String> values) {
-		if (readOnly) {
+		if (isReadOnly()) {
 			throw new UnsupportedOperationException();
 		}
 		if (values == null || values.isEmpty()) {
@@ -153,7 +153,7 @@ public class Headers {
 	 *         -or- if any value contains invalid characters
 	 */
 	public Headers put(String key, String... values) {
-		if (readOnly) {
+		if (isReadOnly()) {
 			throw new UnsupportedOperationException();
 		}
 		if (values == null || values.length == 0) {
@@ -174,7 +174,7 @@ public class Headers {
 	 *         -or- if any value contains invalid characters
 	 */
 	public Headers put(String key, Collection<String> values) {
-		if (readOnly) {
+		if (isReadOnly()) {
 			throw new UnsupportedOperationException();
 		}
 		if (values == null || values.isEmpty()) {
@@ -191,14 +191,14 @@ public class Headers {
 	 * @return the Headers object
 	 */
 	public Headers put(Map<String, List<String>> map) {
-		if (readOnly) {
+		if (isReadOnly()) {
 			throw new UnsupportedOperationException();
 		}
 		if (map == null || map.isEmpty()) {
 			return this;
 		}
-		for (String key : map.keySet() ) {
-			_put(key, map.get(key));
+		for (Map.Entry<String, List<String>> entry : map.entrySet()) {
+			_put(entry.getKey(), entry.getValue());
 		}
 		return this;
 	}
@@ -228,7 +228,7 @@ public class Headers {
 	 * @param keys the key or keys to remove
 	 */
 	public void remove(String... keys) {
-		if (readOnly) {
+		if (isReadOnly()) {
 			throw new UnsupportedOperationException();
 		}
 		for (String key : keys) {
@@ -243,7 +243,7 @@ public class Headers {
 	 * @param keys the key or keys to remove
 	 */
 	public void remove(Collection<String> keys) {
-		if (readOnly) {
+		if (isReadOnly()) {
 			throw new UnsupportedOperationException();
 		}
 		for (String key : keys) {
@@ -282,7 +282,7 @@ public class Headers {
 	 * Removes all the keys The object map will be empty after this call returns.
 	 */
 	public void clear() {
-		if (readOnly) {
+		if (isReadOnly()) {
 			throw new UnsupportedOperationException();
 		}
 		valuesMap.clear();
@@ -331,7 +331,7 @@ public class Headers {
 	 * @return a read-only set of keys (in lowercase) contained in this map
 	 */
 	public Set<String> keySetIgnoreCase() {
-		HashSet<String> set = new HashSet<>();
+		HashSet<String> set = new HashSet<>(valuesMap.size()*4/3 + 1);
 		for (String k : valuesMap.keySet()) {
 			set.add(k.toLowerCase());
 		}
@@ -345,7 +345,7 @@ public class Headers {
 	 * @param key the key whose associated value is to be returned
 	 * @return a read-only list of the values for the case-sensitive key.
 	 */
-	public List<String> get(String key) {
+	public @Nullable List<String> get(String key) {
 		List<String> values = valuesMap.get(key);
 		return values == null ? null : Collections.unmodifiableList(values);
 	}
@@ -356,7 +356,7 @@ public class Headers {
 	 * @param key the key whose associated value is to be returned
 	 * @return the first value for the case-sensitive key.
 	 */
-	public String getFirst(String key) {
+	public @Nullable String getFirst(String key) {
 		List<String> values = valuesMap.get(key);
 		return values == null ? null : values.get(0);
 	}
@@ -368,7 +368,7 @@ public class Headers {
 	 * @param key the key whose associated value is to be returned
 	 * @return the last value for the case-sensitive key.
 	 */
-	public String getLast(String key) {
+	public @Nullable String getLast(String key) {
 		List<String> values = valuesMap.get(key);
 		return values == null ? null : values.get(values.size() - 1);
 	}
@@ -380,11 +380,11 @@ public class Headers {
 	 * @param key the key whose associated value is to be returned
 	 * @return a read-only list of the values for the case-insensitive key.
 	 */
-	public List<String> getIgnoreCase(String key) {
+	public @Nullable List<String> getIgnoreCase(String key) {
 		List<String> values = new ArrayList<>();
-		for (String k : valuesMap.keySet()) {
-			if (k.equalsIgnoreCase(key)) {
-				values.addAll(valuesMap.get(k));
+		for (Map.Entry<String, List<String>> entry : valuesMap.entrySet()) {
+			if (entry.getKey().equalsIgnoreCase(key)) {
+				values.addAll(entry.getValue());
 			}
 		}
 		return values.isEmpty() ? null : Collections.unmodifiableList(values);
@@ -401,7 +401,8 @@ public class Headers {
 	 * removed during iteration
 	 */
 	public void forEach(BiConsumer<String, List<String>> action) {
-		Collections.unmodifiableMap(valuesMap).forEach(action);
+		valuesMap.forEach((key, values) ->
+				action.accept(key, Collections.unmodifiableList(values)));
 	}
 
 	/**
@@ -460,9 +461,9 @@ public class Headers {
 	@Deprecated
 	public ByteArrayBuilder appendSerialized(ByteArrayBuilder bab) {
 		bab.append(HEADER_VERSION_BYTES_PLUS_CRLF);
-		for (String key : valuesMap.keySet()) {
-			for (String value : valuesMap.get(key)) {
-				bab.append(key);
+		for (Map.Entry<String, List<String>> entry : valuesMap.entrySet()) {
+			for (String value : entry.getValue()) {
+				bab.append(entry.getKey());
 				bab.append(COLON_BYTES);
 				bab.append(value);
 				bab.append(CRLF_BYTES);
@@ -535,11 +536,12 @@ public class Headers {
 	private void checkValue(String val) {
 		// Like rfc822 section 3.1.2 (quoted in ADR 4)
 		// The field-body may be composed of any US-ASCII characters, except CR or LF.
-		val.chars().forEach(c -> {
+		for (int i = 0, len = val.length(); i < len; i++) {
+			int c = val.charAt(i);
 			if (c > 127 || c == 10 || c == 13) {
-				throw new IllegalArgumentException(VALUE_INVALID_CHARACTERS + c);
+				throw new IllegalArgumentException(VALUE_INVALID_CHARACTERS + Integer.toHexString(c));
 			}
-		});
+		}
 	}
 
 	private class Checker {
@@ -575,19 +577,34 @@ public class Headers {
 	 * @return the read only state
 	 */
 	public boolean isReadOnly() {
-		return readOnly;
+		return !(valuesMap instanceof HashMap);
 	}
 
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;
-		if (o == null || getClass() != o.getClass()) return false;
+		if (!(o instanceof Headers)) return false;
 		Headers headers = (Headers) o;
 		return Objects.equals(valuesMap, headers.valuesMap);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(valuesMap);
+		return Objects.hashCode(valuesMap);
+	}
+
+	@Override
+	public String toString() {
+		return valuesMap.entrySet().stream()
+				.filter(e -> e.getValue() != null)
+				.sorted(Map.Entry.comparingByKey())
+				.map(e -> {
+					String headerName = e.getKey();
+					List<String> values = e.getValue();
+					return headerName +": "+ (values.size() == 1 ? values.get(0)
+							: String.join(", ", values)
+					);
+				})
+				.collect(Collectors.joining("; "));
 	}
 }

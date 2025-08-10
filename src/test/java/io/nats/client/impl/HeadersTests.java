@@ -217,7 +217,13 @@ public class HeadersTests {
         assertTrue(headers1.isReadOnly());
         assertThrows(UnsupportedOperationException.class, () -> headers1.put(KEY1, VAL2));
         assertThrows(UnsupportedOperationException.class, () -> headers1.put(KEY1, VAL2));
+        assertThrows(UnsupportedOperationException.class, () -> headers1.put(KEY1, VAL1, VAL2));
+        assertThrows(UnsupportedOperationException.class, () -> headers1.put(KEY1, Arrays.asList(VAL1, VAL2)));
         assertThrows(UnsupportedOperationException.class, () -> headers1.remove(KEY1));
+        assertThrows(UnsupportedOperationException.class, () -> headers1.remove(KEY1,KEY2));
+        assertThrows(UnsupportedOperationException.class, () -> headers1.remove(Arrays.asList(KEY1,KEY2)));
+        assertThrows(UnsupportedOperationException.class, () -> headers1.add(KEY1, VAL2));
+        assertThrows(UnsupportedOperationException.class, () -> headers1.add(KEY1, Arrays.asList(VAL1, VAL2)));
         assertThrows(UnsupportedOperationException.class, headers1::clear);
         assertEquals(VAL1, headers1.getFirst(KEY1));
     }
@@ -761,6 +767,16 @@ public class HeadersTests {
     @Test
     public void testToString() {
         assertNotNull(new Status(1, "msg").toString()); // COVERAGE
+
+        Headers h = new Headers();
+        h.add("Test1");
+        h.add("Test2", "Test2Value");
+        h.add("Test3", "");
+        h.add("Test4", "", "", "");
+        h.add("Test5", "Nice!", "To.", "See?");
+
+        assertEquals("Test2: Test2Value; Test3: ; Test4: , , ; Test5: Nice!, To., See?", h.toString()
+        );
     }
 
     @Test
@@ -781,5 +797,31 @@ public class HeadersTests {
         assertTrue(h.get(KEY2).contains(VAL2));
         assertTrue(h.get(KEY2).contains(VAL3));
         assertEquals(VAL2, h.getFirst(KEY2));
+    }
+
+    @Test
+    void testForEach() {
+        Headers h = new Headers();
+        h.put("test", "a","b","c");
+        h.forEach((k, v) -> {
+            assertEquals("test", k);
+            assertContainsExactly(v, "a", "b", "c");
+            assertThrows(UnsupportedOperationException.class, ()->v.add("z"));
+        });
+    }
+
+    /// @see io.nats.client.impl.Headers#checkValue
+    @Test
+    void testCheckValue() {
+        Headers h = new Headers();
+        h.put("test1", "\u0000 \f\b\t");
+
+        assertThrows(IllegalArgumentException.class, ()->h.put("test", "×"));
+        assertThrows(IllegalArgumentException.class, ()->h.put("test", "\r"));
+        assertThrows(IllegalArgumentException.class, ()->h.put("test", "\n"));
+
+        assertEquals(1, h.size());
+        assertEquals(1, h.get("test1").size());
+        assertEquals("\u0000 \f\b\t", h.getFirst("test1"));
     }
 }
