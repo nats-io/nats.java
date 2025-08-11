@@ -14,7 +14,6 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
-import io.nats.client.support.Debug;
 import io.nats.client.support.NatsKeyValueUtil;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
@@ -1989,7 +1988,6 @@ public class KeyValueTests extends JetStreamTestBase {
             KeyValueWatcher watcher = new KeyValueWatcher() {
                 @Override
                 public void watch(KeyValueEntry keyValueEntry) {
-                    Debug.info("W", keyValueEntry);
                     if (keyValueEntry.getOperation() == KeyValueOperation.PUT) {
                         wPuts.incrementAndGet();
                     }
@@ -2016,7 +2014,6 @@ public class KeyValueTests extends JetStreamTestBase {
             AtomicInteger rTtl5 = new AtomicInteger();
 
             MessageHandler rawHandler = msg -> {
-                Debug.info("RAW", msg);
                 rMessages.incrementAndGet();
                 if (msg.hasHeaders()) {
                     String h = msg.getHeaders().getFirst("KV-Operation");
