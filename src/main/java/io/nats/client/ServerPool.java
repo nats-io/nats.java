@@ -14,6 +14,8 @@
 package io.nats.client;
 
 import io.nats.client.support.NatsUri;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
@@ -26,7 +28,7 @@ public interface ServerPool {
      * Initialize the pool.
      * @param opts the options that was used to make the connection is supplied
      */
-    void initialize(Options opts);
+    void initialize(@NonNull Options opts);
 
     /**
      * When the connection received discovered servers (ServerInfo.getConnectURLs)
@@ -34,43 +36,47 @@ public interface ServerPool {
      * @param discoveredServers the list of discovered servers.
      * @return true if there were any unknown servers provided
      */
-    boolean acceptDiscoveredUrls(List<String> discoveredServers);
+    boolean acceptDiscoveredUrls(@NonNull List<@NonNull String> discoveredServers);
 
     /**
      * Just take a peek at the next server without doing any processing.
      * @return the next server Nuri or null if the pool is empty.
      */
+    @Nullable
     NatsUri peekNextServer();
 
     /**
      * Get the next server to try to connect to.
      * @return the next server Nuri or null if the pool is empty.
      */
+    @Nullable
     NatsUri nextServer();
 
     /**
      * Resolve a host name to an ip address
      * @param host the host to resolve
-     * @return a list of resolved hosts. Can be empty or null.
+     * @return a list of resolved hosts. Can be null.
      */
-    List<String> resolveHostToIps(String host);
+    @Nullable
+    List<String> resolveHostToIps(@NonNull String host);
 
     /**
      * Indicate that the connection to this NatsUri succeeded.
      * @param nuri should match the NatsUri given by nextServer
      */
-    void connectSucceeded(NatsUri nuri);
+    void connectSucceeded(@NonNull NatsUri nuri);
 
     /**
      * Indicate that the connection to this NatsUri failed.
      * @param nuri should match the NatsUri given by nextServer
      */
-    void connectFailed(NatsUri nuri);
+    void connectFailed(@NonNull NatsUri nuri);
 
     /**
      * Get the list of servers known to the pool. Purely informational
      * @return the list of servers
      */
+    @NonNull
     List<String> getServerList();
 
     /**

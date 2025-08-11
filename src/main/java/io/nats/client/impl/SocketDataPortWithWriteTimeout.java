@@ -18,6 +18,7 @@ import io.nats.client.NatsSystemClock;
 import io.nats.client.Options;
 import io.nats.client.support.NatsUri;
 import io.nats.client.support.ScheduledTask;
+import org.jspecify.annotations.NonNull;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -25,6 +26,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * This class is not thread-safe.  Caller must ensure thread safety.
  */
+@SuppressWarnings("ClassEscapesDefinedScope") // NatsConnection
 public class SocketDataPortWithWriteTimeout extends SocketDataPort {
 
     private long writeTimeoutNanos;
@@ -51,7 +53,7 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
     }
 
     @Override
-    public void connect(NatsConnection conn, NatsUri nuri, long timeoutNanos) throws IOException {
+    public void connect(@NonNull NatsConnection conn, @NonNull NatsUri nuri, long timeoutNanos) throws IOException {
         super.connect(conn, nuri, timeoutNanos);
         writeWatchTask = new ScheduledTask(conn.getScheduledExecutor(), delayPeriodMillis,
             () -> {

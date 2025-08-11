@@ -112,7 +112,7 @@ public class ConnectionListenerTests {
                                 build();
             Connection nc = standardConnection(options);
             standardCloseConnection(nc);
-            assertTrue(((NatsConnection)nc).getNatsStatistics().getExceptions() > 0);
+            assertTrue(((NatsConnection)nc).getStatisticsCollector().getExceptions() > 0);
         }
     }
 
@@ -129,7 +129,9 @@ public class ConnectionListenerTests {
             Connection nc = standardConnection(options);
             assertEquals(ts.getURI(), nc.getConnectedUrl());
 
+            //noinspection DataFlowIssue // addConnectionListener parameter is annotated as @NonNull
             assertThrows(NullPointerException.class, () -> nc.addConnectionListener(null));
+            //noinspection DataFlowIssue // removeConnectionListener parameter is annotated as @NonNull
             assertThrows(NullPointerException.class, () -> nc.removeConnectionListener(null));
 
             ConnectionListener removedConnectionListener = (conn, event) -> capturedEvents.add("NEVER INVOKED");
@@ -144,7 +146,7 @@ public class ConnectionListenerTests {
             standardCloseConnection(nc);
             assertNull(nc.getConnectedUrl());
             assertEquals(1, listener.getEventCount(Events.CLOSED));
-            assertTrue(((NatsConnection)nc).getNatsStatistics().getExceptions() > 0);
+            assertTrue(((NatsConnection)nc).getStatisticsCollector().getExceptions() > 0);
         }
 
         Set<String> expectedEvents = new HashSet<>(Arrays.asList(

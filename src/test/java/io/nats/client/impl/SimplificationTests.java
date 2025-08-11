@@ -110,6 +110,9 @@ public class SimplificationTests extends JetStreamTestBase {
         MessageInfo mi = streamContext.getMessage(1);
         assertEquals(1, mi.getSeq());
 
+        mi = streamContext.getFirstMessage(tsc.subject());
+        assertEquals(1, mi.getSeq());
+
         mi = streamContext.getLastMessage(tsc.subject());
         assertEquals(6, mi.getSeq());
 
@@ -1314,7 +1317,7 @@ public class SimplificationTests extends JetStreamTestBase {
     private void validateCantCallOtherMethods(OrderedConsumerContext ctx) {
         assertThrows(IOException.class, () -> ctx.next(1000));
         assertThrows(IOException.class, () -> ctx.fetchMessages(1));
-        assertThrows(IOException.class, () -> ctx.consume(null));
+        assertThrows(IllegalArgumentException.class, () -> ctx.consume(null));
     }
 
     @Test

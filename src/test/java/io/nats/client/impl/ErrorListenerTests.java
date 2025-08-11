@@ -120,8 +120,9 @@ public class ErrorListenerTests {
             assertEquals(ts3.getURI(), nc.getConnectedUrl());
 
             nc.clearLastError();
-            assertEquals("", nc.getLastError());
-        } finally {
+            assertNull(nc.getLastError());
+        }
+        finally {
             standardCloseConnection(nc);
         }
     }
@@ -220,7 +221,7 @@ public class ErrorListenerTests {
 
             nc.close(); // should force the exception listener through
 
-            assertTrue(nc.getNatsStatistics().getExceptions() > 0);
+            assertTrue(nc.getStatisticsCollector().getExceptions() > 0);
         }
     }
 
@@ -250,7 +251,7 @@ public class ErrorListenerTests {
                 }
 
                 assertNull(msg);
-                assertEquals(((NatsConnection) nc).getNatsStatistics().getExceptions(), 2); // 1 for the dispatcher, 1 for the handlers
+                assertEquals(((NatsConnection) nc).getStatisticsCollector().getExceptions(), 2); // 1 for the dispatcher, 1 for the handlers
             } finally {
                 standardCloseConnection(nc);
             }

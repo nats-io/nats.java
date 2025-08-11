@@ -28,6 +28,8 @@ import static io.nats.client.support.JsonValueUtils.*;
 
 public class ServerInfo {
 
+    public static ServerInfo EMPTY_INFO = new ServerInfo("INFO {}");
+
     private final String serverId;
     private final String serverName;
     private final String version;
@@ -62,11 +64,11 @@ public class ServerInfo {
             throw new IllegalArgumentException("Invalid Server Info Json");
         }
 
-        serverId = readString(jv, SERVER_ID);
-        serverName = readString(jv, SERVER_NAME);
-        version = readString(jv, VERSION);
-        go = readString(jv, GO);
-        host = readString(jv, HOST);
+        serverId = readString(jv, SERVER_ID, "N/A");
+        serverName = readString(jv, SERVER_NAME, "N/A");
+        version = readString(jv, VERSION, "0.0.0");
+        go = readString(jv, GO, "0.0.0");
+        host = readString(jv, HOST, "N/A");
         headersSupported = readBoolean(jv, HEADERS);
         authRequired = readBoolean(jv, AUTH_REQUIRED);
         nonce = readBytes(jv, NONCE);
@@ -78,7 +80,7 @@ public class ServerInfo {
         protocolVersion = readInteger(jv, PROTO, 0);
         maxPayload = readLong(jv, MAX_PAYLOAD, 0);
         clientId = readInteger(jv, CLIENT_ID, 0);
-        clientIp = readString(jv, CLIENT_IP);
+        clientIp = readString(jv, CLIENT_IP, "0.0.0.0");
         cluster = readString(jv, CLUSTER);
         connectURLs = readStringListIgnoreEmpty(jv, CONNECT_URLS);
     }

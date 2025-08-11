@@ -16,6 +16,8 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.support.IncomingHeadersProcessor;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -582,7 +584,7 @@ public class MessageManagerTests extends JetStreamTestBase {
         }
 
         @Override
-        void publishInternal(String subject, String replyTo, Headers headers, byte[] data, boolean validate, boolean flushImmediatelyAfterPublish) {
+        void publishInternal(@NonNull String subject, @Nullable String replyTo, @Nullable Headers headers, byte @Nullable [] data, boolean validate, boolean flushImmediatelyAfterPublish) {
             fcSubject = subject;
             ++pubCount;
         }

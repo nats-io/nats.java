@@ -15,6 +15,8 @@ package io.nats.client;
 
 import io.nats.client.api.ServerInfo;
 import io.nats.client.impl.Headers;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -124,7 +126,7 @@ public interface Connection extends AutoCloseable {
      * @param body the message body
      * @throws IllegalStateException if the reconnect buffer is exceeded
      */
-    void publish(String subject, byte[] body);
+    void publish(@NonNull String subject, byte @Nullable [] body);
 
     /**
      * Send a message to the specified subject. The message body <strong>will
@@ -146,7 +148,7 @@ public interface Connection extends AutoCloseable {
      * @param body the message body
      * @throws IllegalStateException if the reconnect buffer is exceeded
      */
-    void publish(String subject, Headers headers, byte[] body);
+    void publish(@NonNull String subject, @Nullable Headers headers, byte @Nullable [] body);
 
     /**
      * Send a request to the specified subject, providing a replyTo subject. The
@@ -167,11 +169,11 @@ public interface Connection extends AutoCloseable {
      * this exception as a signal to wait for reconnect before continuing.
      * </p>
      * @param subject the subject to send the message to
-     * @param replyTo the subject the receiver should send the response to
+     * @param replyTo the subject the receiver should send any response to
      * @param body the message body
      * @throws IllegalStateException if the reconnect buffer is exceeded
      */
-    void publish(String subject, String replyTo, byte[] body);
+    void publish(@NonNull String subject, @Nullable String replyTo, byte @Nullable [] body);
 
     /**
      * Send a request to the specified subject, providing a replyTo subject. The
@@ -193,12 +195,12 @@ public interface Connection extends AutoCloseable {
      * this exception as a signal to wait for reconnect before continuing.
      * </p>
      * @param subject the subject to send the message to
-     * @param replyTo the subject the receiver should send the response to
+     * @param replyTo the subject the receiver should send any response to
      * @param headers Optional headers to publish with the message.
      * @param body the message body
      * @throws IllegalStateException if the reconnect buffer is exceeded
      */
-    void publish(String subject, String replyTo, Headers headers, byte[] body);
+    void publish(@NonNull String subject, @Nullable String replyTo, @Nullable Headers headers, byte @Nullable [] body);
 
     /**
      * Send a message to the specified subject. The message body <strong>will
@@ -217,7 +219,7 @@ public interface Connection extends AutoCloseable {
      * @param message the message
      * @throws IllegalStateException if the reconnect buffer is exceeded
      */
-    void publish(Message message);
+    void publish(@NonNull Message message);
 
     /**
      * Send a request. The returned future will be completed when the
@@ -227,7 +229,8 @@ public interface Connection extends AutoCloseable {
      * @param body the content of the message
      * @return a Future for the response, which may be cancelled on error or timed out
      */
-    CompletableFuture<Message> request(String subject, byte[] body);
+    @NonNull
+    CompletableFuture<Message> request(@NonNull String subject, byte @Nullable [] body);
 
     /**
      * Send a request. The returned future will be completed when the
@@ -238,7 +241,8 @@ public interface Connection extends AutoCloseable {
      * @param body the content of the message
      * @return a Future for the response, which may be cancelled on error or timed out
      */
-    CompletableFuture<Message> request(String subject, Headers headers, byte[] body);
+    @NonNull
+    CompletableFuture<Message> request(@NonNull String subject, @Nullable Headers headers, byte @Nullable [] body);
 
     /**
      * Send a request. The returned future will be completed when the
@@ -246,10 +250,11 @@ public interface Connection extends AutoCloseable {
      *
      * @param subject the subject for the service that will handle the request
      * @param body the content of the message
-     * @param timeout the time to wait for a response
+     * @param timeout the time to wait for a response. If not supplied a default will be used.
      * @return a Future for the response, which may be cancelled on error or timed out
      */
-    CompletableFuture<Message> requestWithTimeout(String subject, byte[] body, Duration timeout);
+    @NonNull
+    CompletableFuture<Message> requestWithTimeout(@NonNull String subject, byte @Nullable [] body, @Nullable Duration timeout);
 
     /**
      * Send a request. The returned future will be completed when the
@@ -261,7 +266,8 @@ public interface Connection extends AutoCloseable {
      * @param timeout the time to wait for a response
      * @return a Future for the response, which may be cancelled on error or timed out
      */
-    CompletableFuture<Message> requestWithTimeout(String subject, Headers headers, byte[] body, Duration timeout);
+    @NonNull
+    CompletableFuture<Message> requestWithTimeout(@NonNull String subject, @Nullable Headers headers, byte @Nullable [] body, Duration timeout);
 
     /**
      * Send a request. The returned future will be completed when the
@@ -274,7 +280,8 @@ public interface Connection extends AutoCloseable {
      * @param message the message
      * @return a Future for the response, which may be cancelled on error or timed out
      */
-    CompletableFuture<Message> request(Message message);
+    @NonNull
+    CompletableFuture<Message> request(@NonNull Message message);
 
     /**
      * Send a request. The returned future will be completed when the
@@ -288,7 +295,8 @@ public interface Connection extends AutoCloseable {
      * @param timeout the time to wait for a response
      * @return a Future for the response, which may be cancelled on error or timed out
      */
-    CompletableFuture<Message> requestWithTimeout(Message message, Duration timeout);
+    @NonNull
+    CompletableFuture<Message> requestWithTimeout(@NonNull Message message, @Nullable Duration timeout);
 
     /**
      * Send a request and returns the reply or null. This version of request is equivalent
@@ -301,7 +309,8 @@ public interface Connection extends AutoCloseable {
      * @return the reply message or null if the timeout is reached
      * @throws InterruptedException if one is thrown while waiting, in order to propagate it up
      */
-    Message request(String subject, byte[] body, Duration timeout) throws InterruptedException;
+    @Nullable
+    Message request(@NonNull String subject, byte @Nullable [] body, @Nullable Duration timeout) throws InterruptedException;
 
     /**
      * Send a request and returns the reply or null. This version of request is equivalent
@@ -315,7 +324,8 @@ public interface Connection extends AutoCloseable {
      * @return the reply message or null if the timeout is reached
      * @throws InterruptedException if one is thrown while waiting, in order to propagate it up
      */
-    Message request(String subject, Headers headers, byte[] body, Duration timeout) throws InterruptedException;
+    @Nullable
+    Message request(@NonNull String subject, @Nullable Headers headers, byte @Nullable [] body, @Nullable Duration timeout) throws InterruptedException;
 
     /**
      * Send a request and returns the reply or null. This version of request is equivalent
@@ -331,7 +341,8 @@ public interface Connection extends AutoCloseable {
      * @return the reply message or null if the timeout is reached
      * @throws InterruptedException if one is thrown while waiting, in order to propagate it up
      */
-    Message request(Message message, Duration timeout) throws InterruptedException;
+    @Nullable
+    Message request(@NonNull Message message, @Nullable Duration timeout) throws InterruptedException;
 
     /**
      * Create a synchronous subscription to the specified subject.
@@ -347,7 +358,8 @@ public interface Connection extends AutoCloseable {
      * @param subject the subject to subscribe to
      * @return an object representing the subscription
      */
-    Subscription subscribe(String subject);
+    @NonNull
+    Subscription subscribe(@NonNull String subject);
 
     /**
      * Create a synchronous subscription to the specified subject and queue.
@@ -364,7 +376,8 @@ public interface Connection extends AutoCloseable {
      * @param queueName the queue group to join
      * @return an object representing the subscription
      */
-    Subscription subscribe(String subject, String queueName);
+    @NonNull
+    Subscription subscribe(@NonNull String subject, @NonNull String queueName);
 
     /**
      * Create a {@code Dispatcher} for this connection. The dispatcher can group one
@@ -379,10 +392,12 @@ public interface Connection extends AutoCloseable {
      * d = nc.createDispatcher((m) -&gt; System.out.println(m)).subscribe("hello");
      * </pre>
      *
-     * @param handler The target for the messages
+     * @param handler The target for the messages. If the handler is null, subscribing without
+     *                using its API that accepts a handler will discard messages.
      * @return a new Dispatcher
      */
-    Dispatcher createDispatcher(MessageHandler handler);
+    @NonNull
+    Dispatcher createDispatcher(@Nullable MessageHandler handler);
 
     /**
      * Convenience method to create a dispatcher with no default handler. Only used
@@ -390,6 +405,7 @@ public interface Connection extends AutoCloseable {
      *
      * @return a new Dispatcher
      */
+    @NonNull
     Dispatcher createDispatcher();
 
     /**
@@ -399,7 +415,7 @@ public interface Connection extends AutoCloseable {
      * 
      * @param dispatcher the dispatcher to close
      */
-    void closeDispatcher(Dispatcher dispatcher);
+    void closeDispatcher(@NonNull Dispatcher dispatcher);
 
     /**
      * Attach another ConnectionListener. 
@@ -408,16 +424,16 @@ public interface Connection extends AutoCloseable {
      * a Connection event is raised, the invocation order and parallelism of multiple ConnectionListeners is not 
      * specified.
      * 
-     * @param connectionListener the ConnectionListener to attach
+     * @param connectionListener the ConnectionListener to attach. A null listener is a no-op
      */
-    void addConnectionListener(ConnectionListener connectionListener);
+    void addConnectionListener(@NonNull ConnectionListener connectionListener);
 
     /**
      * Detach a ConnectionListioner. This will cease delivery of any further Connection events to this instance.
      * 
      * @param connectionListener the ConnectionListener to detach
      */
-    void removeConnectionListener(ConnectionListener connectionListener);
+    void removeConnectionListener(@NonNull ConnectionListener connectionListener);
 
     /**
      * Flush the connection's buffer of outgoing messages, including sending a
@@ -428,12 +444,11 @@ public interface Connection extends AutoCloseable {
      * If called while the connection is disconnected due to network issues this
      * method will wait for up to the timeout for a reconnect or close.
      *
-     * @param timeout The time to wait for the flush to succeed, pass 0 to wait
-     *                    forever.
+     * @param timeout The time to wait for the flush to succeed, pass 0 or null to wait forever.
      * @throws TimeoutException if the timeout is exceeded
      * @throws InterruptedException if the underlying thread is interrupted
      */
-    void flush(Duration timeout) throws TimeoutException, InterruptedException;
+    void flush(@Nullable Duration timeout) throws TimeoutException, InterruptedException;
 
     /**
      * Drain tells the connection to process in flight messages before closing.
@@ -452,7 +467,7 @@ public interface Connection extends AutoCloseable {
      * were drained in the timeout, and false otherwise. The future completes after the connection
      * is closed, so any connection handler notifications will happen before the future completes.
      * 
-     * @param timeout The time to wait for the drain to succeed, pass 0 to wait
+     * @param timeout The time to wait for the drain to succeed, pass 0 or null to wait
      *                    forever. Drain involves moving messages to and from the server
      *                    so a very short timeout is not recommended. If the timeout is reached before
      *                    the drain completes, the connection is simply closed, which can result in message
@@ -461,7 +476,8 @@ public interface Connection extends AutoCloseable {
      * @throws InterruptedException if the thread is interrupted
      * @throws TimeoutException if the initial flush times out
      */
-    CompletableFuture<Boolean> drain(Duration timeout) throws TimeoutException, InterruptedException;
+    @NonNull
+    CompletableFuture<Boolean> drain(@Nullable Duration timeout) throws TimeoutException, InterruptedException;
 
     /**
      * Close the connection and release all blocking calls like {@link #flush flush}
@@ -478,6 +494,7 @@ public interface Connection extends AutoCloseable {
      * 
      * @return the connection's status
      */
+    @NonNull
     Status getStatus();
 
     /**
@@ -491,39 +508,49 @@ public interface Connection extends AutoCloseable {
     /**
      * Return the list of known server urls, including additional servers discovered
      * after a connection has been established.
-     * 
+     * Will be empty (but not null) before a connection is made and will represent the last connected server while disconnected
      * @return this connection's list of known server URLs
      */
+    @NonNull
     Collection<String> getServers();
 
     /**
      * @return a wrapper for useful statistics about the connection
      */
+    @NonNull
     Statistics getStatistics();
 
     /**
      * @return the read-only options used to create this connection
      */
+    @NonNull
     Options getOptions();
 
     /**
+     * Return the server info object. Will never be null, but will be an instance of {@link ServerInfo#EMPTY_INFO}
+     * before a connection is made, and will represent the last connected server once connected and while disconnected
+     * until a new connection is made.
      * @return the server information such as id, client info, etc.
      */
+    @NonNull
     ServerInfo getServerInfo();
 
     /**
      * @return the url used for the current connection, or null if disconnected
      */
+    @Nullable
     String getConnectedUrl();
 
     /**
      * @return the InetAddress of client as known by the NATS server, otherwise null.
      */
+    @Nullable
     InetAddress getClientInetAddress();
 
     /**
      * @return the error text from the last error sent by the server to this client
      */
+    @Nullable
     String getLastError();
 
     /**
@@ -536,6 +563,7 @@ public interface Connection extends AutoCloseable {
      * subscribers. These are guaranteed to be unique, but can be shared and subscribed
      * to by others.
      */
+    @NonNull
     String createInbox();
 
     /**
@@ -547,7 +575,7 @@ public interface Connection extends AutoCloseable {
     /**
      * Forces reconnect behavior. Stops the current connection including the reading and writing,
      * copies already queued outgoing messages, and then begins the reconnect logic.
-     * Does not flush. Does not force close the connection. See {@link #forceReconnect(ForceReconnectOptions)}.
+     * Does not flush. Does not force close the connection. See {@link ForceReconnectOptions}.
      * @throws IOException the forceReconnect fails
      * @throws InterruptedException the connection is not connected
      */
@@ -556,17 +584,20 @@ public interface Connection extends AutoCloseable {
     /**
      * Forces reconnect behavior. Stops the current connection including the reading and writing,
      * copies already queued outgoing messages, and then begins the reconnect logic.
-     * @param options options for how the forceReconnect works
+     * If options are not provided, the default options are used meaning Does not flush and Does not force close the connection.
+     * See {@link ForceReconnectOptions}.
+     * @param options options for how the forceReconnect works.
      * @throws IOException the forceReconnect fails
      * @throws InterruptedException the connection is not connected
      */
-    void forceReconnect(ForceReconnectOptions options) throws IOException, InterruptedException;
+    void forceReconnect(@Nullable ForceReconnectOptions options) throws IOException, InterruptedException;
 
     /**
      * Calculates the round trip time between this client and the server.
      * @return the RTT as a duration
      * @throws IOException various IO exception such as timeout or interruption
      */
+    @NonNull
     Duration RTT() throws IOException;
 
     /**
@@ -579,7 +610,8 @@ public interface Connection extends AutoCloseable {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    StreamContext getStreamContext(String streamName) throws IOException, JetStreamApiException;
+    @NonNull
+    StreamContext getStreamContext(@NonNull String streamName) throws IOException, JetStreamApiException;
 
     /**
      * Get a stream context for a specific stream
@@ -600,13 +632,14 @@ public interface Connection extends AutoCloseable {
 	   </pre>         
      * 
      * @param streamName the stream for the context
-     * @param options JetStream options.
+     * @param options JetStream options. If null, default / no options are used.
      * @return a StreamContext instance.
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    StreamContext getStreamContext(String streamName, JetStreamOptions options) throws IOException, JetStreamApiException;
+    @NonNull
+    StreamContext getStreamContext(@NonNull String streamName, @Nullable JetStreamOptions options) throws IOException, JetStreamApiException;
 
     /**
      * Get a consumer context for a specific named stream and specific named consumer.
@@ -621,7 +654,8 @@ public interface Connection extends AutoCloseable {
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    ConsumerContext getConsumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException;
+    @NonNull
+    ConsumerContext getConsumerContext(@NonNull String streamName, @NonNull String consumerName) throws IOException, JetStreamApiException;
 
     /**
      * Get a consumer context for a specific named stream and specific named consumer.
@@ -631,13 +665,14 @@ public interface Connection extends AutoCloseable {
      * 
      * @param streamName the name of the stream
      * @param consumerName the name of the consumer
-     * @param options JetStream options.
+     * @param options JetStream options. If null, default / no options are used.
      * @return a ConsumerContext object
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
      */
-    ConsumerContext getConsumerContext(String streamName, String consumerName, JetStreamOptions options) throws IOException, JetStreamApiException;
+    @NonNull
+    ConsumerContext getConsumerContext(@NonNull String streamName, @NonNull String consumerName, @Nullable JetStreamOptions options) throws IOException, JetStreamApiException;
 
     /**
      * Gets a context for publishing and subscribing to subjects backed by Jetstream streams
@@ -645,17 +680,19 @@ public interface Connection extends AutoCloseable {
      * @return a JetStream instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
+    @NonNull
     JetStream jetStream() throws IOException;
 
     /**
      * Gets a context for publishing and subscribing to subjects backed by Jetstream streams
      * and consumers.
-     * @param options JetStream options.
+     * @param options JetStream options. If null, default / no options are used.
      * @return a JetStream instance.
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      */
-    JetStream jetStream(JetStreamOptions options) throws IOException;
+    @NonNull
+    JetStream jetStream(@Nullable JetStreamOptions options) throws IOException;
 
     /**
      * Gets a context for managing Jetstream streams
@@ -663,17 +700,19 @@ public interface Connection extends AutoCloseable {
      * @return a JetStreamManagement instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
+    @NonNull
     JetStreamManagement jetStreamManagement() throws IOException;
 
     /**
      * Gets a context for managing Jetstream streams
      * and consumers.
-     * @param options JetStream options.
+     * @param options JetStream options. If null, default / no options are used.
      * @return a JetStreamManagement instance.
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      */
-    JetStreamManagement jetStreamManagement(JetStreamOptions options) throws IOException;
+    @NonNull
+    JetStreamManagement jetStreamManagement(@Nullable JetStreamOptions options) throws IOException;
 
     /**
      * Gets a context for working with a Key Value bucket
@@ -681,31 +720,35 @@ public interface Connection extends AutoCloseable {
      * @return a KeyValue instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
-    KeyValue keyValue(String bucketName) throws IOException;
+    @NonNull
+    KeyValue keyValue(@NonNull String bucketName) throws IOException;
 
     /**
-     * Gets a context for working with an Key Value bucket
+     * Gets a context for working with a Key Value bucket
      * @param bucketName the bucket name
-     * @param options KeyValue options.
+     * @param options KeyValue options. If null, default / no options are used.
      * @return a KeyValue instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
-    KeyValue keyValue(String bucketName, KeyValueOptions options) throws IOException;
+    @NonNull
+    KeyValue keyValue(@NonNull String bucketName, @Nullable KeyValueOptions options) throws IOException;
 
     /**
      * Gets a context for managing Key Value buckets
      * @return a KeyValueManagement instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
+    @NonNull
     KeyValueManagement keyValueManagement() throws IOException;
 
     /**
      * Gets a context for managing Key Value buckets
-     * @param options KeyValue options.
+     * @param options KeyValue options. If null, default / no options are used.
      * @return a KeyValueManagement instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
-    KeyValueManagement keyValueManagement(KeyValueOptions options) throws IOException;
+    @NonNull
+    KeyValueManagement keyValueManagement(@Nullable KeyValueOptions options) throws IOException;
 
     /**
      * Gets a context for working with an Object Store.
@@ -713,29 +756,33 @@ public interface Connection extends AutoCloseable {
      * @return an ObjectStore instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
-    ObjectStore objectStore(String bucketName) throws IOException;
+    @NonNull
+    ObjectStore objectStore(@NonNull String bucketName) throws IOException;
 
     /**
      * Gets a context for working with an Object Store.
      * @param bucketName the bucket name
-     * @param options ObjectStore options.
+     * @param options ObjectStore options. If null, default / no options are used.
      * @return an ObjectStore instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
-    ObjectStore objectStore(String bucketName, ObjectStoreOptions options) throws IOException;
+    @NonNull
+    ObjectStore objectStore(@NonNull String bucketName, @Nullable ObjectStoreOptions options) throws IOException;
 
     /**
      * Gets a context for managing Object Stores
      * @return an ObjectStoreManagement instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
+    @NonNull
     ObjectStoreManagement objectStoreManagement() throws IOException;
 
     /**
      * Gets a context for managing Object Stores
-     * @param options ObjectStore options.
+     * @param options ObjectStore options. If null, default / no options are used.
      * @return a ObjectStoreManagement instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
+    @NonNull
     ObjectStoreManagement objectStoreManagement(ObjectStoreOptions options) throws IOException;
 }

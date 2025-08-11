@@ -59,7 +59,7 @@ public class NatsStatisticsTests {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = new Options.Builder().server(ts.getURI()).verbose().build();
             Connection nc = Nats.connect(options);
-            StatisticsCollector stats = ((NatsConnection) nc).getNatsStatistics();
+            StatisticsCollector stats = ((NatsConnection) nc).getStatisticsCollector();
 
             try {
                 assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
@@ -100,7 +100,7 @@ public class NatsStatisticsTests {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = new Options.Builder().server(ts.getURI()).verbose().turnOnAdvancedStats().build();
             Connection nc = Nats.connect(options);
-            StatisticsCollector stats = ((NatsConnection) nc).getNatsStatistics();
+            StatisticsCollector stats = ((NatsConnection) nc).getStatisticsCollector();
 
             try {
                 assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
@@ -147,7 +147,7 @@ public class NatsStatisticsTests {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = new Options.Builder().server(ts.getURI()).verbose().build();
             Connection nc = Nats.connect(options);
-            StatisticsCollector stats = ((NatsConnection) nc).getNatsStatistics();
+            StatisticsCollector stats = ((NatsConnection) nc).getStatisticsCollector();
 
             try {
                 assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");

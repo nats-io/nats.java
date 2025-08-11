@@ -1,6 +1,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -126,7 +127,7 @@ public class AuthViolationDuringReconnectTest {
     }
 
     static class MockPausingNatsConnection extends NatsConnection {
-        MockPausingNatsConnection(Options options) {
+        MockPausingNatsConnection(@NonNull Options options) {
             super(options);
         }
 
@@ -141,7 +142,7 @@ public class AuthViolationDuringReconnectTest {
         }
 
         @Override
-        void sendUnsub(NatsSubscription sub, int after) {
+        void sendUnsub(@NonNull NatsSubscription sub, int after) {
             try {
                 Thread.sleep(1000);
             } catch (InterruptedException e) {

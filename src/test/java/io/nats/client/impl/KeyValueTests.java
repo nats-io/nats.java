@@ -1798,7 +1798,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testLimitMarker() throws Exception {
-        jsServer.run(TestBase::atLeast2_11_2, nc -> {
+        jsServer.run(TestBase::atLeast2_12, nc -> {
             KeyValueManagement kvm = nc.keyValueManagement();
             String bucket = bucket();
             KeyValueConfiguration config = KeyValueConfiguration.builder()
@@ -1956,6 +1956,101 @@ public class KeyValueTests extends JetStreamTestBase {
             assertEquals(1, rMaxAges.get());
             assertEquals(2, rTtl2.get());
             assertEquals(1, rTtl5.get());
+        });
+    }
+
+    @Test
+    public void testLimitMarker3() throws Exception {
+        jsServer.run(TestBase::atLeast2_12, nc -> {
+            String bucket = bucket();
+            String key1 = key();
+            String key2 = key();
+            String key3 = key();
+
+            KeyValueManagement kvm = nc.keyValueManagement();
+            KeyValueConfiguration config = KeyValueConfiguration.builder()
+                .name(bucket)
+                .storageType(StorageType.Memory)
+                .limitMarker(Duration.ofSeconds(2))
+                .ttl(Duration.ofSeconds(2))
+                .build();
+            kvm.create(config);
+
+            Dispatcher d = nc.createDispatcher();
+
+            KeyValue kv = nc.keyValue(bucket);
+
+            AtomicInteger wPuts = new AtomicInteger();
+            AtomicInteger wDels = new AtomicInteger();
+            AtomicInteger wPurges = new AtomicInteger();
+            AtomicInteger wEod = new AtomicInteger();
+
+            KeyValueWatcher watcher = new KeyValueWatcher() {
+                @Override
+                public void watch(KeyValueEntry keyValueEntry) {
+                    if (keyValueEntry.getOperation() == KeyValueOperation.PUT) {
+                        wPuts.incrementAndGet();
+                    }
+                    else if (keyValueEntry.getOperation() == KeyValueOperation.DELETE) {
+                        wDels.incrementAndGet();
+                    }
+                    else if (keyValueEntry.getOperation() == KeyValueOperation.PURGE) {
+                        wPurges.incrementAndGet();
+                    }
+                }
+
+                @Override
+                public void endOfData() {
+                    wEod.incrementAndGet();
+                }
+            };
+
+            NatsKeyValueWatchSubscription watch = kv.watchAll(watcher);
+
+            AtomicInteger rMessages = new AtomicInteger();
+            AtomicInteger rPurges = new AtomicInteger();
+            AtomicInteger rMaxAges = new AtomicInteger();
+            AtomicInteger rTtl2 = new AtomicInteger();
+            AtomicInteger rTtl5 = new AtomicInteger();
+
+            MessageHandler rawHandler = msg -> {
+                rMessages.incrementAndGet();
+                if (msg.hasHeaders()) {
+                    String h = msg.getHeaders().getFirst("KV-Operation");
+                    if (h != null && h.equals("PURGE")) {
+                        rPurges.incrementAndGet();
+                    }
+                    h = msg.getHeaders().getFirst("Nats-Marker-Reason");
+                    if (h != null && h.equals("MaxAge")) {
+                        rMaxAges.incrementAndGet();
+                    }
+                    h = msg.getHeaders().getFirst("Nats-TTL");
+                    if (h != null) {
+                        if (h.equals("2s")) {
+                            rTtl2.incrementAndGet();
+                        }
+                        else {
+                            rTtl5.incrementAndGet();
+                        }
+                    }
+                }
+            };
+
+            JetStreamSubscription sub = nc.jetStream().subscribe(null, d, rawHandler, true,
+                PushSubscribeOptions.builder()
+                    .stream("KV_" + bucket)
+                    .configuration(ConsumerConfiguration.builder().filterSubject(">")
+                        .build())
+                    .build());
+
+            kv.create(key1, dataBytes(), MessageTtl.seconds(2));
+            kv.delete(key1);
+//            kv.purge(key1);
+
+            for (int x = 1; x < 20; x++) {
+                sleep(1000);
+                kv.get(key1);
+            }
         });
     }
 }

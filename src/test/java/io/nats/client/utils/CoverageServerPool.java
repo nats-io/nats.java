@@ -16,7 +16,10 @@ package io.nats.client.utils;
 import io.nats.client.Options;
 import io.nats.client.ServerPool;
 import io.nats.client.support.NatsUri;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -24,40 +27,41 @@ import java.util.List;
  */
 public class CoverageServerPool implements ServerPool {
     @Override
-    public void initialize(Options opts) {
+    public void initialize(@NonNull Options opts) {
     }
 
     @Override
-    public boolean acceptDiscoveredUrls(List<String> discoveredServers) {
+    public boolean acceptDiscoveredUrls(@NonNull List<String> discoveredServers) {
         return false;
     }
 
     @Override
     public NatsUri peekNextServer() {
-        return null;
+        return new NatsUri();
     }
 
     @Override
     public NatsUri nextServer() {
+        return new NatsUri();
+    }
+
+    @Override
+    @Nullable public List<String> resolveHostToIps(@NonNull String host) {
         return null;
     }
 
     @Override
-    public List<String> resolveHostToIps(String host) {
-        return null;
+    public void connectSucceeded(@NonNull NatsUri nuri) {
     }
 
     @Override
-    public void connectSucceeded(NatsUri nuri) {
+    public void connectFailed(@NonNull NatsUri nuri) {
     }
 
     @Override
-    public void connectFailed(NatsUri nuri) {
-    }
-
-    @Override
+    @NonNull
     public List<String> getServerList() {
-        return null;
+        return new ArrayList<>();
     }
 
     @Override
