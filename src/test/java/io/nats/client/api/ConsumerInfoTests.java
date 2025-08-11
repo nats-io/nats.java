@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.JsonParseException;
 import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonValue;
 import org.junit.jupiter.api.Test;
@@ -29,7 +30,7 @@ public class ConsumerInfoTests {
     static JsonValue vConsumerInfo = JsonParser.parseUnchecked(dataAsString("ConsumerInfo.json"));
 
     @Test
-    public void testConsumerInfo() {
+    public void testConsumerInfo() throws JsonParseException {
         ConsumerInfo ci = new ConsumerInfo(vConsumerInfo);
         assertEquals("foo-stream", ci.getStreamName());
         assertEquals("foo-name", ci.getName());
@@ -81,10 +82,33 @@ public class ConsumerInfoTests {
         assertNotNull(reps);
         assertEquals(2, reps.size());
 
-        ci = new ConsumerInfo(JsonValue.EMPTY_MAP);
-        assertNull(ci.getStreamName());
-        assertNull(ci.getName());
-        assertNull(ci.getCreationTime());
+        JsonValue noStream = JsonParser.parse("{}");
+
+        JsonValue noName = JsonParser.parse("{\"stream_name\": \"foo-stream\"}");
+
+        JsonValue noCreated = JsonParser.parse("{" +
+            "\"stream_name\": \"foo-stream\"," +
+            "\"name\": \"foo-name\"" +
+            "}");
+
+        JsonValue justEnough = JsonParser.parse("{" +
+            "\"stream_name\": \"foo-stream\"," +
+            "\"name\": \"foo-name\"," +
+            "\"created\": \"2020-11-05T19:33:21.163377Z\"}");
+
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> new ConsumerInfo(noStream));
+        assertTrue(e.getMessage().contains("Stream"));
+
+        e = assertThrows(IllegalArgumentException.class, () -> new ConsumerInfo(noName));
+        assertTrue(e.getMessage().contains("Name"));
+
+        e = assertThrows(IllegalArgumentException.class, () -> new ConsumerInfo(noCreated));
+        assertTrue(e.getMessage().contains("Creation"));
+
+        ci = new ConsumerInfo(justEnough);
+        assertNotNull(ci.getStreamName());
+        assertNotNull(ci.getName());
+        assertNotNull(ci.getCreationTime());
         assertNotNull(ci.getConsumerConfiguration());
         assertNotNull(ci.getDelivered());
         assertNotNull(ci.getAckFloor());
