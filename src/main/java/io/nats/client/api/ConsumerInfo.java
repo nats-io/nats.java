@@ -52,28 +52,7 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
 
     public ConsumerInfo(JsonValue vConsumerInfo) {
         super(vConsumerInfo);
-
-        if (hasError()) {
-            // no point in parsing, but since it's final we have to set vars
-            configuration = null;
-            stream = null;
-            name = null;
-            created = null;
-            delivered = null;
-            ackFloor = null;
-            numAckPending = 0;
-            numRedelivered = 0;
-            numPending = 0;
-            numWaiting = 0;
-            paused = false;
-            pauseRemaining = null;
-            clusterInfo = null;
-            pushBound = false;
-            timestamp = null;
-            return;
-        }
-
-        configuration = ConsumerConfiguration.builder().jsonValue(readObject(jv, CONFIG)).build();
+        this.configuration = ConsumerConfiguration.builder().jsonValue(readObject(jv, CONFIG)).build();
 
         stream = Validator.required(readString(jv, STREAM_NAME), "Stream");
         name = Validator.required(readString(jv, NAME), "Name");
