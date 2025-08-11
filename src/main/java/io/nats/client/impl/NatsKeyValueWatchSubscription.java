@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.JetStreamApiException;
 import io.nats.client.Message;
 import io.nats.client.api.*;
+import org.jspecify.annotations.NonNull;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -49,27 +50,33 @@ public class NatsKeyValueWatchSubscription extends NatsWatchSubscription<KeyValu
             }
         }
 
-        final boolean includeDeletes = !ignoreDeletes;
-        WatchMessageHandler<KeyValueEntry> handler =
-            new WatchMessageHandler<KeyValueEntry>(watcher) {
-                @Override
-                public void onMessage(Message m) throws InterruptedException {
-                    KeyValueEntry kve = new KeyValueEntry(m);
-                    if (includeDeletes || kve.getOperation() == KeyValueOperation.PUT) {
-                        watcher.watch(kve);
-                    }
-                    if (!endOfDataSent && kve.getDelta() == 0) {
-                        sendEndOfData();
-                    }
-                }
-            };
-
         // convert each key to a read subject
         List<String> readSubjects = new ArrayList<>();
         for (String keyPattern : keyPatterns) {
             readSubjects.add(kv.readSubject(keyPattern.trim()));
         }
 
-        finishInit(kv, readSubjects, deliverPolicy, headersOnly, fromRevision, handler, watcher.getConsumerNamePrefix());
+        finishInit(kv,
+            readSubjects,
+            deliverPolicy,
+            headersOnly,
+            fromRevision,
+            getHandler(watcher, !ignoreDeletes),
+            watcher.getConsumerNamePrefix());
+    }
+
+    private static @NonNull WatchMessageHandler<KeyValueEntry> getHandler(KeyValueWatcher watcher, boolean includeDeletes) {
+        return new WatchMessageHandler<KeyValueEntry>(watcher) {
+            @Override
+            public void onMessage(Message m) throws InterruptedException {
+                KeyValueEntry kve = new KeyValueEntry(m);
+                if (includeDeletes || kve.getOperation() == KeyValueOperation.PUT) {
+                    watcher.watch(kve);
+                }
+                if (!endOfDataSent && kve.getDelta() == 0) {
+                    sendEndOfData();
+                }
+            }
+        };
     }
 }

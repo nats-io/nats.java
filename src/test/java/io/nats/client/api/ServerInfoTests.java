@@ -158,8 +158,8 @@ public class ServerInfoTests {
                         "\"version\":\"??????\"" +
                        "}";
         ServerInfo info = new ServerInfo(json);
-        assertEquals(info.getServerId(), "myserver");
-        assertEquals(info.getVersion(), "??????");
+        assertEquals("myserver", info.getServerId());
+        assertEquals("??????", info.getVersion());
     }
 
     @Test

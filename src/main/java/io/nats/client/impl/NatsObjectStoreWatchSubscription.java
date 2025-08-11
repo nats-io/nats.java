@@ -19,6 +19,7 @@ import io.nats.client.api.DeliverPolicy;
 import io.nats.client.api.ObjectInfo;
 import io.nats.client.api.ObjectStoreWatchOption;
 import io.nats.client.api.ObjectStoreWatcher;
+import org.jspecify.annotations.NonNull;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -44,21 +45,27 @@ public class NatsObjectStoreWatchSubscription extends NatsWatchSubscription<Obje
             }
         }
 
-        final boolean includeDeletes = !ignoreDeletes;
-        WatchMessageHandler<ObjectInfo> handler =
-            new WatchMessageHandler<ObjectInfo>(watcher) {
-                @Override
-                public void onMessage(Message m) throws InterruptedException {
-                    ObjectInfo os = new ObjectInfo(m);
-                    if (includeDeletes || !os.isDeleted()) {
-                        watcher.watch(os);
-                    }
-                    if (!endOfDataSent && m.metaData().pendingCount() == 0) {
-                        sendEndOfData();
-                    }
-                }
-            };
+        finishInit(os,
+            Collections.singletonList(os.rawAllMetaSubject()),
+            deliverPolicy,
+            headersOnly,
+            ULONG_UNSET,
+            getHandler(watcher, !ignoreDeletes),
+            watcher.getConsumerNamePrefix());
+    }
 
-        finishInit(os, Collections.singletonList(os.rawAllMetaSubject()), deliverPolicy, headersOnly, ULONG_UNSET, handler, watcher.getConsumerNamePrefix());
+    private static @NonNull WatchMessageHandler<ObjectInfo> getHandler(ObjectStoreWatcher watcher, boolean includeDeletes) {
+        return new WatchMessageHandler<ObjectInfo>(watcher) {
+            @Override
+            public void onMessage(Message m) throws InterruptedException {
+                ObjectInfo os = new ObjectInfo(m);
+                if (includeDeletes || !os.isDeleted()) {
+                    watcher.watch(os);
+                }
+                if (!endOfDataSent && m.metaData().pendingCount() == 0) {
+                    sendEndOfData();
+                }
+            }
+        };
     }
 }

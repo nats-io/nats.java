@@ -97,11 +97,13 @@ public class ConsumerConfigurationTests extends TestBase {
         c = ConsumerConfiguration.builder()
             .flowControl(Duration.ofMillis(501)).build();
         assertTrue(c.isFlowControl());
+        assertNotNull(c.getIdleHeartbeat());
         assertEquals(501, c.getIdleHeartbeat().toMillis());
 
         c = ConsumerConfiguration.builder()
             .flowControl(502).build();
         assertTrue(c.isFlowControl());
+        assertNotNull(c.getIdleHeartbeat());
         assertEquals(502, c.getIdleHeartbeat().toMillis());
 
         // millis instead of duration coverage
@@ -298,7 +300,7 @@ public class ConsumerConfigurationTests extends TestBase {
     }
 
     @Test
-    public void testParsingAndSetters() throws JsonParseException {
+    public void testParsingAndSetters() {
         String json = dataAsString("ConsumerConfiguration.json");
         ConsumerConfiguration c = ConsumerConfiguration.builder().jsonValue(JsonParser.parseUnchecked(json)).build();
 
@@ -320,6 +322,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(10, c.getMaxDeliver());
         assertEquals(73, c.getRateLimit());
         assertEquals(ReplayPolicy.Original, c.getReplayPolicy());
+        assertNotNull(c.getStartTime());
         assertEquals(2020, c.getStartTime().getYear(), 2020);
         assertEquals(21, c.getStartTime().getSecond(), 21);
         assertEquals("foo-name", c.getName());
@@ -352,12 +355,14 @@ public class ConsumerConfigurationTests extends TestBase {
 
         if (multiFilters) {
             assertNull(c.getFilterSubject());
+            assertNotNull(c.getFilterSubjects());
             assertEquals(2, c.getFilterSubjects().size());
             assertTrue(c.getFilterSubjects().contains("foo-filter-0"));
             assertTrue(c.getFilterSubjects().contains("foo-filter-1"));
         }
         else {
             assertEquals("foo-filter", c.getFilterSubject());
+            assertNotNull(c.getFilterSubjects());
             assertEquals(1, c.getFilterSubjects().size());
             assertTrue(c.getFilterSubjects().contains("foo-filter"));
         }
@@ -426,7 +431,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(ULONG_UNSET, ConsumerConfiguration.normalizeUlong(-1L));
 
         //noinspection ConstantConditions
-        assertNull(ConsumerConfiguration.normalize((Duration) null));
+        assertNull(ConsumerConfiguration.normalize(null));
         assertEquals(Duration.ofNanos(1), ConsumerConfiguration.normalize(Duration.ofNanos(1)));
         assertEquals(DURATION_UNSET, ConsumerConfiguration.normalize(DURATION_UNSET));
         assertEquals(DURATION_UNSET, ConsumerConfiguration.normalize(Duration.ZERO));

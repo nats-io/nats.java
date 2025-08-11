@@ -26,7 +26,7 @@ import static io.nats.client.support.JsonValueUtils.readLong;
  * Fetch Consume Options are provided to customize the fetch operation.
  */
 public class FetchConsumeOptions extends BaseConsumeOptions {
-    public static FetchConsumeOptions DEFAULT_FETCH_OPTIONS = FetchConsumeOptions.builder().build();
+    public static final FetchConsumeOptions DEFAULT_FETCH_OPTIONS = FetchConsumeOptions.builder().build();
 
     private final boolean noWait;
 
