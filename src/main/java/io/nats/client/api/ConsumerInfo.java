@@ -15,7 +15,6 @@ package io.nats.client.api;
 
 import io.nats.client.Message;
 import io.nats.client.support.JsonValue;
-import io.nats.client.support.Validator;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -54,9 +53,9 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
         super(vConsumerInfo);
         this.configuration = ConsumerConfiguration.builder().jsonValue(readObject(jv, CONFIG)).build();
 
-        stream = Validator.required(readString(jv, STREAM_NAME), "Stream");
-        name = Validator.required(readString(jv, NAME), "Name");
-        created = Validator.required(readDate(jv, CREATED), "Creation Time");
+        stream = readString(jv, STREAM_NAME);
+        name = readString(jv, NAME);
+        created = readDate(jv, CREATED);
 
         delivered = new SequenceInfo(readObject(jv, DELIVERED));
         ackFloor = new SequenceInfo(readObject(jv, ACK_FLOOR));
