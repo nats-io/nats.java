@@ -15,12 +15,14 @@ package io.nats.client.impl;
 
 import io.nats.client.Options;
 import io.nats.client.support.NatsUri;
+import org.jspecify.annotations.NonNull;
 
 import java.io.IOException;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicLong;
 
+@SuppressWarnings("ClassEscapesDefinedScope") // NatsConnection
 public class SocketDataPortBlockSimulator extends SocketDataPort {
 
     private long writeTimeoutNanos;
@@ -64,7 +66,7 @@ public class SocketDataPortBlockSimulator extends SocketDataPort {
     }
 
     @Override
-    public void connect(NatsConnection conn, NatsUri nuri, long timeoutNanos) throws IOException {
+    public void connect(@NonNull NatsConnection conn, @NonNull NatsUri nuri, long timeoutNanos) throws IOException {
         super.connect(conn, nuri, timeoutNanos);
         writeWatcherTimer = new Timer();
         writeWatcherTask = new WriteWatcherTask();
@@ -79,6 +81,7 @@ public class SocketDataPortBlockSimulator extends SocketDataPort {
             blocking.set(SIMULATE_SOCKET_BLOCK.get());
             while (blocking.get() > 0) {
                 try {
+                    //noinspection BusyWait
                     Thread.sleep(100);
                     blocking.addAndGet(-100);
                 }

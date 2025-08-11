@@ -18,6 +18,7 @@ import io.nats.client.ConnectionListener.Events;
 import io.nats.client.api.ServerInfo;
 import io.nats.client.support.*;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -102,12 +103,12 @@ class NatsConnection implements Connection {
 
     private final ServerPool serverPool;
     private final DispatcherFactory dispatcherFactory;
-    final CancelAction cancelAction;
+    private final @NonNull CancelAction cancelAction;
 
     private final boolean trace;
     private final TimeTraceLogger timeTraceLogger;
 
-    NatsConnection(Options options) {
+    NatsConnection(@NonNull Options options) {
         trace = options.isTraceConnection();
         timeTraceLogger = options.getTimeTraceLogger();
         timeTraceLogger.trace("creating connection object");
@@ -146,7 +147,7 @@ class NatsConnection implements Connection {
         this.lastError = new AtomicReference<>();
         this.connectError = new AtomicReference<>();
 
-        this.serverInfo = new AtomicReference<>();
+        this.serverInfo = new AtomicReference<>(ServerInfo.EMPTY_INFO); // we want serverInfo.get to never return a null
         this.inboxDispatcher = new AtomicReference<>();
         this.inboxDispatcherLock = new ReentrantLock();
         this.pongQueue = new ConcurrentLinkedDeque<>();
@@ -665,7 +666,7 @@ class NatsConnection implements Connection {
 
     void checkVersionRequirements() throws IOException {
         Options opts = getOptions();
-        ServerInfo info = getInfo();
+        ServerInfo info = getServerInfo();
 
         if (opts.isNoEcho() && info.getProtocolVersion() < 1) {
             throw new IOException("Server does not support no echo.");
@@ -687,7 +688,7 @@ class NatsConnection implements Connection {
                 // required  | isTLSRequired()     | ok
                 // available | isTLSRequired()     | ok
                 // neither   | isTLSRequired()     | mismatch
-                ServerInfo serverInfo = getInfo();
+                ServerInfo serverInfo = getServerInfo();
                 if (options.isTLSRequired()) {
                     if (!serverInfo.isTLSRequired() && !serverInfo.isTLSAvailable()) {
                         throw new IOException("SSL connection wanted by client.");
@@ -970,7 +971,7 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public void publish(String subject, byte[] body) {
+    public void publish(@NonNull String subject, byte @Nullable [] body) {
         publishInternal(subject, null, null, body, true, false);
     }
 
@@ -978,7 +979,7 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public void publish(String subject, Headers headers, byte[] body) {
+    public void publish(@NonNull String subject, @Nullable Headers headers, byte @Nullable [] body) {
         publishInternal(subject, null, headers, body, true, false);
     }
 
@@ -986,7 +987,7 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public void publish(String subject, String replyTo, byte[] body) {
+    public void publish(@NonNull String subject, @Nullable String replyTo, byte @Nullable [] body) {
         publishInternal(subject, replyTo, null, body, true, false);
     }
 
@@ -994,7 +995,7 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public void publish(String subject, String replyTo, Headers headers, byte[] body) {
+    public void publish(@NonNull String subject, @Nullable String replyTo, @Nullable Headers headers, byte @Nullable [] body) {
         publishInternal(subject, replyTo, headers, body, true, false);
     }
 
@@ -1002,12 +1003,12 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public void publish(Message message) {
+    public void publish(@NonNull Message message) {
         validateNotNull(message, "Message");
         publishInternal(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), false, false);
     }
 
-    void publishInternal(String subject, String replyTo, Headers headers, byte[] data, boolean validateSubjectAndReplyTo, boolean flushImmediatelyAfterPublish) {
+    void publishInternal(@NonNull String subject, @Nullable String replyTo, @Nullable Headers headers, byte @Nullable [] data, boolean validateSubjectAndReplyTo, boolean flushImmediatelyAfterPublish) {
         checkPayloadSize(data);
         NatsPublishableMessage npm = new NatsPublishableMessage(subject, replyTo, headers, data, validateSubjectAndReplyTo, flushImmediatelyAfterPublish);
         if (npm.hasHeaders && !serverInfo.get().isHeadersSupported()) {
@@ -1029,17 +1030,19 @@ class NatsConnection implements Connection {
         queueOutgoing(npm);
     }
 
-    private void checkPayloadSize(byte[] body) {
-        if (options.clientSideLimitChecks() && body != null && body.length > this.getMaxPayload() && this.getMaxPayload() > 0) {
+    private void checkPayloadSize(byte @Nullable [] body) {
+        if (body != null && options.clientSideLimitChecks() && body.length > this.getMaxPayload() && this.getMaxPayload() > 0) {
             throw new IllegalArgumentException(
                 "Message payload size exceed server configuration " + body.length + " vs " + this.getMaxPayload());
         }
     }
+
     /**
      * {@inheritDoc}
      */
     @Override
-    public Subscription subscribe(String subject) {
+    @NonNull
+    public Subscription subscribe(@NonNull String subject) {
         validateSubject(subject, true);
         return createSubscription(subject, null, null, null);
     }
@@ -1048,7 +1051,8 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public Subscription subscribe(String subject, String queueName) {
+    @NonNull
+    public Subscription subscribe(@NonNull String subject, @NonNull String queueName) {
         validateSubject(subject, true);
         validateQueueName(queueName, true);
         return createSubscription(subject, queueName, null, null);
@@ -1090,7 +1094,7 @@ class NatsConnection implements Connection {
         sendUnsub(sub, after);
     }
 
-    void sendUnsub(NatsSubscription sub, int after) {
+    void sendUnsub(@NonNull NatsSubscription sub, int after) {
         ByteArrayBuilder bab =
             new ByteArrayBuilder().append(UNSUB_SP_BYTES).append(sub.getSID());
         if (after > 0) {
@@ -1100,7 +1104,11 @@ class NatsConnection implements Connection {
     }
 
     // Assumes the null/empty checks were handled elsewhere
-    NatsSubscription createSubscription(String subject, String queueName, NatsDispatcher dispatcher, NatsSubscriptionFactory factory) {
+    @NonNull
+    NatsSubscription createSubscription(@NonNull String subject,
+                                        @Nullable String queueName,
+                                        @Nullable NatsDispatcher dispatcher,
+                                        @Nullable NatsSubscriptionFactory factory) {
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
         } else if (isDraining() && (dispatcher == null || dispatcher != this.inboxDispatcher.get())) {
@@ -1160,6 +1168,7 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
+    @NonNull
     public String createInbox() {
         return options.getInboxPrefix() + nuid.next();
     }
@@ -1246,7 +1255,8 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public Message request(String subject, byte[] body, Duration timeout) throws InterruptedException {
+    @Nullable
+    public Message request(@NonNull String subject, byte @Nullable [] body, @Nullable Duration timeout) throws InterruptedException {
         return requestInternal(subject, null, body, timeout, cancelAction, true, forceFlushOnRequest);
     }
 
@@ -1254,7 +1264,8 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public Message request(String subject, Headers headers, byte[] body, Duration timeout) throws InterruptedException {
+    @Nullable
+    public Message request(@NonNull String subject, @Nullable Headers headers, byte @Nullable [] body, @Nullable Duration timeout) throws InterruptedException {
         return requestInternal(subject, headers, body, timeout, cancelAction, true, forceFlushOnRequest);
     }
 
@@ -1262,15 +1273,26 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public Message request(Message message, Duration timeout) throws InterruptedException {
+    @Nullable
+    public Message request(@NonNull Message message, @Nullable Duration timeout) throws InterruptedException {
         validateNotNull(message, "Message");
         return requestInternal(message.getSubject(), message.getHeaders(), message.getData(), timeout, cancelAction, false, forceFlushOnRequest);
     }
 
-    Message requestInternal(String subject, Headers headers, byte[] data, Duration timeout,
-                            CancelAction cancelAction, boolean validateSubjectAndReplyTo, boolean flushImmediatelyAfterPublish) throws InterruptedException {
+    @Nullable
+    Message requestInternal(@NonNull String subject,
+                            @Nullable Headers headers,
+                            byte @Nullable [] data,
+                            @Nullable Duration timeout,
+                            @NonNull CancelAction cancelAction,
+                            boolean validateSubjectAndReplyTo,
+                            boolean flushImmediatelyAfterPublish) throws InterruptedException
+    {
         CompletableFuture<Message> incoming = requestFutureInternal(subject, headers, data, timeout, cancelAction, validateSubjectAndReplyTo, flushImmediatelyAfterPublish);
         try {
+            if (timeout == null) {
+                timeout = getOptions().getConnectionTimeout();
+            }
             return incoming.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
         } catch (TimeoutException | ExecutionException | CancellationException e) {
             return null;
@@ -1281,7 +1303,8 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public CompletableFuture<Message> request(String subject, byte[] body) {
+    @NonNull
+    public CompletableFuture<Message> request(@NonNull String subject, byte @Nullable [] body) {
         return requestFutureInternal(subject, null, body, null, cancelAction, true, forceFlushOnRequest);
     }
 
@@ -1289,7 +1312,8 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public CompletableFuture<Message> request(String subject, Headers headers, byte[] body) {
+    @NonNull
+    public CompletableFuture<Message> request(@NonNull String subject, @Nullable Headers headers, byte @Nullable [] body) {
         return requestFutureInternal(subject, headers, body, null, cancelAction, true, forceFlushOnRequest);
     }
 
@@ -1297,7 +1321,8 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public CompletableFuture<Message> requestWithTimeout(String subject, byte[] body, Duration timeout) {
+    @NonNull
+    public CompletableFuture<Message> requestWithTimeout(@NonNull String subject, byte @Nullable [] body, @Nullable Duration timeout) {
         return requestFutureInternal(subject, null, body, timeout, cancelAction, true, forceFlushOnRequest);
     }
 
@@ -1305,7 +1330,8 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public CompletableFuture<Message> requestWithTimeout(String subject, Headers headers, byte[] body, Duration timeout) {
+    @NonNull
+    public CompletableFuture<Message> requestWithTimeout(@NonNull String subject, @Nullable Headers headers, byte @Nullable [] body, Duration timeout) {
         return requestFutureInternal(subject, headers, body, timeout, cancelAction, true, forceFlushOnRequest);
     }
 
@@ -1313,7 +1339,8 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public CompletableFuture<Message> requestWithTimeout(Message message, Duration timeout) {
+    @NonNull
+    public CompletableFuture<Message> requestWithTimeout(@NonNull Message message, @Nullable Duration timeout) {
         validateNotNull(message, "Message");
         return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), timeout, cancelAction, false, forceFlushOnRequest);
     }
@@ -1322,14 +1349,22 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public CompletableFuture<Message> request(Message message) {
+    @NonNull
+    public CompletableFuture<Message> request(@NonNull Message message) {
         validateNotNull(message, "Message");
         return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), null, cancelAction, false, forceFlushOnRequest);
     }
 
-    CompletableFuture<Message> requestFutureInternal(String subject, Headers headers, byte[] data, Duration futureTimeout,
-                                                     CancelAction cancelAction, boolean validateSubjectAndReplyTo, boolean flushImmediatelyAfterPublish) {
-        checkPayloadSize(data);
+    @NonNull
+    CompletableFuture<Message> requestFutureInternal(@NonNull String subject,
+                                                     @Nullable Headers headers,
+                                                     byte @Nullable [] body,
+                                                     @Nullable Duration futureTimeout,
+                                                     @NonNull CancelAction cancelAction,
+                                                     boolean validateSubjectAndReplyTo,
+                                                     boolean flushImmediatelyAfterPublish)
+    {
+        checkPayloadSize(body);
 
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
@@ -1380,7 +1415,7 @@ class NatsConnection implements Connection {
             responsesAwaiting.put(sub.getSID(), future);
         }
 
-        publishInternal(subject, responseInbox, headers, data, validateSubjectAndReplyTo, flushImmediatelyAfterPublish);
+        publishInternal(subject, responseInbox, headers, body, validateSubjectAndReplyTo, flushImmediatelyAfterPublish);
         statistics.incrementRequestsSent();
 
         return future;
@@ -1426,11 +1461,19 @@ class NatsConnection implements Connection {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @NonNull
     public Dispatcher createDispatcher() {
         return createDispatcher(null);
     }
 
-    public Dispatcher createDispatcher(MessageHandler handler) {
+    /**
+     * {@inheritDoc}
+     */
+    @NonNull
+    public Dispatcher createDispatcher(@Nullable MessageHandler handler) {
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
         } else if (isDraining()) {
@@ -1444,14 +1487,18 @@ class NatsConnection implements Connection {
         return dispatcher;
     }
 
-    public void closeDispatcher(Dispatcher d) {
+    /**
+     * {@inheritDoc}
+     */
+    public void closeDispatcher(@NonNull Dispatcher d) {
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
-        } else if (!(d instanceof NatsDispatcher)) {
+        }
+        else if (!(d instanceof NatsDispatcher)) {
             throw new IllegalArgumentException("Connection can only manage its own dispatchers");
         }
 
-        NatsDispatcher nd = ((NatsDispatcher) d);
+        NatsDispatcher nd = (NatsDispatcher) d;
 
         if (nd.isDraining()) {
             return; // No op while draining
@@ -1473,15 +1520,24 @@ class NatsConnection implements Connection {
         return Collections.unmodifiableMap(dispatchers);
     }
 
-    public void addConnectionListener(ConnectionListener connectionListener) {
+    /**
+     * {@inheritDoc}
+     */
+    public void addConnectionListener(@NonNull ConnectionListener connectionListener) {
         connectionListeners.add(connectionListener);
     }
 
-    public void removeConnectionListener(ConnectionListener connectionListener) {
+    /**
+     * {@inheritDoc}
+     */
+    public void removeConnectionListener(@NonNull ConnectionListener connectionListener) {
         connectionListeners.remove(connectionListener);
     }
 
-    public void flush(Duration timeout) throws TimeoutException, InterruptedException {
+    /**
+     * {@inheritDoc}
+     */
+    public void flush(@Nullable Duration timeout) throws TimeoutException, InterruptedException {
 
         Instant start = Instant.now();
         waitForConnectOrClose(timeout);
@@ -1490,7 +1546,7 @@ class NatsConnection implements Connection {
             throw new TimeoutException("Attempted to flush while closed");
         }
 
-        if (timeout == null) {
+        if (timeout == null || timeout.isNegative()) {
             timeout = Duration.ZERO;
         }
 
@@ -1557,7 +1613,7 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public Duration RTT() throws IOException {
+    @NonNull public Duration RTT() throws IOException {
         if (!isConnected()) {
             throw new IOException("Must be connected to do RTT.");
         }
@@ -1587,7 +1643,7 @@ class NatsConnection implements Connection {
     // Futures are completed in order, keep this one if a thread wants to wait
     // for a specific pong. Note, if no pong returns, the wait will not return
     // without setting a timeout.
-    CompletableFuture<Boolean> sendPing(boolean treatAsInternal) {
+    @Nullable CompletableFuture<Boolean> sendPing(boolean treatAsInternal) {
         if (!isConnectedOrConnecting()) {
             CompletableFuture<Boolean> retVal = new CompletableFuture<>();
             retVal.complete(Boolean.FALSE);
@@ -1871,31 +1927,31 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
+    @NonNull
     public ServerInfo getServerInfo() {
-        return getInfo();
+        return serverInfo.get();
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
+    @Nullable
     public InetAddress getClientInetAddress() {
         try {
-            return NatsInetAddress.getByName(getInfo().getClientIp());
+            ServerInfo si = getServerInfo();
+            return si == ServerInfo.EMPTY_INFO ? null : NatsInetAddress.getByName(si.getClientIp());
         }
         catch (Exception e) {
             return null;
         }
     }
 
-    ServerInfo getInfo() {
-        return this.serverInfo.get();
-    }
-
     /**
      * {@inheritDoc}
      */
     @Override
+    @NonNull
     public Options getOptions() {
         return this.options;
     }
@@ -1904,11 +1960,12 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
+    @NonNull
     public Statistics getStatistics() {
         return this.statistics;
     }
 
-    StatisticsCollector getNatsStatistics() {
+    StatisticsCollector getStatisticsCollector() {
         return this.statistics;
     }
 
@@ -1921,6 +1978,10 @@ class NatsConnection implements Connection {
         return this.subscribers.size() + this.dispatchers.size();
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public long getMaxPayload() {
         ServerInfo info = this.serverInfo.get();
 
@@ -1932,10 +1993,10 @@ class NatsConnection implements Connection {
     }
 
     /**
-     * Return the list of known server urls, including additional servers discovered
-     * after a connection has been established.
-     * @return this connection's list of known server URLs
+     * {@inheritDoc}
      */
+    @Override
+    @NonNull
     public Collection<String> getServers() {
         return serverPool.getServerList();
     }
@@ -1975,6 +2036,7 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
+    @Nullable
     public String getConnectedUrl() {
         return currentServer == null ? null : currentServer.toString();
     }
@@ -1983,6 +2045,7 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
+    @NonNull
     public Status getStatus() {
         return this.status;
     }
@@ -1991,8 +2054,9 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
+    @Nullable
     public String getLastError() {
-        return this.lastError.get();
+        return lastError.get();
     }
 
     /**
@@ -2000,7 +2064,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public void clearLastError() {
-        this.lastError.set("");
+        lastError.set(null);
     }
 
     ExecutorService getExecutor() {
@@ -2199,7 +2263,8 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public CompletableFuture<Boolean> drain(Duration timeout) throws TimeoutException, InterruptedException {
+    @NonNull
+    public CompletableFuture<Boolean> drain(@Nullable Duration timeout) throws TimeoutException, InterruptedException {
 
         if (isClosing() || isClosed()) {
             throw new IllegalStateException("A connection can't be drained during close.");
@@ -2322,7 +2387,7 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public StreamContext getStreamContext(String streamName) throws IOException, JetStreamApiException {
+    @NonNull public StreamContext getStreamContext(@NonNull String streamName) throws IOException, JetStreamApiException {
         Validator.validateStreamName(streamName, true);
         ensureNotClosing();
         return new NatsStreamContext(streamName, null, this, null);
@@ -2332,7 +2397,8 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public StreamContext getStreamContext(String streamName, JetStreamOptions options) throws IOException, JetStreamApiException {
+    @NonNull
+    public StreamContext getStreamContext(@NonNull String streamName, @Nullable JetStreamOptions options) throws IOException, JetStreamApiException {
         Validator.validateStreamName(streamName, true);
         ensureNotClosing();
         return new NatsStreamContext(streamName, null, this, options);
@@ -2342,7 +2408,8 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public ConsumerContext getConsumerContext(String streamName, String consumerName) throws IOException, JetStreamApiException {
+    @NonNull
+    public ConsumerContext getConsumerContext(@NonNull String streamName, @NonNull String consumerName) throws IOException, JetStreamApiException {
         return getStreamContext(streamName).getConsumerContext(consumerName);
     }
 
@@ -2350,7 +2417,8 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public ConsumerContext getConsumerContext(String streamName, String consumerName, JetStreamOptions options) throws IOException, JetStreamApiException {
+    @NonNull
+    public ConsumerContext getConsumerContext(@NonNull String streamName, @NonNull String consumerName, @Nullable JetStreamOptions options) throws IOException, JetStreamApiException {
         return getStreamContext(streamName, options).getConsumerContext(consumerName);
     }
 
@@ -2358,15 +2426,16 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
+    @NonNull
     public JetStream jetStream() throws IOException {
-        ensureNotClosing();
-        return new NatsJetStream(this, null);
+        return jetStream(null);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
+    @NonNull
     public JetStream jetStream(JetStreamOptions options) throws IOException {
         ensureNotClosing();
         return new NatsJetStream(this, options);
@@ -2376,15 +2445,16 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
+    @NonNull
     public JetStreamManagement jetStreamManagement() throws IOException {
-        ensureNotClosing();
-        return new NatsJetStreamManagement(this, null);
+        return jetStreamManagement(null);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
+    @NonNull
     public JetStreamManagement jetStreamManagement(JetStreamOptions options) throws IOException {
         ensureNotClosing();
         return new NatsJetStreamManagement(this, options);
@@ -2394,17 +2464,17 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public KeyValue keyValue(String bucketName) throws IOException {
-        Validator.validateBucketName(bucketName, true);
-        ensureNotClosing();
-        return new NatsKeyValue(this, bucketName, null);
+    @NonNull
+    public KeyValue keyValue(@NonNull String bucketName) throws IOException {
+        return keyValue(bucketName, null);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public KeyValue keyValue(String bucketName, KeyValueOptions options) throws IOException {
+    @NonNull
+    public KeyValue keyValue(@NonNull String bucketName, @Nullable KeyValueOptions options) throws IOException {
         Validator.validateBucketName(bucketName, true);
         ensureNotClosing();
         return new NatsKeyValue(this, bucketName, options);
@@ -2414,16 +2484,17 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
+    @NonNull
     public KeyValueManagement keyValueManagement() throws IOException {
-        ensureNotClosing();
-        return new NatsKeyValueManagement(this, null);
+        return keyValueManagement(null);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public KeyValueManagement keyValueManagement(KeyValueOptions options) throws IOException {
+    @NonNull
+    public KeyValueManagement keyValueManagement(@Nullable KeyValueOptions options) throws IOException {
         ensureNotClosing();
         return new NatsKeyValueManagement(this, options);
     }
@@ -2432,17 +2503,17 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public ObjectStore objectStore(String bucketName) throws IOException {
-        Validator.validateBucketName(bucketName, true);
-        ensureNotClosing();
-        return new NatsObjectStore(this, bucketName, null);
+    @NonNull
+    public ObjectStore objectStore(@NonNull String bucketName) throws IOException {
+        return objectStore(bucketName, null);
     }
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public ObjectStore objectStore(String bucketName, ObjectStoreOptions options) throws IOException {
+    @NonNull
+    public ObjectStore objectStore(@NonNull String bucketName, @Nullable ObjectStoreOptions options) throws IOException {
         Validator.validateBucketName(bucketName, true);
         ensureNotClosing();
         return new NatsObjectStore(this, bucketName, options);
@@ -2452,6 +2523,7 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
+    @NonNull
     public ObjectStoreManagement objectStoreManagement() throws IOException {
         ensureNotClosing();
         return new NatsObjectStoreManagement(this, null);
@@ -2461,7 +2533,8 @@ class NatsConnection implements Connection {
      * {@inheritDoc}
      */
     @Override
-    public ObjectStoreManagement objectStoreManagement(ObjectStoreOptions options) throws IOException {
+    @NonNull
+    public ObjectStoreManagement objectStoreManagement(@Nullable ObjectStoreOptions options) throws IOException {
         ensureNotClosing();
         return new NatsObjectStoreManagement(this, options);
     }

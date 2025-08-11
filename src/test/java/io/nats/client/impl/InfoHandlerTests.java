@@ -34,7 +34,7 @@ public class InfoHandlerTests {
             Connection nc = Nats.connect(ts.getURI());
             try {
                 assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
-                assertEquals("myid", ((NatsConnection) nc).getInfo().getServerId(), "got custom info");
+                assertEquals("myid", nc.getServerInfo().getServerId(), "got custom info");
             } finally {
                 nc.close();
                 assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
@@ -92,11 +92,11 @@ public class InfoHandlerTests {
             Connection nc = Nats.connect(ts.getURI());
             try {
                 assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
-                assertEquals("myid", ((NatsConnection) nc).getInfo().getServerId(), "got custom info");
+                assertEquals("myid", nc.getServerInfo().getServerId(), "got custom info");
                 sendInfo.complete(Boolean.TRUE);
 
                 assertTrue(gotPong.get().booleanValue(), "Got pong."); // Server round tripped so we should have new info
-                assertEquals("replacement", ((NatsConnection) nc).getInfo().getServerId(), "got replacement info");
+                assertEquals("replacement", nc.getServerInfo().getServerId(), "got replacement info");
             } finally {
                 nc.close();
                 assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
@@ -163,11 +163,11 @@ public class InfoHandlerTests {
             Connection nc = Nats.connect(options);
             try {
                 assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
-                assertEquals("myid", ((NatsConnection) nc).getInfo().getServerId(), "got custom info");
+                assertEquals("myid", nc.getServerInfo().getServerId(), "got custom info");
                 sendInfo.complete(Boolean.TRUE);
 
-                assertTrue(gotPong.get().booleanValue(), "Got pong."); // Server round tripped so we should have new info
-                assertEquals("replacement", ((NatsConnection) nc).getInfo().getServerId(), "got replacement info");
+                assertTrue(gotPong.get(), "Got pong."); // Server round tripped so we should have new info
+                assertEquals("replacement", nc.getServerInfo().getServerId(), "got replacement info");
             } finally {
                 nc.close();
                 assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");

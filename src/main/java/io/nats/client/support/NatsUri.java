@@ -14,6 +14,8 @@
 package io.nats.client.support;
 
 import io.nats.client.Options;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -37,14 +39,17 @@ public class NatsUri {
     private boolean isWebsocket;
     private boolean hostIsIpAddress;
 
+    @NonNull
     public URI getUri() {
         return uri;
     }
 
+    @NonNull
     public String getScheme() {
         return uri.getScheme();
     }
 
+    @NonNull
     public String getHost() {
         return uri.getHost();
     }
@@ -53,6 +58,7 @@ public class NatsUri {
         return uri.getPort();
     }
 
+    @Nullable
     public String getUserInfo() {
         return uri.getUserInfo();
     }
@@ -69,6 +75,7 @@ public class NatsUri {
         return hostIsIpAddress;
     }
 
+    @NonNull
     public NatsUri reHost(String newHost) throws URISyntaxException {
         String newUrl = (uri.getRawUserInfo() == null)
             ? uri.getScheme() + "://" + newHost + ":" + uri.getPort()
@@ -106,15 +113,15 @@ public class NatsUri {
         postConstruct();
     }
 
-    public NatsUri(URI uri) throws URISyntaxException {
+    public NatsUri(@NonNull URI uri) throws URISyntaxException {
         this(uri.toString(), null);
     }
 
-    public NatsUri(String url) throws URISyntaxException {
+    public NatsUri(@NonNull String url) throws URISyntaxException {
         this(url, null);
     }
 
-    public NatsUri(String url, String defaultScheme) throws URISyntaxException {
+    public NatsUri(@NonNull String url, @Nullable String defaultScheme) throws URISyntaxException {
     /*
         test string --> result of new URI(String)
 
@@ -164,13 +171,14 @@ public class NatsUri {
             }
         }
 
+        url = url.trim();
         Helper helper = parse(url, true, prefix);
         String scheme = helper.uri.getScheme();
         String path = helper.uri.getPath();
         if (scheme == null) {
             if (path != null) {
                 // [3]
-                helper = tryPrefixed(helper, prefix);
+                helper = tryPrefixed(helper.url, prefix);
                 scheme = helper.uri.getScheme();
                 path = helper.uri.getPath();
             }
@@ -184,7 +192,7 @@ public class NatsUri {
         if (host == null) {
             if (path == null) {
                 // [4]
-                helper = tryPrefixed(helper, prefix);
+                helper = tryPrefixed(helper.url, prefix);
                 scheme = helper.uri.getScheme();
                 host = helper.uri.getHost();
             }
@@ -229,23 +237,25 @@ public class NatsUri {
     static class Helper {
         String url;
         URI uri;
+
+        public Helper(String url) throws URISyntaxException {
+            this.url = url;
+            this.uri = new URI(url);
+        }
     }
 
-    private Helper tryPrefixed(Helper helper, String prefix) throws URISyntaxException {
-        return parse(prefix + helper.url, false, prefix);
+    private Helper tryPrefixed(String url, String prefix) throws URISyntaxException {
+        return parse(prefix + url, false, prefix);
     }
 
-    private Helper parse(String inUrl, boolean allowTryPrefixed, String prefix) throws URISyntaxException {
-        Helper helper = new Helper();
+    private Helper parse(String url, boolean allowTryPrefixed, String prefix) throws URISyntaxException {
         try {
-            helper.url = inUrl.trim();
-            helper.uri = new URI(helper.url);
-            return helper;
+            return new Helper(url);
         }
         catch (URISyntaxException e) {
             if (allowTryPrefixed && e.getMessage().contains(URI_E_ALLOW_TRY_PREFIXED)) {
                 // [4]
-                return tryPrefixed(helper, prefix);
+                return tryPrefixed(url, prefix);
             }
             else {
                 // [5]
@@ -254,13 +264,14 @@ public class NatsUri {
         }
     }
 
-    public static String join(String delimiter, List<NatsUri> uris) {
+    @NonNull
+    public static String join(@NonNull String delimiter, @NonNull List<NatsUri> uris) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < uris.size(); i++) {
             if (i > 0) {
                 sb.append(delimiter);
             }
-            sb.append(uris.get(i).toString());
+            sb.append(uris.get(i));
         }
         return sb.toString();
     }
@@ -269,7 +280,7 @@ public class NatsUri {
         return uri.getHost().toLowerCase() + uri.getPort();
     }
 
-    public boolean equivalent(NatsUri other) {
+    public boolean equivalent(@NonNull NatsUri other) {
         return equivalentComparable().compareTo(other.equivalentComparable()) == 0;
     }
 }

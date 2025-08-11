@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.Options;
 import io.nats.client.support.NatsUri;
+import org.jspecify.annotations.NonNull;
 
 import java.io.IOException;
 
@@ -24,9 +25,9 @@ import java.io.IOException;
  * the core communication code.
  */
 public interface DataPort {
-    void connect(String serverURI, NatsConnection conn, long timeoutNanos) throws IOException;
+    void connect(@NonNull String serverURI, @NonNull NatsConnection conn, long timeoutNanos) throws IOException;
 
-    default void connect(NatsConnection conn, NatsUri uri, long timeoutNanos) throws IOException {
+    default void connect(@NonNull NatsConnection conn, @NonNull NatsUri uri, long timeoutNanos) throws IOException {
         connect(uri.toString(), conn, timeoutNanos);
     }
 
