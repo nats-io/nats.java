@@ -38,6 +38,7 @@ public class Headers {
 
 	private final Map<String, List<String>> valuesMap;
 	private final Map<String, Integer> lengthMap;
+	private final boolean readOnly;
 	private byte @Nullable [] serialized;
 	private int dataLength;
 
@@ -70,6 +71,7 @@ public class Headers {
 				}
 			}
 		}
+		this.readOnly = readOnly;
 		if (readOnly) {
 			valuesMap = Collections.unmodifiableMap(tempValuesMap);
 			lengthMap = Collections.unmodifiableMap(tempLengthMap);
@@ -92,7 +94,7 @@ public class Headers {
 	 *         -or- if any value contains invalid characters
 	 */
 	public Headers add(String key, String... values) {
-		if (isReadOnly()) {
+		if (readOnly) {
 			throw new UnsupportedOperationException();
 		}
 		if (values == null || values.length == 0) {
@@ -113,7 +115,7 @@ public class Headers {
 	 *         -or- if any value contains invalid characters
 	 */
 	public Headers add(String key, Collection<String> values) {
-		if (isReadOnly()) {
+		if (readOnly) {
 			throw new UnsupportedOperationException();
 		}
 		if (values == null || values.isEmpty()) {
@@ -153,7 +155,7 @@ public class Headers {
 	 *         -or- if any value contains invalid characters
 	 */
 	public Headers put(String key, String... values) {
-		if (isReadOnly()) {
+		if (readOnly) {
 			throw new UnsupportedOperationException();
 		}
 		if (values == null || values.length == 0) {
@@ -174,7 +176,7 @@ public class Headers {
 	 *         -or- if any value contains invalid characters
 	 */
 	public Headers put(String key, Collection<String> values) {
-		if (isReadOnly()) {
+		if (readOnly) {
 			throw new UnsupportedOperationException();
 		}
 		if (values == null || values.isEmpty()) {
@@ -191,7 +193,7 @@ public class Headers {
 	 * @return the Headers object
 	 */
 	public Headers put(Map<String, List<String>> map) {
-		if (isReadOnly()) {
+		if (readOnly) {
 			throw new UnsupportedOperationException();
 		}
 		if (map == null || map.isEmpty()) {
@@ -228,7 +230,7 @@ public class Headers {
 	 * @param keys the key or keys to remove
 	 */
 	public void remove(String... keys) {
-		if (isReadOnly()) {
+		if (readOnly) {
 			throw new UnsupportedOperationException();
 		}
 		for (String key : keys) {
@@ -243,7 +245,7 @@ public class Headers {
 	 * @param keys the key or keys to remove
 	 */
 	public void remove(Collection<String> keys) {
-		if (isReadOnly()) {
+		if (readOnly) {
 			throw new UnsupportedOperationException();
 		}
 		for (String key : keys) {
@@ -282,7 +284,7 @@ public class Headers {
 	 * Removes all the keys The object map will be empty after this call returns.
 	 */
 	public void clear() {
-		if (isReadOnly()) {
+		if (readOnly) {
 			throw new UnsupportedOperationException();
 		}
 		valuesMap.clear();
@@ -577,7 +579,7 @@ public class Headers {
 	 * @return the read only state
 	 */
 	public boolean isReadOnly() {
-		return !(valuesMap instanceof HashMap);
+		return readOnly;
 	}
 
 	@Override
