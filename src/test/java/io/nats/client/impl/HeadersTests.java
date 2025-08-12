@@ -826,4 +826,32 @@ public class HeadersTests {
         assertEquals(1, h.get("test1").size());
         assertEquals("\u0000 \f\b\t", h.getFirst("test1"));
     }
+
+    /**
+     no JMH :(
+     Old: Time: 24622.87ms, Op/sec:  4061264
+     New: Time: 6660.177ms, Op/sec: 15014614
+     New variant is 15014614/4061264= 3.7 times faster
+     */
+    @Test
+    void benchmark_serializeToArray() {
+        Headers h = new Headers().put("test", "aaa", "bBb", "ZZZZZZZZ")
+                .put("ALongLongLongLongLongLongLongKey", "VeryLongLongLongLongLongLongLongLongLong:Value!");
+        assertEquals(
+            "ALongLongLongLongLongLongLongKey:VeryLongLongLongLongLongLongLongLongLong:Value!; test:aaa; test:bBb; test:ZZZZZZZZ;", 
+            h.toString());
+
+        byte[] dst = new byte[1000];
+        for (int i = 0; i < 10_000; i++) {// warm-up
+            assertEquals(129, h.serializeToArray(0, dst));
+        }
+
+        long t = System.nanoTime();
+        int max = 100_000_000;
+        for (int i = 0; i < max; i++) {
+            h.serializeToArray(0, dst);
+        }
+        t = System.nanoTime() - t;
+        System.out.println("Time: " + t / 1000 / 1000.0 +"ms, Op/sec: "+(max*1_000_000_000L/t));
+    }
 }
