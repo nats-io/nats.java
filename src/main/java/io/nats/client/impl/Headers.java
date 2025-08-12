@@ -480,22 +480,21 @@ public class Headers {
 	 * @param dest the byte array to write to
 	 * @return the length of the header
 	 */
+	@SuppressWarnings("deprecation")
 	public int serializeToArray(int destPosition, byte[] dest) {
 		System.arraycopy(HEADER_VERSION_BYTES_PLUS_CRLF, 0, dest, destPosition, HVCRLF_BYTES);
 		destPosition += HVCRLF_BYTES;
 
 		for (Map.Entry<String, List<String>> entry : valuesMap.entrySet()) {
-			List<String> values = entry.getValue();
-			for (String value : values) {
-				byte[] bytes = entry.getKey().getBytes(US_ASCII);
-				System.arraycopy(bytes, 0, dest, destPosition, bytes.length);
-				destPosition += bytes.length;
+			String key = entry.getKey();
+			for (String value : entry.getValue()) {
+				key.getBytes(0, key.length(), dest, destPosition);// key has only US_ASCII
+				destPosition += key.length();
 
 				dest[destPosition++] = COLON;
 
-				bytes = value.getBytes(US_ASCII);
-				System.arraycopy(bytes, 0, dest, destPosition, bytes.length);
-				destPosition += bytes.length;
+				value.getBytes(0, value.length(), dest, destPosition);
+				destPosition += value.length();
 
 				dest[destPosition++] = CR;
 				dest[destPosition++] = LF;
