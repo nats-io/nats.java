@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.support.ByteArrayBuilder;
 import org.jspecify.annotations.Nullable;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.BiConsumer;
 import static io.nats.client.support.NatsConstants.*;
@@ -593,21 +594,19 @@ public class Headers {
 		return Objects.hashCode(valuesMap);
 	}
 
-	@SuppressWarnings("deprecation")
 	@Override
 	public String toString() {
 		byte[] b = getSerialized();
-		if (b.length <= HVCRLF_BYTES + 2){
-			return "";
+		int len = b.length;
+		if (len <= HVCRLF_BYTES + 2){
+			return "";// empty map
 		}
-
-		for (int i = 0, len = b.length; i < len; i++) {
-			if (b[i] == LF) {
-				b[i] = ' ';
-			} else if (b[i] == CR) {
-				b[i] = ';';
+		for (int i = 0; i < len; i++) {
+			switch (b[i]) {
+				case CR: b[i] = ';'; break;
+				case LF: b[i] = ' '; break;
 			}
 		}
-		return new String(b, 0, HVCRLF_BYTES, b.length - HVCRLF_BYTES - 3);
+		return new String(b, HVCRLF_BYTES, len - HVCRLF_BYTES - 3, StandardCharsets.ISO_8859_1);// b has only US_ASCII, ISO_8859_1 is 3x faster
 	}
 }
