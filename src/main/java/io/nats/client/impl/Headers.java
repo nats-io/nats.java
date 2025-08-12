@@ -331,7 +331,7 @@ public class Headers {
 	 * @return a read-only set of keys (in lowercase) contained in this map
 	 */
 	public Set<String> keySetIgnoreCase() {
-		HashSet<String> set = new HashSet<>(valuesMap.size()*4/3 + 1);
+		HashSet<String> set = new HashSet<>();// no capacity is OK for small maps
 		for (String k : valuesMap.keySet()) {
 			set.add(k.toLowerCase());
 		}
@@ -476,7 +476,9 @@ public class Headers {
 
 	/**
 	 * Write the header to the byte array. Assumes that the caller has
-	 * already validated that the destination array is large enough by using getSerialized()
+	 * already validated that the destination array is large enough by using {@link #getSerialized()}.
+	 * <p>/Deprecated {@link String#getBytes(int, int, byte[], int)} is used, because it still exists in JDK 25
+	 * and is 10–30 times faster than {@code getBytes(ISO_8859_1/US_ASCII)}/
 	 * @param destPosition the position index in destination byte array to start
 	 * @param dest the byte array to write to
 	 * @return the length of the header
