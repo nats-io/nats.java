@@ -1,4 +1,4 @@
-// Copyright 2020 The NATS Authors
+// Copyright 2020-2025 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -18,10 +18,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.*;
 import java.util.function.BiConsumer;
-import java.util.stream.Collectors;
-
 import static io.nats.client.support.NatsConstants.*;
-import static java.nio.charset.StandardCharsets.US_ASCII;
 
 /**
  * An object that represents a map of keys to a list of values. It does not accept
@@ -403,8 +400,9 @@ public class Headers {
 	 * removed during iteration
 	 */
 	public void forEach(BiConsumer<String, List<String>> action) {
-		valuesMap.forEach((key, values) ->
-				action.accept(key, Collections.unmodifiableList(values)));
+		for (Map.Entry<String, List<String>> entry : valuesMap.entrySet()) {
+			action.accept(entry.getKey(), Collections.unmodifiableList(entry.getValue()));
+		}
 	}
 
 	/**
@@ -506,6 +504,7 @@ public class Headers {
 		dest[destPosition++] = CR;
 		dest[destPosition] = LF;
 
+		//to do update serialized and/or dataLength?
 		return serializedLength();
 	}
 
@@ -525,7 +524,8 @@ public class Headers {
 		for (int idx = 0; idx < len; idx++) {
 			char c = key.charAt(idx);
 			if (c < 33 || c > 126 || c == ':') {
-				throw new IllegalArgumentException(KEY_INVALID_CHARACTER + "'" + c + "'");
+				throw new IllegalArgumentException(KEY_INVALID_CHARACTER +"0x"+ Integer.toHexString(c)
+						+" at "+ idx +" in "+ key);
 			}
 		}
 	}
@@ -541,7 +541,8 @@ public class Headers {
 		for (int i = 0, len = val.length(); i < len; i++) {
 			int c = val.charAt(i);
 			if (c > 127 || c == 10 || c == 13) {
-				throw new IllegalArgumentException(VALUE_INVALID_CHARACTERS + Integer.toHexString(c));
+				throw new IllegalArgumentException(VALUE_INVALID_CHARACTERS +"0x"+ Integer.toHexString(c)
+						+" at "+ i +" in "+ val);
 			}
 		}
 	}
@@ -595,18 +596,21 @@ public class Headers {
 		return Objects.hashCode(valuesMap);
 	}
 
+	@SuppressWarnings("deprecation")
 	@Override
 	public String toString() {
-		return valuesMap.entrySet().stream()
-				.filter(e -> e.getValue() != null)
-				.sorted(Map.Entry.comparingByKey())
-				.map(e -> {
-					String headerName = e.getKey();
-					List<String> values = e.getValue();
-					return headerName +": "+ (values.size() == 1 ? values.get(0)
-							: String.join(", ", values)
-					);
-				})
-				.collect(Collectors.joining("; "));
+		byte[] b = getSerialized();
+		if (b.length <= HVCRLF_BYTES + 2){
+			return "";
+		}
+
+		for (int i = 0, len = b.length; i < len; i++) {
+			if (b[i] == LF) {
+				b[i] = ' ';
+			} else if (b[i] == CR) {
+				b[i] = ';';
+			}
+		}
+		return new String(b, 0, HVCRLF_BYTES, b.length - HVCRLF_BYTES - 3);
 	}
 }

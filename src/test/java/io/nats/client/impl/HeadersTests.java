@@ -769,14 +769,16 @@ public class HeadersTests {
         assertNotNull(new Status(1, "msg").toString()); // COVERAGE
 
         Headers h = new Headers();
+        assertEquals("", h.toString());
+
         h.add("Test1");
         h.add("Test2", "Test2Value");
         h.add("Test3", "");
         h.add("Test4", "", "", "");
         h.add("Test5", "Nice!", "To.", "See?");
 
-        assertEquals("Test2: Test2Value; Test3: ; Test4: , , ; Test5: Nice!, To., See?", h.toString()
-        );
+        assertEquals("Test5:Nice!; Test5:To.; Test5:See?; Test4:; Test4:; Test4:; Test3:; Test2:Test2Value;",
+            h.toString());// flaky: non-sorted HashMap
     }
 
     @Test
