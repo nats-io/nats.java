@@ -1764,7 +1764,12 @@ public class SimplificationTests extends JetStreamTestBase {
             standardConnectionWait(nc);
             sleep(4000); // long enough to get messages and for the hb alarm to have tripped
 
-            nc.jetStreamManagement().deleteStream(stream); // it was a file stream clean it up
+            try {
+                nc.jetStreamManagement().deleteStream(stream); // it was a file stream clean it up
+            }
+            catch (JetStreamApiException ignore) {
+                // in GH actions this fails sometimes
+            }
         }
 
         assertTrue(allInOrder.get());

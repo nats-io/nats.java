@@ -22,6 +22,8 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.nats.client.utils.TestBase.sleep;
+import static io.nats.client.utils.TestBase.waitUntilStatus;
 import static org.junit.jupiter.api.Assertions.*;
 
 
@@ -508,7 +510,7 @@ public class DispatcherTests {
         try (NatsTestServer ts = new NatsTestServer(false);
                 Connection nc = Nats.connect(ts.getURI())) {
             final CompletableFuture<Boolean> done = new CompletableFuture<>();
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
 
             final Dispatcher d = nc.createDispatcher((msg) -> {
                 try {
@@ -522,13 +524,13 @@ public class DispatcherTests {
             });
 
             d.subscribe("done");
-            nc.flush(Duration.ofMillis(5000));// Get them all to the server
+            sleep(500); // Making sure the "subscribe" has been registered on the server
 
-            nc.publish("done", new byte[16]); // when we get this we know the others are dispatched
-            nc.flush(Duration.ofMillis(5000)); // Wait for the publish
+            nc.publish("done", new byte[16]);
 
-            done.get(5000, TimeUnit.MILLISECONDS); // make sure we got them
-            assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+            done.get(5000, TimeUnit.MILLISECONDS);
+
+            waitUntilStatus(nc, 5000, Connection.Status.CLOSED);
         }
     }
 
