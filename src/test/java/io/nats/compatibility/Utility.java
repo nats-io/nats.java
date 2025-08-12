@@ -21,7 +21,6 @@ import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 
-@SuppressWarnings("CallToPrintStackTrace")
 public class Utility {
     public static File downloadToTempFile(String urlStr, String name, String ext) throws IOException {
         URL url = new URL(urlStr);

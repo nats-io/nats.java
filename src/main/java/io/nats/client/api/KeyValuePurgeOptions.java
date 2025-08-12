@@ -20,7 +20,7 @@ public class KeyValuePurgeOptions {
     /**
      * The default time in millis that is used for as the threshold to keep markers.
      */
-    public static long DEFAULT_THRESHOLD_MILLIS = Duration.ofMinutes(30).toMillis();
+    public static final long DEFAULT_THRESHOLD_MILLIS = Duration.ofMinutes(30).toMillis();
 
     private final long deleteMarkersThresholdMillis;
 

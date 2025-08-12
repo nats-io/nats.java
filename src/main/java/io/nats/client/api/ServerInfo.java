@@ -25,10 +25,11 @@ import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonValueUtils.*;
+import static io.nats.client.support.NatsConstants.UNDEFINED;
 
 public class ServerInfo {
 
-    public static ServerInfo EMPTY_INFO = new ServerInfo("INFO {}");
+    public static final ServerInfo EMPTY_INFO = new ServerInfo("INFO {}");
 
     private final String serverId;
     private final String serverName;
@@ -64,11 +65,11 @@ public class ServerInfo {
             throw new IllegalArgumentException("Invalid Server Info Json");
         }
 
-        serverId = readString(jv, SERVER_ID, "N/A");
-        serverName = readString(jv, SERVER_NAME, "N/A");
+        serverId = readString(jv, SERVER_ID, UNDEFINED);
+        serverName = readString(jv, SERVER_NAME, UNDEFINED);
         version = readString(jv, VERSION, "0.0.0");
         go = readString(jv, GO, "0.0.0");
-        host = readString(jv, HOST, "N/A");
+        host = readString(jv, HOST, UNDEFINED);
         headersSupported = readBoolean(jv, HEADERS);
         authRequired = readBoolean(jv, AUTH_REQUIRED);
         nonce = readBytes(jv, NONCE);

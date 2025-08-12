@@ -15,6 +15,7 @@ package io.nats.client;
 
 import io.nats.client.impl.*;
 import io.nats.client.support.*;
+import org.jspecify.annotations.NonNull;
 
 import javax.net.ssl.SSLContext;
 import java.io.File;
@@ -694,14 +695,15 @@ public class Options {
     private final boolean enableFastFallback;
 
     static class DefaultThreadFactory implements ThreadFactory {
-        String name;
-        AtomicInteger threadNo = new AtomicInteger(0);
+        final String name;
+        final AtomicInteger threadNo;
 
         public DefaultThreadFactory (String name){
             this.name = name;
+            threadNo = new AtomicInteger(0);
         }
 
-        public Thread newThread(Runnable r) {
+        public Thread newThread(@NonNull Runnable r) {
             String threadName = name+":"+threadNo.incrementAndGet();
             Thread t = new Thread(r,threadName);
             if (t.isDaemon()) {
