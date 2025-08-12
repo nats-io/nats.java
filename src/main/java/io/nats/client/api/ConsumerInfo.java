@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.Message;
+import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.JsonValue;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -23,6 +24,7 @@ import java.time.ZonedDateTime;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonValueUtils.*;
+import static io.nats.client.support.NatsConstants.UNDEFINED;
 
 /**
  * The ConsumerInfo class returns information about a JetStream consumer.
@@ -51,26 +53,46 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
 
     public ConsumerInfo(JsonValue vConsumerInfo) {
         super(vConsumerInfo);
-        this.configuration = ConsumerConfiguration.builder().jsonValue(readObject(jv, CONFIG)).build();
+        if (hasError()) {
+            this.configuration = ConsumerConfiguration.builder().build();
+            stream = UNDEFINED;
+            name = UNDEFINED;
+            created = DateTimeUtils.DEFAULT_TIME;
+            delivered = null;
+            ackFloor = null;
+            numAckPending = -1;
+            numRedelivered = -1;
+            numPending = -1;
+            numWaiting = -1;
+            paused = false;
+            pauseRemaining = null;
+            clusterInfo = null;
+            pushBound = false;
+            timestamp = null;
+        }
+        else {
+            JsonValue jvConfig = nullValueIsError(jv, CONFIG, JsonValue.EMPTY_MAP) ;
+            configuration = ConsumerConfiguration.builder().jsonValue(jvConfig).build();
 
-        stream = readString(jv, STREAM_NAME);
-        name = readString(jv, NAME);
-        created = readDate(jv, CREATED);
+            stream = nullStringIsError(jv, STREAM_NAME);
+            name = nullStringIsError(jv, NAME);
+            created = nullDateIsError(jv, CREATED);
 
-        delivered = new SequenceInfo(readObject(jv, DELIVERED));
-        ackFloor = new SequenceInfo(readObject(jv, ACK_FLOOR));
+            delivered = new SequenceInfo(readObject(jv, DELIVERED));
+            ackFloor = new SequenceInfo(readObject(jv, ACK_FLOOR));
 
-        numAckPending = readLong(jv, NUM_ACK_PENDING, 0);
-        numRedelivered = readLong(jv, NUM_REDELIVERED, 0);
-        numPending = readLong(jv, NUM_PENDING, 0);
-        numWaiting = readLong(jv, NUM_WAITING, 0);
-        paused = readBoolean(jv, PAUSED, false);
-        pauseRemaining = readNanos(jv, PAUSE_REMAINING);
+            numAckPending = readLong(jv, NUM_ACK_PENDING, 0);
+            numRedelivered = readLong(jv, NUM_REDELIVERED, 0);
+            numPending = readLong(jv, NUM_PENDING, 0);
+            numWaiting = readLong(jv, NUM_WAITING, 0);
+            paused = readBoolean(jv, PAUSED, false);
+            pauseRemaining = readNanos(jv, PAUSE_REMAINING);
 
-        clusterInfo = ClusterInfo.optionalInstance(readValue(jv, CLUSTER));
-        pushBound = readBoolean(jv, PUSH_BOUND);
+            clusterInfo = ClusterInfo.optionalInstance(readValue(jv, CLUSTER));
+            pushBound = readBoolean(jv, PUSH_BOUND);
 
-        timestamp = readDate(jv, TIMESTAMP);
+            timestamp = readDate(jv, TIMESTAMP);
+        }
     }
 
     /**

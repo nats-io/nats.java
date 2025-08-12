@@ -14,6 +14,7 @@
 package io.nats.client.api;
 
 import io.nats.client.Message;
+import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.JsonValue;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -25,6 +26,7 @@ import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonParser.parseUnchecked;
 import static io.nats.client.support.JsonValueUtils.readDate;
 import static io.nats.client.support.JsonValueUtils.readValue;
+import static io.nats.client.support.NatsConstants.UNDEFINED;
 
 /**
  * The StreamInfo class contains information about a JetStream stream.
@@ -46,15 +48,31 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
 
     public StreamInfo(@NonNull JsonValue vStreamInfo) {
         super(vStreamInfo);
-        createTime = readDate(jv, CREATED);
-        JsonValue jvConfig = readValue(jv, CONFIG); // null when it's an error
-        config = jvConfig == null ? null : StreamConfiguration.instance(jvConfig);
-        streamState = new StreamState(readValue(jv, STATE));
-        clusterInfo = ClusterInfo.optionalInstance(readValue(jv, CLUSTER));
-        mirrorInfo = MirrorInfo.optionalInstance(readValue(jv, MIRROR));
-        sourceInfos = SourceInfo.optionalListOf(readValue(jv, SOURCES));
-        alternates = StreamAlternate.optionalListOf(readValue(jv, ALTERNATES));
-        timestamp = readDate(jv, TIMESTAMP);
+        if (hasError()) {
+            createTime = DateTimeUtils.DEFAULT_TIME;
+            config = StreamConfiguration.builder().name(UNDEFINED).build();
+            streamState = new StreamState(JsonValue.EMPTY_MAP);
+            clusterInfo = null;
+            mirrorInfo = null;
+            sourceInfos = null;
+            alternates = null;
+            timestamp = null;
+        }
+        else {
+            JsonValue jvConfig = nullValueIsError(jv, CONFIG, JsonValue.NULL);
+            config = (jvConfig == JsonValue.NULL)
+                ? StreamConfiguration.builder().name(UNDEFINED).build()
+                : StreamConfiguration.instance(jvConfig);
+
+            createTime = nullDateIsError(jv, CREATED);
+
+            streamState = new StreamState(readValue(jv, STATE));
+            clusterInfo = ClusterInfo.optionalInstance(readValue(jv, CLUSTER));
+            mirrorInfo = MirrorInfo.optionalInstance(readValue(jv, MIRROR));
+            sourceInfos = SourceInfo.optionalListOf(readValue(jv, SOURCES));
+            alternates = StreamAlternate.optionalListOf(readValue(jv, ALTERNATES));
+            timestamp = readDate(jv, TIMESTAMP);
+        }
     }
 
     /**
