@@ -404,6 +404,7 @@ public final class JsonParsingTests {
         JsonValue v = new JsonValue(new HashMap<>());
         v.map.put("bool", new JsonValue(Boolean.TRUE));
         v.map.put("string", new JsonValue("hello"));
+        v.map.put("emptyString", new JsonValue(""));
         v.map.put("int", new JsonValue(Integer.MAX_VALUE));
         v.map.put("long", new JsonValue(Long.MAX_VALUE));
         v.map.put("date", new JsonValue(DateTimeUtils.toRfc3339(zdt)));
@@ -414,9 +415,14 @@ public final class JsonParsingTests {
         assertNotNull(readValue(v, "string"));
         assertNull(readValue(v, "na"));
         assertEquals(JsonValue.EMPTY_MAP, readObject(v, "na"));
-        assertNull(read(null, "na", vv -> vv));
-        assertNull(read(JsonValue.NULL, "na", vv -> vv));
-        assertNull(read(JsonValue.EMPTY_MAP, "na", vv -> vv));
+
+        assertNull(readValue(null, "na"));
+        assertNull(readString(null, "na"));
+        assertNull(readStringEmptyAsNull(null, "na"));
+        assertNull(readValue(JsonValue.NULL, "na"));
+        assertNull(readString(JsonValue.NULL, "na"));
+        assertNull(readValue(JsonValue.EMPTY_MAP, "na"));
+        assertNull(readString(JsonValue.EMPTY_MAP, "na"));
 
         assertNull(readDate(null, "na"));
         assertNull(readDate(JsonValue.NULL, "na"));
@@ -447,13 +453,19 @@ public final class JsonParsingTests {
         assertTrue(readBoolean(v, "na", true));
 
         assertEquals("hello", readString(v, "string"));
+        assertEquals("hello", readStringEmptyAsNull(v, "string"));
         assertEquals("hello", readString(v, "string", null));
         assertNull(readString(v, "na"));
+        assertNull(readStringEmptyAsNull(v, "na"));
         assertNull(readString(v, "na", null));
         assertEquals("default", readString(v, "na", "default"));
         assertNull(readString(JsonValue.NULL, "na"));
         assertNull(readString(JsonValue.NULL, "na", null));
         assertEquals("default", readString(JsonValue.NULL, "na", "default"));
+
+        assertEquals("", readString(v, "emptyString"));
+        assertNull(readStringEmptyAsNull(v, "emptyString"));
+        assertEquals("", readString(v, "emptyString", null));
 
         assertEquals(zdt, readDate(v, "date"));
         assertNull(readDate(v, "na"));
@@ -876,31 +888,6 @@ public final class JsonParsingTests {
         validateArray(true, false, instance(list));
     }
 
-    @Test
-    public void testValueUtilsArrayBuilder() {
-        ArrayBuilder builder = arrayBuilder()
-            .add("Hello")
-            .add('c')
-            .add(1)
-            .add(Long.MAX_VALUE)
-            .add(1D)
-            .add(1F)
-            .add(new BigDecimal("1.0"))
-            .add(new BigInteger(Long.toString(Long.MAX_VALUE)))
-            .add(true)
-            .add(new HashMap<>())
-            .add(new ArrayList<>())
-            .add(new TestSerializableMap())
-            .add(new TestSerializableList())
-            .add(JsonValue.EMPTY_MAP)
-            .add(null)
-            .add(JsonValue.NULL);
-        validateArray(false, false, builder.toJsonValue());
-        //noinspection deprecation
-        validateArray(false, false, builder.getJsonValue()); // coverage for deprecated
-        validateArray(false, true, JsonParser.parseUnchecked(builder.toJson()));
-    }
-
     private static void validateArray(boolean checkNull, boolean parsed, JsonValue v) {
         assertNotNull(v.array);
         assertEquals(JsonValue.Type.STRING, v.array.get(0).type);
@@ -949,5 +936,22 @@ public final class JsonParsingTests {
         assertEquals(2, stringString.size());
         assertEquals("A", stringString.get("a"));
         assertEquals("B", stringString.get("b"));
+    }
+
+    @Test
+    void testReadArray() {
+        JsonValue jv = toJsonValue("");
+        assertEquals(JsonValue.EMPTY_ARRAY.array, readArray(jv, "k"));
+
+        ArrayList<Object> list = new ArrayList<>();
+        list.add(42);
+        jv = toJsonValue(list);
+        assertEquals(JsonValue.EMPTY_ARRAY.array, readArray(jv, "k"));
+
+        HashMap<String, Object> map = new HashMap<>();
+        map.put("k", jv);
+        jv = toJsonValue(map);
+        assertEquals(JsonValue.EMPTY_ARRAY.array, readArray(jv, "n"));
+        assertEquals(list, readArray(jv, "k"));
     }
 }

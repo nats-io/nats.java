@@ -1,4 +1,4 @@
-// Copyright 2023 The NATS Authors
+// Copyright 2023-2025 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -14,50 +14,49 @@
 package io.nats.client.support;
 
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 import static io.nats.client.support.Encoding.base64BasicDecode;
-import static io.nats.client.support.JsonValue.*;
+import static io.nats.client.support.JsonValue.Type;
 
 /**
  * Internal json value helpers.
  */
 public abstract class JsonValueUtils {
-
     private JsonValueUtils() {} /* ensures cannot be constructed */
 
-    public interface JsonValueSupplier<T> {
-        T get(JsonValue v);
-    }
-
-    public static <T> T read(JsonValue jsonValue, String key, JsonValueSupplier<T> valueSupplier) {
-        JsonValue v = jsonValue == null || jsonValue.map == null ? null : jsonValue.map.get(key);
-        return valueSupplier.get(v);
-    }
-
-    public static JsonValue readValue(JsonValue jsonValue, String key) {
-        return read(jsonValue, key, v -> v);
+    public static @Nullable JsonValue readValue(@Nullable JsonValue jsonValue, String key) {
+        return jsonValue == null || jsonValue.map == null ? null
+                : jsonValue.map.get(key);
     }
 
     public static JsonValue readObject(JsonValue jsonValue, String key) {
-        return read(jsonValue, key, v -> v == null ? EMPTY_MAP : v);
+        JsonValue v = readValue(jsonValue,key);
+        return v == null ? JsonValue.EMPTY_MAP : v;
     }
 
     public static List<JsonValue> readArray(JsonValue jsonValue, String key) {
-        return read(jsonValue, key, v -> v == null ? EMPTY_ARRAY.array : v.array);
+        JsonValue v = readValue(jsonValue,key);
+        return v == null ? JsonValue.EMPTY_ARRAY.array : v.array;
     }
 
-    public static Map<String, String> readStringStringMap(JsonValue jv, String key) {
+    public static @Nullable Map<String, String> readStringStringMap(JsonValue jv, String key) {
         JsonValue o = readObject(jv, key);
         if (o.type == Type.MAP && o.map.size() > 0) {
-            Map<String, String> temp = new HashMap<>();
+            Map<String, String> temp = new HashMap<>(o.map.size() * 4/3 + 1);
             for (String k : o.map.keySet()) {
                 String value = readString(o, k);
                 if (value != null) {
@@ -69,53 +68,58 @@ public abstract class JsonValueUtils {
         return null;
     }
 
-    public static String readString(JsonValue jsonValue, String key) {
-        return read(jsonValue, key, v -> v == null ? null : v.string);
+    public static @Nullable String readString(@Nullable JsonValue jsonValue, String key) {
+        JsonValue v = readValue(jsonValue,key);
+        return v == null ? null : v.string;// todo number can be converted to string
     }
 
-    public static String readStringEmptyAsNull(JsonValue jsonValue, String key) {
-        return read(jsonValue, key, v -> v == null ? null : (v.string.isEmpty() ? null : v.string));
+    public static @Nullable String readStringEmptyAsNull(JsonValue jsonValue, String key) {
+        JsonValue v = readValue(jsonValue,key);
+        return v == null || v.string == null || v.string.isEmpty() ? null
+                : v.string;
     }
 
     public static String readString(JsonValue jsonValue, String key, String dflt) {
-        return read(jsonValue, key, v -> v == null ? dflt : v.string);
+        JsonValue v = readValue(jsonValue,key);
+        return v == null ? dflt : v.string;
     }
 
-    public static ZonedDateTime readDate(JsonValue jsonValue, String key) {
-        return read(jsonValue, key,
-            v -> v == null || v.string == null ? null : DateTimeUtils.parseDateTimeThrowParseError(v.string));
+    public static @Nullable ZonedDateTime readDate(JsonValue jsonValue, String key) {
+        String v = readString(jsonValue,key);
+        return v == null ? null
+                : DateTimeUtils.parseDateTimeThrowParseError(v);
     }
 
-    public static Integer readInteger(JsonValue jsonValue, String key) {
-        return read(jsonValue, key, v -> v == null ? null : getInteger(v));
+    public static @Nullable Integer readInteger(JsonValue jsonValue, String key) {
+        JsonValue v = readValue(jsonValue,key);
+        return v == null ? null : getInteger(v);
     }
 
     public static int readInteger(JsonValue jsonValue, String key, int dflt) {
-        return read(jsonValue, key, v -> {
-            if (v != null) {
-                Integer i = getInteger(v);
-                if (i != null) {
-                    return i;
-                }
+        JsonValue v = readValue(jsonValue,key);
+        if (v != null) {
+            Integer i = getInteger(v);
+            if (i != null) {
+                return i;
             }
-            return dflt;
-        });
+        }
+        return dflt;
     }
 
-    public static Long readLong(JsonValue jsonValue, String key) {
-        return read(jsonValue, key, v -> v == null ? null : getLong(v));
+    public static @Nullable Long readLong(JsonValue jsonValue, String key) {
+        JsonValue v = readValue(jsonValue,key);
+        return v == null ? null : getLong(v);
     }
 
     public static long readLong(JsonValue jsonValue, String key, long dflt) {
-        return read(jsonValue, key, v -> {
-            if (v != null) {
-                Long l = getLong(v);
-                if (l != null) {
-                    return l;
-                }
+        JsonValue v = readValue(jsonValue,key);
+        if (v != null) {
+            Long l = getLong(v);
+            if (l != null) {
+                return l;
             }
-            return dflt;
-        });
+        }
+        return dflt;
     }
 
     public static boolean readBoolean(JsonValue jsonValue, String key) {
@@ -123,11 +127,11 @@ public abstract class JsonValueUtils {
     }
 
     public static Boolean readBoolean(JsonValue jsonValue, String key, Boolean dflt) {
-        return read(jsonValue, key,
-            v -> v == null || v.bool == null ? dflt : v.bool);
+        JsonValue v = readValue(jsonValue,key);
+        return v == null || v.bool == null ? dflt : v.bool;
     }
 
-    public static Duration readNanos(JsonValue jsonValue, String key) {
+    public static @Nullable Duration readNanos(JsonValue jsonValue, String key) {
         Long l = readLong(jsonValue, key);
         return l == null ? null : Duration.ofNanos(l);
     }
@@ -137,7 +141,7 @@ public abstract class JsonValueUtils {
         return l == null ? dflt : Duration.ofNanos(l);
     }
 
-    public static <T> List<T> listOf(JsonValue v, Function<JsonValue, T> provider) {
+    public static <T> List<T> listOf(@Nullable JsonValue v, Function<JsonValue, T> provider) {
         List<T> list = new ArrayList<>();
         if (v != null && v.array != null) {
             for (JsonValue jv : v.array) {
@@ -150,17 +154,19 @@ public abstract class JsonValueUtils {
         return list;
     }
 
-    public static <T> List<T> optionalListOf(JsonValue v, Function<JsonValue, T> provider) {
+    public static <T> @Nullable List<T> optionalListOf(@Nullable JsonValue v, Function<JsonValue, T> provider) {
         List<T> list = listOf(v, provider);
         return list.isEmpty() ? null : list;
     }
 
     public static List<String> readStringList(JsonValue jsonValue, String key) {
-        return read(jsonValue, key, v -> listOf(v, jv -> jv.string));
+        JsonValue v = readValue(jsonValue,key);
+        return listOf(v, jv -> jv.string);
     }
 
     public static List<String> readStringListIgnoreEmpty(JsonValue jsonValue, String key) {
-        return read(jsonValue, key, v -> listOf(v, jv -> {
+        JsonValue v = readValue(jsonValue,key);
+        return listOf(v, jv -> {
             if (jv.string != null) {
                 String s = jv.string.trim();
                 if (!s.isEmpty()) {
@@ -168,41 +174,42 @@ public abstract class JsonValueUtils {
                 }
             }
             return null;
-        }));
+        });
     }
 
-    public static List<String> readOptionalStringList(JsonValue jsonValue, String key) {
-        return read(jsonValue, key, v -> optionalListOf(v, jv -> jv.string));
+    public static @Nullable List<String> readOptionalStringList(JsonValue jsonValue, String key) {
+        JsonValue v = readValue(jsonValue,key);
+        return optionalListOf(v, jv -> jv.string);
     }
 
     public static List<Long> readLongList(JsonValue jsonValue, String key) {
-        return read(jsonValue, key, v -> listOf(v, JsonValueUtils::getLong));
+        JsonValue v = readValue(jsonValue,key);
+        return listOf(v, JsonValueUtils::getLong);
     }
-    public static List<Duration> readNanosList(JsonValue jsonValue, String key) {
+    public static @Nullable List<Duration> readNanosList(JsonValue jsonValue, String key) {
         return readNanosList(jsonValue, key, false);
     }
 
-    public static List<Duration> readNanosList(JsonValue jsonValue, String key, boolean nullIfEmpty) {
-        List<Duration> list = read(jsonValue, key,
-            v -> listOf(v, vv -> {
-                Long l = getLong(vv);
-                return l == null ? null : Duration.ofNanos(l);
-            })
-        );
+    public static @Nullable List<Duration> readNanosList(JsonValue jsonValue, String key, boolean nullIfEmpty) {
+        JsonValue v = readValue(jsonValue,key);
+        List<Duration> list = listOf(v, vv -> {
+            Long l = getLong(vv);
+            return l == null ? null : Duration.ofNanos(l);
+        });
         return list.isEmpty() && nullIfEmpty ? null : list;
     }
 
-    public static byte[] readBytes(JsonValue jsonValue, String key) {
+    public static byte @Nullable [] readBytes(JsonValue jsonValue, String key) {
         String s = readString(jsonValue, key);
         return s == null ? null : s.getBytes(StandardCharsets.UTF_8);
     }
 
-    public static byte[] readBase64(JsonValue jsonValue, String key) {
+    public static byte @Nullable [] readBase64(JsonValue jsonValue, String key) {
         String b64 = readString(jsonValue, key);
         return b64 == null ? null : base64BasicDecode(b64);
     }
 
-    public static Integer getInteger(JsonValue v) {
+    public static @Nullable Integer getInteger(JsonValue v) {
         if (v.i != null) {
             return v.i;
         }
@@ -213,12 +220,14 @@ public abstract class JsonValueUtils {
         return null;
     }
 
-    public static Long getLong(JsonValue v) {
-        return v.l != null ? v.l : (v.i != null ? (long)v.i : null);
+    public static @Nullable Long getLong(JsonValue v) {
+        return v.l != null ? v.l
+                : (v.i != null ? v.i.longValue() : null);
     }
 
     public static long getLong(JsonValue v, long dflt) {
-        return v.l != null ? v.l : (v.i != null ? (long)v.i : dflt);
+        return v.l != null ? v.l
+                : (v.i != null ? v.i.longValue() : dflt);
     }
 
     public static JsonValue instance(Duration d) {
@@ -227,18 +236,17 @@ public abstract class JsonValueUtils {
 
     @SuppressWarnings("rawtypes")
     public static JsonValue instance(Collection list) {
-        JsonValue v = new JsonValue(new ArrayList<>());
+        JsonValue v = new JsonValue(new ArrayList<>(list.size()));
         for (Object o : list) {
             v.array.add(toJsonValue(o));
         }
         return v;
     }
 
-    @SuppressWarnings("rawtypes")
-    public static JsonValue instance(Map map) {
-        JsonValue v = new JsonValue(new HashMap<>());
-        for (Object key : map.keySet()) {
-            v.map.put(key.toString(), toJsonValue(map.get(key)));
+    public static JsonValue instance(Map<?,?> map) {
+        JsonValue v = new JsonValue(new HashMap<>(map.size() *4/3+1));
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            v.map.put(entry.getKey().toString(), toJsonValue(entry.getValue()));
         }
         return v;
     }
@@ -319,68 +327,28 @@ public abstract class JsonValueUtils {
             return this;
         }
 
-        public MapBuilder put(String s, Map<String, String> stringMap) {
+        public MapBuilder put(String key, Map<String, String> stringMap) {
             if (stringMap != null) {
                 MapBuilder mb = new MapBuilder();
-                for (String key : stringMap.keySet()) {
-                    mb.put(key, stringMap.get(key));
+                for (Map.Entry<String, String> entry : stringMap.entrySet()) {
+                    mb.put(entry.getKey(), entry.getValue());
                 }
-                jv.map.put(s, mb.jv);
-                jv.mapOrder.add(s);
+                jv.map.put(key, mb.jv);
+                jv.mapOrder.add(key);
             }
             return this;
         }
 
         @Override
-        @NonNull
-        public String toJson() {
+        public @NonNull String toJson() {
             return jv.toJson();
         }
 
         @Override
-        @NonNull
-        public JsonValue toJsonValue() {
+        public @NonNull JsonValue toJsonValue() {
             return jv;
         }
 
-        @Deprecated
-        public JsonValue getJsonValue() {
-            return jv;
-        }
-    }
-
-    public static ArrayBuilder arrayBuilder() {
-        return new ArrayBuilder();
-    }
-
-    public static class ArrayBuilder implements JsonSerializable {
-        public JsonValue jv = new JsonValue(new ArrayList<>());
-        public ArrayBuilder add(Object o) {
-            if (o != null) {
-                JsonValue vv = JsonValueUtils.toJsonValue(o);
-                if (vv.type != JsonValue.Type.NULL) {
-                    jv.array.add(JsonValueUtils.toJsonValue(o));
-                }
-            }
-            return this;
-        }
-
-        @Override
-        @NonNull
-        public String toJson() {
-            return jv.toJson();
-        }
-
-        @Override
-        @NonNull
-        public JsonValue toJsonValue() {
-            return jv;
-        }
-
-        @Deprecated
-        public JsonValue getJsonValue() {
-            return jv;
-        }
+        @Deprecated public JsonValue getJsonValue() { return jv; }
     }
 }
-

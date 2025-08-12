@@ -15,6 +15,7 @@ package io.nats.service;
 
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueUtils;
 
 import java.util.*;
 
@@ -67,8 +68,8 @@ public class InfoResponse extends ServiceResponse {
     private InfoResponse(JsonValue jv) {
         super(TYPE, jv);
         description = readString(jv, DESCRIPTION);
-        endpoints = read(jv, ENDPOINTS, v -> listOf(v, Endpoint::new));
-
+        JsonValue array = readValue(jv, ENDPOINTS);
+        endpoints = JsonValueUtils.listOf(array, Endpoint::new);
     }
 
     @Override
