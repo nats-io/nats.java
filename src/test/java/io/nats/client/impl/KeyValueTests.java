@@ -23,9 +23,11 @@ import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.JetStreamOptions.DEFAULT_JS_OPTIONS;
 import static io.nats.client.api.KeyValuePurgeOptions.DEFAULT_THRESHOLD_MILLIS;
@@ -1726,7 +1728,7 @@ public class KeyValueTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testTtlAndDuplicateWindow() throws Exception {
+    public void testTtlAndDuplicateWindowRoundTrip() throws Exception {
         jsServer.run(TestBase::atLeast2_10, nc -> {
             KeyValueManagement kvm = nc.keyValueManagement();
             String bucket = bucket();
@@ -1738,12 +1740,14 @@ public class KeyValueTests extends JetStreamTestBase {
 
             StreamConfiguration sc = status.getBackingStreamInfo().getConfiguration();
             assertEquals(0, sc.getMaxAge().toMillis());
+            assertNotNull(sc.getDuplicateWindow());
             assertEquals(SERVER_DEFAULT_DUPLICATE_WINDOW_MS, sc.getDuplicateWindow().toMillis());
 
             config = KeyValueConfiguration.builder(status.getConfiguration()).ttl(Duration.ofSeconds(10)).build();
             status = kvm.update(config);
             sc = status.getBackingStreamInfo().getConfiguration();
             assertEquals(10_000, sc.getMaxAge().toMillis());
+            assertNotNull(sc.getDuplicateWindow());
             assertEquals(10_000, sc.getDuplicateWindow().toMillis());
 
             bucket = bucket();
@@ -1756,6 +1760,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
             sc = status.getBackingStreamInfo().getConfiguration();
             assertEquals(30, sc.getMaxAge().toMinutes());
+            assertNotNull(sc.getDuplicateWindow());
             assertEquals(SERVER_DEFAULT_DUPLICATE_WINDOW_MS, sc.getDuplicateWindow().toMillis());
         });
     }
@@ -1797,7 +1802,7 @@ public class KeyValueTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testLimitMarker() throws Exception {
+    public void testLimitMarkerCoverage() throws Exception {
         jsServer.run(TestBase::atLeast2_12, nc -> {
             KeyValueManagement kvm = nc.keyValueManagement();
             String bucket = bucket();
@@ -1844,7 +1849,7 @@ public class KeyValueTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testLimitMarkerAlso() throws Exception {
+    public void testLimitMarkerBehavior() throws Exception {
         jsServer.run(TestBase::atLeast2_12, nc -> {
             String bucket = bucket();
             String key1 = key();
@@ -1960,97 +1965,226 @@ public class KeyValueTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testLimitMarker3() throws Exception {
+    public void testJustLimitMarkerCreatePurge() throws Exception {
         jsServer.run(TestBase::atLeast2_12, nc -> {
-            String bucket = bucket();
-            String key1 = key();
-            String key2 = key();
-            String key3 = key();
 
+            String bucket = bucket();
+            String rawStream = "KV_" + bucket;
+            String key = key();
+
+            JetStreamManagement jsm = nc.jetStreamManagement();
             KeyValueManagement kvm = nc.keyValueManagement();
             KeyValueConfiguration config = KeyValueConfiguration.builder()
                 .name(bucket)
                 .storageType(StorageType.Memory)
-                .limitMarker(Duration.ofSeconds(2))
-                .ttl(Duration.ofSeconds(2))
+                .limitMarker(Duration.ofSeconds(1))
                 .build();
             kvm.create(config);
 
-            Dispatcher d = nc.createDispatcher();
-
             KeyValue kv = nc.keyValue(bucket);
 
-            AtomicInteger wPuts = new AtomicInteger();
-            AtomicInteger wDels = new AtomicInteger();
-            AtomicInteger wPurges = new AtomicInteger();
-            AtomicInteger wEod = new AtomicInteger();
+            CountDownLatch errorLatch = new CountDownLatch(1);
+            AtomicReference<String> error = new AtomicReference<>("");
+            AtomicInteger messages = new AtomicInteger();
+            List<String> ops = Collections.synchronizedList(new ArrayList<>());
 
-            KeyValueWatcher watcher = new KeyValueWatcher() {
-                @Override
-                public void watch(KeyValueEntry keyValueEntry) {
-                    if (keyValueEntry.getOperation() == KeyValueOperation.PUT) {
-                        wPuts.incrementAndGet();
-                    }
-                    else if (keyValueEntry.getOperation() == KeyValueOperation.DELETE) {
-                        wDels.incrementAndGet();
-                    }
-                    else if (keyValueEntry.getOperation() == KeyValueOperation.PURGE) {
-                        wPurges.incrementAndGet();
-                    }
-                }
-
-                @Override
-                public void endOfData() {
-                    wEod.incrementAndGet();
-                }
-            };
-
-            NatsKeyValueWatchSubscription watch = kv.watchAll(watcher);
-
-            AtomicInteger rMessages = new AtomicInteger();
-            AtomicInteger rPurges = new AtomicInteger();
-            AtomicInteger rMaxAges = new AtomicInteger();
-            AtomicInteger rTtl2 = new AtomicInteger();
-            AtomicInteger rTtl5 = new AtomicInteger();
-
+            Dispatcher d = nc.createDispatcher();
             MessageHandler rawHandler = msg -> {
-                rMessages.incrementAndGet();
+                int mcount = messages.incrementAndGet();
+                String op = "null";
                 if (msg.hasHeaders()) {
-                    String h = msg.getHeaders().getFirst("KV-Operation");
-                    if (h != null && h.equals("PURGE")) {
-                        rPurges.incrementAndGet();
-                    }
-                    h = msg.getHeaders().getFirst("Nats-Marker-Reason");
-                    if (h != null && h.equals("MaxAge")) {
-                        rMaxAges.incrementAndGet();
-                    }
-                    h = msg.getHeaders().getFirst("Nats-TTL");
-                    if (h != null) {
-                        if (h.equals("2s")) {
-                            rTtl2.incrementAndGet();
+                    op = msg.getHeaders().getFirst("KV-Operation");
+                    if (op == null) {
+                        op = msg.getHeaders().getFirst("Nats-Marker-Reason");
+                        if (op == null) {
+                            op = "PUT";
                         }
-                        else {
-                            rTtl5.incrementAndGet();
-                        }
+                    }
+                }
+                ops.add(op);
+                if (mcount == 1 || mcount == 3) {
+                    if (!op.equals("PUT")) {
+                        error.set("Invalid message, expected PUT (" + mcount + ") " + stringify(msg));
+                        errorLatch.countDown();
+                    }
+                }
+                else if (mcount == 2) {
+                    if (!op.equals("MaxAge")) {
+                        error.set("Invalid message, expected MaxAge (" + mcount + ") " + stringify(msg));
+                        errorLatch.countDown();
+                    }
+                }
+                else if (mcount == 4) {
+                    if (!op.equals("PURGE")) {
+                        error.set("Invalid message, expected PURGE (" + mcount + ") " + stringify(msg));
+                        errorLatch.countDown();
                     }
                 }
             };
 
             JetStreamSubscription sub = nc.jetStream().subscribe(null, d, rawHandler, true,
                 PushSubscribeOptions.builder()
-                    .stream("KV_" + bucket)
+                    .stream(rawStream)
                     .configuration(ConsumerConfiguration.builder().filterSubject(">")
                         .build())
                     .build());
 
-            kv.create(key1, dataBytes(), MessageTtl.seconds(2));
-            kv.delete(key1);
-//            kv.purge(key1);
+            long mark = System.currentTimeMillis();
+            kv.create(key, dataBytes(), MessageTtl.seconds(1));
+            StreamInfo si = jsm.getStreamInfo(rawStream);
+            assertEquals(1, si.getStreamState().getMsgCount());
 
-            for (int x = 1; x < 20; x++) {
-                sleep(1000);
-                kv.get(key1);
+            long safety = 0;
+            long gotZero = -1;
+            while (++safety < 10000 && errorLatch.getCount() > 0) {
+                si = jsm.getStreamInfo(rawStream);
+                if (si.getStreamState().getMsgCount() == 0) {
+                    gotZero = System.currentTimeMillis();
+                    break;
+                }
             }
+            assertEquals(1, errorLatch.getCount(), error.get());
+            assertEquals(2, messages.get());
+            assertTrue(gotZero - mark >= 1000);
+            assertEquals("PUT", ops.get(0));
+            assertEquals("MaxAge", ops.get(1));
+
+            kv.create(key, dataBytes());
+            si = jsm.getStreamInfo(rawStream);
+            assertEquals(1, si.getStreamState().getMsgCount());
+
+            kv.purge(key, MessageTtl.seconds(1));
+            si = jsm.getStreamInfo(rawStream);
+            assertEquals(1, si.getStreamState().getMsgCount());
+
+            safety = 0;
+            gotZero = -1;
+            while (++safety < 10000 && errorLatch.getCount() > 0) {
+                si = jsm.getStreamInfo(rawStream);
+                if (si.getStreamState().getMsgCount() == 0) {
+                    gotZero = System.currentTimeMillis();
+                    break;
+                }
+            }
+            assertEquals(1, errorLatch.getCount(), error.get());
+            assertEquals(4, messages.get());
+            assertTrue(gotZero - mark >= 1000);
+            assertEquals("PUT", ops.get(2));
+            assertEquals("PURGE", ops.get(3));
         });
+    }
+
+    @Test
+    public void testJustTtlForDeletePurge() throws Exception {
+        jsServer.run(TestBase::atLeast2_12, nc -> {
+
+            String bucket = bucket();
+            String rawStream = "KV_" + bucket;
+            String key = key();
+
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            KeyValueManagement kvm = nc.keyValueManagement();
+            KeyValueConfiguration config = KeyValueConfiguration.builder()
+                .name(bucket)
+                .storageType(StorageType.Memory)
+                .ttl(Duration.ofSeconds(1))
+                .build();
+            kvm.create(config);
+
+            KeyValue kv = nc.keyValue(bucket);
+
+            CountDownLatch errorLatch = new CountDownLatch(1);
+            AtomicReference<String> error = new AtomicReference<>("");
+            AtomicInteger messages = new AtomicInteger();
+            List<String> ops = Collections.synchronizedList(new ArrayList<>());
+
+            Dispatcher d = nc.createDispatcher();
+            MessageHandler rawHandler = msg -> {
+                int mcount = messages.incrementAndGet();
+                String op = "null";
+                if (msg.hasHeaders()) {
+                    op = msg.getHeaders().getFirst("KV-Operation");
+                    if (op == null) {
+                        op = "PUT";
+                    }
+                }
+                ops.add(op);
+                if (mcount == 1 || mcount == 3) {
+                    if (!op.equals("PUT")) {
+                        error.set("Invalid message, expected PUT (" + mcount + ") " + stringify(msg));
+                        errorLatch.countDown();
+                    }
+                }
+                else if (mcount == 2) {
+                    if (!op.equals("DEL")) {
+                        error.set("Invalid message, expected DEL (" + mcount + ") " + stringify(msg));
+                        errorLatch.countDown();
+                    }
+                }
+                else if (mcount == 4) {
+                    if (!op.equals("PURGE")) {
+                        error.set("Invalid message, expected PURGE (" + mcount + ") " + stringify(msg));
+                        errorLatch.countDown();
+                    }
+                }
+            };
+
+            JetStreamSubscription sub = nc.jetStream().subscribe(null, d, rawHandler, true,
+                PushSubscribeOptions.builder()
+                    .stream(rawStream)
+                    .configuration(ConsumerConfiguration.builder().filterSubject(">")
+                        .build())
+                    .build());
+
+            kv.create(key, dataBytes());
+            StreamInfo si = jsm.getStreamInfo(rawStream);
+            assertEquals(1, si.getStreamState().getMsgCount());
+
+            kv.delete(key);
+            long mark = System.currentTimeMillis();
+            si = jsm.getStreamInfo(rawStream);
+            assertEquals(1, si.getStreamState().getMsgCount());
+
+            long safety = 0;
+            long gotZero = -1;
+            while (++safety < 10000 && errorLatch.getCount() > 0) {
+                si = jsm.getStreamInfo(rawStream);
+                if (si.getStreamState().getMsgCount() == 0) {
+                    gotZero = System.currentTimeMillis();
+                    break;
+                }
+            }
+            assertEquals(1, errorLatch.getCount(), error.get());
+            assertEquals(2, messages.get());
+            assertTrue(gotZero - mark >= 1000);
+            assertEquals("PUT", ops.get(0));
+            assertEquals("DEL", ops.get(1));
+
+            kv.create(key, dataBytes());
+            mark = System.currentTimeMillis();
+            kv.purge(key);
+
+            safety = 0;
+            gotZero = -1;
+            while (++safety < 10000 && errorLatch.getCount() > 0) {
+                si = jsm.getStreamInfo(rawStream);
+                if (si.getStreamState().getMsgCount() == 0) {
+                    gotZero = System.currentTimeMillis();
+                    break;
+                }
+            }
+            assertEquals(1, errorLatch.getCount(), error.get());
+            assertEquals(4, messages.get());
+            assertTrue(gotZero - mark >= 1000);
+            assertEquals("PUT", ops.get(2));
+            assertEquals("PURGE", ops.get(3));
+        });
+    }
+
+    public static String stringify(Message msg) {
+        return msg.metaData().streamSequence()
+            + "/" + msg.metaData().consumerSequence()
+            + "|" + msg.getSubject()
+            + "|";
     }
 }
