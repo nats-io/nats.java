@@ -113,13 +113,7 @@ public abstract class JsonValueUtils {
 
     public static long readLong(JsonValue jsonValue, String key, long dflt) {
         JsonValue v = readValue(jsonValue,key);
-        if (v != null) {
-            Long l = getLong(v);
-            if (l != null) {
-                return l;
-            }
-        }
-        return dflt;
+        return v != null ? getLong(v, dflt) : dflt;
     }
 
     public static boolean readBoolean(JsonValue jsonValue, String key) {
