@@ -25,6 +25,7 @@ import io.nats.client.support.JsonValue;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Isolated;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -49,6 +50,7 @@ import static io.nats.service.ServiceMessage.NATS_SERVICE_ERROR;
 import static io.nats.service.ServiceMessage.NATS_SERVICE_ERROR_CODE;
 import static org.junit.jupiter.api.Assertions.*;
 
+@Isolated
 public class ServiceTests extends JetStreamTestBase {
     public static final String SERVICE_NAME_1 = "Service1";
     public static final String SERVICE_NAME_2 = "Service2";
