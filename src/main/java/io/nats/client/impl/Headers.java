@@ -514,7 +514,7 @@ public class Headers {
 	 * @throws IllegalArgumentException if the key is null, empty or contains
 	 *         an invalid character
 	 */
-	private void checkKey(String key) {
+	static void checkKey(String key) {
 		// key cannot be null or empty and contain only printable characters except colon
 		if (key == null || key.isEmpty()) {
 			throw new IllegalArgumentException(KEY_CANNOT_BE_EMPTY_OR_NULL);
@@ -534,7 +534,7 @@ public class Headers {
 	 *
 	 * @throws IllegalArgumentException if the value contains an invalid character
 	 */
-	private void checkValue(String val) {
+	static void checkValue(String val) {
 		// Like rfc822 section 3.1.2 (quoted in ADR 4)
 		// The field-body may be composed of any US-ASCII characters, except CR or LF.
 		for (int i = 0, len = val.length(); i < len; i++) {
@@ -545,7 +545,7 @@ public class Headers {
 		}
 	}
 
-	private class Checker {
+	private static final class Checker {
 		List<String> list = new ArrayList<>();
 		int len = 0;
 
