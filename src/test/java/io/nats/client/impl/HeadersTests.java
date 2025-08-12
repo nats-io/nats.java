@@ -4,6 +4,7 @@ import io.nats.client.support.IncomingHeadersProcessor;
 import io.nats.client.support.Status;
 import io.nats.client.support.Token;
 import io.nats.client.support.TokenType;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -830,10 +831,10 @@ public class HeadersTests {
     /**
      no JMH :(
      Old: Time: 24622.87ms, Op/sec:  4061264
-     New: Time: 6660.177ms, Op/sec: 15014614
+     New: Time:  6660.18ms, Op/sec: 15014614
      New variant is 15014614/4061264= 3.7 times faster
      */
-    @Test
+    @Test @Disabled("Benchmark after changes in serializeToArray: Time: 6_660ms, Op/sec: 15_014_614")
     void benchmark_serializeToArray() {
         Headers h = new Headers().put("test", "aaa", "bBb", "ZZZZZZZZ")
                 .put("ALongLongLongLongLongLongLongKey", "VeryLongLongLongLongLongLongLongLongLong:Value!");
