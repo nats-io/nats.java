@@ -30,8 +30,8 @@ import static io.nats.client.support.NatsConstants.*;
 public class Headers {
 
 	private static final String KEY_CANNOT_BE_EMPTY_OR_NULL = "Header key cannot be null.";
-	private static final String KEY_INVALID_CHARACTER = "Header key has invalid character: ";
-	private static final String VALUE_INVALID_CHARACTERS = "Header value has invalid character: ";
+	private static final String KEY_INVALID_CHARACTER = "Header key has invalid character: 0x";
+	private static final String VALUE_INVALID_CHARACTERS = "Header value has invalid character: 0x";
 
 	private final Map<String, List<String>> valuesMap;
 	private final Map<String, Integer> lengthMap;
@@ -523,8 +523,7 @@ public class Headers {
 		for (int idx = 0; idx < len; idx++) {
 			char c = key.charAt(idx);
 			if (c < 33 || c > 126 || c == ':') {
-				throw new IllegalArgumentException(KEY_INVALID_CHARACTER +"0x"+ Integer.toHexString(c)
-						+" at "+ idx +" in "+ key);
+				throw new IllegalArgumentException(KEY_INVALID_CHARACTER + Integer.toHexString(c));
 			}
 		}
 	}
@@ -540,8 +539,7 @@ public class Headers {
 		for (int i = 0, len = val.length(); i < len; i++) {
 			int c = val.charAt(i);
 			if (c > 127 || c == 10 || c == 13) {
-				throw new IllegalArgumentException(VALUE_INVALID_CHARACTERS +"0x"+ Integer.toHexString(c)
-						+" at "+ i +" in "+ val);
+				throw new IllegalArgumentException(VALUE_INVALID_CHARACTERS + Integer.toHexString(c));
 			}
 		}
 	}
