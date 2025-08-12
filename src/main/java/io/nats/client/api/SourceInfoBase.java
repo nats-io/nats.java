@@ -24,7 +24,7 @@ import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonValueUtils.*;
 
 abstract class SourceInfoBase {
-    protected JsonValue jv;
+    protected final JsonValue jv;
     protected final String name;
     protected final long lag;
     protected final Duration active;

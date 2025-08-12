@@ -61,9 +61,11 @@ public class StreamInfoTests {
         assertEquals(1, sc.getMaxConsumers());
         assertEquals(2, sc.getMaxMsgs());
         assertEquals(3, sc.getMaxBytes());
-        assertEquals(4, sc.getMaxMsgSize()); // COVERAGE for deprecated
         assertEquals(4, sc.getMaximumMessageSize());
         assertEquals(5, sc.getReplicas());
+
+        //noinspection deprecation
+        assertEquals(4, sc.getMaxMsgSize());
 
         assertEquals(Duration.ofSeconds(100), sc.getMaxAge());
         assertEquals(Duration.ofSeconds(120), sc.getDuplicateWindow());
@@ -119,16 +121,18 @@ public class StreamInfoTests {
         Placement pl = si.getConfiguration().getPlacement();
         assertNotNull(pl);
         assertEquals("placementclstr", pl.getCluster());
+        assertNotNull(pl.getTags());
         assertEquals(2, pl.getTags().size());
         assertEquals("ptag1", pl.getTags().get(0));
         assertEquals("ptag2", pl.getTags().get(1));
 
         ClusterInfo cli = si.getClusterInfo();
-        assertNotNull(cli.toString()); // coverage
         assertNotNull(cli);
+        assertNotNull(cli.toString()); // coverage
         assertEquals("clustername", cli.getName());
         assertEquals("clusterleader", cli.getLeader());
 
+        assertNotNull(cli.getReplicas()); // coverage
         assertEquals(2, cli.getReplicas().size());
         assertNotNull(cli.getReplicas().get(0).toString()); // coverage
         assertEquals("name0", cli.getReplicas().get(0).getName());
@@ -144,8 +148,8 @@ public class StreamInfoTests {
         assertEquals(4, cli.getReplicas().get(1).getLag());
 
         MirrorInfo mi = si.getMirrorInfo();
-        assertNotNull(mi.toString()); // coverage
         assertNotNull(mi);
+        assertNotNull(mi.toString()); // coverage
         assertEquals("mname", mi.getName());
         assertEquals(16, mi.getLag());
         assertEquals(Duration.ofNanos(160000000000L), mi.getActive());
@@ -153,18 +157,22 @@ public class StreamInfoTests {
         validateExternal(mi.getExternal(), 16);
         StreamConfigurationTests.validateSubjectTransforms(mi.getSubjectTransforms(), 2, "16");
 
+        assertNotNull(si.getSourceInfos());
         assertEquals(2, si.getSourceInfos().size());
         validateSourceInfo(si.getSourceInfos().get(0), 17);
         validateSourceInfo(si.getSourceInfos().get(1), 18);
 
+        assertNotNull(si.getAlternates());
         assertEquals(2, si.getAlternates().size());
         validateStreamAlternate(si.getAlternates().get(0), 19);
         validateStreamAlternate(si.getAlternates().get(1), 20);
 
         si = new StreamInfo(JsonValue.EMPTY_MAP);
-        assertNull(si.getCreateTime());
+        assertTrue(si.hasError());
+        assertNotNull(si.getConfig());
+        assertNotNull(si.getConfiguration());
         assertNotNull(si.getStreamState());
-        assertNull(si.getConfiguration());
+        assertEquals(DateTimeUtils.DEFAULT_TIME, si.getCreateTime());
         assertNull(si.getClusterInfo());
         assertNull(si.getMirrorInfo());
         assertNull(si.getSourceInfos());

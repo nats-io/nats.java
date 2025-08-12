@@ -30,12 +30,14 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
         Republish r = Republish.builder().source("src").destination("dest").headersOnly(true).build();
 
         // builder
+        //noinspection deprecation
         KeyValueConfiguration bc = KeyValueConfiguration.builder()
             .name("bucketName")
             .description("bucketDesc")
             .maxHistoryPerKey(44)
             .maxBucketSize(555)
-            .maxValueSize(666)
+            .maxValueSize(66666666) // deprecated
+            .maximumValueSize(666)  // shows that order matters too
             .ttl(Duration.ofMillis(777))
             .storageType(StorageType.Memory)
             .replicas(2)
@@ -63,6 +65,7 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
         assertEquals("bucketDesc", kvc.getDescription());
         assertEquals(44, kvc.getMaxHistoryPerKey());
         assertEquals(555, kvc.getMaxBucketSize());
+        //noinspection deprecation
         assertEquals(666, kvc.getMaxValueSize());
         assertEquals(666, kvc.getMaximumValueSize());
         assertEquals(Duration.ofMillis(777), kvc.getTtl());
@@ -70,12 +73,14 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
         assertEquals(2, kvc.getReplicas());
         assertNotNull(kvc.getPlacement());
         assertEquals("cluster", kvc.getPlacement().getCluster());
+        assertNotNull(kvc.getPlacement().getTags());
         assertEquals(2, kvc.getPlacement().getTags().size());
         assertNotNull(kvc.getRepublish());
         assertEquals("src", kvc.getRepublish().getSource());
         assertEquals("dest", kvc.getRepublish().getDestination());
         assertTrue(kvc.getRepublish().isHeadersOnly());
         assertTrue(kvc.isCompressed());
+        assertNotNull(kvc.getLimitMarkerTtl());
         assertEquals(8888, kvc.getLimitMarkerTtl().toMillis());
 
         assertTrue(kvc.toString().contains("bucketName"));
@@ -103,8 +108,12 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
         assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().maxHistoryPerKey(65));
         assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().maxBucketSize(0));
         assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().maxBucketSize(-2));
+        //noinspection deprecation
         assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().maxValueSize(0));
+        //noinspection deprecation
         assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().maxValueSize(-2));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().maximumValueSize(0));
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().maximumValueSize(-2));
         assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().ttl(Duration.ofNanos(-1)));
         assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().replicas(0));
         assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder().replicas(6));

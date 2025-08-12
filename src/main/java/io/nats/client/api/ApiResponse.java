@@ -18,10 +18,11 @@ import io.nats.client.Message;
 import io.nats.client.support.*;
 import org.jspecify.annotations.Nullable;
 
+import java.time.ZonedDateTime;
+
 import static io.nats.client.support.ApiConstants.ERROR;
 import static io.nats.client.support.ApiConstants.TYPE;
-import static io.nats.client.support.JsonValueUtils.readString;
-import static io.nats.client.support.JsonValueUtils.readValue;
+import static io.nats.client.support.JsonValueUtils.*;
 
 public abstract class ApiResponse<T> {
 
@@ -31,7 +32,7 @@ public abstract class ApiResponse<T> {
     protected final JsonValue jv;
 
     private final String type;
-    private final Error error;
+    private Error error;
 
     public ApiResponse(Message msg) {
         this(parseMessage(msg));
@@ -50,6 +51,33 @@ public abstract class ApiResponse<T> {
                 .put(TYPE, PARSE_ERROR_TYPE)
                 .toJsonValue();
         }
+    }
+
+    protected <R> R invalidJson(R retVal) {
+        // only set the error if it's not already set.
+        // this can easily happen when the original response is a real error
+        // but the parsing continues
+        if (error == null) {
+            error = new Error(500, "Invalid JSON for " + getClass().getSimpleName());
+        }
+        return retVal;
+    }
+
+    protected String nullStringIsError(JsonValue jv, String key) {
+        String s = readString(jv, key);
+        return s == null ? invalidJson("") : s;
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    protected ZonedDateTime nullDateIsError(JsonValue jv, String key) {
+        ZonedDateTime zdt = readDate(jv, key);
+        return zdt == null ? invalidJson(DateTimeUtils.DEFAULT_TIME) : zdt;
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    protected JsonValue nullValueIsError(JsonValue jv, String key, JsonValue errorValue) {
+        JsonValue v = readValue(jv, key);
+        return v == null ? invalidJson(errorValue) : v;
     }
 
     public ApiResponse(JsonValue jsonValue) {

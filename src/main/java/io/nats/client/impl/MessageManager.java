@@ -41,7 +41,7 @@ abstract class MessageManager {
 
     protected long lastStreamSeq;
     protected long lastConsumerSeq;
-    protected AtomicLong lastMsgReceivedNanoTime;
+    protected final AtomicLong lastMsgReceivedNanoTime;
 
     // heartbeat stuff
     protected final AtomicBoolean hb;

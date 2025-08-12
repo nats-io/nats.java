@@ -97,4 +97,6 @@ public interface NatsConstants {
 
     @Deprecated
     List<String> WSS_PROTOCOLS = WEBSOCKET_PROTOCOLS;
+
+    String UNDEFINED = "UNDEFINED";
 }

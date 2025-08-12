@@ -17,7 +17,7 @@ package io.nats.client;
  * Consume Options are provided to customize the consume operation.
  */
 public class ConsumeOptions extends BaseConsumeOptions {
-    public static ConsumeOptions DEFAULT_CONSUME_OPTIONS = ConsumeOptions.builder().build();
+    public static final ConsumeOptions DEFAULT_CONSUME_OPTIONS = ConsumeOptions.builder().build();
 
     private ConsumeOptions(Builder b) {
         super(b);
