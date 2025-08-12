@@ -38,6 +38,16 @@ import static io.nats.client.support.JsonValue.Type;
 public abstract class JsonValueUtils {
     private JsonValueUtils() {} /* ensures cannot be constructed */
 
+    @FunctionalInterface
+    public interface JsonValueSupplier<T> {
+        T get(JsonValue v);
+    }
+
+    public static <T> T read(JsonValue jsonValue, String key, JsonValueSupplier<T> valueSupplier) {
+        JsonValue v = jsonValue == null || jsonValue.map == null ? null : jsonValue.map.get(key);
+        return valueSupplier.get(v);
+    }
+
     public static @Nullable JsonValue readValue(@Nullable JsonValue jsonValue, String key) {
         return jsonValue == null || jsonValue.map == null ? null
                 : jsonValue.map.get(key);
@@ -335,15 +345,54 @@ public abstract class JsonValueUtils {
         }
 
         @Override
-        public @NonNull String toJson() {
+        @NonNull
+        public String toJson() {
             return jv.toJson();
         }
 
         @Override
-        public @NonNull JsonValue toJsonValue() {
+        @NonNull
+        public JsonValue toJsonValue() {
             return jv;
         }
 
-        @Deprecated public JsonValue getJsonValue() { return jv; }
+        @Deprecated
+        public JsonValue getJsonValue() {
+            return jv;
+        }
+    }
+    
+    public static ArrayBuilder arrayBuilder() {
+        return new ArrayBuilder();
+    }
+
+    public static class ArrayBuilder implements JsonSerializable {
+        public JsonValue jv = new JsonValue(new ArrayList<>());
+        public ArrayBuilder add(Object o) {
+            if (o != null) {
+                JsonValue vv = JsonValueUtils.toJsonValue(o);
+                if (vv.type != JsonValue.Type.NULL) {
+                    jv.array.add(JsonValueUtils.toJsonValue(o));
+                }
+            }
+            return this;
+        }
+
+        @Override
+        @NonNull
+        public String toJson() {
+            return jv.toJson();
+        }
+
+        @Override
+        @NonNull
+        public JsonValue toJsonValue() {
+            return jv;
+        }
+
+        @Deprecated
+        public JsonValue getJsonValue() {
+            return jv;
+        }
     }
 }

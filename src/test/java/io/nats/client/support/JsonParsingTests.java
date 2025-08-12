@@ -416,6 +416,10 @@ public final class JsonParsingTests {
         assertNull(readValue(v, "na"));
         assertEquals(JsonValue.EMPTY_MAP, readObject(v, "na"));
 
+        assertNull(read(null, "na", vv -> vv));
+        assertNull(read(JsonValue.NULL, "na", vv -> vv));
+        assertNull(read(JsonValue.EMPTY_MAP, "na", vv -> vv));
+
         assertNull(readValue(null, "na"));
         assertNull(readString(null, "na"));
         assertNull(readStringEmptyAsNull(null, "na"));
@@ -886,6 +890,31 @@ public final class JsonParsingTests {
         list.add(null);
         list.add(JsonValue.NULL);
         validateArray(true, false, instance(list));
+    }
+
+    @Test
+    public void testValueUtilsArrayBuilder() {
+        ArrayBuilder builder = arrayBuilder()
+            .add("Hello")
+            .add('c')
+            .add(1)
+            .add(Long.MAX_VALUE)
+            .add(1D)
+            .add(1F)
+            .add(new BigDecimal("1.0"))
+            .add(new BigInteger(Long.toString(Long.MAX_VALUE)))
+            .add(true)
+            .add(new HashMap<>())
+            .add(new ArrayList<>())
+            .add(new TestSerializableMap())
+            .add(new TestSerializableList())
+            .add(JsonValue.EMPTY_MAP)
+            .add(null)
+            .add(JsonValue.NULL);
+        validateArray(false, false, builder.toJsonValue());
+        //noinspection deprecation
+        validateArray(false, false, builder.getJsonValue()); // coverage for deprecated
+        validateArray(false, true, JsonParser.parseUnchecked(builder.toJson()));
     }
 
     private static void validateArray(boolean checkNull, boolean parsed, JsonValue v) {
