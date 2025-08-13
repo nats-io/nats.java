@@ -228,11 +228,10 @@ public abstract class JsonValueUtils {
         return v;
     }
 
-    @SuppressWarnings("rawtypes")
-    public static JsonValue instance(Map map) {
-        JsonValue v = new JsonValue(new HashMap<>());
-        for (Object key : map.keySet()) {
-            v.map().put(key.toString(), toJsonValue(map.get(key)));
+    public static JsonValue instance(Map<String,?> map) {
+        JsonValueObject v = new JsonValueObject(new HashMap<>(map.size()*4/3));
+        for (Map.Entry<String,?> entry : map.entrySet()) {
+            v.map().put(((Object) entry.getKey()).toString(), toJsonValue(entry.getValue()));
         }
         return v;
     }
@@ -299,12 +298,12 @@ public abstract class JsonValueUtils {
         }
 
         public MapBuilder(JsonValue jv) {
-			if (jv instanceof JsonValueObject) {
-				this.jv = (JsonValueObject)jv;
-			} else {
-				// todo log warn? throw exception?
-				this.jv = new JsonValueObject(new HashMap<>());
-			}
+            if (jv instanceof JsonValueObject) {
+                this.jv = (JsonValueObject)jv;
+            } else {
+                // todo log warn? throw exception?
+                this.jv = new JsonValueObject(new HashMap<>());
+            }
         }
 
         public MapBuilder put(String s, Object o) {

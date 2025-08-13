@@ -433,7 +433,7 @@ public class JsonParser {
         }
         if (c == '{') {
             nextToken();
-            return new JsonValue(nextObject());
+            return new JsonValueObject(nextObject());
         }
         if (c == '[') {
             nextToken();

@@ -126,19 +126,19 @@ public final class JsonParsingTests {
         oMap.put("bigIntegerKey2", new JsonValue(new BigInteger("-9223372036854775808")));
 
         // some coverage here
-        JsonValue vMap = new JsonValue(oMap);
+        JsonValue vMap = new JsonValueObject(oMap);
         assertEquals(vMap.toJson(), vMap.toString());
 
         validateMapTypes(oMap, oMap, true);
 
         // don't keep nulls
-        JsonValue parsed = parse(new JsonValue(oMap).toJson());
+        JsonValue parsed = parse(new JsonValueObject(oMap).toJson());
         assertNotNull(parsed.map());
         assertEquals(oMap.size() - 1, parsed.size());
         validateMapTypes(parsed.map(), oMap, false);
 
         // keep nulls
-        parsed = parse(new JsonValue(oMap).toJson(), KEEP_NULLS);
+        parsed = parse(new JsonValueObject(oMap).toJson(), KEEP_NULLS);
         assertNotNull(parsed.map());
         assertEquals(oMap.size(), parsed.map().size());
         validateMapTypes(parsed.map(), oMap, true);
@@ -405,7 +405,7 @@ public final class JsonParsingTests {
         Duration dur = Duration.ofNanos(4273);
         Duration dur2 = Duration.ofNanos(7342);
 
-        JsonValue v = new JsonValue(new HashMap<>());
+        JsonValueObject v = new JsonValueObject(new HashMap<>());
         v.map().put("bool", new JsonValue(Boolean.TRUE));
         v.map().put("string", new JsonValue("hello"));
         v.map().put("int", new JsonValue(Integer.MAX_VALUE));
@@ -522,7 +522,7 @@ public final class JsonParsingTests {
         EqualsVerifier.simple().forClass(JsonValue.class)
             .withPrefabValues(Map.class, map1, map2)
             .withPrefabValues(List.class, list3, list4)
-            .withIgnoredFields("mapOrder")
+            //.withIgnoredFields("mapOrder")
             .suppress(Warning.BIGDECIMAL_EQUALITY)
             .verify();
     }
@@ -714,7 +714,7 @@ public final class JsonParsingTests {
         @Override
         @NonNull
         public String toJson() {
-            JsonValue v = new JsonValue(new HashMap<>());
+            JsonValueObject v = new JsonValueObject(new HashMap<>());
             v.map().put("a", new JsonValue("A"));
             v.map().put("b", new JsonValue("B"));
             v.map().put("c", new JsonValue("C"));
@@ -777,7 +777,7 @@ public final class JsonParsingTests {
 
     @Test
     public void testValueUtilsInstanceMap() {
-        Map<Object, Object> map = new HashMap<>();
+        Map<String, Object> map = new HashMap<>();
         map.put("string", "Hello");
         map.put("char", 'c');
         map.put("int", 1);
