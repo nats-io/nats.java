@@ -292,14 +292,19 @@ public abstract class JsonValueUtils {
     }
 
     public static class MapBuilder implements JsonSerializable {
-        public JsonValue jv;
+        public JsonValueObject jv;
 
         public MapBuilder() {
-            jv = new JsonValue(new HashMap<>());
+            jv = new JsonValueObject(new HashMap<>());
         }
 
         public MapBuilder(JsonValue jv) {
-            this.jv = jv;
+			if (jv instanceof JsonValueObject) {
+				this.jv = (JsonValueObject)jv;
+			} else {
+				// todo log warn? throw exception?
+				this.jv = new JsonValueObject(new HashMap<>());
+			}
         }
 
         public MapBuilder put(String s, Object o) {
@@ -316,8 +321,8 @@ public abstract class JsonValueUtils {
         public MapBuilder put(String s, Map<String, String> stringMap) {
             if (stringMap != null) {
                 MapBuilder mb = new MapBuilder();
-                for (String key : stringMap.keySet()) {
-                    mb.put(key, stringMap.get(key));
+                for (Map.Entry<String, String> entry : stringMap.entrySet()) {
+                    mb.put(entry.getKey(), entry.getValue());
                 }
                 jv.map().put(s, mb.jv);
                 jv.mapOrder.add(s);

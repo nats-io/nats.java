@@ -50,7 +50,6 @@ public class JsonValue implements JsonSerializable {
 
     public final Type type;
     public final Object value;
-    public final List<String> mapOrder;
 
     public JsonValue() {
         this((Object) null);
@@ -88,7 +87,7 @@ public class JsonValue implements JsonSerializable {
         this((Object) bi);
     }
 
-    public JsonValue(Map<String, JsonValue> map) {
+    JsonValue(Map<String, JsonValue> map) {
         this((Object) map);
     }
 
@@ -104,47 +103,36 @@ public class JsonValue implements JsonSerializable {
         this.value = value;
         if (value instanceof Integer) {
             this.type = Type.INTEGER;
-            mapOrder = Collections.emptyList();
         }
         else if (value instanceof Long) {
             this.type = Type.LONG;
-            mapOrder = Collections.emptyList();
         }
         else if (value instanceof Double) {
             this.type = Type.DOUBLE;
-            mapOrder = Collections.emptyList();
         }
         else if (value instanceof Float) {
             this.type = Type.FLOAT;
-            mapOrder = Collections.emptyList();
         }
         else if (value instanceof BigDecimal) {
             this.type = Type.BIG_DECIMAL;
-            mapOrder = Collections.emptyList();
         }
         else if (value instanceof BigInteger) {
             this.type = Type.BIG_INTEGER;
-            mapOrder = Collections.emptyList();
         }
         else if (value instanceof Map) {
             this.type = Type.MAP;
-            mapOrder = new ArrayList<>();
         }
         else if (value instanceof String) {
             this.type = Type.STRING;
-            mapOrder = Collections.emptyList();
         }
         else if (value instanceof Boolean) {
             this.type = Type.BOOL;
-            mapOrder = Collections.emptyList();
         }
         else if (value instanceof List) {
             this.type = Type.ARRAY;
-            mapOrder = Collections.emptyList();
         }
         else if (value == null){
             this.type = Type.NULL;
-            mapOrder = Collections.emptyList();
         }
         else {
             throw new IllegalArgumentException("Unsupported type: " + value.getClass().getName() + " for value: " + value);
@@ -285,37 +273,21 @@ public class JsonValue implements JsonSerializable {
         switch (type) {
             case STRING:      return valueString(string());
             case BOOL:        return valueString(bool());
-            case MAP:         return valueString(map());
             case ARRAY:       return valueString(array());
             case NULL:        return NULL_STR;
             default:          return value.toString();
         }
     }
 
-    private String valueString(String s) {
+    private static String valueString(String s) {
         return QUOTE + Encoding.jsonEncode(s) + QUOTE;
     }
 
-    private String valueString(boolean b) {
+    private static String valueString(boolean b) {
         return Boolean.toString(b).toLowerCase();
     }
 
-    private String valueString(Map<String, JsonValue> map) {
-        StringBuilder sbo = beginJson();
-        if (!mapOrder.isEmpty()) {
-            for (String key : mapOrder) {
-                addField(sbo, key, map.get(key));
-            }
-        }
-        else {
-            for (Map.Entry<String, JsonValue> entry : map.entrySet()) {
-                addField(sbo, entry.getKey(), entry.getValue());
-            }
-        }
-        return endJson(sbo).toString();
-    }
-
-    private String valueString(List<JsonValue> list) {
+    private static String valueString(List<JsonValue> list) {
         StringBuilder sba = beginArray();
         for (JsonValue v : list) {
             sba.append(v.toJson());

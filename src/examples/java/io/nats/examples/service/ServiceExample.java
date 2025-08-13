@@ -16,6 +16,7 @@ package io.nats.examples.service;
 import io.nats.client.*;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueObject;
 import io.nats.client.support.JsonValueUtils;
 import io.nats.service.*;
 import org.jspecify.annotations.NonNull;
@@ -245,7 +246,7 @@ public class ServiceExample {
             Map<String, JsonValue> map = new HashMap<>();
             map.put("sdata", new JsonValue(sData));
             map.put("idata", new JsonValue(iData));
-            return new JsonValue(map);
+            return new JsonValueObject(map);
         }
 
         @Override

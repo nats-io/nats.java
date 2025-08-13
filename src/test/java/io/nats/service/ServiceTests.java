@@ -22,6 +22,7 @@ import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonValueObject;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
@@ -1488,7 +1489,7 @@ public class ServiceTests extends JetStreamTestBase {
             Map<String, JsonValue> map = new HashMap<>();
             map.put("sdata", new JsonValue(sData));
             map.put("idata", new JsonValue(iData));
-            return new JsonValue(map);
+            return new JsonValueObject(map);
         }
 
         @Override
