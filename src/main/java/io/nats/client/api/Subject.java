@@ -27,9 +27,9 @@ public class Subject implements Comparable<Subject> {
 
     static List<Subject> listOf(JsonValue vSubjects) {
         List<Subject> list = new ArrayList<>();
-        if (vSubjects != null && vSubjects.map != null) {
-            for (String subject : vSubjects.map.keySet()) {
-                Long count = getLong(vSubjects.map.get(subject));
+        if (vSubjects != null && vSubjects.map() != null) {
+            for (String subject : vSubjects.map().keySet()) {
+                Long count = getLong(vSubjects.map().get(subject));
                 if (count != null) {
                     list.add(new Subject(subject, count));
                 }

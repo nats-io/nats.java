@@ -42,9 +42,9 @@ public class AccountStatistics extends ApiResponse<AccountStatistics> {
         api = new ApiStats(readObject(jv, API));
         JsonValue vTiers = readObject(jv, TIERS);
         tiers = new HashMap<>();
-        if (vTiers.map != null) {
-            for (String key : vTiers.map.keySet()) {
-                tiers.put(key, new AccountTier(vTiers.map.get(key)));
+        if (vTiers.map() != null) {
+            for (String key : vTiers.map().keySet()) {
+                tiers.put(key, new AccountTier(vTiers.map().get(key)));
             }
         }
     }

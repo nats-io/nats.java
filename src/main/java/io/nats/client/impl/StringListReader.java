@@ -22,10 +22,6 @@ abstract class StringListReader extends AbstractListReader {
 
     List<String> strings;
 
-    StringListReader(String objectName) {
-        this(objectName, null);
-    }
-
     StringListReader(String objectName, String filterFieldName) {
         super(objectName, filterFieldName);
         strings = new ArrayList<>();
@@ -34,8 +30,8 @@ abstract class StringListReader extends AbstractListReader {
     @Override
     void processItems(List<JsonValue> items) {
         for (JsonValue v : items) {
-            if (v.string != null) {
-                strings.add(v.string);
+            if (v.string() != null) {
+                strings.add(v.string());
             }
         }
     }

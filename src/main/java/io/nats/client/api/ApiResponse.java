@@ -94,7 +94,7 @@ public abstract class ApiResponse<T> {
             }
             else {
                 type = temp;
-                jv.map.remove(TYPE); // just so it's not in the toString, it's very long and the object name will be there
+                jv.map().remove(TYPE); // just so it's not in the toString, it's very long and the object name will be there
             }
         }
     }

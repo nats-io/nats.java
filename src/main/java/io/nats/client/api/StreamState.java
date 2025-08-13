@@ -57,9 +57,9 @@ public class StreamState {
         subjects = new ArrayList<>();
         subjectMap = new HashMap<>();
         JsonValue vSubjects = readValue(vStreamState, SUBJECTS);
-        if (vSubjects != null && vSubjects.map != null) {
-            for (String subject : vSubjects.map.keySet()) {
-                Long count = getLong(vSubjects.map.get(subject));
+        if (vSubjects != null && vSubjects.map() != null) {
+            for (String subject : vSubjects.map().keySet()) {
+                Long count = getLong(vSubjects.map().get(subject));
                 if (count != null) {
                     subjects.add(new Subject(subject, count));
                     subjectMap.put(subject, count);

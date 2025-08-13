@@ -14,6 +14,7 @@
 package io.nats.client.support;
 
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -38,7 +39,7 @@ public abstract class JsonValueUtils {
     }
 
     public static <T> T read(JsonValue jsonValue, String key, JsonValueSupplier<T> valueSupplier) {
-        JsonValue v = jsonValue == null || jsonValue.map == null ? null : jsonValue.map.get(key);
+        JsonValue v = jsonValue == null || jsonValue.map() == null ? null : jsonValue.map().get(key);
         return valueSupplier.get(v);
     }
 
@@ -51,14 +52,14 @@ public abstract class JsonValueUtils {
     }
 
     public static List<JsonValue> readArray(JsonValue jsonValue, String key) {
-        return read(jsonValue, key, v -> v == null ? EMPTY_ARRAY.array : v.array);
+        return read(jsonValue, key, v -> v == null ? EMPTY_ARRAY.array() : v.array());
     }
 
-    public static Map<String, String> readStringStringMap(JsonValue jv, String key) {
+    public static @Nullable Map<String, String> readStringStringMap(JsonValue jv, String key) {
         JsonValue o = readObject(jv, key);
-        if (o.type == Type.MAP && o.map.size() > 0) {
+        if (o.type == Type.MAP && o.size() > 0) {
             Map<String, String> temp = new HashMap<>();
-            for (String k : o.map.keySet()) {
+            for (String k : o.map().keySet()) {
                 String value = readString(o, k);
                 if (value != null) {
                     temp.put(k, value);
@@ -70,20 +71,20 @@ public abstract class JsonValueUtils {
     }
 
     public static String readString(JsonValue jsonValue, String key) {
-        return read(jsonValue, key, v -> v == null ? null : v.string);
+        return read(jsonValue, key, v -> v == null ? null : v.string());
     }
 
     public static String readStringEmptyAsNull(JsonValue jsonValue, String key) {
-        return read(jsonValue, key, v -> v == null ? null : (v.string.isEmpty() ? null : v.string));
+        return read(jsonValue, key, v -> v == null ? null : (v.string().isEmpty() ? null : v.string()));
     }
 
     public static String readString(JsonValue jsonValue, String key, String dflt) {
-        return read(jsonValue, key, v -> v == null ? dflt : v.string);
+        return read(jsonValue, key, v -> v == null ? dflt : v.string());
     }
 
     public static ZonedDateTime readDate(JsonValue jsonValue, String key) {
         return read(jsonValue, key,
-            v -> v == null || v.string == null ? null : DateTimeUtils.parseDateTimeThrowParseError(v.string));
+            v -> v == null || v.string() == null ? null : DateTimeUtils.parseDateTimeThrowParseError(v.string()));
     }
 
     public static Integer readInteger(JsonValue jsonValue, String key) {
@@ -124,7 +125,7 @@ public abstract class JsonValueUtils {
 
     public static Boolean readBoolean(JsonValue jsonValue, String key, Boolean dflt) {
         return read(jsonValue, key,
-            v -> v == null || v.bool == null ? dflt : v.bool);
+            v -> v == null || v.bool() == null ? dflt : v.bool());
     }
 
     public static Duration readNanos(JsonValue jsonValue, String key) {
@@ -139,8 +140,8 @@ public abstract class JsonValueUtils {
 
     public static <T> List<T> listOf(JsonValue v, Function<JsonValue, T> provider) {
         List<T> list = new ArrayList<>();
-        if (v != null && v.array != null) {
-            for (JsonValue jv : v.array) {
+        if (v != null && v.array() != null) {
+            for (JsonValue jv : v.array()) {
                 T t = provider.apply(jv);
                 if (t != null) {
                     list.add(t);
@@ -156,13 +157,13 @@ public abstract class JsonValueUtils {
     }
 
     public static List<String> readStringList(JsonValue jsonValue, String key) {
-        return read(jsonValue, key, v -> listOf(v, jv -> jv.string));
+        return read(jsonValue, key, v -> listOf(v, jv -> jv.string()));
     }
 
     public static List<String> readStringListIgnoreEmpty(JsonValue jsonValue, String key) {
         return read(jsonValue, key, v -> listOf(v, jv -> {
-            if (jv.string != null) {
-                String s = jv.string.trim();
+            if (jv.string() != null) {
+                String s = jv.string().trim();
                 if (!s.isEmpty()) {
                     return s;
                 }
@@ -172,7 +173,7 @@ public abstract class JsonValueUtils {
     }
 
     public static List<String> readOptionalStringList(JsonValue jsonValue, String key) {
-        return read(jsonValue, key, v -> optionalListOf(v, jv -> jv.string));
+        return read(jsonValue, key, v -> optionalListOf(v, jv -> jv.string()));
     }
 
     public static List<Long> readLongList(JsonValue jsonValue, String key) {
@@ -202,23 +203,16 @@ public abstract class JsonValueUtils {
         return b64 == null ? null : base64BasicDecode(b64);
     }
 
-    public static Integer getInteger(JsonValue v) {
-        if (v.i != null) {
-            return v.i;
-        }
-        // just in case the number was stored as a long, which is unlikely, but I want to handle it
-        if (v.l != null && v.l <= Integer.MAX_VALUE && v.l >= Integer.MIN_VALUE) {
-            return v.l.intValue();
-        }
-        return null;
+    public static @Nullable Integer getInteger(JsonValue v) {
+        return v.getInteger();
     }
 
-    public static Long getLong(JsonValue v) {
-        return v.l != null ? v.l : (v.i != null ? (long)v.i : null);
+    public static @Nullable Long getLong(JsonValue v) {
+        return v.getLong();
     }
 
     public static long getLong(JsonValue v, long dflt) {
-        return v.l != null ? v.l : (v.i != null ? (long)v.i : dflt);
+        return v.getLong(dflt);
     }
 
     public static JsonValue instance(Duration d) {
@@ -229,7 +223,7 @@ public abstract class JsonValueUtils {
     public static JsonValue instance(Collection list) {
         JsonValue v = new JsonValue(new ArrayList<>());
         for (Object o : list) {
-            v.array.add(toJsonValue(o));
+            v.array().add(toJsonValue(o));
         }
         return v;
     }
@@ -238,7 +232,7 @@ public abstract class JsonValueUtils {
     public static JsonValue instance(Map map) {
         JsonValue v = new JsonValue(new HashMap<>());
         for (Object key : map.keySet()) {
-            v.map.put(key.toString(), toJsonValue(map.get(key)));
+            v.map().put(key.toString(), toJsonValue(map.get(key)));
         }
         return v;
     }
@@ -312,7 +306,7 @@ public abstract class JsonValueUtils {
             if (o != null) {
                 JsonValue vv = JsonValueUtils.toJsonValue(o);
                 if (vv.type != JsonValue.Type.NULL) {
-                    jv.map.put(s, vv);
+                    jv.map().put(s, vv);
                     jv.mapOrder.add(s);
                 }
             }
@@ -325,7 +319,7 @@ public abstract class JsonValueUtils {
                 for (String key : stringMap.keySet()) {
                     mb.put(key, stringMap.get(key));
                 }
-                jv.map.put(s, mb.jv);
+                jv.map().put(s, mb.jv);
                 jv.mapOrder.add(s);
             }
             return this;
@@ -359,7 +353,7 @@ public abstract class JsonValueUtils {
             if (o != null) {
                 JsonValue vv = JsonValueUtils.toJsonValue(o);
                 if (vv.type != JsonValue.Type.NULL) {
-                    jv.array.add(JsonValueUtils.toJsonValue(o));
+                    jv.array().add(JsonValueUtils.toJsonValue(o));
                 }
             }
             return this;
@@ -383,4 +377,3 @@ public abstract class JsonValueUtils {
         }
     }
 }
-

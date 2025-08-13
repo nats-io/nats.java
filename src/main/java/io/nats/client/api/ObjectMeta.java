@@ -47,7 +47,7 @@ public class ObjectMeta implements JsonSerializable {
         description = readString(vObjectMeta, DESCRIPTION);
         headers = new Headers();
         JsonValue hJv = readObject(vObjectMeta, HEADERS);
-        for (String key : hJv.map.keySet()) {
+        for (String key : hJv.map().keySet()) {
             headers.put(key, readStringList(hJv, key));
         }
 

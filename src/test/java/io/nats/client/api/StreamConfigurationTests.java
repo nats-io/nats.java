@@ -129,7 +129,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         // StreamConfiguration can be built without that field being present in the JSON
         for (String streamConfigFieldName: streamConfigFields) {
             JsonValue originalParsedJson = JsonParser.parse(originalJson);
-            originalParsedJson.map.remove(streamConfigFieldName);
+            originalParsedJson.map().remove(streamConfigFieldName);
             StreamConfiguration sc = StreamConfiguration.instance(originalParsedJson.toJson());
             assertNotNull(sc);
         }
@@ -139,7 +139,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     public void testInvalidNameInJson() throws Exception{
         String originalJson = ResourceUtils.dataAsString("StreamConfiguration.json");
         JsonValue originalParsedJson = JsonParser.parse(originalJson);
-        originalParsedJson.map.put(NAME, new JsonValue("Inavlid*Name"));
+        originalParsedJson.map().put(NAME, new JsonValue("Inavlid*Name"));
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.instance(originalParsedJson.toJson()));
     }
 
