@@ -976,4 +976,21 @@ public final class JsonParsingTests {
         long elapsed = System.currentTimeMillis() - start;
         System.out.println("Elapsed: " + elapsed);
     }
+
+    /// new 50mi ~ 1332MB ~ 27-4=23 ~ 12 + 4+4+4 = 24
+    @Test @Disabled
+    void usedMemory() throws InterruptedException {
+        Runtime r = Runtime.getRuntime();
+        r.gc(); r.gc(); r.gc(); r.gc(); r.gc();
+        Thread.sleep(900);
+        long used0 = r.totalMemory() - r.freeMemory();
+        final String s = "Const";
+
+        JsonValue[] a = new JsonValue[50_000_000];
+        for (int i = 0; i < a.length; i++) {
+            a[i] = new JsonValue(s);
+        }
+        long used1 = r.totalMemory() - r.freeMemory();
+        System.out.println("Used: " + (used1 - used0)/1024/1024.0 + " ~ "+ (used1 - used0) / a.length);
+    }
 }

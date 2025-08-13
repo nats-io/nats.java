@@ -102,39 +102,49 @@ public class JsonValue implements JsonSerializable {
 
     private JsonValue(@Nullable Object value) {
         this.value = value;
-        mapOrder = new ArrayList<>();
         if (value instanceof Integer) {
             this.type = Type.INTEGER;
+            mapOrder = Collections.emptyList();
         }
         else if (value instanceof Long) {
             this.type = Type.LONG;
+            mapOrder = Collections.emptyList();
         }
         else if (value instanceof Double) {
             this.type = Type.DOUBLE;
+            mapOrder = Collections.emptyList();
         }
         else if (value instanceof Float) {
             this.type = Type.FLOAT;
+            mapOrder = Collections.emptyList();
         }
         else if (value instanceof BigDecimal) {
             this.type = Type.BIG_DECIMAL;
+            mapOrder = Collections.emptyList();
         }
         else if (value instanceof BigInteger) {
             this.type = Type.BIG_INTEGER;
+            mapOrder = Collections.emptyList();
         }
         else if (value instanceof Map) {
             this.type = Type.MAP;
+            mapOrder = new ArrayList<>();
         }
         else if (value instanceof String) {
             this.type = Type.STRING;
+            mapOrder = Collections.emptyList();
         }
         else if (value instanceof Boolean) {
             this.type = Type.BOOL;
+            mapOrder = Collections.emptyList();
         }
         else if (value instanceof List) {
             this.type = Type.ARRAY;
+            mapOrder = Collections.emptyList();
         }
         else if (value == null){
             this.type = Type.NULL;
+            mapOrder = Collections.emptyList();
         }
         else {
             throw new IllegalArgumentException("Unsupported type: " + value.getClass().getName() + " for value: " + value);
