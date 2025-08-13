@@ -960,6 +960,7 @@ public final class JsonParsingTests {
         assertEquals("B", stringString.get("b"));
     }
 
+    /// old 88620
     /// new 89863
     @Test @Disabled
     public void testReadSpeed() {
@@ -977,7 +978,8 @@ public final class JsonParsingTests {
         System.out.println("Elapsed: " + elapsed);
     }
 
-    /// new 50mi ~ 1332MB ~ 27-4=23 ~ 12 + 4+4+4 = 24
+    /// new 50mi ~ 1332 MB ~ 27-4=23 ~ 12 + 4+4+4 = 24
+    /// old 50mi ~ 4770 MB ~ 100-4=96 
     @Test @Disabled
     void usedMemory() throws InterruptedException {
         Runtime r = Runtime.getRuntime();
