@@ -13,9 +13,15 @@
 
 package io.nats.client.support;
 
+import io.nats.client.api.AccountStatistics;
+import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.api.StreamInfo;
+import io.nats.client.impl.NatsMessage;
+import io.nats.client.utils.ResourceUtils;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import nl.jqno.equalsverifier.Warning;
 import org.jspecify.annotations.NonNull;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -952,5 +958,22 @@ public final class JsonParsingTests {
         assertEquals(2, stringString.size());
         assertEquals("A", stringString.get("a"));
         assertEquals("B", stringString.get("b"));
+    }
+
+    /// new 89863
+    @Test @Disabled
+    public void testReadSpeed() {
+        JsonValue jvSI = JsonParser.parseUnchecked(ResourceUtils.dataAsString("StreamInfo.json"));
+        JsonValue jvCC = JsonParser.parseUnchecked(ResourceUtils.dataAsString("ConsumerConfiguration.json"));
+        NatsMessage accStatMsg = getDataMessage(ResourceUtils.dataAsString("AccountStatistics.json"));
+
+        long start = System.currentTimeMillis();
+        for (int x = 0; x < 5_000_000; x++) {
+            new StreamInfo(jvSI);
+            ConsumerConfiguration.builder().jsonValue(jvCC);
+            new AccountStatistics(accStatMsg);
+        }
+        long elapsed = System.currentTimeMillis() - start;
+        System.out.println("Elapsed: " + elapsed);
     }
 }
