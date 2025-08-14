@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.support.ByteArrayBuilder;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.nio.charset.StandardCharsets;
@@ -41,18 +42,36 @@ public class Headers {
 	private byte[] serialized;
 	private int dataLength;
 
+	/**
+	 * Create a new Headers object
+	 */
 	public Headers() {
 		this(null, false, null);
 	}
 
+	/**
+	 * Create a new Headers object by copying all header entries
+	 * @param headers the headers to copy
+	 */
 	public Headers(@Nullable Headers headers) {
 		this(headers, false, null);
 	}
 
+	/**
+	 * Create a new Headers object by copying all header entries
+	 * @param headers the headers to copy
+	 * @param readOnly flag to indicate that whether the new Headers should be marked as read-only
+	 */
 	public Headers(@Nullable Headers headers, boolean readOnly) {
 		this(headers, readOnly, null);
 	}
 
+	/**
+	 * Create a new Headers object by copying all header entries, except those indicated by keysNotToCopy
+	 * @param headers the headers to copy
+	 * @param readOnly flag to indicate that whether the new Headers should be marked as read-only
+	 * @param keysNotToCopy an array of keys that should not be copied
+	 */
 	public Headers(@Nullable Headers headers, boolean readOnly, String @Nullable [] keysNotToCopy) {
 		Map<String, List<String>> tempValuesMap = new HashMap<>();
 		Map<String, Integer> tempLengthMap = new HashMap<>();
@@ -346,7 +365,8 @@ public class Headers {
 	 * @param key the key whose associated value is to be returned
 	 * @return a read-only list of the values for the case-sensitive key.
 	 */
-	public @Nullable List<String> get(String key) {
+	@Nullable
+	public List<String> get(String key) {
 		List<String> values = valuesMap.get(key);
 		return values == null ? null : Collections.unmodifiableList(values);
 	}
@@ -357,7 +377,8 @@ public class Headers {
 	 * @param key the key whose associated value is to be returned
 	 * @return the first value for the case-sensitive key.
 	 */
-	public @Nullable String getFirst(String key) {
+	@Nullable
+	public String getFirst(String key) {
 		List<String> values = valuesMap.get(key);
 		return values == null ? null : values.get(0);
 	}
@@ -369,7 +390,8 @@ public class Headers {
 	 * @param key the key whose associated value is to be returned
 	 * @return the last value for the case-sensitive key.
 	 */
-	public @Nullable String getLast(String key) {
+	@Nullable
+	public String getLast(String key) {
 		List<String> values = valuesMap.get(key);
 		return values == null ? null : values.get(values.size() - 1);
 	}
@@ -381,7 +403,8 @@ public class Headers {
 	 * @param key the key whose associated value is to be returned
 	 * @return a read-only list of the values for the case-insensitive key.
 	 */
-	public @Nullable List<String> getIgnoreCase(String key) {
+	@Nullable
+	public List<String> getIgnoreCase(String key) {
 		List<String> values = new ArrayList<>();
 		for (Map.Entry<String, List<String>> entry : valuesMap.entrySet()) {
 			if (entry.getKey().equalsIgnoreCase(key)) {
@@ -411,10 +434,11 @@ public class Headers {
 	 * Returns a {@link Set} read only view of the mappings contained in the header (case-sensitive keys).
 	 * The set is not modifiable and any attempt to modify will throw an exception.
 	 *
-	 * @return a set view of the mappings contained in this map
+	 * @return a set view of the mappings contained in this map or Collections.emptySet() if there are no entries
 	 */
+	@NonNull
 	public Set<Map.Entry<String, List<String>>> entrySet() {
-		return Collections.unmodifiableSet(valuesMap.entrySet());
+		return valuesMap.isEmpty() ? Collections.emptySet() : Collections.unmodifiableSet(valuesMap.entrySet());
 	}
 
 	/**
@@ -444,7 +468,7 @@ public class Headers {
 	 *
 	 * @return the bytes
 	 */
-	public byte[] getSerialized() {
+	public byte @NonNull [] getSerialized() {
 		if (serialized == null) {
 			serialized = new byte[serializedLength()];
 			serializeToArray(0, serialized);
@@ -484,7 +508,6 @@ public class Headers {
 	 * @param dest the byte array to write to
 	 * @return the length of the header
 	 */
-	@SuppressWarnings("deprecation")
 	public int serializeToArray(int destPosition, byte[] dest) {
 		System.arraycopy(HEADER_VERSION_BYTES_PLUS_CRLF, 0, dest, destPosition, HVCRLF_BYTES);
 		destPosition += HVCRLF_BYTES;
@@ -492,11 +515,13 @@ public class Headers {
 		for (Map.Entry<String, List<String>> entry : valuesMap.entrySet()) {
 			String key = entry.getKey();
 			for (String value : entry.getValue()) {
-				key.getBytes(0, key.length(), dest, destPosition);// key has only US_ASCII
+                //noinspection deprecation
+                key.getBytes(0, key.length(), dest, destPosition);// key has only US_ASCII
 				destPosition += key.length();
 
 				dest[destPosition++] = COLON;
 
+				//noinspection deprecation
 				value.getBytes(0, value.length(), dest, destPosition);
 				destPosition += value.length();
 
