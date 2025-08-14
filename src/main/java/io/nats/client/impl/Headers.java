@@ -1,4 +1,4 @@
-// Copyright 2020 The NATS Authors
+// Copyright 2020-2025 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -14,12 +14,12 @@
 package io.nats.client.impl;
 
 import io.nats.client.support.ByteArrayBuilder;
+import org.jspecify.annotations.Nullable;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.BiConsumer;
-
 import static io.nats.client.support.NatsConstants.*;
-import static java.nio.charset.StandardCharsets.US_ASCII;
 
 /**
  * An object that represents a map of keys to a list of values. It does not accept
@@ -31,13 +31,13 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
 public class Headers {
 
 	private static final String KEY_CANNOT_BE_EMPTY_OR_NULL = "Header key cannot be null.";
-	private static final String KEY_INVALID_CHARACTER = "Header key has invalid character: ";
-	private static final String VALUE_INVALID_CHARACTERS = "Header value has invalid character: ";
+	private static final String KEY_INVALID_CHARACTER = "Header key has invalid character: 0x";
+	private static final String VALUE_INVALID_CHARACTERS = "Header value has invalid character: 0x";
 
 	private final Map<String, List<String>> valuesMap;
 	private final Map<String, Integer> lengthMap;
 	private final boolean readOnly;
-	private byte[] serialized;
+	private byte @Nullable [] serialized;
 	private int dataLength;
 
 	public Headers() {
@@ -52,7 +52,7 @@ public class Headers {
 		this(headers, readOnly, null);
 	}
 
-	public Headers(Headers headers, boolean readOnly, String[] keysNotToCopy) {
+	public Headers(@Nullable Headers headers, boolean readOnly, String @Nullable [] keysNotToCopy) {
 		Map<String, List<String>> tempValuesMap = new HashMap<>();
 		Map<String, Integer> tempLengthMap = new HashMap<>();
 		if (headers != null) {
@@ -197,8 +197,8 @@ public class Headers {
 		if (map == null || map.isEmpty()) {
 			return this;
 		}
-		for (String key : map.keySet() ) {
-			_put(key, map.get(key));
+		for (Map.Entry<String, List<String>> entry : map.entrySet()) {
+			_put(entry.getKey(), entry.getValue());
 		}
 		return this;
 	}
@@ -331,7 +331,7 @@ public class Headers {
 	 * @return a read-only set of keys (in lowercase) contained in this map
 	 */
 	public Set<String> keySetIgnoreCase() {
-		HashSet<String> set = new HashSet<>();
+		HashSet<String> set = new HashSet<>();// no capacity is OK for small maps
 		for (String k : valuesMap.keySet()) {
 			set.add(k.toLowerCase());
 		}
@@ -345,7 +345,7 @@ public class Headers {
 	 * @param key the key whose associated value is to be returned
 	 * @return a read-only list of the values for the case-sensitive key.
 	 */
-	public List<String> get(String key) {
+	public @Nullable List<String> get(String key) {
 		List<String> values = valuesMap.get(key);
 		return values == null ? null : Collections.unmodifiableList(values);
 	}
@@ -356,7 +356,7 @@ public class Headers {
 	 * @param key the key whose associated value is to be returned
 	 * @return the first value for the case-sensitive key.
 	 */
-	public String getFirst(String key) {
+	public @Nullable String getFirst(String key) {
 		List<String> values = valuesMap.get(key);
 		return values == null ? null : values.get(0);
 	}
@@ -368,7 +368,7 @@ public class Headers {
 	 * @param key the key whose associated value is to be returned
 	 * @return the last value for the case-sensitive key.
 	 */
-	public String getLast(String key) {
+	public @Nullable String getLast(String key) {
 		List<String> values = valuesMap.get(key);
 		return values == null ? null : values.get(values.size() - 1);
 	}
@@ -380,11 +380,11 @@ public class Headers {
 	 * @param key the key whose associated value is to be returned
 	 * @return a read-only list of the values for the case-insensitive key.
 	 */
-	public List<String> getIgnoreCase(String key) {
+	public @Nullable List<String> getIgnoreCase(String key) {
 		List<String> values = new ArrayList<>();
-		for (String k : valuesMap.keySet()) {
-			if (k.equalsIgnoreCase(key)) {
-				values.addAll(valuesMap.get(k));
+		for (Map.Entry<String, List<String>> entry : valuesMap.entrySet()) {
+			if (entry.getKey().equalsIgnoreCase(key)) {
+				values.addAll(entry.getValue());
 			}
 		}
 		return values.isEmpty() ? null : Collections.unmodifiableList(values);
@@ -401,7 +401,9 @@ public class Headers {
 	 * removed during iteration
 	 */
 	public void forEach(BiConsumer<String, List<String>> action) {
-		Collections.unmodifiableMap(valuesMap).forEach(action);
+		for (Map.Entry<String, List<String>> entry : valuesMap.entrySet()) {
+			action.accept(entry.getKey(), Collections.unmodifiableList(entry.getValue()));
+		}
 	}
 
 	/**
@@ -460,9 +462,9 @@ public class Headers {
 	@Deprecated
 	public ByteArrayBuilder appendSerialized(ByteArrayBuilder bab) {
 		bab.append(HEADER_VERSION_BYTES_PLUS_CRLF);
-		for (String key : valuesMap.keySet()) {
-			for (String value : valuesMap.get(key)) {
-				bab.append(key);
+		for (Map.Entry<String, List<String>> entry : valuesMap.entrySet()) {
+			for (String value : entry.getValue()) {
+				bab.append(entry.getKey());
 				bab.append(COLON_BYTES);
 				bab.append(value);
 				bab.append(CRLF_BYTES);
@@ -474,27 +476,28 @@ public class Headers {
 
 	/**
 	 * Write the header to the byte array. Assumes that the caller has
-	 * already validated that the destination array is large enough by using getSerialized()
+	 * already validated that the destination array is large enough by using {@link #getSerialized()}.
+	 * <p>/Deprecated {@link String#getBytes(int, int, byte[], int)} is used, because it still exists in JDK 25
+	 * and is 10–30 times faster than {@code getBytes(ISO_8859_1/US_ASCII)}/
 	 * @param destPosition the position index in destination byte array to start
 	 * @param dest the byte array to write to
 	 * @return the length of the header
 	 */
+	@SuppressWarnings("deprecation")
 	public int serializeToArray(int destPosition, byte[] dest) {
 		System.arraycopy(HEADER_VERSION_BYTES_PLUS_CRLF, 0, dest, destPosition, HVCRLF_BYTES);
 		destPosition += HVCRLF_BYTES;
 
 		for (Map.Entry<String, List<String>> entry : valuesMap.entrySet()) {
-			List<String> values = entry.getValue();
-			for (String value : values) {
-				byte[] bytes = entry.getKey().getBytes(US_ASCII);
-				System.arraycopy(bytes, 0, dest, destPosition, bytes.length);
-				destPosition += bytes.length;
+			String key = entry.getKey();
+			for (String value : entry.getValue()) {
+				key.getBytes(0, key.length(), dest, destPosition);// key has only US_ASCII
+				destPosition += key.length();
 
 				dest[destPosition++] = COLON;
 
-				bytes = value.getBytes(US_ASCII);
-				System.arraycopy(bytes, 0, dest, destPosition, bytes.length);
-				destPosition += bytes.length;
+				value.getBytes(0, value.length(), dest, destPosition);
+				destPosition += value.length();
 
 				dest[destPosition++] = CR;
 				dest[destPosition++] = LF;
@@ -503,6 +506,7 @@ public class Headers {
 		dest[destPosition++] = CR;
 		dest[destPosition] = LF;
 
+		//to do update serialized and/or dataLength?
 		return serializedLength();
 	}
 
@@ -512,7 +516,7 @@ public class Headers {
 	 * @throws IllegalArgumentException if the key is null, empty or contains
 	 *         an invalid character
 	 */
-	private void checkKey(String key) {
+	static void checkKey(String key) {
 		// key cannot be null or empty and contain only printable characters except colon
 		if (key == null || key.isEmpty()) {
 			throw new IllegalArgumentException(KEY_CANNOT_BE_EMPTY_OR_NULL);
@@ -522,7 +526,7 @@ public class Headers {
 		for (int idx = 0; idx < len; idx++) {
 			char c = key.charAt(idx);
 			if (c < 33 || c > 126 || c == ':') {
-				throw new IllegalArgumentException(KEY_INVALID_CHARACTER + "'" + c + "'");
+				throw new IllegalArgumentException(KEY_INVALID_CHARACTER + Integer.toHexString(c));
 			}
 		}
 	}
@@ -532,17 +536,18 @@ public class Headers {
 	 *
 	 * @throws IllegalArgumentException if the value contains an invalid character
 	 */
-	private void checkValue(String val) {
+	static void checkValue(String val) {
 		// Like rfc822 section 3.1.2 (quoted in ADR 4)
 		// The field-body may be composed of any US-ASCII characters, except CR or LF.
-		val.chars().forEach(c -> {
+		for (int i = 0, len = val.length(); i < len; i++) {
+			int c = val.charAt(i);
 			if (c > 127 || c == 10 || c == 13) {
-				throw new IllegalArgumentException(VALUE_INVALID_CHARACTERS + c);
+				throw new IllegalArgumentException(VALUE_INVALID_CHARACTERS + Integer.toHexString(c));
 			}
-		});
+		}
 	}
 
-	private class Checker {
+	private static final class Checker {
 		List<String> list = new ArrayList<>();
 		int len = 0;
 
@@ -581,13 +586,29 @@ public class Headers {
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;
-		if (o == null || getClass() != o.getClass()) return false;
+		if (!(o instanceof Headers)) return false;
 		Headers headers = (Headers) o;
 		return Objects.equals(valuesMap, headers.valuesMap);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(valuesMap);
+		return Objects.hashCode(valuesMap);
+	}
+
+	@Override
+	public String toString() {
+		byte[] b = getSerialized();
+		int len = b.length;
+		if (len <= HVCRLF_BYTES + 2){
+			return "";// empty map
+		}
+		for (int i = 0; i < len; i++) {
+			switch (b[i]) {
+				case CR: b[i] = ';'; break;
+				case LF: b[i] = ' '; break;
+			}
+		}
+		return new String(b, HVCRLF_BYTES, len - HVCRLF_BYTES - 3, StandardCharsets.ISO_8859_1);// b has only US_ASCII, ISO_8859_1 is 3x faster
 	}
 }

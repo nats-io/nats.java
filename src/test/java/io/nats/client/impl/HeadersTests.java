@@ -4,6 +4,7 @@ import io.nats.client.support.IncomingHeadersProcessor;
 import io.nats.client.support.Status;
 import io.nats.client.support.Token;
 import io.nats.client.support.TokenType;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -217,7 +218,13 @@ public class HeadersTests {
         assertTrue(headers1.isReadOnly());
         assertThrows(UnsupportedOperationException.class, () -> headers1.put(KEY1, VAL2));
         assertThrows(UnsupportedOperationException.class, () -> headers1.put(KEY1, VAL2));
+        assertThrows(UnsupportedOperationException.class, () -> headers1.put(KEY1, VAL1, VAL2));
+        assertThrows(UnsupportedOperationException.class, () -> headers1.put(KEY1, Arrays.asList(VAL1, VAL2)));
         assertThrows(UnsupportedOperationException.class, () -> headers1.remove(KEY1));
+        assertThrows(UnsupportedOperationException.class, () -> headers1.remove(KEY1,KEY2));
+        assertThrows(UnsupportedOperationException.class, () -> headers1.remove(Arrays.asList(KEY1,KEY2)));
+        assertThrows(UnsupportedOperationException.class, () -> headers1.add(KEY1, VAL2));
+        assertThrows(UnsupportedOperationException.class, () -> headers1.add(KEY1, Arrays.asList(VAL1, VAL2)));
         assertThrows(UnsupportedOperationException.class, headers1::clear);
         assertEquals(VAL1, headers1.getFirst(KEY1));
     }
@@ -761,6 +768,18 @@ public class HeadersTests {
     @Test
     public void testToString() {
         assertNotNull(new Status(1, "msg").toString()); // COVERAGE
+
+        Headers h = new Headers();
+        assertEquals("", h.toString());
+
+        h.add("Test1");
+        h.add("Test2", "Test2Value");
+        h.add("Test3", "");
+        h.add("Test4", "", "", "");
+        h.add("Test5", "Nice!", "To.", "See?");
+
+        assertEquals("Test5:Nice!; Test5:To.; Test5:See?; Test4:; Test4:; Test4:; Test3:; Test2:Test2Value;",
+            h.toString());// flaky: non-sorted HashMap
     }
 
     @Test
@@ -781,5 +800,59 @@ public class HeadersTests {
         assertTrue(h.get(KEY2).contains(VAL2));
         assertTrue(h.get(KEY2).contains(VAL3));
         assertEquals(VAL2, h.getFirst(KEY2));
+    }
+
+    @Test
+    void testForEach() {
+        Headers h = new Headers();
+        h.put("test", "a","b","c");
+        h.forEach((k, v) -> {
+            assertEquals("test", k);
+            assertContainsExactly(v, "a", "b", "c");
+            assertThrows(UnsupportedOperationException.class, ()->v.add("z"));
+        });
+    }
+
+    /// @see io.nats.client.impl.Headers#checkValue
+    @Test
+    void testCheckValue() {
+        Headers h = new Headers();
+        h.put("test1", "\u0000 \f\b\t");
+
+        assertThrows(IllegalArgumentException.class, ()->h.put("test", "×"));
+        assertThrows(IllegalArgumentException.class, ()->h.put("test", "\r"));
+        assertThrows(IllegalArgumentException.class, ()->h.put("test", "\n"));
+
+        assertEquals(1, h.size());
+        assertEquals(1, h.get("test1").size());
+        assertEquals("\u0000 \f\b\t", h.getFirst("test1"));
+    }
+
+    /**
+     no JMH :(
+     Old: Time: 24622.87ms, Op/sec:  4061264
+     New: Time:  6660.18ms, Op/sec: 15014614
+     New variant is 15014614/4061264= 3.7 times faster
+     */
+    @Test @Disabled("Benchmark after changes in serializeToArray: Time: 6_660ms, Op/sec: 15_014_614")
+    void benchmark_serializeToArray() {
+        Headers h = new Headers().put("test", "aaa", "bBb", "ZZZZZZZZ")
+                .put("ALongLongLongLongLongLongLongKey", "VeryLongLongLongLongLongLongLongLongLong:Value!");
+        assertEquals(
+            "ALongLongLongLongLongLongLongKey:VeryLongLongLongLongLongLongLongLongLong:Value!; test:aaa; test:bBb; test:ZZZZZZZZ;", 
+            h.toString());
+
+        byte[] dst = new byte[1000];
+        for (int i = 0; i < 10_000; i++) {// warm-up
+            assertEquals(129, h.serializeToArray(0, dst));
+        }
+
+        long t = System.nanoTime();
+        int max = 100_000_000;
+        for (int i = 0; i < max; i++) {
+            h.serializeToArray(0, dst);
+        }
+        t = System.nanoTime() - t;
+        System.out.println("Time: " + t / 1000 / 1000.0 +"ms, Op/sec: "+(max*1_000_000_000L/t));
     }
 }
