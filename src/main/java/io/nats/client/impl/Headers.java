@@ -19,6 +19,7 @@ import org.jspecify.annotations.Nullable;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.BiConsumer;
+
 import static io.nats.client.support.NatsConstants.*;
 
 /**
@@ -37,18 +38,18 @@ public class Headers {
 	private final Map<String, List<String>> valuesMap;
 	private final Map<String, Integer> lengthMap;
 	private final boolean readOnly;
-	private byte @Nullable [] serialized;
+	private byte[] serialized;
 	private int dataLength;
 
 	public Headers() {
 		this(null, false, null);
 	}
 
-	public Headers(Headers headers) {
+	public Headers(@Nullable Headers headers) {
 		this(headers, false, null);
 	}
 
-	public Headers(Headers headers, boolean readOnly) {
+	public Headers(@Nullable Headers headers, boolean readOnly) {
 		this(headers, readOnly, null);
 	}
 
@@ -331,7 +332,7 @@ public class Headers {
 	 * @return a read-only set of keys (in lowercase) contained in this map
 	 */
 	public Set<String> keySetIgnoreCase() {
-		HashSet<String> set = new HashSet<>();// no capacity is OK for small maps
+		HashSet<String> set = new HashSet<>();
 		for (String k : valuesMap.keySet()) {
 			set.add(k.toLowerCase());
 		}
@@ -506,7 +507,6 @@ public class Headers {
 		dest[destPosition++] = CR;
 		dest[destPosition] = LF;
 
-		//to do update serialized and/or dataLength?
 		return serializedLength();
 	}
 

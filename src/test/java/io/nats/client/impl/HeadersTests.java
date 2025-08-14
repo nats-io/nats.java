@@ -4,7 +4,6 @@ import io.nats.client.support.IncomingHeadersProcessor;
 import io.nats.client.support.Status;
 import io.nats.client.support.Token;
 import io.nats.client.support.TokenType;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -164,6 +163,7 @@ public class HeadersTests {
     private void assertKeyIgnoreCaseContainsValues(Headers headers, List<String> keys, List<String> values) {
         for (String k : keys) {
             List<String> hVals = headers.getIgnoreCase(k);
+            assertNotNull(hVals);
             assertEquals(values.size(), hVals.size());
             for (String v : values) {
                 assertTrue(hVals.contains(v));
@@ -174,6 +174,7 @@ public class HeadersTests {
     private void assertKeyContainsValues(Headers headers, List<String> keys, List<String> values) {
         for (String k : keys) {
             List<String> hVals = headers.get(k);
+            assertNotNull(hVals);
             assertEquals(values.size(), hVals.size());
             for (String v : values) {
                 assertTrue(hVals.contains(v));
@@ -253,20 +254,28 @@ public class HeadersTests {
         validateDirtyAndLength(headers);
 
         headers.add(KEY1, "");
-        assertEquals(1, headers.get(KEY1).size());
+        List<String> values = headers.get(KEY1);
+        assertNotNull(values);
+        assertEquals(1, values.size());
         validateDirtyAndLength(headers);
 
         headers.put(KEY1, "");
-        assertEquals(1, headers.get(KEY1).size());
+        values = headers.get(KEY1);
+        assertNotNull(values);
+        assertEquals(1, values.size());
         validateDirtyAndLength(headers);
 
         headers = new Headers();
         headers.add(KEY1, VAL1, "", VAL2);
-        assertEquals(3, headers.get(KEY1).size());
+        values = headers.get(KEY1);
+        assertNotNull(values);
+        assertEquals(3, values.size());
         validateDirtyAndLength(headers);
 
         headers.put(KEY1, VAL1, "", VAL2);
-        assertEquals(3, headers.get(KEY1).size());
+        values = headers.get(KEY1);
+        assertNotNull(values);
+        assertEquals(3, values.size());
         validateDirtyAndLength(headers);
     }
 
@@ -277,11 +286,15 @@ public class HeadersTests {
         validateDirtyAndLength(headers);
 
         headers.add(KEY1, VAL1, null, VAL2);
-        assertEquals(2, headers.get(KEY1).size());
+        List<String> values = headers.get(KEY1);
+        assertNotNull(values);
+        assertEquals(2, values.size());
         validateDirtyAndLength(headers);
 
         headers.put(KEY1, VAL1, null, VAL2);
-        assertEquals(2, headers.get(KEY1).size());
+        values = headers.get(KEY1);
+        assertNotNull(values);
+        assertEquals(2, values.size());
         validateDirtyAndLength(headers);
 
         headers.clear();
@@ -470,13 +483,19 @@ public class HeadersTests {
         assertEquals(headers1.size(), headers2.size());
         assertTrue(headers2.containsKey(KEY1));
         assertTrue(headers2.containsKey(KEY2));
-        assertEquals(2, headers2.get(KEY1).size());
-        assertEquals(1, headers2.get(KEY2).size());
-        assertEquals(1, headers2.get(KEY3).size());
-        assertTrue(headers2.get(KEY1).contains(VAL1));
-        assertTrue(headers2.get(KEY1).contains(VAL3));
-        assertTrue(headers2.get(KEY2).contains(VAL2));
-        assertTrue(headers2.get(KEY3).contains(EMPTY));
+        List<String> values21 = headers2.get(KEY1);
+        List<String> values22 = headers2.get(KEY2);
+        List<String> values23 = headers2.get(KEY3);
+        assertNotNull(values21);
+        assertNotNull(values22);
+        assertNotNull(values23);
+        assertEquals(2, values21.size());
+        assertEquals(1, values22.size());
+        assertEquals(1, values23.size());
+        assertTrue(values21.contains(VAL1));
+        assertTrue(values21.contains(VAL3));
+        assertTrue(values22.contains(VAL2));
+        assertTrue(values23.contains(EMPTY));
     }
 
     @Test
@@ -546,13 +565,12 @@ public class HeadersTests {
         assertValidHeader(ihp, "foo", "bar");
     }
 
-    private IncomingHeadersProcessor assertValidHeader(String test, String key, String val) {
+    private void assertValidHeader(String test, String key, String val) {
         IncomingHeadersProcessor ihp = new IncomingHeadersProcessor(test.getBytes());
         assertValidHeader(ihp, key, val);
-        return ihp;
     }
 
-    private IncomingHeadersProcessor assertValidHeader(IncomingHeadersProcessor ihp, String key, String val) {
+    private void assertValidHeader(IncomingHeadersProcessor ihp, String key, String val) {
         Headers headers = ihp.getHeaders();
         if (key == null) {
             assertNull(headers);
@@ -561,10 +579,11 @@ public class HeadersTests {
             assertNotNull(headers);
             assertEquals(1, headers.size());
             assertTrue(headers.containsKey(key));
-            assertEquals(1, headers.get(key).size());
-            assertEquals(val, headers.get(key).get(0));
+            List<String> values = headers.get(key);
+            assertNotNull(values);
+            assertEquals(1, values.size());
+            assertEquals(val, values.get(0));
         }
-        return ihp;
     }
 
     private IncomingHeadersProcessor assertValidStatus(String test, int code, String msg) {
@@ -573,7 +592,7 @@ public class HeadersTests {
         return ihp;
     }
 
-    private IncomingHeadersProcessor assertValidStatus(IncomingHeadersProcessor ihp, int code, String msg) {
+    private void assertValidStatus(IncomingHeadersProcessor ihp, int code, String msg) {
         Status status = ihp.getStatus();
         assertNotNull(status);
         assertEquals(code, status.getCode());
@@ -583,7 +602,6 @@ public class HeadersTests {
         IncomingMessageFactory imf = new IncomingMessageFactory("sid", "sub", "rt", 0, false);
         imf.setHeaders(ihp);
         assertTrue(imf.getMessage().isStatusMessage());
-        return ihp;
     }
 
     static class IteratorTestHelper {
@@ -604,7 +622,9 @@ public class HeadersTests {
         for (String key : headers.keySet()) {
             helper.manualCount++;
             helper.manualCompareString.append(key);
-            headers.get(key).forEach(v -> helper.manualCompareString.append(v));
+            List<String> values = headers.get(key);
+            assertNotNull(values);
+            values.forEach(v -> helper.manualCompareString.append(v));
         }
         assertEquals(4, helper.manualCount);
 
@@ -682,7 +702,9 @@ public class HeadersTests {
     public void equalsHash() {
         Headers h1 = new Headers();
         Headers h2 = new Headers();
+        //noinspection MisorderedAssertEqualsArguments
         assertNotEquals(h1, null);
+        //noinspection EqualsWithItself
         assertEquals(h1, h1);
         assertEquals(h1, h2);
         assertEquals(h1.hashCode(), h1.hashCode());
@@ -697,6 +719,7 @@ public class HeadersTests {
         assertNotEquals(h1, h2);
         assertNotEquals(h1.hashCode(), h2.hashCode());
 
+        //noinspection MisorderedAssertEqualsArguments
         assertNotEquals(h1, new Object());
     }
 
@@ -711,11 +734,15 @@ public class HeadersTests {
         assertEquals(2, h2.size());
         assertTrue(h2.containsKey(KEY1));
         assertTrue(h2.containsKey(KEY2));
-        assertEquals(1, h2.get(KEY1).size());
-        assertEquals(2, h2.get(KEY2).size());
-        assertTrue(h2.get(KEY1).contains(VAL1));
-        assertTrue(h2.get(KEY2).contains(VAL2));
-        assertTrue(h2.get(KEY2).contains(VAL3));
+        List<String> values1 = h2.get(KEY1);
+        List<String> values2 = h2.get(KEY2);
+        assertNotNull(values1);
+        assertNotNull(values2);
+        assertEquals(1, values1.size());
+        assertEquals(2, values2.size());
+        assertTrue(values1.contains(VAL1));
+        assertTrue(values2.contains(VAL2));
+        assertTrue(values2.contains(VAL3));
         validateDirtyAndLength(h2);
     }
 
@@ -772,14 +799,16 @@ public class HeadersTests {
         Headers h = new Headers();
         assertEquals("", h.toString());
 
-        h.add("Test1");
-        h.add("Test2", "Test2Value");
-        h.add("Test3", "");
-        h.add("Test4", "", "", "");
-        h.add("Test5", "Nice!", "To.", "See?");
+        h.add("NotAdded");
+        h.add("Empty", "");
+        h.add("Has1", "h1-1");
+        h.add("Has2", "h2-1", "h2-2");
 
-        assertEquals("Test5:Nice!; Test5:To.; Test5:See?; Test4:; Test4:; Test4:; Test3:; Test2:Test2Value;",
-            h.toString());// flaky: non-sorted HashMap
+        assertFalse(h.toString().contains("NotAdded"));
+        assertTrue(h.toString().contains("Empty:;"));
+        assertTrue(h.toString().contains("Has1:h1-1;"));
+        assertTrue(h.toString().contains("Has2:h2-1;"));
+        assertTrue(h.toString().contains("Has2:h2-2;"));
     }
 
     @Test
@@ -793,12 +822,16 @@ public class HeadersTests {
         assertEquals(2, h.size());
         assertTrue(h.containsKey(KEY1));
         assertTrue(h.containsKey(KEY2));
-        assertEquals(1, h.get(KEY1).size());
-        assertEquals(2, h.get(KEY2).size());
-        assertTrue(h.get(KEY1).contains(VAL1));
+        List<String> l1 = h.get(KEY1);
+        List<String> l2 = h.get(KEY2);
+        assertNotNull(l1);
+        assertNotNull(l2);
+        assertEquals(1, l1.size());
+        assertEquals(2, l2.size());
+        assertTrue(l1.contains(VAL1));
         assertEquals(VAL1, h.getFirst(KEY1));
-        assertTrue(h.get(KEY2).contains(VAL2));
-        assertTrue(h.get(KEY2).contains(VAL3));
+        assertTrue(l2.contains(VAL2));
+        assertTrue(l2.contains(VAL3));
         assertEquals(VAL2, h.getFirst(KEY2));
     }
 
@@ -813,7 +846,6 @@ public class HeadersTests {
         });
     }
 
-    /// @see io.nats.client.impl.Headers#checkValue
     @Test
     void testCheckValue() {
         Headers h = new Headers();
@@ -824,35 +856,31 @@ public class HeadersTests {
         assertThrows(IllegalArgumentException.class, ()->h.put("test", "\n"));
 
         assertEquals(1, h.size());
-        assertEquals(1, h.get("test1").size());
+        List<String> l1 = h.get("test1");
+        assertNotNull(l1);
+        assertEquals(1, l1.size());
         assertEquals("\u0000 \f\b\t", h.getFirst("test1"));
     }
 
-    /**
-     no JMH :(
-     Old: Time: 24622.87ms, Op/sec:  4061264
-     New: Time:  6660.18ms, Op/sec: 15014614
-     New variant is 15014614/4061264= 3.7 times faster
-     */
-    @Test @Disabled("Benchmark after changes in serializeToArray: Time: 6_660ms, Op/sec: 15_014_614")
-    void benchmark_serializeToArray() {
-        Headers h = new Headers().put("test", "aaa", "bBb", "ZZZZZZZZ")
-                .put("ALongLongLongLongLongLongLongKey", "VeryLongLongLongLongLongLongLongLongLong:Value!");
-        assertEquals(
-            "ALongLongLongLongLongLongLongKey:VeryLongLongLongLongLongLongLongLongLong:Value!; test:aaa; test:bBb; test:ZZZZZZZZ;", 
-            h.toString());
-
-        byte[] dst = new byte[1000];
-        for (int i = 0; i < 10_000; i++) {// warm-up
-            assertEquals(129, h.serializeToArray(0, dst));
-        }
-
-        long t = System.nanoTime();
-        int max = 100_000_000;
-        for (int i = 0; i < max; i++) {
-            h.serializeToArray(0, dst);
-        }
-        t = System.nanoTime() - t;
-        System.out.println("Time: " + t / 1000 / 1000.0 +"ms, Op/sec: "+(max*1_000_000_000L/t));
-    }
+//    @Test
+//    void benchmark_serializeToArray() {
+//        Headers h = new Headers().put("test", "aaa", "bBb", "ZZZZZZZZ")
+//            .put("ALongLongLongLongLongLongLongKey", "VeryLongLongLongLongLongLongLongLongLong:Value!");
+//        assertEquals(
+//            "ALongLongLongLongLongLongLongKey:VeryLongLongLongLongLongLongLongLongLong:Value!; test:aaa; test:bBb; test:ZZZZZZZZ;",
+//            h.toString());
+//
+//        byte[] dst = new byte[1000];
+//        for (int i = 0; i < 10_000; i++) {// warm-up
+//            assertEquals(129, h.serializeToArray(0, dst));
+//        }
+//
+//        long t = System.nanoTime();
+//        int max = 100_000_000;
+//        for (int i = 0; i < max; i++) {
+//            h.serializeToArray(0, dst);
+//        }
+//        t = System.nanoTime() - t;
+//        System.out.println("Time: " + t / 1000 / 1000.0 +"ms, Op/sec: "+(max*1_000_000_000L/t));
+//    }
 }
