@@ -501,7 +501,7 @@ public class Headers {
 
 	/**
 	 * Write the header to the byte array. Assumes that the caller has
-	 * already validated that the destination array is large enough by using {@link #getSerialized()}.
+	 * already validated that the destination array is large enough by using {@link #serializedLength()}.
 	 * <p>/Deprecated {@link String#getBytes(int, int, byte[], int)} is used, because it still exists in JDK 25
 	 * and is 10–30 times faster than {@code getBytes(ISO_8859_1/US_ASCII)}/
 	 * @param destPosition the position index in destination byte array to start
