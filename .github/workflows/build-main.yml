@@ -49,3 +49,6 @@ jobs:
         run: ./gradlew javadoc
       - name: Publish Snapshot
         run: ./gradlew -i publishToSonatype
+      - name: Clean up
+        if: always()
+        run: pkill -9 nats-server
