@@ -36,8 +36,7 @@ jobs:
           git clone https://github.com/nats-io/nats-server.git
           cd nats-server
           git checkout tags/v2.11.8 -b release
-          go get
-          go build main.go -o ~/.local/bin/nats-server
+          go build -o ~/.local/bin/nats-server
           nats-server -v
       - name: Check out code
         uses: actions/checkout@v4
