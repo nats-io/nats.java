@@ -15,7 +15,7 @@ jobs:
       SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
       SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
       COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
-      GODEBUG: x509sha1=1
+      GODEBUG: tlssha1=1
     steps:
       - name: Setup JDK
         uses: actions/setup-java@v4
