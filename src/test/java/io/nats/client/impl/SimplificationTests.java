@@ -1728,7 +1728,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
             ConsumeOptions consumeOptions = ConsumeOptions.builder()
                 .batchSize(100) // small batch size means more round trips
-                .expiresIn(2000) // idle heartbeat is half of this, alarm time is 3 * ihb
+                .expiresIn(1500) // idle heartbeat is half of this, alarm time is 3 * ihb
                 .build();
 
             OrderedConsumerConfiguration ocConfig = new OrderedConsumerConfiguration().filterSubjects(subject);
@@ -1749,7 +1749,7 @@ public class SimplificationTests extends JetStreamTestBase {
         // reconnect and get some more messages
         try (NatsTestServer ignored = new NatsTestServer(port, false, true)) {
             standardConnectionWait(nc);
-            sleep(5000); // long enough to get messages and for the hb alarm to have tripped
+            sleep(6000); // long enough to get messages and for the hb alarm to have tripped
         }
         validateConsumerNameForOrdered(orderedConsumerContext, mcon, null);
         assertNotEquals(firstConsumerName, orderedConsumerContext.getConsumerName());
@@ -1759,10 +1759,10 @@ public class SimplificationTests extends JetStreamTestBase {
         assertTrue(count2 > count1);
         assertEquals(count2, nextExpectedSequence.get());
 
-        sleep(4000); // enough delay before reconnect to trip hb alarm again
+        sleep(6000); // enough delay before reconnect to trip hb alarm again
         try (NatsTestServer ignored = new NatsTestServer(port, false, true)) {
             standardConnectionWait(nc);
-            sleep(4000); // long enough to get messages and for the hb alarm to have tripped
+            sleep(6000); // long enough to get messages and for the hb alarm to have tripped
 
             try {
                 nc.jetStreamManagement().deleteStream(stream); // it was a file stream clean it up
