@@ -913,7 +913,9 @@ https://github.com/nats-io/nats.java/blob/main/src/test/java/io/nats/client/Test
 
 ### TLS Certs
 
-The raw TLS test certs are in [src/test/resources/certs](src/test/resources/certs) and come from the [nats.go](https://github.com/nats-io/nats.go) repository. However, the java client also needs a keystore and truststore.jks files for creating a context. These can be created using:
+The raw TLS test certs are in [src/test/resources/certs](src/test/resources/certs) and come from the [nats.go](https://github.com/nats-io/nats.go) repository. 
+However, the java client also needs a keystore and truststore.jks files for creating a context. These can be created using the following commands:
+
 
 ```bash
 > cd src/test/resources
