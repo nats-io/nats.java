@@ -117,13 +117,13 @@ java -cp build/libs/jnats-{major.minor.patch}-SNAPSHOT.jar:build/libs/jnats-{maj
 There are a set tls configuration for the server in the test files that can be used to run the NATS server.
 
 ```bash
-nats-server --conf src/test/resources/tls.conf
+nats-server --config src/test/resources/tls.conf
 ```
 
 As well as one with the verify flag set.
 
 ```bash
-nats-server --conf src/test/resources/tlsverify.conf
+nats-server --config src/test/resources/tlsverify.conf
 ```
 
 which will require client certificates.
