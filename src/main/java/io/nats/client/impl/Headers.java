@@ -14,11 +14,13 @@
 package io.nats.client.impl;
 
 import io.nats.client.support.ByteArrayBuilder;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.BiConsumer;
+
 import static io.nats.client.support.NatsConstants.*;
 
 /**
@@ -37,21 +39,39 @@ public class Headers {
 	private final Map<String, List<String>> valuesMap;
 	private final Map<String, Integer> lengthMap;
 	private final boolean readOnly;
-	private byte @Nullable [] serialized;
+	private byte[] serialized;
 	private int dataLength;
 
+	/**
+	 * Create a new Headers object
+	 */
 	public Headers() {
 		this(null, false, null);
 	}
 
-	public Headers(Headers headers) {
+	/**
+	 * Create a new Headers object by copying all header entries
+	 * @param headers the headers to copy
+	 */
+	public Headers(@Nullable Headers headers) {
 		this(headers, false, null);
 	}
 
-	public Headers(Headers headers, boolean readOnly) {
+	/**
+	 * Create a new Headers object by copying all header entries
+	 * @param headers the headers to copy
+	 * @param readOnly flag to indicate that whether the new Headers should be marked as read-only
+	 */
+	public Headers(@Nullable Headers headers, boolean readOnly) {
 		this(headers, readOnly, null);
 	}
 
+	/**
+	 * Create a new Headers object by copying all header entries, except those indicated by keysNotToCopy
+	 * @param headers the headers to copy
+	 * @param readOnly flag to indicate that whether the new Headers should be marked as read-only
+	 * @param keysNotToCopy an array of keys that should not be copied
+	 */
 	public Headers(@Nullable Headers headers, boolean readOnly, String @Nullable [] keysNotToCopy) {
 		Map<String, List<String>> tempValuesMap = new HashMap<>();
 		Map<String, Integer> tempLengthMap = new HashMap<>();
@@ -84,7 +104,6 @@ public class Headers {
 	 * If the key is present add the values to the list of values for the key.
 	 * If the key is not present, sets the specified values for the key.
 	 * null values are ignored. If all values are null, the key is not added or updated.
-	 *
 	 * @param key the key
 	 * @param values the values
 	 * @return the Headers object
@@ -105,7 +124,6 @@ public class Headers {
 	 * If the key is present add the values to the list of values for the key.
 	 * If the key is not present, sets the specified values for the key.
 	 * null values are ignored. If all values are null, the key is not added or updated.
-	 *
 	 * @param key the entry key
 	 * @param values a list of values to the entry
 	 * @return the Header object
@@ -145,7 +163,6 @@ public class Headers {
 	 * Associates the specified values with the key. If the key was already present
 	 * any existing values are removed and replaced with the new list.
 	 * null values are ignored. If all values are null, the put is ignored
-	 *
 	 * @param key the key
 	 * @param values the values
 	 * @return the Headers object
@@ -166,7 +183,6 @@ public class Headers {
 	 * Associates the specified values with the key. If the key was already present
 	 * any existing values are removed and replaced with the new list.
 	 * null values are ignored. If all values are null, the put is ignored
-	 *
 	 * @param key the key
 	 * @param values the values
 	 * @return the Headers object
@@ -224,7 +240,6 @@ public class Headers {
 
 	/**
 	 * Removes each key and its values if the key was present
-	 *
 	 * @param keys the key or keys to remove
 	 */
 	public void remove(String... keys) {
@@ -239,7 +254,6 @@ public class Headers {
 
 	/**
 	 * Removes each key and its values if the key was present
-	 *
 	 * @param keys the key or keys to remove
 	 */
 	public void remove(Collection<String> keys) {
@@ -262,7 +276,6 @@ public class Headers {
 
 	/**
 	 * Returns the number of keys (case-sensitive) in the header.
-	 *
 	 * @return the number of header entries
 	 */
 	public int size() {
@@ -271,7 +284,6 @@ public class Headers {
 
 	/**
 	 * Returns ture if map contains no keys.
-	 *
 	 * @return true if there are no headers
 	 */
 	public boolean isEmpty() {
@@ -293,7 +305,6 @@ public class Headers {
 
 	/**
 	 * Returns true if key (case-sensitive) is present (has values)
-	 *
 	 * @param key key whose presence is to be tested
 	 * @return true if the key (case-sensitive) is present (has values)
 	 */
@@ -303,7 +314,6 @@ public class Headers {
 
 	/**
 	 * Returns true if key (case-insensitive) is present (has values)
-	 *
 	 * @param key exact key whose presence is to be tested
 	 * @return true if the key (case-insensitive) is present (has values)
 	 */
@@ -318,7 +328,6 @@ public class Headers {
 
 	/**
 	 * Returns a {@link Set} view of the keys (case-sensitive) contained in the object.
-	 *
 	 * @return a read-only set the keys contained in this map
 	 */
 	public Set<String> keySet() {
@@ -327,11 +336,10 @@ public class Headers {
 
 	/**
 	 * Returns a {@link Set} view of the keys (case-insensitive) contained in the object.
-	 *
 	 * @return a read-only set of keys (in lowercase) contained in this map
 	 */
 	public Set<String> keySetIgnoreCase() {
-		HashSet<String> set = new HashSet<>();// no capacity is OK for small maps
+		HashSet<String> set = new HashSet<>();
 		for (String k : valuesMap.keySet()) {
 			set.add(k.toLowerCase());
 		}
@@ -341,11 +349,11 @@ public class Headers {
 	/**
 	 * Returns a {@link List} view of the values for the specific (case-sensitive) key.
 	 * Will be {@code null} if the key is not found.
-	 *
 	 * @param key the key whose associated value is to be returned
 	 * @return a read-only list of the values for the case-sensitive key.
 	 */
-	public @Nullable List<String> get(String key) {
+	@Nullable
+	public List<String> get(String key) {
 		List<String> values = valuesMap.get(key);
 		return values == null ? null : Collections.unmodifiableList(values);
 	}
@@ -356,7 +364,8 @@ public class Headers {
 	 * @param key the key whose associated value is to be returned
 	 * @return the first value for the case-sensitive key.
 	 */
-	public @Nullable String getFirst(String key) {
+	@Nullable
+	public String getFirst(String key) {
 		List<String> values = valuesMap.get(key);
 		return values == null ? null : values.get(0);
 	}
@@ -364,11 +373,11 @@ public class Headers {
 	/**
 	 * Returns the last value for the specific (case-sensitive) key.
 	 * Will be {@code null} if the key is not found.
-	 *
 	 * @param key the key whose associated value is to be returned
 	 * @return the last value for the case-sensitive key.
 	 */
-	public @Nullable String getLast(String key) {
+	@Nullable
+	public String getLast(String key) {
 		List<String> values = valuesMap.get(key);
 		return values == null ? null : values.get(values.size() - 1);
 	}
@@ -376,11 +385,11 @@ public class Headers {
 	/**
 	 * Returns a {@link List} view of the values for the specific (case-insensitive) key.
 	 * Will be {@code null} if the key is not found.
-	 *
 	 * @param key the key whose associated value is to be returned
 	 * @return a read-only list of the values for the case-insensitive key.
 	 */
-	public @Nullable List<String> getIgnoreCase(String key) {
+	@Nullable
+	public List<String> getIgnoreCase(String key) {
 		List<String> values = new ArrayList<>();
 		for (Map.Entry<String, List<String>> entry : valuesMap.entrySet()) {
 			if (entry.getKey().equalsIgnoreCase(key)) {
@@ -394,7 +403,6 @@ public class Headers {
 	 * Performs the given action for each header entry (case-sensitive keys) until all entries
 	 * have been processed or the action throws an exception.
 	 * Any attempt to modify the values will throw an exception.
-	 *
 	 * @param action The action to be performed for each entry
 	 * @throws NullPointerException if the specified action is null
 	 * @throws ConcurrentModificationException if an entry is found to be
@@ -409,17 +417,16 @@ public class Headers {
 	/**
 	 * Returns a {@link Set} read only view of the mappings contained in the header (case-sensitive keys).
 	 * The set is not modifiable and any attempt to modify will throw an exception.
-	 *
-	 * @return a set view of the mappings contained in this map
+	 * @return a set view of the mappings contained in this map or Collections.emptySet() if there are no entries
 	 */
+	@NonNull
 	public Set<Map.Entry<String, List<String>>> entrySet() {
-		return Collections.unmodifiableSet(valuesMap.entrySet());
+		return valuesMap.isEmpty() ? Collections.emptySet() : Collections.unmodifiableSet(valuesMap.entrySet());
 	}
 
 	/**
 	 * Returns if the headers are dirty, which means the serialization
 	 * has not been done so also don't know the byte length
-	 *
 	 * @return true if dirty
 	 */
 	public boolean isDirty() {
@@ -428,7 +435,6 @@ public class Headers {
 
 	/**
 	 * Returns the number of bytes that will be in the serialized version.
-	 *
 	 * @return the number of bytes
 	 */
 	public int serializedLength() {
@@ -440,10 +446,9 @@ public class Headers {
 
 	/**
 	 * Returns the serialized bytes.
-	 *
 	 * @return the bytes
 	 */
-	public byte[] getSerialized() {
+	public byte @NonNull [] getSerialized() {
 		if (serialized == null) {
 			serialized = new byte[serializedLength()];
 			serializeToArray(0, serialized);
@@ -455,7 +460,6 @@ public class Headers {
 	 * @deprecated
 	 * Used for unit testing.
      * Appends the serialized bytes to the builder. 
-     * 
 	 * @param bab the ByteArrayBuilder to append
 	 * @return the builder
 	 */
@@ -476,14 +480,13 @@ public class Headers {
 
 	/**
 	 * Write the header to the byte array. Assumes that the caller has
-	 * already validated that the destination array is large enough by using {@link #getSerialized()}.
-	 * <p>/Deprecated {@link String#getBytes(int, int, byte[], int)} is used, because it still exists in JDK 25
+	 * already validated that the destination array is large enough by using {@link #serializedLength()}.
+	 * <p>deprecated {@link String#getBytes(int, int, byte[], int)} is used, because it still exists in JDK 25
 	 * and is 10–30 times faster than {@code getBytes(ISO_8859_1/US_ASCII)}/
 	 * @param destPosition the position index in destination byte array to start
 	 * @param dest the byte array to write to
 	 * @return the length of the header
 	 */
-	@SuppressWarnings("deprecation")
 	public int serializeToArray(int destPosition, byte[] dest) {
 		System.arraycopy(HEADER_VERSION_BYTES_PLUS_CRLF, 0, dest, destPosition, HVCRLF_BYTES);
 		destPosition += HVCRLF_BYTES;
@@ -491,11 +494,13 @@ public class Headers {
 		for (Map.Entry<String, List<String>> entry : valuesMap.entrySet()) {
 			String key = entry.getKey();
 			for (String value : entry.getValue()) {
-				key.getBytes(0, key.length(), dest, destPosition);// key has only US_ASCII
+                //noinspection deprecation
+                key.getBytes(0, key.length(), dest, destPosition);// key has only US_ASCII
 				destPosition += key.length();
 
 				dest[destPosition++] = COLON;
 
+				//noinspection deprecation
 				value.getBytes(0, value.length(), dest, destPosition);
 				destPosition += value.length();
 
@@ -506,13 +511,11 @@ public class Headers {
 		dest[destPosition++] = CR;
 		dest[destPosition] = LF;
 
-		//to do update serialized and/or dataLength?
 		return serializedLength();
 	}
 
 	/**
 	 * Check the key to ensure it matches the specification for keys.
-	 *
 	 * @throws IllegalArgumentException if the key is null, empty or contains
 	 *         an invalid character
 	 */
@@ -533,7 +536,6 @@ public class Headers {
 
 	/**
 	 * Check a non-null value if it matches the specification for values.
-	 *
 	 * @throws IllegalArgumentException if the value contains an invalid character
 	 */
 	static void checkValue(String val) {

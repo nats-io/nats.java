@@ -28,15 +28,13 @@ jobs:
           go-version: '1.21.4'
       - name: Install Nats Server
         run: |
+          pkill -9 nats-server 2>/dev/null || true
+          mkdir -p ~/.local/bin
           cd $GITHUB_WORKSPACE
           git clone https://github.com/nats-io/nats-server.git
           cd nats-server
-          go get
-          go build main.go
-          mkdir -p ~/.local/bin
-          cp main ~/.local/bin/nats-server
-          cd ..
-          rm -rf nats-server
+          git checkout tags/v2.11.8 -b release
+          go build -o ~/.local/bin/nats-server
           nats-server -v
       - name: Check out code
         uses: actions/checkout@v4
@@ -48,5 +46,6 @@ jobs:
       - name: Publish Branch Snapshot
         if: ${{ success() }}
         run: ./gradlew -i publishToSonatype
-
-
+      - name: Clean up
+        if: always()
+        run: pkill -9 nats-server 2>/dev/null || true
