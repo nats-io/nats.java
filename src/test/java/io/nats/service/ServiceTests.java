@@ -600,6 +600,9 @@ public class ServiceTests extends JetStreamTestBase {
                 service1.startService();
                 service2.startService();
 
+                assertTrue(service1.isStarted(1, TimeUnit.SECONDS));
+                assertTrue(service2.isStarted(1, TimeUnit.SECONDS));
+
                 Discovery discovery = new Discovery(clientNc);
 
                 List<PingResponse> prs = discovery.ping();
