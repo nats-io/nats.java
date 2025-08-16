@@ -16,7 +16,6 @@ jobs:
       SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
       SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
       SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
-      GODEBUG: x509sha1=1
     steps:
       - name: Setup JDK
         uses: actions/setup-java@v4
@@ -26,7 +25,7 @@ jobs:
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21.4'
+          go-version: stable
       - name: Install Nats Server
         run: |
           pkill -9 nats-server 2>/dev/null || true
