@@ -1,5 +1,44 @@
 # Change Log
 
+## 2.21.5
+
+### Core
+* Implement Fast fallback algorithm in SocketDataPort #1351 @jitinsharma
+* [FIX] Shutdown internal executors on connection close. #1357 @scottf
+* Convert serverAuthErrors to ConcurrentHashMap #1359 @scottf
+* Fix SSL handshake listeners never removed, preventing garbage collection #1360 @scottf
+* Fix core unsubscribe by subject #1363 @scottf
+* Move from JetBrains nullability annotations to JSpecify #1366
+* Fix timeout computing to address possible nano time overflow #1375 @scottf @magicprinc
+* Create NatsInetAddress to allow replacement of InetAddress #1378 @scottf @jitinsharma
+* Json parser tuning. #1382 @scottf
+* Connection and adjacent objects nullability markers. #1383 @scottf
+* Headers +toString(), fixes #1385 @magicprinc
+* Header nullability #1395 @scottf
+* Updated SSL Files and Build preparing for server 2.12 #1397 @scottf
+
+### JetStream
+* [Fix] Simplified Ordered Consumer - Getting name early can cause NPE #1354 @scottf
+* Stream Name cannot be null #1377 @scottf
+* Fix JetStreamApiException constructor nullability conflict #1379 @scottf
+* Ensuring nullability contracts #1387 @scottf
+
+### Key Value
+* Add revision guard on KV key "create" #1356 @scottf
+* Fixed limit marker test for server change #1367 @scottf
+* Additional KV Marker / TTL testing #1391 @scottf
+
+### Testing / Examples / Docs / Etc
+* Ordered Consumer Examples #1352 @scottf
+* Update readme for fast fallback option #1353 @jitinsharma
+* Improved Consumer Name Testing #1365 @scottf
+* Review for Issues (#1361 and #1362) #1368 @scottf
+* Unit test refactor #1369
+* Use String.replace instead of String.replaceAll #1381 @scottf @magicprinc
+* Fixed Jacoco from considering test classes #1390 @scottf
+* Fixing flapping tests #1393 @scottf
+* Fix test flappers #1396 @scottf
+
 ## 2.21.4
 
 ### Core
