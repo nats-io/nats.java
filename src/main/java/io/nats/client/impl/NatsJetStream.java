@@ -181,10 +181,10 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
 
         PublishAck ack = new PublishAck(resp);
         String ackStream = ack.getStream();
-        String pubStream = options == null ? null : options.getStream();
+        String optAckStream = options == null ? null : options.getPubAckStream();
         // stream specified in options but different from ack should not happen but...
-        if (pubStream != null && !pubStream.equals(ackStream)) {
-            throw new IOException("Expected ack from stream " + pubStream + ", received from: " + ackStream);
+        if (optAckStream != null && !optAckStream.equals(ackStream)) {
+            throw new IOException("Expected ack from stream " + optAckStream + ", received from: " + ackStream);
         }
         return ack;
     }
@@ -196,6 +196,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         if (opts != null) {
             merged = mergeNum(merged, EXPECTED_LAST_SEQ_HDR, opts.getExpectedLastSequence());
             merged = mergeNum(merged, EXPECTED_LAST_SUB_SEQ_HDR, opts.getExpectedLastSubjectSequence());
+            merged = mergeString(merged, EXPECTED_LAST_SUB_SEQ_SUB_HDR, opts.getExpectedLastSubjectSequenceSubject());
             merged = mergeString(merged, EXPECTED_LAST_MSG_ID_HDR, opts.getExpectedLastMsgId());
             merged = mergeString(merged, EXPECTED_STREAM_HDR, opts.getExpectedStream());
             merged = mergeString(merged, MSG_ID_HDR, opts.getMessageId());
