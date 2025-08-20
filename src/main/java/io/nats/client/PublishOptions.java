@@ -218,7 +218,10 @@ public class PublishOptions {
 
         /**
          * @deprecated Prefer pubAckStream(...)
-         * Sets the stream name for publishing. The default is undefined.
+         * Sets the stream name to expect the pub ack to have.
+         * This really should never be an issue and it does
+         * not prevent the message from being published,
+         * it's an exception after the fact
          * @param stream The name of the stream.
          * @return The Builder
          */
@@ -229,7 +232,10 @@ public class PublishOptions {
         }
 
         /**
-         * Sets the stream name for publishing. The default is undefined.
+         * Sets the stream name to expect the pub ack to have.
+         * This really should never be an issue and it does
+         * not prevent the message from being published,
+         * it's an exception after the fact
          * @param stream The name of the stream.
          * @return The Builder
          */
@@ -293,8 +299,10 @@ public class PublishOptions {
         }
 
         /**
-         * Sets the limiting subject for the expected last subject sequence
-         * @param expectedLastSubSeqSubject the limiting subject
+         * Sets the filter subject for the expected last subject sequence
+         * This can be used for a wildcard since it is used
+         * in place of the message subject along with expectedLastSubjectSequence
+         * @param expectedLastSubSeqSubject the filter subject
          * @return The Builder
          */
         public Builder expectedLastSubjectSequenceSubject(String expectedLastSubSeqSubject) {

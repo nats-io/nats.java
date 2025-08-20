@@ -372,6 +372,12 @@ public class JetStreamPubTests extends JetStreamTestBase {
                 .build();
             pa = js.publish(sub3, dataBytes(507), poLsss);
             assertPublishAck(pa, stream1, 13);
+
+            poLsss = PublishOptions.builder()
+                .expectedLastSubjectSequenceSubject("not-even-a-subject")
+                .build();
+            pa = js.publish(sub3, dataBytes(508), poLsss);
+            assertPublishAck(pa, stream1, 14);
         });
     }
 
