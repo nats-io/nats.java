@@ -26,7 +26,7 @@ import static io.nats.client.support.JsonValueUtils.readInteger;
 import static io.nats.client.support.JsonValueUtils.readValue;
 
 /**
- * The ObjectMeta is Object Meta is high level information about an object.
+ * The ObjectMetaOptions are additional options describing the object
  */
 public class ObjectMetaOptions implements JsonSerializable {
 

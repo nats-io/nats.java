@@ -5,6 +5,10 @@
     "key-1": ["data-1"],
     "key-2": ["data-21", "data-22"]
   },
+  "metadata": {
+    "meta-key-1": "meta-data-1",
+    "meta-key-2": "meta-data-2"
+  },
   "options": {
     "link": {
       "bucket": "link-to-bucket",

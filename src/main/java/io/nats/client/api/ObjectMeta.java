@@ -20,6 +20,11 @@ import io.nats.client.support.Validator;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
@@ -33,24 +38,28 @@ public class ObjectMeta implements JsonSerializable {
     private final String objectName;
     private final String description;
     private final Headers headers;
+    private final Map<String, String> metadata;
     private final ObjectMetaOptions objectMetaOptions;
 
     private ObjectMeta(Builder b) {
         objectName = b.objectName;
         description = b.description;
-        headers = b.headers;
+        headers = new Headers(b.headers, true);
+        metadata = Collections.unmodifiableMap(b.metadata);
         objectMetaOptions = b.metaOptionsBuilder.build();
     }
 
     ObjectMeta(JsonValue vObjectMeta) {
         objectName = readString(vObjectMeta, NAME);
         description = readString(vObjectMeta, DESCRIPTION);
-        headers = new Headers();
+        Headers h = new Headers();
         JsonValue hJv = readObject(vObjectMeta, HEADERS);
         for (String key : hJv.map.keySet()) {
-            headers.put(key, readStringList(hJv, key));
+            h.put(key, readStringList(hJv, key));
         }
-
+        headers = new Headers(h, true);
+        Map<String, String> meta = readStringStringMap(vObjectMeta, METADATA);
+        metadata = meta == null ? Collections.unmodifiableMap(new HashMap<>()) : Collections.unmodifiableMap(meta);
         objectMetaOptions = new ObjectMetaOptions(readObject(vObjectMeta, OPTIONS));
     }
 
@@ -66,6 +75,7 @@ public class ObjectMeta implements JsonSerializable {
         JsonUtils.addField(sb, NAME, objectName);
         JsonUtils.addField(sb, DESCRIPTION, description);
         JsonUtils.addField(sb, HEADERS, headers);
+        JsonUtils.addField(sb, METADATA, metadata);
 
         // avoid adding an empty child to the json because JsonUtils.addField
         // only checks versus the object being null, which it is never
@@ -74,21 +84,46 @@ public class ObjectMeta implements JsonSerializable {
         }
     }
 
+    /**
+     * The object name
+     * @return the object name
+     */
     @NonNull
     public String getObjectName() {
         return objectName;
     }
 
+    /**
+     * The description
+     * @return the description text or null
+     */
     @Nullable
     public String getDescription() {
         return description;
     }
 
-    @Nullable
+    /**
+     * Headers may be empty but will not be null. In all cases it will be unmodifiable
+     * @return the headers object
+     */
+    @NonNull
     public Headers getHeaders() {
         return headers;
     }
 
+    /**
+     * Metadata may be empty but will not be null. In all cases it will be unmodifiable
+     * @return the map
+     */
+    @NonNull
+    public Map<String, String> getMetadata() {
+        return metadata;
+    }
+
+    /**
+     * The ObjectMetaOptions are additional options describing the object
+     * @return the object meta data
+     */
     @Nullable
     public ObjectMetaOptions getObjectMetaOptions() {
         return objectMetaOptions;
@@ -110,10 +145,12 @@ public class ObjectMeta implements JsonSerializable {
         String objectName;
         String description;
         Headers headers;
+        Map<String, String> metadata;
         ObjectMetaOptions.Builder metaOptionsBuilder;
 
         public Builder(String objectName) {
             headers = new Headers();
+            metadata = new HashMap<>();
             metaOptionsBuilder = ObjectMetaOptions.builder();
             objectName(objectName);
         }
@@ -121,7 +158,8 @@ public class ObjectMeta implements JsonSerializable {
         public Builder(ObjectMeta om) {
             objectName = om.objectName;
             description = om.description;
-            headers = om.headers;
+            headers = new Headers(om.headers);
+            metadata = new HashMap<>(om.metadata);
             metaOptionsBuilder = ObjectMetaOptions.builder(om.objectMetaOptions);
         }
 
@@ -140,7 +178,17 @@ public class ObjectMeta implements JsonSerializable {
                 this.headers.clear();
             }
             else {
-                this.headers = headers;
+                this.headers = new Headers(headers);
+            }
+            return this;
+        }
+
+        public Builder metadata(Map<String, String> metadata) {
+            if (metadata == null) {
+                this.metadata.clear();
+            }
+            else {
+                this.metadata = metadata;
             }
             return this;
         }
@@ -174,7 +222,8 @@ public class ObjectMeta implements JsonSerializable {
 
         if (!objectName.equals(that.objectName)) return false;
         if (description != null ? !description.equals(that.description) : that.description != null) return false;
-        if (!headers.equals(that.headers)) return false;
+        if (!Objects.equals(headers, that.headers)) return false;
+        if (!Objects.equals(metadata, that.metadata)) return false;
         return objectMetaOptions.equals(that.objectMetaOptions);
     }
 
@@ -183,6 +232,7 @@ public class ObjectMeta implements JsonSerializable {
         int result = objectName.hashCode();
         result = 31 * result + (description != null ? description.hashCode() : 0);
         result = 31 * result + headers.hashCode();
+        result = 31 * result + metadata.hashCode();
         result = 31 * result + objectMetaOptions.hashCode();
         return result;
     }
@@ -193,6 +243,7 @@ public class ObjectMeta implements JsonSerializable {
             "objectName='" + objectName + '\'' +
             ", description='" + description + '\'' +
             ", headers?" + headers.size() +
+            ", metadata?" + metadata.size() +
             ", objectMetaOptions=" + objectMetaOptions +
             '}';
     }

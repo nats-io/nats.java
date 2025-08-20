@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
@@ -94,12 +95,20 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
         assertNotNull(oi.getHeaders());
         assertEquals(2, oi.getHeaders().size());
         List<String> list = oi.getHeaders().get(key(1));
+        assertNotNull(list);
         assertEquals(1, list.size());
         assertEquals(data(1), oi.getHeaders().getFirst(key(1)));
         list = oi.getHeaders().get(key(2));
+        assertNotNull(list);
         assertEquals(2, list.size());
         assertTrue(list.contains(data(21)));
         assertTrue(list.contains(data(22)));
+
+        Map<String, String> map = oi.getMetaData();
+        assertNotNull(map);
+        assertEquals(2, map.size());
+        assertEquals("meta-data-1", map.get("meta-key-1"));
+        assertEquals("meta-data-2", map.get("meta-key-2"));
     }
 
     @Test

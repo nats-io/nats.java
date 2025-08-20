@@ -19,6 +19,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.time.ZonedDateTime;
+import java.util.Map;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
@@ -115,33 +116,66 @@ public class ObjectInfo implements JsonSerializable {
         return deleted;
     }
 
+    /**
+     * The full object meta object
+     * @return the ObjectMeta
+     */
     @NonNull
     public ObjectMeta getObjectMeta() {
         return objectMeta;
     }
 
+    /**
+     * The object name
+     * @return the object name
+     */
     @Nullable
     public String getObjectName() {
         return objectMeta.getObjectName();
     }
 
+    /**
+     * The object meta description
+     * @return the description text or null
+     */
     @Nullable
     public String getDescription() {
         return objectMeta.getDescription();
     }
 
-    @Nullable
+    /**
+     * The object meta Headers. May be empty but will not be null. In all cases it will be unmodifiable
+     * @return the headers object
+     */
+    @NonNull
     public Headers getHeaders() {
         return objectMeta.getHeaders();
     }
 
-    public boolean isLink() {
-        return objectMeta.getObjectMetaOptions().getLink() != null;
+    /**
+     * The object meta metadata. May be empty but will not be null. In all cases it will be unmodifiable
+     * @return the map
+     */
+    @NonNull
+    public Map<String, String> getMetaData() {
+        return objectMeta.getMetadata();
     }
 
+    /**
+     * Whether the object is actually a link
+     * @return true if the object is a link instead of a direct object
+     */
+    public boolean isLink() {
+        return objectMeta.getObjectMetaOptions() != null && objectMeta.getObjectMetaOptions().getLink() != null;
+    }
+
+    /**
+     * If this is a link to an object, get the ObjectLink instance, otherwise this will be null
+     * @return the ObjectLink or null
+     */
     @Nullable
     public ObjectLink getLink() {
-        return objectMeta.getObjectMetaOptions().getLink();
+        return objectMeta.getObjectMetaOptions() == null ? null : objectMeta.getObjectMetaOptions().getLink();
     }
 
     public static Builder builder(String bucket, String objectName) {
