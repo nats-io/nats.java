@@ -133,7 +133,7 @@ public interface JetStreamSubscription extends Subscription {
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
      *
      * @param batchSize the size of the batch
-     * @param maxWait the maximum time to wait for the first message.
+     * @param maxWait the maximum time to wait to collect messages for the batch.
      *
      * @return the list of messages
      * @throws IllegalStateException if not a pull subscription.
@@ -148,7 +148,7 @@ public interface JetStreamSubscription extends Subscription {
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
      *
      * @param batchSize the size of the batch
-     * @param maxWaitMillis the maximum time to wait for the first message, in milliseconds.
+     * @param maxWaitMillis the maximum time to wait to collect messages for the batch, in milliseconds.
      *
      * @return the list of messages
      * @throws IllegalStateException if not a pull subscription.
