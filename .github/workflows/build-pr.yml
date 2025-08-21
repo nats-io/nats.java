@@ -32,7 +32,6 @@ jobs:
           cd $GITHUB_WORKSPACE
           git clone https://github.com/nats-io/nats-server.git
           cd nats-server
-          git checkout tags/v2.11.8 -b release
           go build -o ~/.local/bin/nats-server
           nats-server -v
       - name: Check out code
