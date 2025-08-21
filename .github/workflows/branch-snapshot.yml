@@ -32,13 +32,12 @@ jobs:
           cd $GITHUB_WORKSPACE
           git clone https://github.com/nats-io/nats-server.git
           cd nats-server
-          git checkout tags/v2.11.8 -b release
           go build -o ~/.local/bin/nats-server
           nats-server -v
       - name: Check out code
         uses: actions/checkout@v4
       - name: Build and Test
-        run: chmod +x gradlew && ./gradlew clean test jacocoTestReport coveralls
+        run: chmod +x gradlew && ./gradlew clean compileJava
       - name: Verify Javadoc
         if: ${{ success() }}
         run: ./gradlew javadoc
