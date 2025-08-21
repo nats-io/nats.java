@@ -71,6 +71,7 @@ public class StreamConfiguration implements JsonSerializable {
     private final long firstSequence;
     private final boolean allowMessageTtl;
     private final Duration subjectDeleteMarkerTtl;
+    private final boolean allowMessageCounter;
 
     static StreamConfiguration instance(JsonValue v) {
         return new Builder()
@@ -108,6 +109,7 @@ public class StreamConfiguration implements JsonSerializable {
             .firstSequence(readLong(v, FIRST_SEQ, 1))
             .allowMessageTtl(readBoolean(v, ALLOW_MSG_TTL))
             .subjectDeleteMarkerTtl(readNanos(v, SUBJECT_DELETE_MARKER_TTL))
+            .allowMessageCounter(readBoolean(v, ALLOW_MSG_COUNTER))
             .build();
     }
 
@@ -146,6 +148,7 @@ public class StreamConfiguration implements JsonSerializable {
         this.metadata = b.metadata;
         this.firstSequence = b.firstSequence;
         this.allowMessageTtl = b.allowMessageTtl;
+        this.allowMessageCounter = b.allowMessageCounter;
         this.subjectDeleteMarkerTtl = b.subjectDeleteMarkerTtl;
     }
 
@@ -208,6 +211,7 @@ public class StreamConfiguration implements JsonSerializable {
         addFieldWhenGreaterThan(sb, FIRST_SEQ, firstSequence, 1);
         addFldWhenTrue(sb, ALLOW_MSG_TTL, allowMessageTtl);
         addFieldAsNanos(sb, SUBJECT_DELETE_MARKER_TTL, subjectDeleteMarkerTtl);
+        addFldWhenTrue(sb, ALLOW_MSG_COUNTER, allowMessageCounter);
 
         return endJson(sb).toString();
     }
@@ -507,6 +511,14 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
+     * Whether Allow Message Counter is set
+     * @return the flag
+     */
+    public boolean isAllowMessageCounter() {
+        return allowMessageCounter;
+    }
+
+    /**
      * Get the Subject Delete Marker TTL duration. May be null.
      * @return The duration
      */
@@ -580,6 +592,7 @@ public class StreamConfiguration implements JsonSerializable {
         private long firstSequence = 1;
         private boolean allowMessageTtl = false;
         private Duration subjectDeleteMarkerTtl;
+        private boolean allowMessageCounter = false;
 
         /**
          * Default Builder
@@ -628,6 +641,7 @@ public class StreamConfiguration implements JsonSerializable {
                 this.firstSequence = sc.firstSequence;
                 this.allowMessageTtl = sc.allowMessageTtl;
                 this.subjectDeleteMarkerTtl = sc.subjectDeleteMarkerTtl;
+                this.allowMessageCounter = sc.allowMessageCounter;
             }
         }
 
@@ -1083,7 +1097,7 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
-         * Set to allow per message TTL to true
+         * Set allow per message TTL to true
          * @return The Builder
          */
         public Builder allowMessageTtl() {
@@ -1092,12 +1106,31 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
-         * Set allow per message TTL flag
+         * Set the allow per message TTL flag
          * @param allowMessageTtl the flag
          * @return The Builder
          */
         public Builder allowMessageTtl(boolean allowMessageTtl) {
             this.allowMessageTtl = allowMessageTtl;
+            return this;
+        }
+
+        /**
+         * Set allow message counter to true
+         * @return The Builder
+         */
+        public Builder allowMessageCounter() {
+            this.allowMessageCounter = true;
+            return this;
+        }
+
+        /**
+         * Set the allow message counter flag
+         * @param allowMessageCounter the flag
+         * @return The Builder
+         */
+        public Builder allowMessageCounter(boolean allowMessageCounter) {
+            this.allowMessageCounter = allowMessageCounter;
             return this;
         }
 
