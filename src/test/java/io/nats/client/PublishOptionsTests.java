@@ -27,7 +27,8 @@ public class PublishOptionsTests extends TestBase {
     public void testBuilder() {
         PublishOptions.Builder builder = PublishOptions.builder();
         PublishOptions po = builder.build();
-        assertNull(po.getPubAckStream());
+        //noinspection deprecation
+        assertNull(po.getStream());
         assertEquals(PublishOptions.DEFAULT_TIMEOUT, po.getStreamTimeout());
         assertNull(po.getExpectedStream());
         assertNull(po.getExpectedLastMsgId());
@@ -38,10 +39,9 @@ public class PublishOptionsTests extends TestBase {
 
         Duration streamTimeout = Duration.ofSeconds(99);
         //noinspection deprecation
-        builder.stream(STREAM); // DEPRECATED SO JUST COVERAGE
+        builder.stream("pubAckStream"); // DEPRECATED SO JUST COVERAGE
 
         po = builder
-            .pubAckStream("pubAckStream")
             .streamTimeout(streamTimeout)
             .expectedStream("expectedStream")
             .expectedLastMsgId("1")
@@ -54,7 +54,6 @@ public class PublishOptionsTests extends TestBase {
 
         //noinspection deprecation
         assertEquals("pubAckStream", po.getStream()); // DEPRECATED / COVERAGE
-        assertEquals("pubAckStream", po.getPubAckStream());
         assertEquals(streamTimeout, po.getStreamTimeout());
         assertEquals("expectedStream", po.getExpectedStream());
         assertEquals("1", po.getExpectedLastMsgId());
@@ -70,6 +69,7 @@ public class PublishOptionsTests extends TestBase {
         // these are not cleared
         assertEquals("expectedStream", po.getExpectedStream());
         assertEquals(Duration.ofSeconds(99), po.getStreamTimeout());
+        assertEquals("custom", po.getMessageTtl());
 
         // these are cleared
         assertNull(po.getExpectedLastMsgId());
@@ -77,17 +77,22 @@ public class PublishOptionsTests extends TestBase {
         assertEquals(PublishOptions.UNSET_LAST_SEQUENCE, po.getExpectedLastSubjectSequence());
         assertNull(po.getExpectedLastSubjectSequenceSubject());
         assertNull(po.getMessageId());
-        assertNull(po.getMessageTtl());
 
-        po = builder.pubAckStream(null).streamTimeout(null).build();
-        assertNull(po.getPubAckStream());
+        //noinspection deprecation
+        po = builder.stream(null).streamTimeout(null).build();
+        //noinspection deprecation
+        assertNull(po.getStream());
         assertEquals(PublishOptions.DEFAULT_TIMEOUT, po.getStreamTimeout());
 
-        po = builder.pubAckStream("pubAckStream").build();
-        assertEquals("pubAckStream", po.getPubAckStream());
+        //noinspection deprecation
+        po = builder.stream("pubAckStream").build();
+        //noinspection deprecation
+        assertEquals("pubAckStream", po.getStream());
 
-        po = builder.pubAckStream("").build();
-        assertNull(po.getPubAckStream());
+        //noinspection deprecation
+        po = builder.stream("").build();
+        //noinspection deprecation
+        assertNull(po.getStream());
     }
 
     @Test
@@ -96,12 +101,14 @@ public class PublishOptionsTests extends TestBase {
         p.setProperty(PublishOptions.PROP_PUBLISH_TIMEOUT, "PT20M");
         p.setProperty(PublishOptions.PROP_STREAM_NAME, STREAM);
         PublishOptions po = new PublishOptions.Builder(p).build();
-        assertEquals(STREAM, po.getPubAckStream(), "stream foo");
+        //noinspection deprecation
+        assertEquals(STREAM, po.getStream(), "stream foo");
         assertEquals(Duration.ofMinutes(20), po.getStreamTimeout(), "20M timeout");
 
         p = new Properties();
         po = new PublishOptions.Builder(p).build();
-        assertNull(po.getPubAckStream());
+        //noinspection deprecation
+        assertNull(po.getStream());
         assertEquals(PublishOptions.DEFAULT_TIMEOUT, po.getStreamTimeout());
     }
 

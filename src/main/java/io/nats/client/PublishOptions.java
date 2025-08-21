@@ -88,20 +88,12 @@ public class PublishOptions {
     public static final String PROP_PUBLISH_TIMEOUT = Options.PFX + "publish.timeout";
 
     /**
-     * @deprecated prefer getPubAckStream
-     * Gets the name of the stream.
+     * @deprecated this field isn't really very useful since it's used after the publish
+     * Gets the name of the stream to check after the publish has succeeded
      * @return the name of the stream.
      */
     @Deprecated
     public String getStream() {
-        return pubAckStream;
-    }
-
-    /**
-     * Gets the name of the stream.
-     * @return the name of the stream.
-     */
-    public String getPubAckStream() {
         return pubAckStream;
     }
 
@@ -217,7 +209,7 @@ public class PublishOptions {
         }
 
         /**
-         * @deprecated Prefer pubAckStream(...)
+         * @deprecated Not a very useful function
          * Sets the stream name to expect the pub ack to have.
          * This really should never be an issue and it does
          * not prevent the message from being published,
@@ -227,19 +219,6 @@ public class PublishOptions {
          */
         @Deprecated
         public Builder stream(String stream) {
-            this.pubAckStream = validateStreamName(stream, false);
-            return this;
-        }
-
-        /**
-         * Sets the stream name to expect the pub ack to have.
-         * This really should never be an issue and it does
-         * not prevent the message from being published,
-         * it's an exception after the fact
-         * @param stream The name of the stream.
-         * @return The Builder
-         */
-        public Builder pubAckStream(String stream) {
             this.pubAckStream = validateStreamName(stream, false);
             return this;
         }
@@ -365,8 +344,21 @@ public class PublishOptions {
 
         /**
          * Clears the expected so the build can be re-used.
-         * Clears the expectedLastId, expectedLastSequence, expectedLastSubSeq, expectedLastSubSeqSubject, messageId and messageTtl fields.
-         * Does not clear pubAckStream, expectedStream or streamTimeout
+         * Clears the following fields:
+         * <ul>
+         *   <li>expectedLastId</li>
+         *   <li>expectedLastSequence</li>
+         *   <li>expectedLastSubSeq</li>
+         *   <li>expectedLastSubSeqSubject</li>
+         *   <li>messageId</li>
+         * </ul>
+         * Does not clear the following fields:
+         * <ul>
+         *   <li>stream</li>
+         *   <li>expectedStream</li>
+         *   <li>streamTimeout</li>
+         *   <li>messageTtl</li>
+         * </ul>
          * @return The Builder
          */
         public Builder clearExpected() {
@@ -375,7 +367,6 @@ public class PublishOptions {
             expectedLastSubSeq = UNSET_LAST_SEQUENCE;
             expectedLastSubSeqSubject = null;
             msgId = null;
-            messageTtl = null;
 
             return this;
         }

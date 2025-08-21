@@ -388,11 +388,13 @@ public class JetStreamPubTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // stream supplied and matches
-            PublishOptions po = PublishOptions.builder().pubAckStream(tsc.stream).build();
+            //noinspection deprecation
+            PublishOptions po = PublishOptions.builder().stream(tsc.stream).build();
             js.publish(tsc.subject(), dataBytes(9), po);
 
             // mismatch stream to PO stream
-            PublishOptions pox = PublishOptions.builder().pubAckStream(stream()).build();
+            //noinspection deprecation
+            PublishOptions pox = PublishOptions.builder().stream(stream()).build();
             assertThrows(IOException.class, () -> js.publish(tsc.subject(), dataBytes(99), pox));
 
             // invalid subject
