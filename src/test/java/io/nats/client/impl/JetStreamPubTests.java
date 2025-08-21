@@ -356,8 +356,8 @@ public class JetStreamPubTests extends JetStreamTestBase {
             pa = js.publish(sub2, dataBytes(504), poLsss);
             assertPublishAck(pa, stream1, 11);
 
-            PublishOptions poLsss1 = poLsss;
-            assertThrows(JetStreamApiException.class, () -> js.publish(sub2, dataBytes(505), poLsss1));
+            PublishOptions final1 = poLsss;
+            assertThrows(JetStreamApiException.class, () -> js.publish(sub2, dataBytes(505), final1));
 
             poLsss = PublishOptions.builder()
                 .expectedLastSubjectSequence(7)
@@ -378,6 +378,21 @@ public class JetStreamPubTests extends JetStreamTestBase {
                 .build();
             pa = js.publish(sub3, dataBytes(508), poLsss);
             assertPublishAck(pa, stream1, 14);
+
+            poLsss = PublishOptions.builder()
+                .expectedLastSequence(14)
+                .expectedLastSubjectSequenceSubject("not-even-a-subject")
+                .build();
+            pa = js.publish(sub3, dataBytes(509), poLsss);
+            assertPublishAck(pa, stream1, 15);
+
+            poLsss = PublishOptions.builder()
+                .expectedLastSubjectSequence(15)
+                .expectedLastSubjectSequenceSubject("not-even-a-subject")
+                .build();
+            PublishOptions final2 = poLsss;
+            // JetStreamApiException: wrong last sequence: 0 [10071]
+            assertThrows(JetStreamApiException.class, () -> js.publish(sub3, dataBytes(510), final2));
         });
     }
 
