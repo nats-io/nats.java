@@ -219,14 +219,14 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
     private void assertFutureIOException(CompletableFuture<PublishAck> future) {
         ExecutionException ee = assertThrows(ExecutionException.class, future::get);
-        assertTrue(ee.getCause() instanceof RuntimeException);
-        assertTrue(ee.getCause().getCause() instanceof IOException);
+        assertInstanceOf(RuntimeException.class, ee.getCause());
+        assertInstanceOf(IOException.class, ee.getCause().getCause());
     }
 
     private void assertFutureJetStreamApiException(CompletableFuture<PublishAck> future) {
         ExecutionException ee = assertThrows(ExecutionException.class, future::get);
-        assertTrue(ee.getCause() instanceof RuntimeException);
-        assertTrue(ee.getCause().getCause() instanceof JetStreamApiException);
+        assertInstanceOf(RuntimeException.class, ee.getCause());
+        assertInstanceOf(JetStreamApiException.class, ee.getCause().getCause());
     }
 
     @Test
@@ -235,66 +235,72 @@ public class JetStreamPubTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
 
-            TestingStreamContainer tsc = new TestingStreamContainer(nc, 2);
-            createMemoryStream(jsm, tsc.stream, tsc.subject(0), tsc.subject(1));
+            String subjectPrefix = variant();
+            String streamSubject = subjectPrefix + ".>";
+            String sub1 = subjectPrefix + ".foo.1";
+            String sub2 = subjectPrefix + ".foo.2";
+            String sub3 = subjectPrefix + ".bar.3";
+
+            TestingStreamContainer tsc = new TestingStreamContainer(nc, streamSubject);
+            String stream1 = tsc.stream;
+            createMemoryStream(jsm, stream1, streamSubject);
 
             PublishOptions po = PublishOptions.builder()
                 .expectedStream(tsc.stream)
                 .messageId(messageId(1))
                 .build();
-            PublishAck pa = js.publish(tsc.subject(0), dataBytes(1), po);
+            PublishAck pa = js.publish(sub1, dataBytes(1), po);
             assertPublishAck(pa, tsc.stream, 1);
 
             po = PublishOptions.builder()
                 .expectedLastMsgId(messageId(1))
                 .messageId(messageId(2))
                 .build();
-            pa = js.publish(tsc.subject(0), dataBytes(2), po);
+            pa = js.publish(sub1, dataBytes(2), po);
             assertPublishAck(pa, tsc.stream, 2);
 
             po = PublishOptions.builder()
                 .expectedLastSequence(2)
                 .messageId(messageId(3))
                 .build();
-            pa = js.publish(tsc.subject(0), dataBytes(3), po);
+            pa = js.publish(sub1, dataBytes(3), po);
             assertPublishAck(pa, tsc.stream, 3);
 
             po = PublishOptions.builder()
                 .expectedLastSequence(3)
                 .messageId(messageId(4))
                 .build();
-            pa = js.publish(tsc.subject(1), dataBytes(4), po);
+            pa = js.publish(sub2, dataBytes(4), po);
             assertPublishAck(pa, tsc.stream, 4);
 
             po = PublishOptions.builder()
                 .expectedLastSubjectSequence(3)
                 .messageId(messageId(5))
                 .build();
-            pa = js.publish(tsc.subject(0), dataBytes(5), po);
+            pa = js.publish(sub1, dataBytes(5), po);
             assertPublishAck(pa, tsc.stream, 5);
 
             po = PublishOptions.builder()
                 .expectedLastSubjectSequence(4)
                 .messageId(messageId(6))
                 .build();
-            pa = js.publish(tsc.subject(1), dataBytes(6), po);
+            pa = js.publish(sub2, dataBytes(6), po);
             assertPublishAck(pa, tsc.stream, 6);
 
-            String subject0 = tsc.subject(0);
             PublishOptions po1 = PublishOptions.builder().expectedStream(stream(999)).build();
-            JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> js.publish(subject0, dataBytes(999), po1));
+            JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> js.publish(sub1, dataBytes(999), po1));
             assertEquals(10060, e.getApiErrorCode());
 
             PublishOptions po2 = PublishOptions.builder().expectedLastMsgId(messageId(999)).build();
-            e = assertThrows(JetStreamApiException.class, () -> js.publish(subject0, dataBytes(999), po2));
+            e = assertThrows(JetStreamApiException.class, () -> js.publish(sub1, dataBytes(999), po2));
             assertEquals(10070, e.getApiErrorCode());
 
             PublishOptions po3 = PublishOptions.builder().expectedLastSequence(999).build();
-            e = assertThrows(JetStreamApiException.class, () -> js.publish(subject0, dataBytes(999), po3));
+            e = assertThrows(JetStreamApiException.class, () -> js.publish(sub1, dataBytes(999), po3));
             assertEquals(10071, e.getApiErrorCode());
 
             PublishOptions po4 = PublishOptions.builder().expectedLastSubjectSequence(999).build();
-            e = assertThrows(JetStreamApiException.class, () -> js.publish(subject0, dataBytes(999), po4));
+            e = assertThrows(JetStreamApiException.class, () -> js.publish(sub1, dataBytes(999), po4));
             assertEquals(10071, e.getApiErrorCode());
 
             // 0 has meaning to expectedLastSubjectSequence
@@ -318,6 +324,60 @@ public class JetStreamPubTests extends JetStreamTestBase {
             poLs = PublishOptions.builder().expectedLastSubjectSequence(0).build();
             pa = js.publish(tsc.subject(), dataBytes(441), poLs);
             assertPublishAck(pa, tsc.stream, 1);
+
+            // expectedLastSubjectSequenceSubject
+
+            pa = js.publish(sub3, dataBytes(500));
+            assertPublishAck(pa, stream1, 7);
+
+            PublishOptions poLsss = PublishOptions.builder()
+                .expectedLastSubjectSequence(5)
+                .build();
+            pa = js.publish(sub1, dataBytes(501), poLsss);
+            assertPublishAck(pa, stream1, 8);
+
+            poLsss = PublishOptions.builder()
+                .expectedLastSubjectSequence(6)
+                .build();
+            pa = js.publish(sub2, dataBytes(502), poLsss);
+            assertPublishAck(pa, stream1, 9);
+
+            poLsss = PublishOptions.builder()
+                .expectedLastSubjectSequence(9)
+                .expectedLastSubjectSequenceSubject(streamSubject)
+                .build();
+            pa = js.publish(sub2, dataBytes(503), poLsss);
+            assertPublishAck(pa, stream1, 10);
+
+            poLsss = PublishOptions.builder()
+                .expectedLastSubjectSequence(10)
+                .expectedLastSubjectSequenceSubject(subjectPrefix + ".foo.*")
+                .build();
+            pa = js.publish(sub2, dataBytes(504), poLsss);
+            assertPublishAck(pa, stream1, 11);
+
+            PublishOptions poLsss1 = poLsss;
+            assertThrows(JetStreamApiException.class, () -> js.publish(sub2, dataBytes(505), poLsss1));
+
+            poLsss = PublishOptions.builder()
+                .expectedLastSubjectSequence(7)
+                .expectedLastSubjectSequenceSubject(subjectPrefix + ".bar.*")
+                .build();
+            pa = js.publish(sub3, dataBytes(506), poLsss);
+            assertPublishAck(pa, stream1, 12);
+
+            poLsss = PublishOptions.builder()
+                .expectedLastSubjectSequence(12)
+                .expectedLastSubjectSequenceSubject(streamSubject)
+                .build();
+            pa = js.publish(sub3, dataBytes(507), poLsss);
+            assertPublishAck(pa, stream1, 13);
+
+            poLsss = PublishOptions.builder()
+                .expectedLastSubjectSequenceSubject("not-even-a-subject")
+                .build();
+            pa = js.publish(sub3, dataBytes(508), poLsss);
+            assertPublishAck(pa, stream1, 14);
         });
     }
 
@@ -328,15 +388,17 @@ public class JetStreamPubTests extends JetStreamTestBase {
             JetStream js = nc.jetStream();
 
             // stream supplied and matches
+            //noinspection deprecation
             PublishOptions po = PublishOptions.builder().stream(tsc.stream).build();
-            js.publish(tsc.subject(), dataBytes(999), po);
+            js.publish(tsc.subject(), dataBytes(9), po);
 
             // mismatch stream to PO stream
-            PublishOptions po1 = PublishOptions.builder().stream(stream(999)).build();
-            assertThrows(IOException.class, () -> js.publish(tsc.subject(), dataBytes(999), po1));
+            //noinspection deprecation
+            PublishOptions pox = PublishOptions.builder().stream(stream()).build();
+            assertThrows(IOException.class, () -> js.publish(tsc.subject(), dataBytes(99), pox));
 
             // invalid subject
-            assertThrows(IOException.class, () -> js.publish(subject(999), dataBytes(999)));
+            assertThrows(IOException.class, () -> js.publish(subject(), dataBytes(999)));
         });
     }
 

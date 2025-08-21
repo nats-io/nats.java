@@ -87,6 +87,7 @@ public interface NatsJetStreamConstants {
     String EXPECTED_LAST_SEQ_HDR = "Nats-Expected-Last-Sequence";
     String EXPECTED_LAST_MSG_ID_HDR = "Nats-Expected-Last-Msg-Id";
     String EXPECTED_LAST_SUB_SEQ_HDR = "Nats-Expected-Last-Subject-Sequence";
+    String EXPECTED_LAST_SUB_SEQ_SUB_HDR = "Nats-Expected-Last-Subject-Sequence-Subject";
     String MSG_TTL_HDR = "Nats-TTL";
 
     String LAST_CONSUMER_HDR = "Nats-Last-Consumer";
