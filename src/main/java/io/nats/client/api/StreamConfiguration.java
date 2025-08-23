@@ -503,10 +503,20 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
+     * @deprecated Prefer getAllowMessageTtl
      * Whether Allow Message TTL is set
      * @return the flag
      */
+    @Deprecated
     public boolean isAllowMessageTtl() {
+        return allowMessageTtl;
+    }
+
+    /**
+     * Whether Allow Message TTL is set
+     * @return the flag
+     */
+    public boolean getAllowMessageTtl() {
         return allowMessageTtl;
     }
 
@@ -514,7 +524,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Whether Allow Message Counter is set
      * @return the flag
      */
-    public boolean isAllowMessageCounter() {
+    public boolean getAllowMessageCounter() {
         return allowMessageCounter;
     }
 

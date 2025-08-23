@@ -197,9 +197,9 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             .metadata(testSc.getMetadata())
             .firstSequence(testSc.getFirstSequence())
             .consumerLimits(testSc.getConsumerLimits())
-            .allowMessageTtl(testSc.isAllowMessageTtl())
+            .allowMessageTtl(testSc.getAllowMessageTtl())
             .subjectDeleteMarkerTtl(testSc.getSubjectDeleteMarkerTtl())
-            .allowMessageCounter(testSc.isAllowMessageCounter())
+            .allowMessageCounter(testSc.getAllowMessageCounter())
             ;
         validateTestStreamConfiguration(builder.build(), false, DEFAULT_STREAM_NAME);
         validateTestStreamConfiguration(builder.addSources((Source)null).build(), false, DEFAULT_STREAM_NAME);
@@ -540,7 +540,10 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(StorageType.Memory, sc.getStorageType());
         assertSame(DiscardPolicy.New, sc.getDiscardPolicy());
 
-        assertTrue(sc.isAllowMessageTtl());
+        assertTrue(sc.getAllowMessageTtl());
+        //noinspection deprecation
+        assertTrue(sc.isAllowMessageTtl()); // COVERAGE
+
         assertEquals(Duration.ofNanos(73000000000L), sc.getSubjectDeleteMarkerTtl());
 
         assertNotNull(sc.getPlacement());
@@ -604,7 +607,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             assertEquals(Duration.ofSeconds(50), sc.getConsumerLimits().getInactiveThreshold());
             assertEquals(42, sc.getConsumerLimits().getMaxAckPending());
 
-            assertTrue(sc.isAllowMessageCounter());
+            assertTrue(sc.getAllowMessageCounter());
         }
     }
 
