@@ -31,6 +31,7 @@ public class PublishAck extends ApiResponse<PublishAck> {
     private final long seq;
     private final String domain;
     private final boolean duplicate;
+    private final String val;
 
     /**
      *
@@ -52,6 +53,7 @@ public class PublishAck extends ApiResponse<PublishAck> {
         }
         domain = JsonValueUtils.readString(jv, DOMAIN);
         duplicate = JsonValueUtils.readBoolean(jv, DUPLICATE);
+        val = JsonValueUtils.readString(jv, VAL);
     }
 
     /**
@@ -86,5 +88,14 @@ public class PublishAck extends ApiResponse<PublishAck> {
      */
     public boolean isDuplicate() {
         return duplicate;
+    }
+
+    /**
+     * Gets a counter value. Only available on counter enabled streams
+     * @return the counter value as a string or null
+     */
+    @Nullable
+    public String getVal() {
+        return val;
     }
 }
