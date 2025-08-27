@@ -77,7 +77,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
             // Setup sync subscription
             _testOrderedConsumerSync(js, tsc, null, PushSubscribeOptions.builder().ordered(true).build());
 
-            String consumerName = "prefix"; // prefix();
+            String consumerName = prefix();
             _testOrderedConsumerSync(js, tsc, consumerName, PushSubscribeOptions.builder().name(consumerName).ordered(true).build());
         });
     }

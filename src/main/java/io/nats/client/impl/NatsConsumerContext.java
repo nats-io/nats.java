@@ -216,7 +216,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             try {
                 long inactiveThreshold = maxWaitMillis * 110 / 100; // 10% longer than the wait
                 nmcb = new NatsMessageConsumerBase(cachedConsumerInfo.get());
-                nmcb.initSub(subscribe(null, null, null, inactiveThreshold));
+                nmcb.initSub(subscribe(null, null, null, inactiveThreshold), false);
                 nmcb.setConsumerName(consumerName.get()); // the call to subscribe sets this
                 trackConsume(nmcb); // this has to be done after the nmcb is fully set up
                 nmcb.sub._pull(PullRequestOptions.builder(1)

@@ -534,8 +534,16 @@ public class TestBase {
         return NUID.nextGlobalSequence();
     }
 
+    private static int pi0 = -1;
+    private static int pi1 = 0;
     public static String prefix() {
-        return PREFIX + "-"+ variant();
+        if (++pi0 == 26) {
+            pi0 = 0;
+            if (++pi1 == 26) {
+                pi1 = 0;
+            }
+        }
+        return PREFIX + (char)('A' + pi1) + (char)('A' + pi0);
     }
 
     public static String stream() {
