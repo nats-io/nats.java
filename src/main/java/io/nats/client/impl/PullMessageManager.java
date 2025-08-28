@@ -127,7 +127,9 @@ class PullMessageManager extends MessageManager {
         Headers h = msg.getHeaders();
         if (h != null) {
             try {
+                //noinspection DataFlowIssue WE ALREADY CATCH THE EXCEPTION
                 m = Integer.parseInt(h.getFirst(NATS_PENDING_MESSAGES));
+                //noinspection DataFlowIssue WE ALREADY CATCH THE EXCEPTION
                 b = Long.parseLong(h.getFirst(NATS_PENDING_BYTES));
             }
             catch (NumberFormatException ignore) {

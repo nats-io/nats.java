@@ -46,7 +46,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
         thresholdMessages = bm - rePullMessages;
         thresholdBytes = bb == 0 ? Integer.MIN_VALUE : bb - rePullBytes;
 
-        doSub();
+        doSub(true);
     }
 
     @Override
@@ -57,7 +57,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
             }
             else {
                 shutdownSub();
-                doSub();
+                doSub(false);
             }
         }
         catch (JetStreamApiException | IOException e) {
@@ -65,7 +65,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
         }
     }
 
-    void doSub() throws JetStreamApiException, IOException {
+    void doSub(boolean first) throws JetStreamApiException, IOException {
         MessageHandler mh = userMessageHandler == null ? null : msg -> {
             userMessageHandler.onMessage(msg);
             if (stopped.get() && pmm.noMorePending()) {
@@ -75,7 +75,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
         try {
             stopped.set(false);
             finished.set(false);
-            super.initSub(subscriptionMaker.subscribe(mh, userDispatcher, pmm, null));
+            super.initSub(subscriptionMaker.subscribe(mh, userDispatcher, pmm, null), !first);
             repull();
         }
         catch (JetStreamApiException | IOException e) {

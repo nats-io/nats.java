@@ -41,9 +41,12 @@ class NatsMessageConsumerBase implements MessageConsumer {
         this.consumerName = consumerName;
     }
 
-    void initSub(NatsJetStreamPullSubscription sub) {
+    void initSub(NatsJetStreamPullSubscription sub, boolean clearCachedConsumerInfo) {
         this.sub = sub;
         this.consumerName = sub.getConsumerName();
+        if (clearCachedConsumerInfo) {
+            cachedConsumerInfo = null;
+        }
         pmm = (PullMessageManager)sub.manager;
     }
 

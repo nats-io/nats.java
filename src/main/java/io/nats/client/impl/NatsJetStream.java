@@ -258,7 +258,6 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         SubscribeOptions so;
         String stream;
         ConsumerConfiguration userCC;
-        boolean ordered;
         String settledDeliverGroup = null; // push might set this
 
         if (isPullMode) {
@@ -459,7 +458,6 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             else {
                 settledConsumerName = null; // the server will give us a name if the user's was null
             }
-
             settledCC = ccBuilder.build();
         }
 

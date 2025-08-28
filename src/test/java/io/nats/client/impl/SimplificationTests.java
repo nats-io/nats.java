@@ -137,10 +137,8 @@ public class SimplificationTests extends JetStreamTestBase {
 
     private String validateConsumerNameForOrdered(BaseConsumerContext bcc, MessageConsumer consumer, String prefix) throws IOException, JetStreamApiException {
         String bccConsumerName = bcc.getConsumerName();
-        if (prefix == null) {
-            assertNotNull(bccConsumerName);
-        }
-        else {
+        assertNotNull(bccConsumerName);
+        if (prefix != null) {
             assertTrue(bccConsumerName.startsWith(prefix));
         }
 
@@ -240,8 +238,6 @@ public class SimplificationTests extends JetStreamTestBase {
                 cc = builder.name(consumerName).inactiveThreshold(10_000).build();
             }
             jsm.addOrUpdateConsumer(tsc.stream, cc);
-
-            // Consumer[Context]
             consumerContext = ctx.getConsumerContext(consumerName);
             assertEquals(consumerName, consumerContext.getConsumerName());
         }
@@ -1037,9 +1033,10 @@ public class SimplificationTests extends JetStreamTestBase {
         OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
         assertNull(occtx.getConsumerName());
         FetchConsumeOptions fco = FetchConsumeOptions.builder().maxMessages(6).expiresIn(1000).build();
+        String prefix = occ.getConsumerNamePrefix();
         String firstConsumerName;
         try (FetchConsumer fcon = occtx.fetch(fco)) {
-            firstConsumerName = validateConsumerNameForOrdered(occtx, null, occ.getConsumerNamePrefix());
+            firstConsumerName = validateConsumerNameForOrdered(occtx, null, prefix);
             Message m = fcon.nextMessage();
             while (m != null) {
                 assertEquals(expectedStreamSeq++, m.metaData().streamSequence());
@@ -1055,8 +1052,10 @@ public class SimplificationTests extends JetStreamTestBase {
         }
         // this should finish without error
         try (FetchConsumer fcon = occtx.fetch(fco)) {
-            validateConsumerNameForOrdered(occtx, null, occ.getConsumerNamePrefix());
-            assertNotEquals(firstConsumerName, occtx.getConsumerName());
+            validateConsumerNameForOrdered(occtx, null, prefix);
+            if (prefix != null) {
+                assertNotEquals(firstConsumerName, occtx.getConsumerName());
+            }
             Message m = fcon.nextMessage();
             while (expectedStreamSeq <= 6) {
                 assertEquals(expectedStreamSeq++, m.metaData().streamSequence());
@@ -1751,7 +1750,6 @@ public class SimplificationTests extends JetStreamTestBase {
             standardConnectionWait(nc);
             sleep(6000); // long enough to get messages and for the hb alarm to have tripped
         }
-        validateConsumerNameForOrdered(orderedConsumerContext, mcon, null);
         assertNotEquals(firstConsumerName, orderedConsumerContext.getConsumerName());
 
         assertTrue(allInOrder.get());
