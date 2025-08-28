@@ -376,15 +376,27 @@ public class JetStreamPubTests extends JetStreamTestBase {
             poLsss = PublishOptions.builder()
                 .expectedLastSubjectSequenceSubject("not-even-a-subject")
                 .build();
-            pa = js.publish(sub3, dataBytes(508), poLsss);
-            assertPublishAck(pa, stream1, 14);
+            if (atLeast2_12()) {
+                PublishOptions fpoLsss = poLsss;
+                assertThrows(JetStreamApiException.class, () -> js.publish(sub3, dataBytes(508), fpoLsss));
+            }
+            else {
+                pa = js.publish(sub3, dataBytes(508), poLsss);
+                assertPublishAck(pa, stream1, 14);
+            }
 
             poLsss = PublishOptions.builder()
                 .expectedLastSequence(14)
                 .expectedLastSubjectSequenceSubject("not-even-a-subject")
                 .build();
-            pa = js.publish(sub3, dataBytes(509), poLsss);
-            assertPublishAck(pa, stream1, 15);
+            if (atLeast2_12()) {
+                PublishOptions fpoLsss = poLsss;
+                assertThrows(JetStreamApiException.class, () -> js.publish(sub3, dataBytes(509), fpoLsss));
+            }
+            else {
+                pa = js.publish(sub3, dataBytes(509), poLsss);
+                assertPublishAck(pa, stream1, 15);
+            }
 
             poLsss = PublishOptions.builder()
                 .expectedLastSubjectSequence(15)

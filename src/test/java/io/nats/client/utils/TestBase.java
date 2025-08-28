@@ -161,8 +161,8 @@ public class TestBase {
         return si.isOlderThanVersion("2.11");
     }
 
-    public static boolean atLeast2_11_2(ServerInfo si) {
-        return si.isSameOrNewerThanVersion("2.11.2");
+    public static boolean atLeast2_12() {
+        return atLeast2_12(RUN_SERVER_INFO);
     }
 
     public static boolean atLeast2_12(ServerInfo si) {
@@ -534,8 +534,16 @@ public class TestBase {
         return NUID.nextGlobalSequence();
     }
 
+    private static int pi0 = -1;
+    private static int pi1 = 0;
     public static String prefix() {
-        return PREFIX + "-"+ variant();
+        if (++pi0 == 26) {
+            pi0 = 0;
+            if (++pi1 == 26) {
+                pi1 = 0;
+            }
+        }
+        return PREFIX + (char)('A' + pi1) + (char)('A' + pi0);
     }
 
     public static String stream() {

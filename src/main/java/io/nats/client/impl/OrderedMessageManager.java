@@ -19,6 +19,7 @@ import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerCreateRequest;
 import io.nats.client.api.ConsumerInfo;
 
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.impl.MessageManager.ManageResult.MESSAGE;
@@ -27,7 +28,7 @@ import static io.nats.client.support.NatsJetStreamUtil.generateConsumerName;
 
 class OrderedMessageManager extends PushMessageManager {
 
-    protected long expectedExternalConsumerSeq;
+    protected final AtomicLong expectedExternalConsumerSeq;
     protected final AtomicReference<String> targetSid;
 
     protected OrderedMessageManager(
@@ -40,13 +41,13 @@ class OrderedMessageManager extends PushMessageManager {
         boolean syncMode)
     {
         super(conn, js, stream, so, originalCc, queueMode, syncMode);
-        expectedExternalConsumerSeq = 1; // always starts at 1
+        expectedExternalConsumerSeq = new AtomicLong(1); // always starts at 1
         targetSid = new AtomicReference<>();
     }
 
     @Override
     protected void startup(NatsJetStreamSubscription sub) {
-        expectedExternalConsumerSeq = 1; // consumer always starts with consumer sequence 1
+        expectedExternalConsumerSeq.set(1); // consumer always starts with consumer sequence 1
         super.startup(sub);
         targetSid.set(sub.getSID());
     }
@@ -59,12 +60,12 @@ class OrderedMessageManager extends PushMessageManager {
 
         if (msg.isJetStream()) {
             long receivedConsumerSeq = msg.metaData().consumerSequence();
-            if (expectedExternalConsumerSeq != receivedConsumerSeq) {
+            if (expectedExternalConsumerSeq.get() != receivedConsumerSeq) {
                 handleErrorCondition();
                 return STATUS_HANDLED;
             }
             trackJsMessage(msg);
-            expectedExternalConsumerSeq++;
+            expectedExternalConsumerSeq.incrementAndGet();
             return MESSAGE;
         }
 
@@ -80,7 +81,7 @@ class OrderedMessageManager extends PushMessageManager {
     private void handleErrorCondition() {
         try {
             targetSid.set(null);
-            expectedExternalConsumerSeq = 1; // consumer always starts with consumer sequence 1
+            expectedExternalConsumerSeq.set(1); // consumer always starts with consumer sequence 1
 
             // 1. re-subscribe. This means killing the sub then making a new one.
             //    New sub needs a new deliverSubject
