@@ -161,8 +161,8 @@ public class TestBase {
         return si.isOlderThanVersion("2.11");
     }
 
-    public static boolean atLeast2_11_2(ServerInfo si) {
-        return si.isSameOrNewerThanVersion("2.11.2");
+    public static boolean atLeast2_12() {
+        return atLeast2_12(RUN_SERVER_INFO);
     }
 
     public static boolean atLeast2_12(ServerInfo si) {
