@@ -27,6 +27,7 @@
   "first_seq": 82942,
   "allow_msg_ttl": true,
   "subject_delete_marker_ttl": 73000000000,
+  "allow_msg_counter": true,
   "placement": {
     "cluster": "clstr",
     "tags": ["tag1", "tag2"]
