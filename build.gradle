@@ -37,7 +37,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'org.bouncycastle:bcprov-lts8on:2.73.7'
+    implementation 'org.bouncycastle:bcprov-lts8on:2.73.8'
     implementation 'org.jspecify:jspecify:1.0.0'
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.9.0'
