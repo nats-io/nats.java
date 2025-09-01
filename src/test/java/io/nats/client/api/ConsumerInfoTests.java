@@ -77,6 +77,7 @@ public class ConsumerInfoTests {
         assertNotNull(clusterInfo);
         assertEquals("clustername", clusterInfo.getName());
         assertEquals("clusterleader", clusterInfo.getLeader());
+        assertEquals(DateTimeUtils.parseDateTime("2025-08-29T19:33:21.163377Z"), clusterInfo.getLeaderSince());
         List<Replica> reps = clusterInfo.getReplicas();
         assertNotNull(reps);
         assertEquals(2, reps.size());

@@ -99,6 +99,7 @@ public interface ApiConstants {
     String LAST_SEQ          = "last_seq";
     String LAST_TS           = "last_ts";
     String LEADER            = "leader";
+    String LEADER_SINCE      = "leader_since";
     String LEVEL             = "level";
     String LIMIT             = "limit";
     String LIMITS            = "limits";

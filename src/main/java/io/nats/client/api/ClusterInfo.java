@@ -16,18 +16,20 @@ package io.nats.client.api;
 import io.nats.client.support.JsonValue;
 import org.jspecify.annotations.Nullable;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonValueUtils.readString;
-import static io.nats.client.support.JsonValueUtils.readValue;
+import static io.nats.client.support.JsonValueUtils.*;
 
 /**
  * Information about the cluster a stream is part of.
  */
 public class ClusterInfo {
+
     private final String name;
     private final String leader;
+    private final ZonedDateTime leaderSince;
     private final List<Replica> replicas;
 
     static ClusterInfo optionalInstance(JsonValue v) {
@@ -38,6 +40,7 @@ public class ClusterInfo {
         name = readString(v, NAME);
         leader = readString(v, LEADER);
         replicas = Replica.optionalListOf(readValue(v, REPLICAS));
+        leaderSince = readDate(v, LEADER_SINCE);
     }
 
     /**
@@ -58,6 +61,11 @@ public class ClusterInfo {
         return leader;
     }
 
+    @Nullable
+    public ZonedDateTime getLeaderSince() {
+        return leaderSince;
+    }
+
     /**
      * The members of the RAFT cluster. May be null if there are no replicas.
      * @return the replicas or null
@@ -70,9 +78,10 @@ public class ClusterInfo {
     @Override
     public String toString() {
         return "ClusterInfo{" +
-                "name='" + name + '\'' +
-                ", leader='" + leader + '\'' +
-                ", replicas=" + replicas +
-                '}';
+            "name='" + name + '\'' +
+            ", leader='" + leader + '\'' +
+            ", leaderSince=" + leaderSince +
+            ", replicas=" + replicas +
+            '}';
     }
 }

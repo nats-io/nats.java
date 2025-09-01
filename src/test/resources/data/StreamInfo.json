@@ -55,6 +55,7 @@
   "cluster": {
     "name": "clustername",
     "leader": "clusterleader",
+    "leader_since": "2025-08-29T19:33:21.163377Z",
     "replicas": [
       {
         "name": "name0",
