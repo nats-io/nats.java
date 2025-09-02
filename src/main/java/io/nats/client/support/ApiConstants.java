@@ -168,6 +168,7 @@ public interface ApiConstants {
     String PURGED            = "purged";
     String PUSH_BOUND        = "push_bound";
     String QUEUE_GROUP       = "queue_group";
+    String RAFT_GROUP        = "raft_group";
     String RAISE_STATUS_WARNINGS = "raise_status_warnings";
     String RATE_LIMIT_BPS    = "rate_limit_bps";
     String REPLAY_POLICY     = "replay_policy";

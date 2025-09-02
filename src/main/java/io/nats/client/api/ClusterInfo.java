@@ -28,6 +28,7 @@ import static io.nats.client.support.JsonValueUtils.*;
 public class ClusterInfo {
 
     private final String name;
+    private final String raftGroup;
     private final String leader;
     private final ZonedDateTime leaderSince;
     private final List<Replica> replicas;
@@ -38,6 +39,7 @@ public class ClusterInfo {
 
     ClusterInfo(JsonValue v) {
         name = readString(v, NAME);
+        raftGroup = readString(v, RAFT_GROUP);
         leader = readString(v, LEADER);
         replicas = Replica.optionalListOf(readValue(v, REPLICAS));
         leaderSince = readDate(v, LEADER_SINCE);
@@ -53,6 +55,15 @@ public class ClusterInfo {
     }
 
     /**
+     * In clustered environments the name of the Raft group managing the asset
+     * @return the raft group name or null
+     */
+    @Nullable
+    public String getRaftGroup() {
+        return raftGroup;
+    }
+
+    /**
      * The server name of the RAFT leader
      * @return the leader or null
      */
@@ -61,6 +72,10 @@ public class ClusterInfo {
         return leader;
     }
 
+    /**
+     * The time that it was elected as leader, absent when not the leader
+     * @return the time or null
+     */
     @Nullable
     public ZonedDateTime getLeaderSince() {
         return leaderSince;
