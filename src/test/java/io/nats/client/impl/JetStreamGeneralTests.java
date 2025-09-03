@@ -881,7 +881,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
             if (atLeast2_10()) {
                 // metadata server null versus new not null
-                nc.jetStreamManagement().addOrUpdateConsumer(stream, pushDurableBuilder(subject, uname, deliver).build());
+                ConsumerInfo ci = nc.jetStreamManagement().addOrUpdateConsumer(stream, pushDurableBuilder(subject, uname, deliver).build());
                 changeExPush(js, subject, pushDurableBuilder(subject, uname, deliver).metadata(metadataA), "metadata");
 
                 // metadata server not null versus new null

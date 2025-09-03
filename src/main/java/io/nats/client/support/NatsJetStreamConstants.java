@@ -14,6 +14,8 @@ public interface NatsJetStreamConstants {
 
     long SERVER_DEFAULT_DUPLICATE_WINDOW_MS = 120_000; // 1000ms/sec * 60sec/min * 2 min
 
+    String NATS_META_KEY_PREFIX = "_nats.";
+
     String PREFIX_DOLLAR_JS_DOT = "$JS.";
     String PREFIX_API = "API";
     String DEFAULT_API_PREFIX = "$JS.API.";

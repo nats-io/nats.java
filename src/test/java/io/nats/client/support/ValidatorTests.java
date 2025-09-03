@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.util.*;
 
 import static io.nats.client.support.NatsConstants.EMPTY;
+import static io.nats.client.support.NatsJetStreamConstants.NATS_META_KEY_PREFIX;
 import static io.nats.client.support.Validator.*;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static io.nats.client.utils.TestBase.*;
@@ -733,5 +734,33 @@ public class ValidatorTests {
         assertFalse(mapsAreEquivalent(m7, m5));
         assertTrue(mapsAreEquivalent(m7, m6));
         assertTrue(mapsAreEquivalent(m7, m7));
+    }
+
+    @Test
+    public void testMetaIsEquivalent() {
+        Map<String, String> m1 = new HashMap<>();
+        Map<String, String> m2 = new HashMap<>();
+
+        assertTrue(Validator.metaIsEquivalent(null, null));
+        assertTrue(Validator.metaIsEquivalent(null, m1));
+        assertTrue(Validator.metaIsEquivalent(m1, null));
+        assertTrue(Validator.metaIsEquivalent(m1, m2));
+
+        m1.put("A", "a");
+        m1.put(NATS_META_KEY_PREFIX + "foo", "foo");
+        assertFalse(Validator.metaIsEquivalent(m1, m2));
+
+        m2.put("A", "a");
+        m2.put(NATS_META_KEY_PREFIX + "bar", "bar");
+        assertTrue(Validator.metaIsEquivalent(m1, m2));
+
+        m1.put("B", "b");
+        assertFalse(Validator.metaIsEquivalent(m1, m2));
+
+        m2.put("B", "b");
+        assertTrue(Validator.metaIsEquivalent(m1, m2));
+
+        m2.put("C", "C");
+        assertFalse(Validator.metaIsEquivalent(m1, m2));
     }
 }
