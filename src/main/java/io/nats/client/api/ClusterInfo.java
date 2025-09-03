@@ -115,8 +115,11 @@ public class ClusterInfo {
     public String toString() {
         return "ClusterInfo{" +
             "name='" + name + '\'' +
+            ", raftGroup='" + raftGroup + '\'' +
             ", leader='" + leader + '\'' +
             ", leaderSince=" + leaderSince +
+            ", systemAccount=" + systemAccount +
+            ", trafficAccount=" + trafficAccount +
             ", replicas=" + replicas +
             '}';
     }
