@@ -692,6 +692,7 @@ public abstract class Validator {
         if (m1 == null || m1.isEmpty()) {
             return m2 == null || m2.isEmpty();
         }
+
         // m1 isn't null or empty
         if (m2 == null || m2.isEmpty()) {
             return false;
