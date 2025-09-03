@@ -207,6 +207,7 @@ public interface ApiConstants {
     String SUBJECTS          = "subjects";
     String SUBJECTS_FILTER   = "subjects_filter";
     String SUCCESS           = "success";
+    String SYSTEM_ACCOUNT    = "system_account";
     String TAGS              = "tags";
     String TEMPLATE_OWNER    = "template_owner";
     String THRESHOLD_PERCENT = "threshold_percent";
@@ -217,6 +218,7 @@ public interface ApiConstants {
     String TLS_REQUIRED      = TLS;
     String TLS_AVAILABLE     = "tls_available";
     String TOTAL             = "total";
+    String TRAFFIC_ACCOUNT    = "traffic_account";
     String TYPE              = "type";
     String UP_TO_SEQ         = "up_to_seq";
     String UP_TO_TIME        = "up_to_time";

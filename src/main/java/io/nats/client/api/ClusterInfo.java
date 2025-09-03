@@ -31,6 +31,8 @@ public class ClusterInfo {
     private final String raftGroup;
     private final String leader;
     private final ZonedDateTime leaderSince;
+    private final boolean systemAccount;
+    private final String trafficAccount;
     private final List<Replica> replicas;
 
     static ClusterInfo optionalInstance(JsonValue v) {
@@ -41,8 +43,10 @@ public class ClusterInfo {
         name = readString(v, NAME);
         raftGroup = readString(v, RAFT_GROUP);
         leader = readString(v, LEADER);
-        replicas = Replica.optionalListOf(readValue(v, REPLICAS));
         leaderSince = readDate(v, LEADER_SINCE);
+        systemAccount = readBoolean(v, SYSTEM_ACCOUNT);
+        trafficAccount = readString(v, TRAFFIC_ACCOUNT);
+        replicas = Replica.optionalListOf(readValue(v, REPLICAS));
     }
 
     /**
@@ -79,6 +83,23 @@ public class ClusterInfo {
     @Nullable
     public ZonedDateTime getLeaderSince() {
         return leaderSince;
+    }
+
+    /**
+     * Indicates if the traffic_account is the system account. When true, replication traffic goes over the system account.
+     * @return true if the traffic_account is the system account
+     */
+    public boolean isSystemAccount() {
+        return systemAccount;
+    }
+
+    /**
+     * The account where the replication traffic goes over.
+     * @return the traffic account or null
+     */
+    @Nullable
+    public String getTrafficAccount() {
+        return trafficAccount;
     }
 
     /**

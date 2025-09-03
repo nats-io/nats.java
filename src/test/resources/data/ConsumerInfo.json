@@ -54,6 +54,8 @@
     "raft_group": "raftgroupname",
     "leader": "clusterleader",
     "leader_since": "2025-08-29T19:33:21.163377Z",
+    "system_account": true,
+    "traffic_account": "trafficaccountname",
     "replicas": [
       {
         "name": "name0",
