@@ -417,26 +417,26 @@ public class MessageQueueTests {
     }
     
     @Test
-    public void testLength() throws InterruptedException {
+    public void testPendingMessageCount() throws InterruptedException {
         MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         NatsMessage msg1 = new ProtocolMessage(PING);
         NatsMessage msg2 = new ProtocolMessage(PING);
         NatsMessage msg3 = new ProtocolMessage(PING);
 
         q.push(msg1);
-        assertEquals(1, q.length());
+        assertEquals(1, q.pendingMessageCount());
         q.push(msg2);
-        assertEquals(2, q.length());
+        assertEquals(2, q.pendingMessageCount());
         q.push(msg3);
-        assertEquals(3, q.length());
+        assertEquals(3, q.pendingMessageCount());
         q.popNow();
-        assertEquals(2, q.length());
+        assertEquals(2, q.pendingMessageCount());
         q.accumulate(100,100, null);
-        assertEquals(0, q.length());
+        assertEquals(0, q.pendingMessageCount());
     }
     
     @Test
-    public void testSizeInBytes() throws InterruptedException {
+    public void testPendingBytes() throws InterruptedException {
         MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         NatsMessage msg1 = new ProtocolMessage(ONE);
         NatsMessage msg2 = new ProtocolMessage(TWO);
@@ -444,19 +444,19 @@ public class MessageQueueTests {
         long expected = 0;
 
         q.push(msg1);    expected += msg1.getSizeInBytes();
-        assertEquals(expected, q.sizeInBytes());
+        assertEquals(expected, q.pendingBytes());
         q.push(msg2);    expected += msg2.getSizeInBytes();
-        assertEquals(expected, q.sizeInBytes());
+        assertEquals(expected, q.pendingBytes());
         q.push(msg3);    expected += msg3.getSizeInBytes();
-        assertEquals(expected, q.sizeInBytes());
+        assertEquals(expected, q.pendingBytes());
         q.popNow();      expected -= msg1.getSizeInBytes();
-        assertEquals(expected, q.sizeInBytes());
+        assertEquals(expected, q.pendingBytes());
         q.accumulate(100,100, null); expected = 0;
-        assertEquals(expected, q.sizeInBytes());
+        assertEquals(expected, q.pendingBytes());
     }
 
     @Test
-    public void testSizeInBytesWithData() throws InterruptedException {
+    public void testPendingBytesWithData() throws InterruptedException {
         MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
 
         String subject = "subj";
@@ -472,15 +472,15 @@ public class MessageQueueTests {
         assertEquals(78, msg3.getSizeInBytes());
 
         q.push(msg1);    expected += msg1.getSizeInBytes();
-        assertEquals(expected, q.sizeInBytes());
+        assertEquals(expected, q.pendingBytes());
         q.push(msg2);    expected += msg2.getSizeInBytes();
-        assertEquals(expected, q.sizeInBytes());
+        assertEquals(expected, q.pendingBytes());
         q.push(msg3);    expected += msg3.getSizeInBytes();
-        assertEquals(expected, q.sizeInBytes());
+        assertEquals(expected, q.pendingBytes());
         q.popNow();      expected -= msg1.getSizeInBytes();
-        assertEquals(expected, q.sizeInBytes());
+        assertEquals(expected, q.pendingBytes());
         q.accumulate(1000,100, null); expected = 0;
-        assertEquals(expected, q.sizeInBytes());
+        assertEquals(expected, q.pendingBytes());
     }
 
     @Test
@@ -495,13 +495,13 @@ public class MessageQueueTests {
         q.push(msg2);
         q.push(msg3);
 
-        long before = q.sizeInBytes();
+        long before = q.pendingBytes();
         q.pause();
         q.filter((msg) -> {return Arrays.equals(expected, msg.getProtocolBytes());});
         q.resume();
-        long after = q.sizeInBytes();
+        long after = q.pendingBytes();
 
-        assertEquals(2,q.length());
+        assertEquals(2,q.pendingMessageCount());
         assertEquals(before, after + expected.length + 2);
         assertEquals(q.popNow(), msg2);
         assertEquals(q.popNow(), msg3);
@@ -519,13 +519,13 @@ public class MessageQueueTests {
         q.push(msg2);
         q.push(msg3);
 
-        long before = q.sizeInBytes();
+        long before = q.pendingBytes();
         q.pause();
         q.filter((msg) -> {return Arrays.equals(expected, msg.getProtocolBytes());});
         q.resume();
-        long after = q.sizeInBytes();
+        long after = q.pendingBytes();
 
-        assertEquals(2,q.length());
+        assertEquals(2,q.pendingMessageCount());
         assertEquals(before, after + expected.length + 2);
         assertEquals(q.popNow(), msg1);
         assertEquals(q.popNow(), msg2);
@@ -543,13 +543,13 @@ public class MessageQueueTests {
         q.push(msg2);
         q.push(msg3);
 
-        long before = q.sizeInBytes();
+        long before = q.pendingBytes();
         q.pause();
         q.filter((msg) -> {return Arrays.equals(expected, msg.getProtocolBytes());});
         q.resume();
-        long after = q.sizeInBytes();
+        long after = q.pendingBytes();
 
-        assertEquals(2,q.length());
+        assertEquals(2,q.pendingMessageCount());
         assertEquals(before, after + expected.length + 2);
         assertEquals(q.popNow(), msg1);
         assertEquals(q.popNow(), msg3);

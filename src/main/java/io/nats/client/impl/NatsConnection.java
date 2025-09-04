@@ -2544,4 +2544,20 @@ class NatsConnection implements Connection {
             throw new IOException("A JetStream context can't be established during close.");
         }
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public long outgoingPendingMessageCount() {
+        return writer.outgoingPendingMessageCount();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public long outgoingPendingBytes() {
+        return writer.outgoingPendingBytes();
+    }
 }
