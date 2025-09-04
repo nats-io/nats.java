@@ -549,11 +549,12 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             if (deliverGroup != null && !deliverGroup.equals(serverCcc.deliverGroup)) { changes.add("deliverGroup"); }
 
             if (backoff != null && !listsAreEquivalent(backoff, serverCcc.backoff)) { changes.add("backoff"); }
-            if (metadata != null && !mapsAreEquivalent(metadata, serverCcc.metadata)) { changes.add("metadata"); }
             if (filterSubjects != null && !listsAreEquivalent(filterSubjects, serverCcc.filterSubjects)) { changes.add("filterSubjects"); }
 
             if (priorityGroups != null && !listsAreEquivalent(priorityGroups, serverCcc.priorityGroups)) { changes.add("priorityGroups"); }
             if (priorityPolicy != null && priorityPolicy != serverCcc.getPriorityPolicy()) { changes.add("priorityPolicy"); }
+
+            if (metadata != null && !metaIsEquivalent(metadata, serverCcc.metadata)) { changes.add("metadata"); }
 
             // do not need to check Durable because the original is retrieved by the durable name
 
