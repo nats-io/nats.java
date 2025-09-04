@@ -23,9 +23,11 @@ import java.util.regex.Pattern;
 
 import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsJetStreamConstants.MAX_HISTORY_PER_KEY;
+import static io.nats.client.support.NatsJetStreamConstants.NATS_META_KEY_PREFIX;
 
 @SuppressWarnings("UnusedReturnValue")
 public abstract class Validator {
+
     private Validator() {} /* ensures cannot be constructed */
 
     /*
@@ -683,4 +685,40 @@ public abstract class Validator {
         return true;
     }
 
+    // this is a special case map where the meta has both user and nats headers like
+    // _nats.req.level=0, _nats.ver=2.12.0-preview.2, _nats.level=2
+    // in this case we only want to compare the user keys
+    public static boolean metaIsEquivalent(Map<String, String> m1, Map<String, String> m2) {
+        if (m1 == null || m1.isEmpty()) {
+            return m2 == null || m2.isEmpty();
+        }
+
+        // m1 isn't null or empty
+        if (m2 == null || m2.isEmpty()) {
+            return false;
+        }
+
+        // 1. make sure all user keys from m1 are in m2
+        int user1 = 0;
+        for (Map.Entry<String, String> entry : m1.entrySet()) {
+            String key = entry.getKey();
+            if (!key.startsWith(NATS_META_KEY_PREFIX)) {
+                if (!m2.containsKey(key)) {
+                    return false;
+                }
+                user1++;
+            }
+        }
+
+        // 2. all m1 keys were found in m2, so count m2 user keys
+        int user2 = 0;
+        for (String key : m2.keySet()) {
+            if (!key.startsWith(NATS_META_KEY_PREFIX)) {
+                user2++;
+            }
+        }
+
+        // 3. just make sure m2 didn't have more keys
+        return user1 == user2;
+    }
 }
