@@ -23,8 +23,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class PublishAckTests {
     @Test
-    public void testValidAck() {
-        String json = "{\"stream\":\"test-stream\",\"seq\":42,\"domain\":\"test-domain\", \"duplicate\" : true }";
+    public void testAllFieldsSet() {
+        String json = "{\"stream\":\"test-stream\",\"seq\":42,\"domain\":\"test-domain\", \"duplicate\":true, \"val\":\"-73\" }";
 
         try {
             PublishAck ack = new PublishAck(getDataMessage(json));
@@ -32,6 +32,7 @@ public class PublishAckTests {
             assertEquals("test-domain", ack.getDomain());
             assertEquals(42, ack.getSeqno());
             assertTrue(ack.isDuplicate());
+            assertEquals("-73", ack.getVal());
         }
         catch (Exception e) {
             fail("Unexpected Exception: " + e.getMessage());
@@ -39,15 +40,15 @@ public class PublishAckTests {
     }
 
     @Test
-    public void testValidAckForDuplicateWithSeq0() {
-        String json = "{\"stream\":\"test-stream\",\"seq\":0,\"domain\":\"test-domain\", \"duplicate\" : true }";
-
+    public void testRequiredFieldsSet() {
+        String json = "{\"stream\":\"test-stream\",\"seq\":0}";
         try {
             PublishAck ack = new PublishAck(getDataMessage(json));
             assertEquals("test-stream", ack.getStream());
-            assertEquals("test-domain", ack.getDomain());
             assertEquals(0, ack.getSeqno());
-            assertTrue(ack.isDuplicate());
+            assertNull(ack.getDomain());
+            assertFalse(ack.isDuplicate());
+            assertNull(ack.getVal());
         }
         catch (Exception e) {
             fail("Unexpected Exception: " + e.getMessage());
