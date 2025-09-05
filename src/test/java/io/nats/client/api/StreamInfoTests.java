@@ -130,7 +130,11 @@ public class StreamInfoTests {
         assertNotNull(cli);
         assertNotNull(cli.toString()); // coverage
         assertEquals("clustername", cli.getName());
+        assertEquals("raftgroupname", cli.getRaftGroup());
         assertEquals("clusterleader", cli.getLeader());
+        assertTrue(cli.isSystemAccount());
+        assertEquals("trafficaccountname", cli.getTrafficAccount());
+        assertEquals(DateTimeUtils.parseDateTime("2025-08-29T19:33:21.163377Z"), cli.getLeaderSince());
 
         assertNotNull(cli.getReplicas()); // coverage
         assertEquals(2, cli.getReplicas().size());
