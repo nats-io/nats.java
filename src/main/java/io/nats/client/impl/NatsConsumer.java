@@ -84,7 +84,7 @@ abstract class NatsConsumer implements Consumer {
      *         {@link #setPendingLimits(long, long) setPendingLimits}.
      */
     public long getPendingMessageCount() {
-        return this.getMessageQueue() != null ? this.getMessageQueue().pendingMessageCount() : 0;
+        return this.getMessageQueue() != null ? this.getMessageQueue().length() : 0;
     }
 
     /**
@@ -92,7 +92,7 @@ abstract class NatsConsumer implements Consumer {
      *         {@link #setPendingLimits(long, long) setPendingLimits}.
      */
     public long getPendingByteCount() {
-        return this.getMessageQueue() != null ? this.getMessageQueue().pendingBytes() : 0;
+        return this.getMessageQueue() != null ? this.getMessageQueue().sizeInBytes() : 0;
     }
 
     /**

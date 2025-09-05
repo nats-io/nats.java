@@ -224,7 +224,7 @@ class NatsConnectionWriter implements Runnable {
 
     boolean canQueueDuringReconnect(NatsMessage msg) {
         // don't over fill the "send" buffer while waiting to reconnect
-        return (reconnectBufferSize < 0 || (outgoing.pendingBytes() + msg.getSizeInBytes()) < reconnectBufferSize);
+        return (reconnectBufferSize < 0 || (outgoing.sizeInBytes() + msg.getSizeInBytes()) < reconnectBufferSize);
     }
 
     boolean queue(NatsMessage msg) {
@@ -256,10 +256,10 @@ class NatsConnectionWriter implements Runnable {
     }
 
     long outgoingPendingMessageCount() {
-        return outgoing.pendingMessageCount();
+        return outgoing.length();
     }
 
     long outgoingPendingBytes() {
-        return outgoing.pendingBytes();
+        return outgoing.sizeInBytes();
     }
 }

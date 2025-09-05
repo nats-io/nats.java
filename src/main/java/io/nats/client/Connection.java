@@ -788,7 +788,7 @@ public interface Connection extends AutoCloseable {
 
     /**
      * Get the number of messages in the outgoing queue for this connection.
-     * This value is volatile in the sense that it changes often.
+     * This value is volatile in the sense that it changes often and may be adjusted by more than one message.
      * It changes every time a message is published (put in the outgoing queue)
      * and every time a message is removed from the queue to be written over the socket
      * @return the number of messages in the outgoing queue
@@ -797,7 +797,7 @@ public interface Connection extends AutoCloseable {
 
     /**
      * Get the number of bytes based to be written calculated from the messages in the outgoing queue for this connection.
-     * This value is volatile in the sense that it changes often.
+     * This value is volatile in the sense that it changes often and may be adjusted by more than one message's bytes.
      * It changes every time a message is published (put in the outgoing queue)
      * and every time a message is removed from the queue to be written over the socket
      * @return the number of messages in the outgoing queue

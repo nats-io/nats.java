@@ -71,7 +71,7 @@ public class MessageQueueBenchmark {
             accumulateQueue.push(msgs[i]);
         }
         start = System.nanoTime();
-        while(accumulateQueue.pendingMessageCount() > 0) { // works for single thread, but not multi
+        while(accumulateQueue.length() > 0) { // works for single thread, but not multi
             accumulateQueue.accumulate(10_000, 100, Duration.ofMillis(500));
         }
         end = System.nanoTime();

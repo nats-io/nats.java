@@ -133,7 +133,7 @@ class MessageQueue {
 
     boolean isDrained() {
         // poison pill is not included in the length count, or the size
-        return this.running.get() == DRAINING && this.pendingMessageCount() == 0;
+        return this.running.get() == DRAINING && this.length.get() == 0;
     }
 
     boolean push(NatsMessage msg) {
@@ -326,11 +326,11 @@ class MessageQueue {
         return pop(null);
     }
 
-    long pendingMessageCount() {
+    long length() {
         return this.length.get();
     }
 
-    long pendingBytes() {
+    long sizeInBytes() {
         return this.sizeInBytes.get();
     }
 
