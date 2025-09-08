@@ -26,4 +26,9 @@ public class CoverageStatisticsCollector extends NoOpStatistics {
     public void incrementOutMsgs() {
         outMsgs.incrementAndGet();
     }
+
+    @Override
+    public long getOutMsgs() {
+        return outMsgs.get();
+    }
 }
