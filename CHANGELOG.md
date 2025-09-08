@@ -1,5 +1,24 @@
 # Change Log
 
+## 2.22.0
+
+### Core
+* Expose connection outgoingPendingMessageCount and outgoingPendingBytes #1412 @scottf
+
+### JetStream
+* Add publish header "Nats-Expected-Last-Subject-Sequence-Subject" #1401 @scottf
+* Add publish header "Nats-Expected-Last-Subject-Sequence-Subject" part b. #1402 @scottf
+* [Fix] Reset cached consumer info when re-making ordered consumers #1405 @scottf
+* consumers - metadata comparison #1410 @scottf
+
+### ObjectStore
+* ObjectMeta metadata #1399 @scottf
+
+### Misc
+* Clarify documentation for JetStreamSubscription #1400 @davidmorley
+* Build (CI/CD) Stuff #1404 @scottf
+* Update version of bouncycastle to resolve CVE-2025-9341 #1406 @vkolomeyko
+
 ## 2.21.5
 
 ### Core
