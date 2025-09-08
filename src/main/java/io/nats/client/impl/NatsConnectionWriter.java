@@ -131,7 +131,7 @@ class NatsConnectionWriter implements Runnable {
                 if (sendPosition + size > sbl) {
                     if (sendPosition > 0) {
                         dataPort.write(sendBuffer, sendPosition);
-                        connection.getStatisticsCollector().registerWrite(sendPosition);
+                        stats.registerWrite(sendPosition);
                         sendPosition = 0;
                     }
                     if (size > sbl) { // have to resize b/c can't fit 1 message
@@ -174,7 +174,7 @@ class NatsConnectionWriter implements Runnable {
             // no need to write if there are no bytes
             if (sendPosition > 0) {
                 dataPort.write(sendBuffer, sendPosition);
-                connection.getStatisticsCollector().registerWrite(sendPosition);
+                stats.registerWrite(sendPosition);
             }
         }
         finally {

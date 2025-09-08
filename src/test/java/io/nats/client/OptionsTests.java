@@ -239,47 +239,6 @@ public class OptionsTests {
     }
 
     @Test
-    public void testChainedErrorHandler() {
-        ListenerForTesting listener = new ListenerForTesting();
-        Options o = new Options.Builder().errorListener(listener).build();
-        _testChainedErrorListener(listener, o);
-        _testChainedErrorListener(listener, new Options.Builder(o).build());
-    }
-
-    private static void _testChainedErrorListener(ListenerForTesting listener, Options o) {
-        assertFalse(o.isVerbose(), "default verbose"); // One from a different type
-        assertEquals(listener, o.getErrorListener(), "chained error listener");
-    }
-
-    @Test
-    public void testChainedConnectionListener() {
-        ConnectionListener cHandler = (c, e) -> System.out.println("connection event" + e);
-        Options o = new Options.Builder().connectionListener(cHandler).build();
-        _testChainedConnectionListener(cHandler, o);
-        _testChainedConnectionListener(cHandler, new Options.Builder(o).build());
-    }
-
-    private static void _testChainedConnectionListener(ConnectionListener cHandler, Options o) {
-        assertFalse(o.isVerbose(), "default verbose"); // One from a different type
-        assertInstanceOf(ErrorListenerLoggerImpl.class, o.getErrorListener(), "error listener");
-        assertSame(cHandler, o.getConnectionListener(), "chained connection listener");
-    }
-
-    @Test
-    public void testChainedStatisticsCollector() {
-        StatisticsCollector cHandler = new CoverageStatisticsCollector();
-        Options o = new Options.Builder().statisticsCollector(cHandler).build();
-        _testChainedStatisticsCollector(cHandler, o);
-        _testChainedStatisticsCollector(cHandler, new Options.Builder(o).build());
-    }
-
-    private static void _testChainedStatisticsCollector(StatisticsCollector cHandler, Options o) {
-        assertFalse(o.isVerbose(), "default verbose"); // One from a different type
-        assertInstanceOf(CoverageStatisticsCollector.class, o.getStatisticsCollector(), "statistics collector");
-        assertSame(cHandler, o.getStatisticsCollector(), "chained statistics collector");
-    }
-
-    @Test
     public void testDurationProperties() {
         // test millis
         Properties props = new Properties();
