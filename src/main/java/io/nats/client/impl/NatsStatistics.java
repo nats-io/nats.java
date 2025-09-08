@@ -20,7 +20,7 @@ import java.util.LongSummaryStatistics;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
-class NatsStatistics implements StatisticsCollector {
+public class NatsStatistics implements StatisticsCollector {
     private final ReentrantLock readStatsLock;
     private final ReentrantLock writeStatsLock;
 
