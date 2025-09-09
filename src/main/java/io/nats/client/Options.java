@@ -120,8 +120,9 @@ public class Options {
     public static final Duration DEFAULT_SOCKET_WRITE_TIMEOUT = Duration.ofMinutes(1);
 
     /**
-     * Constant used for calculating if a socket write timeout is large enough.
+     * @deprecated No longer enforcing a minimum compared to the connection timeout
      */
+    @Deprecated
     public static final long MINIMUM_SOCKET_WRITE_TIMEOUT_GT_CONNECTION_TIMEOUT = 100;
 
     /**
@@ -1958,16 +1959,8 @@ public class Options {
                 }
             }
 
-            if (socketWriteTimeout == null || socketWriteTimeout.toMillis() < 1) {
+            if (socketWriteTimeout != null && socketWriteTimeout.toMillis() < 1) {
                 socketWriteTimeout = null;
-            }
-            else {
-                long swtMin = connectionTimeout.toMillis() + MINIMUM_SOCKET_WRITE_TIMEOUT_GT_CONNECTION_TIMEOUT;
-                if (socketWriteTimeout.toMillis() < swtMin) {
-                    throw new IllegalStateException("Socket Write Timeout must be at least "
-                        + MINIMUM_SOCKET_WRITE_TIMEOUT_GT_CONNECTION_TIMEOUT
-                        + " milliseconds greater than the Connection Timeout");
-                }
             }
 
             if (socketSoLinger < 0) {
