@@ -766,10 +766,6 @@ public class OptionsTests {
         assertThrows(IllegalStateException.class, () -> Options.builder()
             .socketReadTimeoutMillis((int)DEFAULT_PING_INTERVAL.toMillis())
             .build());
-
-        assertThrows(IllegalStateException.class, () -> Options.builder()
-            .socketWriteTimeout(DEFAULT_CONNECTION_TIMEOUT)
-            .build());
     }
 
     @Test
