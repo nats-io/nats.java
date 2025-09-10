@@ -54,7 +54,7 @@ class NatsConnection implements Connection {
     private boolean disconnecting; // you can only disconnect in one thread
     private boolean closing; // respect a close call regardless
     private Exception exceptionDuringConnectChange; // exception occurred in another thread while dis/connecting
-    final ReentrantLock closeSocketLock;
+    final ReentrantLock closeSocketLock; // this is not private so it can be tested
 
     private Status status;
     private final ReentrantLock statusLock;
@@ -2550,7 +2550,13 @@ class NatsConnection implements Connection {
      */
     @Override
     public long outgoingPendingMessageCount() {
-        return writer.outgoingPendingMessageCount();
+        closeSocketLock.lock();
+        try {
+            return writer == null ? -1 : writer.outgoingPendingMessageCount();
+        }
+        finally {
+            closeSocketLock.unlock();
+        }
     }
 
     /**
@@ -2558,6 +2564,12 @@ class NatsConnection implements Connection {
      */
     @Override
     public long outgoingPendingBytes() {
-        return writer.outgoingPendingBytes();
+        closeSocketLock.lock();
+        try {
+            return writer == null ? -1 : writer.outgoingPendingBytes();
+        }
+        finally {
+            closeSocketLock.unlock();
+        }
     }
 }
