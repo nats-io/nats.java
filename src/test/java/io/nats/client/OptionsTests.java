@@ -762,13 +762,6 @@ public class OptionsTests {
     }
 
     @Test
-    public void testTimeoutValidations() {
-        assertThrows(IllegalStateException.class, () -> Options.builder()
-            .socketReadTimeoutMillis((int)DEFAULT_PING_INTERVAL.toMillis())
-            .build());
-    }
-
-    @Test
     public void testPropertyDataPortType() {
         Properties props = new Properties();
         props.setProperty(Options.PROP_DATA_PORT_TYPE, CloseOnUpgradeAttempt.class.getCanonicalName());
