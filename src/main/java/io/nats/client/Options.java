@@ -126,8 +126,9 @@ public class Options {
     public static final long MINIMUM_SOCKET_WRITE_TIMEOUT_GT_CONNECTION_TIMEOUT = 100;
 
     /**
-     * Constant used for calculating if a socket read timeout is large enough.
+     * @deprecated No longer enforcing a minimum
      */
+    @Deprecated
     public static final long MINIMUM_SOCKET_READ_TIMEOUT_GT_CONNECTION_TIMEOUT = 100;
 
     /**
@@ -1950,13 +1951,8 @@ public class Options {
                 authHandler = Nats.credentials(file.toString());
             }
 
-            if (socketReadTimeoutMillis > 0) {
-                long srtMin = pingInterval.toMillis() + MINIMUM_SOCKET_WRITE_TIMEOUT_GT_CONNECTION_TIMEOUT;
-                if (socketReadTimeoutMillis < srtMin) {
-                    throw new IllegalStateException("Socket Read Timeout must be at least "
-                        + MINIMUM_SOCKET_READ_TIMEOUT_GT_CONNECTION_TIMEOUT
-                        + " milliseconds greater than the Ping Interval");
-                }
+            if (socketReadTimeoutMillis < 1) {
+                socketReadTimeoutMillis = 0; // just for consistency. The connection compares to gt 0
             }
 
             if (socketWriteTimeout != null && socketWriteTimeout.toMillis() < 1) {
