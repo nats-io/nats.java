@@ -21,6 +21,7 @@ public interface ApiConstants {
     String ACTION            = "action";
     String ACTIVE            = "active";
     String ALLOW_DIRECT      = "allow_direct";
+    String ALLOW_MSG_COUNTER = "allow_msg_counter";
     String ALLOW_MSG_TTL     = "allow_msg_ttl";
     String ALLOW_ROLLUP_HDRS = "allow_rollup_hdrs";
     String ALTERNATES        = "alternates";
@@ -138,6 +139,7 @@ public interface ApiConstants {
     String NEXT_BY_SUBJECT   = "next_by_subj";
     String NO_ACK            = "no_ack";
     String NO_ERASE          = "no_erase";
+    String NO_HDR            = "no_hdr";
     String NO_WAIT           = "no_wait";
     String NONCE             = "nonce";
     String NUID              = "nuid";
@@ -218,5 +220,6 @@ public interface ApiConstants {
     String TYPE              = "type";
     String UP_TO_SEQ         = "up_to_seq";
     String UP_TO_TIME        = "up_to_time";
+    String VAL               = "val";
     String VERSION           = "version";
 }
