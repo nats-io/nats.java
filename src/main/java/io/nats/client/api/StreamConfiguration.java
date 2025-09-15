@@ -70,6 +70,7 @@ public class StreamConfiguration implements JsonSerializable {
     private final Map<String, String> metadata;
     private final long firstSequence;
     private final boolean allowMessageTtl;
+    private final boolean allowMsgSchedules;
     private final Duration subjectDeleteMarkerTtl;
     private final boolean allowMessageCounter;
 
@@ -535,7 +536,7 @@ public class StreamConfiguration implements JsonSerializable {
      * Whether Allow Message Schedules is set
      * @return the flag
      */
-    public boolean isAllowMsgSchedules() {
+    public boolean getAllowMsgSchedules() {
         return allowMsgSchedules;
     }
 
