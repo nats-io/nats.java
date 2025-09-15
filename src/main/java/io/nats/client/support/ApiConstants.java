@@ -21,6 +21,7 @@ public interface ApiConstants {
     String ACTION            = "action";
     String ACTIVE            = "active";
     String ALLOW_DIRECT      = "allow_direct";
+    String ALLOW_MSG_SCHEDULES = "allow_msg_schedules";
     String ALLOW_MSG_COUNTER = "allow_msg_counter";
     String ALLOW_MSG_TTL     = "allow_msg_ttl";
     String ALLOW_ROLLUP_HDRS = "allow_rollup_hdrs";

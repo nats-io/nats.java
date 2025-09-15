@@ -70,6 +70,7 @@ public class StreamConfiguration implements JsonSerializable {
     private final Map<String, String> metadata;
     private final long firstSequence;
     private final boolean allowMessageTtl;
+    private final boolean allowMsgSchedules;
     private final Duration subjectDeleteMarkerTtl;
     private final boolean allowMessageCounter;
 
@@ -108,6 +109,7 @@ public class StreamConfiguration implements JsonSerializable {
             .metadata(readStringStringMap(v, METADATA))
             .firstSequence(readLong(v, FIRST_SEQ, 1))
             .allowMessageTtl(readBoolean(v, ALLOW_MSG_TTL))
+            .allowMessageSchedules(readBoolean(v, ALLOW_MSG_SCHEDULES))
             .subjectDeleteMarkerTtl(readNanos(v, SUBJECT_DELETE_MARKER_TTL))
             .allowMessageCounter(readBoolean(v, ALLOW_MSG_COUNTER))
             .build();
@@ -148,6 +150,7 @@ public class StreamConfiguration implements JsonSerializable {
         this.metadata = b.metadata;
         this.firstSequence = b.firstSequence;
         this.allowMessageTtl = b.allowMessageTtl;
+        this.allowMsgSchedules = b.allowMsgSchedules;
         this.allowMessageCounter = b.allowMessageCounter;
         this.subjectDeleteMarkerTtl = b.subjectDeleteMarkerTtl;
     }
@@ -210,6 +213,7 @@ public class StreamConfiguration implements JsonSerializable {
         addField(sb, METADATA, metadata);
         addFieldWhenGreaterThan(sb, FIRST_SEQ, firstSequence, 1);
         addFldWhenTrue(sb, ALLOW_MSG_TTL, allowMessageTtl);
+        addFldWhenTrue(sb, ALLOW_MSG_SCHEDULES, allowMsgSchedules);
         addFieldAsNanos(sb, SUBJECT_DELETE_MARKER_TTL, subjectDeleteMarkerTtl);
         addFldWhenTrue(sb, ALLOW_MSG_COUNTER, allowMessageCounter);
 
@@ -529,6 +533,14 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
+     * Whether Allow Message Schedules is set
+     * @return the flag
+     */
+    public boolean getAllowMsgSchedules() {
+        return allowMsgSchedules;
+    }
+
+    /**
      * Get the Subject Delete Marker TTL duration. May be null.
      * @return The duration
      */
@@ -601,6 +613,7 @@ public class StreamConfiguration implements JsonSerializable {
         private Map<String, String> metadata;
         private long firstSequence = 1;
         private boolean allowMessageTtl = false;
+        private boolean allowMsgSchedules = false;
         private Duration subjectDeleteMarkerTtl;
         private boolean allowMessageCounter = false;
 
@@ -650,6 +663,7 @@ public class StreamConfiguration implements JsonSerializable {
                 }
                 this.firstSequence = sc.firstSequence;
                 this.allowMessageTtl = sc.allowMessageTtl;
+                this.allowMsgSchedules = sc.allowMsgSchedules;
                 this.subjectDeleteMarkerTtl = sc.subjectDeleteMarkerTtl;
                 this.allowMessageCounter = sc.allowMessageCounter;
             }
@@ -1141,6 +1155,25 @@ public class StreamConfiguration implements JsonSerializable {
          */
         public Builder allowMessageCounter(boolean allowMessageCounter) {
             this.allowMessageCounter = allowMessageCounter;
+            return this;
+        }
+
+        /**
+         * Set to allow message Schedules to true
+         * @return The Builder
+         */
+        public Builder allowMessageSchedules() {
+            this.allowMsgSchedules = true;
+            return this;
+        }
+
+        /**
+         * Set allow message Schedules flag
+         * @param allowMessageSchedules the flag
+         * @return The Builder
+         */
+        public Builder allowMessageSchedules(boolean allowMessageSchedules) {
+            this.allowMsgSchedules = allowMessageSchedules;
             return this;
         }
 
