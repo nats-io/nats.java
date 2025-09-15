@@ -70,8 +70,8 @@ public class StreamConfiguration implements JsonSerializable {
     private final Map<String, String> metadata;
     private final long firstSequence;
     private final boolean allowMessageTtl;
-    private final boolean allowMsgSchedules;
     private final Duration subjectDeleteMarkerTtl;
+    private final boolean allowMessageCounter;
 
     static StreamConfiguration instance(JsonValue v) {
         return new Builder()
@@ -110,6 +110,7 @@ public class StreamConfiguration implements JsonSerializable {
             .allowMessageTtl(readBoolean(v, ALLOW_MSG_TTL))
             .allowMessageSchedules(readBoolean(v, ALLOW_MSG_SCHEDULES))
             .subjectDeleteMarkerTtl(readNanos(v, SUBJECT_DELETE_MARKER_TTL))
+            .allowMessageCounter(readBoolean(v, ALLOW_MSG_COUNTER))
             .build();
     }
 
@@ -149,6 +150,7 @@ public class StreamConfiguration implements JsonSerializable {
         this.firstSequence = b.firstSequence;
         this.allowMessageTtl = b.allowMessageTtl;
         this.allowMsgSchedules = b.allowMsgSchedules;
+        this.allowMessageCounter = b.allowMessageCounter;
         this.subjectDeleteMarkerTtl = b.subjectDeleteMarkerTtl;
     }
 
@@ -212,6 +214,7 @@ public class StreamConfiguration implements JsonSerializable {
         addFldWhenTrue(sb, ALLOW_MSG_TTL, allowMessageTtl);
         addFldWhenTrue(sb, ALLOW_MSG_SCHEDULES, allowMsgSchedules);
         addFieldAsNanos(sb, SUBJECT_DELETE_MARKER_TTL, subjectDeleteMarkerTtl);
+        addFldWhenTrue(sb, ALLOW_MSG_COUNTER, allowMessageCounter);
 
         return endJson(sb).toString();
     }
@@ -503,11 +506,29 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
+     * @deprecated Prefer getAllowMessageTtl
      * Whether Allow Message TTL is set
      * @return the flag
      */
+    @Deprecated
     public boolean isAllowMessageTtl() {
         return allowMessageTtl;
+    }
+
+    /**
+     * Whether Allow Message TTL is set
+     * @return the flag
+     */
+    public boolean getAllowMessageTtl() {
+        return allowMessageTtl;
+    }
+
+    /**
+     * Whether Allow Message Counter is set
+     * @return the flag
+     */
+    public boolean getAllowMessageCounter() {
+        return allowMessageCounter;
     }
 
     /**
@@ -593,6 +614,7 @@ public class StreamConfiguration implements JsonSerializable {
         private boolean allowMessageTtl = false;
         private boolean allowMsgSchedules = false;
         private Duration subjectDeleteMarkerTtl;
+        private boolean allowMessageCounter = false;
 
         /**
          * Default Builder
@@ -642,6 +664,7 @@ public class StreamConfiguration implements JsonSerializable {
                 this.allowMessageTtl = sc.allowMessageTtl;
                 this.allowMsgSchedules = sc.allowMsgSchedules;
                 this.subjectDeleteMarkerTtl = sc.subjectDeleteMarkerTtl;
+                this.allowMessageCounter = sc.allowMessageCounter;
             }
         }
 
@@ -1097,7 +1120,7 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
-         * Set to allow per message TTL to true
+         * Set allow per message TTL to true
          * @return The Builder
          */
         public Builder allowMessageTtl() {
@@ -1106,12 +1129,31 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
-         * Set allow per message TTL flag
+         * Set the allow per message TTL flag
          * @param allowMessageTtl the flag
          * @return The Builder
          */
         public Builder allowMessageTtl(boolean allowMessageTtl) {
             this.allowMessageTtl = allowMessageTtl;
+            return this;
+        }
+
+        /**
+         * Set allow message counter to true
+         * @return The Builder
+         */
+        public Builder allowMessageCounter() {
+            this.allowMessageCounter = true;
+            return this;
+        }
+
+        /**
+         * Set the allow message counter flag
+         * @param allowMessageCounter the flag
+         * @return The Builder
+         */
+        public Builder allowMessageCounter(boolean allowMessageCounter) {
+            this.allowMessageCounter = allowMessageCounter;
             return this;
         }
 
