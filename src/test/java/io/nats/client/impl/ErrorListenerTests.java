@@ -144,7 +144,12 @@ public class ErrorListenerTests {
                 Nats.connect(options);
                 fail();
             }
-            catch (Exception ignore) {}
+            catch (AuthenticationException ae) {
+                if (ae.getMessage().contains("Authorization Violation")) {
+                    return;
+                }
+                fail();
+            }
             assertTrue(listener.errorsEventually("Authorization Violation", 10000));
         }
     }
