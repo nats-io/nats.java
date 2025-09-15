@@ -271,6 +271,11 @@ public class ObjectInfo implements JsonSerializable {
             return this;
         }
 
+        public Builder metadata(Map<String, String> metadata) {
+            metaBuilder.metadata(metadata);
+            return this;
+        }
+
         public Builder options(ObjectMetaOptions objectMetaOptions) {
             metaBuilder.options(objectMetaOptions);
             return this;
@@ -322,9 +327,9 @@ public class ObjectInfo implements JsonSerializable {
     public int hashCode() {
         int result = bucket.hashCode(); // bucket never null
         result = 31 * result + (nuid != null ? nuid.hashCode() : 0);
-        result = 31 * result + (int) (size ^ (size >>> 32));
+        result = 31 * result + Long.hashCode(size);
         result = 31 * result + (modified != null ? modified.hashCode() : 0);
-        result = 31 * result + (int) (chunks ^ (chunks >>> 32));
+        result = 31 * result + Long.hashCode(chunks);
         result = 31 * result + (digest != null ? digest.hashCode() : 0);
         result = 31 * result + (deleted ? 1 : 0);
         result = 31 * result + objectMeta.hashCode();
