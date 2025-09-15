@@ -100,6 +100,7 @@ public interface ApiConstants {
     String LAST_SEQ          = "last_seq";
     String LAST_TS           = "last_ts";
     String LEADER            = "leader";
+    String LEADER_SINCE      = "leader_since";
     String LEVEL             = "level";
     String LIMIT             = "limit";
     String LIMITS            = "limits";
@@ -169,6 +170,7 @@ public interface ApiConstants {
     String PURGED            = "purged";
     String PUSH_BOUND        = "push_bound";
     String QUEUE_GROUP       = "queue_group";
+    String RAFT_GROUP        = "raft_group";
     String RAISE_STATUS_WARNINGS = "raise_status_warnings";
     String RATE_LIMIT_BPS    = "rate_limit_bps";
     String REPLAY_POLICY     = "replay_policy";
@@ -207,6 +209,7 @@ public interface ApiConstants {
     String SUBJECTS          = "subjects";
     String SUBJECTS_FILTER   = "subjects_filter";
     String SUCCESS           = "success";
+    String SYSTEM_ACCOUNT    = "system_account";
     String TAGS              = "tags";
     String TEMPLATE_OWNER    = "template_owner";
     String THRESHOLD_PERCENT = "threshold_percent";
@@ -217,6 +220,7 @@ public interface ApiConstants {
     String TLS_REQUIRED      = TLS;
     String TLS_AVAILABLE     = "tls_available";
     String TOTAL             = "total";
+    String TRAFFIC_ACCOUNT    = "traffic_account";
     String TYPE              = "type";
     String UP_TO_SEQ         = "up_to_seq";
     String UP_TO_TIME        = "up_to_time";
