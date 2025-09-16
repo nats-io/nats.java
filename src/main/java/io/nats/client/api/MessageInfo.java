@@ -78,14 +78,13 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
         byte[] _data = null;
         ZonedDateTime _time = null;
         Headers _headers = null;
-        String _stream = null;
+        String _stream = streamName;
         long _lastSeq = -1;
         long _numPending = -1;
         Status _status = null;
 
         if (status != null) {
             _status = status;
-            _stream = streamName;
         }
         else if (parseDirect) {
             _data = msg.getData();
@@ -95,19 +94,22 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
             }
             else {
                 _subject = msgHeaders.getLast(NATS_SUBJECT);
+                _stream = msgHeaders.getLast(NATS_STREAM);
                 String temp = msgHeaders.getLast(NATS_SEQUENCE);
                 if (temp != null) {
-                    _seq = Long.parseLong(temp);
+                    _seq = JsonUtils.safeParseLong(temp, -1);
                 }
-                _time = DateTimeUtils.parseDateTime(msgHeaders.getLast(NATS_TIMESTAMP));
-                _stream = msgHeaders.getLast(NATS_STREAM);
                 temp = msgHeaders.getLast(NATS_LAST_SEQUENCE);
                 if (temp != null) {
                     _lastSeq = JsonUtils.safeParseLong(temp, -1);
                 }
                 temp = msgHeaders.getLast(NATS_NUM_PENDING);
                 if (temp != null) {
-                    _numPending = Long.parseLong(temp) - 1;
+                    _numPending = JsonUtils.safeParseLong(temp, 0) - 1;
+                }
+                temp = msgHeaders.getLast(NATS_TIMESTAMP);
+                if (temp != null) {
+                    _time = DateTimeUtils.parseDateTime(temp);
                 }
 
                 // these are control headers, not real headers so don't give them to the user. Must be done last
@@ -122,7 +124,6 @@ public class MessageInfo extends ApiResponse<MessageInfo> {
             _time = readDate(mjv, TIME);
             byte[] hdrBytes = readBase64(mjv, HDRS);
             _headers = hdrBytes == null ? null : new IncomingHeadersProcessor(hdrBytes).getHeaders();
-            _stream = streamName;
         }
 
         this.subject = _subject;
