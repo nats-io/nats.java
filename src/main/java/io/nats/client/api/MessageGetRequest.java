@@ -30,11 +30,11 @@ public class MessageGetRequest implements JsonSerializable {
     private final String lastBySubject;
     private final String nextBySubject;
     private final ZonedDateTime startTime;
-    private final boolean noHeaders;
+    private boolean noHeaders;
 
-    @NonNull
     public MessageGetRequest noHeaders() {
-        return new MessageGetRequest(this, true);
+        noHeaders = true;
+        return this;
     }
 
     @NonNull

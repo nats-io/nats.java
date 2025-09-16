@@ -1332,10 +1332,10 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     @SuppressWarnings("deprecation")
     @Test
     public void testMessageGetRequest() {
-        validateMessageGetRequest(1, null, null, MessageGetRequest.forSequence(1));
-        validateMessageGetRequest(-1, "last", null, MessageGetRequest.lastForSubject("last"));
-        validateMessageGetRequest(-1, null, "first", MessageGetRequest.firstForSubject("first"));
-        validateMessageGetRequest(1, null, "first", MessageGetRequest.nextForSubject(1, "first"));
+        validateMessageGetRequest(1, null, null, false, MessageGetRequest.forSequence(1));
+        validateMessageGetRequest(-1, "last", null, false, MessageGetRequest.lastForSubject("last"));
+        validateMessageGetRequest(-1, null, "first", false, MessageGetRequest.firstForSubject("first"));
+        validateMessageGetRequest(1, null, "first", false, MessageGetRequest.nextForSubject(1, "first"));
 
         // coverage for deprecated methods
         MessageGetRequest.seqBytes(1);
@@ -1365,13 +1365,14 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     }
 
     private void validateMessageGetRequest(
-        long seq, String lastBySubject, String nextBySubject, MessageGetRequest mgr) {
+        long seq, String lastBySubject, String nextBySubject, boolean noHeaders, MessageGetRequest mgr) {
         assertEquals(seq, mgr.getSequence());
         assertEquals(lastBySubject, mgr.getLastBySubject());
         assertEquals(nextBySubject, mgr.getNextBySubject());
         assertEquals(seq > 0 && nextBySubject == null, mgr.isSequenceOnly());
         assertEquals(lastBySubject != null, mgr.isLastBySubject());
         assertEquals(nextBySubject != null, mgr.isNextBySubject());
+        assertEquals(noHeaders, mgr.isNoHeaders());
     }
 
     @Test
@@ -1629,5 +1630,50 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             .filterSubject(subject)
             .build());
         return consumer;
+    }
+
+    @Test
+    public void testMessageDeleteRequest() {
+        MessageDeleteRequest mdr = new MessageDeleteRequest(1, true);
+        assertEquals(1, mdr.getSequence());
+        assertTrue(mdr.isErase());
+        assertFalse(mdr.isNoErase());
+        assertTrue(mdr.toJson().contains("\"seq\""));
+        assertFalse(mdr.toJson().contains("\"no_erase\""));
+
+        mdr = new MessageDeleteRequest(2, false);
+        assertEquals(2, mdr.getSequence());
+        assertFalse(mdr.isErase());
+        assertTrue(mdr.isNoErase());
+        assertTrue(mdr.toJson().contains("\"seq\""));
+        assertTrue(mdr.toJson().contains("\"no_erase\""));
+
+        mdr = MessageDeleteRequest.builder().build();
+        assertEquals(-1, mdr.getSequence());
+        assertTrue(mdr.isErase());
+        assertFalse(mdr.isNoErase());
+        assertFalse(mdr.toJson().contains("\"seq\""));
+        assertFalse(mdr.toJson().contains("\"no_erase\""));
+
+        mdr = MessageDeleteRequest.builder().sequence(3).build();
+        assertEquals(3, mdr.getSequence());
+        assertTrue(mdr.isErase());
+        assertFalse(mdr.isNoErase());
+        assertTrue(mdr.toJson().contains("\"seq\""));
+        assertFalse(mdr.toJson().contains("\"no_erase\""));
+
+        mdr = MessageDeleteRequest.builder().noErase().erase().build();
+        assertEquals(-1, mdr.getSequence());
+        assertTrue(mdr.isErase());
+        assertFalse(mdr.isNoErase());
+        assertFalse(mdr.toJson().contains("\"seq\""));
+        assertFalse(mdr.toJson().contains("\"no_erase\""));
+
+        mdr = MessageDeleteRequest.builder().erase().noErase().build();
+        assertEquals(-1, mdr.getSequence());
+        assertFalse(mdr.isErase());
+        assertTrue(mdr.isNoErase());
+        assertFalse(mdr.toJson().contains("\"seq\""));
+        assertTrue(mdr.toJson().contains("\"no_erase\""));
     }
 }

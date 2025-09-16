@@ -113,6 +113,10 @@ public interface NatsJetStreamConstants {
     String NATS_PENDING_MESSAGES = "Nats-Pending-Messages";
     String NATS_PENDING_BYTES    = "Nats-Pending-Bytes";
 
+    String NATS_SCHEDULE_HDR        = "Nats-Schedule";
+    String NATS_SCHEDULE_TARGET_HDR = "Nats-Schedule-Target";
+    String NATS_SCHEDULE_TTL_HDR    = "Nats-Schedule-TTL";
+
     int JS_CONSUMER_NOT_FOUND_ERR = 10014;
     int JS_NO_MESSAGE_FOUND_ERR = 10037;
     int JS_WRONG_LAST_SEQUENCE = 10071;
