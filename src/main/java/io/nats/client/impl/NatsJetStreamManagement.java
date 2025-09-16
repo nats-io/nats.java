@@ -321,7 +321,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
         if (csi.allowDirect) {
             String subject;
             byte[] payload;
-            if (messageGetRequest.isLastBySubject()) {
+            if (messageGetRequest.isLastBySubject() && !messageGetRequest.isNoHeaders()) {
                 subject = String.format(JSAPI_DIRECT_GET_LAST, streamName, messageGetRequest.getLastBySubject());
                 payload = null;
             }

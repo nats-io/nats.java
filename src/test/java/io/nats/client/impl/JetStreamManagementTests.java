@@ -1329,14 +1329,46 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         assertNull(mi.getHeaders().getFirst(NATS_LAST_SEQUENCE));
     }
 
-    @SuppressWarnings("deprecation")
     @Test
-    public void testMessageGetRequest() {
-        validateMessageGetRequest(1, null, null, false, MessageGetRequest.forSequence(1));
-        validateMessageGetRequest(-1, "last", null, false, MessageGetRequest.lastForSubject("last"));
-        validateMessageGetRequest(-1, null, "first", false, MessageGetRequest.firstForSubject("first"));
-        validateMessageGetRequest(1, null, "first", false, MessageGetRequest.nextForSubject(1, "first"));
+    public void testMessageGetRequestObject() {
+        ZonedDateTime zdt = ZonedDateTime.now();
+        validateMessageGetRequestObject(1, null, null, null, MessageGetRequest.forSequence(1));
+        validateMessageGetRequestObject(-1, "last", null, null, MessageGetRequest.lastForSubject("last"));
+        validateMessageGetRequestObject(-1, null, "first", null, MessageGetRequest.firstForSubject("first"));
+        validateMessageGetRequestObject(1, null, "first", null, MessageGetRequest.nextForSubject(1, "first"));
+        validateMessageGetRequestObject(-1, null, null, zdt, MessageGetRequest.firstForStartTime(zdt));
+        validateMessageGetRequestObject(-1, null, "first", zdt, MessageGetRequest.firstForStartTimeAndSubject(zdt, "first"));
 
+        // coverage for MessageInfo
+        Message m = new NatsMessage("sub", null, new Headers()
+            .put(NATS_SUBJECT, "sub")
+            .put(NATS_SEQUENCE, "1")
+            .put(NATS_LAST_SEQUENCE, "1")
+            .put(NATS_TIMESTAMP, DateTimeUtils.toRfc3339(ZonedDateTime.now())),
+            null);
+        MessageInfo mi = new MessageInfo(m, "stream", true);
+        assertEquals(1, mi.getLastSeq());
+        assertTrue(mi.toString().contains("last_seq"));
+        assertNotNull(mi.toString());
+    }
+
+    private void validateMessageGetRequestObject(
+        long seq, String lastBySubject, String nextBySubject, ZonedDateTime zdt, MessageGetRequest mgr) {
+        assertEquals(seq, mgr.getSequence());
+        assertEquals(lastBySubject, mgr.getLastBySubject());
+        assertEquals(nextBySubject, mgr.getNextBySubject());
+        assertEquals(seq > 0 && nextBySubject == null, mgr.isSequenceOnly());
+        assertEquals(lastBySubject != null, mgr.isLastBySubject());
+        assertEquals(nextBySubject != null, mgr.isNextBySubject());
+        assertEquals(zdt, mgr.getStartTime());
+
+        assertFalse(mgr.isNoHeaders());
+        mgr.noHeaders();
+        assertTrue(mgr.isNoHeaders());
+    }
+
+    @Test
+    public void testMessageGetRequestObjectDeprecatedMethods() {
         // coverage for deprecated methods
         MessageGetRequest.seqBytes(1);
         MessageGetRequest.lastBySubjectBytes(SUBJECT);
@@ -1350,29 +1382,76 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         assertTrue(mi.hasError());
         assertEquals(-1, mi.getLastSeq());
         assertFalse(mi.toString().contains("last_seq"));
-
-        // coverage for MessageInfo
-        m = new NatsMessage("sub", null, new Headers()
-            .put(NATS_SUBJECT, "sub")
-            .put(NATS_SEQUENCE, "1")
-            .put(NATS_LAST_SEQUENCE, "1")
-            .put(NATS_TIMESTAMP, DateTimeUtils.toRfc3339(ZonedDateTime.now())),
-            null);
-        mi = new MessageInfo(m, "stream", true);
-        assertEquals(1, mi.getLastSeq());
-        assertTrue(mi.toString().contains("last_seq"));
-        assertNotNull(mi.toString());
     }
 
-    private void validateMessageGetRequest(
-        long seq, String lastBySubject, String nextBySubject, boolean noHeaders, MessageGetRequest mgr) {
-        assertEquals(seq, mgr.getSequence());
-        assertEquals(lastBySubject, mgr.getLastBySubject());
-        assertEquals(nextBySubject, mgr.getNextBySubject());
-        assertEquals(seq > 0 && nextBySubject == null, mgr.isSequenceOnly());
-        assertEquals(lastBySubject != null, mgr.isLastBySubject());
-        assertEquals(nextBySubject != null, mgr.isNextBySubject());
-        assertEquals(noHeaders, mgr.isNoHeaders());
+    @Test
+    public void testMessageGetRequestNoHeaders() throws Exception {
+        jsServer.run(TestBase::atLeast2_12, nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            JetStream js = nc.jetStream();
+
+            String stream = stream();
+            String subject = subject();
+            StreamConfiguration sc = StreamConfiguration.builder()
+                .name(stream)
+                .storageType(StorageType.Memory)
+                .subjects(subject)
+                .allowDirect(true)
+                .build();
+
+            jsm.addStream(sc);
+
+            Headers h = new Headers();
+            h.put("foo", "one");
+            js.publish(subject, h, "data1".getBytes());
+            h.put("foo", "two");
+            js.publish(subject, h, "data22".getBytes());
+
+            MessageGetRequest mgr = MessageGetRequest.firstForSubject(subject);
+            MessageInfo mi = jsm.getMessage(stream, mgr);
+            assertEquals(stream, mi.getStream());
+            assertEquals(subject, mi.getSubject());
+            assertEquals(1, mi.getSeq());
+            assertNotNull(mi.getTime());
+            assertNotNull(mi.getData());
+            assertEquals(5, mi.getData().length);
+            assertNotNull(mi.getHeaders());
+            assertEquals(1, mi.getHeaders().size());
+            assertEquals("one", mi.getHeaders().getFirst("foo"));
+
+            mgr.noHeaders();
+            mi = jsm.getMessage(stream, mgr);
+            assertEquals(stream, mi.getStream());
+            assertNull(mi.getSubject());
+            assertEquals(-1, mi.getSeq());
+            assertNull(mi.getTime());
+            assertNotNull(mi.getData());
+            assertEquals(5, mi.getData().length);
+            assertNotNull(mi.getHeaders());
+            assertTrue(mi.getHeaders() == null || mi.getHeaders().isEmpty());
+
+            mgr = MessageGetRequest.lastForSubject(subject);
+            mi = jsm.getMessage(stream, mgr);
+            assertEquals(stream, mi.getStream());
+            assertEquals(subject, mi.getSubject());
+            assertEquals(2, mi.getSeq());
+            assertNotNull(mi.getTime());
+            assertNotNull(mi.getData());
+            assertEquals(6, mi.getData().length);
+            assertNotNull(mi.getHeaders());
+            assertEquals(1, mi.getHeaders().size());
+            assertEquals("two", mi.getHeaders().getFirst("foo"));
+
+            mgr.noHeaders();
+            mi = jsm.getMessage(stream, mgr);
+            assertEquals(stream, mi.getStream());
+            assertNull(mi.getSubject());
+            assertEquals(-1, mi.getSeq());
+            assertNull(mi.getTime());
+            assertNotNull(mi.getData());
+            assertEquals(6, mi.getData().length);
+            assertTrue(mi.getHeaders() == null || mi.getHeaders().isEmpty());
+        });
     }
 
     @Test
