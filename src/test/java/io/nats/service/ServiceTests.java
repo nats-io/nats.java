@@ -304,9 +304,11 @@ public class ServiceTests extends JetStreamTestBase {
                     assertNull(er.getLastError());
                     if (er.getName().equals(ECHO_ENDPOINT_NAME)) {
                         assertNotNull(er.getData());
+                        assertNotNull(er.getDataAsJson());
                     }
                     else {
                         assertNull(er.getData());
+                        assertNull(er.getDataAsJson());
                     }
                     assertTrue(zdt.isBefore(er.getStarted()));
                 }
@@ -770,12 +772,33 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(ServiceBuilder.DEFAULT_DRAIN_TIMEOUT, service.getDrainTimeout());
         assertEquals("1.0.0", service.getVersion());
         assertNull(service.getDescription());
+        assertNull(service.getPingResponse().getMetadata());
 
+        // additional fields
+        Map<String, String> meta = new HashMap<>();
+        meta.put("foo", "bar");
         service = Service.builder().connection(conn).name(NAME).version("1.0.0").addServiceEndpoint(se)
             .description("desc")
             .drainTimeout(Duration.ofSeconds(1))
+            .metadata(meta)
             .build();
         assertEquals("desc", service.getDescription());
+        assertEquals(Duration.ofSeconds(1), service.getDrainTimeout());
+        assertTrue(service.getPingResponse().toJson().contains("\"foo\""));
+        assertNotNull(service.getPingResponse().getMetadata());
+
+        // more coverage
+        service = Service.builder().connection(conn).name(NAME).version("1.0.0").addServiceEndpoint(se)
+            .drainTimeout(null)
+            .metadata(new HashMap<>())
+            .build();
+        assertEquals(ServiceBuilder.DEFAULT_DRAIN_TIMEOUT, service.getDrainTimeout());
+
+        //noinspection deprecation
+        service = Service.builder().connection(conn).name(NAME).version("1.0.0").addServiceEndpoint(se)
+            .drainTimeout(1000)
+            .schemaDispatcher(null) // COVERAGE for deprecated
+            .build();
         assertEquals(Duration.ofSeconds(1), service.getDrainTimeout());
 
         assertThrows(IllegalArgumentException.class, () -> Service.builder().name(null));
@@ -1007,6 +1030,9 @@ public class ServiceTests extends JetStreamTestBase {
         assertEpNameSubQ(e, NAME);
         assertEquals(e, Endpoint.builder().endpoint(e).build());
         assertNull(e.getMetadata());
+        String jep = e.toJson();
+        String sep = e.toString();
+        assertTrue(sep.contains(jep));
 
         e = new Endpoint(NAME, metadata);
         assertEpNameSubQ(e, NAME);
@@ -1016,6 +1042,7 @@ public class ServiceTests extends JetStreamTestBase {
         e = new Endpoint(NAME, SUBJECT);
         assertEpNameSubQ(e);
         assertEquals(e, Endpoint.builder().endpoint(e).build());
+        assertEquals(Endpoint.DEFAULT_QGROUP, e.getQueueGroup());
 
         e = Endpoint.builder()
             .name(NAME).subject(SUBJECT)
@@ -1023,13 +1050,22 @@ public class ServiceTests extends JetStreamTestBase {
         assertEpNameSubQ(e);
         assertEquals(e, Endpoint.builder().endpoint(e).build());
 
-        e = new Endpoint(NAME, metadata);
         e = Endpoint.builder()
             .name(NAME).subject(SUBJECT)
             .metadata(metadata)
+            .queueGroup(null) // coverage
             .build();
         assertEpNameSubQ(e);
         assertNull(e.getMetadata());
+        assertEquals(Endpoint.DEFAULT_QGROUP, e.getQueueGroup());
+
+        e = Endpoint.builder()
+            .name(NAME).subject(SUBJECT)
+            .metadata(metadata)
+            .queueGroup("qg") // coverage
+            .build();
+        assertNull(e.getMetadata());
+        assertEquals("qg", e.getQueueGroup());
 
         metadata.put("k", "v");
 

@@ -198,6 +198,8 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             .firstSequence(testSc.getFirstSequence())
             .consumerLimits(testSc.getConsumerLimits())
             .allowMessageTtl(testSc.getAllowMessageTtl())
+            .allowMessageSchedules(testSc.getAllowMsgSchedules())
+            .allowMessageCounter(testSc.getAllowMessageCounter())
             .subjectDeleteMarkerTtl(testSc.getSubjectDeleteMarkerTtl())
             .allowMessageCounter(testSc.getAllowMessageCounter())
             ;
@@ -301,6 +303,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     @SuppressWarnings("deprecation")
     @Test
     public void testConstructionInvalidsCoverage() {
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().name(null).build());
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().name(HAS_SPACE));
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxConsumers(0));
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxConsumers(-2));
@@ -321,6 +324,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().replicas(6));
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().duplicateWindow(Duration.ofNanos(-1)));
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().duplicateWindow(-1));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().subjectDeleteMarkerTtl(1));
     }
 
     @Test
@@ -607,6 +611,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             assertEquals(Duration.ofSeconds(50), sc.getConsumerLimits().getInactiveThreshold());
             assertEquals(42, sc.getConsumerLimits().getMaxAckPending());
 
+            assertTrue(sc.getAllowMsgSchedules());
             assertTrue(sc.getAllowMessageCounter());
         }
     }

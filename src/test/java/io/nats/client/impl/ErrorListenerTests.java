@@ -413,6 +413,17 @@ public class ErrorListenerTests {
         assertTrue(pullStatusWarningFlag.get());
         assertTrue(pullStatusErrorFlag.get());
         assertTrue(flowControlProcessedFlag.get());
+
+        _cover(new ReaderListenerConsoleImpl());
+        _cover(new ReadListener() {
+            @Override
+            public void protocol(String op, String string) {
+            }
+
+            @Override
+            public void message(String op, Message message) {
+            }
+        });
     }
 
     private void _cover(ErrorListener el) {
@@ -425,5 +436,12 @@ public class ErrorListenerTests {
         el.pullStatusWarning(null, null, null);
         el.pullStatusError(null, null, null);
         el.flowControlProcessed(null, null, null, null);
+    }
+
+    private void _cover(ReadListener rl) {
+        rl.protocol("OP", null);
+        rl.message("OP", new NatsMessage("subject", "replyTo", null));
+        rl.message("OP", new NatsMessage("subject", "replyTo", "body".getBytes()));
+        rl.message("OP", new NatsJetStreamMessage(null));
     }
 }
