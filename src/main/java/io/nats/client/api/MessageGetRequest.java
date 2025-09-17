@@ -61,7 +61,7 @@ public class MessageGetRequest implements JsonSerializable {
         return new MessageGetRequest(sequence, null, subject, null);
     }
 
-    private MessageGetRequest(long sequence, String lastBySubject, String nextBySubject, ZonedDateTime startTime) {
+    protected MessageGetRequest(long sequence, String lastBySubject, String nextBySubject, ZonedDateTime startTime) {
         this.sequence = sequence;
         this.lastBySubject = lastBySubject;
         this.nextBySubject = nextBySubject;
