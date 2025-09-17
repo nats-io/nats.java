@@ -1365,10 +1365,6 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         assertEquals(lastBySubject != null, mgr.isLastBySubject());
         assertEquals(nextBySubject != null, mgr.isNextBySubject());
         assertEquals(zdt, mgr.getStartTime());
-
-        assertFalse(mgr.isNoHeaders());
-        mgr.noHeaders();
-        assertTrue(mgr.isNoHeaders());
     }
 
     @Test
@@ -1386,76 +1382,6 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         assertTrue(mi.hasError());
         assertEquals(-1, mi.getLastSeq());
         assertFalse(mi.toString().contains("last_seq"));
-    }
-
-    @Test
-    public void testMessageGetRequestNoHeaders() throws Exception {
-        jsServer.run(TestBase::atLeast2_12, nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            JetStream js = nc.jetStream();
-
-            String stream = stream();
-            String subject = subject();
-            StreamConfiguration sc = StreamConfiguration.builder()
-                .name(stream)
-                .storageType(StorageType.Memory)
-                .subjects(subject)
-                .allowDirect(true)
-                .build();
-
-            jsm.addStream(sc);
-
-            Headers h = new Headers();
-            h.put("foo", "one");
-            js.publish(subject, h, "data1".getBytes());
-            h.put("foo", "two");
-            js.publish(subject, h, "data22".getBytes());
-
-            MessageGetRequest mgr = MessageGetRequest.firstForSubject(subject);
-            MessageInfo mi = jsm.getMessage(stream, mgr);
-            assertEquals(stream, mi.getStream());
-            assertEquals(subject, mi.getSubject());
-            assertEquals(1, mi.getSeq());
-            assertNotNull(mi.getTime());
-            assertNotNull(mi.getData());
-            assertEquals(5, mi.getData().length);
-            assertNotNull(mi.getHeaders());
-            assertEquals(1, mi.getHeaders().size());
-            assertEquals("one", mi.getHeaders().getFirst("foo"));
-
-            mgr.noHeaders();
-            mi = jsm.getMessage(stream, mgr);
-            assertEquals(stream, mi.getStream());
-            assertNull(mi.getSubject());
-            assertEquals(-1, mi.getSeq());
-            assertNull(mi.getTime());
-            assertNotNull(mi.getData());
-            assertEquals(5, mi.getData().length);
-            assertNotNull(mi.getHeaders());
-            assertTrue(mi.getHeaders() == null || mi.getHeaders().isEmpty());
-
-            mgr = MessageGetRequest.lastForSubject(subject);
-            mi = jsm.getMessage(stream, mgr);
-            assertEquals(stream, mi.getStream());
-            assertEquals(subject, mi.getSubject());
-            assertEquals(2, mi.getSeq());
-            assertNotNull(mi.getTime());
-            assertNotNull(mi.getData());
-            assertEquals(6, mi.getData().length);
-            assertNotNull(mi.getHeaders());
-            assertEquals(1, mi.getHeaders().size());
-            assertEquals("two", mi.getHeaders().getFirst("foo"));
-
-            mgr.noHeaders();
-            mi = jsm.getMessage(stream, mgr);
-            assertEquals(stream, mi.getStream());
-            assertNull(mi.getSubject());
-            assertEquals(-1, mi.getSeq());
-            assertNull(mi.getTime());
-            assertNotNull(mi.getData());
-            assertEquals(6, mi.getData().length);
-            assertTrue(mi.getHeaders() == null || mi.getHeaders().isEmpty());
-        });
     }
 
     @Test

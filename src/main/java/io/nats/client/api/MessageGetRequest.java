@@ -30,12 +30,6 @@ public class MessageGetRequest implements JsonSerializable {
     private final String lastBySubject;
     private final String nextBySubject;
     private final ZonedDateTime startTime;
-    private boolean noHeaders;
-
-    public MessageGetRequest noHeaders() {
-        noHeaders = true;
-        return this;
-    }
 
     @NonNull
     public static MessageGetRequest forSequence(long sequence) {
@@ -72,7 +66,6 @@ public class MessageGetRequest implements JsonSerializable {
         this.lastBySubject = lastBySubject;
         this.nextBySubject = nextBySubject;
         this.startTime = startTime;
-        noHeaders = false;
     }
 
     public long getSequence() {
@@ -106,10 +99,6 @@ public class MessageGetRequest implements JsonSerializable {
         return startTime;
     }
 
-    public boolean isNoHeaders() {
-        return noHeaders;
-    }
-
     @Override
     @NonNull
     public String toJson() {
@@ -118,7 +107,6 @@ public class MessageGetRequest implements JsonSerializable {
         addField(sb, LAST_BY_SUBJECT, lastBySubject);
         addField(sb, NEXT_BY_SUBJECT, nextBySubject);
         addField(sb, START_TIME, startTime);
-        addFldWhenTrue(sb, NO_HDR, noHeaders);
         return endJson(sb).toString();
     }
 
