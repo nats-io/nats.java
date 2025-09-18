@@ -117,6 +117,10 @@ public interface NatsJetStreamConstants {
     String NATS_SCHEDULE_TARGET_HDR = "Nats-Schedule-Target";
     String NATS_SCHEDULE_TTL_HDR    = "Nats-Schedule-TTL";
 
+    String NATS_BATCH_ID_HDR        = "Nats-Batch-Id";
+    String NATS_BATCH_SEQUENCE_HDR  = "Nats-Batch-Sequence";
+    String NATS_BATCH_COMMIT_HDR    = "Nats-Batch-Commit";
+
     int JS_CONSUMER_NOT_FOUND_ERR = 10014;
     int JS_NO_MESSAGE_FOUND_ERR = 10037;
     int JS_WRONG_LAST_SEQUENCE = 10071;

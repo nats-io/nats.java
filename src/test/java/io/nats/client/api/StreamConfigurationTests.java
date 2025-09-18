@@ -197,12 +197,28 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             .metadata(testSc.getMetadata())
             .firstSequence(testSc.getFirstSequence())
             .consumerLimits(testSc.getConsumerLimits())
+            .subjectDeleteMarkerTtl(testSc.getSubjectDeleteMarkerTtl())
             .allowMessageTtl(testSc.getAllowMessageTtl())
             .allowMessageSchedules(testSc.getAllowMsgSchedules())
             .allowMessageCounter(testSc.getAllowMessageCounter())
-            .subjectDeleteMarkerTtl(testSc.getSubjectDeleteMarkerTtl())
-            .allowMessageCounter(testSc.getAllowMessageCounter())
+            .allowAtomicPublish(testSc.getAllowAtomicPublish())
             ;
+        validateTestStreamConfiguration(builder.build(), false, DEFAULT_STREAM_NAME);
+        validateTestStreamConfiguration(builder.addSources((Source)null).build(), false, DEFAULT_STREAM_NAME);
+
+        // COVERAGE of builder methods since I know these to be true
+        builder
+            // clear the flags
+            .allowMessageTtl(false)
+            .allowMessageSchedules(false)
+            .allowMessageCounter(false)
+            .allowAtomicPublish(false)
+            // set the flags
+            .allowMessageTtl()
+            .allowMessageSchedules()
+            .allowMessageCounter()
+            .allowAtomicPublish()
+        ;
         validateTestStreamConfiguration(builder.build(), false, DEFAULT_STREAM_NAME);
         validateTestStreamConfiguration(builder.addSources((Source)null).build(), false, DEFAULT_STREAM_NAME);
 
@@ -613,6 +629,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
             assertTrue(sc.getAllowMsgSchedules());
             assertTrue(sc.getAllowMessageCounter());
+            assertTrue(sc.getAllowAtomicPublish());
         }
     }
 

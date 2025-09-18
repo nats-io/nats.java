@@ -69,10 +69,11 @@ public class StreamConfiguration implements JsonSerializable {
     private final boolean discardNewPerSubject;
     private final Map<String, String> metadata;
     private final long firstSequence;
+    private final Duration subjectDeleteMarkerTtl;
     private final boolean allowMessageTtl;
     private final boolean allowMsgSchedules;
-    private final Duration subjectDeleteMarkerTtl;
     private final boolean allowMessageCounter;
+    private final boolean allowAtomicPublish;
 
     static StreamConfiguration instance(JsonValue v) {
         return new Builder()
@@ -108,10 +109,11 @@ public class StreamConfiguration implements JsonSerializable {
             .discardNewPerSubject(readBoolean(v, DISCARD_NEW_PER_SUBJECT))
             .metadata(readStringStringMap(v, METADATA))
             .firstSequence(readLong(v, FIRST_SEQ, 1))
+            .subjectDeleteMarkerTtl(readNanos(v, SUBJECT_DELETE_MARKER_TTL))
             .allowMessageTtl(readBoolean(v, ALLOW_MSG_TTL))
             .allowMessageSchedules(readBoolean(v, ALLOW_MSG_SCHEDULES))
-            .subjectDeleteMarkerTtl(readNanos(v, SUBJECT_DELETE_MARKER_TTL))
             .allowMessageCounter(readBoolean(v, ALLOW_MSG_COUNTER))
+            .allowAtomicPublish(readBoolean(v, ALLOW_ATOMIC))
             .build();
     }
 
@@ -149,10 +151,11 @@ public class StreamConfiguration implements JsonSerializable {
         this.discardNewPerSubject = b.discardNewPerSubject;
         this.metadata = b.metadata;
         this.firstSequence = b.firstSequence;
+        this.subjectDeleteMarkerTtl = b.subjectDeleteMarkerTtl;
         this.allowMessageTtl = b.allowMessageTtl;
         this.allowMsgSchedules = b.allowMsgSchedules;
         this.allowMessageCounter = b.allowMessageCounter;
-        this.subjectDeleteMarkerTtl = b.subjectDeleteMarkerTtl;
+        this.allowAtomicPublish = b.allowAtomicPublish;
     }
 
     /**
@@ -212,10 +215,11 @@ public class StreamConfiguration implements JsonSerializable {
         addFldWhenTrue(sb, DISCARD_NEW_PER_SUBJECT, discardNewPerSubject);
         addField(sb, METADATA, metadata);
         addFieldWhenGreaterThan(sb, FIRST_SEQ, firstSequence, 1);
+        addFieldAsNanos(sb, SUBJECT_DELETE_MARKER_TTL, subjectDeleteMarkerTtl);
         addFldWhenTrue(sb, ALLOW_MSG_TTL, allowMessageTtl);
         addFldWhenTrue(sb, ALLOW_MSG_SCHEDULES, allowMsgSchedules);
-        addFieldAsNanos(sb, SUBJECT_DELETE_MARKER_TTL, subjectDeleteMarkerTtl);
         addFldWhenTrue(sb, ALLOW_MSG_COUNTER, allowMessageCounter);
+        addFldWhenTrue(sb, ALLOW_ATOMIC, allowAtomicPublish);
 
         return endJson(sb).toString();
     }
@@ -525,6 +529,14 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
+     * Whether Allow Message Schedules is set
+     * @return the flag
+     */
+    public boolean getAllowMsgSchedules() {
+        return allowMsgSchedules;
+    }
+
+    /**
      * Whether Allow Message Counter is set
      * @return the flag
      */
@@ -533,11 +545,11 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
-     * Whether Allow Message Schedules is set
+     * Whether Allow Atomic Publish is set
      * @return the flag
      */
-    public boolean getAllowMsgSchedules() {
-        return allowMsgSchedules;
+    public boolean getAllowAtomicPublish() {
+        return allowAtomicPublish;
     }
 
     /**
@@ -612,10 +624,11 @@ public class StreamConfiguration implements JsonSerializable {
         private boolean discardNewPerSubject = false;
         private Map<String, String> metadata;
         private long firstSequence = 1;
+        private Duration subjectDeleteMarkerTtl;
         private boolean allowMessageTtl = false;
         private boolean allowMsgSchedules = false;
-        private Duration subjectDeleteMarkerTtl;
         private boolean allowMessageCounter = false;
+        private boolean allowAtomicPublish = false;
 
         /**
          * Default Builder
@@ -662,10 +675,11 @@ public class StreamConfiguration implements JsonSerializable {
                     this.metadata = new HashMap<>(sc.metadata);
                 }
                 this.firstSequence = sc.firstSequence;
+                this.subjectDeleteMarkerTtl = sc.subjectDeleteMarkerTtl;
                 this.allowMessageTtl = sc.allowMessageTtl;
                 this.allowMsgSchedules = sc.allowMsgSchedules;
-                this.subjectDeleteMarkerTtl = sc.subjectDeleteMarkerTtl;
                 this.allowMessageCounter = sc.allowMessageCounter;
+                this.allowAtomicPublish = sc.allowAtomicPublish;
             }
         }
 
@@ -1121,6 +1135,29 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
+         * Set the subject delete marker TTL duration. Server accepts 1 second or more.
+         * null has the effect of clearing the subject delete marker TTL
+         * @param subjectDeleteMarkerTtl the TTL duration
+         * @return The Builder
+         */
+        public Builder subjectDeleteMarkerTtl(Duration subjectDeleteMarkerTtl) {
+            this.subjectDeleteMarkerTtl = validateDurationNotRequiredGtOrEqSeconds(1, subjectDeleteMarkerTtl, null, "Subject Delete Marker Ttl");
+            return this;
+        }
+
+        /**
+         * Set the subject delete marker TTL duration in milliseconds. Server accepts 1 second or more.
+         * 0 or less has the effect of clearing the subject delete marker TTL
+         * @param subjectDeleteMarkerTtlMillis the TTL duration in milliseconds
+         * @return The Builder
+         */
+        public Builder subjectDeleteMarkerTtl(long subjectDeleteMarkerTtlMillis) {
+            this.subjectDeleteMarkerTtl = subjectDeleteMarkerTtlMillis <= 0 ? null
+                : validateDurationGtOrEqSeconds(1, subjectDeleteMarkerTtlMillis, "Subject Delete Marker Ttl");
+            return this;
+        }
+
+        /**
          * Set allow per message TTL to true
          * @return The Builder
          */
@@ -1136,25 +1173,6 @@ public class StreamConfiguration implements JsonSerializable {
          */
         public Builder allowMessageTtl(boolean allowMessageTtl) {
             this.allowMessageTtl = allowMessageTtl;
-            return this;
-        }
-
-        /**
-         * Set allow message counter to true
-         * @return The Builder
-         */
-        public Builder allowMessageCounter() {
-            this.allowMessageCounter = true;
-            return this;
-        }
-
-        /**
-         * Set the allow message counter flag
-         * @param allowMessageCounter the flag
-         * @return The Builder
-         */
-        public Builder allowMessageCounter(boolean allowMessageCounter) {
-            this.allowMessageCounter = allowMessageCounter;
             return this;
         }
 
@@ -1178,25 +1196,40 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
-         * Set the subject delete marker TTL duration. Server accepts 1 second or more.
-         * null has the effect of clearing the subject delete marker TTL
-         * @param subjectDeleteMarkerTtl the TTL duration
+         * Set allow message counter to true
          * @return The Builder
          */
-        public Builder subjectDeleteMarkerTtl(Duration subjectDeleteMarkerTtl) {
-            this.subjectDeleteMarkerTtl = validateDurationNotRequiredGtOrEqSeconds(1, subjectDeleteMarkerTtl, null, "Subject Delete Marker Ttl");
+        public Builder allowMessageCounter() {
+            this.allowMessageCounter = true;
             return this;
         }
 
         /**
-         * Set the subject delete marker TTL duration in milliseconds. Server accepts 1 second or more.
-         * 0 or less has the effect of clearing the subject delete marker TTL
-         * @param subjectDeleteMarkerTtlMillis the TTL duration in milliseconds
+         * Set the allow message counter flag
+         * @param allowMessageCounter the flag
          * @return The Builder
          */
-        public Builder subjectDeleteMarkerTtl(long subjectDeleteMarkerTtlMillis) {
-            this.subjectDeleteMarkerTtl = subjectDeleteMarkerTtlMillis <= 0 ? null
-                : validateDurationGtOrEqSeconds(1, subjectDeleteMarkerTtlMillis, "Subject Delete Marker Ttl");
+        public Builder allowMessageCounter(boolean allowMessageCounter) {
+            this.allowMessageCounter = allowMessageCounter;
+            return this;
+        }
+
+        /**
+         * Set allow atomic publish to true
+         * @return The Builder
+         */
+        public Builder allowAtomicPublish() {
+            this.allowAtomicPublish = true;
+            return this;
+        }
+
+        /**
+         * Set allow atomic publish flag
+         * @param allowAtomicPublish the flag
+         * @return The Builder
+         */
+        public Builder allowAtomicPublish(boolean allowAtomicPublish) {
+            this.allowAtomicPublish = allowAtomicPublish;
             return this;
         }
 
