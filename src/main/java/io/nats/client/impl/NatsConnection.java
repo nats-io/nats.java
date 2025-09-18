@@ -380,7 +380,7 @@ class NatsConnection implements Connection {
             return;
         }
 
-        writer.setReconnectMode(true);
+        writer.setReconnectModeAndClear();
 
         if (!isConnected() && !isClosed() && !this.isClosing()) {
             boolean keepGoing = true;
