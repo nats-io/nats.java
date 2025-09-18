@@ -20,6 +20,7 @@ public interface ApiConstants {
     String ACK_WAIT          = "ack_wait";
     String ACTION            = "action";
     String ACTIVE            = "active";
+    String ALLOW_ATOMIC      = "allow_atomic";
     String ALLOW_DIRECT      = "allow_direct";
     String ALLOW_MSG_SCHEDULES = "allow_msg_schedules";
     String ALLOW_MSG_COUNTER = "allow_msg_counter";
@@ -46,6 +47,7 @@ public interface ApiConstants {
     String CONSUMER_SEQ      = "consumer_seq";
     String CONSUMER_LIMITS   = "consumer_limits";
     String CONSUMERS         = "consumers";
+    String COUNT             = "count";
     String CREATED           = "created";
     String CURRENT           = "current";
     String DATA              = "data";

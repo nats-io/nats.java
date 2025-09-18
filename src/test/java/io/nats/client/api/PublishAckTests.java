@@ -24,7 +24,15 @@ import static org.junit.jupiter.api.Assertions.*;
 public class PublishAckTests {
     @Test
     public void testAllFieldsSet() {
-        String json = "{\"stream\":\"test-stream\",\"seq\":42,\"domain\":\"test-domain\", \"duplicate\":true, \"val\":\"-73\" }";
+        String json = "{" +
+            "\"stream\":\"test-stream\"," +
+            "\"seq\":42," +
+            "\"domain\":\"test-domain\"," +
+            "\"duplicate\":true," +
+            "\"val\":\"-73\"," +
+            "\"batch\":\"batch-id\"," +
+            "\"count\":66" +
+            "}";
 
         try {
             PublishAck ack = new PublishAck(getDataMessage(json));
@@ -33,6 +41,8 @@ public class PublishAckTests {
             assertEquals(42, ack.getSeqno());
             assertTrue(ack.isDuplicate());
             assertEquals("-73", ack.getVal());
+            assertEquals("batch-id", ack.getBatchId());
+            assertEquals(66, ack.getBatchSize());
         }
         catch (Exception e) {
             fail("Unexpected Exception: " + e.getMessage());
@@ -49,6 +59,8 @@ public class PublishAckTests {
             assertNull(ack.getDomain());
             assertFalse(ack.isDuplicate());
             assertNull(ack.getVal());
+            assertNull(ack.getBatchId());
+            assertEquals(-1, ack.getBatchSize());
         }
         catch (Exception e) {
             fail("Unexpected Exception: " + e.getMessage());
