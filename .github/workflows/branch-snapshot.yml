@@ -36,7 +36,7 @@ jobs:
           nats-server -v
       - name: Check out code
         uses: actions/checkout@v4
-      - name: Build and Test
+      - name: Build
         run: chmod +x gradlew && ./gradlew clean compileJava
       - name: Verify Javadoc
         if: ${{ success() }}
