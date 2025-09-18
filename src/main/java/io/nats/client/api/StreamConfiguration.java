@@ -1229,7 +1229,7 @@ public class StreamConfiguration implements JsonSerializable {
          * @return The Builder
          */
         public Builder allowAtomicPublish(boolean allowAtomicPublish) {
-            this.allowAtomicPublish = true;
+            this.allowAtomicPublish = allowAtomicPublish;
             return this;
         }
 
