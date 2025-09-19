@@ -24,8 +24,10 @@ public class ReaderListenerConsoleImpl implements ReadListener {
 
     @Override
     public void message(String op, Message message) {
-        String text = op + " " + message.getSubject() + " " + message.getReplyTo() + " " +
-            (message.getData() == null ? "<no data>" : "data length: " + message.getData().length);
+        String text = op
+            + " " + message.getSubject()
+            + " " + message.getReplyTo()
+            + " data length: " + message.getData().length;
         if (message.isJetStream()) {
             System.out.println("RL/JS-Message " + text);
         }

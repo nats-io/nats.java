@@ -2187,4 +2187,18 @@ public class KeyValueTests extends JetStreamTestBase {
             + "|" + msg.getSubject()
             + "|";
     }
+
+    @Test
+    public void testKeyValueOperation() {
+        assertEquals(KeyValueOperation.PUT, KeyValueOperation.instance("PUT"));
+        assertEquals(KeyValueOperation.DELETE, KeyValueOperation.instance("DEL"));
+        assertEquals(KeyValueOperation.PURGE, KeyValueOperation.instance("PURGE"));
+        assertNull(KeyValueOperation.instance("not-found"));
+        assertEquals(KeyValueOperation.PUT, KeyValueOperation.getOrDefault("PUT", KeyValueOperation.PUT));
+        assertEquals(KeyValueOperation.PUT, KeyValueOperation.getOrDefault("not-found", KeyValueOperation.PUT));
+        assertEquals(KeyValueOperation.DELETE, KeyValueOperation.instanceByMarkerReason("Remove"));
+        assertEquals(KeyValueOperation.PURGE, KeyValueOperation.instanceByMarkerReason("MaxAge"));
+        assertEquals(KeyValueOperation.PURGE, KeyValueOperation.instanceByMarkerReason("Purge"));
+        assertNull(KeyValueOperation.instanceByMarkerReason("not-found"));
+    }
 }

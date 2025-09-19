@@ -17,7 +17,6 @@ import io.nats.client.Consumer;
 import io.nats.client.NatsSystemClock;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -189,7 +188,6 @@ abstract class NatsConsumer implements Consumer {
            return this.getDrainingFuture();
        }
 
-       Instant start = Instant.now();
        final CompletableFuture<Boolean> tracker = new CompletableFuture<>();
        this.markDraining(tracker);
        this.sendUnsubForDrain();

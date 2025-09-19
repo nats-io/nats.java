@@ -61,7 +61,7 @@ public class MessageGetRequest implements JsonSerializable {
         return new MessageGetRequest(sequence, null, subject, null);
     }
 
-    private MessageGetRequest(long sequence, String lastBySubject, String nextBySubject, ZonedDateTime startTime) {
+    protected MessageGetRequest(long sequence, String lastBySubject, String nextBySubject, ZonedDateTime startTime) {
         this.sequence = sequence;
         this.lastBySubject = lastBySubject;
         this.nextBySubject = nextBySubject;
@@ -92,6 +92,11 @@ public class MessageGetRequest implements JsonSerializable {
 
     public boolean isNextBySubject() {
         return nextBySubject != null;
+    }
+
+    @Nullable
+    public ZonedDateTime getStartTime() {
+        return startTime;
     }
 
     @Override

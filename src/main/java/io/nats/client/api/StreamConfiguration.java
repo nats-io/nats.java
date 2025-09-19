@@ -69,8 +69,11 @@ public class StreamConfiguration implements JsonSerializable {
     private final boolean discardNewPerSubject;
     private final Map<String, String> metadata;
     private final long firstSequence;
-    private final boolean allowMessageTtl;
     private final Duration subjectDeleteMarkerTtl;
+    private final boolean allowMessageTtl;
+    private final boolean allowMsgSchedules;
+    private final boolean allowMessageCounter;
+    private final boolean allowAtomicPublish;
 
     static StreamConfiguration instance(JsonValue v) {
         return new Builder()
@@ -106,8 +109,11 @@ public class StreamConfiguration implements JsonSerializable {
             .discardNewPerSubject(readBoolean(v, DISCARD_NEW_PER_SUBJECT))
             .metadata(readStringStringMap(v, METADATA))
             .firstSequence(readLong(v, FIRST_SEQ, 1))
-            .allowMessageTtl(readBoolean(v, ALLOW_MSG_TTL))
             .subjectDeleteMarkerTtl(readNanos(v, SUBJECT_DELETE_MARKER_TTL))
+            .allowMessageTtl(readBoolean(v, ALLOW_MSG_TTL))
+            .allowMessageSchedules(readBoolean(v, ALLOW_MSG_SCHEDULES))
+            .allowMessageCounter(readBoolean(v, ALLOW_MSG_COUNTER))
+            .allowAtomicPublish(readBoolean(v, ALLOW_ATOMIC))
             .build();
     }
 
@@ -145,8 +151,11 @@ public class StreamConfiguration implements JsonSerializable {
         this.discardNewPerSubject = b.discardNewPerSubject;
         this.metadata = b.metadata;
         this.firstSequence = b.firstSequence;
-        this.allowMessageTtl = b.allowMessageTtl;
         this.subjectDeleteMarkerTtl = b.subjectDeleteMarkerTtl;
+        this.allowMessageTtl = b.allowMessageTtl;
+        this.allowMsgSchedules = b.allowMsgSchedules;
+        this.allowMessageCounter = b.allowMessageCounter;
+        this.allowAtomicPublish = b.allowAtomicPublish;
     }
 
     /**
@@ -206,8 +215,11 @@ public class StreamConfiguration implements JsonSerializable {
         addFldWhenTrue(sb, DISCARD_NEW_PER_SUBJECT, discardNewPerSubject);
         addField(sb, METADATA, metadata);
         addFieldWhenGreaterThan(sb, FIRST_SEQ, firstSequence, 1);
-        addFldWhenTrue(sb, ALLOW_MSG_TTL, allowMessageTtl);
         addFieldAsNanos(sb, SUBJECT_DELETE_MARKER_TTL, subjectDeleteMarkerTtl);
+        addFldWhenTrue(sb, ALLOW_MSG_TTL, allowMessageTtl);
+        addFldWhenTrue(sb, ALLOW_MSG_SCHEDULES, allowMsgSchedules);
+        addFldWhenTrue(sb, ALLOW_MSG_COUNTER, allowMessageCounter);
+        addFldWhenTrue(sb, ALLOW_ATOMIC, allowAtomicPublish);
 
         return endJson(sb).toString();
     }
@@ -499,11 +511,45 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
+     * @deprecated Prefer getAllowMessageTtl
      * Whether Allow Message TTL is set
      * @return the flag
      */
+    @Deprecated
     public boolean isAllowMessageTtl() {
         return allowMessageTtl;
+    }
+
+    /**
+     * Whether Allow Message TTL is set
+     * @return the flag
+     */
+    public boolean getAllowMessageTtl() {
+        return allowMessageTtl;
+    }
+
+    /**
+     * Whether Allow Message Schedules is set
+     * @return the flag
+     */
+    public boolean getAllowMsgSchedules() {
+        return allowMsgSchedules;
+    }
+
+    /**
+     * Whether Allow Message Counter is set
+     * @return the flag
+     */
+    public boolean getAllowMessageCounter() {
+        return allowMessageCounter;
+    }
+
+    /**
+     * Whether Allow Atomic Publish is set
+     * @return the flag
+     */
+    public boolean getAllowAtomicPublish() {
+        return allowAtomicPublish;
     }
 
     /**
@@ -578,8 +624,11 @@ public class StreamConfiguration implements JsonSerializable {
         private boolean discardNewPerSubject = false;
         private Map<String, String> metadata;
         private long firstSequence = 1;
-        private boolean allowMessageTtl = false;
         private Duration subjectDeleteMarkerTtl;
+        private boolean allowMessageTtl = false;
+        private boolean allowMsgSchedules = false;
+        private boolean allowMessageCounter = false;
+        private boolean allowAtomicPublish = false;
 
         /**
          * Default Builder
@@ -626,8 +675,11 @@ public class StreamConfiguration implements JsonSerializable {
                     this.metadata = new HashMap<>(sc.metadata);
                 }
                 this.firstSequence = sc.firstSequence;
-                this.allowMessageTtl = sc.allowMessageTtl;
                 this.subjectDeleteMarkerTtl = sc.subjectDeleteMarkerTtl;
+                this.allowMessageTtl = sc.allowMessageTtl;
+                this.allowMsgSchedules = sc.allowMsgSchedules;
+                this.allowMessageCounter = sc.allowMessageCounter;
+                this.allowAtomicPublish = sc.allowAtomicPublish;
             }
         }
 
@@ -1083,25 +1135,6 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
-         * Set to allow per message TTL to true
-         * @return The Builder
-         */
-        public Builder allowMessageTtl() {
-            this.allowMessageTtl = true;
-            return this;
-        }
-
-        /**
-         * Set allow per message TTL flag
-         * @param allowMessageTtl the flag
-         * @return The Builder
-         */
-        public Builder allowMessageTtl(boolean allowMessageTtl) {
-            this.allowMessageTtl = allowMessageTtl;
-            return this;
-        }
-
-        /**
          * Set the subject delete marker TTL duration. Server accepts 1 second or more.
          * null has the effect of clearing the subject delete marker TTL
          * @param subjectDeleteMarkerTtl the TTL duration
@@ -1121,6 +1154,82 @@ public class StreamConfiguration implements JsonSerializable {
         public Builder subjectDeleteMarkerTtl(long subjectDeleteMarkerTtlMillis) {
             this.subjectDeleteMarkerTtl = subjectDeleteMarkerTtlMillis <= 0 ? null
                 : validateDurationGtOrEqSeconds(1, subjectDeleteMarkerTtlMillis, "Subject Delete Marker Ttl");
+            return this;
+        }
+
+        /**
+         * Set allow per message TTL to true
+         * @return The Builder
+         */
+        public Builder allowMessageTtl() {
+            this.allowMessageTtl = true;
+            return this;
+        }
+
+        /**
+         * Set the allow per message TTL flag
+         * @param allowMessageTtl the flag
+         * @return The Builder
+         */
+        public Builder allowMessageTtl(boolean allowMessageTtl) {
+            this.allowMessageTtl = allowMessageTtl;
+            return this;
+        }
+
+        /**
+         * Set to allow message Schedules to true
+         * @return The Builder
+         */
+        public Builder allowMessageSchedules() {
+            this.allowMsgSchedules = true;
+            return this;
+        }
+
+        /**
+         * Set allow message Schedules flag
+         * @param allowMessageSchedules the flag
+         * @return The Builder
+         */
+        public Builder allowMessageSchedules(boolean allowMessageSchedules) {
+            this.allowMsgSchedules = allowMessageSchedules;
+            return this;
+        }
+
+        /**
+         * Set allow message counter to true
+         * @return The Builder
+         */
+        public Builder allowMessageCounter() {
+            this.allowMessageCounter = true;
+            return this;
+        }
+
+        /**
+         * Set the allow message counter flag
+         * @param allowMessageCounter the flag
+         * @return The Builder
+         */
+        public Builder allowMessageCounter(boolean allowMessageCounter) {
+            this.allowMessageCounter = allowMessageCounter;
+            return this;
+        }
+
+        /**
+         * Set allow atomic publish to true
+         * @return The Builder
+         */
+        public Builder allowAtomicPublish() {
+            this.allowAtomicPublish = true;
+            return this;
+        }
+
+        /**
+         * Set allow atomic publish flag
+         * @param allowAtomicPublish the flag
+         * @return The Builder
+         */
+        public Builder allowAtomicPublish(boolean allowAtomicPublish) {
+            this.allowAtomicPublish = allowAtomicPublish;
             return this;
         }
 

@@ -15,6 +15,7 @@ package io.nats.client.api;
 
 import io.nats.client.support.*;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -92,7 +93,9 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
      * @return The Builder
      */
     public OrderedConsumerConfiguration filterSubject(String filterSubject) {
-        return filterSubjects(Collections.singletonList(filterSubject));
+        return emptyAsNull(filterSubject) == null
+            ? filterSubjects((List<String>)null)
+            : filterSubjects(Collections.singletonList(filterSubject));
     }
 
     /**
@@ -103,8 +106,8 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
      */
     public OrderedConsumerConfiguration filterSubjects(String... filterSubjects) {
         return filterSubjects == null
-            ? filterSubjects((List<String>)null)
-            : filterSubjects(Arrays.asList(filterSubjects)); // Arrays.asList would throw a NPE
+            ? filterSubjects((List<String>)null) // Arrays.asList would throws a NPE if given a null
+            : filterSubjects(Arrays.asList(filterSubjects));
     }
 
     /**
@@ -176,7 +179,7 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
      * @return The Builder
      */
     public OrderedConsumerConfiguration headersOnly(Boolean headersOnly) {
-        this.headersOnly = headersOnly != null && headersOnly ? true : null;
+        this.headersOnly = headersOnly;
         return this;
     }
 
@@ -190,36 +193,47 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
         return this;
     }
 
+    @Nullable
     public String getFilterSubject() {
-        return filterSubjects == null || filterSubjects.size() != 1 ? null : filterSubjects.get(0);
+        return filterSubjects.size() != 1 ? null : filterSubjects.get(0);
     }
 
+    @NonNull
     public List<String> getFilterSubjects() {
         return filterSubjects;
     }
 
     public boolean hasMultipleFilterSubjects() {
-        return filterSubjects != null && filterSubjects.size() > 1;
+        return filterSubjects.size() > 1;
     }
 
+    @Nullable
     public DeliverPolicy getDeliverPolicy() {
         return deliverPolicy;
     }
 
+    @Nullable
     public Long getStartSequence() {
         return startSequence;
     }
 
+    @Nullable
     public ZonedDateTime getStartTime() {
         return startTime;
     }
 
+    @Nullable
     public ReplayPolicy getReplayPolicy() {
         return replayPolicy;
     }
 
+    @Nullable
     public Boolean getHeadersOnly() {
         return headersOnly;
+    }
+
+    public boolean isHeadersOnly() {
+        return headersOnly != null && headersOnly;
     }
 
     public String getConsumerNamePrefix() {

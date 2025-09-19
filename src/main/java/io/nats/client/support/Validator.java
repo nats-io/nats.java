@@ -590,15 +590,15 @@ public abstract class Validator {
     static final char[] WILD_GT_DOT = {'*', '>', '.'};
     static final char[] WILD_GT_DOT_SLASHES = {'*', '>', '.', '\\', '/'};
 
-    private static boolean notPrintableOrHasWildGt(String s) {
+    public static boolean notPrintableOrHasWildGt(String s) {
         return notPrintableOrHasChars(s, WILD_GT);
     }
 
-    private static boolean notPrintableOrHasWildGtDot(String s) {
+    public static boolean notPrintableOrHasWildGtDot(String s) {
         return notPrintableOrHasChars(s, WILD_GT_DOT);
     }
 
-    private static boolean notPrintableOrHasWildGtDotSlashes(String s) {
+    public static boolean notPrintableOrHasWildGtDotSlashes(String s) {
         return notPrintableOrHasChars(s, WILD_GT_DOT_SLASHES);
     }
 
