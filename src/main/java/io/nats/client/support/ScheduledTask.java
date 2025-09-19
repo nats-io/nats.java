@@ -67,7 +67,7 @@ public class ScheduledTask implements Runnable {
         this.initialDelayNanos = unit.toNanos(initialDelay);
         this.periodNanos = unit.toNanos(period);
         scheduledFutureRef = new AtomicReference<>(
-            ses.scheduleAtFixedRate(this, initialDelay, period, unit));
+            ses.scheduleAtFixedRate(this, initialDelayNanos, periodNanos, TimeUnit.NANOSECONDS));
     }
 
     public long getInitialDelayNanos() {
