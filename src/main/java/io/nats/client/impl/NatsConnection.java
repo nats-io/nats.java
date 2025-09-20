@@ -590,6 +590,7 @@ class NatsConnection implements Connection {
             timeCheck(end, "starting reader");
             this.reader.start(this.dataPortFuture);
             timeCheck(end, "starting writer");
+            this.writer.setHandshakeMode(true);
             this.writer.start(this.dataPortFuture);
 
             timeCheck(end, "sending connect message");
@@ -601,6 +602,7 @@ class NatsConnection implements Connection {
             if (pongFuture != null) {
                 pongFuture.get(timeoutNanos, TimeUnit.NANOSECONDS);
             }
+            this.writer.setHandshakeMode(false);
 
             if (pingTask == null) {
                 timeCheck(end, "starting ping and cleanup timers");
