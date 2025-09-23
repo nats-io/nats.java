@@ -126,6 +126,11 @@ public class Options {
     public static final long MINIMUM_SOCKET_WRITE_TIMEOUT_GT_CONNECTION_TIMEOUT = 100;
 
     /**
+     * This is set to 100 nanos to ensure that the scheduled task can execute
+     */
+    public static final long MINIMUM_SOCKET_WRITE_TIMEOUT_NANOS = 100;
+
+    /**
      * @deprecated No longer enforcing a minimum
      */
     @Deprecated
@@ -1955,8 +1960,8 @@ public class Options {
                 socketReadTimeoutMillis = 0; // just for consistency. The connection compares to gt 0
             }
 
-            if (socketWriteTimeout != null && socketWriteTimeout.toMillis() < 1) {
-                socketWriteTimeout = null;
+            if (socketWriteTimeout != null && socketWriteTimeout.toNanos() < MINIMUM_SOCKET_WRITE_TIMEOUT_NANOS) {
+                throw new IllegalArgumentException("Socket Write Timeout cannot be less than " + MINIMUM_SOCKET_WRITE_TIMEOUT_NANOS + " nanoseconds.");
             }
 
             if (socketSoLinger < 0) {
