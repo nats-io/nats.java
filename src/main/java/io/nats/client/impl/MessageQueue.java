@@ -356,4 +356,15 @@ class MessageQueue {
             editLock.unlock();
         }
     }
+
+    public void clear() {
+        editLock.lock();
+        try {
+            this.queue.clear();
+            this.length.set(0);
+            this.sizeInBytes.set(0);
+        } finally {
+            editLock.unlock();
+        }
+    }
 }
