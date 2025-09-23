@@ -21,6 +21,7 @@ import io.nats.client.support.ScheduledTask;
 import org.jspecify.annotations.NonNull;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -30,7 +31,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class SocketDataPortWithWriteTimeout extends SocketDataPort {
 
     private long writeTimeoutNanos;
-    private long delayPeriodMillis;
+    private long delayPeriodNanos;
     private ScheduledTask writeWatchTask;
     private final AtomicLong writeMustBeDoneBy;
 
@@ -41,21 +42,16 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
     @Override
     public void afterConstruct(Options options) {
         super.afterConstruct(options);
-        long writeTimeoutMillis;
-        if (options.getSocketWriteTimeout() == null) {
-            writeTimeoutMillis = Options.DEFAULT_SOCKET_WRITE_TIMEOUT.toMillis();
-        }
-        else {
-            writeTimeoutMillis = options.getSocketWriteTimeout().toMillis();
-        }
-        delayPeriodMillis = writeTimeoutMillis * 51 / 100;
-        writeTimeoutNanos = writeTimeoutMillis * 1_000_000;
+        writeTimeoutNanos = options.getSocketWriteTimeout() == null
+            ? Options.DEFAULT_SOCKET_WRITE_TIMEOUT.toNanos()
+            : options.getSocketWriteTimeout().toNanos();
+        delayPeriodNanos = writeTimeoutNanos * 51 / 100;
     }
 
     @Override
     public void connect(@NonNull NatsConnection conn, @NonNull NatsUri nuri, long timeoutNanos) throws IOException {
         super.connect(conn, nuri, timeoutNanos);
-        writeWatchTask = new ScheduledTask(conn.getScheduledExecutor(), delayPeriodMillis,
+        writeWatchTask = new ScheduledTask(conn.getScheduledExecutor(), delayPeriodNanos, TimeUnit.NANOSECONDS,
             () -> {
                 //  if now is after when it was supposed to be done by
                 if (NatsSystemClock.nanoTime() > writeMustBeDoneBy.get()) {
