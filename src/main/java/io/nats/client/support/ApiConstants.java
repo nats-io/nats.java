@@ -163,10 +163,13 @@ public interface ApiConstants {
     String PAUSED            = "paused";
     String PAUSE_REMAINING   = "pause_remaining";
     String PAUSE_UNTIL       = "pause_until";
+    String PINNED_CLIENT_ID  = "pinned_client_id";
+    String PINNED_TS         = "pinned_ts";
     String PLACEMENT         = "placement";
     String PORT              = "port";
     String PRIORITY_GROUPS   = "priority_groups";
     String PRIORITY_POLICY   = "priority_policy";
+    String PRIORITY_TIMEOUT  = "priority_timeout";
     String PROCESSING_TIME   = "processing_time";
     String PROTO             = "proto";
     String PURGED            = "purged";
