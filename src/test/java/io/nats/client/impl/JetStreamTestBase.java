@@ -84,7 +84,7 @@ public class JetStreamTestBase extends TestBase {
 
     public NatsMessage getTestMessage(String replyTo, String sid) {
         return new IncomingMessageFactory(sid, "subj", replyTo, 0, false).getMessage();
-    } 
+    }
 
     // ----------------------------------------------------------------------------------------------------
     // Management
@@ -349,7 +349,7 @@ public class JetStreamTestBase extends TestBase {
 
     public static void assertSubscription(JetStreamSubscription sub, String stream, String consumer, String deliver, boolean isPullMode) {
         NatsJetStreamSubscription njssub = (NatsJetStreamSubscription)sub;
-        assertEquals(stream, njssub.getStream());
+        assertEquals(stream, njssub.getStreamName());
         if (consumer == null) {
             assertNotNull(njssub.getConsumerName());
         }

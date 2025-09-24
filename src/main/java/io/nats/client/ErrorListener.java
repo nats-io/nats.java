@@ -28,7 +28,7 @@ import io.nats.client.support.Status;
  * <dt>Fast Producers</dt>
  * <dd>One of the connections producers is too fast, and is discarding messages</dd>
  * </dl>
- * <p>All of these problems are reported to the application code using the ErrorListener. The 
+ * <p>All of these problems are reported to the application code using the ErrorListener. The
  * listener is configured in the {@link Options Options} at creation time.
  */
 public interface ErrorListener {
@@ -49,7 +49,7 @@ public interface ErrorListener {
      * during Dispatcher callbacks, IOExceptions from the underlying socket, etc..
      * The library will try to handle these, via reconnect or catching them, but they are
      * forwarded here in case the application code needs them for debugging purposes.
-     * 
+     *
      * @param conn The connection associated with the error
      * @param exp The exception that has occurred, and was handled by the library
      */
@@ -59,13 +59,13 @@ public interface ErrorListener {
      * Called by the connection when a &quot;slow&quot; consumer is detected. This call is only made once
      * until the consumer stops being slow. At which point it will be called again if the consumer starts
      * being slow again.
-     * 
-     * <p>See {@link Consumer#setPendingLimits(long, long) Consumer.setPendingLimits} 
+     *
+     * <p>See {@link Consumer#setPendingLimits(long, long) Consumer.setPendingLimits}
      * for information on how to configure when this method is fired.
-     * 
+     *
      * <p> Slow consumers will result in dropped messages each consumer provides a method
      * for retrieving the count of dropped messages, see {@link Consumer#getDroppedCount() Consumer.getDroppedCount}.
-     * 
+     *
      * @param conn The connection associated with the error
      * @param consumer The consumer that is being marked slow
      */
