@@ -65,6 +65,11 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         return consumerName;
     }
 
+    @Override
+    public String getStreamName() {
+        return getStream();
+    }
+
     String getStream() {
         return stream;
     }
