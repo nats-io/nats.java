@@ -17,6 +17,7 @@ import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerInfo;
 import io.nats.client.api.OrderedConsumerConfiguration;
+import io.nats.client.api.PriorityPolicy;
 import io.nats.client.support.Validator;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -144,6 +145,14 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         }
     }
 
+    private void checkNotPinned(String label) throws IOException {
+        ConsumerInfo ci = cachedConsumerInfo.get();
+        if (ci != null) {
+            if (ci.getConsumerConfiguration().getPriorityPolicy() == PriorityPolicy.PinnedClient) {
+                throw new IOException("Pinned not allowed with " + label);
+            }
+        }
+    }
     private NatsMessageConsumerBase trackConsume(NatsMessageConsumerBase con) {
         lastConsumer.set(con);
         return con;
@@ -280,6 +289,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         try {
             stateLock.lock();
             checkState();
+            checkNotPinned("Fetch");
             return (FetchConsumer)trackConsume(new NatsFetchConsumer(this, cachedConsumerInfo.get(), fetchConsumeOptions));
         }
         finally {
@@ -362,5 +372,18 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         finally {
             stateLock.unlock();
         }
+    }
+
+    @Override
+    public boolean unpin(String group) throws IOException, JetStreamApiException {
+        String name = consumerName.get();
+        if (name == null) {
+            ConsumerInfo ci = cachedConsumerInfo.get();
+            if (ci == null) {
+                ci = getConsumerInfo();
+            }
+            name = ci.getName();
+        }
+        return streamCtx.jsm.unpinConsumer(streamCtx.streamName, name, group);
     }
 }

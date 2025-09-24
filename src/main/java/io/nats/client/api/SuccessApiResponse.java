@@ -26,6 +26,16 @@ public class SuccessApiResponse extends ApiResponse<SuccessApiResponse> {
         success = readBoolean(jv, SUCCESS);
     }
 
+    public SuccessApiResponse(Message msg, boolean successWhenNotError) {
+        super(msg);
+        if (successWhenNotError) {
+            success = !hasError();
+        }
+        else {
+            success = readBoolean(jv, SUCCESS);
+        }
+    }
+
     public boolean getSuccess() {
         return success;
     }

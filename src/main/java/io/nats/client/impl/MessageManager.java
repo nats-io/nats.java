@@ -27,6 +27,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static io.nats.client.support.NatsJetStreamConstants.NATS_PIN_ID_HDR;
+
 abstract class MessageManager {
     public enum ManageResult {MESSAGE, STATUS_HANDLED, STATUS_TERMINUS, STATUS_ERROR}
 
@@ -42,6 +44,7 @@ abstract class MessageManager {
     protected long lastStreamSeq;
     protected long lastConsumerSeq;
     protected final AtomicLong lastMsgReceivedNanoTime;
+    protected String currentPinId;
 
     // heartbeat stuff
     protected final AtomicBoolean hb;
@@ -96,10 +99,17 @@ abstract class MessageManager {
             NatsJetStreamMetaData meta = msg.metaData();
             lastStreamSeq = meta.streamSequence();
             lastConsumerSeq++;
+            if (msg.hasHeaders()) {
+                currentPinId = msg.getHeaders().getFirst(NATS_PIN_ID_HDR);
+            }
         }
         finally {
             stateChangeLock.unlock();
         }
+    }
+
+    protected void clearPinId() {
+        currentPinId = null;
     }
 
     protected void handleHeartbeatError() {

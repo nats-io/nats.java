@@ -182,4 +182,13 @@ public interface BaseConsumerContext {
      */
     @NonNull
     MessageConsumer consume(@NonNull ConsumeOptions consumeOptions, @Nullable Dispatcher dispatcher, @NonNull MessageHandler handler) throws IOException, JetStreamApiException;
+
+    /**
+     * Unpins this consumer
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @return true if the delete succeeded
+     */
+    boolean unpin(String group) throws IOException, JetStreamApiException;
 }

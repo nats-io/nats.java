@@ -28,12 +28,16 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.api.ConsumerConfiguration.builder;
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.NatsJetStreamConstants.NATS_PIN_ID_HDR;
 import static io.nats.client.support.Status.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -1301,5 +1305,190 @@ public class JetStreamPullTests extends JetStreamTestBase {
             m = sub.nextMessage(100);
         }
         assertEquals(expected, count);
+    }
+
+    @Test
+    public void testPrioritized() throws Exception {
+        ListenerForTesting l = new ListenerForTesting();
+        Options.Builder b = Options.builder().errorListener(l);
+        jsServer.run(b, TestBase::atLeast2_12, nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
+            JetStream js = nc.jetStream();
+
+            String consumer = name();
+            String group = variant();
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                .filterSubject(tsc.subject())
+                .name(consumer)
+                .priorityGroups(group)
+                .priorityPolicy(PriorityPolicy.Prioritized)
+                .build();
+
+            StreamContext streamContext = nc.getStreamContext(tsc.stream);
+            ConsumerContext consumerContext1 = streamContext.createOrUpdateConsumer(cc);
+            ConsumerContext consumerContext2 = streamContext.getConsumerContext(consumer);
+
+            AtomicInteger count1 = new AtomicInteger();
+            CountDownLatch latch1 = new CountDownLatch(20);
+            MessageHandler handler1 = msg -> {
+                msg.ack();
+                count1.incrementAndGet();
+                latch1.countDown();
+            };
+
+            AtomicInteger count2 = new AtomicInteger();
+            MessageHandler handler2 = msg -> {
+                msg.ack();
+                count2.incrementAndGet();
+            };
+
+            ConsumeOptions co1 = ConsumeOptions.builder()
+                .batchSize(10)
+                .group(group)
+                .priority(1)
+                .build();
+            ConsumeOptions co2 = ConsumeOptions.builder()
+                .batchSize(10)
+                .group(group)
+                .priority(2)
+                .build();
+
+            MessageConsumer mc1 = consumerContext1.consume(co1, handler1);
+            MessageConsumer mc2 = consumerContext2.consume(co2, handler2);
+
+            Thread t = new Thread(() -> {
+                int count = 0;
+                while (++count <= 100) {
+                    try {
+                        js.publish(tsc.subject(), ("x" + count).getBytes());
+                        Thread.sleep(20);
+                    }
+                    catch (Exception e) {
+                        fail(e);
+                        return;
+                    }
+                }
+            });
+            t.start();
+
+            if (!latch1.await(5, TimeUnit.SECONDS)) {
+                fail("Didn't get messages");
+            }
+            mc1.close();
+            t.join();
+            mc2.close();
+            assertTrue(count1.get() >= 20);
+            assertTrue(count2.get() >= 20);
+        });
+    }
+
+    @Test
+    public void testPinnedClient() throws Exception {
+        ListenerForTesting l = new ListenerForTesting();
+        Options.Builder b = Options.builder().errorListener(l);
+        jsServer.run(b, TestBase::atLeast2_12, nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
+            JetStream js = nc.jetStream();
+
+            String consumer = name();
+            String group = variant();
+
+            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+                .filterSubject(tsc.subject())
+                .name(consumer)
+                .priorityGroups(group)
+                .priorityPolicy(PriorityPolicy.PinnedClient)
+                .build();
+
+            StreamContext streamContext = nc.getStreamContext(tsc.stream);
+            ConsumerContext consumerContext1 = streamContext.createOrUpdateConsumer(cc);
+            ConsumerContext consumerContext2 = streamContext.getConsumerContext(consumer);
+
+            //noinspection resource
+            assertThrows(IOException.class, () -> consumerContext1.fetchMessages(10));
+
+            AtomicInteger count1 = new AtomicInteger();
+            CountDownLatch latch1 = new CountDownLatch(20);
+            AtomicReference<String> pinId1 = new AtomicReference<>();
+            MessageHandler handler1 = msg -> {
+                msg.ack();
+                assertNotNull(msg.getHeaders());
+                String natsPinId = msg.getHeaders().getFirst(NATS_PIN_ID_HDR);
+                assertNotNull(natsPinId);
+                String pid = pinId1.get();
+                if (pid == null) {
+                    pinId1.set(natsPinId);
+                }
+                else {
+                    assertEquals(pid, natsPinId);
+                }
+                count1.incrementAndGet();
+                latch1.countDown();
+            };
+
+            AtomicInteger count2 = new AtomicInteger();
+            AtomicReference<String> pinId2 = new AtomicReference<>();
+            MessageHandler handler2 = msg -> {
+                msg.ack();
+                assertNotNull(msg.getHeaders());
+                String natsPinId = msg.getHeaders().getFirst(NATS_PIN_ID_HDR);
+                assertNotNull(natsPinId);
+                String pid = pinId2.get();
+                if (pid == null) {
+                    pinId2.set(natsPinId);
+                }
+                else {
+                    assertEquals(pid, natsPinId);
+                }
+                count2.incrementAndGet();
+            };
+
+            ConsumeOptions co = ConsumeOptions.builder()
+                .batchSize(10)
+                .group(group)
+                .build();
+
+            MessageConsumer mc1 = consumerContext1.consume(co, handler1);
+
+            Thread t = new Thread(() -> {
+                int count = 0;
+                while (++count <= 100) {
+                    try {
+                        js.publish(tsc.subject(), ("x" + count).getBytes());
+                        Thread.sleep(20);
+                    }
+                    catch (Exception e) {
+                        fail(e);
+                        return;
+                    }
+                }
+            });
+            t.start();
+
+            MessageConsumer mc2 = consumerContext2.consume(co, handler2);
+
+            if (!latch1.await(5, TimeUnit.SECONDS)) {
+                fail("Didn't get messages");
+            }
+            assertTrue(consumerContext1.unpin(group));
+
+            t.join();
+            mc1.close();
+            mc2.close();
+            assertTrue(count1.get() >= 20);
+            assertTrue(count2.get() >= 20);
+            assertNotEquals(pinId1.get(), pinId2.get());
+
+            // while I'm here, test variations of unpin validation
+            assertThrows(JetStreamApiException.class, () -> consumerContext1.unpin("not-a-group"));
+            assertThrows(JetStreamApiException.class, () -> jsm.unpinConsumer(tsc.stream, tsc.subject(), "not-a-group"));
+
+            assertThrows(IllegalArgumentException.class, () -> jsm.unpinConsumer(null, null, null));
+            assertThrows(IllegalArgumentException.class, () -> jsm.unpinConsumer("sn", null, null));
+            assertThrows(IllegalArgumentException.class, () -> jsm.unpinConsumer("sn", "cn", null));
+        });
     }
 }

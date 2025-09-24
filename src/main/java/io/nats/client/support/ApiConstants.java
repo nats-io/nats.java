@@ -167,6 +167,7 @@ public interface ApiConstants {
     String PINNED_TS         = "pinned_ts";
     String PLACEMENT         = "placement";
     String PORT              = "port";
+    String PRIORITY          = "priority";
     String PRIORITY_GROUPS   = "priority_groups";
     String PRIORITY_POLICY   = "priority_policy";
     String PRIORITY_TIMEOUT  = "priority_timeout";

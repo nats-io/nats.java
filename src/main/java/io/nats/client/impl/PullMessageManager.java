@@ -179,6 +179,10 @@ class PullMessageManager extends MessageManager {
                     return STATUS_TERMINUS;
                 }
                 break;
+
+            case PIN_ERROR_CODE:
+                clearPinId();
+                return STATUS_HANDLED;
         }
 
         // All unknown 409s are errors, since that basically means the client is not aware of them.
