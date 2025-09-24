@@ -13,11 +13,7 @@
 
 package io.nats.client;
 
-import java.io.IOException;
-
-import io.nats.client.api.ConsumerInfo;
 import io.nats.client.api.ServerInfo;
-import io.nats.client.impl.NatsJetStreamSubscription;
 import io.nats.client.support.Status;
 
 /**
