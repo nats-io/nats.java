@@ -35,7 +35,7 @@ public interface JetStreamSubscription extends Subscription {
      * Gets the stream name associated with the subscription.
      * @return the stream name
      */
-    String getStreamName();
+    default String getStreamName() { return null; }
 
     /**
      * Initiate pull with the specified batch size.

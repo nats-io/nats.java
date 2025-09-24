@@ -167,7 +167,6 @@ public interface ErrorListener {
             sb.append(", Subscription: ").append(sub.hashCode());
             if (sub instanceof JetStreamSubscription) {
                 JetStreamSubscription jssub = (JetStreamSubscription)sub;
-                sb.append(", Stream Name: ").append(jssub.getStreamName());
                 sb.append(", Consumer Name: ").append(jssub.getConsumerName());
             }
         }
