@@ -72,5 +72,17 @@
         "lag": 4
       }
     ]
-  }
+  },
+  "priority_groups": [
+    {
+      "group": "group1",
+      "pinned_client_id": "pci1",
+      "pinned_ts": "2025-09-24T16:01:01.163377Z"
+    },
+    {
+      "group": "group2",
+      "pinned_client_id": "pci2",
+      "pinned_ts": "2025-09-24T16:02:02.163377Z"
+    }
+  ]
 }
