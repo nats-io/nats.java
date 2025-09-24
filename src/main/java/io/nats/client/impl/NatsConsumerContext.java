@@ -153,6 +153,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             }
         }
     }
+
     private NatsMessageConsumerBase trackConsume(NatsMessageConsumerBase con) {
         lastConsumer.set(con);
         return con;
@@ -221,6 +222,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         try {
             stateLock.lock();
             checkState();
+            checkNotPinned("Next");
 
             try {
                 long inactiveThreshold = maxWaitMillis * 110 / 100; // 10% longer than the wait
