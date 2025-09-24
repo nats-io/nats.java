@@ -32,6 +32,12 @@ public interface JetStreamSubscription extends Subscription {
     String getConsumerName();
 
     /**
+     * Gets the stream name associated with the subscription.
+     * @return the stream name
+     */
+    default String getStreamName() { return null; }
+
+    /**
      * Initiate pull with the specified batch size.
      * ! Pull subscriptions only. Push subscription will throw IllegalStateException
      * ! Primitive API for ADVANCED use only, officially not supported. Prefer fetch, iterate or reader.
