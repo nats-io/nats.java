@@ -67,10 +67,6 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
 
     @Override
     public String getStreamName() {
-        return getStream();
-    }
-
-    String getStream() {
         return stream;
     }
 
