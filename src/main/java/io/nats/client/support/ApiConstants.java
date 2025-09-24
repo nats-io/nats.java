@@ -20,7 +20,10 @@ public interface ApiConstants {
     String ACK_WAIT          = "ack_wait";
     String ACTION            = "action";
     String ACTIVE            = "active";
+    String ALLOW_ATOMIC      = "allow_atomic";
     String ALLOW_DIRECT      = "allow_direct";
+    String ALLOW_MSG_SCHEDULES = "allow_msg_schedules";
+    String ALLOW_MSG_COUNTER = "allow_msg_counter";
     String ALLOW_MSG_TTL     = "allow_msg_ttl";
     String ALLOW_ROLLUP_HDRS = "allow_rollup_hdrs";
     String ALTERNATES        = "alternates";
@@ -44,6 +47,7 @@ public interface ApiConstants {
     String CONSUMER_SEQ      = "consumer_seq";
     String CONSUMER_LIMITS   = "consumer_limits";
     String CONSUMERS         = "consumers";
+    String COUNT             = "count";
     String CREATED           = "created";
     String CURRENT           = "current";
     String DATA              = "data";
@@ -99,6 +103,7 @@ public interface ApiConstants {
     String LAST_SEQ          = "last_seq";
     String LAST_TS           = "last_ts";
     String LEADER            = "leader";
+    String LEADER_SINCE      = "leader_since";
     String LEVEL             = "level";
     String LIMIT             = "limit";
     String LIMITS            = "limits";
@@ -167,6 +172,7 @@ public interface ApiConstants {
     String PURGED            = "purged";
     String PUSH_BOUND        = "push_bound";
     String QUEUE_GROUP       = "queue_group";
+    String RAFT_GROUP        = "raft_group";
     String RAISE_STATUS_WARNINGS = "raise_status_warnings";
     String RATE_LIMIT_BPS    = "rate_limit_bps";
     String REPLAY_POLICY     = "replay_policy";
@@ -205,6 +211,7 @@ public interface ApiConstants {
     String SUBJECTS          = "subjects";
     String SUBJECTS_FILTER   = "subjects_filter";
     String SUCCESS           = "success";
+    String SYSTEM_ACCOUNT    = "system_account";
     String TAGS              = "tags";
     String TEMPLATE_OWNER    = "template_owner";
     String THRESHOLD_PERCENT = "threshold_percent";
@@ -215,8 +222,10 @@ public interface ApiConstants {
     String TLS_REQUIRED      = TLS;
     String TLS_AVAILABLE     = "tls_available";
     String TOTAL             = "total";
+    String TRAFFIC_ACCOUNT    = "traffic_account";
     String TYPE              = "type";
     String UP_TO_SEQ         = "up_to_seq";
     String UP_TO_TIME        = "up_to_time";
+    String VAL               = "val";
     String VERSION           = "version";
 }
