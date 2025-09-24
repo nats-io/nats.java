@@ -27,8 +27,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static io.nats.client.support.NatsJetStreamConstants.NATS_PIN_ID_HDR;
-
 abstract class MessageManager {
     public enum ManageResult {MESSAGE, STATUS_HANDLED, STATUS_TERMINUS, STATUS_ERROR}
 
@@ -44,7 +42,6 @@ abstract class MessageManager {
     protected long lastStreamSeq;
     protected long lastConsumerSeq;
     protected final AtomicLong lastMsgReceivedNanoTime;
-    protected String currentPinId;
 
     // heartbeat stuff
     protected final AtomicBoolean hb;
@@ -91,6 +88,7 @@ abstract class MessageManager {
     protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
         return true;
     }
+
     abstract protected ManageResult manage(Message msg);
 
     protected void trackJsMessage(Message msg) {
@@ -99,18 +97,14 @@ abstract class MessageManager {
             NatsJetStreamMetaData meta = msg.metaData();
             lastStreamSeq = meta.streamSequence();
             lastConsumerSeq++;
-            if (msg.hasHeaders()) {
-                currentPinId = msg.getHeaders().getFirst(NATS_PIN_ID_HDR);
-            }
+            subTrackJsMessage(msg); // for subclasses so they don't have to acquire the lock
         }
         finally {
             stateChangeLock.unlock();
         }
     }
 
-    protected void clearPinId() {
-        currentPinId = null;
-    }
+    protected void subTrackJsMessage(Message msg) {}
 
     protected void handleHeartbeatError() {
         conn.executeCallback((c, el) -> el.heartbeatAlarm(c, sub, lastStreamSeq, lastConsumerSeq));

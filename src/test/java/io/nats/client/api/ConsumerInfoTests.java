@@ -96,6 +96,8 @@ public class ConsumerInfoTests {
         assertEquals("pci2", pgs.getPinnedClientId());
         assertEquals(DateTimeUtils.parseDateTime("2025-09-24T16:02:02.163377Z"), pgs.getPinnedTime());
 
+        assertNotNull(pgs.toString()); // COVERAGE
+
         ci = new ConsumerInfo(JsonValue.EMPTY_MAP);
         assertTrue(ci.hasError());
         assertEquals("", ci.getStreamName());

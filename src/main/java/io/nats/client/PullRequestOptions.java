@@ -59,7 +59,7 @@ public class PullRequestOptions implements JsonSerializable {
         JsonUtils.addFieldAsNanos(sb, EXPIRES, expiresIn);
         JsonUtils.addFieldAsNanos(sb, IDLE_HEARTBEAT, idleHeartbeat);
         JsonUtils.addField(sb, GROUP, group);
-        JsonUtils.addField(sb, PRIORITY, priority);
+        JsonUtils.addFieldWhenGtZero(sb, PRIORITY, priority);
         JsonUtils.addField(sb, ID, getPinId());
         JsonUtils.addField(sb, MIN_PENDING, minPending);
         JsonUtils.addField(sb, MIN_ACK_PENDING, minAckPending);

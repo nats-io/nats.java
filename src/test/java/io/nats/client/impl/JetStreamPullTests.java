@@ -1360,7 +1360,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
             Thread t = new Thread(() -> {
                 int count = 0;
-                while (++count <= 100) {
+                while (++count <= 200) {
                     try {
                         js.publish(tsc.subject(), ("x" + count).getBytes());
                         Thread.sleep(20);
