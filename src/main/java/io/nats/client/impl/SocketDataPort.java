@@ -48,6 +48,8 @@ public class SocketDataPort implements DataPort {
     protected Socket socket;
     protected boolean isSecure = false;
     protected int soLinger;
+    protected int receiveBufferSize;
+    protected int sendBufferSize;
 
     protected InputStream in;
     protected OutputStream out;
@@ -55,6 +57,8 @@ public class SocketDataPort implements DataPort {
     @Override
     public void afterConstruct(Options options) {
         soLinger = options.getSocketSoLinger();
+        receiveBufferSize = options.getReceiveBufferSize();
+        sendBufferSize = options.getSendBufferSize();
     }
 
     @Override
@@ -82,12 +86,20 @@ public class SocketDataPort implements DataPort {
                 socket = createSocket(options);
                 socket.connect(new InetSocketAddress(host, port), (int) timeout);
             }
-
-            if (soLinger > -1) {
-                socket.setSoLinger(true, soLinger);
-            }
             if (options.getSocketReadTimeoutMillis() > 0) {
                 socket.setSoTimeout(options.getSocketReadTimeoutMillis());
+            }
+
+            if (soLinger > 0) {
+                socket.setSoLinger(true, soLinger);
+            }
+
+            if (receiveBufferSize > 0) {
+                socket.setReceiveBufferSize(receiveBufferSize);
+            }
+
+            if (sendBufferSize > 0) {
+                socket.setSendBufferSize(sendBufferSize);
             }
 
             if (isWebsocketScheme(nuri.getScheme())) {
