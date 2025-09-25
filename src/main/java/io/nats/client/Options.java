@@ -305,13 +305,13 @@ public class Options {
     /**
      * Property used to configure a builder from a Properties object. {@value}, see
      * {@link Builder#receiveBufferSize(int) receiveBufferSize}.
-     * MAY OVERRIDE THE UNDERLYING JAVA SOCKET IMPLEMENTATION - USE AT YOUR OWN RISK
+     * OVERRIDES THE UNDERLYING JAVA SOCKET IMPLEMENTATION - USE AT YOUR OWN RISK
      */
     public static final String PROP_SOCKET_RECEIVE_BUFFER_SIZE = PFX + "socket.receive.buffer.size";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see
      * {@link Builder#sendBufferSize(int) sendBufferSize}.
-     * MAY OVERRIDE THE UNDERLYING JAVA SOCKET IMPLEMENTATION - USE AT YOUR OWN RISK
+     * OVERRIDES THE UNDERLYING JAVA SOCKET IMPLEMENTATION - USE AT YOUR OWN RISK
      */
     public static final String PROP_SOCKET_SEND_BUFFER_SIZE = PFX + "socket.send.buffer.size";
     /**
@@ -1445,7 +1445,7 @@ public class Options {
         /**
          * Set the value of the socket SO_RCVBUF property in bytes
          * The SO_RCVBUF option is used by the platform's networking code as a hint for the size to set the underlying network I/O buffers.
-         * MAY OVERRIDE THE UNDERLYING JAVA SOCKET IMPLEMENTATION - USE AT YOUR OWN RISK
+         * OVERRIDES THE UNDERLYING JAVA SOCKET IMPLEMENTATION - USE AT YOUR OWN RISK
          * @param receiveBufferSize the size in bytes
          * @return the Builder for chaining
          */
@@ -1457,7 +1457,7 @@ public class Options {
         /**
          * Set the value of the socket SO_SNDBUF property in bytes
          * The SO_SNDBUF option is used by the platform's networking code as a hint for the size to set the underlying network I/O buffers.
-         * MAY OVERRIDE THE UNDERLYING JAVA SOCKET IMPLEMENTATION - USE AT YOUR OWN RISK
+         * OVERRIDES THE UNDERLYING JAVA SOCKET IMPLEMENTATION - USE AT YOUR OWN RISK
          * @param sendBufferSize the size in bytes
          * @return the Builder for chaining
          */
