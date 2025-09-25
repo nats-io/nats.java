@@ -17,7 +17,6 @@ import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.ConsumerInfo;
 import io.nats.client.api.OrderedConsumerConfiguration;
-import io.nats.client.api.PriorityPolicy;
 import io.nats.client.support.Validator;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -145,14 +144,14 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         }
     }
 
-    private void checkNotPinned(String label) throws IOException {
-        ConsumerInfo ci = cachedConsumerInfo.get();
-        if (ci != null) {
-            if (ci.getConsumerConfiguration().getPriorityPolicy() == PriorityPolicy.PinnedClient) {
-                throw new IOException("Pinned not allowed with " + label);
-            }
-        }
-    }
+//    private void checkNotPinned(String label) throws IOException {
+//        ConsumerInfo ci = cachedConsumerInfo.get();
+//        if (ci != null) {
+//            if (ci.getConsumerConfiguration().getPriorityPolicy() == PriorityPolicy.PinnedClient) {
+//                throw new IOException("Pinned not allowed with " + label);
+//            }
+//        }
+//    }
 
     private NatsMessageConsumerBase trackConsume(NatsMessageConsumerBase con) {
         lastConsumer.set(con);
@@ -222,7 +221,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         try {
             stateLock.lock();
             checkState();
-            checkNotPinned("Next");
+//            checkNotPinned("Next");
 
             try {
                 long inactiveThreshold = maxWaitMillis * 110 / 100; // 10% longer than the wait
@@ -291,7 +290,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         try {
             stateLock.lock();
             checkState();
-            checkNotPinned("Fetch");
+//            checkNotPinned("Fetch");
             return (FetchConsumer)trackConsume(new NatsFetchConsumer(this, cachedConsumerInfo.get(), fetchConsumeOptions));
         }
         finally {

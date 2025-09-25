@@ -19,7 +19,8 @@ import io.nats.client.SubscribeOptions;
 import io.nats.client.support.Status;
 
 import static io.nats.client.impl.MessageManager.ManageResult.*;
-import static io.nats.client.support.NatsJetStreamConstants.*;
+import static io.nats.client.support.NatsJetStreamConstants.NATS_PENDING_BYTES;
+import static io.nats.client.support.NatsJetStreamConstants.NATS_PENDING_MESSAGES;
 import static io.nats.client.support.Status.*;
 
 class PullMessageManager extends MessageManager {
@@ -29,7 +30,7 @@ class PullMessageManager extends MessageManager {
     protected boolean trackingBytes;
     protected boolean raiseStatusWarnings;
     protected PullManagerObserver pullManagerObserver;
-    protected String currentPinId;
+//    protected String currentPinId;
 
     protected PullMessageManager(NatsConnection conn, SubscribeOptions so, boolean syncMode) {
         super(conn, so, syncMode);
@@ -150,12 +151,12 @@ class PullMessageManager extends MessageManager {
         return manageStatus(msg);
     }
 
-    @Override
-    protected void subTrackJsMessage(Message msg) {
-        if (msg.hasHeaders()) {
-            currentPinId = msg.getHeaders().getFirst(NATS_PIN_ID_HDR);
-        }
-    }
+//    @Override
+//    protected void subTrackJsMessage(Message msg) {
+//        if (msg.hasHeaders()) {
+//            currentPinId = msg.getHeaders().getFirst(NATS_PIN_ID_HDR);
+//        }
+//    }
 
     protected ManageResult manageStatus(Message msg) {
         Status status = msg.getStatus();
@@ -187,9 +188,9 @@ class PullMessageManager extends MessageManager {
                 }
                 break;
 
-            case PIN_ERROR_CODE:
-                currentPinId = null;
-                return STATUS_TERMINUS;
+//            case PIN_ERROR_CODE:
+//                currentPinId = null;
+//                return STATUS_TERMINUS;
         }
 
         // All unknown 409s are errors, since that basically means the client is not aware of them.

@@ -26,12 +26,9 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -39,7 +36,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.api.ConsumerConfiguration.builder;
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.NatsJetStreamConstants.NATS_PIN_ID_HDR;
 import static io.nats.client.support.Status.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -1412,132 +1408,132 @@ public class JetStreamPullTests extends JetStreamTestBase {
         });
     }
 
-    @Test
-    public void testPinnedClient() throws Exception {
-        // have 3 consumers in the same group all PriorityPolicy.PinnedClient
-        // start consuming, tracking pin ids and counts
-        // unpin 10 times and make sure that new pins are made
-        ListenerForTesting l = new ListenerForTesting();
-        Options.Builder b = Options.builder().errorListener(l);
-        jsServer.run(b, TestBase::atLeast2_12, nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
-            JetStream js = nc.jetStream();
-
-            String consumer = name();
-            String group = variant();
-
-            ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                .filterSubject(tsc.subject())
-                .name(consumer)
-                .priorityGroups(group)
-                .priorityPolicy(PriorityPolicy.PinnedClient)
-                .build();
-
-            StreamContext streamContext = nc.getStreamContext(tsc.stream);
-            ConsumerContext consumerContext1 = streamContext.createOrUpdateConsumer(cc);
-            ConsumerContext consumerContext2 = streamContext.getConsumerContext(consumer);
-            ConsumerContext consumerContext3 = streamContext.getConsumerContext(consumer);
-
-            //noinspection resource
-            assertThrows(IOException.class, () -> consumerContext1.fetchMessages(10));
-
-            Set<String> pinIds = new HashSet<>();
-            AtomicInteger count1 = new AtomicInteger();
-            AtomicInteger count2 = new AtomicInteger();
-            AtomicInteger count3 = new AtomicInteger();
-            MessageHandler handler1 = msg -> {
-                msg.ack();
-                assertNotNull(msg.getHeaders());
-                String natsPinId = msg.getHeaders().getFirst(NATS_PIN_ID_HDR);
-                assertNotNull(natsPinId);
-                pinIds.add(natsPinId);
-                count1.incrementAndGet();
-            };
-            MessageHandler handler2 = msg -> {
-                msg.ack();
-                assertNotNull(msg.getHeaders());
-                String natsPinId = msg.getHeaders().getFirst(NATS_PIN_ID_HDR);
-                assertNotNull(natsPinId);
-                pinIds.add(natsPinId);
-                count2.incrementAndGet();
-            };
-            MessageHandler handler3 = msg -> {
-                msg.ack();
-                assertNotNull(msg.getHeaders());
-                String natsPinId = msg.getHeaders().getFirst(NATS_PIN_ID_HDR);
-                assertNotNull(natsPinId);
-                pinIds.add(natsPinId);
-                count3.incrementAndGet();
-            };
-
-            ConsumeOptions co = ConsumeOptions.builder()
-                .batchSize(10)
-                .expiresIn(1000)
-                .group(group)
-                .build();
-
-            MessageConsumer mc1 = consumerContext1.consume(co, handler1);
-            MessageConsumer mc2 = consumerContext2.consume(co, handler2);
-            MessageConsumer mc3 = consumerContext3.consume(co, handler3);
-
-            AtomicBoolean pub = new  AtomicBoolean(true);
-            Thread t = new Thread(() -> {
-                int count = 0;
-                while (pub.get()) {
-                    ++count;
-                    try {
-                        js.publish(tsc.subject(), ("x" + count).getBytes());
-                        sleep(20);
-                    }
-                    catch (Exception e) {
-                        fail(e);
-                        return;
-                    }
-                }
-            });
-            t.start();
-
-            int unpins = 0;
-            while (unpins++ < 10) {
-                sleep(650);
-                switch (ThreadLocalRandom.current().nextInt(0, 4)) {
-                    case 0:
-                        assertTrue(consumerContext1.unpin(group));
-                        break;
-                    case 1:
-                        assertTrue(consumerContext2.unpin(group));
-                        break;
-                    case 2:
-                        assertTrue(consumerContext3.unpin(group));
-                        break;
-                    case 3:
-                        assertTrue(jsm.unpinConsumer(tsc.stream, consumer, group));
-                        break;
-                }
-                assertTrue(consumerContext1.unpin(group));
-            }
-            sleep(650);
-
-            pub.set(false);
-            t.join();
-            mc1.close();
-            mc2.close();
-            mc3.close();
-
-            assertTrue(pinIds.size() > 3);
-            int c1 = count1.get();
-            int c2 = count2.get();
-            int c3 = count3.get();
-            if (c1 > 0) {
-                assertTrue(c2 > 0 || c3 > 0);
-            }
-            else if (c2 > 0) {
-                assertTrue(c3 > 0);
-            }
-            else {
-                fail("At least 2 consumers should have gotten messages");
-            }
-        });
-    }
+//    @Test
+//    public void testPinnedClient() throws Exception {
+//        // have 3 consumers in the same group all PriorityPolicy.PinnedClient
+//        // start consuming, tracking pin ids and counts
+//        // unpin 10 times and make sure that new pins are made
+//        ListenerForTesting l = new ListenerForTesting();
+//        Options.Builder b = Options.builder().errorListener(l);
+//        jsServer.run(b, TestBase::atLeast2_12, nc -> {
+//            JetStreamManagement jsm = nc.jetStreamManagement();
+//            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
+//            JetStream js = nc.jetStream();
+//
+//            String consumer = name();
+//            String group = variant();
+//
+//            ConsumerConfiguration cc = ConsumerConfiguration.builder()
+//                .filterSubject(tsc.subject())
+//                .name(consumer)
+//                .priorityGroups(group)
+//                .priorityPolicy(PriorityPolicy.PinnedClient)
+//                .build();
+//
+//            StreamContext streamContext = nc.getStreamContext(tsc.stream);
+//            ConsumerContext consumerContext1 = streamContext.createOrUpdateConsumer(cc);
+//            ConsumerContext consumerContext2 = streamContext.getConsumerContext(consumer);
+//            ConsumerContext consumerContext3 = streamContext.getConsumerContext(consumer);
+//
+//            //noinspection resource
+//            assertThrows(IOException.class, () -> consumerContext1.fetchMessages(10));
+//
+//            Set<String> pinIds = new HashSet<>();
+//            AtomicInteger count1 = new AtomicInteger();
+//            AtomicInteger count2 = new AtomicInteger();
+//            AtomicInteger count3 = new AtomicInteger();
+//            MessageHandler handler1 = msg -> {
+//                msg.ack();
+//                assertNotNull(msg.getHeaders());
+//                String natsPinId = msg.getHeaders().getFirst(NATS_PIN_ID_HDR);
+//                assertNotNull(natsPinId);
+//                pinIds.add(natsPinId);
+//                count1.incrementAndGet();
+//            };
+//            MessageHandler handler2 = msg -> {
+//                msg.ack();
+//                assertNotNull(msg.getHeaders());
+//                String natsPinId = msg.getHeaders().getFirst(NATS_PIN_ID_HDR);
+//                assertNotNull(natsPinId);
+//                pinIds.add(natsPinId);
+//                count2.incrementAndGet();
+//            };
+//            MessageHandler handler3 = msg -> {
+//                msg.ack();
+//                assertNotNull(msg.getHeaders());
+//                String natsPinId = msg.getHeaders().getFirst(NATS_PIN_ID_HDR);
+//                assertNotNull(natsPinId);
+//                pinIds.add(natsPinId);
+//                count3.incrementAndGet();
+//            };
+//
+//            ConsumeOptions co = ConsumeOptions.builder()
+//                .batchSize(10)
+//                .expiresIn(1000)
+//                .group(group)
+//                .build();
+//
+//            MessageConsumer mc1 = consumerContext1.consume(co, handler1);
+//            MessageConsumer mc2 = consumerContext2.consume(co, handler2);
+//            MessageConsumer mc3 = consumerContext3.consume(co, handler3);
+//
+//            AtomicBoolean pub = new  AtomicBoolean(true);
+//            Thread t = new Thread(() -> {
+//                int count = 0;
+//                while (pub.get()) {
+//                    ++count;
+//                    try {
+//                        js.publish(tsc.subject(), ("x" + count).getBytes());
+//                        sleep(20);
+//                    }
+//                    catch (Exception e) {
+//                        fail(e);
+//                        return;
+//                    }
+//                }
+//            });
+//            t.start();
+//
+//            int unpins = 0;
+//            while (unpins++ < 10) {
+//                sleep(650);
+//                switch (ThreadLocalRandom.current().nextInt(0, 4)) {
+//                    case 0:
+//                        assertTrue(consumerContext1.unpin(group));
+//                        break;
+//                    case 1:
+//                        assertTrue(consumerContext2.unpin(group));
+//                        break;
+//                    case 2:
+//                        assertTrue(consumerContext3.unpin(group));
+//                        break;
+//                    case 3:
+//                        assertTrue(jsm.unpinConsumer(tsc.stream, consumer, group));
+//                        break;
+//                }
+//                assertTrue(consumerContext1.unpin(group));
+//            }
+//            sleep(650);
+//
+//            pub.set(false);
+//            t.join();
+//            mc1.close();
+//            mc2.close();
+//            mc3.close();
+//
+//            assertTrue(pinIds.size() > 3);
+//            int c1 = count1.get();
+//            int c2 = count2.get();
+//            int c3 = count3.get();
+//            if (c1 > 0) {
+//                assertTrue(c2 > 0 || c3 > 0);
+//            }
+//            else if (c2 > 0) {
+//                assertTrue(c3 > 0);
+//            }
+//            else {
+//                fail("At least 2 consumers should have gotten messages");
+//            }
+//        });
+//    }
 }

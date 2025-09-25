@@ -48,8 +48,8 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
             inactiveThreshold = expiresInMillis * 110 / 100; // 10% longer than the wait
         }
 
-        PinnablePullRequestOptions pro = new PinnablePullRequestOptions(pmm.currentPinId,
-            PullRequestOptions.builder(fetchConsumeOptions.getMaxMessages())
+//        PinnablePullRequestOptions pro = new PinnablePullRequestOptions(pmm.currentPinId,
+        PullRequestOptions pro = PullRequestOptions.builder(fetchConsumeOptions.getMaxMessages())
             .maxBytes(fetchConsumeOptions.getMaxBytes())
             .expiresIn(expiresInMillis)
             .idleHeartbeat(fetchConsumeOptions.getIdleHeartbeat())
@@ -57,7 +57,8 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
             .group(fetchConsumeOptions.getGroup())
             .priority(fetchConsumeOptions.getPriority())
             .minPending(fetchConsumeOptions.getMinPending())
-            .minAckPending(fetchConsumeOptions.getMinAckPending()));
+            .minAckPending(fetchConsumeOptions.getMinAckPending())
+            .build();
         initSub(subscriptionMaker.subscribe(null, null, null, inactiveThreshold), false);
         pullSubject = sub._pull(pro, fetchConsumeOptions.raiseStatusWarnings(), this);
         startNanos = -1;

@@ -104,15 +104,16 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
     private void repull() {
         int rePullMessages = Math.max(1, consumeOpts.getBatchSize() - pmm.pendingMessages);
         long rePullBytes = consumeOpts.getBatchBytes() == 0 ? 0 : consumeOpts.getBatchBytes() - pmm.pendingBytes;
-        PinnablePullRequestOptions pro = new PinnablePullRequestOptions(pmm.currentPinId,
-        PullRequestOptions.builder(rePullMessages)
+//        PinnablePullRequestOptions pro = new PinnablePullRequestOptions(pmm.currentPinId,
+        PullRequestOptions pro = PullRequestOptions.builder(rePullMessages)
             .maxBytes(rePullBytes)
             .expiresIn(consumeOpts.getExpiresInMillis())
             .idleHeartbeat(consumeOpts.getIdleHeartbeat())
             .group(consumeOpts.getGroup())
             .priority(consumeOpts.getPriority())
             .minPending(consumeOpts.getMinPending())
-            .minAckPending(consumeOpts.getMinAckPending()));
+            .minAckPending(consumeOpts.getMinAckPending())
+            .build();
         sub._pull(pro, consumeOpts.raiseStatusWarnings(), this);
     }
 }
