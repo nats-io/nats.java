@@ -182,4 +182,15 @@ public interface BaseConsumerContext {
      */
     @NonNull
     MessageConsumer consume(@NonNull ConsumeOptions consumeOptions, @Nullable Dispatcher dispatcher, @NonNull MessageHandler handler) throws IOException, JetStreamApiException;
+
+// TODO - PINNED CONSUMER SUPPORT
+//    /**
+//     * Unpins this consumer
+//     * @param group the group name of the consumer's group
+//     * @throws IOException covers various communication issues with the NATS
+//     *         server such as timeout or interruption
+//     * @throws JetStreamApiException the request had an error related to the data
+//     * @return true if the delete succeeded
+//     */
+//    boolean unpin(String group) throws IOException, JetStreamApiException;
 }

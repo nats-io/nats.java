@@ -30,6 +30,8 @@ class PullMessageManager extends MessageManager {
     protected boolean trackingBytes;
     protected boolean raiseStatusWarnings;
     protected PullManagerObserver pullManagerObserver;
+// TODO - PINNED CONSUMER SUPPORT
+//    protected String currentPinId;
 
     protected PullMessageManager(NatsConnection conn, SubscribeOptions so, boolean syncMode) {
         super(conn, so, syncMode);
@@ -150,6 +152,14 @@ class PullMessageManager extends MessageManager {
         return manageStatus(msg);
     }
 
+// TODO - PINNED CONSUMER SUPPORT
+//    @Override
+//    protected void subTrackJsMessage(Message msg) {
+//        if (msg.hasHeaders()) {
+//            currentPinId = msg.getHeaders().getFirst(NATS_PIN_ID_HDR);
+//        }
+//    }
+
     protected ManageResult manageStatus(Message msg) {
         Status status = msg.getStatus();
         switch (status.getCode()) {
@@ -179,6 +189,11 @@ class PullMessageManager extends MessageManager {
                     return STATUS_TERMINUS;
                 }
                 break;
+
+// TODO - PINNED CONSUMER SUPPORT
+//            case PIN_ERROR_CODE:
+//                currentPinId = null;
+//                return STATUS_TERMINUS;
         }
 
         // All unknown 409s are errors, since that basically means the client is not aware of them.

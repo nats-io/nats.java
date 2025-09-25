@@ -540,6 +540,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             if (idleHeartbeat != null && !idleHeartbeat.equals(getOrUnset(serverCcc.idleHeartbeat))) { changes.add("idleHeartbeat"); }
             if (maxExpires != null && !maxExpires.equals(getOrUnset(serverCcc.maxExpires))) { changes.add("maxExpires"); }
             if (inactiveThreshold != null && !inactiveThreshold.equals(getOrUnset(serverCcc.inactiveThreshold))) { changes.add("inactiveThreshold"); }
+            if (priorityTimeout != null && !priorityTimeout.equals(getOrUnset(serverCcc.priorityTimeout))) { changes.add("priorityTimeout"); }
 
             if (startTime != null && !startTime.equals(serverCcc.startTime)) { changes.add("startTime"); }
 
