@@ -1685,4 +1685,40 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         assertFalse(mdr.toJson().contains("\"seq\""));
         assertTrue(mdr.toJson().contains("\"no_erase\""));
     }
+
+    @Test
+    public void testStreamPersistMode() throws Exception {
+        jsServer.run(TestBase::atLeast2_12, nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            StreamConfiguration sc = StreamConfiguration.builder()
+                .name(stream())
+                .storageType(StorageType.File)
+                .subjects(subject())
+                .build();
+
+            StreamInfo si = jsm.addStream(sc);
+            assertTrue(si.getConfiguration().getPersistMode() == null || si.getConfiguration().getPersistMode() == PersistMode.Default);
+
+            sc = StreamConfiguration.builder()
+                .name(stream())
+                .storageType(StorageType.File)
+                .subjects(subject())
+                .persistMode(PersistMode.Default)
+                .build();
+
+            si = jsm.addStream(sc);
+            assertTrue(si.getConfiguration().getPersistMode() == null || si.getConfiguration().getPersistMode() == PersistMode.Default);
+
+            sc = StreamConfiguration.builder()
+                .name(stream())
+                .storageType(StorageType.File)
+                .subjects(subject())
+                .persistMode(PersistMode.Async)
+                .build();
+
+            si = jsm.addStream(sc);
+            assertSame(PersistMode.Async, si.getConfiguration().getPersistMode());
+        });
+    }
 }
