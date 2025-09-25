@@ -163,6 +163,7 @@ public interface ApiConstants {
     String PAUSED            = "paused";
     String PAUSE_REMAINING   = "pause_remaining";
     String PAUSE_UNTIL       = "pause_until";
+    String PERSIST_MODE      = "persist_mode";
 // TODO - PINNED CONSUMER SUPPORT
 //    String PINNED_CLIENT_ID  = "pinned_client_id";
 //    String PINNED_TS         = "pinned_ts";
