@@ -139,6 +139,7 @@ class NatsMessageConsumerBase implements MessageConsumer {
         }
     }
 
+// TODO - PINNED CONSUMER SUPPORT
 //    static class PinnablePullRequestOptions extends PullRequestOptions {
 //        final String pinId;
 //

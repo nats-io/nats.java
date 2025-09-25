@@ -48,6 +48,7 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
             inactiveThreshold = expiresInMillis * 110 / 100; // 10% longer than the wait
         }
 
+// TODO - PINNED CONSUMER SUPPORT
 //        PinnablePullRequestOptions pro = new PinnablePullRequestOptions(pmm.currentPinId,
         PullRequestOptions pro = PullRequestOptions.builder(fetchConsumeOptions.getMaxMessages())
             .maxBytes(fetchConsumeOptions.getMaxBytes())

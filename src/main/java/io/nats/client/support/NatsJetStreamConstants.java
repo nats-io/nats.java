@@ -84,8 +84,9 @@ public interface NatsJetStreamConstants {
     // JSAPI_MSG_DELETE is the endpoint to remove a message.
     String JSAPI_MSG_DELETE = "STREAM.MSG.DELETE.%s";
 
-    // JSAPI_CONSUMER_UNPIN is the endpoint to unpin a consumer
-    String JSAPI_CONSUMER_UNPIN = "CONSUMER.UNPIN.%s.%s";
+// TODO - PINNED CONSUMER SUPPORT
+//    // JSAPI_CONSUMER_UNPIN is the endpoint to unpin a consumer
+//    String JSAPI_CONSUMER_UNPIN = "CONSUMER.UNPIN.%s.%s";
 
     String MSG_ID_HDR = "Nats-Msg-Id";
     String EXPECTED_STREAM_HDR = "Nats-Expected-Stream";

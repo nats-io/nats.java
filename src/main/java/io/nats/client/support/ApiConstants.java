@@ -163,8 +163,9 @@ public interface ApiConstants {
     String PAUSED            = "paused";
     String PAUSE_REMAINING   = "pause_remaining";
     String PAUSE_UNTIL       = "pause_until";
-    String PINNED_CLIENT_ID  = "pinned_client_id";
-    String PINNED_TS         = "pinned_ts";
+// TODO - PINNED CONSUMER SUPPORT
+//    String PINNED_CLIENT_ID  = "pinned_client_id";
+//    String PINNED_TS         = "pinned_ts";
     String PLACEMENT         = "placement";
     String PORT              = "port";
     String PRIORITY          = "priority";

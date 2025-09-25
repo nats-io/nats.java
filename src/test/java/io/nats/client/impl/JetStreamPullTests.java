@@ -1408,6 +1408,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
         });
     }
 
+// TODO - PINNED CONSUMER SUPPORT
 //    @Test
 //    public void testPinnedClient() throws Exception {
 //        // have 3 consumers in the same group all PriorityPolicy.PinnedClient

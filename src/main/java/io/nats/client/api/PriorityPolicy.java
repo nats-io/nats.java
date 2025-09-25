@@ -26,6 +26,7 @@ public enum PriorityPolicy {
     Overflow("overflow"),
     Prioritized("prioritized");
 
+// TODO - PINNED CONSUMER SUPPORT
 //    PinnedClient("pinned_client")
 
     private final String policy;

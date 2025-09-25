@@ -144,6 +144,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         }
     }
 
+// TODO - PINNED CONSUMER SUPPORT
 //    private void checkNotPinned(String label) throws IOException {
 //        ConsumerInfo ci = cachedConsumerInfo.get();
 //        if (ci != null) {
@@ -221,6 +222,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         try {
             stateLock.lock();
             checkState();
+// TODO - PINNED CONSUMER SUPPORT
 //            checkNotPinned("Next");
 
             try {
@@ -290,6 +292,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         try {
             stateLock.lock();
             checkState();
+// TODO - PINNED CONSUMER SUPPORT
 //            checkNotPinned("Fetch");
             return (FetchConsumer)trackConsume(new NatsFetchConsumer(this, cachedConsumerInfo.get(), fetchConsumeOptions));
         }
@@ -375,16 +378,17 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         }
     }
 
-    @Override
-    public boolean unpin(String group) throws IOException, JetStreamApiException {
-        String name = consumerName.get();
-        if (name == null) {
-            ConsumerInfo ci = cachedConsumerInfo.get();
-            if (ci == null) {
-                ci = getConsumerInfo();
-            }
-            name = ci.getName();
-        }
-        return streamCtx.jsm.unpinConsumer(streamCtx.streamName, name, group);
-    }
+// TODO - PINNED CONSUMER SUPPORT
+//    @Override
+//    public boolean unpin(String group) throws IOException, JetStreamApiException {
+//        String name = consumerName.get();
+//        if (name == null) {
+//            ConsumerInfo ci = cachedConsumerInfo.get();
+//            if (ci == null) {
+//                ci = getConsumerInfo();
+//            }
+//            name = ci.getName();
+//        }
+//        return streamCtx.jsm.unpinConsumer(streamCtx.streamName, name, group);
+//    }
 }

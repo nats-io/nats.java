@@ -97,6 +97,7 @@ abstract class MessageManager {
             NatsJetStreamMetaData meta = msg.metaData();
             lastStreamSeq = meta.streamSequence();
             lastConsumerSeq++;
+// TODO - PINNED CONSUMER SUPPORT
 //            subTrackJsMessage(msg); // for subclasses so they don't have to acquire the lock
         }
         finally {
@@ -104,6 +105,7 @@ abstract class MessageManager {
         }
     }
 
+// TODO - PINNED CONSUMER SUPPORT
 //    protected void subTrackJsMessage(Message msg) {}
 
     protected void handleHeartbeatError() {

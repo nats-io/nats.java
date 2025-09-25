@@ -30,6 +30,7 @@ class PullMessageManager extends MessageManager {
     protected boolean trackingBytes;
     protected boolean raiseStatusWarnings;
     protected PullManagerObserver pullManagerObserver;
+// TODO - PINNED CONSUMER SUPPORT
 //    protected String currentPinId;
 
     protected PullMessageManager(NatsConnection conn, SubscribeOptions so, boolean syncMode) {
@@ -151,6 +152,7 @@ class PullMessageManager extends MessageManager {
         return manageStatus(msg);
     }
 
+// TODO - PINNED CONSUMER SUPPORT
 //    @Override
 //    protected void subTrackJsMessage(Message msg) {
 //        if (msg.hasHeaders()) {
@@ -188,6 +190,7 @@ class PullMessageManager extends MessageManager {
                 }
                 break;
 
+// TODO - PINNED CONSUMER SUPPORT
 //            case PIN_ERROR_CODE:
 //                currentPinId = null;
 //                return STATUS_TERMINUS;
