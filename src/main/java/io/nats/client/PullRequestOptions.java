@@ -60,12 +60,14 @@ public class PullRequestOptions implements JsonSerializable {
         JsonUtils.addFieldAsNanos(sb, IDLE_HEARTBEAT, idleHeartbeat);
         JsonUtils.addField(sb, GROUP, group);
         JsonUtils.addFieldWhenGtZero(sb, PRIORITY, priority);
+// TODO - PINNED CONSUMER SUPPORT
 //        JsonUtils.addField(sb, ID, getPinId());
         JsonUtils.addField(sb, MIN_PENDING, minPending);
         JsonUtils.addField(sb, MIN_ACK_PENDING, minAckPending);
         return JsonUtils.endJson(sb).toString();
     }
 
+// TODO - PINNED CONSUMER SUPPORT
 //    protected String getPinId() {
 //        return null;
 //    }

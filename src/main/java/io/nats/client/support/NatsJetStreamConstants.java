@@ -125,7 +125,8 @@ public interface NatsJetStreamConstants {
     String NATS_BATCH_SEQUENCE_HDR  = "Nats-Batch-Sequence";
     String NATS_BATCH_COMMIT_HDR    = "Nats-Batch-Commit";
 
-    String NATS_PIN_ID_HDR = "Nats-Pin-Id";
+// TODO - PINNED CONSUMER SUPPORT
+//    String NATS_PIN_ID_HDR = "Nats-Pin-Id";
 
     int JS_CONSUMER_NOT_FOUND_ERR = 10014;
     int JS_NO_MESSAGE_FOUND_ERR = 10037;

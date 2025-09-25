@@ -31,13 +31,13 @@ public class PriorityGroupState {
 //    private final String pinnedClientId;
 //    private final ZonedDateTime pinnedTime;
 
-
     static List<PriorityGroupState> optionalListOf(JsonValue vpgStates) {
         return JsonValueUtils.optionalListOf(vpgStates, PriorityGroupState::new);
     }
 
     PriorityGroupState(JsonValue vpgState) {
         group = JsonValueUtils.readString(vpgState, GROUP);
+// TODO - PINNED CONSUMER SUPPORT
 //        pinnedClientId = JsonValueUtils.readString(vpgState, PINNED_CLIENT_ID);
 //        pinnedTime = readDate(vpgState, PINNED_TS);
     }
@@ -51,6 +51,7 @@ public class PriorityGroupState {
         return group;
     }
 
+// TODO - PINNED CONSUMER SUPPORT
 //    /**
 //     * The generated ID of the pinned client
 //     * @return the id
@@ -60,6 +61,7 @@ public class PriorityGroupState {
 //        return pinnedClientId;
 //    }
 
+// TODO - PINNED CONSUMER SUPPORT
 //    /**
 //     * The timestamp when the client was pinned
 //     * @return the timestamp
@@ -73,6 +75,7 @@ public class PriorityGroupState {
     public String toString() {
         return "PriorityGroupState{" +
             "group='" + group + '\'' +
+// TODO - PINNED CONSUMER SUPPORT
 //            ", pinnedClientId='" + pinnedClientId + '\'' +
 //            ", pinnedTime=" + pinnedTime +
             '}';

@@ -374,7 +374,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
 //        String subj = String.format(JSAPI_CONSUMER_UNPIN, streamName, consumerName);
 //        byte[] payload = String.format("{\"group\": \"%s\"}", consumerGroup).getBytes();
 //        Message resp = makeRequestResponseRequired(subj, payload, getTimeout());
-//        return new SuccessApiResponse(resp, true).throwOnHasError().getSuccess();
+//        return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
 //    }
 
     /**
