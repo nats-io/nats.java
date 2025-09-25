@@ -74,6 +74,7 @@ public class StreamConfiguration implements JsonSerializable {
     private final boolean allowMsgSchedules;
     private final boolean allowMessageCounter;
     private final boolean allowAtomicPublish;
+    private final PersistMode persistMode;
 
     static StreamConfiguration instance(JsonValue v) {
         return new Builder()
@@ -114,6 +115,7 @@ public class StreamConfiguration implements JsonSerializable {
             .allowMessageSchedules(readBoolean(v, ALLOW_MSG_SCHEDULES))
             .allowMessageCounter(readBoolean(v, ALLOW_MSG_COUNTER))
             .allowAtomicPublish(readBoolean(v, ALLOW_ATOMIC))
+            .persistMode(PersistMode.get(readString(v, PERSIST_MODE)))
             .build();
     }
 
@@ -156,6 +158,7 @@ public class StreamConfiguration implements JsonSerializable {
         this.allowMsgSchedules = b.allowMsgSchedules;
         this.allowMessageCounter = b.allowMessageCounter;
         this.allowAtomicPublish = b.allowAtomicPublish;
+        this.persistMode = b.persistMode;
     }
 
     /**
@@ -220,6 +223,9 @@ public class StreamConfiguration implements JsonSerializable {
         addFldWhenTrue(sb, ALLOW_MSG_SCHEDULES, allowMsgSchedules);
         addFldWhenTrue(sb, ALLOW_MSG_COUNTER, allowMessageCounter);
         addFldWhenTrue(sb, ALLOW_ATOMIC, allowAtomicPublish);
+        if (persistMode != null) {
+            addField(sb, PERSIST_MODE, persistMode.toString());
+        }
 
         return endJson(sb).toString();
     }
@@ -561,6 +567,15 @@ public class StreamConfiguration implements JsonSerializable {
         return subjectDeleteMarkerTtl;
     }
 
+    /**
+     * Gets the persist mode or null if it was not explicitly set when creating or the server did not send it with stream info
+     * @return the persist mode
+     */
+    @Nullable
+    public PersistMode getPersistMode() {
+        return persistMode;
+    }
+
     @Override
     public String toString() {
         return toJson();
@@ -629,6 +644,7 @@ public class StreamConfiguration implements JsonSerializable {
         private boolean allowMsgSchedules = false;
         private boolean allowMessageCounter = false;
         private boolean allowAtomicPublish = false;
+        private PersistMode persistMode = null;
 
         /**
          * Default Builder
@@ -680,6 +696,7 @@ public class StreamConfiguration implements JsonSerializable {
                 this.allowMsgSchedules = sc.allowMsgSchedules;
                 this.allowMessageCounter = sc.allowMessageCounter;
                 this.allowAtomicPublish = sc.allowAtomicPublish;
+                this.persistMode = sc.persistMode;
             }
         }
 
@@ -1230,6 +1247,16 @@ public class StreamConfiguration implements JsonSerializable {
          */
         public Builder allowAtomicPublish(boolean allowAtomicPublish) {
             this.allowAtomicPublish = allowAtomicPublish;
+            return this;
+        }
+
+        /**
+         * Set the persist mode. Setting null leaves it up to the server
+         * @param persistMode the persist mode
+         * @return The Builder
+         */
+        public Builder persistMode(PersistMode persistMode) {
+            this.persistMode = persistMode;
             return this;
         }
 

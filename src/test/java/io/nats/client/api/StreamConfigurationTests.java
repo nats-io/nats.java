@@ -69,6 +69,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 .sealed(false)
                 .compressionOption(compressionOption)
                 .allowMessageCounter(false)
+                .persistMode(null)
                 .build();
             JetStreamManagement jsm = nc.jetStreamManagement();
             validateTestStreamConfiguration(jsm.addStream(sc).getConfiguration(), true, stream);
@@ -202,6 +203,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             .allowMessageSchedules(testSc.getAllowMsgSchedules())
             .allowMessageCounter(testSc.getAllowMessageCounter())
             .allowAtomicPublish(testSc.getAllowAtomicPublish())
+            .persistMode(testSc.getPersistMode())
             ;
         validateTestStreamConfiguration(builder.build(), false, DEFAULT_STREAM_NAME);
         validateTestStreamConfiguration(builder.addSources((Source)null).build(), false, DEFAULT_STREAM_NAME);
@@ -630,6 +632,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             assertTrue(sc.getAllowMsgSchedules());
             assertTrue(sc.getAllowMessageCounter());
             assertTrue(sc.getAllowAtomicPublish());
+            assertSame(PersistMode.Async, sc.getPersistMode());
         }
     }
 

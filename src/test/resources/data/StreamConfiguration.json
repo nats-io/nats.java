@@ -30,6 +30,7 @@
   "allow_msg_schedules": true,
   "allow_msg_counter": true,
   "allow_atomic": true,
+  "persist_mode": "async",
   "placement": {
     "cluster": "clstr",
     "tags": ["tag1", "tag2"]
