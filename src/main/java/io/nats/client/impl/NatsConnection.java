@@ -508,8 +508,7 @@ class NatsConnection implements Connection {
     // will wait for any previous attempt to complete, using the reader.stop and
     // writer.stop
     void tryToConnect(NatsUri cur, NatsUri resolved, long now) {
-        lastServer = currentServer;
-        currentServer = null;
+        clearCurrentServer();
 
         try {
             Duration connectTimeout = options.getConnectionTimeout();
@@ -672,6 +671,13 @@ class NatsConnection implements Connection {
                 statusLock.unlock();
             }
         }
+    }
+
+    private void clearCurrentServer() {
+        if (currentServer != null) {
+            lastServer = currentServer;
+        }
+        currentServer = null;
     }
 
     void checkVersionRequirements() throws IOException {
@@ -932,8 +938,7 @@ class NatsConnection implements Connection {
 
     // Should only be called from closeSocket or close
     void closeSocketImpl(boolean forceClose) {
-        lastServer = currentServer;
-        currentServer = null;
+        clearCurrentServer();
 
         // Signal both to stop.
         final Future<Boolean> readStop = this.reader.stop();
@@ -1965,7 +1970,7 @@ class NatsConnection implements Connection {
 
     String uriDetail(NatsUri uri, NatsUri hostOrlast) {
         if (uri != null) {
-            if (hostOrlast == null) {
+            if (hostOrlast == null || uri.equals(hostOrlast)) {
                 return uri.toString();
             }
             return uri + " [" + hostOrlast + "]";
