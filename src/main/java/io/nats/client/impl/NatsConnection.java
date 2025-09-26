@@ -305,7 +305,7 @@ class NatsConnection implements Connection {
 
         closeSocketLock.lock();
         try {
-            updateStatus(Status.DISCONNECTED, currentServer == null ? lastServer : currentServer, null);
+            updateStatus(Status.DISCONNECTED);
 
             // Close and reset the current data port and future
             if (dataPortFuture != null) {
