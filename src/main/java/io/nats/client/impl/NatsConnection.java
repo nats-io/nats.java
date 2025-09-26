@@ -1922,13 +1922,13 @@ class NatsConnection implements Connection {
         }
     }
 
-    void processConnectionEvent(Events type, String details) {
+    void processConnectionEvent(Events type, String uriDetails) {
         if (!this.callbackRunner.isShutdown()) {
             try {
                 for (ConnectionListener listener : connectionListeners) {
                     this.callbackRunner.execute(() -> {
                         try {
-                            listener.connectionEvent(this, type, details);
+                            listener.connectionEvent(this, type, uriDetails);
                         } catch (Exception ex) {
                             this.statistics.incrementExceptionCount();
                         }
