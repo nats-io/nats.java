@@ -224,7 +224,7 @@ class NatsConnection implements Connection {
                 connectError.set(""); // new on each attempt
 
                 timeTraceLogger.trace("setting status to connecting");
-                updateStatus(Status.CONNECTING);
+                updateStatus(Status.CONNECTING, resolved, cur);
 
                 timeTraceLogger.trace("trying to connect to %s", cur);
                 tryToConnect(cur, resolved, NatsSystemClock.nanoTime());
@@ -236,7 +236,7 @@ class NatsConnection implements Connection {
                 }
 
                 timeTraceLogger.trace("setting status to disconnected");
-                updateStatus(Status.DISCONNECTED);
+                updateStatus(Status.DISCONNECTED, resolved, cur);
 
                 failList.add(cur);
                 serverPool.connectFailed(cur);
@@ -304,7 +304,7 @@ class NatsConnection implements Connection {
 
         closeSocketLock.lock();
         try {
-            updateStatus(Status.DISCONNECTED);
+            updateStatus(Status.DISCONNECTED, currentServer, null);
 
             // Close and reset the current data port and future
             if (dataPortFuture != null) {
@@ -409,7 +409,7 @@ class NatsConnection implements Connection {
                         keepGoing = false;
                         break;
                     }
-                    updateStatus(Status.RECONNECTING);
+                    updateStatus(Status.RECONNECTING, resolved, cur);
 
                     timeTraceLogger.trace("reconnecting to server %s", cur);
                     tryToConnect(cur, resolved, NatsSystemClock.nanoTime());
@@ -457,7 +457,7 @@ class NatsConnection implements Connection {
             this.processException(exp);
         }
 
-        processConnectionEvent(Events.RESUBSCRIBED);
+        processConnectionEvent(Events.RESUBSCRIBED, currentServer, null);
 
         // When the flush returns, we are done sending internal messages,
         // so we can switch to the non-reconnect queue
@@ -638,7 +638,7 @@ class NatsConnection implements Connection {
 
                 this.currentServer = cur;
                 this.serverAuthErrors.clear(); // reset on successful connection
-                updateStatus(Status.CONNECTED); // will signal status change, we also signal in finally
+                updateStatus(Status.CONNECTED, cur, null); // will signal status change, we also signal in finally
             } finally {
                 statusLock.unlock();
             }
@@ -761,7 +761,7 @@ class NatsConnection implements Connection {
 
             statusLock.lock();
             try {
-                updateStatus(Status.DISCONNECTED);
+                updateStatus(Status.DISCONNECTED, currentServer, null);
                 this.exceptionDuringConnectChange = null; // Ignore IOExceptions during closeSocketImpl()
                 this.disconnecting = false;
                 statusChanged.signalAll();
@@ -843,7 +843,7 @@ class NatsConnection implements Connection {
 
         statusLock.lock();
         try {
-            updateStatus(Status.CLOSED); // will signal, we also signal when we stop disconnecting
+            updateStatus(Status.CLOSED, currentServer, null); // will signal, we also signal when we stop disconnecting
 
             /*
              * if (exceptionDuringConnectChange != null) {
@@ -1762,12 +1762,12 @@ class NatsConnection implements Connection {
         List<String> urls = this.serverInfo.get().getConnectURLs();
         if (!urls.isEmpty()) {
             if (serverPool.acceptDiscoveredUrls(urls)) {
-                processConnectionEvent(Events.DISCOVERED_SERVERS);
+                processConnectionEvent(Events.DISCOVERED_SERVERS, urls.toString());
             }
         }
 
         if (serverInfo.isLameDuckMode()) {
-            processConnectionEvent(Events.LAME_DUCK);
+            processConnectionEvent(Events.LAME_DUCK, currentServer, null);
         }
     }
 
@@ -1905,13 +1905,30 @@ class NatsConnection implements Connection {
         }
     }
 
-    void processConnectionEvent(Events type) {
+    void processConnectionEvent(Events type, NatsUri resolved, NatsUri unresolved) {
+        if (resolved == null) {
+            if (unresolved == null) {
+                processConnectionEvent(type, null);
+            }
+            else {
+                processConnectionEvent(type, unresolved.toString());
+            }
+        }
+        else if (unresolved == null) {
+            processConnectionEvent(type, resolved.toString());
+        }
+        else {
+            processConnectionEvent(type, resolved + " [" + unresolved + "]");
+        }
+    }
+
+    void processConnectionEvent(Events type, String details) {
         if (!this.callbackRunner.isShutdown()) {
             try {
                 for (ConnectionListener listener : connectionListeners) {
                     this.callbackRunner.execute(() -> {
                         try {
-                            listener.connectionEvent(this, type);
+                            listener.connectionEvent(this, type, details);
                         } catch (Exception ex) {
                             this.statistics.incrementExceptionCount();
                         }
@@ -2075,7 +2092,7 @@ class NatsConnection implements Connection {
         return scheduledExecutor;
     }
 
-    void updateStatus(Status newStatus) {
+    void updateStatus(Status newStatus, NatsUri resolved, NatsUri unresolved) {
         Status oldStatus = this.status;
 
         statusLock.lock();
@@ -2090,13 +2107,16 @@ class NatsConnection implements Connection {
         }
 
         if (this.status == Status.DISCONNECTED) {
-            processConnectionEvent(Events.DISCONNECTED);
-        } else if (this.status == Status.CLOSED) {
-            processConnectionEvent(Events.CLOSED);
-        } else if (oldStatus == Status.RECONNECTING && this.status == Status.CONNECTED) {
-            processConnectionEvent(Events.RECONNECTED);
-        } else if (this.status == Status.CONNECTED) {
-            processConnectionEvent(Events.CONNECTED);
+            processConnectionEvent(Events.DISCONNECTED, resolved, unresolved);
+        }
+        else if (this.status == Status.CLOSED) {
+            processConnectionEvent(Events.CLOSED, resolved, unresolved);
+        }
+        else if (oldStatus == Status.RECONNECTING && this.status == Status.CONNECTED) {
+            processConnectionEvent(Events.RECONNECTED, resolved, unresolved);
+        }
+        else if (this.status == Status.CONNECTED) {
+            processConnectionEvent(Events.CONNECTED, resolved, unresolved);
         }
     }
 

@@ -70,12 +70,26 @@ public interface ConnectionListener {
     }
 
     /**
+     * @deprecated use new api that gives additional details
      * Connection related events that occur asynchronously in the client code are
      * sent to a ConnectionListener via a single method. The ConnectionListener can
      * use the event type to decide what to do about the problem.
-     * 
+     *
      * @param conn the connection associated with the error
      * @param type the type of event that has occurred
      */
+    @Deprecated
     void connectionEvent(Connection conn, Events type);
+
+    /**
+     * Connection related events that occur asynchronously in the client code are
+     * sent to a ConnectionListener via a single method. The ConnectionListener can
+     * use the event type to decide what to do about the problem.
+     * @param conn the connection associated with the error
+     * @param type the type of event that has occurred
+     * @param details extra details about the event
+     */
+    default void connectionEvent(Connection conn, Events type, String details) {
+        connectionEvent(conn, type);
+    }
 }
