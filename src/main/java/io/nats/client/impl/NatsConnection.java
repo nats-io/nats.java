@@ -870,7 +870,7 @@ class NatsConnection implements Connection {
 
         statusLock.lock();
         try {
-            updateStatus(Status.CLOSED);  // will signal, we also signal when we stop disconnecting
+            updateStatus(Status.CLOSED); // will signal, we also signal when we stop disconnecting
 
             /*
              * if (exceptionDuringConnectChange != null) {
@@ -1326,7 +1326,8 @@ class NatsConnection implements Connection {
                             @Nullable Duration timeout,
                             @NonNull CancelAction cancelAction,
                             boolean validateSubjectAndReplyTo,
-                            boolean flushImmediatelyAfterPublish) throws InterruptedException {
+                            boolean flushImmediatelyAfterPublish) throws InterruptedException
+    {
         CompletableFuture<Message> incoming = requestFutureInternal(subject, headers, data, timeout, cancelAction, validateSubjectAndReplyTo, flushImmediatelyAfterPublish);
         try {
             if (timeout == null) {
