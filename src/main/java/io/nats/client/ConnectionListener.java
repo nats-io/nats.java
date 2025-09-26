@@ -87,9 +87,9 @@ public interface ConnectionListener {
      * use the event type to decide what to do about the problem.
      * @param conn the connection associated with the error
      * @param type the type of event that has occurred
-     * @param details extra details about the event
+     * @param uriDetails extra details about the uri related to this connection event
      */
-    default void connectionEvent(Connection conn, Events type, String details) {
+    default void connectionEvent(Connection conn, Events type, String uriDetails) {
         connectionEvent(conn, type);
     }
 }
