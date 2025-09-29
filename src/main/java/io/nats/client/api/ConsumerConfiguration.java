@@ -91,6 +91,7 @@ public class ConsumerConfiguration implements JsonSerializable {
     protected final List<String> filterSubjects;
     protected final List<String> priorityGroups;
     protected final PriorityPolicy priorityPolicy;
+    protected final Duration priorityTimeout;
 
     protected ConsumerConfiguration(ConsumerConfiguration cc) {
         this.deliverPolicy = cc.deliverPolicy;
@@ -124,6 +125,7 @@ public class ConsumerConfiguration implements JsonSerializable {
         this.filterSubjects = cc.filterSubjects == null ? null : new ArrayList<>(cc.filterSubjects);
         this.priorityGroups = cc.priorityGroups == null ? null : new ArrayList<>(cc.priorityGroups);
         this.priorityPolicy = cc.priorityPolicy;
+        this.priorityTimeout = cc.priorityTimeout;
     }
 
     // For the builder
@@ -165,6 +167,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         this.priorityGroups = b.priorityGroups;
         this.priorityPolicy = b.priorityPolicy;
+        this.priorityTimeout = b.priorityTimeout;
     }
 
     /**
@@ -215,6 +218,8 @@ public class ConsumerConfiguration implements JsonSerializable {
         if (priorityPolicy != null && priorityPolicy != DEFAULT_PRIORITY_POLICY) {
             JsonUtils.addField(sb, PRIORITY_POLICY, priorityPolicy.toString());
         }
+        JsonUtils.addFieldAsNanos(sb, PRIORITY_TIMEOUT, priorityTimeout);
+
         return endJson(sb).toString();
     }
 
@@ -497,12 +502,21 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     /**
-     * Gets the priority policy of this consumer configuration.
+     * Gets the priority policy of this consumer configuration. Defaults to PriorityPolicy.None
      * @return the priority policy.
      */
     @NonNull
     public PriorityPolicy getPriorityPolicy() {
         return GetOrDefault(priorityPolicy);
+    }
+
+    /**
+     * For pinned_client priority policy how long before the client times out
+     * @return the duration
+     */
+    @Nullable
+    public Duration getPriorityTimeout() {
+        return priorityTimeout;
     }
 
     /**
@@ -642,6 +656,14 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     /**
+     * Gets whether priority timeout for this consumer configuration was set or left unset
+     * @return true if the timeout was set, false if the timeout was not set
+     */
+    public boolean priorityTimeoutWasSet() {
+        return priorityTimeout != null;
+    }
+
+    /**
      * Creates a builder for the options.
      * @return a publish options builder
      */
@@ -703,6 +725,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
         private List<String> priorityGroups;
         private PriorityPolicy priorityPolicy;
+        private Duration priorityTimeout;
 
         /**
          * Construct the builder
@@ -760,6 +783,7 @@ public class ConsumerConfiguration implements JsonSerializable {
                     this.priorityGroups = new ArrayList<>(cc.priorityGroups);
                 }
                 this.priorityPolicy = cc.priorityPolicy;
+                this.priorityTimeout = cc.priorityTimeout;
             }
         }
 
@@ -843,6 +867,7 @@ public class ConsumerConfiguration implements JsonSerializable {
 
             priorityGroups(readOptionalStringList(jsonValue, PRIORITY_GROUPS));
             priorityPolicy(PriorityPolicy.get(readString(jsonValue, PRIORITY_POLICY)));
+            priorityTimeout(readNanos(jsonValue, PRIORITY_TIMEOUT));
 
             return this;
         }
@@ -1402,6 +1427,26 @@ public class ConsumerConfiguration implements JsonSerializable {
          */
         public Builder priorityPolicy(PriorityPolicy policy) {
             this.priorityPolicy = policy;
+            return this;
+        }
+
+        /**
+         * Sets the priority policy timeout
+         * @param priorityTimeout the timeout
+         * @return Builder
+         */
+        public Builder priorityTimeout(Duration priorityTimeout) {
+            this.priorityTimeout = normalize(priorityTimeout);
+            return this;
+        }
+
+        /**
+         * Sets the priority policy timeout
+         * @param priorityTimeoutMillis the timeout in milliseconds
+         * @return Builder
+         */
+        public Builder priorityTimeout(long priorityTimeoutMillis) {
+            this.priorityTimeout = normalizeDuration(priorityTimeoutMillis);
             return this;
         }
 

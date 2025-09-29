@@ -21,6 +21,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.List;
 
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonValueUtils.*;
@@ -46,6 +47,7 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
     private final ClusterInfo clusterInfo;
     private final boolean pushBound;
     private final ZonedDateTime timestamp;
+    private final List<PriorityGroupState> priorityGroupStates;
 
     public ConsumerInfo(Message msg) {
         this(parseMessage(msg));
@@ -69,6 +71,7 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
             clusterInfo = null;
             pushBound = false;
             timestamp = null;
+            priorityGroupStates = null;
         }
         else {
             JsonValue jvConfig = nullValueIsError(jv, CONFIG, JsonValue.EMPTY_MAP) ;
@@ -92,6 +95,8 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
             pushBound = readBoolean(jv, PUSH_BOUND);
 
             timestamp = readDate(jv, TIMESTAMP);
+
+            priorityGroupStates = PriorityGroupState.optionalListOf(readObject(jv, PRIORITY_GROUPS));
         }
     }
 
@@ -222,6 +227,15 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
     @Nullable
     public ZonedDateTime getTimestamp() {
         return timestamp;
+    }
+
+    /**
+     * The state of Priority Groups
+     * @return the list of Priority Groups, may be null
+     */
+    @Nullable
+    public List<PriorityGroupState> getPriorityGroupStates() {
+        return priorityGroupStates;
     }
 
     /**

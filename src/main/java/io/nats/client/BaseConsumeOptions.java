@@ -45,6 +45,7 @@ public class BaseConsumeOptions implements JsonSerializable {
     protected final int thresholdPercent;
     protected final long idleHeartbeat;
     protected final String group;
+    protected final int priority;
     protected final long minPending;
     protected final long minAckPending;
     protected final boolean raiseStatusWarnings;
@@ -67,6 +68,7 @@ public class BaseConsumeOptions implements JsonSerializable {
         idleHeartbeat = Math.min(MAX_HEARTBEAT_MILLIS, expiresIn * MAX_IDLE_HEARTBEAT_PERCENT / 100);
 
         this.group = b.group;
+        this.priority = b.priority;
         this.minPending = b.minPending;
         this.minAckPending = b.minAckPending;
         raiseStatusWarnings = b.raiseStatusWarnings;
@@ -82,6 +84,7 @@ public class BaseConsumeOptions implements JsonSerializable {
         addField(sb, IDLE_HEARTBEAT, idleHeartbeat);
         addField(sb, THRESHOLD_PERCENT, thresholdPercent);
         addField(sb, GROUP, group);
+        addField(sb, PRIORITY, priority);
         addField(sb, MIN_PENDING, minPending);
         addField(sb, MIN_ACK_PENDING, minAckPending);
         addFldWhenTrue(sb, RAISE_STATUS_WARNINGS, raiseStatusWarnings);
@@ -111,6 +114,10 @@ public class BaseConsumeOptions implements JsonSerializable {
         return group;
     }
 
+    public int getPriority() {
+        return priority;
+    }
+
     public long getMinPending() {
         return minPending;
     }
@@ -126,6 +133,7 @@ public class BaseConsumeOptions implements JsonSerializable {
         protected long expiresIn = DEFAULT_EXPIRES_IN_MILLIS;
         protected boolean raiseStatusWarnings = false;
         protected String group;
+        protected int priority;
         protected long minPending = -1;
         protected long minAckPending = -1;
 
@@ -153,6 +161,7 @@ public class BaseConsumeOptions implements JsonSerializable {
             thresholdPercent(readInteger(jsonValue, THRESHOLD_PERCENT, -1));
             raiseStatusWarnings(readBoolean(jsonValue, RAISE_STATUS_WARNINGS, false));
             group(readStringEmptyAsNull(jsonValue, GROUP));
+            priority(readInteger(jsonValue, PRIORITY, 0));
             minPending(readLong(jsonValue, MIN_PENDING, -1));
             minAckPending(readLong(jsonValue, MIN_ACK_PENDING, -1));
             return getThis();
@@ -236,6 +245,16 @@ public class BaseConsumeOptions implements JsonSerializable {
          */
         public B group(String group) {
             this.group = group;
+            return getThis();
+        }
+
+        /**
+         * Sets the priority for the group
+         * @param priority the priority
+         * @return Builder
+         */
+        public B priority(int priority) {
+            this.priority = priority;
             return getThis();
         }
 

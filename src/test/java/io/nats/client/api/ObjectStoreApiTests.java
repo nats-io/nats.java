@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -194,18 +195,30 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
     @SuppressWarnings({"SimplifiableAssertion", "ConstantConditions"})
     private void metaCoverage(ObjectLink link, ObjectLink link2) {
         List<ObjectMeta> list = new ArrayList<>();
-        ObjectMeta meta1a = ObjectMeta.objectName("meta"); list.add(meta1a);
-        ObjectMeta meta1b = ObjectMeta.objectName("meta"); list.add(meta1b);
-        ObjectMeta meta1c = ObjectMeta.objectName("diff"); list.add(meta1c);
-        ObjectMeta meta2a = ObjectMeta.builder("meta").description("desc").build(); list.add(meta2a);
-        ObjectMeta meta2b = ObjectMeta.builder("meta").description("desc").build(); list.add(meta2b);
-        ObjectMeta meta2c = ObjectMeta.builder("meta").description("diff").build(); list.add(meta2c);
-        ObjectMeta meta3a = ObjectMeta.builder("meta").headers(new Headers().put("key", "data")).build(); list.add(meta3a);
-        ObjectMeta meta3b = ObjectMeta.builder("meta").headers(new Headers().put("key", "data")).build(); list.add(meta3b);
-        ObjectMeta meta3c = ObjectMeta.builder("meta").headers(new Headers().put("key", "diff")).build(); list.add(meta3c);
-        ObjectMeta meta4a = ObjectMeta.builder("meta").link(link).build(); list.add(meta4a);
-        ObjectMeta meta4b = ObjectMeta.builder("meta").link(link).build(); list.add(meta4b);
-        ObjectMeta meta4c = ObjectMeta.builder("meta").link(link2).build(); list.add(meta4c);
+        ObjectMeta meta1a = ObjectMeta.objectName("meta");
+        list.add(meta1a);
+        ObjectMeta meta1b = ObjectMeta.objectName("meta");
+        list.add(meta1b);
+        ObjectMeta meta1c = ObjectMeta.objectName("diff");
+        list.add(meta1c);
+        ObjectMeta meta2a = ObjectMeta.builder("meta").description("desc").build();
+        list.add(meta2a);
+        ObjectMeta meta2b = ObjectMeta.builder("meta").description("desc").build();
+        list.add(meta2b);
+        ObjectMeta meta2c = ObjectMeta.builder("meta").description("diff").build();
+        list.add(meta2c);
+        ObjectMeta meta3a = ObjectMeta.builder("meta").headers(new Headers().put("key", "data")).build();
+        list.add(meta3a);
+        ObjectMeta meta3b = ObjectMeta.builder("meta").headers(new Headers().put("key", "data")).build();
+        list.add(meta3b);
+        ObjectMeta meta3c = ObjectMeta.builder("meta").headers(new Headers().put("key", "diff")).build();
+        list.add(meta3c);
+        ObjectMeta meta4a = ObjectMeta.builder("meta").link(link).build();
+        list.add(meta4a);
+        ObjectMeta meta4b = ObjectMeta.builder("meta").link(link).build();
+        list.add(meta4b);
+        ObjectMeta meta4c = ObjectMeta.builder("meta").link(link2).build();
+        list.add(meta4c);
 
         ObjectMeta metaH = ObjectMeta.builder("meta").headers(new Headers().put("key", "data")).headers(null).build();
         assertEquals(0, metaH.getHeaders().size());
@@ -243,6 +256,31 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
             assertNotNull(meta.toString()); // coverage
             assertTrue(meta.hashCode() != 0); // coverage
         }
+    }
+
+    @Test
+    public void testObjectMetaMetaCoverage() {
+        ObjectMeta metaMeta1 = ObjectMeta.builder("metaMeta")
+            .metadata(null)
+            .build();
+        assertNotNull(metaMeta1.getMetadata());
+        assertEquals(0, metaMeta1.getMetadata().size());
+
+        Map<String, String> metadata = new HashMap<>();
+        ObjectMeta metaMeta2 = ObjectMeta.builder("metaMeta")
+            .metadata(metadata)
+            .build();
+        assertNotNull(metaMeta2.getMetadata());
+        assertEquals(0, metaMeta2.getMetadata().size());
+        assertEquals(metaMeta1, metaMeta2);
+
+        metadata.put("key", "value");
+        ObjectMeta metaMeta3 = ObjectMeta.builder("metaMeta")
+            .metadata(metadata)
+            .build();
+        assertNotNull(metaMeta3.getMetadata());
+        assertEquals(1, metaMeta3.getMetadata().size());
+        assertNotEquals(metaMeta1, metaMeta3);
     }
 
     @SuppressWarnings({"SimplifiableAssertion", "ConstantConditions"})

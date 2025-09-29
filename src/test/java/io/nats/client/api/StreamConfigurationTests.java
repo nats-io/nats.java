@@ -37,8 +37,16 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
     public static final String DEFAULT_STREAM_NAME = "sname";
 
+    private static String STREAM_CONFIGURATION_JSON;
+    private static String getStreamConfigurationJson() {
+        if (STREAM_CONFIGURATION_JSON == null) {
+            STREAM_CONFIGURATION_JSON = ResourceUtils.dataAsString("StreamConfiguration.json");
+        }
+        return STREAM_CONFIGURATION_JSON;
+    }
+
     private StreamConfiguration getTestConfiguration() {
-        String json = ResourceUtils.dataAsString("StreamConfiguration.json");
+        String json = getStreamConfigurationJson();
         StreamConfiguration sc = StreamConfiguration.instance(JsonParser.parseUnchecked(json));
         assertNotNull(sc.toString()); // coverage
         return sc;
@@ -60,19 +68,21 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 .mirrorDirect(false)
                 .sealed(false)
                 .compressionOption(compressionOption)
+                .allowMessageCounter(false)
+                .persistMode(null)
                 .build();
             JetStreamManagement jsm = nc.jetStreamManagement();
-            validate(jsm.addStream(sc).getConfiguration(), true, stream);
+            validateTestStreamConfiguration(jsm.addStream(sc).getConfiguration(), true, stream);
         });
     }
 
     @Test
     public void testSerializationDeserialization() throws Exception {
-        String originalJson = ResourceUtils.dataAsString("StreamConfiguration.json");
+        String originalJson = getStreamConfigurationJson();
         StreamConfiguration sc = StreamConfiguration.instance(originalJson);
-        validate(sc, false, DEFAULT_STREAM_NAME);
+        validateTestStreamConfiguration(sc, false, DEFAULT_STREAM_NAME);
         String serializedJson = sc.toJson();
-        validate(StreamConfiguration.instance(serializedJson), false, DEFAULT_STREAM_NAME);
+        validateTestStreamConfiguration(StreamConfiguration.instance(serializedJson), false, DEFAULT_STREAM_NAME);
     }
 
     @Test
@@ -118,12 +128,11 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 add(DISCARD_NEW_PER_SUBJECT);
                 add(METADATA);
                 add(FIRST_SEQ);
-//                add(ALLOW_MSG_TTL);
                 add(SUBJECT_DELETE_MARKER_TTL);
             }
         };
 
-        String originalJson = ResourceUtils.dataAsString("StreamConfiguration.json");
+        String originalJson = getStreamConfigurationJson();
 
         // Loops through each field in the StreamConfiguration JSON format and ensures that the
         // StreamConfiguration can be built without that field being present in the JSON
@@ -137,7 +146,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
     @Test
     public void testInvalidNameInJson() throws Exception{
-        String originalJson = ResourceUtils.dataAsString("StreamConfiguration.json");
+        String originalJson = getStreamConfigurationJson();
         JsonValue originalParsedJson = JsonParser.parse(originalJson);
         originalParsedJson.map.put(NAME, new JsonValue("Inavlid*Name"));
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.instance(originalParsedJson.toJson()));
@@ -147,13 +156,13 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     public void testConstruction() {
         StreamConfiguration testSc = getTestConfiguration();
         // from json
-        validate(testSc, false, DEFAULT_STREAM_NAME);
+        validateTestStreamConfiguration(testSc, false, DEFAULT_STREAM_NAME);
 
         // test toJson
-        validate(StreamConfiguration.instance(JsonParser.parseUnchecked(testSc.toJson())), false, DEFAULT_STREAM_NAME);
+        validateTestStreamConfiguration(StreamConfiguration.instance(JsonParser.parseUnchecked(testSc.toJson())), false, DEFAULT_STREAM_NAME);
 
         // copy constructor
-        validate(StreamConfiguration.builder(testSc).build(), false, DEFAULT_STREAM_NAME);
+        validateTestStreamConfiguration(StreamConfiguration.builder(testSc).build(), false, DEFAULT_STREAM_NAME);
 
         // builder
         StreamConfiguration.Builder builder = StreamConfiguration.builder()
@@ -189,11 +198,31 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             .metadata(testSc.getMetadata())
             .firstSequence(testSc.getFirstSequence())
             .consumerLimits(testSc.getConsumerLimits())
-            .allowMessageTtl(testSc.isAllowMessageTtl())
             .subjectDeleteMarkerTtl(testSc.getSubjectDeleteMarkerTtl())
+            .allowMessageTtl(testSc.getAllowMessageTtl())
+            .allowMessageSchedules(testSc.getAllowMsgSchedules())
+            .allowMessageCounter(testSc.getAllowMessageCounter())
+            .allowAtomicPublish(testSc.getAllowAtomicPublish())
+            .persistMode(testSc.getPersistMode())
             ;
-        validate(builder.build(), false, DEFAULT_STREAM_NAME);
-        validate(builder.addSources((Source)null).build(), false, DEFAULT_STREAM_NAME);
+        validateTestStreamConfiguration(builder.build(), false, DEFAULT_STREAM_NAME);
+        validateTestStreamConfiguration(builder.addSources((Source)null).build(), false, DEFAULT_STREAM_NAME);
+
+        // COVERAGE of builder methods since I know these to be true
+        builder
+            // clear the flags
+            .allowMessageTtl(false)
+            .allowMessageSchedules(false)
+            .allowMessageCounter(false)
+            .allowAtomicPublish(false)
+            // set the flags
+            .allowMessageTtl()
+            .allowMessageSchedules()
+            .allowMessageCounter()
+            .allowAtomicPublish()
+        ;
+        validateTestStreamConfiguration(builder.build(), false, DEFAULT_STREAM_NAME);
+        validateTestStreamConfiguration(builder.addSources((Source)null).build(), false, DEFAULT_STREAM_NAME);
 
         assertNotNull(testSc.getSources());
         List<Source> sources = new ArrayList<>(testSc.getSources());
@@ -201,7 +230,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         Source copy = new Source(JsonParser.parseUnchecked(sources.get(0).toJson()));
         assertEquals(sources.get(0).toString(), copy.toString());
         sources.add(copy);
-        validate(builder.addSources(sources).build(), false, DEFAULT_STREAM_NAME);
+        validateTestStreamConfiguration(builder.addSources(sources).build(), false, DEFAULT_STREAM_NAME);
 
         // covering add a single source
         sources = new ArrayList<>(testSc.getSources());
@@ -211,7 +240,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             builder.addSource(source);
         }
         builder.addSource(sources.get(0));
-        validate(builder.build(), false, DEFAULT_STREAM_NAME);
+        validateTestStreamConfiguration(builder.build(), false, DEFAULT_STREAM_NAME);
 
         // equals and hashcode coverage
         External externalFromCopy = copy.getExternal();
@@ -292,6 +321,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     @SuppressWarnings("deprecation")
     @Test
     public void testConstructionInvalidsCoverage() {
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().name(null).build());
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().name(HAS_SPACE));
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxConsumers(0));
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().maxConsumers(-2));
@@ -312,6 +342,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().replicas(6));
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().duplicateWindow(Duration.ofNanos(-1)));
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().duplicateWindow(-1));
+        assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder().subjectDeleteMarkerTtl(1));
     }
 
     @Test
@@ -507,7 +538,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(DiscardPolicy.Old, builder.build().getDiscardPolicy());
     }
 
-    private void validate(StreamConfiguration sc, boolean serverTest, String name) {
+    private void validateTestStreamConfiguration(StreamConfiguration sc, boolean serverTest, String name) {
         assertEquals(name, sc.getName());
         assertEquals("blah blah", sc.getDescription());
         assertEquals(4, sc.getSubjects().size());
@@ -531,7 +562,10 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(StorageType.Memory, sc.getStorageType());
         assertSame(DiscardPolicy.New, sc.getDiscardPolicy());
 
-        assertTrue(sc.isAllowMessageTtl());
+        assertTrue(sc.getAllowMessageTtl());
+        //noinspection deprecation
+        assertTrue(sc.isAllowMessageTtl()); // COVERAGE
+
         assertEquals(Duration.ofNanos(73000000000L), sc.getSubjectDeleteMarkerTtl());
 
         assertNotNull(sc.getPlacement());
@@ -594,6 +628,11 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             assertNotNull(sc.getConsumerLimits());
             assertEquals(Duration.ofSeconds(50), sc.getConsumerLimits().getInactiveThreshold());
             assertEquals(42, sc.getConsumerLimits().getMaxAckPending());
+
+            assertTrue(sc.getAllowMsgSchedules());
+            assertTrue(sc.getAllowMessageCounter());
+            assertTrue(sc.getAllowAtomicPublish());
+            assertSame(PersistMode.Async, sc.getPersistMode());
         }
     }
 

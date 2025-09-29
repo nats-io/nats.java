@@ -144,6 +144,16 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         }
     }
 
+// TODO - PINNED CONSUMER SUPPORT
+//    private void checkNotPinned(String label) throws IOException {
+//        ConsumerInfo ci = cachedConsumerInfo.get();
+//        if (ci != null) {
+//            if (ci.getConsumerConfiguration().getPriorityPolicy() == PriorityPolicy.PinnedClient) {
+//                throw new IOException("Pinned not allowed with " + label);
+//            }
+//        }
+//    }
+
     private NatsMessageConsumerBase trackConsume(NatsMessageConsumerBase con) {
         lastConsumer.set(con);
         return con;
@@ -212,6 +222,8 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         try {
             stateLock.lock();
             checkState();
+// TODO - PINNED CONSUMER SUPPORT
+//            checkNotPinned("Next");
 
             try {
                 long inactiveThreshold = maxWaitMillis * 110 / 100; // 10% longer than the wait
@@ -280,6 +292,8 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         try {
             stateLock.lock();
             checkState();
+// TODO - PINNED CONSUMER SUPPORT
+//            checkNotPinned("Fetch");
             return (FetchConsumer)trackConsume(new NatsFetchConsumer(this, cachedConsumerInfo.get(), fetchConsumeOptions));
         }
         finally {
@@ -363,4 +377,18 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             stateLock.unlock();
         }
     }
+
+// TODO - PINNED CONSUMER SUPPORT
+//    @Override
+//    public boolean unpin(String group) throws IOException, JetStreamApiException {
+//        String name = consumerName.get();
+//        if (name == null) {
+//            ConsumerInfo ci = cachedConsumerInfo.get();
+//            if (ci == null) {
+//                ci = getConsumerInfo();
+//            }
+//            name = ci.getName();
+//        }
+//        return streamCtx.jsm.unpinConsumer(streamCtx.streamName, name, group);
+//    }
 }

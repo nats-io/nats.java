@@ -89,7 +89,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(0, ss.getConsumerCount());
 
             if (nc.getServerInfo().isSameOrNewerThanVersion("2.10")) {
-                JetStream js = nc.jetStream();
+                JetStream js = jsm.jetStream();
                 String stream = stream();
                 sc = StreamConfiguration.builder()
                     .name(stream)
@@ -1129,7 +1129,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             Headers h = new Headers();
             h.add("foo", "bar");
 
-            ZonedDateTime beforeCreated = ZonedDateTime.now();
+            ZonedDateTime timeBeforeCreated = ZonedDateTime.now();
             js.publish(NatsMessage.builder().subject(SUBJECT).headers(h).data(dataBytes(1)).build());
             js.publish(NatsMessage.builder().subject(SUBJECT).build());
 
@@ -1140,7 +1140,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(SUBJECT, mi.getSubject());
             assertEquals(data(1), new String(mi.getData()));
             assertEquals(1, mi.getSeq());
-            assertTrue(mi.getTime().toEpochSecond() >= beforeCreated.toEpochSecond());
+            assertTrue(mi.getTime().toEpochSecond() >= timeBeforeCreated.toEpochSecond());
             assertNotNull(mi.getHeaders());
             assertEquals("bar", mi.getHeaders().get("foo").get(0));
 
@@ -1149,7 +1149,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(SUBJECT, mi.getSubject());
             assertNull(mi.getData());
             assertEquals(2, mi.getSeq());
-            assertTrue(mi.getTime().toEpochSecond() >= beforeCreated.toEpochSecond());
+            assertTrue(mi.getTime().toEpochSecond() >= timeBeforeCreated.toEpochSecond());
             assertTrue(mi.getHeaders() == null || mi.getHeaders().isEmpty());
 
             assertTrue(jsm.deleteMessage(STREAM, 1, false)); // added coverage for use of erase (no_erase) flag.
@@ -1248,7 +1248,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 TestingStreamContainer tsc = new TestingStreamContainer(nc, 2);
                 assertFalse(tsc.si.getConfiguration().getAllowDirect());
 
-                ZonedDateTime beforeCreated = ZonedDateTime.now();
+                ZonedDateTime timeBeforeCreated = ZonedDateTime.now();
+                sleep(100);
                 js.publish(buildTestGetMessage(tsc, 0, 1));
                 js.publish(buildTestGetMessage(tsc, 1, 2));
                 js.publish(buildTestGetMessage(tsc, 0, 3));
@@ -1256,12 +1257,12 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 js.publish(buildTestGetMessage(tsc, 0, 5));
                 js.publish(buildTestGetMessage(tsc, 1, 6));
 
-                validateGetMessage(jsm, tsc, beforeCreated);
+                validateGetMessage(jsm, tsc, timeBeforeCreated);
 
                 StreamConfiguration sc = StreamConfiguration.builder(tsc.si.getConfiguration()).allowDirect(true).build();
                 StreamInfo si = jsm.updateStream(sc);
                 assertTrue(si.getConfiguration().getAllowDirect());
-                validateGetMessage(jsm, tsc, beforeCreated);
+                validateGetMessage(jsm, tsc, timeBeforeCreated);
 
                 // error case stream doesn't exist
                 assertThrows(JetStreamApiException.class, () -> jsm.getMessage(stream(999), 1));
@@ -1278,27 +1279,30 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             .build();
     }
 
-    private void validateGetMessage(JetStreamManagement jsm, TestingStreamContainer tsc, ZonedDateTime beforeCreated) throws IOException, JetStreamApiException {
+    private void validateGetMessage(JetStreamManagement jsm, TestingStreamContainer tsc, ZonedDateTime timeBeforeCreated) throws IOException, JetStreamApiException {
 
-        assertMessageInfo(tsc, 0, 1, jsm.getMessage(tsc.stream, 1), beforeCreated);
-        assertMessageInfo(tsc, 0, 5, jsm.getLastMessage(tsc.stream, tsc.subject(0)), beforeCreated);
-        assertMessageInfo(tsc, 1, 6, jsm.getLastMessage(tsc.stream, tsc.subject(1)), beforeCreated);
+        assertMessageInfo(tsc, 0, 1, jsm.getMessage(tsc.stream, 1), timeBeforeCreated);
+        assertMessageInfo(tsc, 0, 5, jsm.getLastMessage(tsc.stream, tsc.subject(0)), timeBeforeCreated);
+        assertMessageInfo(tsc, 1, 6, jsm.getLastMessage(tsc.stream, tsc.subject(1)), timeBeforeCreated);
 
-        assertMessageInfo(tsc, 0, 1, jsm.getNextMessage(tsc.stream, -1, tsc.subject(0)), beforeCreated);
-        assertMessageInfo(tsc, 1, 2, jsm.getNextMessage(tsc.stream, -1, tsc.subject(1)), beforeCreated);
-        assertMessageInfo(tsc, 0, 1, jsm.getNextMessage(tsc.stream, 0, tsc.subject(0)), beforeCreated);
-        assertMessageInfo(tsc, 1, 2, jsm.getNextMessage(tsc.stream, 0, tsc.subject(1)), beforeCreated);
-        assertMessageInfo(tsc, 0, 1, jsm.getFirstMessage(tsc.stream, tsc.subject(0)), beforeCreated);
-        assertMessageInfo(tsc, 1, 2, jsm.getFirstMessage(tsc.stream, tsc.subject(1)), beforeCreated);
+        assertMessageInfo(tsc, 0, 1, jsm.getNextMessage(tsc.stream, -1, tsc.subject(0)), timeBeforeCreated);
+        assertMessageInfo(tsc, 1, 2, jsm.getNextMessage(tsc.stream, -1, tsc.subject(1)), timeBeforeCreated);
+        assertMessageInfo(tsc, 0, 1, jsm.getNextMessage(tsc.stream, 0, tsc.subject(0)), timeBeforeCreated);
+        assertMessageInfo(tsc, 1, 2, jsm.getNextMessage(tsc.stream, 0, tsc.subject(1)), timeBeforeCreated);
+        assertMessageInfo(tsc, 0, 1, jsm.getFirstMessage(tsc.stream, tsc.subject(0)), timeBeforeCreated);
+        assertMessageInfo(tsc, 1, 2, jsm.getFirstMessage(tsc.stream, tsc.subject(1)), timeBeforeCreated);
+        assertMessageInfo(tsc, 0, 1, jsm.getFirstMessage(tsc.stream, timeBeforeCreated), timeBeforeCreated);
+        assertMessageInfo(tsc, 0, 1, jsm.getFirstMessage(tsc.stream, timeBeforeCreated, tsc.subject(0)), timeBeforeCreated);
+        assertMessageInfo(tsc, 1, 2, jsm.getFirstMessage(tsc.stream, timeBeforeCreated, tsc.subject(1)), timeBeforeCreated);
 
-        assertMessageInfo(tsc, 0, 1, jsm.getNextMessage(tsc.stream, 1, tsc.subject(0)), beforeCreated);
-        assertMessageInfo(tsc, 1, 2, jsm.getNextMessage(tsc.stream, 1, tsc.subject(1)), beforeCreated);
+        assertMessageInfo(tsc, 0, 1, jsm.getNextMessage(tsc.stream, 1, tsc.subject(0)), timeBeforeCreated);
+        assertMessageInfo(tsc, 1, 2, jsm.getNextMessage(tsc.stream, 1, tsc.subject(1)), timeBeforeCreated);
 
-        assertMessageInfo(tsc, 0, 3, jsm.getNextMessage(tsc.stream, 2, tsc.subject(0)), beforeCreated);
-        assertMessageInfo(tsc, 1, 2, jsm.getNextMessage(tsc.stream, 2, tsc.subject(1)), beforeCreated);
+        assertMessageInfo(tsc, 0, 3, jsm.getNextMessage(tsc.stream, 2, tsc.subject(0)), timeBeforeCreated);
+        assertMessageInfo(tsc, 1, 2, jsm.getNextMessage(tsc.stream, 2, tsc.subject(1)), timeBeforeCreated);
 
-        assertMessageInfo(tsc, 0, 5, jsm.getNextMessage(tsc.stream, 5, tsc.subject(0)), beforeCreated);
-        assertMessageInfo(tsc, 1, 6, jsm.getNextMessage(tsc.stream, 5, tsc.subject(1)), beforeCreated);
+        assertMessageInfo(tsc, 0, 5, jsm.getNextMessage(tsc.stream, 5, tsc.subject(0)), timeBeforeCreated);
+        assertMessageInfo(tsc, 1, 6, jsm.getNextMessage(tsc.stream, 5, tsc.subject(1)), timeBeforeCreated);
 
         assertStatus(10003, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(tsc.stream, -1)));
         assertStatus(10003, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(tsc.stream, 0)));
@@ -1313,12 +1317,12 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         assertEquals(apiErrorCode, jsae.getApiErrorCode());
     }
 
-    private void assertMessageInfo(TestingStreamContainer tsc, int subj, long seq, MessageInfo mi, ZonedDateTime beforeCreated) {
+    private void assertMessageInfo(TestingStreamContainer tsc, int subj, long seq, MessageInfo mi, ZonedDateTime timeBeforeCreated) {
         assertEquals(tsc.stream, mi.getStream());
         assertEquals(tsc.subject(subj), mi.getSubject());
         assertEquals(seq, mi.getSeq());
         assertNotNull(mi.getTime());
-        assertTrue(mi.getTime().toEpochSecond() >= beforeCreated.toEpochSecond());
+        assertTrue(mi.getTime().toEpochSecond() >= timeBeforeCreated.toEpochSecond());
         String expectedData = "s" + subj + "-q" + seq;
         assertEquals("d-" + expectedData, new String(mi.getData()));
         assertEquals("h-" + expectedData, mi.getHeaders().getFirst("h"));
@@ -1329,14 +1333,42 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         assertNull(mi.getHeaders().getFirst(NATS_LAST_SEQUENCE));
     }
 
-    @SuppressWarnings("deprecation")
     @Test
-    public void testMessageGetRequest() {
-        validateMessageGetRequest(1, null, null, MessageGetRequest.forSequence(1));
-        validateMessageGetRequest(-1, "last", null, MessageGetRequest.lastForSubject("last"));
-        validateMessageGetRequest(-1, null, "first", MessageGetRequest.firstForSubject("first"));
-        validateMessageGetRequest(1, null, "first", MessageGetRequest.nextForSubject(1, "first"));
+    public void testMessageGetRequestObject() {
+        ZonedDateTime zdt = ZonedDateTime.now();
+        validateMessageGetRequestObject(1, null, null, null, MessageGetRequest.forSequence(1));
+        validateMessageGetRequestObject(-1, "last", null, null, MessageGetRequest.lastForSubject("last"));
+        validateMessageGetRequestObject(-1, null, "first", null, MessageGetRequest.firstForSubject("first"));
+        validateMessageGetRequestObject(1, null, "first", null, MessageGetRequest.nextForSubject(1, "first"));
+        validateMessageGetRequestObject(-1, null, null, zdt, MessageGetRequest.firstForStartTime(zdt));
+        validateMessageGetRequestObject(-1, null, "first", zdt, MessageGetRequest.firstForStartTimeAndSubject(zdt, "first"));
 
+        // coverage for MessageInfo
+        Message m = new NatsMessage("sub", null, new Headers()
+            .put(NATS_SUBJECT, "sub")
+            .put(NATS_SEQUENCE, "1")
+            .put(NATS_LAST_SEQUENCE, "1")
+            .put(NATS_TIMESTAMP, DateTimeUtils.toRfc3339(ZonedDateTime.now())),
+            null);
+        MessageInfo mi = new MessageInfo(m, "stream", true);
+        assertEquals(1, mi.getLastSeq());
+        assertTrue(mi.toString().contains("last_seq"));
+        assertNotNull(mi.toString());
+    }
+
+    private void validateMessageGetRequestObject(
+        long seq, String lastBySubject, String nextBySubject, ZonedDateTime zdt, MessageGetRequest mgr) {
+        assertEquals(seq, mgr.getSequence());
+        assertEquals(lastBySubject, mgr.getLastBySubject());
+        assertEquals(nextBySubject, mgr.getNextBySubject());
+        assertEquals(seq > 0 && nextBySubject == null, mgr.isSequenceOnly());
+        assertEquals(lastBySubject != null, mgr.isLastBySubject());
+        assertEquals(nextBySubject != null, mgr.isNextBySubject());
+        assertEquals(zdt, mgr.getStartTime());
+    }
+
+    @Test
+    public void testMessageGetRequestObjectDeprecatedMethods() {
         // coverage for deprecated methods
         MessageGetRequest.seqBytes(1);
         MessageGetRequest.lastBySubjectBytes(SUBJECT);
@@ -1350,28 +1382,6 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         assertTrue(mi.hasError());
         assertEquals(-1, mi.getLastSeq());
         assertFalse(mi.toString().contains("last_seq"));
-
-        // coverage for MessageInfo
-        m = new NatsMessage("sub", null, new Headers()
-            .put(NATS_SUBJECT, "sub")
-            .put(NATS_SEQUENCE, "1")
-            .put(NATS_LAST_SEQUENCE, "1")
-            .put(NATS_TIMESTAMP, DateTimeUtils.toRfc3339(ZonedDateTime.now())),
-            null);
-        mi = new MessageInfo(m, "stream", true);
-        assertEquals(1, mi.getLastSeq());
-        assertTrue(mi.toString().contains("last_seq"));
-        assertNotNull(mi.toString());
-    }
-
-    private void validateMessageGetRequest(
-        long seq, String lastBySubject, String nextBySubject, MessageGetRequest mgr) {
-        assertEquals(seq, mgr.getSequence());
-        assertEquals(lastBySubject, mgr.getLastBySubject());
-        assertEquals(nextBySubject, mgr.getNextBySubject());
-        assertEquals(seq > 0 && nextBySubject == null, mgr.isSequenceOnly());
-        assertEquals(lastBySubject != null, mgr.isLastBySubject());
-        assertEquals(nextBySubject != null, mgr.isNextBySubject());
     }
 
     @Test
@@ -1629,5 +1639,86 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             .filterSubject(subject)
             .build());
         return consumer;
+    }
+
+    @Test
+    public void testMessageDeleteRequest() {
+        MessageDeleteRequest mdr = new MessageDeleteRequest(1, true);
+        assertEquals(1, mdr.getSequence());
+        assertTrue(mdr.isErase());
+        assertFalse(mdr.isNoErase());
+        assertTrue(mdr.toJson().contains("\"seq\""));
+        assertFalse(mdr.toJson().contains("\"no_erase\""));
+
+        mdr = new MessageDeleteRequest(2, false);
+        assertEquals(2, mdr.getSequence());
+        assertFalse(mdr.isErase());
+        assertTrue(mdr.isNoErase());
+        assertTrue(mdr.toJson().contains("\"seq\""));
+        assertTrue(mdr.toJson().contains("\"no_erase\""));
+
+        mdr = MessageDeleteRequest.builder().build();
+        assertEquals(-1, mdr.getSequence());
+        assertTrue(mdr.isErase());
+        assertFalse(mdr.isNoErase());
+        assertFalse(mdr.toJson().contains("\"seq\""));
+        assertFalse(mdr.toJson().contains("\"no_erase\""));
+
+        mdr = MessageDeleteRequest.builder().sequence(3).build();
+        assertEquals(3, mdr.getSequence());
+        assertTrue(mdr.isErase());
+        assertFalse(mdr.isNoErase());
+        assertTrue(mdr.toJson().contains("\"seq\""));
+        assertFalse(mdr.toJson().contains("\"no_erase\""));
+
+        mdr = MessageDeleteRequest.builder().noErase().erase().build();
+        assertEquals(-1, mdr.getSequence());
+        assertTrue(mdr.isErase());
+        assertFalse(mdr.isNoErase());
+        assertFalse(mdr.toJson().contains("\"seq\""));
+        assertFalse(mdr.toJson().contains("\"no_erase\""));
+
+        mdr = MessageDeleteRequest.builder().erase().noErase().build();
+        assertEquals(-1, mdr.getSequence());
+        assertFalse(mdr.isErase());
+        assertTrue(mdr.isNoErase());
+        assertFalse(mdr.toJson().contains("\"seq\""));
+        assertTrue(mdr.toJson().contains("\"no_erase\""));
+    }
+
+    @Test
+    public void testStreamPersistMode() throws Exception {
+        jsServer.run(TestBase::atLeast2_12, nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            StreamConfiguration sc = StreamConfiguration.builder()
+                .name(stream())
+                .storageType(StorageType.File)
+                .subjects(subject())
+                .build();
+
+            StreamInfo si = jsm.addStream(sc);
+            assertTrue(si.getConfiguration().getPersistMode() == null || si.getConfiguration().getPersistMode() == PersistMode.Default);
+
+            sc = StreamConfiguration.builder()
+                .name(stream())
+                .storageType(StorageType.File)
+                .subjects(subject())
+                .persistMode(PersistMode.Default)
+                .build();
+
+            si = jsm.addStream(sc);
+            assertTrue(si.getConfiguration().getPersistMode() == null || si.getConfiguration().getPersistMode() == PersistMode.Default);
+
+            sc = StreamConfiguration.builder()
+                .name(stream())
+                .storageType(StorageType.File)
+                .subjects(subject())
+                .persistMode(PersistMode.Async)
+                .build();
+
+            si = jsm.addStream(sc);
+            assertSame(PersistMode.Async, si.getConfiguration().getPersistMode());
+        });
     }
 }

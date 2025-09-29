@@ -208,14 +208,14 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     }
 
     private Headers mergeNum(Headers h, String key, long value) {
-        return value > -1 ? _mergeNum(h, key, Long.toString(value)): h;
+        return value > -1 ? _merge(h, key, Long.toString(value)): h;
     }
 
     private Headers mergeString(Headers h, String key, String value) {
-        return Validator.nullOrEmpty(value) ? h : _mergeNum(h, key, value);
+        return Validator.nullOrEmpty(value) ? h : _merge(h, key, value);
     }
 
-    private Headers _mergeNum(Headers h, String key, String value) {
+    private Headers _merge(Headers h, String key, String value) {
         if (h == null) {
             h = new Headers();
         }
@@ -540,6 +540,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             if (idleHeartbeat != null && !idleHeartbeat.equals(getOrUnset(serverCcc.idleHeartbeat))) { changes.add("idleHeartbeat"); }
             if (maxExpires != null && !maxExpires.equals(getOrUnset(serverCcc.maxExpires))) { changes.add("maxExpires"); }
             if (inactiveThreshold != null && !inactiveThreshold.equals(getOrUnset(serverCcc.inactiveThreshold))) { changes.add("inactiveThreshold"); }
+            if (priorityTimeout != null && !priorityTimeout.equals(getOrUnset(serverCcc.priorityTimeout))) { changes.add("priorityTimeout"); }
 
             if (startTime != null && !startTime.equals(serverCcc.startTime)) { changes.add("startTime"); }
 

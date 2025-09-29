@@ -357,6 +357,19 @@ public interface JetStreamManagement {
      */
     boolean deleteMessage(String streamName, long seq, boolean erase) throws IOException, JetStreamApiException;
 
+// TODO - PINNED CONSUMER SUPPORT
+//    /**
+//     * Unpins a consumer
+//     * @param streamName name of the stream
+//     * @param consumerName name of consumer
+//     * @param consumerGroup name of the consumer's group
+//     * @throws IOException covers various communication issues with the NATS
+//     *         server such as timeout or interruption
+//     * @throws JetStreamApiException the request had an error related to the data
+//     * @return true if the delete succeeded
+//     */
+//    boolean unpinConsumer(String streamName, String consumerName, String consumerGroup) throws IOException, JetStreamApiException;
+
     /**
      * Gets a context for publishing and subscribing to subjects backed by Jetstream streams
      * and consumers, using the same connection and JetStreamOptions as the management.
