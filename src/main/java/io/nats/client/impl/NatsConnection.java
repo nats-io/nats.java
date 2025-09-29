@@ -733,6 +733,9 @@ class NatsConnection implements Connection {
         }
 
         processException(io);
+        if (currentServer != null) {
+            serverPool.connectFailed(currentServer);
+        }
 
         // Spawn a thread so we don't have timing issues with
         // waiting on read/write threads
