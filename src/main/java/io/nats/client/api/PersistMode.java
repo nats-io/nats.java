@@ -1,4 +1,4 @@
-// Copyright 2024 The NATS Authors
+// Copyright 2020 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -19,37 +19,37 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Represents the Priority Policy of a consumer
+ * Stream persist modes
  */
-public enum PriorityPolicy {
-    None("none"),
-    Overflow("overflow"),
-    Prioritized("prioritized");
+public enum PersistMode {
+    Default("default"),
+    Async("async");
 
-// TODO - PINNED CONSUMER SUPPORT
-//    PinnedClient("pinned_client")
+    private final String mode;
 
-    private final String policy;
+    PersistMode(String mode) {
+        this.mode = mode;
+    }
 
-    PriorityPolicy(String p) {
-        policy = p;
+    public String getMode() {
+        return mode;
     }
 
     @Override
     public String toString() {
-        return policy;
+        return mode;
     }
 
-    private static final Map<String, PriorityPolicy> strEnumHash = new HashMap<>();
+    private static final Map<String, PersistMode> strEnumHash = new HashMap<>();
 
     static {
-        for (PriorityPolicy env : PriorityPolicy.values()) {
+        for (PersistMode env : PersistMode.values()) {
             strEnumHash.put(env.toString(), env);
         }
     }
 
     @Nullable
-    public static PriorityPolicy get(String value) {
+    public static PersistMode get(String value) {
         return strEnumHash.get(value);
     }
 }

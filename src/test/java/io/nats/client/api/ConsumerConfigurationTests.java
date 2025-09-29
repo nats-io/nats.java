@@ -352,6 +352,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(2, c.getPriorityGroups().size());
         assertTrue(c.getPriorityGroups().contains("pgroup1"));
         assertTrue(c.getPriorityGroups().contains("pgroup2"));
+        assertEquals(Duration.ofSeconds(60), c.getPriorityTimeout());
 
         if (multiFilters) {
             assertNull(c.getFilterSubject());

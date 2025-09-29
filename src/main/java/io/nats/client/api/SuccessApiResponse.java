@@ -23,7 +23,13 @@ public class SuccessApiResponse extends ApiResponse<SuccessApiResponse> {
 
     public SuccessApiResponse(Message msg) {
         super(msg);
-        success = readBoolean(jv, SUCCESS);
+        Boolean b = readBoolean(jv, SUCCESS, null);
+        if (b == null) {
+            success = !hasError();
+        }
+        else {
+            success = b;
+        }
     }
 
     public boolean getSuccess() {

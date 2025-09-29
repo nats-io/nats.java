@@ -84,6 +84,10 @@ public interface NatsJetStreamConstants {
     // JSAPI_MSG_DELETE is the endpoint to remove a message.
     String JSAPI_MSG_DELETE = "STREAM.MSG.DELETE.%s";
 
+// TODO - PINNED CONSUMER SUPPORT
+//    // JSAPI_CONSUMER_UNPIN is the endpoint to unpin a consumer
+//    String JSAPI_CONSUMER_UNPIN = "CONSUMER.UNPIN.%s.%s";
+
     String MSG_ID_HDR = "Nats-Msg-Id";
     String EXPECTED_STREAM_HDR = "Nats-Expected-Stream";
     String EXPECTED_LAST_SEQ_HDR = "Nats-Expected-Last-Sequence";
@@ -112,6 +116,17 @@ public interface NatsJetStreamConstants {
 
     String NATS_PENDING_MESSAGES = "Nats-Pending-Messages";
     String NATS_PENDING_BYTES    = "Nats-Pending-Bytes";
+
+    String NATS_SCHEDULE_HDR        = "Nats-Schedule";
+    String NATS_SCHEDULE_TARGET_HDR = "Nats-Schedule-Target";
+    String NATS_SCHEDULE_TTL_HDR    = "Nats-Schedule-TTL";
+
+    String NATS_BATCH_ID_HDR        = "Nats-Batch-Id";
+    String NATS_BATCH_SEQUENCE_HDR  = "Nats-Batch-Sequence";
+    String NATS_BATCH_COMMIT_HDR    = "Nats-Batch-Commit";
+
+// TODO - PINNED CONSUMER SUPPORT
+//    String NATS_PIN_ID_HDR = "Nats-Pin-Id";
 
     int JS_CONSUMER_NOT_FOUND_ERR = 10014;
     int JS_NO_MESSAGE_FOUND_ERR = 10037;

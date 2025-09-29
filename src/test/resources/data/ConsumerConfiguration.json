@@ -28,5 +28,6 @@
   "mem_storage": true,
   "metadata":{"meta-test-key":"meta-test-value"},
   "priority_groups": ["pgroup1", "pgroup2"],
-  "priority_policy": "overflow"
+  "priority_policy": "overflow",
+  "priority_timeout": 60000000000
 }

@@ -25,8 +25,12 @@
   "mirror_direct": true,
   "metadata":{"meta-test-key":"meta-test-value"},
   "first_seq": 82942,
-  "allow_msg_ttl": true,
   "subject_delete_marker_ttl": 73000000000,
+  "allow_msg_ttl": true,
+  "allow_msg_schedules": true,
+  "allow_msg_counter": true,
+  "allow_atomic": true,
+  "persist_mode": "async",
   "placement": {
     "cluster": "clstr",
     "tags": ["tag1", "tag2"]

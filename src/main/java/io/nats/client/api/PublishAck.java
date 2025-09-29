@@ -31,6 +31,9 @@ public class PublishAck extends ApiResponse<PublishAck> {
     private final long seq;
     private final String domain;
     private final boolean duplicate;
+    private final String val;
+    private final String batchId;
+    private final int batchSize;
 
     /**
      *
@@ -52,6 +55,9 @@ public class PublishAck extends ApiResponse<PublishAck> {
         }
         domain = JsonValueUtils.readString(jv, DOMAIN);
         duplicate = JsonValueUtils.readBoolean(jv, DUPLICATE);
+        val = JsonValueUtils.readString(jv, VAL);
+        batchId = JsonValueUtils.readString(jv, BATCH);
+        batchSize = JsonValueUtils.readInteger(jv, COUNT, -1);
     }
 
     /**
@@ -86,5 +92,31 @@ public class PublishAck extends ApiResponse<PublishAck> {
      */
     public boolean isDuplicate() {
         return duplicate;
+    }
+
+    /**
+     * Gets a counter value. Only available on counter enabled streams
+     * @return the counter value as a string or null
+     */
+    @Nullable
+    public String getVal() {
+        return val;
+    }
+
+    /**
+     * Gets the batch id. Only populated for batch publishes
+     * @return the batch id
+     */
+    @Nullable
+    public String getBatchId() {
+        return batchId;
+    }
+
+    /**
+     * Gets the batch size. Only populated for batch publishes.
+     * @return the size of the batch
+     */
+    public int getBatchSize() {
+        return batchSize;
     }
 }

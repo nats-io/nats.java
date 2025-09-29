@@ -31,6 +31,9 @@ public class Status {
     public static final int CONFLICT_CODE = 409;
     public static final int EOB_CODE = 204;
 
+// TODO - PINNED CONSUMER SUPPORT
+//    public static final int PIN_ERROR_CODE = 423;
+
     public static String BAD_REQUEST                    = "Bad Request"; // 400
     public static String NO_MESSAGES                    = "No Messages"; // 404
     public static String CONSUMER_DELETED               = "Consumer Deleted"; // 409

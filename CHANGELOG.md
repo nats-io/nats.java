@@ -1,5 +1,31 @@
 # Change Log
 
+## 2.23.0
+
+### Server 2.12 Specific
+* (2.12) All 2.12 PRs combined #1403* @scottf
+    * (2.12) ClusterInfo field updates #1408 @scottf
+    * (2.12) Support Stream Config allow_msg_schedules #1422 @scottf
+    * (2.12) Message Counter support #1423 @scottf
+    * (2.12) Support Batch Publish #1425 @scottf
+    * (2.12) Prioritized Consumer Support #1433 @scottf
+
+### Core
+* Make NatsStatistics public so it can be extended #1414 @scottf
+* Statistics classes improvements #1415 @scottf
+* Lock around access to pending message and byte counts #1416 @scottf
+* Socket Read Timeout remove validation #1417 @scottf
+* Ensure write timeout is not less than 100 nanoseconds #1429 @scottf
+* Options to set underlying socket configuration of SO_SNDBUF and SO_RCVBUF #1432 @scottf
+
+
+### JetStream
+* Exposed StreamName #1431 @roeschter
+
+### Misc
+* Add getter for ObjectMeta Metadata to ObjectInfo #1418 @scottf
+* Update SocketDataPortBlockSimulator #1430 @scottf
+
 ## 2.22.0
 
 ### Core

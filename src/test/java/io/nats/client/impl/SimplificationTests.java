@@ -24,6 +24,8 @@ import java.io.*;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -31,6 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static io.nats.client.BaseConsumeOptions.*;
+import static io.nats.client.support.NatsConstants.GREATER_THAN;
 import static org.junit.jupiter.api.Assertions.*;
 
 @Isolated
@@ -1123,6 +1126,39 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testOrderedConsumeConstruction() throws Exception {
+        OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(null);
+        assertNotNull(occ.getFilterSubjects());
+        assertEquals(GREATER_THAN, occ.getFilterSubject());
+        assertEquals(GREATER_THAN, occ.getFilterSubjects().get(0));
+        assertFalse(occ.hasMultipleFilterSubjects());
+
+        occ = new OrderedConsumerConfiguration().filterSubjects((String[])null);
+        assertNotNull(occ.getFilterSubjects());
+        assertEquals(GREATER_THAN, occ.getFilterSubject());
+        assertEquals(GREATER_THAN, occ.getFilterSubjects().get(0));
+        assertFalse(occ.hasMultipleFilterSubjects());
+
+        occ = new OrderedConsumerConfiguration().filterSubjects((List<String>)null);
+        assertNotNull(occ.getFilterSubjects());
+        assertEquals(GREATER_THAN, occ.getFilterSubject());
+        assertEquals(GREATER_THAN, occ.getFilterSubjects().get(0));
+        assertFalse(occ.hasMultipleFilterSubjects());
+
+        occ = new OrderedConsumerConfiguration().filterSubjects(Collections.singletonList(null));
+        assertNotNull(occ.getFilterSubjects());
+        assertEquals(GREATER_THAN, occ.getFilterSubject());
+        assertEquals(GREATER_THAN, occ.getFilterSubjects().get(0));
+        assertFalse(occ.hasMultipleFilterSubjects());
+
+        occ = new OrderedConsumerConfiguration().filterSubjects(Collections.singletonList(""));
+        assertNotNull(occ.getFilterSubjects());
+        assertEquals(GREATER_THAN, occ.getFilterSubject());
+        assertEquals(GREATER_THAN, occ.getFilterSubjects().get(0));
+        assertFalse(occ.hasMultipleFilterSubjects());
+    }
+
+    @Test
     public void testOrderedConsume() throws Exception {
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
             // Setup
@@ -1342,6 +1378,16 @@ public class SimplificationTests extends JetStreamTestBase {
         check_default_values(occ);
         check_default_values(roundTripSerialize(occ));
 
+        // you can set headers only to false
+        // this tells the underlying consumer configuration that it was specifically set
+        occ = new OrderedConsumerConfiguration()
+            .filterSubject(null)
+            .deliverPolicy(null)
+            .replayPolicy(null)
+            .headersOnly(false);
+        check_default_values(occ);
+        check_default_values(roundTripSerialize(occ));
+
         // values that set to default
         occ = new OrderedConsumerConfiguration()
             .filterSubject("")
@@ -1392,7 +1438,8 @@ public class SimplificationTests extends JetStreamTestBase {
         assertEquals(ConsumerConfiguration.LONG_UNSET, occ.getStartSequence());
         assertNull(occ.getStartTime());
         assertNull(occ.getReplayPolicy());
-        assertNull(occ.getHeadersOnly());
+        assertTrue(occ.getHeadersOnly() == null || !occ.getHeadersOnly());
+        assertFalse(occ.isHeadersOnly());
     }
 
     private void check_values(OrderedConsumerConfiguration occ, ZonedDateTime zdt) {
@@ -1401,7 +1448,9 @@ public class SimplificationTests extends JetStreamTestBase {
         assertEquals(42, occ.getStartSequence());
         assertEquals(zdt, occ.getStartTime());
         assertEquals(ReplayPolicy.Original, occ.getReplayPolicy());
+        assertNotNull(occ.getHeadersOnly());
         assertTrue(occ.getHeadersOnly());
+        assertTrue(occ.isHeadersOnly());
     }
 
     private OrderedConsumerConfiguration roundTripSerialize(OrderedConsumerConfiguration occ) throws IOException, ClassNotFoundException {
