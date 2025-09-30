@@ -42,7 +42,8 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
       - name: Build and Test
-        run: chmod +x gradlew && ./gradlew --refresh-dependencies clean test jacocoTestReport coveralls
+#        run: chmod +x gradlew && ./gradlew --refresh-dependencies clean test jacocoTestReport coveralls
+        run: chmod +x gradlew && ./gradlew --refresh-dependencies clean test jacocoTestReport
       - name: Verify Javadoc
         run: ./gradlew javadoc
       - name: Clean up
