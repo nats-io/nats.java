@@ -25,6 +25,10 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: stable
+      - name: Setup Gradle 6.8.3
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '6.8.3' # Quotes required to prevent YAML converting to number
       - name: Install Nats Server
         run: |
           pkill -9 nats-server 2>/dev/null || true
