@@ -19,13 +19,13 @@ jobs:
       - name: Setup Gradle (disable cache for test)
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '6.3' # Quotes required to prevent YAML converting to number
+          gradle-version: '8.14' # Quotes required to prevent YAML converting to number
           cache-disabled: true
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
-          java-version: '11'
-          distribution: 'adopt'
+          java-version: '8'
+          distribution: 'temurin'
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
