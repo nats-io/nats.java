@@ -32,6 +32,7 @@ java {
 }
 
 repositories {
+    gradlePluginPortal()
     mavenCentral()
     maven { url "https://repo1.maven.org/maven2/" }
     maven { url "https://central.sonatype.com/repository/maven-snapshots/" }
