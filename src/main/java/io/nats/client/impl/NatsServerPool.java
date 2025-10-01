@@ -268,13 +268,15 @@ public class NatsServerPool implements ServerPool {
         // 2. If we find the server in the list...
         //    2.1. increment failed attempts
         //    2.2. if failed attempts reaches max, remove it from the list
+        //         otherwise just move it to the end of the list
         listLock.lock();
         try {
             for (int x = entryList.size() - 1; x >= 0 ; x--) {
                 ServerPoolEntry entry = entryList.get(x);
                 if (entry.nuri.equals(nuri)) {
-                    if (++entry.failedAttempts >= maxConnectAttempts) {
-                        entryList.remove(x);
+                    entryList.remove(x);
+                    if (++entry.failedAttempts < maxConnectAttempts) {
+                        entryList.add(entry);
                     }
                     return;
                 }

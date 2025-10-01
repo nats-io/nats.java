@@ -21,6 +21,10 @@ jobs:
         with:
           java-version: '8'
           distribution: 'temurin'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14' # Quotes required to prevent YAML converting to number
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
