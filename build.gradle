@@ -8,7 +8,7 @@ plugins {
     id 'jacoco'
 //    id 'com.github.kt3k.coveralls' version '2.12.2'
     id 'biz.aQute.bnd.builder' version '5.1.2'
-    id "org.gradle.test-retry" version "1.1.9"
+    id "org.gradle.test-retry" version "1.6.2"
     id 'io.github.gradle-nexus.publish-plugin' version '1.1.0'
     id 'signing'
 }
@@ -61,7 +61,7 @@ sourceSets {
     }
 }
 
-task bundle(type: Bundle) {
+tasks.register('bundle', Bundle) {
     from sourceSets.main.output
     exclude("io/nats/examples/**")
 }
@@ -122,7 +122,7 @@ javadoc {
     }
 }
 
-task examplesJar(type: Jar) {
+tasks.register('examplesJar', Jar) {
     archiveClassifier.set('examples')
     manifest {
         attributes('Implementation-Title': 'Java Nats Examples',
@@ -134,23 +134,23 @@ task examplesJar(type: Jar) {
     }
 }
 
-task javadocJar(type: Jar) {
+tasks.register('javadocJar', Jar) {
     archiveClassifier.set('javadoc')
     from javadoc
 }
 
-task sourcesJar(type: Jar) {
+tasks.register('sourcesJar', Jar) {
     archiveClassifier.set('sources')
     from sourceSets.main.allSource
 }
 
-task testsJar(type: Jar) {
+tasks.register('testsJar', Jar) {
     archiveClassifier.set('tests')
     from sourceSets.test.allSource
 }
 
 // run build before running fat jar to get classes
-task fatJar(type: Jar) {
+tasks.register('fatJar', Jar) {
     archiveClassifier.set('fat')
     manifest {
         attributes('Implementation-Title': 'Java Nats With Dependencies',
