@@ -140,7 +140,7 @@ class NatsConnectionWriter implements Runnable {
             while (msg != null) {
                 if (msg == END_RECONNECT) {
                     mode.set(Mode.Outgoing);
-                    return;
+                    break;
                 }
                 long size = msg.getSizeInBytes();
 
