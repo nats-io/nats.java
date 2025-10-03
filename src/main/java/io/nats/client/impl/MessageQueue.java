@@ -163,11 +163,10 @@ class MessageQueue {
                 Notes: The 5 seconds and the 4750 seconds is derived from the Options requestCleanupInterval, which defaults to 5 seconds and can be modified.
                 The 4750 is 95% of that time. The MIN_OFFER_TIMEOUT_NANOS 100 ms minimum is arbitrary.
              */
-            if (!editLock.tryLock(offerLockNanos, TimeUnit.NANOSECONDS)) {
-                throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
+            lockWasSuccessful = editLock.tryLock(offerLockNanos, TimeUnit.NANOSECONDS);
+            if (!lockWasSuccessful) {
+                throw new IllegalStateException(OUTPUT_QUEUE_BUSY + queue.size());
             }
-
-            lockWasSuccessful = true;
 
             if (!internal && this.discardWhenFull) {
                 return this.queue.offer(msg);
