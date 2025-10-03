@@ -355,7 +355,6 @@ class NatsConnection implements Connection {
         }
 
         reconnectImpl();
-        writer.setReconnectMode(false);
     }
 
     void reconnect() throws InterruptedException {
@@ -381,7 +380,7 @@ class NatsConnection implements Connection {
             return;
         }
 
-        writer.setReconnectMode(true);
+        writer.enterReconnectMode();
 
         if (!isConnected() && !isClosed() && !this.isClosing()) {
             boolean keepGoing = true;
@@ -452,18 +451,9 @@ class NatsConnection implements Connection {
             }
         });
 
-        try {
-            this.flush(this.options.getConnectionTimeout());
-        }
-        catch (Exception exp) {
-            this.processException(exp);
-        }
+        writer.enterWaitingForEndReconnectMode();
 
         processConnectionEvent(Events.RESUBSCRIBED, uriDetail(currentServer));
-
-        // When the flush returns, we are done sending internal messages,
-        // so we can switch to the non-reconnect queue
-        this.writer.setReconnectMode(false);
     }
 
     long timeCheck(long endNanos, String message) throws TimeoutException {
@@ -1674,7 +1664,7 @@ class NatsConnection implements Connection {
         pongQueue.add(pongFuture);
         try {
             long time = NatsSystemClock.nanoTime();
-            writer.queueInternalMessage(new ProtocolMessage(PING_PROTO));
+            writer.queue(new ProtocolMessage(PING_PROTO));
             pongFuture.get(timeout, TimeUnit.MILLISECONDS);
             return Duration.ofNanos(NatsSystemClock.nanoTime() - time);
         }
