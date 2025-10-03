@@ -27,13 +27,16 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static io.nats.client.support.BuilderBase.bufferAllocSize;
-import static io.nats.client.support.NatsConstants.CR;
-import static io.nats.client.support.NatsConstants.LF;
+import static io.nats.client.support.NatsConstants.*;
 
 class NatsConnectionWriter implements Runnable {
+    enum Mode {
+        Outgoing, Reconnect, ReconnectComplete
+    }
     private static final int BUFFER_BLOCK_SIZE = 256;
 
     private final NatsConnection connection;
@@ -43,7 +46,7 @@ class NatsConnectionWriter implements Runnable {
     private Future<DataPort> dataPortFuture;
     private DataPort dataPort;
     private final AtomicBoolean running;
-    private final AtomicBoolean reconnectMode;
+    private final AtomicReference<Mode> mode;
     private final ReentrantLock startStopLock;
 
     private byte[] sendBuffer;
@@ -58,7 +61,12 @@ class NatsConnectionWriter implements Runnable {
         writerLock = new ReentrantLock();
 
         this.running = new AtomicBoolean(false);
-        this.reconnectMode = new AtomicBoolean(sourceWriter != null);
+        if (sourceWriter == null) {
+            mode = new AtomicReference<>(Mode.Outgoing);
+        }
+        else {
+            mode = new AtomicReference<>(Mode.Reconnect);
+        }
         this.startStopLock = new ReentrantLock();
         this.stopped = new CompletableFuture<>();
         ((CompletableFuture<Boolean>)this.stopped).complete(Boolean.TRUE); // we are stopped on creation
@@ -119,6 +127,10 @@ class NatsConnectionWriter implements Runnable {
         return running.get();
     }
 
+    private static final NatsMessage END_RECONNECT = new NatsMessage("_end", null, EMPTY_BODY);
+
+    AtomicReference<Mode> lastMode = new AtomicReference<>(Mode.ReconnectComplete);
+
     void sendMessageBatch(NatsMessage msg, DataPort dataPort, StatisticsCollector stats) throws IOException {
         writerLock.lock();
         try {
@@ -126,6 +138,10 @@ class NatsConnectionWriter implements Runnable {
             int sbl = sendBufferLength.get();
 
             while (msg != null) {
+                if (msg == END_RECONNECT) {
+                    mode.set(Mode.Outgoing);
+                    return;
+                }
                 long size = msg.getSizeInBytes();
 
                 if (sendPosition + size > sbl) {
@@ -193,11 +209,11 @@ class NatsConnectionWriter implements Runnable {
 
             while (running.get() && !Thread.interrupted()) {
                 NatsMessage msg;
-                if (this.reconnectMode.get()) {
-                    msg = this.reconnectOutgoing.accumulate(sendBufferLength.get(), Options.MAX_MESSAGES_IN_NETWORK_BUFFER, reconnectTimeout);
+                if (mode.get() == Mode.Outgoing) {
+                    msg = this.outgoing.accumulate(sendBufferLength.get(), Options.MAX_MESSAGES_IN_NETWORK_BUFFER, outgoingTimeout);
                 }
                 else {
-                    msg = this.outgoing.accumulate(sendBufferLength.get(), Options.MAX_MESSAGES_IN_NETWORK_BUFFER, outgoingTimeout);
+                    msg = this.reconnectOutgoing.accumulate(sendBufferLength.get(), Options.MAX_MESSAGES_IN_NETWORK_BUFFER, reconnectTimeout);
                 }
                 if (msg != null) {
                     sendMessageBatch(msg, dataPort, stats);
@@ -218,8 +234,13 @@ class NatsConnectionWriter implements Runnable {
         }
     }
 
-    void setReconnectMode(boolean tf) {
-        reconnectMode.set(tf);
+    void beginReconnect() {
+        mode.set(Mode.Reconnect);
+    }
+
+    void endReconnect() {
+        mode.set(Mode.ReconnectComplete);
+        reconnectOutgoing.push(END_RECONNECT);
     }
 
     boolean canQueueDuringReconnect(NatsMessage msg) {
@@ -232,10 +253,11 @@ class NatsConnectionWriter implements Runnable {
     }
 
     void queueInternalMessage(NatsMessage msg) {
-        if (this.reconnectMode.get()) {
-            this.reconnectOutgoing.push(msg);
-        } else {
-            this.outgoing.push(msg, true);
+        if (mode.get() == Mode.Reconnect) {
+            reconnectOutgoing.push(msg);
+        }
+        else {
+            outgoing.push(msg, true);
         }
     }
 
@@ -269,6 +291,16 @@ class NatsConnectionWriter implements Runnable {
         writerLock.lock();
         try {
             return outgoing == null ? -1 : outgoing.sizeInBytes();
+        }
+        finally {
+            writerLock.unlock();
+        }
+    }
+
+    long reconnectPendingMessageCount() {
+        writerLock.lock();
+        try {
+            return reconnectOutgoing == null ? -1 : reconnectOutgoing.length();
         }
         finally {
             writerLock.unlock();

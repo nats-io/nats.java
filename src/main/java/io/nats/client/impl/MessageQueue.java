@@ -13,7 +13,6 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.Message;
 import io.nats.client.NatsSystemClock;
 
 import java.time.Duration;
@@ -32,7 +31,6 @@ class MessageQueue {
     protected static final int STOPPED = 0;
     protected static final int RUNNING = 1;
     protected static final int DRAINING = 2;
-    protected static final String POISON = "_poison";
     protected static final long MIN_OFFER_TIMEOUT_NANOS = 100 * NANOS_PER_MILLI;
 
     protected final AtomicLong length;
@@ -47,11 +45,12 @@ class MessageQueue {
     protected final long offerTimeoutNanos;
     protected final Duration requestCleanupInterval;
 
-    // Poison pill is a graphic, but common term for an item that breaks loops or stop something.
+    // SPECIAL MARKER MESSAGES
+    // A simple == is used to resolve if any message is exactly the static pill object in question
+    // ----------
+    // 1. Poison pill is a graphic, but common term for an item that breaks loops or stop something.
     // In this class the poison pill is used to break out of timed waits on the blocking queue.
-    // A simple == is used to check if any message in the queue is this message.
-    // /\ /\ /\ /\ which is why it is now a static. It's just a marker anyway.
-    protected static final NatsMessage POISON_PILL = new NatsMessage(POISON, null, EMPTY_BODY);
+    protected static final NatsMessage POISON_PILL = new NatsMessage("_poison", null, EMPTY_BODY);
 
     MessageQueue(boolean singleReaderMode, Duration requestCleanupInterval) {
         this(singleReaderMode, -1, false, requestCleanupInterval, null);
@@ -227,11 +226,7 @@ class MessageQueue {
             }
         }
 
-        return msg == null || isPoison(msg) ? null : msg;
-    }
-
-    private boolean isPoison(Message msg) {
-        return msg == POISON_PILL;
+        return msg == null || msg == POISON_PILL ? null : msg;
     }
 
     NatsMessage pop(Duration timeout) throws InterruptedException {
@@ -291,7 +286,7 @@ class MessageQueue {
 
         while (true) {
             NatsMessage next = this.queue.peek();
-            if (next != null && !isPoison(next)) {
+            if (next != null && next != POISON_PILL) {
                 long s = next.getSizeInBytes();
                 if (maxBytesToAccumulate < 0 || (size + s) < maxBytesToAccumulate) { // keep going
                     size += s;
