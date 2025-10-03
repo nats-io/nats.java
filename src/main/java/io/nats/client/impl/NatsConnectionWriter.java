@@ -43,7 +43,6 @@ class NatsConnectionWriter implements Runnable {
     private DataPort dataPort;
     private final AtomicBoolean running;
     private final AtomicBoolean reconnectMode;
-    private final AtomicBoolean handshakeMode;
     private final ReentrantLock startStopLock;
 
     private byte[] sendBuffer;
@@ -51,7 +50,6 @@ class NatsConnectionWriter implements Runnable {
 
     private final MessageQueue outgoing;
     private final MessageQueue reconnectOutgoing;
-    private final MessageQueue handshakeOutgoing;
     private final long reconnectBufferSize;
 
     NatsConnectionWriter(NatsConnection connection, NatsConnectionWriter sourceWriter) {
@@ -60,7 +58,6 @@ class NatsConnectionWriter implements Runnable {
 
         this.running = new AtomicBoolean(false);
         this.reconnectMode = new AtomicBoolean(sourceWriter != null);
-        this.handshakeMode = new AtomicBoolean(sourceWriter != null);
         this.startStopLock = new ReentrantLock();
         this.stopped = new CompletableFuture<>();
         ((CompletableFuture<Boolean>)this.stopped).complete(Boolean.TRUE); // we are stopped on creation
@@ -80,9 +77,6 @@ class NatsConnectionWriter implements Runnable {
         reconnectOutgoing = new MessageQueue(true, options.getRequestCleanupInterval(),
             sourceWriter == null ? null : sourceWriter.reconnectOutgoing);
         reconnectBufferSize = options.getReconnectBufferSize();
-
-        handshakeOutgoing = new MessageQueue(true, options.getRequestCleanupInterval(),
-                sourceWriter == null ? null : sourceWriter.handshakeOutgoing);
     }
 
     // Should only be called if the current thread has exited.
@@ -95,7 +89,6 @@ class NatsConnectionWriter implements Runnable {
             this.running.set(true);
             this.outgoing.resume();
             this.reconnectOutgoing.resume();
-            this.handshakeOutgoing.resume();
             this.stopped = connection.getExecutor().submit(this, Boolean.TRUE);
         } finally {
             this.startStopLock.unlock();
@@ -112,8 +105,6 @@ class NatsConnectionWriter implements Runnable {
             try {
                 this.outgoing.pause();
                 this.reconnectOutgoing.pause();
-                this.handshakeOutgoing.pause();
-                this.handshakeOutgoing.clear();
                 this.outgoing.filter(NatsMessage::isProtocolFilterOnStop);
             }
             finally {
@@ -201,11 +192,10 @@ class NatsConnectionWriter implements Runnable {
 
             while (running.get() && !Thread.interrupted()) {
                 NatsMessage msg;
-                if (this.handshakeMode.get()) {
-                    msg = this.handshakeOutgoing.accumulate(sendBufferLength.get(), Options.MAX_MESSAGES_IN_NETWORK_BUFFER, reconnectTimeout);
-                } else if (reconnectMode.get() || reconnectOutgoing.length() > 0) {
+                if (this.reconnectMode.get()) {
                     msg = this.reconnectOutgoing.accumulate(sendBufferLength.get(), Options.MAX_MESSAGES_IN_NETWORK_BUFFER, reconnectTimeout);
-                } else {
+                }
+                else {
                     msg = this.outgoing.accumulate(sendBufferLength.get(), Options.MAX_MESSAGES_IN_NETWORK_BUFFER, outgoingTimeout);
                 }
                 if (msg != null) {
@@ -231,10 +221,6 @@ class NatsConnectionWriter implements Runnable {
         reconnectMode.set(tf);
     }
 
-    void setHandshakeMode(boolean tf) {
-        handshakeMode.set(tf);
-    }
-
     boolean canQueueDuringReconnect(NatsMessage msg) {
         // don't over fill the "send" buffer while waiting to reconnect
         return (reconnectBufferSize < 0 || (outgoing.sizeInBytes() + msg.getSizeInBytes()) < reconnectBufferSize);
@@ -245,9 +231,7 @@ class NatsConnectionWriter implements Runnable {
     }
 
     void queueInternalMessage(NatsMessage msg) {
-        if (this.handshakeMode.get()) {
-            this.handshakeOutgoing.push(msg);
-        } else if (this.reconnectMode.get()) {
+        if (this.reconnectMode.get()) {
             this.reconnectOutgoing.push(msg);
         } else {
             this.outgoing.push(msg, true);
