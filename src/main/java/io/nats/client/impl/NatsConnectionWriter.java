@@ -35,7 +35,7 @@ import static io.nats.client.support.NatsConstants.*;
 
 class NatsConnectionWriter implements Runnable {
     enum Mode {
-        Outgoing, Reconnect, ReconnectComplete
+        Outgoing, Reconnect, EndReconnect
     }
     private static final int BUFFER_BLOCK_SIZE = 256;
 
@@ -129,7 +129,7 @@ class NatsConnectionWriter implements Runnable {
 
     private static final NatsMessage END_RECONNECT = new NatsMessage("_end", null, EMPTY_BODY);
 
-    AtomicReference<Mode> lastMode = new AtomicReference<>(Mode.ReconnectComplete);
+    AtomicReference<Mode> lastMode = new AtomicReference<>(Mode.EndReconnect);
 
     void sendMessageBatch(NatsMessage msg, DataPort dataPort, StatisticsCollector stats) throws IOException {
         writerLock.lock();
@@ -235,11 +235,12 @@ class NatsConnectionWriter implements Runnable {
     }
 
     void beginReconnect() {
+        reconnectOutgoing.clear();
         mode.set(Mode.Reconnect);
     }
 
     void endReconnect() {
-        mode.set(Mode.ReconnectComplete);
+        mode.set(Mode.EndReconnect);
         reconnectOutgoing.push(END_RECONNECT);
     }
 
