@@ -380,7 +380,7 @@ class NatsConnection implements Connection {
             return;
         }
 
-        writer.beginReconnect();
+        writer.enterReconnectMode();
 
         if (!isConnected() && !isClosed() && !this.isClosing()) {
             boolean keepGoing = true;
@@ -451,7 +451,7 @@ class NatsConnection implements Connection {
             }
         });
 
-        writer.endReconnect();
+        writer.enterWaitingForEndReconnectMode();
 
         processConnectionEvent(Events.RESUBSCRIBED, uriDetail(currentServer));
     }
