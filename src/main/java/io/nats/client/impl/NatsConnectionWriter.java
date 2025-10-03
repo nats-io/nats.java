@@ -295,14 +295,4 @@ class NatsConnectionWriter implements Runnable {
             writerLock.unlock();
         }
     }
-
-    long reconnectPendingMessageCount() {
-        writerLock.lock();
-        try {
-            return reconnectOutgoing == null ? -1 : reconnectOutgoing.length();
-        }
-        finally {
-            writerLock.unlock();
-        }
-    }
 }
