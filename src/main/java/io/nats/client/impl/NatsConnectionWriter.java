@@ -127,7 +127,7 @@ class NatsConnectionWriter implements Runnable {
         return running.get();
     }
 
-    private static final NatsMessage END_RECONNECT = new NatsMessage("_end", null, EMPTY_BODY);
+    static final NatsMessage END_RECONNECT = new NatsMessage("_end", null, EMPTY_BODY);
 
     AtomicReference<Mode> lastMode = new AtomicReference<>(Mode.EndReconnect);
 
