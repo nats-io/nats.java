@@ -21,6 +21,10 @@ jobs:
         with:
           java-version: '8'
           distribution: 'temurin'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14' # Quotes required to prevent YAML converting to number
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
@@ -37,7 +41,8 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
       - name: Build and Test
-        run: chmod +x gradlew && ./gradlew clean test jacocoTestReport coveralls
+#        run: chmod +x gradlew && ./gradlew --refresh-dependencies clean test jacocoTestReport coveralls
+        run: chmod +x gradlew && ./gradlew clean test
       - name: Verify Javadoc
         run: ./gradlew javadoc
       - name: Clean up
