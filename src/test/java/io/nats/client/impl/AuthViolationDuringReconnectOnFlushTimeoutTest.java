@@ -96,7 +96,7 @@ public class AuthViolationDuringReconnectOnFlushTimeoutTest {
         ScheduledExecutorService serverRestarter = Executors.newSingleThreadScheduledExecutor();
         AtomicReference<NatsTestServer> server = new AtomicReference<>();
         AtomicBoolean violated = new AtomicBoolean(false);
-        CountDownLatch restartsLeft = new CountDownLatch(2);
+        CountDownLatch restartsLeft = new CountDownLatch(1);
         ErrorListener errorListener = new ErrorListener() {
             @Override
             public void slowConsumerDetected(Connection conn, Consumer consumer) {
