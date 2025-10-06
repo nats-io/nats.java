@@ -1975,10 +1975,11 @@ class NatsConnection implements Connection {
     void processConnectionEvent(Events type, String uriDetails) {
         if (!this.callbackRunner.isShutdown()) {
             try {
+                long time = System.currentTimeMillis();
                 for (ConnectionListener listener : connectionListeners) {
                     this.callbackRunner.execute(() -> {
                         try {
-                            listener.connectionEvent(this, type, uriDetails);
+                            listener.connectionEvent(this, type, time, uriDetails);
                         } catch (Exception ex) {
                             this.statistics.incrementExceptionCount();
                         }
