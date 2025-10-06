@@ -183,7 +183,7 @@ class MessageQueue {
                 }
             }
             else {
-                throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
+                throw new IllegalStateException(OUTPUT_QUEUE_BUSY + queue.size());
             }
         }
         catch (InterruptedException e) {
