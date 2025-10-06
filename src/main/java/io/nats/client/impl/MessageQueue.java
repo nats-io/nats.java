@@ -85,7 +85,7 @@ class MessageQueue {
         this.offerTimeoutNanos = Math.max(MIN_OFFER_TIMEOUT_NANOS, requestCleanupInterval.toMillis() * NANOS_PER_MILLI * 95 / 100) ;
 
         editLock = new ReentrantLock();
-        
+
         this.singleReaderMode = singleReaderMode;
         this.requestCleanupInterval = requestCleanupInterval;
 
@@ -140,7 +140,6 @@ class MessageQueue {
     }
 
     boolean push(NatsMessage msg, boolean internal) {
-        boolean lockWasSuccessful = false;
         try {
             long startNanos = NatsSystemClock.nanoTime();
             /*
@@ -163,33 +162,33 @@ class MessageQueue {
                 Notes: The 5 seconds and the 4750 seconds is derived from the Options requestCleanupInterval, which defaults to 5 seconds and can be modified.
                 The 4750 is 95% of that time. The MIN_OFFER_TIMEOUT_NANOS 100 ms minimum is arbitrary.
              */
-            if (!editLock.tryLock(offerLockNanos, TimeUnit.NANOSECONDS)) {
-                throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
+            if (editLock.tryLock(offerLockNanos, TimeUnit.NANOSECONDS)) {
+                try {
+                    if (!internal && this.discardWhenFull) {
+                        return this.queue.offer(msg);
+                    }
+
+                    long timeoutNanosLeft = Math.max(MIN_OFFER_TIMEOUT_NANOS, offerTimeoutNanos - (NatsSystemClock.nanoTime() - startNanos));
+
+                    if (!this.queue.offer(msg, timeoutNanosLeft, TimeUnit.NANOSECONDS)) {
+                        throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
+                    }
+                    this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
+                    this.length.incrementAndGet();
+                    return true;
+
+                }
+                finally {
+                    editLock.unlock();
+                }
             }
-
-            lockWasSuccessful = true;
-
-            if (!internal && this.discardWhenFull) {
-                return this.queue.offer(msg);
+            else {
+                throw new IllegalStateException(OUTPUT_QUEUE_BUSY + queue.size());
             }
-
-            long timeoutNanosLeft = Math.max(MIN_OFFER_TIMEOUT_NANOS, offerTimeoutNanos - (NatsSystemClock.nanoTime() - startNanos));
-
-            if (!this.queue.offer(msg, timeoutNanosLeft, TimeUnit.NANOSECONDS)) {
-                throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
-            }
-            this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
-            this.length.incrementAndGet();
-            return true;
         }
         catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return false;
-        }
-        finally {
-            if (lockWasSuccessful) {
-                editLock.unlock();
-            }
         }
     }
 
