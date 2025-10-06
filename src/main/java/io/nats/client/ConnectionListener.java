@@ -89,7 +89,7 @@ public interface ConnectionListener {
      * @param type the type of event that has occurred
      * @param uriDetails extra details about the uri related to this connection event
      */
-    default void connectionEvent(Connection conn, Events type, String uriDetails) {
+    default void connectionEvent(Connection conn, Events type, Long time, String uriDetails) {
         connectionEvent(conn, type);
     }
 }
