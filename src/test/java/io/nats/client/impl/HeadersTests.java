@@ -557,6 +557,22 @@ public class HeadersTests {
         assertValidStatus(CONFLICT_CODE, BATCH_COMPLETED);
         assertValidStatus(CONFLICT_CODE, SERVER_SHUTDOWN);
         assertValidStatus(CONFLICT_CODE, LEADERSHIP_CHANGE);
+
+        // coverage
+        assertValidStatus(199, "Test Starts With Known Bytes But Not Known");
+        assertValidStatus(299, "Test Starts With Known Bytes But Not Known");
+        assertValidStatus(499, "Test Starts With Known Bytes But Not Known");
+        assertValidStatus(599, "Test Starts With Known Bytes But Not Known");
+
+        assertValidStatus(999, "B Test Starts With Known Letter But Not Known");
+        assertValidStatus(999, "E Test Starts With Known Letter But Not Known");
+        assertValidStatus(999, "N Test Starts With Known Letter But Not Known");
+        assertValidStatus(999, "F Test Starts With Known Letter But Not Known");
+        assertValidStatus(999, "I Test Starts With Known Letter But Not Known");
+        assertValidStatus(999, "M Test Starts With Known Letter But Not Known");
+        assertValidStatus(999, "L Test Starts With Known Letter But Not Known");
+        assertValidStatus(999, "S Test Starts With Known Letter But Not Known");
+        assertValidStatus(999, "C Test Starts With Known Letter But Not Known");
     }
 
     @Test
@@ -568,8 +584,8 @@ public class HeadersTests {
         headers.put(NATS_STREAM, "stream");
         headers.put(NATS_LAST_SEQUENCE, "67890");
         headers.put(NATS_NUM_PENDING, "6");
-        headers.put("NAT-Starts-With-Known-Byte", "known");
-        headers.put("Starts-With-Unknown-Byte", "unknown");
+        headers.put("N-Starts-With-Known-Byte", "Starts-With-Known-Byte");
+        headers.put("X-Starts-With-Unknown-Byte", "Starts-With-Unknown-Byte");
         IncomingHeadersProcessor ihp = new IncomingHeadersProcessor(headers.getSerialized());
         headers = ihp.getHeaders();
         assertEquals("subject", headers.getFirst(NATS_SUBJECT));
@@ -578,8 +594,8 @@ public class HeadersTests {
         assertEquals("stream", headers.getFirst(NATS_STREAM));
         assertEquals("67890", headers.getFirst(NATS_LAST_SEQUENCE));
         assertEquals("6", headers.getFirst(NATS_NUM_PENDING));
-        assertEquals("known", headers.getFirst("NAT-Starts-With-Known-Byte"));
-        assertEquals("unknown", headers.getFirst("Starts-With-Unknown-Byte"));
+        assertEquals("Starts-With-Known-Byte", headers.getFirst("N-Starts-With-Known-Byte"));
+        assertEquals("Starts-With-Unknown-Byte", headers.getFirst("X-Starts-With-Unknown-Byte"));
     }
 
     @Test
@@ -819,6 +835,12 @@ public class HeadersTests {
         Token t = new Token("k1:v1\r\n\r\n".getBytes(StandardCharsets.US_ASCII), 9, 0, TokenType.KEY);
         t.mustBe(TokenType.KEY);
         assertThrows(IllegalArgumentException.class, () -> t.mustBe(TokenType.CRLF));
+        assertTrue(t.hasValue());
+
+        Token ts = new Token("    \r\n".getBytes(StandardCharsets.US_ASCII), 4, 0, TokenType.SPACE);
+        assertFalse(ts.hasValue());
+        assertEquals(EMPTY, ts.getValueCheckKnownKeys());
+
     }
 
     @Test
