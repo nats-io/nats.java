@@ -140,6 +140,26 @@ public class Token {
             if (valueEquals(NATS_NUM_PENDING_BYTES)) {
                 return NATS_NUM_PENDING;
             }
+            if (valueEquals(CONSUMER_STALLED_HDR_BYTES)) {
+                return CONSUMER_STALLED_HDR;
+            }
+            if (valueEquals(MSG_SIZE_HDR_BYTES)) {
+                return MSG_SIZE_HDR;
+            }
+            if (valueEquals(NATS_MARKER_REASON_HDR_BYTES)) {
+                return NATS_MARKER_REASON_HDR;
+            }
+            if (valueEquals(NATS_PENDING_MESSAGES_BYTES)) {
+                return NATS_PENDING_MESSAGES;
+            }
+            if (valueEquals(NATS_PENDING_BYTES_BYTES)) {
+                return NATS_PENDING_BYTES;
+            }
+        }
+        else if (b == 'K') {
+            if (valueEquals(KV_OPERATION_HEADER_KEY_BYTES)) {
+                return KV_OPERATION_HEADER_KEY;
+            }
         }
         return valueAsString();
     }

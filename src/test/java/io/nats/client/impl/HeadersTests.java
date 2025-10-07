@@ -576,25 +576,39 @@ public class HeadersTests {
     }
 
     @Test
-    public void testMessageInfoKnownTokenCoverage() {
+    public void testHeadersKnownTokenCoverage() {
         Headers headers = new Headers();
         headers.put(NATS_SUBJECT, "subject");
-        headers.put(NATS_SEQUENCE, "12345");
-        headers.put(NATS_TIMESTAMP, "2023-01-01T12:00:00Z");
+        headers.put(NATS_SEQUENCE, "seq");
+        headers.put(NATS_TIMESTAMP, "ts");
         headers.put(NATS_STREAM, "stream");
-        headers.put(NATS_LAST_SEQUENCE, "67890");
-        headers.put(NATS_NUM_PENDING, "6");
-        headers.put("N-Starts-With-Known-Byte", "Starts-With-Known-Byte");
+        headers.put(NATS_LAST_SEQUENCE, "lseq");
+        headers.put(NATS_NUM_PENDING, "nnp");
+        headers.put(CONSUMER_STALLED_HDR, "csh");
+        headers.put(MSG_SIZE_HDR, "msh");
+        headers.put(NATS_MARKER_REASON_HDR, "nmrh");
+        headers.put(NATS_PENDING_MESSAGES, "npm");
+        headers.put(NATS_PENDING_BYTES, "npb");
+        headers.put(KV_OPERATION_HEADER_KEY, "op");
+        headers.put("N-Starts-With-Known-Byte", "Starts-With-Known-Byte-N");
+        headers.put("K-Starts-With-Known-Byte", "Starts-With-Known-Byte-K");
         headers.put("X-Starts-With-Unknown-Byte", "Starts-With-Unknown-Byte");
         IncomingHeadersProcessor ihp = new IncomingHeadersProcessor(headers.getSerialized());
         headers = ihp.getHeaders();
         assertEquals("subject", headers.getFirst(NATS_SUBJECT));
-        assertEquals("12345", headers.getFirst(NATS_SEQUENCE));
-        assertEquals("2023-01-01T12:00:00Z", headers.getFirst(NATS_TIMESTAMP));
+        assertEquals("seq", headers.getFirst(NATS_SEQUENCE));
+        assertEquals("ts", headers.getFirst(NATS_TIMESTAMP));
         assertEquals("stream", headers.getFirst(NATS_STREAM));
-        assertEquals("67890", headers.getFirst(NATS_LAST_SEQUENCE));
-        assertEquals("6", headers.getFirst(NATS_NUM_PENDING));
-        assertEquals("Starts-With-Known-Byte", headers.getFirst("N-Starts-With-Known-Byte"));
+        assertEquals("lseq", headers.getFirst(NATS_LAST_SEQUENCE));
+        assertEquals("nnp", headers.getFirst(NATS_NUM_PENDING));
+        assertEquals("csh", headers.getFirst(CONSUMER_STALLED_HDR));
+        assertEquals("msh", headers.getFirst(MSG_SIZE_HDR));
+        assertEquals("nmrh", headers.getFirst(NATS_MARKER_REASON_HDR));
+        assertEquals("npm", headers.getFirst(NATS_PENDING_MESSAGES));
+        assertEquals("npb", headers.getFirst(NATS_PENDING_BYTES));
+        assertEquals("op", headers.getFirst(KV_OPERATION_HEADER_KEY));
+        assertEquals("Starts-With-Known-Byte-N", headers.getFirst("N-Starts-With-Known-Byte"));
+        assertEquals("Starts-With-Known-Byte-K", headers.getFirst("K-Starts-With-Known-Byte"));
         assertEquals("Starts-With-Unknown-Byte", headers.getFirst("X-Starts-With-Unknown-Byte"));
     }
 

@@ -32,7 +32,7 @@ public abstract class NatsKeyValueUtil {
     public static final int KV_STREAM_PREFIX_LEN = KV_STREAM_PREFIX.length();
     public static final String KV_SUBJECT_PREFIX = "$KV.";
     public static final String KV_SUBJECT_SUFFIX = ".>";
-    public static final String KV_OPERATION_HEADER_KEY = "KV-Operation";
+    public static final String KV_OPERATION_HEADER_KEY = NatsJetStreamConstants.KV_OPERATION_HEADER_KEY;
 
     @NonNull
     public static String extractBucketName(String streamName) {

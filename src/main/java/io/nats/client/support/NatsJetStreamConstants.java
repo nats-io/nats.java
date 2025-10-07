@@ -98,9 +98,13 @@ public interface NatsJetStreamConstants {
 
     String LAST_CONSUMER_HDR = "Nats-Last-Consumer";
     String LAST_STREAM_HDR = "Nats-Last-Stream";
-    String CONSUMER_STALLED_HDR = "Nats-Consumer-Stalled";
-    String MSG_SIZE_HDR = "Nats-Msg-Size";
-    String NATS_MARKER_REASON_HDR = "Nats-Marker-Reason";
+
+    String CONSUMER_STALLED_HDR         = "Nats-Consumer-Stalled";
+    String MSG_SIZE_HDR                 = "Nats-Msg-Size";
+    String NATS_MARKER_REASON_HDR       = "Nats-Marker-Reason";
+    byte[] CONSUMER_STALLED_HDR_BYTES   = CONSUMER_STALLED_HDR.getBytes();
+    byte[] MSG_SIZE_HDR_BYTES           = MSG_SIZE_HDR.getBytes();
+    byte[] NATS_MARKER_REASON_HDR_BYTES = NATS_MARKER_REASON_HDR.getBytes();
 
     String ROLLUP_HDR = "Nats-Rollup";
     String ROLLUP_HDR_SUBJECT = "sub";
@@ -122,8 +126,13 @@ public interface NatsJetStreamConstants {
     byte[] NATS_LAST_SEQUENCE_BYTES = NATS_LAST_SEQUENCE.getBytes();
     byte[] NATS_NUM_PENDING_BYTES = NATS_NUM_PENDING.getBytes();
 
-    String NATS_PENDING_MESSAGES = "Nats-Pending-Messages";
-    String NATS_PENDING_BYTES    = "Nats-Pending-Bytes";
+    String NATS_PENDING_MESSAGES       = "Nats-Pending-Messages";
+    String NATS_PENDING_BYTES          = "Nats-Pending-Bytes";
+    byte[] NATS_PENDING_MESSAGES_BYTES = NATS_PENDING_MESSAGES.getBytes();
+    byte[] NATS_PENDING_BYTES_BYTES    = NATS_PENDING_BYTES.getBytes();
+
+    String KV_OPERATION_HEADER_KEY       = "KV-Operation";
+    byte[] KV_OPERATION_HEADER_KEY_BYTES = KV_OPERATION_HEADER_KEY.getBytes();
 
     String NATS_SCHEDULE_HDR        = "Nats-Schedule";
     String NATS_SCHEDULE_TARGET_HDR = "Nats-Schedule-Target";
