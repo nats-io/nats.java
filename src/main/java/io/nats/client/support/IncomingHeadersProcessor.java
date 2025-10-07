@@ -30,7 +30,7 @@ public class IncomingHeadersProcessor {
             throw new IllegalArgumentException(SERIALIZED_HEADER_CANNOT_BE_NULL_OR_EMPTY);
         }
 
-        // is tis the correct version
+        // is this the correct version
         for (int x = 0; x < HEADER_VERSION_BYTES_LEN; x++) {
             if (serialized[x] != HEADER_VERSION_BYTES[x]) {
                 throw new IllegalArgumentException(INVALID_HEADER_VERSION);
@@ -42,17 +42,15 @@ public class IncomingHeadersProcessor {
         Token terminus = new Token(serialized, serializedLength, serializedLength - 2, TokenType.CRLF);
         Token token = new Token(serialized, serializedLength, HEADER_VERSION_BYTES_LEN, null);
 
-        boolean hadStatus = false;
         if (token.isType(TokenType.SPACE)) {
             token = initStatus(serialized, serializedLength, token);
             if (token.samePoint(terminus)) {
                 return; // status only
             }
-            hadStatus = true;
         }
 
         if (token.isType(TokenType.CRLF)) {
-            initHeader(serialized, serializedLength, token, hadStatus);
+            initHeader(serialized, serializedLength, token);
         }
         else {
             throw new IllegalArgumentException(INVALID_HEADER_COMPOSITION);
@@ -71,7 +69,7 @@ public class IncomingHeadersProcessor {
         return inlineStatus;
     }
 
-    private void initHeader(byte[] serialized, int len, Token tCrlf, boolean hadStatus) {
+    private void initHeader(byte[] serialized, int len, Token tCrlf) {
         // REGULAR HEADER
         Token peek = new Token(serialized, len, tCrlf, null);
         while (peek.isType(TokenType.TEXT)) {
@@ -90,7 +88,7 @@ public class IncomingHeadersProcessor {
             if (headers == null) {
                 headers = new Headers();
             }
-            headers.add(tKey.getValue(), tVal.getValue());
+            headers.add(tKey.getValueCheckKnownKeys(), tVal.getValue());
             peek = new Token(serialized, len, tCrlf, null);
         }
         peek.mustBe(TokenType.CRLF);

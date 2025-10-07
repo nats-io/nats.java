@@ -13,7 +13,12 @@
 
 package io.nats.client.support;
 
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 import static io.nats.client.support.NatsConstants.*;
+import static io.nats.client.support.NatsJetStreamConstants.*;
+import static io.nats.client.support.Status.*;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
 public class Token {
@@ -22,6 +27,7 @@ public class Token {
     private final int start;
     private int end;
     private boolean hasValue;
+    private final int valueLength;
 
     public Token(byte[] serialized, int len, Token prev, TokenType required) {
         this(serialized, len, prev.end + (prev.type == TokenType.KEY ? 2 : 1), required);
@@ -48,11 +54,14 @@ public class Token {
         } else if (required == TokenType.CRLF || required == TokenType.SPACE) {
             throw new IllegalArgumentException(INVALID_HEADER_COMPOSITION);
         } else {
-            byte ender1 = CR;
-            byte ender2 = CR;
+            byte ender1;
+            byte ender2;
             if (required == null || required == TokenType.TEXT) {
                 type = TokenType.TEXT;
-            } else if (required == TokenType.WORD) {
+                ender1 = CR;
+                ender2 = CR;
+            }
+            else if (required == TokenType.WORD) {
                 ender1 = SP;
                 ender2 = CR;
                 type = TokenType.WORD;
@@ -74,6 +83,7 @@ public class Token {
             }
             hasValue = true;
         }
+        valueLength = hasValue ? end - start + 1 : 0;
     }
 
     private void mustBeCrlf(int len, int cur) {
@@ -96,8 +106,191 @@ public class Token {
         return hasValue;
     }
 
+    @NonNull
     public String getValue() {
-        return hasValue ? new String(serialized, start, end - start + 1, US_ASCII).trim() : EMPTY;
+        return hasValue ? valueAsString() : EMPTY;
+    }
+
+    private String valueAsString() {
+        return new String(serialized, start, valueLength, US_ASCII).trim();
+    }
+
+    @NonNull
+    public String getValueCheckKnownKeys() {
+        if (valueLength == 0) {
+            return EMPTY;
+        }
+        byte b = serialized[start];
+        if (b == 'N') {
+            if (valueEquals(NATS_STREAM_BYTES)) {
+                return NATS_STREAM;
+            }
+            if (valueEquals(NATS_SEQUENCE_BYTES)) {
+                return NATS_SEQUENCE;
+            }
+            if (valueEquals(NATS_TIMESTAMP_BYTES)) {
+                return NATS_TIMESTAMP;
+            }
+            if (valueEquals(NATS_SUBJECT_BYTES)) {
+                return NATS_SUBJECT;
+            }
+            if (valueEquals(NATS_LAST_SEQUENCE_BYTES)) {
+                return NATS_LAST_SEQUENCE;
+            }
+            if (valueEquals(NATS_NUM_PENDING_BYTES)) {
+                return NATS_NUM_PENDING;
+            }
+            if (valueEquals(CONSUMER_STALLED_HDR_BYTES)) {
+                return CONSUMER_STALLED_HDR;
+            }
+            if (valueEquals(MSG_SIZE_HDR_BYTES)) {
+                return MSG_SIZE_HDR;
+            }
+            if (valueEquals(NATS_MARKER_REASON_HDR_BYTES)) {
+                return NATS_MARKER_REASON_HDR;
+            }
+            if (valueEquals(NATS_PENDING_MESSAGES_BYTES)) {
+                return NATS_PENDING_MESSAGES;
+            }
+            if (valueEquals(NATS_PENDING_BYTES_BYTES)) {
+                return NATS_PENDING_BYTES;
+            }
+        }
+        else if (b == 'K') {
+            if (valueEquals(KV_OPERATION_HEADER_KEY_BYTES)) {
+                return KV_OPERATION_HEADER_KEY;
+            }
+        }
+        return valueAsString();
+    }
+
+    @Nullable
+    public String getValueCheckKnownStatuses() {
+        if (valueLength == 0) {
+            return null;
+        }
+        byte b = serialized[start];
+        if (b == 'B') {
+            if (valueEquals(BATCH_COMPLETED_BYTES)) {
+                return BATCH_COMPLETED;
+            }
+            if (valueEquals(BAD_REQUEST_BYTES)) {
+                return BAD_REQUEST;
+            }
+        }
+        else if (b == 'E') {
+            if (valueEquals(EXCEEDED_MAX_PREFIX_BYTES)) {
+                return EXCEEDED_MAX_PREFIX;
+            }
+            if (valueEquals(EXCEEDED_MAX_WAITING_BYTES)) {
+                return EXCEEDED_MAX_WAITING;
+            }
+            if (valueEquals(EXCEEDED_MAX_REQUEST_BATCH_BYTES)) {
+                return EXCEEDED_MAX_REQUEST_BATCH;
+            }
+            if (valueEquals(EXCEEDED_MAX_REQUEST_EXPIRES_BYTES)) {
+                return EXCEEDED_MAX_REQUEST_EXPIRES;
+            }
+            if (valueEquals(EXCEEDED_MAX_REQUEST_MAX_BYTES_BYTES)) {
+                return EXCEEDED_MAX_REQUEST_MAX_BYTES;
+            }
+            if (valueEquals(EOB_TEXT_BYTES)) {
+                return EOB_TEXT;
+            }
+        }
+        else if (b == 'N') {
+            if (valueEquals(NO_RESPONDERS_TEXT_BYTES)) {
+                return NO_RESPONDERS_TEXT;
+            }
+            if (valueEquals(NO_MESSAGES_BYTES)) {
+                return NO_MESSAGES;
+            }
+        }
+        else if (b == 'F') {
+            if (valueEquals(FLOW_CONTROL_TEXT_BYTES)) {
+                return FLOW_CONTROL_TEXT;
+            }
+        }
+        else if (b == 'I') {
+            if (valueEquals(HEARTBEAT_TEXT_BYTES)) {
+                return HEARTBEAT_TEXT;
+            }
+        }
+        else if (b == 'M') {
+            if (valueEquals(MESSAGE_SIZE_EXCEEDS_MAX_BYTES_BYTES)) {
+                return MESSAGE_SIZE_EXCEEDS_MAX_BYTES;
+            }
+        }
+        else if (b == 'L') {
+            if (valueEquals(LEADERSHIP_CHANGE_BYTES)) {
+                return LEADERSHIP_CHANGE;
+            }
+        }
+        else if (b == 'S') {
+            if (valueEquals(SERVER_SHUTDOWN_BYTES)) {
+                return SERVER_SHUTDOWN;
+            }
+        }
+        else if (b == 'C') {
+            if (valueEquals(CONSUMER_DELETED_BYTES)) {
+                return CONSUMER_DELETED;
+            }
+            if (valueEquals(CONSUMER_IS_PUSH_BASED_BYTES)) {
+                return CONSUMER_IS_PUSH_BASED;
+            }
+        }
+        return valueAsString();
+    }
+
+    public Integer getIntValue() throws NumberFormatException {
+        if (valueLength == 0) {
+            return null;
+        }
+        byte b = serialized[start];
+        if (b == '4') {
+            if (valueEquals(BAD_REQUEST_CODE_BYTES)) {
+                return BAD_REQUEST_CODE;
+            }
+            if (valueEquals(NOT_FOUND_CODE_BYTES)) {
+                return NOT_FOUND_CODE;
+            }
+            if (valueEquals(BAD_JS_REQUEST_CODE_BYTES)) {
+                return BAD_JS_REQUEST_CODE;
+            }
+            if (valueEquals(CONFLICT_CODE_BYTES)) {
+                return CONFLICT_CODE;
+            }
+        }
+        else if (b == '1') {
+            if (valueEquals(FLOW_OR_HEARTBEAT_STATUS_CODE_BYTES)) {
+                return FLOW_OR_HEARTBEAT_STATUS_CODE;
+            }
+        }
+        else if (b == '5') {
+            if (valueEquals(NO_RESPONDERS_CODE_BYTES)) {
+                return NO_RESPONDERS_CODE;
+            }
+        }
+        else if (b == '2') {
+            if (valueEquals(EOB_CODE_BYTES)) {
+                return EOB_CODE;
+            }
+        }
+        return Integer.parseInt(getValue());
+    }
+
+    public boolean valueEquals(byte @NonNull [] bytes) {
+        if (valueLength != bytes.length) {
+            return false;
+        }
+
+        for (int i = 0; i < bytes.length; i++) {
+            if (bytes[i] != serialized[i + start]) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public boolean samePoint(Token token) {

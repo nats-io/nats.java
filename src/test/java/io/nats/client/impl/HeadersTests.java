@@ -10,6 +10,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.Consumer;
 
+import static io.nats.client.support.NatsJetStreamConstants.*;
+import static io.nats.client.support.Status.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class HeadersTests {
@@ -529,31 +531,115 @@ public class HeadersTests {
 
     @Test
     public void constructStatusWithValidBytes() {
-        assertValidStatus("NATS/1.0 503\r\n", 503, "No Responders Available For Request"); // status made message
-        assertValidStatus("NATS/1.0 404\r\n", 404, "Server Status Message: 404");         // status made message
-        assertValidStatus("NATS/1.0 503 No Responders\r\n", 503, "No Responders");         // from data
-        assertValidStatus("NATS/1.0   503   No Responders\r\n", 503, "No Responders");
+        assertValidStatus("NATS/1.0 503\r\n", 503, NO_RESPONDERS_TEXT); // status made message
+        assertValidStatus("NATS/1.0 404\r\n", 404, "Server Status Message: 404");          // status made message
+        assertValidStatus("NATS/1.0 123 Message And Code Begin With Known Byte\r\n", 123, "Message And Code Begin With Known Byte");       // from data
+        assertValidStatus("NATS/1.0   923   Unknown Message And Code\r\n", 923, "Unknown Message And Code");
+
+        // additional coverage for status extraction comparing tokens to known values
+        assertValidStatus(FLOW_OR_HEARTBEAT_STATUS_CODE, FLOW_CONTROL_TEXT);
+        assertValidStatus(FLOW_OR_HEARTBEAT_STATUS_CODE, HEARTBEAT_TEXT);
+        assertValidStatus(NO_RESPONDERS_CODE, NO_RESPONDERS_TEXT);
+        assertValidStatus(EOB_CODE, EOB_TEXT);
+
+        assertValidStatus(BAD_REQUEST_CODE, BAD_REQUEST);
+        assertValidStatus(NOT_FOUND_CODE, NO_MESSAGES);
+        assertValidStatus(CONFLICT_CODE, CONSUMER_DELETED);
+        assertValidStatus(CONFLICT_CODE, CONSUMER_IS_PUSH_BASED);
+
+        assertValidStatus(CONFLICT_CODE, MESSAGE_SIZE_EXCEEDS_MAX_BYTES);
+        assertValidStatus(CONFLICT_CODE, EXCEEDED_MAX_PREFIX);
+        assertValidStatus(CONFLICT_CODE, EXCEEDED_MAX_WAITING);
+        assertValidStatus(CONFLICT_CODE, EXCEEDED_MAX_REQUEST_BATCH);
+        assertValidStatus(CONFLICT_CODE, EOB_TEXT);
+        assertValidStatus(CONFLICT_CODE, EXCEEDED_MAX_REQUEST_MAX_BYTES);
+
+        assertValidStatus(CONFLICT_CODE, BATCH_COMPLETED);
+        assertValidStatus(CONFLICT_CODE, SERVER_SHUTDOWN);
+        assertValidStatus(CONFLICT_CODE, LEADERSHIP_CHANGE);
+
+        // coverage
+        assertValidStatus(199, "Test Starts With Known Bytes But Not Known");
+        assertValidStatus(299, "Test Starts With Known Bytes But Not Known");
+        assertValidStatus(499, "Test Starts With Known Bytes But Not Known");
+        assertValidStatus(599, "Test Starts With Known Bytes But Not Known");
+
+        assertValidStatus(999, "B Test Starts With Known Letter But Not Known");
+        assertValidStatus(999, "E Test Starts With Known Letter But Not Known");
+        assertValidStatus(999, "N Test Starts With Known Letter But Not Known");
+        assertValidStatus(999, "F Test Starts With Known Letter But Not Known");
+        assertValidStatus(999, "I Test Starts With Known Letter But Not Known");
+        assertValidStatus(999, "M Test Starts With Known Letter But Not Known");
+        assertValidStatus(999, "L Test Starts With Known Letter But Not Known");
+        assertValidStatus(999, "S Test Starts With Known Letter But Not Known");
+        assertValidStatus(999, "C Test Starts With Known Letter But Not Known");
+    }
+
+    @Test
+    public void testHeadersKnownTokenCoverage() {
+        Headers headers = new Headers();
+        headers.put(NATS_SUBJECT, "subject");
+        headers.put(NATS_SEQUENCE, "seq");
+        headers.put(NATS_TIMESTAMP, "ts");
+        headers.put(NATS_STREAM, "stream");
+        headers.put(NATS_LAST_SEQUENCE, "lseq");
+        headers.put(NATS_NUM_PENDING, "nnp");
+        headers.put(CONSUMER_STALLED_HDR, "csh");
+        headers.put(MSG_SIZE_HDR, "msh");
+        headers.put(NATS_MARKER_REASON_HDR, "nmrh");
+        headers.put(NATS_PENDING_MESSAGES, "npm");
+        headers.put(NATS_PENDING_BYTES, "npb");
+        headers.put(KV_OPERATION_HEADER_KEY, "op");
+        headers.put("N-Starts-With-Known-Byte", "Starts-With-Known-Byte-N");
+        headers.put("K-Starts-With-Known-Byte", "Starts-With-Known-Byte-K");
+        headers.put("X-Starts-With-Unknown-Byte", "Starts-With-Unknown-Byte");
+        IncomingHeadersProcessor ihp = new IncomingHeadersProcessor(headers.getSerialized());
+        headers = ihp.getHeaders();
+        assertEquals("subject", headers.getFirst(NATS_SUBJECT));
+        assertEquals("seq", headers.getFirst(NATS_SEQUENCE));
+        assertEquals("ts", headers.getFirst(NATS_TIMESTAMP));
+        assertEquals("stream", headers.getFirst(NATS_STREAM));
+        assertEquals("lseq", headers.getFirst(NATS_LAST_SEQUENCE));
+        assertEquals("nnp", headers.getFirst(NATS_NUM_PENDING));
+        assertEquals("csh", headers.getFirst(CONSUMER_STALLED_HDR));
+        assertEquals("msh", headers.getFirst(MSG_SIZE_HDR));
+        assertEquals("nmrh", headers.getFirst(NATS_MARKER_REASON_HDR));
+        assertEquals("npm", headers.getFirst(NATS_PENDING_MESSAGES));
+        assertEquals("npb", headers.getFirst(NATS_PENDING_BYTES));
+        assertEquals("op", headers.getFirst(KV_OPERATION_HEADER_KEY));
+        assertEquals("Starts-With-Known-Byte-N", headers.getFirst("N-Starts-With-Known-Byte"));
+        assertEquals("Starts-With-Known-Byte-K", headers.getFirst("K-Starts-With-Known-Byte"));
+        assertEquals("Starts-With-Unknown-Byte", headers.getFirst("X-Starts-With-Unknown-Byte"));
     }
 
     @Test
     public void verifyStatusBooleans() {
-        Status status = new Status(Status.FLOW_OR_HEARTBEAT_STATUS_CODE, Status.FLOW_CONTROL_TEXT);
+        Status status = new Status(FLOW_OR_HEARTBEAT_STATUS_CODE, FLOW_CONTROL_TEXT);
         assertTrue(status.isFlowControl());
         assertFalse(status.isHeartbeat());
         assertFalse(status.isNoResponders());
+        assertFalse(status.isEob());
 
-        status = new Status(Status.FLOW_OR_HEARTBEAT_STATUS_CODE, Status.HEARTBEAT_TEXT);
+        status = new Status(FLOW_OR_HEARTBEAT_STATUS_CODE, HEARTBEAT_TEXT);
         assertFalse(status.isFlowControl());
         assertTrue(status.isHeartbeat());
         assertFalse(status.isNoResponders());
+        assertFalse(status.isEob());
 
-        status = new Status(Status.NO_RESPONDERS_CODE, Status.NO_RESPONDERS_TEXT);
+        status = new Status(NO_RESPONDERS_CODE, NO_RESPONDERS_TEXT);
         assertFalse(status.isFlowControl());
         assertFalse(status.isHeartbeat());
         assertTrue(status.isNoResponders());
+        assertFalse(status.isEob());
+
+        status = new Status(EOB_CODE, EOB_TEXT);
+        assertFalse(status.isFlowControl());
+        assertFalse(status.isHeartbeat());
+        assertFalse(status.isNoResponders());
+        assertTrue(status.isEob());
 
         // path coverage
-        status = new Status(Status.NO_RESPONDERS_CODE, "not no responders text");
+        status = new Status(NO_RESPONDERS_CODE, "not no responders text");
         assertFalse(status.isNoResponders());
     }
 
@@ -584,6 +670,12 @@ public class HeadersTests {
             assertEquals(1, values.size());
             assertEquals(val, values.get(0));
         }
+    }
+
+    private void assertValidStatus(int code, String text) {
+        String test = "NATS/1.0 " + code + " " + text + "\r\n";
+        IncomingHeadersProcessor ihp = new IncomingHeadersProcessor(test.getBytes());
+        assertValidStatus(ihp, code, text);
     }
 
     private IncomingHeadersProcessor assertValidStatus(String test, int code, String msg) {
@@ -766,6 +858,12 @@ public class HeadersTests {
         Token t = new Token("k1:v1\r\n\r\n".getBytes(StandardCharsets.US_ASCII), 9, 0, TokenType.KEY);
         t.mustBe(TokenType.KEY);
         assertThrows(IllegalArgumentException.class, () -> t.mustBe(TokenType.CRLF));
+        assertTrue(t.hasValue());
+
+        Token ts = new Token("    \r\n".getBytes(StandardCharsets.US_ASCII), 4, 0, TokenType.SPACE);
+        assertFalse(ts.hasValue());
+        assertEquals(EMPTY, ts.getValueCheckKnownKeys());
+
     }
 
     @Test

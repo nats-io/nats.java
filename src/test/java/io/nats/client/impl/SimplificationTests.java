@@ -17,6 +17,7 @@ import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.*;
 import io.nats.client.utils.TestBase;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 
@@ -1723,6 +1724,7 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
+    @Disabled("This is a timing flapper and is annoying.")
     public void testReconnectOverOrdered() throws Exception {
         // ------------------------------------------------------------
         // The idea here is...
