@@ -114,6 +114,14 @@ public interface NatsJetStreamConstants {
     String NATS_NUM_PENDING   = "Nats-Num-Pending";
     String[] MESSAGE_INFO_HEADERS = new String[]{NATS_SUBJECT, NATS_SEQUENCE, NATS_TIMESTAMP, NATS_STREAM, NATS_LAST_SEQUENCE, NATS_NUM_PENDING};
 
+    // bytes used for faster matching and less string allocation when
+    byte[] NATS_STREAM_BYTES = NATS_STREAM.getBytes();
+    byte[] NATS_SEQUENCE_BYTES = NATS_SEQUENCE.getBytes();
+    byte[] NATS_TIMESTAMP_BYTES = NATS_TIMESTAMP.getBytes();
+    byte[] NATS_SUBJECT_BYTES = NATS_SUBJECT.getBytes();
+    byte[] NATS_LAST_SEQUENCE_BYTES = NATS_LAST_SEQUENCE.getBytes();
+    byte[] NATS_NUM_PENDING_BYTES = NATS_NUM_PENDING.getBytes();
+
     String NATS_PENDING_MESSAGES = "Nats-Pending-Messages";
     String NATS_PENDING_BYTES    = "Nats-Pending-Bytes";
 

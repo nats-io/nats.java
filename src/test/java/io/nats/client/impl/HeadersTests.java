@@ -10,6 +10,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.Consumer;
 
+import static io.nats.client.support.NatsJetStreamConstants.*;
+import static io.nats.client.support.Status.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class HeadersTests {
@@ -529,25 +531,70 @@ public class HeadersTests {
 
     @Test
     public void constructStatusWithValidBytes() {
-        assertValidStatus("NATS/1.0 503\r\n", 503, "No Responders Available For Request"); // status made message
-        assertValidStatus("NATS/1.0 404\r\n", 404, "Server Status Message: 404");         // status made message
-        assertValidStatus("NATS/1.0 503 No Responders\r\n", 503, "No Responders");         // from data
-        assertValidStatus("NATS/1.0   503   No Responders\r\n", 503, "No Responders");
+        assertValidStatus("NATS/1.0 503\r\n", 503, NO_RESPONDERS_TEXT); // status made message
+        assertValidStatus("NATS/1.0 404\r\n", 404, "Server Status Message: 404");          // status made message
+        assertValidStatus("NATS/1.0 123 Message And Code Begin With Known Byte\r\n", 123, "Message And Code Begin With Known Byte");       // from data
+        assertValidStatus("NATS/1.0   923   Unknown Message And Code\r\n", 923, "Unknown Message And Code");
+
+        // additional coverage for status extraction comparing tokens to known values
+        assertValidStatus(FLOW_OR_HEARTBEAT_STATUS_CODE, FLOW_CONTROL_TEXT);
+        assertValidStatus(FLOW_OR_HEARTBEAT_STATUS_CODE, HEARTBEAT_TEXT);
+        assertValidStatus(NO_RESPONDERS_CODE, NO_RESPONDERS_TEXT);
+        assertValidStatus(EOB_CODE, EOB_TEXT);
+
+        assertValidStatus(BAD_REQUEST_CODE, BAD_REQUEST);
+        assertValidStatus(NOT_FOUND_CODE, NO_MESSAGES);
+        assertValidStatus(CONFLICT_CODE, CONSUMER_DELETED);
+        assertValidStatus(CONFLICT_CODE, CONSUMER_IS_PUSH_BASED);
+
+        assertValidStatus(CONFLICT_CODE, MESSAGE_SIZE_EXCEEDS_MAX_BYTES);
+        assertValidStatus(CONFLICT_CODE, EXCEEDED_MAX_PREFIX);
+        assertValidStatus(CONFLICT_CODE, EXCEEDED_MAX_WAITING);
+        assertValidStatus(CONFLICT_CODE, EXCEEDED_MAX_REQUEST_BATCH);
+        assertValidStatus(CONFLICT_CODE, EOB_TEXT);
+        assertValidStatus(CONFLICT_CODE, EXCEEDED_MAX_REQUEST_MAX_BYTES);
+
+        assertValidStatus(CONFLICT_CODE, BATCH_COMPLETED);
+        assertValidStatus(CONFLICT_CODE, SERVER_SHUTDOWN);
+        assertValidStatus(CONFLICT_CODE, LEADERSHIP_CHANGE);
+    }
+
+    @Test
+    public void testMessageInfoKnownTokenCoverage() {
+        Headers headers = new Headers();
+        headers.put(NATS_SUBJECT, "subject");
+        headers.put(NATS_SEQUENCE, "12345");
+        headers.put(NATS_TIMESTAMP, "2023-01-01T12:00:00Z");
+        headers.put(NATS_STREAM, "stream");
+        headers.put(NATS_LAST_SEQUENCE, "67890");
+        headers.put(NATS_NUM_PENDING, "6");
+        headers.put("NAT-Starts-With-Known-Byte", "known");
+        headers.put("Starts-With-Unknown-Byte", "unknown");
+        IncomingHeadersProcessor ihp = new IncomingHeadersProcessor(headers.getSerialized());
+        headers = ihp.getHeaders();
+        assertEquals("subject", headers.getFirst(NATS_SUBJECT));
+        assertEquals("12345", headers.getFirst(NATS_SEQUENCE));
+        assertEquals("2023-01-01T12:00:00Z", headers.getFirst(NATS_TIMESTAMP));
+        assertEquals("stream", headers.getFirst(NATS_STREAM));
+        assertEquals("67890", headers.getFirst(NATS_LAST_SEQUENCE));
+        assertEquals("6", headers.getFirst(NATS_NUM_PENDING));
+        assertEquals("known", headers.getFirst("NAT-Starts-With-Known-Byte"));
+        assertEquals("unknown", headers.getFirst("Starts-With-Unknown-Byte"));
     }
 
     @Test
     public void verifyStatusBooleans() {
-        Status status = new Status(Status.FLOW_OR_HEARTBEAT_STATUS_CODE, Status.FLOW_CONTROL_TEXT);
+        Status status = new Status(Status.FLOW_OR_HEARTBEAT_STATUS_CODE, FLOW_CONTROL_TEXT);
         assertTrue(status.isFlowControl());
         assertFalse(status.isHeartbeat());
         assertFalse(status.isNoResponders());
 
-        status = new Status(Status.FLOW_OR_HEARTBEAT_STATUS_CODE, Status.HEARTBEAT_TEXT);
+        status = new Status(Status.FLOW_OR_HEARTBEAT_STATUS_CODE, HEARTBEAT_TEXT);
         assertFalse(status.isFlowControl());
         assertTrue(status.isHeartbeat());
         assertFalse(status.isNoResponders());
 
-        status = new Status(Status.NO_RESPONDERS_CODE, Status.NO_RESPONDERS_TEXT);
+        status = new Status(Status.NO_RESPONDERS_CODE, NO_RESPONDERS_TEXT);
         assertFalse(status.isFlowControl());
         assertFalse(status.isHeartbeat());
         assertTrue(status.isNoResponders());
@@ -584,6 +631,12 @@ public class HeadersTests {
             assertEquals(1, values.size());
             assertEquals(val, values.get(0));
         }
+    }
+
+    private void assertValidStatus(int code, String text) {
+        String test = "NATS/1.0 " + code + " " + text + "\r\n";
+        IncomingHeadersProcessor ihp = new IncomingHeadersProcessor(test.getBytes());
+        assertValidStatus(ihp, code, text);
     }
 
     private IncomingHeadersProcessor assertValidStatus(String test, int code, String msg) {
