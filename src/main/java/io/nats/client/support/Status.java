@@ -96,7 +96,7 @@ public class Status {
     }
 
     public Status(Token codeToken, Token messageToken) {
-        this(extractCode(codeToken), extractMessage(messageToken));
+        this(extractCode(codeToken), messageToken.getValueCheckKnownStatuses());
     }
 
     public int getCode() {
@@ -109,10 +109,6 @@ public class Status {
 
     public String getMessageWithCode() {
         return code + " " + message;
-    }
-
-    private static String extractMessage(Token messageToken) {
-        return messageToken.getValueCheckKnownStatuses();
     }
 
     private static int extractCode(Token codeToken) {

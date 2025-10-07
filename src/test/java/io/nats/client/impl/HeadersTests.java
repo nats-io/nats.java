@@ -600,23 +600,32 @@ public class HeadersTests {
 
     @Test
     public void verifyStatusBooleans() {
-        Status status = new Status(Status.FLOW_OR_HEARTBEAT_STATUS_CODE, FLOW_CONTROL_TEXT);
+        Status status = new Status(FLOW_OR_HEARTBEAT_STATUS_CODE, FLOW_CONTROL_TEXT);
         assertTrue(status.isFlowControl());
         assertFalse(status.isHeartbeat());
         assertFalse(status.isNoResponders());
+        assertFalse(status.isEob());
 
-        status = new Status(Status.FLOW_OR_HEARTBEAT_STATUS_CODE, HEARTBEAT_TEXT);
+        status = new Status(FLOW_OR_HEARTBEAT_STATUS_CODE, HEARTBEAT_TEXT);
         assertFalse(status.isFlowControl());
         assertTrue(status.isHeartbeat());
         assertFalse(status.isNoResponders());
+        assertFalse(status.isEob());
 
-        status = new Status(Status.NO_RESPONDERS_CODE, NO_RESPONDERS_TEXT);
+        status = new Status(NO_RESPONDERS_CODE, NO_RESPONDERS_TEXT);
         assertFalse(status.isFlowControl());
         assertFalse(status.isHeartbeat());
         assertTrue(status.isNoResponders());
+        assertFalse(status.isEob());
+
+        status = new Status(EOB_CODE, EOB_TEXT);
+        assertFalse(status.isFlowControl());
+        assertFalse(status.isHeartbeat());
+        assertFalse(status.isNoResponders());
+        assertTrue(status.isEob());
 
         // path coverage
-        status = new Status(Status.NO_RESPONDERS_CODE, "not no responders text");
+        status = new Status(NO_RESPONDERS_CODE, "not no responders text");
         assertFalse(status.isNoResponders());
     }
 
