@@ -142,19 +142,17 @@ public class Headers {
 
 	// the add delegate
 	private Headers _add(String key, Collection<String> values) {
-		if (values != null) {
-			Checker checked = new Checker(key, values);
-			if (checked.hasValues()) {
-				// get values by key or compute empty if absent
-				// update the data length with the additional len
-				// update the lengthMap for the key to the old length plus the new length
-				List<String> currentSet = valuesMap.computeIfAbsent(key, k -> new ArrayList<>());
-				currentSet.addAll(checked.list);
-				dataLength += checked.len;
-				int oldLen = lengthMap.getOrDefault(key, 0);
-				lengthMap.put(key, oldLen + checked.len);
-				serialized = null; // since the data changed, clear this so it's rebuilt
-			}
+		CheckState checked = check(key, values);
+		if (checked != null) {
+			// get values by key or compute empty if absent
+			// update the data length with the additional len
+			// update the lengthMap for the key to the old length plus the new length
+			List<String> currentSet = valuesMap.computeIfAbsent(key, k -> new ArrayList<>());
+			currentSet.addAll(checked.list);
+			dataLength += checked.len;
+			int oldLen = lengthMap.getOrDefault(key, 0);
+			lengthMap.put(key, oldLen + checked.len);
+			serialized = null; // since the data changed, clear this so it's rebuilt
 		}
 		return this;
 	}
@@ -221,19 +219,14 @@ public class Headers {
 
 	// the put delegate
 	private Headers _put(String key, Collection<String> values) {
-		if (key == null || key.isEmpty()) {
-			throw new IllegalArgumentException("Key cannot be null or empty.");
-		}
-		if (values != null) {
-			Checker checked = new Checker(key, values);
-			if (checked.hasValues()) {
-				// update the data length removing the old length adding the new length
-				// put for the key
-				dataLength = dataLength - lengthMap.getOrDefault(key, 0) + checked.len;
-				valuesMap.put(key, checked.list);
-				lengthMap.put(key, checked.len);
-				serialized = null; // since the data changed, clear this so it's rebuilt
-			}
+		CheckState checked = check(key, values);
+		if (checked != null) {
+			// update the data length removing the old length adding the new length
+			// put for the key
+			dataLength = dataLength - lengthMap.getOrDefault(key, 0) + checked.len;
+			valuesMap.put(key, checked.list);
+			lengthMap.put(key, checked.len);
+			serialized = null; // since the data changed, clear this so it's rebuilt
 		}
 		return this;
 	}
@@ -514,66 +507,51 @@ public class Headers {
 		return serializedLength();
 	}
 
-	/**
-	 * Check the key to ensure it matches the specification for keys.
-	 * @throws IllegalArgumentException if the key is null, empty or contains
-	 *         an invalid character
-	 */
-	static void checkKey(String key) {
-		// key cannot be null or empty and contain only printable characters except colon
+	static CheckState check(String key, Collection<String> values) {
 		if (key == null || key.isEmpty()) {
 			throw new IllegalArgumentException(KEY_CANNOT_BE_EMPTY_OR_NULL);
 		}
-
-		int len = key.length();
-		for (int idx = 0; idx < len; idx++) {
+		// Check the key to ensure it matches the specification for keys.
+		int keyLen = key.length();
+		for (int idx = 0; idx < keyLen; idx++) {
 			char c = key.charAt(idx);
 			if (c < 33 || c > 126 || c == ':') {
 				throw new IllegalArgumentException(KEY_INVALID_CHARACTER + Integer.toHexString(c));
 			}
 		}
-	}
-
-	/**
-	 * Check a non-null value if it matches the specification for values.
-	 * @throws IllegalArgumentException if the value contains an invalid character
-	 */
-	static void checkValue(String val) {
-		// Like rfc822 section 3.1.2 (quoted in ADR 4)
-		// The field-body may be composed of any US-ASCII characters, except CR or LF.
-		for (int i = 0, len = val.length(); i < len; i++) {
-			int c = val.charAt(i);
-			if (c > 127 || c == 10 || c == 13) {
-				throw new IllegalArgumentException(VALUE_INVALID_CHARACTERS + Integer.toHexString(c));
-			}
+		if (values == null || values.isEmpty()) {
+			return null;
 		}
-	}
-
-	private static final class Checker {
 		List<String> list = new ArrayList<>();
 		int len = 0;
-
-		Checker(String key, Collection<String> values) {
-			checkKey(key);
-			if (!values.isEmpty()) {
-				for (String val : values) {
-					if (val != null) {
-						if (val.isEmpty()) {
-							list.add(val);
-							len += key.length() + 3; // for colon, cr, lf
-						}
-						else {
-							checkValue(val);
-							list.add(val);
-							len += key.length() + val.length() + 3; // for colon, cr, lf
+		for (String val : values) {
+			if (val != null) {
+				int valLen = val.length();
+				if (valLen > 0) {
+	 				// Check value to see if it matches the specification for values.
+					// Like rfc822 section 3.1.2 (quoted in ADR 4)
+					// The field-body may be composed of any US-ASCII characters, except CR or LF.
+					for (int i = 0; i < valLen; i++) {
+						int c = val.charAt(i);
+						if (c > 127 || c == 10 || c == 13) {
+							throw new IllegalArgumentException(VALUE_INVALID_CHARACTERS + Integer.toHexString(c));
 						}
 					}
 				}
+				list.add(val);
+				len += keyLen + valLen + 3; // 3 is for the colon, cr and lf
 			}
 		}
+		return len == 0 ? null : new CheckState(list, len);
+	}
 
-		boolean hasValues() {
-			return !list.isEmpty();
+	static final class CheckState {
+		final List<String> list;
+		final int len;
+
+		public CheckState(List<String> list, int len) {
+			this.list = list;
+			this.len = len;
 		}
 	}
 

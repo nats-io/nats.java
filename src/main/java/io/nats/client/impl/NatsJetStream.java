@@ -19,6 +19,7 @@ import io.nats.client.support.Validator;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -191,20 +192,20 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     }
 
     private Headers mergePublishOptions(Headers headers, PublishOptions opts) {
+        if (opts == null) {
+            return headers;
+        }
+
         // never touch the user's original headers
         Headers merged = headers == null ? null : new Headers(headers);
 
-        if (opts != null) {
-            merged = mergeNum(merged, EXPECTED_LAST_SEQ_HDR, opts.getExpectedLastSequence());
-            merged = mergeNum(merged, EXPECTED_LAST_SUB_SEQ_HDR, opts.getExpectedLastSubjectSequence());
-            merged = mergeString(merged, EXPECTED_LAST_SUB_SEQ_SUB_HDR, opts.getExpectedLastSubjectSequenceSubject());
-            merged = mergeString(merged, EXPECTED_LAST_MSG_ID_HDR, opts.getExpectedLastMsgId());
-            merged = mergeString(merged, EXPECTED_STREAM_HDR, opts.getExpectedStream());
-            merged = mergeString(merged, MSG_ID_HDR, opts.getMessageId());
-            merged = mergeString(merged, MSG_TTL_HDR, opts.getMessageTtl());
-        }
-
-        return merged;
+        merged = mergeNum(merged, EXPECTED_LAST_SEQ_HDR, opts.getExpectedLastSequence());
+        merged = mergeNum(merged, EXPECTED_LAST_SUB_SEQ_HDR, opts.getExpectedLastSubjectSequence());
+        merged = mergeString(merged, EXPECTED_LAST_SUB_SEQ_SUB_HDR, opts.getExpectedLastSubjectSequenceSubject());
+        merged = mergeString(merged, EXPECTED_LAST_MSG_ID_HDR, opts.getExpectedLastMsgId());
+        merged = mergeString(merged, EXPECTED_STREAM_HDR, opts.getExpectedStream());
+        merged = mergeString(merged, MSG_ID_HDR, opts.getMessageId());
+        return mergeString(merged, MSG_TTL_HDR, opts.getMessageTtl());
     }
 
     private Headers mergeNum(Headers h, String key, long value) {
@@ -219,7 +220,8 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         if (h == null) {
             h = new Headers();
         }
-        return h.add(key, value);
+        // this is always an internal header with one value per key
+        return h.put(key, Collections.singletonList(value));
     }
 
     // ----------------------------------------------------------------------------------------------------
