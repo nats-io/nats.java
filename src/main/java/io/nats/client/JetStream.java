@@ -566,7 +566,7 @@ public interface JetStream {
      *
      * <pre>
      *  nc = Nats.connect();
-     *  Jetstream js = nc.jetStream();
+     *  JetStream js = nc.jetStream();
 	 *  StreamContext streamContext = js.getStreamContext("my-stream");
 	 *  ConsumerContext consumerContext = streamContext.getConsumerContext("my-consumer");
 	 *  // Or
