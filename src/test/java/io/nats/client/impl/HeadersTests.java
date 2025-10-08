@@ -1,9 +1,6 @@
 package io.nats.client.impl;
 
-import io.nats.client.support.IncomingHeadersProcessor;
-import io.nats.client.support.Status;
-import io.nats.client.support.Token;
-import io.nats.client.support.TokenType;
+import io.nats.client.support.*;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -891,22 +888,66 @@ public class HeadersTests {
     }
 
     @Test
-    public void testToString() {
-        assertNotNull(new Status(1, "msg").toString()); // COVERAGE
+    public void testCoverage() {
+        assertNotNull(new Status(1, "msg").toString());
 
         Headers h = new Headers();
         assertEquals("", h.toString());
 
-        h.add("NotAdded");
-        h.add("Empty", "");
-        h.add("Has1", "h1-1");
-        h.add("Has2", "h2-1", "h2-2");
+        h.add("NullListAdd");
+        h.add("EmptyListAdd", new ArrayList<>());
+        h.add("EmptyAdd", "");
+        h.add("HasAdd1", "h1-1");
+        h.add("HasAdd2", "h2-1", "h2-2");
 
-        assertFalse(h.toString().contains("NotAdded"));
-        assertTrue(h.toString().contains("Empty:;"));
-        assertTrue(h.toString().contains("Has1:h1-1;"));
-        assertTrue(h.toString().contains("Has2:h2-1;"));
-        assertTrue(h.toString().contains("Has2:h2-2;"));
+        h.put("NullListPut");
+        h.put("EmptyListPut", new ArrayList<>());
+        h.put("EmptyPut", "");
+        h.put("HasPut1", "h1-1");
+        h.put("HasPut2", "h2-1", "h2-2");
+
+        Map<String, List<String>> map = null;
+        h.put(map);
+        h.put(new HashMap<>());
+
+        assertNull(h.getFirst("NullListAdd"));
+        assertNull(h.getFirst("EmptyListAdd"));
+        assertNull(h.getFirst("NullListPut"));
+        assertNull(h.getFirst("NullListPut"));
+
+        String s = h.toString();
+        assertFalse(s.contains("NullListAdd"));
+        assertFalse(s.contains("EmptyListAdd"));
+        assertTrue(s.contains("EmptyAdd:;"));
+        assertTrue(s.contains("HasAdd1:h1-1;"));
+        assertTrue(s.contains("HasAdd2:h2-1;"));
+        assertTrue(s.contains("HasAdd2:h2-2;"));
+        assertFalse(s.contains("NullListPut"));
+        assertFalse(s.contains("EmptyListPut"));
+        assertTrue(s.contains("EmptyPut:;"));
+        assertTrue(s.contains("HasPut1:h1-1;"));
+        assertTrue(s.contains("HasPut2:h2-1;"));
+        assertTrue(s.contains("HasPut2:h2-2;"));
+
+        Headers ro = new Headers(h, true);
+        assertThrows(UnsupportedOperationException.class, () -> ro.add("foo", "bar"));
+        assertThrows(UnsupportedOperationException.class, () -> ro.put("foo", "bar"));
+
+        ByteArrayBuilder bab = new ByteArrayBuilder();
+        //noinspection deprecation
+        s = ro.appendSerialized(bab).toString();
+        assertFalse(s.contains("NullListAdd"));
+        assertFalse(s.contains("EmptyListAdd"));
+        assertTrue(s.contains("EmptyAdd:\r\n"));
+        assertTrue(s.contains("HasAdd1:h1-1\r\n"));
+        assertTrue(s.contains("HasAdd2:h2-1\r\n"));
+        assertTrue(s.contains("HasAdd2:h2-2\r\n"));
+        assertFalse(s.contains("NullListPut"));
+        assertFalse(s.contains("EmptyListPut"));
+        assertTrue(s.contains("EmptyPut:\r\n"));
+        assertTrue(s.contains("HasPut1:h1-1\r\n"));
+        assertTrue(s.contains("HasPut2:h2-1\r\n"));
+        assertTrue(s.contains("HasPut2:h2-2\r\n"));
     }
 
     @Test
@@ -945,7 +986,7 @@ public class HeadersTests {
     }
 
     @Test
-    void testCheckValue() {
+    void testValuesWithNonPrintables() {
         Headers h = new Headers();
         h.put("test1", "\u0000 \f\b\t");
 
