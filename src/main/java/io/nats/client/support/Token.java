@@ -111,6 +111,11 @@ public class Token {
         return hasValue ? valueAsString() : EMPTY;
     }
 
+    @Nullable
+    public String getValueOrNull() {
+        return hasValue ? valueAsString() : null;
+    }
+
     private String valueAsString() {
         return new String(serialized, start, valueLength, US_ASCII).trim();
     }
@@ -120,47 +125,49 @@ public class Token {
         if (valueLength == 0) {
             return EMPTY;
         }
-        byte b = serialized[start];
-        if (b == 'N') {
-            if (valueEquals(NATS_STREAM_BYTES)) {
-                return NATS_STREAM;
+        // all known keys are at least 5 characters Nats-<...> and KV-Operation
+        if (valueLength > 5) {
+            if (valueStartsNatsDash()) {
+                if (endsMatch(NATS_STREAM_BYTES, 5)) {
+                    return NATS_STREAM;
+                }
+                if (endsMatch(NATS_SEQUENCE_BYTES, 5)) {
+                    return NATS_SEQUENCE;
+                }
+                if (endsMatch(NATS_TIMESTAMP_BYTES, 5)) {
+                    return NATS_TIMESTAMP;
+                }
+                if (endsMatch(NATS_SUBJECT_BYTES, 5)) {
+                    return NATS_SUBJECT;
+                }
+                if (endsMatch(NATS_LAST_SEQUENCE_BYTES, 5)) {
+                    return NATS_LAST_SEQUENCE;
+                }
+                if (endsMatch(NATS_NUM_PENDING_BYTES, 5)) {
+                    return NATS_NUM_PENDING;
+                }
+                if (endsMatch(CONSUMER_STALLED_HDR_BYTES, 5)) {
+                    return CONSUMER_STALLED_HDR;
+                }
+                if (endsMatch(MSG_SIZE_HDR_BYTES, 5)) {
+                    return MSG_SIZE_HDR;
+                }
+                if (endsMatch(NATS_MARKER_REASON_HDR_BYTES, 5)) {
+                    return NATS_MARKER_REASON_HDR;
+                }
+                if (endsMatch(NATS_PENDING_MESSAGES_BYTES, 5)) {
+                    return NATS_PENDING_MESSAGES;
+                }
+                if (endsMatch(NATS_PENDING_BYTES_BYTES, 5)) {
+                    return NATS_PENDING_BYTES;
+                }
             }
-            if (valueEquals(NATS_SEQUENCE_BYTES)) {
-                return NATS_SEQUENCE;
-            }
-            if (valueEquals(NATS_TIMESTAMP_BYTES)) {
-                return NATS_TIMESTAMP;
-            }
-            if (valueEquals(NATS_SUBJECT_BYTES)) {
-                return NATS_SUBJECT;
-            }
-            if (valueEquals(NATS_LAST_SEQUENCE_BYTES)) {
-                return NATS_LAST_SEQUENCE;
-            }
-            if (valueEquals(NATS_NUM_PENDING_BYTES)) {
-                return NATS_NUM_PENDING;
-            }
-            if (valueEquals(CONSUMER_STALLED_HDR_BYTES)) {
-                return CONSUMER_STALLED_HDR;
-            }
-            if (valueEquals(MSG_SIZE_HDR_BYTES)) {
-                return MSG_SIZE_HDR;
-            }
-            if (valueEquals(NATS_MARKER_REASON_HDR_BYTES)) {
-                return NATS_MARKER_REASON_HDR;
-            }
-            if (valueEquals(NATS_PENDING_MESSAGES_BYTES)) {
-                return NATS_PENDING_MESSAGES;
-            }
-            if (valueEquals(NATS_PENDING_BYTES_BYTES)) {
-                return NATS_PENDING_BYTES;
-            }
-        }
-        else if (b == 'K') {
-            if (valueEquals(KV_OPERATION_HEADER_KEY_BYTES)) {
+            else if (endsMatch(KV_OPERATION_HEADER_KEY_BYTES, 0)) {
                 return KV_OPERATION_HEADER_KEY;
             }
         }
+
+        // didn't know the key
         return valueAsString();
     }
 
@@ -169,123 +176,111 @@ public class Token {
         if (valueLength == 0) {
             return null;
         }
-        byte b = serialized[start];
-        if (b == 'B') {
-            if (valueEquals(BATCH_COMPLETED_BYTES)) {
-                return BATCH_COMPLETED;
-            }
-            if (valueEquals(BAD_REQUEST_BYTES)) {
-                return BAD_REQUEST;
+        if (valueLength > 11) {
+            switch (serialized[start]) {
+                case 'E':
+                    if (valueStartsWithExceededMax()) {
+                        if (endsMatch(EXCEEDED_MAX_WAITING_BYTES, 8)) {
+                            return EXCEEDED_MAX_WAITING;
+                        }
+                        if (endsMatch(EXCEEDED_MAX_REQUEST_BATCH_BYTES, 8)) {
+                            return EXCEEDED_MAX_REQUEST_BATCH;
+                        }
+                        if (endsMatch(EXCEEDED_MAX_REQUEST_EXPIRES_BYTES, 8)) {
+                            return EXCEEDED_MAX_REQUEST_EXPIRES;
+                        }
+                        if (endsMatch(EXCEEDED_MAX_REQUEST_MAX_BYTES_BYTES, 8)) {
+                            return EXCEEDED_MAX_REQUEST_MAX_BYTES;
+                        }
+                    }
+                    break;
+                case 'B':
+                    if (endsMatch(BATCH_COMPLETED_BYTES, 1)) {
+                        return BATCH_COMPLETED;
+                    }
+                    if (endsMatch(BAD_REQUEST_BYTES, 1)) {
+                        return BAD_REQUEST;
+                    }
+                    break;
+                case 'N':
+                    if (endsMatch(NO_RESPONDERS_TEXT_BYTES, 1)) {
+                        return NO_RESPONDERS_TEXT;
+                    }
+                    if (endsMatch(NO_MESSAGES_BYTES, 1)) {
+                        return NO_MESSAGES;
+                    }
+                    break;
+                case 'F':
+                    if (endsMatch(FLOW_CONTROL_TEXT_BYTES, 1)) {
+                        return FLOW_CONTROL_TEXT;
+                    }
+                    break;
+                case 'I':
+                    if (endsMatch(HEARTBEAT_TEXT_BYTES, 1)) {
+                        return HEARTBEAT_TEXT;
+                    }
+                    break;
+                case 'M':
+                    if (endsMatch(MESSAGE_SIZE_EXCEEDS_MAX_BYTES_BYTES, 1)) {
+                        return MESSAGE_SIZE_EXCEEDS_MAX_BYTES;
+                    }
+                    break;
+                case 'L':
+                    if (endsMatch(LEADERSHIP_CHANGE_BYTES, 1)) {
+                        return LEADERSHIP_CHANGE;
+                    }
+                    break;
+                case 'S':
+                    if (endsMatch(SERVER_SHUTDOWN_BYTES, 1)) {
+                        return SERVER_SHUTDOWN;
+                    }
+                    break;
+                case 'C':
+                    if (endsMatch(CONSUMER_DELETED_BYTES, 1)) {
+                        return CONSUMER_DELETED;
+                    }
+                    if (endsMatch(CONSUMER_IS_PUSH_BASED_BYTES, 1)) {
+                        return CONSUMER_IS_PUSH_BASED;
+                    }
+                    break;
             }
         }
-        else if (b == 'E') {
-            if (valueEquals(EXCEEDED_MAX_PREFIX_BYTES)) {
-                return EXCEEDED_MAX_PREFIX;
-            }
-            if (valueEquals(EXCEEDED_MAX_WAITING_BYTES)) {
-                return EXCEEDED_MAX_WAITING;
-            }
-            if (valueEquals(EXCEEDED_MAX_REQUEST_BATCH_BYTES)) {
-                return EXCEEDED_MAX_REQUEST_BATCH;
-            }
-            if (valueEquals(EXCEEDED_MAX_REQUEST_EXPIRES_BYTES)) {
-                return EXCEEDED_MAX_REQUEST_EXPIRES;
-            }
-            if (valueEquals(EXCEEDED_MAX_REQUEST_MAX_BYTES_BYTES)) {
-                return EXCEEDED_MAX_REQUEST_MAX_BYTES;
-            }
-            if (valueEquals(EOB_TEXT_BYTES)) {
-                return EOB_TEXT;
-            }
-        }
-        else if (b == 'N') {
-            if (valueEquals(NO_RESPONDERS_TEXT_BYTES)) {
-                return NO_RESPONDERS_TEXT;
-            }
-            if (valueEquals(NO_MESSAGES_BYTES)) {
-                return NO_MESSAGES;
-            }
-        }
-        else if (b == 'F') {
-            if (valueEquals(FLOW_CONTROL_TEXT_BYTES)) {
-                return FLOW_CONTROL_TEXT;
-            }
-        }
-        else if (b == 'I') {
-            if (valueEquals(HEARTBEAT_TEXT_BYTES)) {
-                return HEARTBEAT_TEXT;
-            }
-        }
-        else if (b == 'M') {
-            if (valueEquals(MESSAGE_SIZE_EXCEEDS_MAX_BYTES_BYTES)) {
-                return MESSAGE_SIZE_EXCEEDS_MAX_BYTES;
-            }
-        }
-        else if (b == 'L') {
-            if (valueEquals(LEADERSHIP_CHANGE_BYTES)) {
-                return LEADERSHIP_CHANGE;
-            }
-        }
-        else if (b == 'S') {
-            if (valueEquals(SERVER_SHUTDOWN_BYTES)) {
-                return SERVER_SHUTDOWN;
-            }
-        }
-        else if (b == 'C') {
-            if (valueEquals(CONSUMER_DELETED_BYTES)) {
-                return CONSUMER_DELETED;
-            }
-            if (valueEquals(CONSUMER_IS_PUSH_BASED_BYTES)) {
-                return CONSUMER_IS_PUSH_BASED;
-            }
+        else if (endsMatch(EOB_TEXT_BYTES, 0)) { // only short status
+            return EOB_TEXT;
         }
         return valueAsString();
     }
 
-    public Integer getIntValue() throws NumberFormatException {
-        if (valueLength == 0) {
-            return null;
-        }
-        byte b = serialized[start];
-        if (b == '4') {
-            if (valueEquals(BAD_REQUEST_CODE_BYTES)) {
-                return BAD_REQUEST_CODE;
-            }
-            if (valueEquals(NOT_FOUND_CODE_BYTES)) {
-                return NOT_FOUND_CODE;
-            }
-            if (valueEquals(BAD_JS_REQUEST_CODE_BYTES)) {
-                return BAD_JS_REQUEST_CODE;
-            }
-            if (valueEquals(CONFLICT_CODE_BYTES)) {
-                return CONFLICT_CODE;
+    static final byte[] NATS_DASH_PREFIX_BYTES = "Nats-".getBytes();
+    static final byte[] EXCEEDED_MAX_PREFIX_BYTES = EXCEEDED_MAX_PREFIX.getBytes();
+    static final int EXCEEDED_MAX_PREFIX_BYTES_LEN = EXCEEDED_MAX_PREFIX.length();
+
+    private boolean valueStartsNatsDash() {
+        for (int i = 0; i < 4; i++) {
+            if (NATS_DASH_PREFIX_BYTES[i] != serialized[start + i]) {
+                return false;
             }
         }
-        else if (b == '1') {
-            if (valueEquals(FLOW_OR_HEARTBEAT_STATUS_CODE_BYTES)) {
-                return FLOW_OR_HEARTBEAT_STATUS_CODE;
-            }
-        }
-        else if (b == '5') {
-            if (valueEquals(NO_RESPONDERS_CODE_BYTES)) {
-                return NO_RESPONDERS_CODE;
-            }
-        }
-        else if (b == '2') {
-            if (valueEquals(EOB_CODE_BYTES)) {
-                return EOB_CODE;
-            }
-        }
-        return Integer.parseInt(getValue());
+        return true;
     }
 
-    public boolean valueEquals(byte @NonNull [] bytes) {
-        if (valueLength != bytes.length) {
+    private boolean valueStartsWithExceededMax() {
+        // we know we already checked the first letter to be E
+        for (int i = 1; i < EXCEEDED_MAX_PREFIX_BYTES_LEN; i++) {
+            if (EXCEEDED_MAX_PREFIX_BYTES[i] != serialized[start + i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+    private boolean endsMatch(byte @NonNull [] checkBytes, int compareStartIndex) {
+        if (valueLength != checkBytes.length) {
             return false;
         }
-
-        for (int i = 0; i < bytes.length; i++) {
-            if (bytes[i] != serialized[i + start]) {
+        for (int i = compareStartIndex; i < valueLength; i++) {
+            if (checkBytes[i] != serialized[start + i]) {
                 return false;
             }
         }
