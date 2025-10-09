@@ -533,36 +533,30 @@ public class HeadersTests {
         assertValidStatus("NATS/1.0 123 Message And Code Begin With Known Byte\r\n", 123, "Message And Code Begin With Known Byte");       // from data
         assertValidStatus("NATS/1.0   923   Unknown Message And Code\r\n", 923, "Unknown Message And Code");
 
-        // additional coverage for status extraction comparing tokens to known values
-        assertValidStatus(FLOW_OR_HEARTBEAT_STATUS_CODE, FLOW_CONTROL_TEXT);
-        assertValidStatus(FLOW_OR_HEARTBEAT_STATUS_CODE, HEARTBEAT_TEXT);
-        assertValidStatus(NO_RESPONDERS_CODE, NO_RESPONDERS_TEXT);
-        assertValidStatus(EOB_CODE, EOB_TEXT);
+        // additional coverage for status extraction comparing status text to known values
+        assertValidStatus(999, EXCEEDED_MAX_WAITING);
+        assertValidStatus(999, EXCEEDED_MAX_REQUEST_BATCH);
+        assertValidStatus(999, EXCEEDED_MAX_REQUEST_MAX_BYTES);
+        assertValidStatus(999, EXCEEDED_MAX_REQUEST_EXPIRES);
+        assertValidStatus(999, EOB_TEXT);
 
-        assertValidStatus(BAD_REQUEST_CODE, BAD_REQUEST);
-        assertValidStatus(NOT_FOUND_CODE, NO_MESSAGES);
-        assertValidStatus(CONFLICT_CODE, CONSUMER_DELETED);
-        assertValidStatus(CONFLICT_CODE, CONSUMER_IS_PUSH_BASED);
+        assertValidStatus(999, BATCH_COMPLETED);
+        assertValidStatus(999, BAD_REQUEST);
 
-        assertValidStatus(CONFLICT_CODE, MESSAGE_SIZE_EXCEEDS_MAX_BYTES);
-        assertValidStatus(CONFLICT_CODE, EXCEEDED_MAX_PREFIX);
-        assertValidStatus(CONFLICT_CODE, EXCEEDED_MAX_WAITING);
-        assertValidStatus(CONFLICT_CODE, EXCEEDED_MAX_REQUEST_BATCH);
-        assertValidStatus(CONFLICT_CODE, EOB_TEXT);
-        assertValidStatus(CONFLICT_CODE, EXCEEDED_MAX_REQUEST_MAX_BYTES);
+        assertValidStatus(999, NO_RESPONDERS_TEXT);
+        assertValidStatus(999, NO_MESSAGES);
 
-        assertValidStatus(CONFLICT_CODE, BATCH_COMPLETED);
-        assertValidStatus(CONFLICT_CODE, SERVER_SHUTDOWN);
-        assertValidStatus(CONFLICT_CODE, LEADERSHIP_CHANGE);
+        assertValidStatus(999, FLOW_CONTROL_TEXT);
+        assertValidStatus(999, HEARTBEAT_TEXT);
+        assertValidStatus(999, MESSAGE_SIZE_EXCEEDS_MAX_BYTES);
+        assertValidStatus(999, LEADERSHIP_CHANGE);
+        assertValidStatus(999, SERVER_SHUTDOWN);
+        assertValidStatus(999, CONSUMER_DELETED);
+        assertValidStatus(999, CONSUMER_IS_PUSH_BASED);
 
         // coverage
-        assertValidStatus(199, "Test Starts With Known Bytes But Not Known");
-        assertValidStatus(299, "Test Starts With Known Bytes But Not Known");
-        assertValidStatus(499, "Test Starts With Known Bytes But Not Known");
-        assertValidStatus(599, "Test Starts With Known Bytes But Not Known");
-
-        assertValidStatus(999, "B Test Starts With Known Letter But Not Known");
         assertValidStatus(999, "E Test Starts With Known Letter But Not Known");
+        assertValidStatus(999, "B Test Starts With Known Letter But Not Known");
         assertValidStatus(999, "N Test Starts With Known Letter But Not Known");
         assertValidStatus(999, "F Test Starts With Known Letter But Not Known");
         assertValidStatus(999, "I Test Starts With Known Letter But Not Known");
@@ -690,7 +684,12 @@ public class HeadersTests {
         }
         IncomingMessageFactory imf = new IncomingMessageFactory("sid", "sub", "rt", 0, false);
         imf.setHeaders(ihp);
+        status = imf.getMessage().getStatus();
+        assertEquals(code, status.getCode());
         assertTrue(imf.getMessage().isStatusMessage());
+        if (msg != null) {
+            assertEquals(msg, status.getMessage());
+        }
     }
 
     static class IteratorTestHelper {
