@@ -893,6 +893,7 @@ public class HeadersTests {
 
         Headers h = new Headers();
         assertEquals("", h.toString());
+        assertEquals(0, h.entrySet().size());
 
         h.add("NullListAdd");
         h.add("EmptyListAdd", new ArrayList<>());
@@ -948,6 +949,11 @@ public class HeadersTests {
         assertTrue(s.contains("HasPut1:h1-1\r\n"));
         assertTrue(s.contains("HasPut2:h2-1\r\n"));
         assertTrue(s.contains("HasPut2:h2-2\r\n"));
+
+        h = new Headers(h, false, new String[]{null,
+            "EmptyAdd", "HasAdd1", "HasAdd2",
+            "EmptyPut", "HasPut1", "HasPut2"});
+        assertTrue(h.isEmpty());
     }
 
     @Test
