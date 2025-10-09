@@ -6,6 +6,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.nats.client.utils.TestBase.variant;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -29,31 +30,47 @@ public class ScheduledTaskTests {
 
         AtomicInteger counter100 = new AtomicInteger();
         SttRunnable sttr100 = new SttRunnable(400, counter100);
-        ScheduledTask task100 = new ScheduledTask(stpe, 0, 100, TimeUnit.MILLISECONDS, sttr100);
+        String id = "100-" + variant();
+        ScheduledTask task100 = new ScheduledTask(id, stpe, 0, 100, TimeUnit.MILLISECONDS, sttr100);
         validateTaskPeriods(task100, 0, 100);
+        assertEquals(id, task100.getId());
+        assertTrue(task100.toString().contains(id));
+        assertTrue(task100.toString().contains("live"));
+        assertTrue(task400.toString().contains("!done"));
 
-        validateState(task400, false, false, null);
-        validateState(task200, false, false, null);
-        validateState(task100, false, false, null);
+        validateState(task400, sttr400, false, false, null);
+        validateState(task200, sttr200, false, false, null);
+        validateState(task100, sttr100, false, false, null);
 
         Thread.sleep(1600); // 3 x 500 = 1500, give a buffer to ensure three runs
 
-        validateState(task400, false, false, null);
-        validateState(task200, false, false, null);
-        validateState(task100, false, false, null);
+        validateState(task400, sttr400, false, false, null);
+        validateState(task200, sttr200, false, false, null);
+        validateState(task100, sttr100, false, false, null);
 
         task400.shutdown();
         task200.shutdown();
         task100.shutdown();
 
+        assertTrue(task400.isDone());
+        assertTrue(task200.isDone());
+        assertTrue(task200.isDone());
+
         Thread.sleep(500); // give one full cycle to make sure it's all done
-        validateState(task400, true, true, false);
-        validateState(task200, true, true, false);
-        validateState(task100, true, true, false);
+        validateState(task400, sttr400, true, true, false);
+        validateState(task200, sttr200, true, true, false);
+        validateState(task100, sttr100, true, true, false);
 
         assertTrue(counter400.get() >= 3);
         assertTrue(counter200.get() >= 3);
         assertTrue(counter100.get() >= 3);
+
+        // checks that the task is not re-run once shutdown
+        int count = sttr400.counter.get();
+        task400.run();
+        assertEquals(count, sttr400.counter.get());
+        assertTrue(task400.toString().contains("shutdown"));
+        assertTrue(task400.toString().contains("/done"));
     }
 
     @SuppressWarnings("SameParameterValue")
@@ -62,7 +79,7 @@ public class ScheduledTaskTests {
         assertEquals(TimeUnit.MILLISECONDS.toNanos(expectedPeriod), task.getPeriodNanos());
     }
 
-    static void validateState(ScheduledTask task, boolean shutdown, boolean done, Boolean executing) {
+    static void validateState(ScheduledTask task, Runnable taskRunnable, boolean shutdown, boolean done, Boolean executing) {
         assertEquals(shutdown, task.isShutdown());
         assertEquals(done, task.isDone());
         if (executing != null) {
@@ -88,6 +105,14 @@ public class ScheduledTaskTests {
             catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
+        }
+
+        @Override
+        public String toString() {
+            return "SttRunnable{" +
+                "counter=" + counter +
+                ", delay=" + delay +
+                '}';
         }
     }
 }
