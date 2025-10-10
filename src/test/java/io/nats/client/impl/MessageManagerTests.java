@@ -185,8 +185,8 @@ public class MessageManagerTests extends JetStreamTestBase {
         sleep(100);
 
         List<ListenerForTesting.StatusEvent> list = listener.getPullStatusWarnings();
-        int[] codes = new int[]{NOT_FOUND_CODE, REQUEST_TIMEOUT_CODE, CONFLICT_CODE, CONFLICT_CODE, CONFLICT_CODE, CONFLICT_CODE};
-        assertEquals(6, list.size());
+        int[] codes = new int[]{NOT_FOUND_CODE, REQUEST_TIMEOUT_CODE, CONFLICT_CODE, CONFLICT_CODE, CONFLICT_CODE, CONFLICT_CODE, CONFLICT_CODE, CONFLICT_CODE};
+        assertEquals(8, list.size());
         for (int x = 0; x < list.size(); x++) {
             ListenerForTesting.StatusEvent se = list.get(x);
             assertSame(sub.getSID(), se.sid);
