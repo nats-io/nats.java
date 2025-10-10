@@ -410,4 +410,51 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
         assertEquals(5, count2);
     }
 
+    @Test
+    public void testRaiseStatusWarnings1194() throws Exception {
+        ListenerForTesting listenerForTesting = new ListenerForTesting(true, true);
+        runInJsServer(listenerForTesting, nc -> {
+            // Setup
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
+            StreamContext streamContext = nc.getStreamContext(tsc.stream);
+
+            // Setting maxBatch=1, so we shouldn't allow fetching more messages at once.
+            ConsumerConfiguration consumerConfig = ConsumerConfiguration.builder().filterSubject(tsc.subject()).maxBatch(1).build();
+            ConsumerContext consumerContext = streamContext.createOrUpdateConsumer(consumerConfig);
+
+            int count = 0;
+
+            // Fetching a batch of 100 messages is not allowed, so we rightfully don't get any messages and wait for timeout.
+            // But we don't get informed about the status message.
+            FetchConsumeOptions fco = FetchConsumeOptions.builder()
+                .maxMessages(100)
+                .expiresIn(1000)
+                .build();
+            try (FetchConsumer fetchConsumer = consumerContext.fetch(fco)) {
+                Message msg;
+                while ((msg = fetchConsumer.nextMessage()) != null) {
+                    msg.ack();
+                    count++;
+                }
+            }
+            assertEquals(0, count);
+            assertEquals(0, listenerForTesting.getPullStatusWarnings().size());
+
+            fco = FetchConsumeOptions.builder()
+                .maxMessages(100)
+                .expiresIn(1000)
+                .raiseStatusWarnings()
+                .build();
+            try (FetchConsumer fetchConsumer = consumerContext.fetch(fco)) {
+                Message msg;
+                while ((msg = fetchConsumer.nextMessage()) != null) {
+                    msg.ack();
+                    count++;
+                }
+            }
+            assertEquals(0, count);
+            assertEquals(1, listenerForTesting.getPullStatusWarnings().size());
+        });
+    }
 }
