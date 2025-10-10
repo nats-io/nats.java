@@ -15,6 +15,7 @@ package io.nats.client.support;
 
 import java.nio.charset.Charset;
 
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
 public abstract class BuilderBase {
@@ -24,7 +25,7 @@ public abstract class BuilderBase {
     public static final int ALLOCATION_BOUNDARY = 32;
     public static final int DEFAULT_ASCII_ALLOCATION = 32;
     public static final int DEFAULT_OTHER_ALLOCATION = 64;
-    public static final byte[] NULL = "null".getBytes(US_ASCII);
+    public static final byte[] NULL = "null".getBytes(ISO_8859_1);
 
     protected BuilderBase(Charset defaultCharset, int allocationSize) {
         this.defaultCharset = defaultCharset;
@@ -105,7 +106,7 @@ public abstract class BuilderBase {
     }
 
     private int _defaultCharsetAllocationSize() {
-        return defaultCharset == US_ASCII ? DEFAULT_ASCII_ALLOCATION : DEFAULT_OTHER_ALLOCATION;
+        return defaultCharset == US_ASCII || defaultCharset == ISO_8859_1 ? DEFAULT_ASCII_ALLOCATION : DEFAULT_OTHER_ALLOCATION;
     }
 
     public static int bufferAllocSize(int atLeast, int blockSize) {

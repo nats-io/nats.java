@@ -16,7 +16,7 @@ package io.nats.client.support;
 import java.util.HashMap;
 import java.util.Map;
 
-import static java.nio.charset.StandardCharsets.US_ASCII;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 public class Status {
 
@@ -24,10 +24,10 @@ public class Status {
     public static final String HEARTBEAT_TEXT     = "Idle Heartbeat";
     public static final String NO_RESPONDERS_TEXT = "No Responders Available For Request";
     public static final String EOB_TEXT           = "EOB";
-    public static final byte[] FLOW_CONTROL_TEXT_BYTES  = FLOW_CONTROL_TEXT.getBytes(US_ASCII);
-    public static final byte[] HEARTBEAT_TEXT_BYTES     = HEARTBEAT_TEXT.getBytes(US_ASCII);
-    public static final byte[] NO_RESPONDERS_TEXT_BYTES = NO_RESPONDERS_TEXT.getBytes(US_ASCII);
-    public static final byte[] EOB_TEXT_BYTES           = EOB_TEXT.getBytes(US_ASCII);
+    public static final byte[] FLOW_CONTROL_TEXT_BYTES  = FLOW_CONTROL_TEXT.getBytes(ISO_8859_1);
+    public static final byte[] HEARTBEAT_TEXT_BYTES     = HEARTBEAT_TEXT.getBytes(ISO_8859_1);
+    public static final byte[] NO_RESPONDERS_TEXT_BYTES = NO_RESPONDERS_TEXT.getBytes(ISO_8859_1);
+    public static final byte[] EOB_TEXT_BYTES           = EOB_TEXT.getBytes(ISO_8859_1);
 
     public static final int FLOW_OR_HEARTBEAT_STATUS_CODE = 100;
     public static final int NO_RESPONDERS_CODE = 503;
@@ -40,16 +40,16 @@ public class Status {
 
 // TODO - PINNED CONSUMER SUPPORT
 //    public static final int PIN_ERROR_CODE = 423;
-//    public static final byte[] PIN_ERROR_CODE_BYTES = ("" + PIN_ERROR_CODE).getBytes(US_ASCII);
+//    public static final byte[] PIN_ERROR_CODE_BYTES = ("" + PIN_ERROR_CODE).getBytes(ISO_8859_1);
 
     public static final String BAD_REQUEST                    = "Bad Request"; // 400
     public static final String NO_MESSAGES                    = "No Messages"; // 404
     public static final String CONSUMER_DELETED               = "Consumer Deleted"; // 409
     public static final String CONSUMER_IS_PUSH_BASED         = "Consumer is push based"; // 409
-    public static final byte[] BAD_REQUEST_BYTES              = BAD_REQUEST.getBytes(US_ASCII);
-    public static final byte[] NO_MESSAGES_BYTES              = NO_MESSAGES.getBytes(US_ASCII);
-    public static final byte[] CONSUMER_DELETED_BYTES         = CONSUMER_DELETED.getBytes(US_ASCII);
-    public static final byte[] CONSUMER_IS_PUSH_BASED_BYTES   = CONSUMER_IS_PUSH_BASED.getBytes(US_ASCII);
+    public static final byte[] BAD_REQUEST_BYTES              = BAD_REQUEST.getBytes(ISO_8859_1);
+    public static final byte[] NO_MESSAGES_BYTES              = NO_MESSAGES.getBytes(ISO_8859_1);
+    public static final byte[] CONSUMER_DELETED_BYTES         = CONSUMER_DELETED.getBytes(ISO_8859_1);
+    public static final byte[] CONSUMER_IS_PUSH_BASED_BYTES   = CONSUMER_IS_PUSH_BASED.getBytes(ISO_8859_1);
 
     public static final String MESSAGE_SIZE_EXCEEDS_MAX_BYTES = "Message Size Exceeds MaxBytes"; // 409
     public static final String EXCEEDED_MAX_PREFIX            = "Exceeded Max";
@@ -57,18 +57,18 @@ public class Status {
     public static final String EXCEEDED_MAX_REQUEST_BATCH     = "Exceeded MaxRequestBatch"; // 409
     public static final String EXCEEDED_MAX_REQUEST_EXPIRES   = "Exceeded MaxRequestExpires"; // 409
     public static final String EXCEEDED_MAX_REQUEST_MAX_BYTES = "Exceeded MaxRequestMaxBytes"; // 409
-    public static final byte[] MESSAGE_SIZE_EXCEEDS_MAX_BYTES_BYTES = MESSAGE_SIZE_EXCEEDS_MAX_BYTES.getBytes(US_ASCII);
-    public static final byte[] EXCEEDED_MAX_WAITING_BYTES           = EXCEEDED_MAX_WAITING.getBytes(US_ASCII);
-    public static final byte[] EXCEEDED_MAX_REQUEST_BATCH_BYTES     = EXCEEDED_MAX_REQUEST_BATCH.getBytes(US_ASCII);
-    public static final byte[] EXCEEDED_MAX_REQUEST_EXPIRES_BYTES   = EXCEEDED_MAX_REQUEST_EXPIRES.getBytes(US_ASCII);
-    public static final byte[] EXCEEDED_MAX_REQUEST_MAX_BYTES_BYTES = EXCEEDED_MAX_REQUEST_MAX_BYTES.getBytes(US_ASCII);
+    public static final byte[] MESSAGE_SIZE_EXCEEDS_MAX_BYTES_BYTES = MESSAGE_SIZE_EXCEEDS_MAX_BYTES.getBytes(ISO_8859_1);
+    public static final byte[] EXCEEDED_MAX_WAITING_BYTES           = EXCEEDED_MAX_WAITING.getBytes(ISO_8859_1);
+    public static final byte[] EXCEEDED_MAX_REQUEST_BATCH_BYTES     = EXCEEDED_MAX_REQUEST_BATCH.getBytes(ISO_8859_1);
+    public static final byte[] EXCEEDED_MAX_REQUEST_EXPIRES_BYTES   = EXCEEDED_MAX_REQUEST_EXPIRES.getBytes(ISO_8859_1);
+    public static final byte[] EXCEEDED_MAX_REQUEST_MAX_BYTES_BYTES = EXCEEDED_MAX_REQUEST_MAX_BYTES.getBytes(ISO_8859_1);
 
     public static final String BATCH_COMPLETED                = "Batch Completed"; // 409 informational
     public static final String SERVER_SHUTDOWN                = "Server Shutdown"; // 409 informational with headers
     public static final String LEADERSHIP_CHANGE              = "Leadership Change"; // 409
-    public static final byte[] BATCH_COMPLETED_BYTES          = BATCH_COMPLETED.getBytes(US_ASCII);
-    public static final byte[] SERVER_SHUTDOWN_BYTES          = SERVER_SHUTDOWN.getBytes(US_ASCII);
-    public static final byte[] LEADERSHIP_CHANGE_BYTES        = LEADERSHIP_CHANGE.getBytes(US_ASCII);
+    public static final byte[] BATCH_COMPLETED_BYTES          = BATCH_COMPLETED.getBytes(ISO_8859_1);
+    public static final byte[] SERVER_SHUTDOWN_BYTES          = SERVER_SHUTDOWN.getBytes(ISO_8859_1);
+    public static final byte[] LEADERSHIP_CHANGE_BYTES        = LEADERSHIP_CHANGE.getBytes(ISO_8859_1);
 
     public static final Status EOB = new Status(EOB_CODE, EOB_TEXT);
     public static final Status TIMEOUT_OR_NO_MESSAGES = new Status(NOT_FOUND_CODE, "Timeout or No Messages");

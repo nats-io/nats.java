@@ -247,7 +247,7 @@ public abstract class JwtUtils {
 
         // Compute jti, a base32 encoded sha256 hash
         MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
-        byte[] encoded = sha256.digest(claimJson.getBytes(StandardCharsets.US_ASCII));
+        byte[] encoded = sha256.digest(claimJson.getBytes(StandardCharsets.ISO_8859_1));
 
         claim.jti = new String(base32Encode(encoded));
         claimJson = claim.toJson();

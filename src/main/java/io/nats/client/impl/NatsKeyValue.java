@@ -151,7 +151,7 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
      */
     @Override
     public long put(String key, Number value) throws IOException, JetStreamApiException {
-        return _write(key, value.toString().getBytes(StandardCharsets.US_ASCII), null, null).getSeqno();
+        return _write(key, value.toString().getBytes(StandardCharsets.ISO_8859_1), null, null).getSeqno();
     }
 
     /**

@@ -16,7 +16,7 @@ package io.nats.client.support;
 import java.util.Arrays;
 import java.util.List;
 
-import static java.nio.charset.StandardCharsets.US_ASCII;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 public interface NatsConstants {
     String HEADER_VERSION = "NATS/1.0";
@@ -48,10 +48,10 @@ public interface NatsConstants {
     byte LF = '\n';
 
     byte[] EMPTY_BODY = new byte[0];
-    byte[] HEADER_VERSION_BYTES = HEADER_VERSION.getBytes(US_ASCII);
-    byte[] HEADER_VERSION_BYTES_PLUS_CRLF = (HEADER_VERSION + "\r\n").getBytes(US_ASCII);
-    byte[] COLON_BYTES = ":".getBytes(US_ASCII);
-    byte[] CRLF_BYTES = CRLF.getBytes(US_ASCII);
+    byte[] HEADER_VERSION_BYTES = HEADER_VERSION.getBytes(ISO_8859_1);
+    byte[] HEADER_VERSION_BYTES_PLUS_CRLF = (HEADER_VERSION + "\r\n").getBytes(ISO_8859_1);
+    byte[] COLON_BYTES = ":".getBytes(ISO_8859_1);
+    byte[] CRLF_BYTES = CRLF.getBytes(ISO_8859_1);
     int HEADER_VERSION_BYTES_LEN = HEADER_VERSION_BYTES.length;
 
     String OP_CONNECT = "CONNECT";
@@ -71,8 +71,8 @@ public interface NatsConstants {
     byte[] OP_PING_BYTES = OP_PING.getBytes();
     byte[] OP_PONG_BYTES = OP_PONG.getBytes();
 
-    byte[] PUB_SP_BYTES = (OP_PUB + SPACE).getBytes(US_ASCII);
-    byte[] HPUB_SP_BYTES = (OP_HPUB + SPACE).getBytes(US_ASCII);
+    byte[] PUB_SP_BYTES = (OP_PUB + SPACE).getBytes(ISO_8859_1);
+    byte[] HPUB_SP_BYTES = (OP_HPUB + SPACE).getBytes(ISO_8859_1);
     byte[] CONNECT_SP_BYTES = (OP_CONNECT + SPACE).getBytes();
     byte[] SUB_SP_BYTES = (OP_SUB + SPACE).getBytes();
     byte[] UNSUB_SP_BYTES = (OP_UNSUB + SPACE).getBytes();
