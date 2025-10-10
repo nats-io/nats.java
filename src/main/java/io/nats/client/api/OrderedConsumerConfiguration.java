@@ -94,9 +94,7 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
      * @return The Builder
      */
     public OrderedConsumerConfiguration filterSubject(String filterSubject) {
-        return emptyAsNull(filterSubject) == null
-            ? filterSubjects((List<String>)null)
-            : filterSubjects(Collections.singletonList(filterSubject));
+        return nullOrEmpty(filterSubjects) ? _clearFilterSubjects() : _filterSubjects(Collections.singletonList(filterSubject));
     }
 
     /**
@@ -106,11 +104,7 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
      * @return The Builder
      */
     public OrderedConsumerConfiguration filterSubjects(String... filterSubjects) {
-        if (nullOrEmpty(filterSubjects)) {
-            this.filterSubjects.clear();
-            this.filterSubjects.add(GREATER_THAN);
-        }
-        return _filterSubjects(Arrays.asList(filterSubjects));
+        return nullOrEmpty(filterSubjects) ? _clearFilterSubjects() : _filterSubjects(Arrays.asList(filterSubjects));
     }
 
     /**
@@ -120,11 +114,13 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
      * @return The Builder
      */
     public OrderedConsumerConfiguration filterSubjects(List<String> filterSubjects) {
-        if (nullOrEmpty(filterSubjects)) {
-            this.filterSubjects.clear();
-            this.filterSubjects.add(GREATER_THAN);
-        }
-        return _filterSubjects(filterSubjects);
+        return nullOrEmpty(filterSubjects) ? _clearFilterSubjects() : _filterSubjects(filterSubjects);
+    }
+
+    private OrderedConsumerConfiguration _clearFilterSubjects() {
+        this.filterSubjects.clear();
+        this.filterSubjects.add(GREATER_THAN);
+        return this;
     }
 
     private OrderedConsumerConfiguration _filterSubjects(@NonNull List<String> filterSubjects) {
