@@ -13,7 +13,6 @@
 
 package io.nats.client;
 
-import io.nats.client.api.ServerInfo;
 import io.nats.client.support.Status;
 
 /**
@@ -151,10 +150,7 @@ public interface ErrorListener {
     default String supplyMessage(String label, Connection conn, Consumer consumer, Subscription sub, Object... pairs) {
         StringBuilder sb = new StringBuilder(label == null ? "" : label);
         if (conn != null) {
-            ServerInfo si = conn.getServerInfo();
-            if (si != null) {
-                sb.append(", Connection: ").append(conn.getServerInfo().getClientId());
-            }
+            sb.append(", Connection: ").append(conn.getServerInfo().getClientId());
         }
         if (consumer != null) {
             sb.append(", Consumer: ").append(consumer.hashCode());
@@ -166,8 +162,10 @@ public interface ErrorListener {
                 sb.append(", Consumer Name: ").append(jssub.getConsumerName());
             }
         }
-        for (int x = 0; x < pairs.length; x++) {
-            sb.append(", ").append(pairs[x]).append(pairs[++x]);
+        if (pairs != null && pairs.length % 2 == 0) {
+            for (int x = 0; x < pairs.length; x++) {
+                sb.append(", ").append(pairs[x]).append(pairs[++x]);
+            }
         }
         return sb.toString();
     }

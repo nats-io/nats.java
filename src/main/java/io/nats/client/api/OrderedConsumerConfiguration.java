@@ -105,8 +105,8 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
      * @return The Builder
      */
     public OrderedConsumerConfiguration filterSubjects(String... filterSubjects) {
-        return filterSubjects == null
-            ? filterSubjects((List<String>)null) // Arrays.asList would throws a NPE if given a null
+        return filterSubjects == null || filterSubjects.length == 0
+            ? filterSubjects((List<String>)null) // Arrays.asList would throw an NPE if given a null. Called this way because there must always be at least GREATER_THAN
             : filterSubjects(Arrays.asList(filterSubjects));
     }
 

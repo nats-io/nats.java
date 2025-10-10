@@ -92,7 +92,9 @@ public class Service {
      * @param serviceEndpoints one or more service endpoints to be added
      */
     public void addServiceEndpoints(ServiceEndpoint... serviceEndpoints) {
-        addServiceEndpoints(Arrays.asList(serviceEndpoints));
+        if (serviceEndpoints != null && serviceEndpoints.length > 0) {
+            _addServiceEndpoints(Arrays.asList(serviceEndpoints));
+        }
     }
 
     /**
@@ -100,28 +102,34 @@ public class Service {
      * @param serviceEndpoints service endpoints to be added
      */
     public void addServiceEndpoints(Collection<ServiceEndpoint> serviceEndpoints) {
+        _addServiceEndpoints(serviceEndpoints);
+    }
+
+    private void _addServiceEndpoints(Collection<ServiceEndpoint> serviceEndpoints) {
         startStopLock.lock();
         try {
-            // do this first so it's available on start
-            infoResponse.addServiceEndpoints(serviceEndpoints);
             for (ServiceEndpoint se : serviceEndpoints) {
-                EndpointContext ctx;
-                if (se.getDispatcher() == null) {
-                    Dispatcher dTemp = dInternals.isEmpty() ? null : dInternals.get(0);
-                    if (dTemp == null) {
-                        dTemp = conn.createDispatcher();
-                        dInternals.add(dTemp);
+                if (se != null) {
+                    // do this first so it's available on start
+                    infoResponse.addServiceEndpoint(se);
+                    EndpointContext ctx;
+                    if (se.getDispatcher() == null) {
+                        Dispatcher dTemp = dInternals.isEmpty() ? null : dInternals.get(0);
+                        if (dTemp == null) {
+                            dTemp = conn.createDispatcher();
+                            dInternals.add(dTemp);
+                        }
+                        ctx = new EndpointContext(conn, dTemp, false, se);
                     }
-                    ctx = new EndpointContext(conn, dTemp, false, se);
-                }
-                else {
-                    ctx = new EndpointContext(conn, null, false, se);
-                }
-                serviceContexts.put(se.getName(), ctx);
+                    else {
+                        ctx = new EndpointContext(conn, null, false, se);
+                    }
+                    serviceContexts.put(se.getName(), ctx);
 
-                // if the service is already started, start the newly added context
-                if (runningIndicator != null) {
-                    ctx.start();
+                    // if the service is already started, start the newly added context
+                    if (runningIndicator != null) {
+                        ctx.start();
+                    }
                 }
             }
         }

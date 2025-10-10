@@ -45,19 +45,23 @@ public class InfoResponse extends ServiceResponse {
     }
 
     void addServiceEndpoints(Collection<ServiceEndpoint> serviceEndpoints) {
-        for (ServiceEndpoint se : serviceEndpoints) {
-            _addServiceEndpoint(se);
+        if (serviceEndpoints != null && serviceEndpoints.size() > 0) {
+            for (ServiceEndpoint se : serviceEndpoints) {
+                _addServiceEndpoint(se);
+            }
         }
         serialized.set(null);
     }
 
     private void _addServiceEndpoint(ServiceEndpoint se) {
-        endpoints.add(new Endpoint(
-            se.getName(),
-            se.getSubject(),
-            se.getQueueGroup(),
-            se.getMetadata()
-        ));
+        if (se != null) {
+            endpoints.add(new Endpoint(
+                se.getName(),
+                se.getSubject(),
+                se.getQueueGroup(),
+                se.getMetadata()
+            ));
+        }
     }
 
     InfoResponse(byte[] jsonBytes) {

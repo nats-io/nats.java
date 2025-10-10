@@ -39,13 +39,15 @@ public class NatsKeyValueWatchSubscription extends NatsWatchSubscription<KeyValu
         boolean headersOnly = false;
         boolean ignoreDeletes = false;
         DeliverPolicy deliverPolicy = DeliverPolicy.LastPerSubject;
-        for (KeyValueWatchOption wo : watchOptions) {
-            if (wo != null) {
-                switch (wo) {
-                    case META_ONLY: headersOnly = true; break;
-                    case IGNORE_DELETE: ignoreDeletes = true; break;
-                    case UPDATES_ONLY: deliverPolicy = DeliverPolicy.New; break;
-                    case INCLUDE_HISTORY: deliverPolicy = DeliverPolicy.All; break;
+        if (watchOptions != null) {
+            for (KeyValueWatchOption wo : watchOptions) {
+                if (wo != null) {
+                    switch (wo) {
+                        case META_ONLY: headersOnly = true; break;
+                        case IGNORE_DELETE: ignoreDeletes = true; break;
+                        case UPDATES_ONLY: deliverPolicy = DeliverPolicy.New; break;
+                        case INCLUDE_HISTORY: deliverPolicy = DeliverPolicy.All; break;
+                    }
                 }
             }
         }

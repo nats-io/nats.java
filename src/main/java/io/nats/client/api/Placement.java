@@ -15,9 +15,11 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
+import io.nats.client.support.Validator;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -123,8 +125,11 @@ public class Placement implements JsonSerializable {
          * @return the builder
          */
         public Builder tags(String... tags) {
-            this.tags = Arrays.asList(tags);
-            return this;
+            if (tags == null || tags.length == 0) {
+                this.tags = null;
+                return this;
+            }
+            return tags(Arrays.asList(tags));
         }
 
         /**
@@ -133,7 +138,19 @@ public class Placement implements JsonSerializable {
          * @return the builder
          */
         public Builder tags(List<String> tags) {
-            this.tags = tags;
+            if (tags == null || tags.size() == 0) {
+                this.tags = null;
+                return this;
+            }
+            this.tags = new ArrayList<>();
+            for (String tag : tags) {
+                if (!Validator.nullOrEmpty(tag)) {
+                    this.tags.add(tag);
+                }
+            }
+            if (this.tags.size() == 0) {
+                this.tags = null;
+            }
             return this;
         }
 

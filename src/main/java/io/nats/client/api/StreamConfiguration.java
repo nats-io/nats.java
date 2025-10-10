@@ -746,7 +746,7 @@ public class StreamConfiguration implements JsonSerializable {
          * @return The Builder
          */
         public Builder addSubjects(String... subjects) {
-            if (subjects != null) {
+            if (subjects != null && subjects.length > 0) {
                 return addSubjects(Arrays.asList(subjects));
             }
             return this;

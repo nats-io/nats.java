@@ -1038,6 +1038,10 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder filterSubjects(String... filterSubjects) {
+            if (filterSubjects == null) {
+                this.filterSubjects = null;
+                return this;
+            }
             return filterSubjects(Arrays.asList(filterSubjects));
         }
 
@@ -1048,12 +1052,14 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder filterSubjects(List<String> filterSubjects) {
+            if (filterSubjects == null) {
+                this.filterSubjects = null;
+                return this;
+            }
             this.filterSubjects = new ArrayList<>();
-            if (filterSubjects != null) {
-                for (String fs : filterSubjects) {
-                    if (!nullOrEmpty(fs)) {
-                        this.filterSubjects.add(fs);
-                    }
+            for (String fs : filterSubjects) {
+                if (!nullOrEmpty(fs)) {
+                    this.filterSubjects.add(fs);
                 }
             }
             if (this.filterSubjects.isEmpty()) {
@@ -1335,23 +1341,23 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder backoff(Duration... backoffs) {
-            if (backoffs == null || (backoffs.length == 1 && backoffs[0] == null))
+            if (backoffs == null || backoffs.length == 0)
             {
                 backoff = null;
             }
             else
             {
                 backoff = new ArrayList<>();
-                for (Duration d : backoffs)
-                {
-                    if (d != null)
-                    {
-                        if (d.toNanos() < DURATION_MIN_LONG)
-                        {
+                for (Duration d : backoffs) {
+                    if (d != null) {
+                        if (d.toNanos() < DURATION_MIN_LONG) {
                             throw new IllegalArgumentException("Backoff cannot be less than " + DURATION_MIN_LONG);
                         }
                         backoff.add(d);
                     }
+                }
+                if (backoff.size() == 0) {
+                    backoff = null;
                 }
             }
             return this;
@@ -1396,6 +1402,10 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder priorityGroups(String... priorityGroups) {
+            if (priorityGroups == null || priorityGroups.length == 0) {
+                this.priorityGroups = null;
+                return this;
+            }
             return priorityGroups(Arrays.asList(priorityGroups));
         }
 
@@ -1406,12 +1416,14 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder priorityGroups(List<String> priorityGroups) {
+            if (priorityGroups == null || priorityGroups.size() == 0) {
+                this.priorityGroups = null;
+                return this;
+            }
             this.priorityGroups = new ArrayList<>();
-            if (priorityGroups != null) {
-                for (String pg : priorityGroups) {
-                    if (!nullOrEmpty(pg)) {
-                        this.priorityGroups.add(pg);
-                    }
+            for (String pg : priorityGroups) {
+                if (!nullOrEmpty(pg)) {
+                    this.priorityGroups.add(pg);
                 }
             }
             if (this.priorityGroups.isEmpty()) {

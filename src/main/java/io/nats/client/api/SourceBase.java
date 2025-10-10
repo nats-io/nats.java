@@ -181,12 +181,27 @@ public abstract class SourceBase implements JsonSerializable {
         }
 
         public T subjectTransforms(SubjectTransform... subjectTransforms) {
-            this.subjectTransforms = subjectTransforms == null ? null : Arrays.asList(subjectTransforms);
-            return getThis();
+            if (subjectTransforms == null || subjectTransforms.length == 0) {
+                this.subjectTransforms = null;
+                return getThis();
+            }
+            return subjectTransforms(Arrays.asList(subjectTransforms));
         }
 
         public T subjectTransforms(List<SubjectTransform> subjectTransforms) {
-            this.subjectTransforms = subjectTransforms;
+            if (subjectTransforms == null || subjectTransforms.size() == 0) {
+                this.subjectTransforms = null;
+                return getThis();
+            }
+            this.subjectTransforms = new ArrayList<>();
+            for (SubjectTransform st : subjectTransforms) {
+                if (st != null) {
+                    this.subjectTransforms.add(st);
+                }
+            }
+            if (this.subjectTransforms.size() == 0) {
+                this.subjectTransforms = null;
+            }
             return getThis();
         }
     }

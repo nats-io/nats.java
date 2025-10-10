@@ -291,10 +291,14 @@ public class Headers {
 		if (readOnly) {
 			throw new UnsupportedOperationException();
 		}
-		for (String key : keys) {
-			_remove(key);
+		if (keys != null) {
+			for (String key : keys) {
+				if (key != null && valuesMap.remove(key) != null) {
+					dataLength -= lengthMap.remove(key);
+					serialized = null; // since the data changed, clear this so it's rebuilt
+				}
+			}
 		}
-		serialized = null; // since the data changed, clear this so it's rebuilt
 	}
 
 	/**
@@ -305,17 +309,13 @@ public class Headers {
 		if (readOnly) {
 			throw new UnsupportedOperationException();
 		}
-		for (String key : keys) {
-			_remove(key);
-		}
-		serialized = null; // since the data changed, clear this so it's rebuilt
-	}
-
-	// the remove delegate
-	private void _remove(String key) {
-		// if the values had a key, then the data length had a length
-		if (valuesMap.remove(key) != null) {
-			dataLength -= lengthMap.remove(key);
+		if (keys != null) {
+			for (String key : keys) {
+				if (key != null && valuesMap.remove(key) != null) {
+					dataLength -= lengthMap.remove(key);
+					serialized = null; // since the data changed, clear this so it's rebuilt
+				}
+			}
 		}
 	}
 
