@@ -35,12 +35,14 @@ public class NatsObjectStoreWatchSubscription extends NatsWatchSubscription<Obje
         boolean headersOnly = false;
         boolean ignoreDeletes = false;
         DeliverPolicy deliverPolicy = DeliverPolicy.LastPerSubject;
-        for (ObjectStoreWatchOption wo : watchOptions) {
-            if (wo != null) {
-                switch (wo) {
-                    case IGNORE_DELETE: ignoreDeletes = true; break;
-                    case UPDATES_ONLY: deliverPolicy = DeliverPolicy.New; break;
-                    case INCLUDE_HISTORY: deliverPolicy = DeliverPolicy.All; break;
+        if (watchOptions != null) {
+            for (ObjectStoreWatchOption wo : watchOptions) {
+                if (wo != null) {
+                    switch (wo) {
+                        case IGNORE_DELETE: ignoreDeletes = true; break;
+                        case UPDATES_ONLY: deliverPolicy = DeliverPolicy.New; break;
+                        case INCLUDE_HISTORY: deliverPolicy = DeliverPolicy.All; break;
+                    }
                 }
             }
         }

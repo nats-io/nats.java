@@ -22,6 +22,7 @@ import java.util.*;
 import java.util.function.BiConsumer;
 
 import static io.nats.client.support.NatsConstants.*;
+import static io.nats.client.support.Validator.nullOrEmpty;
 
 /**
  * An object that represents a map of keys to a list of values. It does not accept
@@ -291,10 +292,9 @@ public class Headers {
 		if (readOnly) {
 			throw new UnsupportedOperationException();
 		}
-		for (String key : keys) {
-			_remove(key);
+		if (!nullOrEmpty(keys)) {
+			_remove(Arrays.asList(keys));
 		}
-		serialized = null; // since the data changed, clear this so it's rebuilt
 	}
 
 	/**
@@ -305,17 +305,17 @@ public class Headers {
 		if (readOnly) {
 			throw new UnsupportedOperationException();
 		}
-		for (String key : keys) {
-			_remove(key);
+		if (!nullOrEmpty(keys)) {
+			_remove(keys);
 		}
-		serialized = null; // since the data changed, clear this so it's rebuilt
 	}
 
-	// the remove delegate
-	private void _remove(String key) {
-		// if the values had a key, then the data length had a length
-		if (valuesMap.remove(key) != null) {
-			dataLength -= lengthMap.remove(key);
+	private void _remove(Collection<String> keys) {
+		for (String key : keys) {
+			if (!nullOrEmpty(key) && valuesMap.remove(key) != null) {
+				dataLength -= lengthMap.remove(key);
+				serialized = null; // since the data changed, clear this so it's rebuilt
+			}
 		}
 	}
 

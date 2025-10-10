@@ -727,7 +727,7 @@ public class StreamConfiguration implements JsonSerializable {
          */
         public Builder subjects(String... subjects) {
             this.subjects.clear();
-            return addSubjects(subjects);
+            return nullOrEmpty(subjects) ? this : _addSubjects(Arrays.asList(subjects));
         }
 
         /**
@@ -737,7 +737,7 @@ public class StreamConfiguration implements JsonSerializable {
          */
         public Builder subjects(Collection<String> subjects) {
             this.subjects.clear();
-            return addSubjects(subjects);
+            return nullOrEmpty(subjects) ? this : _addSubjects(subjects);
         }
 
         /**
@@ -746,10 +746,7 @@ public class StreamConfiguration implements JsonSerializable {
          * @return The Builder
          */
         public Builder addSubjects(String... subjects) {
-            if (subjects != null) {
-                return addSubjects(Arrays.asList(subjects));
-            }
-            return this;
+            return nullOrEmpty(subjects) ? this : _addSubjects(Arrays.asList(subjects));
         }
 
         /**
@@ -758,11 +755,13 @@ public class StreamConfiguration implements JsonSerializable {
          * @return The Builder
          */
         public Builder addSubjects(Collection<String> subjects) {
-            if (subjects != null) {
-                for (String sub : subjects) {
-                    if (sub != null && !this.subjects.contains(sub)) {
-                        this.subjects.add(sub);
-                    }
+            return nullOrEmpty(subjects) ? this : _addSubjects(subjects);
+        }
+
+        private Builder _addSubjects(@NonNull Collection<String> subjects) {
+            for (String sub : subjects) {
+                if (!nullOrEmpty(sub) && !this.subjects.contains(sub)) {
+                    this.subjects.add(sub);
                 }
             }
             return this;

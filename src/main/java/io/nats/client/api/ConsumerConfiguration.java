@@ -1038,7 +1038,11 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder filterSubjects(String... filterSubjects) {
-            return filterSubjects(Arrays.asList(filterSubjects));
+            if (nullOrEmpty(filterSubjects)) {
+                this.filterSubjects = null;
+                return this;
+            }
+            return _filterSubjects(Arrays.asList(filterSubjects));
         }
 
         /**
@@ -1048,12 +1052,18 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder filterSubjects(List<String> filterSubjects) {
+            if (nullOrEmpty(filterSubjects)) {
+                this.filterSubjects = null;
+                return this;
+            }
+            return _filterSubjects(filterSubjects);
+        }
+
+        private Builder _filterSubjects(@NonNull List<String> filterSubjects) {
             this.filterSubjects = new ArrayList<>();
-            if (filterSubjects != null) {
-                for (String fs : filterSubjects) {
-                    if (!nullOrEmpty(fs)) {
-                        this.filterSubjects.add(fs);
-                    }
+            for (String fs : filterSubjects) {
+                if (!nullOrEmpty(fs)) {
+                    this.filterSubjects.add(fs);
                 }
             }
             if (this.filterSubjects.isEmpty()) {
@@ -1335,23 +1345,21 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder backoff(Duration... backoffs) {
-            if (backoffs == null || (backoffs.length == 1 && backoffs[0] == null))
-            {
-                backoff = null;
+            if (nullOrEmpty(backoffs)) {
+                this.backoff = null;
             }
-            else
-            {
-                backoff = new ArrayList<>();
-                for (Duration d : backoffs)
-                {
-                    if (d != null)
-                    {
-                        if (d.toNanos() < DURATION_MIN_LONG)
-                        {
+            else {
+                this.backoff = new ArrayList<>();
+                for (Duration d : backoffs) {
+                    if (d != null) {
+                        if (d.toNanos() < DURATION_MIN_LONG) {
                             throw new IllegalArgumentException("Backoff cannot be less than " + DURATION_MIN_LONG);
                         }
-                        backoff.add(d);
+                        this.backoff.add(d);
                     }
+                }
+                if (this.backoff.size() == 0) {
+                    this.backoff = null;
                 }
             }
             return this;
@@ -1364,7 +1372,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder backoff(long... backoffsMillis) {
-            if (backoffsMillis == null) {
+            if (backoffsMillis == null || backoffsMillis.length == 0) {
                 backoff = null;
             }
             else {
@@ -1396,7 +1404,11 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder priorityGroups(String... priorityGroups) {
-            return priorityGroups(Arrays.asList(priorityGroups));
+            if (nullOrEmpty(priorityGroups)) {
+                this.priorityGroups = null;
+                return this;
+            }
+            return _priorityGroups(Arrays.asList(priorityGroups));
         }
 
         /**
@@ -1406,12 +1418,18 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder priorityGroups(List<String> priorityGroups) {
+            if (nullOrEmpty(priorityGroups)) {
+                this.priorityGroups = null;
+                return this;
+            }
+            return _priorityGroups(priorityGroups);
+        }
+
+        private Builder _priorityGroups(@NonNull List<String> priorityGroups) {
             this.priorityGroups = new ArrayList<>();
-            if (priorityGroups != null) {
-                for (String pg : priorityGroups) {
-                    if (!nullOrEmpty(pg)) {
-                        this.priorityGroups.add(pg);
-                    }
+            for (String pg : priorityGroups) {
+                if (!nullOrEmpty(pg)) {
+                    this.priorityGroups.add(pg);
                 }
             }
             if (this.priorityGroups.isEmpty()) {

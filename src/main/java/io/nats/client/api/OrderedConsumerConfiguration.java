@@ -29,6 +29,7 @@ import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonValueUtils.*;
 import static io.nats.client.support.NatsConstants.GREATER_THAN;
 import static io.nats.client.support.Validator.emptyAsNull;
+import static io.nats.client.support.Validator.nullOrEmpty;
 
 public class OrderedConsumerConfiguration implements JsonSerializable {
 
@@ -93,9 +94,7 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
      * @return The Builder
      */
     public OrderedConsumerConfiguration filterSubject(String filterSubject) {
-        return emptyAsNull(filterSubject) == null
-            ? filterSubjects((List<String>)null)
-            : filterSubjects(Collections.singletonList(filterSubject));
+        return nullOrEmpty(filterSubjects) ? _clearFilterSubjects() : _filterSubjects(Collections.singletonList(filterSubject));
     }
 
     /**
@@ -105,9 +104,7 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
      * @return The Builder
      */
     public OrderedConsumerConfiguration filterSubjects(String... filterSubjects) {
-        return filterSubjects == null
-            ? filterSubjects((List<String>)null) // Arrays.asList would throws a NPE if given a null
-            : filterSubjects(Arrays.asList(filterSubjects));
+        return nullOrEmpty(filterSubjects) ? _clearFilterSubjects() : _filterSubjects(Arrays.asList(filterSubjects));
     }
 
     /**
@@ -117,13 +114,21 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
      * @return The Builder
      */
     public OrderedConsumerConfiguration filterSubjects(List<String> filterSubjects) {
+        return nullOrEmpty(filterSubjects) ? _clearFilterSubjects() : _filterSubjects(filterSubjects);
+    }
+
+    private OrderedConsumerConfiguration _clearFilterSubjects() {
         this.filterSubjects.clear();
-        if (filterSubjects != null) {
-            for (String fs : filterSubjects) {
-                String fsEan = emptyAsNull(fs);
-                if (fsEan != null) {
-                    this.filterSubjects.add(fsEan);
-                }
+        this.filterSubjects.add(GREATER_THAN);
+        return this;
+    }
+
+    private OrderedConsumerConfiguration _filterSubjects(@NonNull List<String> filterSubjects) {
+        this.filterSubjects.clear();
+        for (String fs : filterSubjects) {
+            String fsEan = emptyAsNull(fs);
+            if (fsEan != null) {
+                this.filterSubjects.add(fsEan);
             }
         }
         if (this.filterSubjects.isEmpty()) {
