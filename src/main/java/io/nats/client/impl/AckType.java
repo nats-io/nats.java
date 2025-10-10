@@ -1,6 +1,6 @@
 package io.nats.client.impl;
 
-import java.nio.charset.StandardCharsets;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 public enum AckType {
     // Acknowledgement protocol messages
@@ -18,11 +18,11 @@ public enum AckType {
 
     AckType(String text, boolean terminal) {
         this.text = text;
-        this.bytes = text.getBytes(StandardCharsets.US_ASCII);
+        this.bytes = text.getBytes(ISO_8859_1);
         this.terminal = terminal;
     }
 
     public byte[] bodyBytes(long delayNanoseconds) {
-        return delayNanoseconds < 1 ? bytes : (text + " {\"delay\": " + delayNanoseconds + "}").getBytes(StandardCharsets.US_ASCII);
+        return delayNanoseconds < 1 ? bytes : (text + " {\"delay\": " + delayNanoseconds + "}").getBytes(ISO_8859_1);
     }
 }

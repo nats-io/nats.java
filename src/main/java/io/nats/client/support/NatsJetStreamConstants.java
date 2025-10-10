@@ -1,6 +1,6 @@
 package io.nats.client.support;
 
-import static java.nio.charset.StandardCharsets.US_ASCII;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 public interface NatsJetStreamConstants {
     /**
@@ -104,9 +104,9 @@ public interface NatsJetStreamConstants {
     String CONSUMER_STALLED_HDR         = "Nats-Consumer-Stalled";
     String MSG_SIZE_HDR                 = "Nats-Msg-Size";
     String NATS_MARKER_REASON_HDR       = "Nats-Marker-Reason";
-    byte[] CONSUMER_STALLED_HDR_BYTES   = CONSUMER_STALLED_HDR.getBytes(US_ASCII);
-    byte[] MSG_SIZE_HDR_BYTES           = MSG_SIZE_HDR.getBytes(US_ASCII);
-    byte[] NATS_MARKER_REASON_HDR_BYTES = NATS_MARKER_REASON_HDR.getBytes(US_ASCII);
+    byte[] CONSUMER_STALLED_HDR_BYTES   = CONSUMER_STALLED_HDR.getBytes(ISO_8859_1);
+    byte[] MSG_SIZE_HDR_BYTES           = MSG_SIZE_HDR.getBytes(ISO_8859_1);
+    byte[] NATS_MARKER_REASON_HDR_BYTES = NATS_MARKER_REASON_HDR.getBytes(ISO_8859_1);
 
     String ROLLUP_HDR = "Nats-Rollup";
     String ROLLUP_HDR_SUBJECT = "sub";
@@ -121,20 +121,20 @@ public interface NatsJetStreamConstants {
     String[] MESSAGE_INFO_HEADERS = new String[]{NATS_SUBJECT, NATS_SEQUENCE, NATS_TIMESTAMP, NATS_STREAM, NATS_LAST_SEQUENCE, NATS_NUM_PENDING};
 
     // bytes used for faster matching and less string allocation when
-    byte[] NATS_STREAM_BYTES = NATS_STREAM.getBytes(US_ASCII);
-    byte[] NATS_SEQUENCE_BYTES = NATS_SEQUENCE.getBytes(US_ASCII);
-    byte[] NATS_TIMESTAMP_BYTES = NATS_TIMESTAMP.getBytes(US_ASCII);
-    byte[] NATS_SUBJECT_BYTES = NATS_SUBJECT.getBytes(US_ASCII);
-    byte[] NATS_LAST_SEQUENCE_BYTES = NATS_LAST_SEQUENCE.getBytes(US_ASCII);
-    byte[] NATS_NUM_PENDING_BYTES = NATS_NUM_PENDING.getBytes(US_ASCII);
+    byte[] NATS_STREAM_BYTES = NATS_STREAM.getBytes(ISO_8859_1);
+    byte[] NATS_SEQUENCE_BYTES = NATS_SEQUENCE.getBytes(ISO_8859_1);
+    byte[] NATS_TIMESTAMP_BYTES = NATS_TIMESTAMP.getBytes(ISO_8859_1);
+    byte[] NATS_SUBJECT_BYTES = NATS_SUBJECT.getBytes(ISO_8859_1);
+    byte[] NATS_LAST_SEQUENCE_BYTES = NATS_LAST_SEQUENCE.getBytes(ISO_8859_1);
+    byte[] NATS_NUM_PENDING_BYTES = NATS_NUM_PENDING.getBytes(ISO_8859_1);
 
     String NATS_PENDING_MESSAGES       = "Nats-Pending-Messages";
     String NATS_PENDING_BYTES          = "Nats-Pending-Bytes";
-    byte[] NATS_PENDING_MESSAGES_BYTES = NATS_PENDING_MESSAGES.getBytes(US_ASCII);
-    byte[] NATS_PENDING_BYTES_BYTES    = NATS_PENDING_BYTES.getBytes(US_ASCII);
+    byte[] NATS_PENDING_MESSAGES_BYTES = NATS_PENDING_MESSAGES.getBytes(ISO_8859_1);
+    byte[] NATS_PENDING_BYTES_BYTES    = NATS_PENDING_BYTES.getBytes(ISO_8859_1);
 
     String KV_OPERATION_HEADER_KEY       = "KV-Operation";
-    byte[] KV_OPERATION_HEADER_KEY_BYTES = KV_OPERATION_HEADER_KEY.getBytes(US_ASCII);
+    byte[] KV_OPERATION_HEADER_KEY_BYTES = KV_OPERATION_HEADER_KEY.getBytes(ISO_8859_1);
 
     String NATS_SCHEDULE_HDR        = "Nats-Schedule";
     String NATS_SCHEDULE_TARGET_HDR = "Nats-Schedule-Target";

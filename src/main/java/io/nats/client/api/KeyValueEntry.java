@@ -18,11 +18,12 @@ import io.nats.client.support.NatsKeyValueUtil;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 
 import static io.nats.client.support.NatsJetStreamConstants.MSG_SIZE_HDR;
 import static io.nats.client.support.NatsKeyValueUtil.BucketAndKey;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
  * The KeyValueEntry represents a record in the Key Value history
@@ -75,12 +76,12 @@ public class KeyValueEntry {
 
     @Nullable
     public String getValueAsString() {
-        return value == null ? null : new String(value, StandardCharsets.UTF_8);
+        return value == null ? null : new String(value, UTF_8);
     }
 
     @Nullable
     public Long getValueAsLong() {
-        return value == null ? null : Long.parseLong(new String(value, StandardCharsets.US_ASCII));
+        return value == null ? null : Long.parseLong(new String(value, ISO_8859_1));
     }
 
     public long getDataLen() {

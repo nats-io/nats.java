@@ -20,7 +20,7 @@ import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 
-import static java.nio.charset.StandardCharsets.US_ASCII;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 public class ByteArrayBuilder extends BuilderBase {
     private ByteBuffer buffer;
@@ -40,21 +40,22 @@ public class ByteArrayBuilder extends BuilderBase {
     /**
      * Construct the ByteArrayBuilder with
      * the initial size and allocation size of {@value #DEFAULT_ASCII_ALLOCATION}
-     * and the character set {@link java.nio.charset.StandardCharsets#US_ASCII}
+     * and the character set {@link java.nio.charset.StandardCharsets#ISO_8859_1}
+     * since ISO_8859_1 is faster when encoding and decoding than ISO_8859_1
      */
     public ByteArrayBuilder() {
-        this(-1, DEFAULT_ASCII_ALLOCATION, US_ASCII);
+        this(-1, DEFAULT_ASCII_ALLOCATION, ISO_8859_1);
     }
 
     /**
      * Construct the ByteArrayBuilder with the supplied initial size,
      * allocation size of {@value #DEFAULT_ASCII_ALLOCATION}
-     * and the character set {@link java.nio.charset.StandardCharsets#US_ASCII}
+     * and the character set {@link java.nio.charset.StandardCharsets#ISO_8859_1}
      *
      * @param initialSize the initial size
      */
     public ByteArrayBuilder(int initialSize) {
-        this(initialSize, DEFAULT_ASCII_ALLOCATION, US_ASCII);
+        this(initialSize, DEFAULT_ASCII_ALLOCATION, ISO_8859_1);
     }
 
     /**
@@ -80,8 +81,8 @@ public class ByteArrayBuilder extends BuilderBase {
 
     /**
      * Construct the ByteArrayBuilder copying all the bytes
-     * using the character set {@link java.nio.charset.StandardCharsets#US_ASCII}
-     * and the character set {@link java.nio.charset.StandardCharsets#US_ASCII}
+     * using the character set {@link java.nio.charset.StandardCharsets#ISO_8859_1}
+     * and the character set {@link java.nio.charset.StandardCharsets#ISO_8859_1}
      * Then initializes the buffer with the supplied bytes
      * @param bytes the bytes
      */
@@ -91,13 +92,13 @@ public class ByteArrayBuilder extends BuilderBase {
 
     /**
      * Construct the ByteArrayBuilder copying the specified number of bytes;
-     * and the character set {@link java.nio.charset.StandardCharsets#US_ASCII}
+     * and the character set {@link java.nio.charset.StandardCharsets#ISO_8859_1}
      * Then initializes the buffer with the supplied bytes
      * @param bytes the bytes
      * @param len the number of bytes to copy
      */
     public ByteArrayBuilder(byte[] bytes, int len) {
-        super(US_ASCII, DEFAULT_ASCII_ALLOCATION);
+        super(ISO_8859_1, DEFAULT_ASCII_ALLOCATION);
         this.buffer = ByteBuffer.allocate(bufferAllocSize(len, allocationSize));
         buffer.put(bytes, 0, bytes.length);
     }
@@ -225,7 +226,7 @@ public class ByteArrayBuilder extends BuilderBase {
      * @return this (fluent)
      */
     public ByteArrayBuilder append(int i) {
-        append(Integer.toString(i).getBytes(US_ASCII)); // a number is always ascii
+        append(Integer.toString(i).getBytes(ISO_8859_1)); // a number is always ascii (ISO_8859_1 is faster)
         return this;
     }
 
