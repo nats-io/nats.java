@@ -19,7 +19,7 @@ import org.jspecify.annotations.Nullable;
 import static io.nats.client.support.NatsConstants.*;
 import static io.nats.client.support.NatsJetStreamConstants.*;
 import static io.nats.client.support.Status.*;
-import static java.nio.charset.StandardCharsets.US_ASCII;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class Token {
     private final byte[] serialized;
@@ -117,7 +117,7 @@ public class Token {
     }
 
     private String valueAsString() {
-        return new String(serialized, start, valueLength, US_ASCII).trim();
+        return new String(serialized, start, valueLength, UTF_8).trim();
     }
 
     @NonNull
@@ -273,7 +273,6 @@ public class Token {
         }
         return true;
     }
-
 
     private boolean endsMatch(byte @NonNull [] checkBytes, int compareStartIndex) {
         if (valueLength != checkBytes.length) {

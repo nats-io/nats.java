@@ -186,6 +186,9 @@ class PullMessageManager extends MessageManager {
                     || statMsg.equals(LEADERSHIP_CHANGE)
                     || statMsg.equals(MESSAGE_SIZE_EXCEEDS_MAX_BYTES))
                 {
+                    if (raiseStatusWarnings) {
+                        conn.executeCallback((c, el) -> el.pullStatusWarning(c, sub, status));
+                    }
                     return STATUS_TERMINUS;
                 }
                 break;
