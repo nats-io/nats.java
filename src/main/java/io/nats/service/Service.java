@@ -92,7 +92,7 @@ public class Service {
      * @param serviceEndpoints one or more service endpoints to be added
      */
     public void addServiceEndpoints(ServiceEndpoint... serviceEndpoints) {
-        if (serviceEndpoints != null && serviceEndpoints.length > 0) {
+        if (!nullOrEmpty(serviceEndpoints)) {
             _addServiceEndpoints(Arrays.asList(serviceEndpoints));
         }
     }
@@ -102,7 +102,9 @@ public class Service {
      * @param serviceEndpoints service endpoints to be added
      */
     public void addServiceEndpoints(Collection<ServiceEndpoint> serviceEndpoints) {
-        _addServiceEndpoints(serviceEndpoints);
+        if (!nullOrEmpty(serviceEndpoints)) {
+            _addServiceEndpoints(serviceEndpoints);
+        }
     }
 
     private void _addServiceEndpoints(Collection<ServiceEndpoint> serviceEndpoints) {

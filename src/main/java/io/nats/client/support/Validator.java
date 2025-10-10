@@ -444,7 +444,7 @@ public abstract class Validator {
         return s == null || s.trim().isEmpty();
     }
 
-    public static boolean nullOrEmpty(String[] a) {
+    public static <T> boolean nullOrEmpty(T[] a) {
         return a == null || a.length == 0;
     }
 

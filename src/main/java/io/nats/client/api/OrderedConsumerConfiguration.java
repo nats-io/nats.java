@@ -29,6 +29,7 @@ import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonValueUtils.*;
 import static io.nats.client.support.NatsConstants.GREATER_THAN;
 import static io.nats.client.support.Validator.emptyAsNull;
+import static io.nats.client.support.Validator.nullOrEmpty;
 
 public class OrderedConsumerConfiguration implements JsonSerializable {
 
@@ -105,9 +106,11 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
      * @return The Builder
      */
     public OrderedConsumerConfiguration filterSubjects(String... filterSubjects) {
-        return filterSubjects == null || filterSubjects.length == 0
-            ? filterSubjects((List<String>)null) // Arrays.asList would throw an NPE if given a null. Called this way because there must always be at least GREATER_THAN
-            : filterSubjects(Arrays.asList(filterSubjects));
+        if (nullOrEmpty(filterSubjects)) {
+            this.filterSubjects.clear();
+            this.filterSubjects.add(GREATER_THAN);
+        }
+        return _filterSubjects(Arrays.asList(filterSubjects));
     }
 
     /**
@@ -117,13 +120,19 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
      * @return The Builder
      */
     public OrderedConsumerConfiguration filterSubjects(List<String> filterSubjects) {
+        if (nullOrEmpty(filterSubjects)) {
+            this.filterSubjects.clear();
+            this.filterSubjects.add(GREATER_THAN);
+        }
+        return _filterSubjects(filterSubjects);
+    }
+
+    private OrderedConsumerConfiguration _filterSubjects(@NonNull List<String> filterSubjects) {
         this.filterSubjects.clear();
-        if (filterSubjects != null) {
-            for (String fs : filterSubjects) {
-                String fsEan = emptyAsNull(fs);
-                if (fsEan != null) {
-                    this.filterSubjects.add(fsEan);
-                }
+        for (String fs : filterSubjects) {
+            String fsEan = emptyAsNull(fs);
+            if (fsEan != null) {
+                this.filterSubjects.add(fsEan);
             }
         }
         if (this.filterSubjects.isEmpty()) {

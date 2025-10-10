@@ -32,6 +32,7 @@ import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonValueUtils.readValue;
 import static io.nats.client.support.Validator.listsAreEquivalent;
+import static io.nats.client.support.Validator.nullOrEmpty;
 
 public abstract class SourceBase implements JsonSerializable {
     private final String name;
@@ -181,18 +182,22 @@ public abstract class SourceBase implements JsonSerializable {
         }
 
         public T subjectTransforms(SubjectTransform... subjectTransforms) {
-            if (subjectTransforms == null || subjectTransforms.length == 0) {
+            if (nullOrEmpty(subjectTransforms)) {
                 this.subjectTransforms = null;
                 return getThis();
             }
-            return subjectTransforms(Arrays.asList(subjectTransforms));
+            return _subjectTransforms(Arrays.asList(subjectTransforms));
         }
 
         public T subjectTransforms(List<SubjectTransform> subjectTransforms) {
-            if (subjectTransforms == null || subjectTransforms.size() == 0) {
+            if (nullOrEmpty(subjectTransforms)) {
                 this.subjectTransforms = null;
                 return getThis();
             }
+            return _subjectTransforms(subjectTransforms);
+        }
+
+        private T _subjectTransforms(@NonNull List<SubjectTransform> subjectTransforms) {
             this.subjectTransforms = new ArrayList<>();
             for (SubjectTransform st : subjectTransforms) {
                 if (st != null) {

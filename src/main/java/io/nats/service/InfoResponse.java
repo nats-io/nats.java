@@ -22,6 +22,7 @@ import static io.nats.client.support.ApiConstants.DESCRIPTION;
 import static io.nats.client.support.ApiConstants.ENDPOINTS;
 import static io.nats.client.support.JsonUtils.listEquals;
 import static io.nats.client.support.JsonValueUtils.*;
+import static io.nats.client.support.Validator.nullOrEmpty;
 
 /**
  * Info response class forms the info json payload, for example:
@@ -40,20 +41,6 @@ public class InfoResponse extends ServiceResponse {
     }
 
     void addServiceEndpoint(ServiceEndpoint se) {
-        _addServiceEndpoint(se);
-        serialized.set(null);
-    }
-
-    void addServiceEndpoints(Collection<ServiceEndpoint> serviceEndpoints) {
-        if (serviceEndpoints != null && serviceEndpoints.size() > 0) {
-            for (ServiceEndpoint se : serviceEndpoints) {
-                _addServiceEndpoint(se);
-            }
-        }
-        serialized.set(null);
-    }
-
-    private void _addServiceEndpoint(ServiceEndpoint se) {
         if (se != null) {
             endpoints.add(new Endpoint(
                 se.getName(),
@@ -61,6 +48,15 @@ public class InfoResponse extends ServiceResponse {
                 se.getQueueGroup(),
                 se.getMetadata()
             ));
+            serialized.set(null);
+        }
+    }
+
+    void addServiceEndpoints(Collection<ServiceEndpoint> serviceEndpoints) {
+        if (!nullOrEmpty(serviceEndpoints)) {
+            for (ServiceEndpoint se : serviceEndpoints) {
+                addServiceEndpoint(se);
+            }
         }
     }
 

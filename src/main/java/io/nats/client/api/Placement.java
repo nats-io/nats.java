@@ -15,7 +15,6 @@ package io.nats.client.api;
 
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
-import io.nats.client.support.Validator;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -28,6 +27,7 @@ import static io.nats.client.support.ApiConstants.TAGS;
 import static io.nats.client.support.JsonUtils.*;
 import static io.nats.client.support.JsonValueUtils.readOptionalStringList;
 import static io.nats.client.support.JsonValueUtils.readStringEmptyAsNull;
+import static io.nats.client.support.Validator.nullOrEmpty;
 
 /**
  * Placement directives to consider when placing replicas of a stream
@@ -125,11 +125,11 @@ public class Placement implements JsonSerializable {
          * @return the builder
          */
         public Builder tags(String... tags) {
-            if (tags == null || tags.length == 0) {
+            if (nullOrEmpty(tags)) {
                 this.tags = null;
                 return this;
             }
-            return tags(Arrays.asList(tags));
+            return _tags(Arrays.asList(tags));
         }
 
         /**
@@ -138,13 +138,17 @@ public class Placement implements JsonSerializable {
          * @return the builder
          */
         public Builder tags(List<String> tags) {
-            if (tags == null || tags.size() == 0) {
+            if (nullOrEmpty(tags)) {
                 this.tags = null;
                 return this;
             }
+            return _tags(tags);
+        }
+
+        private Builder _tags(@NonNull List<String> tags) {
             this.tags = new ArrayList<>();
             for (String tag : tags) {
-                if (!Validator.nullOrEmpty(tag)) {
+                if (!nullOrEmpty(tag)) {
                     this.tags.add(tag);
                 }
             }
