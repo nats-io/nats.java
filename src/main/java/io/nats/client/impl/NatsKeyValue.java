@@ -177,7 +177,7 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
                 if (kve != null && kve.getOperation() != KeyValueOperation.PUT) {
                     long revision = kve.getRevision();
                     if (revision > 0) {
-                        return _update(key, value, kve.getRevision(), messageTtl);
+                        return _update(key, value, revision, messageTtl);
                     }
                 }
             }

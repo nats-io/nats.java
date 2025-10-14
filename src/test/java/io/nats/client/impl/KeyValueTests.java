@@ -1812,6 +1812,7 @@ public class KeyValueTests extends JetStreamTestBase {
                 .limitMarker(1000)
                 .build();
             KeyValueStatus status = kvm.create(config);
+            assertNotNull(status.getLimitMarkerTtl());
             assertEquals(1000, status.getLimitMarkerTtl().toMillis());
 
             String key = key();
@@ -1832,6 +1833,7 @@ public class KeyValueTests extends JetStreamTestBase {
                 .limitMarker(Duration.ofSeconds(2)) // coverage of duration api vs ms api
                 .build();
             status = kvm.create(config);
+            assertNotNull(status.getLimitMarkerTtl());
             assertEquals(2000, status.getLimitMarkerTtl().toMillis());
 
             assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.builder()
@@ -1863,8 +1865,6 @@ public class KeyValueTests extends JetStreamTestBase {
                 .limitMarker(Duration.ofSeconds(5))
                 .build();
             kvm.create(config);
-
-            Dispatcher d = nc.createDispatcher();
 
             KeyValue kv = nc.keyValue(bucket);
 
@@ -1924,6 +1924,7 @@ public class KeyValueTests extends JetStreamTestBase {
                 }
             };
 
+            Dispatcher d = nc.createDispatcher();
             JetStreamSubscription sub = nc.jetStream().subscribe(null, d, rawHandler, true,
                 PushSubscribeOptions.builder()
                     .stream("KV_" + bucket)
