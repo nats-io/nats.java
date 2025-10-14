@@ -296,7 +296,7 @@ public interface JetStreamManagement {
     /**
      * Get MessageInfo for the first message created at or after the start time.
      * <p>
-     * This API 1) is currently EXPERIMENTAL and is subject to change. 2) Works on Server 2.11 or later
+     * This API works on Server 2.11 or later
      * @param streamName the name of the stream.
      * @param startTime the start time to get the first message for.
      * @return The MessageInfo
@@ -309,7 +309,7 @@ public interface JetStreamManagement {
     /**
      * Get MessageInfo for the first message created at or after the start time matching the subject.
      * <p>
-     * This API 1) is currently EXPERIMENTAL and is subject to change. 2) Works on Server 2.11 or later
+     * This API works on Server 2.11 or later
      * @param streamName the name of the stream.
      * @param startTime the start time to get the first message for.
      * @param subject the subject to get the first message for.

@@ -17,8 +17,7 @@ import io.nats.client.support.JsonValue;
 import org.jspecify.annotations.NonNull;
 
 import static io.nats.client.support.ApiConstants.*;
-import static io.nats.client.support.JsonValueUtils.readInteger;
-import static io.nats.client.support.JsonValueUtils.readObject;
+import static io.nats.client.support.JsonValueUtils.*;
 
 /**
  * Represents the JetStream Account Tier
@@ -36,8 +35,8 @@ public class AccountTier {
     AccountTier(JsonValue vAccountTier) {
         memory = readInteger(vAccountTier, MEMORY, 0);
         storage = readInteger(vAccountTier, STORAGE, 0);
-        reservedMemory = readInteger(vAccountTier, RESERVED_MEMORY, 0);
-        reservedStorage = readInteger(vAccountTier, RESERVED_STORAGE, 0);
+        reservedMemory = readLong(vAccountTier, RESERVED_MEMORY, 0);
+        reservedStorage = readLong(vAccountTier, RESERVED_STORAGE, 0);
         streams = readInteger(vAccountTier, STREAMS, 0);
         consumers = readInteger(vAccountTier, CONSUMERS, 0);
         limits = new AccountLimits(readObject(vAccountTier, LIMITS));
