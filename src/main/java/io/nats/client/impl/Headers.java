@@ -143,9 +143,6 @@ public class Headers {
 
 	// the add delegate
 	private Headers _add(String key, @NonNull Collection<String> values) {
-		if (readOnly) {
-			throw new UnsupportedOperationException();
-		}
 		ValuesAndLength collected = validateKeyAndCollect(key, values);
 		if (collected != null) {
 			// get values by key or compute empty if absent

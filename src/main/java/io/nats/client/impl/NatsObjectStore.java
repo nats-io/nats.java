@@ -35,9 +35,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
     private final ObjectStoreOptions oso;
     private final String bucketName;
     private final String rawChunkPrefix;
-    private final String pubSubChunkPrefix;
     private final String rawMetaPrefix;
-    private final String pubSubMetaPrefix;
 
     NatsObjectStore(NatsConnection connection, String bucketName, ObjectStoreOptions oso) throws IOException {
         super(connection, oso);
@@ -46,26 +44,10 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
         streamName = toStreamName(bucketName);
         rawChunkPrefix = toChunkPrefix(bucketName);
         rawMetaPrefix = toMetaPrefix(bucketName);
-        if (oso == null) {
-            pubSubChunkPrefix = rawChunkPrefix;
-            pubSubMetaPrefix = rawMetaPrefix;
-        }
-        else if (oso.getJetStreamOptions().isDefaultPrefix()) {
-            pubSubChunkPrefix = rawChunkPrefix;
-            pubSubMetaPrefix = rawMetaPrefix;
-        }
-        else {
-            pubSubChunkPrefix = oso.getJetStreamOptions().getPrefix() + rawChunkPrefix;
-            pubSubMetaPrefix = oso.getJetStreamOptions().getPrefix() + rawMetaPrefix;
-        }
     }
 
     String rawChunkSubject(String nuid) {
         return rawChunkPrefix + nuid;
-    }
-
-    String pubSubChunkSubject(String nuid) {
-        return pubSubChunkPrefix + nuid;
     }
 
     String rawMetaSubject(String name) {
@@ -74,10 +56,6 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
 
     String rawAllMetaSubject() {
         return rawMetaPrefix + GREATER_THAN;
-    }
-
-    String pubSubMetaSubject(String name) {
-        return pubSubMetaPrefix + encodeForSubject(name);
     }
 
     /**
@@ -106,6 +84,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
         Validator.validateNotNull(meta, "ObjectMeta");
         Validator.validateNotNull(meta.getObjectName(), "ObjectMeta name");
         Validator.validateNotNull(inputStream, "InputStream");
+        Validator.validateNotNull(meta.getObjectMetaOptions(), "Meta Options");
         if (meta.getObjectMetaOptions().getLink() != null) {
             throw OsLinkNotAllowOnPut.instance();
         }
@@ -200,7 +179,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
 
         if (oi.isLink()) {
             ObjectLink link = oi.getLink();
-            if (link.isBucketLink()) {
+            if (link == null || link.isBucketLink()) {
                 throw OsGetLinkToBucket.instance();
             }
 
@@ -227,10 +206,12 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
             // track the byte count and chunks
             // update the digest
             // write the bytes to the output file
-            totalBytes = data.length;
+            totalBytes = data == null ? 0 : data.length;
             totalChunks = 1;
             digester.update(data);
-            out.write(data);
+            if (totalBytes > 0) {
+                out.write(data);
+            }
         }
         else {
             JetStreamSubscription sub = js.subscribe(rawChunkSubject(oi.getNuid()),
@@ -268,7 +249,8 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
 
         if (totalChunks != oi.getChunks()) { throw OsGetChunksMismatch.instance(); }
         if (totalBytes != oi.getSize()) { throw OsGetSizeMismatch.instance(); }
-        if (!digester.matches(oi.getDigest())) { throw OsGetDigestMismatch.instance(); }
+        String digest = oi.getDigest();
+        if (digest == null || !digester.matches(digest)) { throw OsGetDigestMismatch.instance(); }
 
         out.flush(); // moved after validation, no need if invalid
 

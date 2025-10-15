@@ -635,6 +635,52 @@ public class OptionsTests {
     }
 
     @Test
+    public void testStatisticsCoverage() {
+        validateStatisticsCollector(new NatsStatistics());
+        StatisticsCollector stats = new NoOpStatistics();
+        stats.setAdvancedTracking(true);
+        stats.incrementPingCount();
+        stats.incrementReconnects();
+        stats.incrementDroppedCount();
+        stats.incrementOkCount();
+        stats.incrementErrCount();
+        stats.incrementExceptionCount();
+        stats.incrementRequestsSent();
+        stats.incrementRepliesReceived();
+        stats.incrementDuplicateRepliesReceived();
+        stats.incrementOrphanRepliesReceived();
+        stats.incrementInMsgs();
+        stats.incrementOutMsgs();
+        stats.incrementInBytes(42);
+        stats.incrementOutBytes(73);
+        stats.incrementFlushCounter();
+        stats.incrementOutstandingRequests();
+        stats.decrementOutstandingRequests();
+        stats.registerRead(142);
+        stats.registerWrite(173);
+        validateStatisticsCollector(stats);
+    }
+
+    private static void validateStatisticsCollector(StatisticsCollector stats) {
+        assertEquals(0, stats.getPings());
+        assertEquals(0, stats.getReconnects());
+        assertEquals(0, stats.getDroppedCount());
+        assertEquals(0, stats.getOKs());
+        assertEquals(0, stats.getErrs());
+        assertEquals(0, stats.getExceptions());
+        assertEquals(0, stats.getRequestsSent());
+        assertEquals(0, stats.getRepliesReceived());
+        assertEquals(0, stats.getDuplicateRepliesReceived());
+        assertEquals(0, stats.getOrphanRepliesReceived());
+        assertEquals(0, stats.getInMsgs());
+        assertEquals(0, stats.getOutMsgs());
+        assertEquals(0, stats.getInBytes());
+        assertEquals(0, stats.getOutBytes());
+        assertEquals(0, stats.getFlushCounter());
+        assertEquals(0, stats.getOutstandingRequests());
+    }
+
+    @Test
     public void testChainOverridesProperties() {
         Properties props = new Properties();
         props.setProperty(Options.PROP_TOKEN, "token");

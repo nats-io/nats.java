@@ -436,6 +436,7 @@ public class ErrorListenerTests {
         el.pullStatusWarning(null, null, null);
         el.pullStatusError(null, null, null);
         el.flowControlProcessed(null, null, null, null);
+        el.socketWriteTimeout(null);
     }
 
     private void _cover(ReadListener rl) {

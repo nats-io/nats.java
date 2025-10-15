@@ -311,8 +311,8 @@ public class ObjectStoreTests extends JetStreamTestBase {
         jsServer.run(nc -> {
             ObjectStoreManagement osm = nc.objectStoreManagement();
 
-            String bucket1 = bucket();
-            String bucket2 = bucket();
+            String bucket1 = "b1"; // bucket();
+            String bucket2 = "b2"; // bucket();
 
             osm.create(ObjectStoreConfiguration.builder(bucket1).storageType(StorageType.Memory).build());
             ObjectStore os1 = nc.objectStore(bucket1);
@@ -320,10 +320,11 @@ public class ObjectStoreTests extends JetStreamTestBase {
             osm.create(ObjectStoreConfiguration.builder(bucket2).storageType(StorageType.Memory).build());
             ObjectStore os2 = nc.objectStore(bucket2);
 
-            String name1 = name();
-            String name2 = name();
+            String name1 = "name1"; // name();
+            String name2 = "name2"; // name();
+            byte[] bytes1 = dataBytes();
             byte[] bytes2 = dataBytes();
-            os1.put(name1, dataBytes());
+            os1.put(name1, bytes1);
             os1.put(name2, bytes2);
 
             ObjectInfo info11 = os1.getInfo(name1);
@@ -348,23 +349,28 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
             // Link to individual object.
             ObjectInfo linkTo11 = os1.addLink("linkTo11", info11);
+            ByteArrayOutputStream baosSame = new ByteArrayOutputStream();
+            ObjectInfo sameGet = os1.get(linkTo11.getObjectName(), baosSame);
+            assertEquals(info11, sameGet);
+            byte[] bytes = baosSame.toByteArray();
+            assertEquals(bytes1.length, bytes.length);
             validateLink(linkTo11, "linkTo11", info11, null);
 
             // link to a link
             assertClientError(OsCantLinkToLink, () -> os1.addLink("linkToLinkIsErr", linkTo11));
 
-            String name3 = name();
+            String name3 = "name3"; // name();
             byte[] bytes3 = dataBytes();
             os2.put(name3, bytes3);
             ObjectInfo info21 = os2.getInfo(name3);
 
-            String crossLinkName = name();
+            String crossLinkName = "crossLinkName"; // name();
             ObjectInfo crossLink = os2.addLink(crossLinkName, info11);
             validateLink(crossLink, crossLinkName, info11, null);
             ByteArrayOutputStream baosCross = new ByteArrayOutputStream();
             ObjectInfo crossGet = os2.get(crossLink.getObjectName(), baosCross);
             assertEquals(info11, crossGet);
-            byte[] bytes = baosCross.toByteArray();
+            bytes = baosCross.toByteArray();
             assertEquals(bytes3.length, bytes.length);
 
             ObjectInfo bucketLink = os2.addBucketLink("bucketLink", os1);
