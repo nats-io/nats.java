@@ -21,7 +21,7 @@ jobs:
       - name: Install Node.js for Coveralls Plug In
         uses: actions/setup-node@v6
         with:
-          node-version: lts/*
+          node-version: 24
       - name: npm install, make test-coverage for Coveralls Plug In
         run: |
           npm install
