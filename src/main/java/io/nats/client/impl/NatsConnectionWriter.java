@@ -109,7 +109,6 @@ class NatsConnectionWriter implements Runnable {
     // method does.
     Future<Boolean> stop() {
         if (running.get()) {
-            Debug.info("W-STOP");
             running.set(false);
             startStopLock.lock();
             try {
@@ -137,9 +136,6 @@ class NatsConnectionWriter implements Runnable {
             int sbl = sendBufferLength.get();
 
             while (msg != null) {
-                if (!running.get()) {
-                    Debug.info("W-SMB stopped", connection.getStatus(), new String(msg.getData()));
-                }
                 if (msg == END_RECONNECT) {
                     mode.set(Mode.Normal);
                     break;
