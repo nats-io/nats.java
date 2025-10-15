@@ -18,11 +18,11 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v5
-      - name: Install Node.js for Coveralls Plug In
-        uses: actions/setup-node@v6
-        with:
-          node-version: lts/*
-          package-manager-cache: false
+#      - name: Install Node.js for Coveralls Plug In
+#        uses: actions/setup-node@v6
+#        with:
+#          node-version: lts/*
+#          package-manager-cache: false
       - name: npm install, make test-coverage for Coveralls Plug In
         run: |
           npm install
