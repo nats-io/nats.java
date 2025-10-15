@@ -17,7 +17,6 @@ package io.nats.client.impl;
 import io.nats.client.Options;
 import io.nats.client.StatisticsCollector;
 import io.nats.client.support.ByteArrayBuilder;
-import io.nats.client.support.Debug;
 
 import java.io.IOException;
 import java.nio.BufferOverflowException;
@@ -219,16 +218,13 @@ class NatsConnectionWriter implements Runnable {
                 }
             }
         } catch (IOException | BufferOverflowException io) {
-            Debug.info("W-RUN EX 1", io);
             // if already not running, an IOE is not unreasonable in a transition state
             if (running.get()) {
                 this.connection.handleCommunicationIssue(io);
             }
         } catch (CancellationException | ExecutionException ex) {
-            Debug.info("W-RUN EX 2", ex);
             // Exit
         } catch (InterruptedException ex) {
-            Debug.info("W-RUN EX 3", ex);
             // Exit
             Thread.currentThread().interrupt();
         } finally {
