@@ -16,6 +16,16 @@ jobs:
       SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
       COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
     steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+      - name: Install Node.js for Coveralls Plug In
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+      - name: npm install, make test-coverage for Coveralls Plug In
+        run: |
+          npm install
+          make test-coverage
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
@@ -38,16 +48,6 @@ jobs:
           cd nats-server
           go build -o ~/.local/bin/nats-server
           nats-server -v
-      - name: Check out code
-        uses: actions/checkout@v5
-      - name: Install Node.js for Coveralls Plug In
-        uses: actions/setup-node@v6
-        with:
-          node-version: lts/*
-      - name: npm install, make test-coverage for Coveralls Plug In
-        run: |
-          npm install
-          make test-coverage
       - name: Build and Test
         run: chmod +x gradlew && ./gradlew clean test jacocoTestReport
       - name: Verify Javadoc
