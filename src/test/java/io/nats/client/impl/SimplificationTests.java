@@ -134,12 +134,12 @@ public class SimplificationTests extends JetStreamTestBase {
         assertEquals(5, si.getStreamState().getFirstSequence());
         assertEquals(6, si.getStreamState().getLastSequence());
 
-        js.publish(tsc.subject(), "xone".getBytes());
-        js.publish(tsc.subject(), "xtwo".getBytes());
-        js.publish(tsc.subject(), "xthree".getBytes());
-        js.publish(tsc.subject(), "xfour".getBytes());
-        js.publish(tsc.subject(), "xfive".getBytes());
-        js.publish(tsc.subject(), "xsix".getBytes());
+        js.publish(tsc.subject(), "aone".getBytes());
+        js.publish(tsc.subject(), "btwo".getBytes());
+        js.publish(tsc.subject(), "cthree".getBytes());
+        js.publish(tsc.subject(), "dfour".getBytes());
+        js.publish(tsc.subject(), "efive".getBytes());
+        js.publish(tsc.subject(), "fsix".getBytes());
 
         si = jsm.getStreamInfo(tsc.stream);
         assertEquals(8, si.getStreamState().getMsgCount());
