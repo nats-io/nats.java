@@ -25,6 +25,14 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.14' # Quotes required to prevent YAML converting to number
+      - name: Install Node.js for Coveralls Plug In
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: npm install, make test-coverage for Coveralls Plug In
+        run: |
+          npm install
+          make test-coverage
       - name: Setup GO
         uses: actions/setup-go@v5
         with:
@@ -44,14 +52,6 @@ jobs:
         run: chmod +x gradlew && ./gradlew clean test jacocoTestReport
       - name: Verify Javadoc
         run: ./gradlew javadoc
-      - name: Coveralls Plug In - Install Node.js for
-        uses: actions/setup-node@v6
-        with:
-          node-version: lts/*
-      - name: Coveralls Plug In - npm install, make test-coverage
-        run: |
-          npm install
-          make test-coverage
       - name: Coveralls
         uses: coverallsapp/github-action@v2
         with:
