@@ -14,7 +14,6 @@ jobs:
       SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
       SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
       SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
-      COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
     steps:
       - name: Setup JDK
         uses: actions/setup-java@v4
@@ -41,10 +40,13 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
       - name: Build and Test
-#        run: chmod +x gradlew && ./gradlew --refresh-dependencies clean test jacocoTestReport coveralls
-        run: chmod +x gradlew && ./gradlew clean test
+        run: chmod +x gradlew && ./gradlew clean test jacocoTestReport
       - name: Verify Javadoc
         run: ./gradlew javadoc
+      - name: Send coverage to Coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.COVERALLS_REPO_TOKEN }}
       - name: Clean up
         if: always()
         run: pkill -9 nats-server 2>/dev/null || true
