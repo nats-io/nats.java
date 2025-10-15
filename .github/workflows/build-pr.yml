@@ -41,10 +41,21 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
       - name: Build and Test
-#        run: chmod +x gradlew && ./gradlew --refresh-dependencies clean test jacocoTestReport coveralls
-        run: chmod +x gradlew && ./gradlew clean test
+        run: chmod +x gradlew && ./gradlew clean test jacocoTestReport
       - name: Verify Javadoc
         run: ./gradlew javadoc
+      - name: Coveralls Plug In - Install Node.js for
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+      - name: Coveralls Plug In - npm install, make test-coverage
+        run: |
+          npm install
+          make test-coverage
+      - name: Coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          github-token: ${{ secrets.COVERALLS_REPO_TOKEN }}
       - name: Clean up
         if: always()
         run: pkill -9 nats-server 2>/dev/null || true

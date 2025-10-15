@@ -6,7 +6,6 @@ plugins {
     id 'java-library'
     id 'maven-publish'
     id 'jacoco'
-//    id 'com.github.kt3k.coveralls' version '2.12.2'
     id 'biz.aQute.bnd.builder' version '5.1.2'
     id "org.gradle.test-retry" version "1.6.2"
     id 'io.github.gradle-nexus.publish-plugin' version '1.1.0'
