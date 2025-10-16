@@ -1168,8 +1168,7 @@ public class StreamConfiguration implements JsonSerializable {
          * @return The Builder
          */
         public Builder subjectDeleteMarkerTtl(long subjectDeleteMarkerTtlMillis) {
-            this.subjectDeleteMarkerTtl = subjectDeleteMarkerTtlMillis <= 0
-                ? null
+            this.subjectDeleteMarkerTtl = subjectDeleteMarkerTtlMillis <= 0 ? null
                 : validateDurationGtOrEqSeconds(1, subjectDeleteMarkerTtlMillis, "Subject Delete Marker Ttl");
             return this;
         }
