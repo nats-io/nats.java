@@ -37,7 +37,7 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
         Placement p = Placement.builder().cluster("cluster").tags("a", "b").build();
 
         // builder
-        ObjectStoreConfiguration bc = ObjectStoreConfiguration.builder("bucketName")
+        ObjectStoreConfiguration osc = ObjectStoreConfiguration.builder("bucketName")
             .description("bucketDesc")
             .maxBucketSize(555)
             .ttl(Duration.ofMillis(777))
@@ -46,11 +46,23 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
             .placement(p)
             .compression(true)
             .build();
-        validate(bc);
+        validate(osc);
 
-        validate(ObjectStoreConfiguration.builder(bc).build());
+        osc = new ObjectStoreConfiguration.Builder()
+            .name("bucketName")
+            .description("bucketDesc")
+            .maxBucketSize(555)
+            .ttl(Duration.ofMillis(777))
+            .storageType(StorageType.Memory)
+            .replicas(2)
+            .placement(p)
+            .compression(true)
+            .build();
+        validate(osc);
 
-        JsonValue jvSc = JsonParser.parseUnchecked(bc.getBackingConfig().toJson());
+        validate(ObjectStoreConfiguration.builder(osc).build());
+
+        JsonValue jvSc = JsonParser.parseUnchecked(osc.getBackingConfig().toJson());
         validate(new ObjectStoreConfiguration(StreamConfiguration.instance(jvSc)));
     }
 
@@ -131,6 +143,13 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
         metaOptionsCoverage(metaOptions, metaOptions2, metaOptionsL, metaOptionsL2, metaOptionsC);
         metaCoverage(link1a, link2);
         infoCoverage(link1a, link2);
+
+        Map<String, String> meta = new HashMap<>();
+        meta.put("foo", "bar");
+        ObjectInfo infoX = ObjectInfo.builder("buck", "name").metadata(meta).build();
+        assertNotNull(infoX.getMetaData());
+        assertEquals(1, infoX.getMetaData().size());
+        assertEquals("bar", infoX.getMetaData().get("foo"));
     }
 
     @SuppressWarnings({"SimplifiableAssertion", "ConstantConditions"})

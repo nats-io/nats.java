@@ -15,14 +15,17 @@ package io.nats.service;
 
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
+import org.jspecify.annotations.NonNull;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 import static io.nats.client.support.ApiConstants.DESCRIPTION;
 import static io.nats.client.support.ApiConstants.ENDPOINTS;
 import static io.nats.client.support.JsonUtils.listEquals;
 import static io.nats.client.support.JsonValueUtils.*;
-import static io.nats.client.support.Validator.nullOrEmpty;
 
 /**
  * Info response class forms the info json payload, for example:
@@ -40,24 +43,14 @@ public class InfoResponse extends ServiceResponse {
         this.endpoints = new ArrayList<>();
     }
 
-    void addServiceEndpoint(ServiceEndpoint se) {
-        if (se != null) {
-            endpoints.add(new Endpoint(
-                se.getName(),
-                se.getSubject(),
-                se.getQueueGroup(),
-                se.getMetadata()
-            ));
-            serialized.set(null);
-        }
-    }
-
-    void addServiceEndpoints(Collection<ServiceEndpoint> serviceEndpoints) {
-        if (!nullOrEmpty(serviceEndpoints)) {
-            for (ServiceEndpoint se : serviceEndpoints) {
-                addServiceEndpoint(se);
-            }
-        }
+    void addServiceEndpoint(@NonNull ServiceEndpoint se) {
+        endpoints.add(new Endpoint(
+            se.getName(),
+            se.getSubject(),
+            se.getQueueGroup(),
+            se.getMetadata()
+        ));
+        serialized.set(null);
     }
 
     InfoResponse(byte[] jsonBytes) {

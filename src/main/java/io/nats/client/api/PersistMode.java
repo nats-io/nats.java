@@ -13,6 +13,7 @@
 
 package io.nats.client.api;
 
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;
@@ -31,6 +32,7 @@ public enum PersistMode {
         this.mode = mode;
     }
 
+    @NonNull
     public String getMode() {
         return mode;
     }

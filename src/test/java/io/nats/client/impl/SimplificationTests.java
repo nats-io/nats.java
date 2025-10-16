@@ -467,6 +467,29 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testOrderedConsumerCoverage() {
+        OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration()
+            .filterSubjects("foo", "bar")
+            .filterSubject(null);
+        assertNotNull(occ.getFilterSubjects());
+        assertEquals(1, occ.getFilterSubjects().size());
+        assertEquals(GREATER_THAN, occ.getFilterSubjects().get(0));
+
+        occ = new OrderedConsumerConfiguration()
+            .filterSubjects("foo", "bar")
+            .filterSubject("");
+        assertNotNull(occ.getFilterSubjects());
+        assertEquals(1, occ.getFilterSubjects().size());
+        assertEquals(GREATER_THAN, occ.getFilterSubjects().get(0));
+
+        occ = new OrderedConsumerConfiguration()
+            .filterSubjects("foo");
+        assertNotNull(occ.getFilterSubjects());
+        assertEquals(1, occ.getFilterSubjects().size());
+        assertEquals("foo", occ.getFilterSubjects().get(0));
+    }
+
+    @Test
     public void testOrderedIterableConsumerBasic() throws Exception {
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
             JetStreamManagement jsm = nc.jetStreamManagement();

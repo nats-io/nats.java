@@ -36,7 +36,11 @@ public class ApiResponseTests {
             super(msg);
         }
 
-        public TestApiResponse() { }
+        TestApiResponse() { }
+
+        public TestApiResponse(Error error) {
+            super(error);
+        }
     }
 
     @Test
@@ -87,6 +91,7 @@ public class ApiResponseTests {
         assertEquals("the description", jsApiResp.getDescription());
         assertEquals("the description (0)", jsApiResp.getError());
         assertNotNull(jsApiResp.getErrorObject());
+        assertNotNull(jsApiResp.getErrorObject().toJson()); // COVERAGE
         jsApiEx = new JetStreamApiException(jsApiResp.getErrorObject());
         assertEquals(0, jsApiEx.getErrorCode());
         assertEquals("the description", jsApiEx.getErrorDescription());
@@ -115,6 +120,15 @@ public class ApiResponseTests {
         jsApiResp = new TestApiResponse(jsons[4]);
         assertTrue(jsApiResp.hasError());
         assertEquals("empty_response", jsApiResp.getType());
+        assertEquals(NOT_SET, jsApiResp.getErrorCode());
+        assertEquals("Unknown JetStream Error", jsApiResp.getError());
+        assertNotNull(jsApiResp.getErrorObject());
+        jsApiEx = new JetStreamApiException(jsApiResp.getErrorObject());
+        assertEquals(NOT_SET, jsApiEx.getErrorCode());
+        assertEquals(NOT_SET, jsApiEx.getApiErrorCode());
+
+        jsApiResp = new TestApiResponse(jsApiResp.getErrorObject());
+        assertEquals(NO_TYPE, jsApiResp.getType());
         assertEquals(NOT_SET, jsApiResp.getErrorCode());
         assertEquals("Unknown JetStream Error", jsApiResp.getError());
         assertNotNull(jsApiResp.getErrorObject());
@@ -176,5 +190,20 @@ public class ApiResponseTests {
         assertEquals(499, e.getCode());
         assertEquals(NOT_SET, e.getApiErrorCode());
         assertEquals("four-nine-nine", e.getDescription());
+    }
+
+    @Test
+    public void testSuccessApiResponseCoverage() {
+        SuccessApiResponse r = new SuccessApiResponse(getDataMessage("{}"));
+        assertFalse(r.hasError());
+        assertTrue(r.getSuccess());
+
+        r = new SuccessApiResponse(getDataMessage("{\"success\":true} }"));
+        assertFalse(r.hasError());
+        assertTrue(r.getSuccess());
+
+        r = new SuccessApiResponse(getDataMessage("{\"success\":false} }"));
+        assertFalse(r.hasError());
+        assertFalse(r.getSuccess());
     }
 }

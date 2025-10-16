@@ -208,6 +208,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         validateTestStreamConfiguration(builder.build(), false, DEFAULT_STREAM_NAME);
         validateTestStreamConfiguration(builder.addSources((Source)null).build(), false, DEFAULT_STREAM_NAME);
 
+
         // COVERAGE of builder methods since I know these to be true
         builder
             // clear the flags
@@ -221,6 +222,16 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             .allowMessageCounter()
             .allowAtomicPublish()
         ;
+
+        // COVERAGE
+        builder.subjectDeleteMarkerTtl(-1);
+        assertNull(builder.build().getSubjectDeleteMarkerTtl());
+        builder.subjectDeleteMarkerTtl(1000);
+        Duration d = builder.build().getSubjectDeleteMarkerTtl();
+        assertNotNull(d);
+        assertEquals(1000, d.toMillis());
+        builder.subjectDeleteMarkerTtl(testSc.getSubjectDeleteMarkerTtl()); // set it back for the rest of the test
+
         validateTestStreamConfiguration(builder.build(), false, DEFAULT_STREAM_NAME);
         validateTestStreamConfiguration(builder.addSources((Source)null).build(), false, DEFAULT_STREAM_NAME);
 
@@ -394,6 +405,25 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
         sb.subjectTransforms((SubjectTransform[]) null);
         mb.subjectTransforms((SubjectTransform[]) null);
+        assertEquals(sb.subjectTransforms, mb.subjectTransforms);
+
+        List<SubjectTransform> stList = null;
+        sb.subjectTransforms(stList);
+        mb.subjectTransforms(stList);
+        assertEquals(sb.subjectTransforms, mb.subjectTransforms);
+
+        sb.subjectTransforms(stList);
+        mb.subjectTransforms(stList);
+        assertEquals(sb.subjectTransforms, mb.subjectTransforms);
+
+        stList = new ArrayList<>();
+        sb.subjectTransforms(stList);
+        mb.subjectTransforms(stList);
+        assertEquals(sb.subjectTransforms, mb.subjectTransforms);
+
+        stList.add(null);
+        sb.subjectTransforms(stList);
+        mb.subjectTransforms(stList);
         assertEquals(sb.subjectTransforms, mb.subjectTransforms);
 
         sb.subjectTransforms(m.getSubjectTransforms());
@@ -632,7 +662,9 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             assertTrue(sc.getAllowMsgSchedules());
             assertTrue(sc.getAllowMessageCounter());
             assertTrue(sc.getAllowAtomicPublish());
+            assertNotNull(sc.getPersistMode());
             assertSame(PersistMode.Async, sc.getPersistMode());
+            assertSame(PersistMode.Async.getMode(), sc.getPersistMode().getMode());
         }
     }
 
@@ -668,6 +700,13 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertFalse(Placement.builder().cluster("").build().hasData());
         assertFalse(Placement.builder().tags((List<String>)null).build().hasData());
         assertFalse(Placement.builder().tags(new ArrayList<>()).build().hasData());
+        assertFalse(Placement.builder().tags().build().hasData());
+        assertFalse(Placement.builder().tags((String[])null).build().hasData());
+        String[] a = new String[0];
+        assertFalse(Placement.builder().tags(a).build().hasData());
+        a = new String[2];
+        a[0] = "";
+        assertFalse(Placement.builder().tags(a).build().hasData());
 
         Placement p = Placement.builder().cluster("cluster").build();
         assertEquals("cluster", p.getCluster());
@@ -699,6 +738,23 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
         String s = p.toString();
         assertTrue(s != null && !s.isEmpty()); // COVERAGE
+
+        // COVERAGE
+        p = new Placement("cluster", null);
+        assertEquals("cluster", p.getCluster());
+        assertNull(p.getTags());
+        assertTrue(p.hasData());
+
+        p = new Placement("cluster", new ArrayList<>());
+        assertEquals("cluster", p.getCluster());
+        assertNull(p.getTags());
+        assertTrue(p.hasData());
+
+        p = new Placement("cluster", Arrays.asList("a", "b"));
+        assertEquals("cluster", p.getCluster());
+        assertNotNull(p.getTags());
+        assertEquals(2, p.getTags().size());
+        assertTrue(p.hasData());
     }
 
     @Test
@@ -762,6 +818,9 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(INTEGER_UNSET, cl.getMaxAckPending());
 
         cl = ConsumerLimits.builder().maxAckPending(-2).build();
+        assertEquals(INTEGER_UNSET, cl.getMaxAckPending());
+
+        cl = ConsumerLimits.builder().maxAckPending((Long)null).build();
         assertEquals(INTEGER_UNSET, cl.getMaxAckPending());
 
         cl = ConsumerLimits.builder().maxAckPending(Long.MAX_VALUE).build();

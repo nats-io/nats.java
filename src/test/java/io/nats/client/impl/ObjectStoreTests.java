@@ -203,18 +203,23 @@ public class ObjectStoreTests extends JetStreamTestBase {
         assertEquals(size, oi.getSize());
         assertEquals(chunks, oi.getChunks());
         assertNotNull(oi.getNuid());
+        assertFalse(oi.isLink());
+        assertNull(oi.getLink());
         assertFalse(oi.isDeleted());
         assertNotNull(oi.getModified());
         if (chunkSize > 0) {
+            assertNotNull(oi.getObjectMeta().getObjectMetaOptions());
             assertEquals(chunkSize, oi.getObjectMeta().getObjectMetaOptions().getChunkSize());
         }
         if (headers) {
             assertNotNull(oi.getHeaders());
             assertEquals(2, oi.getHeaders().size());
             List<String> list = oi.getHeaders().get(key(1));
+            assertNotNull(list);
             assertEquals(1, list.size());
             assertEquals(data(1), oi.getHeaders().getFirst(key(1)));
             list = oi.getHeaders().get(key(2));
+            assertNotNull(list);
             assertEquals(2, list.size());
             assertTrue(list.contains(data(21)));
             assertTrue(list.contains(data(22)));
@@ -252,7 +257,8 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
             // create bucket 1
             String bucket1 = bucket();
-            osm.create(ObjectStoreConfiguration.builder(bucket1)
+            osm.create(ObjectStoreConfiguration.builder()
+                .name(bucket1) // constructor variety
                 .storageType(StorageType.Memory)
                 .build());
 
