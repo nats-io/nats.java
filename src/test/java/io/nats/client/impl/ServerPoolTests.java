@@ -27,6 +27,7 @@ public class ServerPoolTests extends TestBase {
 
     public static final String BOOT_ONE = "nats://b1";
     public static final String BOOT_TWO = "nats://b2";
+    public static final String BOOT_ONE_SECURE = "tls://b1";
     public static final String DISC_ONE = "nats://d1";
     public static final String DISC_TWO = "nats://d2";
     public static final String DISC_THREE = "nats://d3";
@@ -63,10 +64,16 @@ public class ServerPoolTests extends TestBase {
         validateNslp(nsp, null, false, BOOT_ONE, BOOT_TWO);
 
         // testing that duplicates don't get added
-        String[] withDupes = new String[]{BOOT_ONE, BOOT_TWO, BOOT_ONE, BOOT_TWO};
-        o = new Options.Builder().servers(withDupes).build();
+        String[] secureAndNotSecure = new String[]{BOOT_ONE, BOOT_ONE_SECURE};
+        String[] secureBootstrap = new String[]{BOOT_ONE_SECURE};
+        o = new Options.Builder().servers(secureAndNotSecure).build();
         nsp = newNatsServerPool(o, null, null);
-        validateNslp(nsp, null, false, bootstrap);
+        validateNslp(nsp, null, false, secureBootstrap);
+
+        secureAndNotSecure = new String[]{BOOT_ONE_SECURE, BOOT_ONE};
+        o = new Options.Builder().servers(secureAndNotSecure).build();
+        nsp = newNatsServerPool(o, null, null);
+        validateNslp(nsp, null, false, secureBootstrap);
     }
 
     @Test

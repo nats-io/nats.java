@@ -52,6 +52,12 @@ public class ValidatorTests {
         notAllowedNotRequired(Validator::validateSubject, Arrays.asList(HAS_SPACE, HAS_CR, HAS_LF));
         notAllowedNotRequired(Validator::validateSubject, Arrays.asList(STARTS_WITH_DOT, STAR_NOT_SEGMENT, GT_NOT_SEGMENT, EMPTY_SEGMENT, GT_NOT_LAST_SEGMENT));
         notAllowedNotRequired(Validator::validateSubject, Arrays.asList(ENDS_WITH_DOT, ENDS_WITH_DOT_SPACE, ENDS_WITH_CR, ENDS_WITH_LF, ENDS_WITH_TAB));
+
+        allowedRequired(Validator::validateSubject, false, Arrays.asList(STAR_SEGMENT, GT_LAST_SEGMENT));
+        allowedRequired(Validator::validateSubject, true, Arrays.asList(STAR_SEGMENT));
+        notAllowedRequired(Validator::validateSubject, true, Collections.singletonList(GT_LAST_SEGMENT));
+        allowedNotRequired(Validator::validateSubject, false, Arrays.asList(null, GT_LAST_SEGMENT));
+        notAllowedNotRequired(Validator::validateSubject, true, Collections.singletonList(GT_LAST_SEGMENT));
     }
 
     @Test
@@ -473,35 +479,60 @@ public class ValidatorTests {
         assertEquals("as", emptyOrNullAs("\t", "as"));
     }
 
-    interface StringTest { String validate(String s, boolean required); }
+    interface StringAndRequiredTest { String validate(String s, boolean required); }
+    interface StringLabelRequiredCantEndWithGtTest { String validate(String s, String l, boolean required, boolean cantEndWithGt); }
 
-    private void allowedRequired(StringTest test, List<String> strings) {
+    private void allowedRequired(StringAndRequiredTest test, List<String> strings) {
         for (String s : strings) {
             assertEquals(s, test.validate(s, true), allowedMessage(s));
         }
     }
 
-    private void notAllowedRequired(StringTest test, List<String> strings) {
+    private void allowedRequired(StringLabelRequiredCantEndWithGtTest test, boolean cantEndWithGt, List<String> strings) {
+        for (String s : strings) {
+            assertEquals(s, test.validate(s, "allowedRequired", true, cantEndWithGt), allowedMessage(s));
+        }
+    }
+
+    private void notAllowedRequired(StringAndRequiredTest test, List<String> strings) {
         for (String s : strings) {
             assertThrows(IllegalArgumentException.class, () -> test.validate(s, true), notAllowedMessage(s));
         }
     }
 
-    private void allowedNotRequired(StringTest test, List<String> strings) {
+    private void notAllowedRequired(StringLabelRequiredCantEndWithGtTest test, boolean cantEndWithGt, List<String> strings) {
+        for (String s : strings) {
+            assertThrows(IllegalArgumentException.class, () -> test.validate(s, "notAllowedRequired", true, cantEndWithGt), notAllowedMessage(s));
+        }
+    }
+
+    private void allowedNotRequired(StringAndRequiredTest test, List<String> strings) {
         for (String s : strings) {
             assertEquals(s, test.validate(s, false), allowedMessage(s));
         }
     }
 
-    private void allowedNotRequiredEmptyAsNull(StringTest test, List<String> strings) {
+    private void allowedNotRequired(StringLabelRequiredCantEndWithGtTest test, boolean cantEndWithGt, List<String> strings) {
+        for (String s : strings) {
+            assertEquals(s, test.validate(s, "allowedNotRequired", false, cantEndWithGt), allowedMessage(s));
+        }
+    }
+
+    private void allowedNotRequiredEmptyAsNull(StringAndRequiredTest test, List<String> strings) {
         for (String s : strings) {
             assertNull(test.validate(s, false), allowedMessage(s));
         }
     }
 
-    private void notAllowedNotRequired(StringTest test, List<String> strings) {
+    private void notAllowedNotRequired(StringAndRequiredTest test, List<String> strings) {
         for (String s : strings) {
             assertThrows(IllegalArgumentException.class, () -> test.validate(s, false), notAllowedMessage(s));
+        }
+    }
+
+    private void notAllowedNotRequired(StringLabelRequiredCantEndWithGtTest test, boolean cantEndWithGt, List<String> strings) {
+        for (String s : strings) {
+            assertThrows(IllegalArgumentException.class, () -> test.validate(s, "notAllowedNotRequired", false, cantEndWithGt), notAllowedMessage(s));
         }
     }
 

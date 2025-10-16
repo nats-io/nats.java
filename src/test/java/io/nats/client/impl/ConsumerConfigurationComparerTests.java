@@ -13,10 +13,7 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.api.AckPolicy;
-import io.nats.client.api.ConsumerConfiguration;
-import io.nats.client.api.DeliverPolicy;
-import io.nats.client.api.ReplayPolicy;
+import io.nats.client.api.*;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -69,6 +66,9 @@ public class ConsumerConfigurationComparerTests extends TestBase {
 
         assertNotChange(builder(orig).replayPolicy(ReplayPolicy.Instant).build(), orig);
         assertChange(builder(orig).replayPolicy(ReplayPolicy.Original).build(), orig, "replayPolicy");
+
+        assertNotChange(builder(orig).priorityPolicy(PriorityPolicy.None).build(), orig);
+        assertChange(builder(orig).priorityPolicy(PriorityPolicy.Prioritized).build(), orig, "priorityPolicy");
 
         assertNotChange(builder(orig).ackWait(DURATION_UNSET_LONG).build(), orig);
         assertNotChange(builder(orig).ackWait(null).build(), orig);
@@ -128,6 +128,7 @@ public class ConsumerConfigurationComparerTests extends TestBase {
         assertNotChange(builder(orig).maxBytes(null).build(), orig);
         assertChange(builder(orig).maxBytes(1).build(), orig, "maxBytes");
 
+        assertNotChange(builder(orig).numReplicas(INTEGER_UNSET).build(), orig);
         assertNotChange(builder(orig).numReplicas(null).build(), orig);
         assertChange(builder(orig).numReplicas(1).build(), orig, "numReplicas");
 

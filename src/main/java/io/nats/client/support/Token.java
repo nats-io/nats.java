@@ -176,7 +176,7 @@ public class Token {
         if (valueLength == 0) {
             return null;
         }
-        if (valueLength > 11) {
+        if (valueLength > 10) {
             switch (serialized[start]) {
                 case 'E':
                     if (valueStartsWithExceededMax()) {

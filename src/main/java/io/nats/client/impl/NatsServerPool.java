@@ -60,24 +60,30 @@ public class NatsServerPool implements ServerPool {
         //    FYI bootstrap will always have at least the default url
         listLock.lock();
         try {
-            for (NatsUri nuri : options.getNatsServerUris()) {
-                // 1. If item is not found in the list being built, add to the list
+            for (NatsUri optionNuri : options.getNatsServerUris()) {
+                // If optionNuri is not found in the list being built, add to the list
+                // If optionNuri equivalent is found in the list and is secure, just use it
                 boolean notAlreadyInList = true;
                 for (ServerPoolEntry entry : entryList) {
-                    if (nuri.equivalent(entry.nuri)) {
-                        notAlreadyInList = false;
+                    if (optionNuri.equivalent(entry.nuri)) {
+                        if (optionNuri.isSecure()) {
+                            entryList.remove(entry);
+                        }
+                        else {
+                            notAlreadyInList = false;
+                        }
                         break;
                     }
                 }
                 if (notAlreadyInList) {
-                    if (defaultScheme == null && !nuri.getScheme().equals(NatsConstants.NATS_PROTOCOL)) {
-                        defaultScheme = nuri.getScheme();
+                    if (defaultScheme == null && !optionNuri.getScheme().equals(NatsConstants.NATS_PROTOCOL)) {
+                        defaultScheme = optionNuri.getScheme();
                     }
-                    entryList.add(new ServerPoolEntry(nuri, false));
+                    entryList.add(new ServerPoolEntry(optionNuri, false));
                 }
             }
 
-            // 6. prepare list for next
+            // prepare list for next, intentionally within lock
             afterListChanged();
         }
         finally {

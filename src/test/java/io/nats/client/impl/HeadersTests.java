@@ -550,7 +550,7 @@ public class HeadersTests {
     }
 
     @Test
-    public void constructStatusWithValidBytes() {
+    public void constructStatusWithValidBytesAndCoverage() {
         assertValidStatus("NATS/1.0 503\r\n", 503, NO_RESPONDERS_TEXT); // status made message
         assertValidStatus("NATS/1.0 404\r\n", 404, "Server Status Message: 404");          // status made message
         assertValidStatus("NATS/1.0 123 Message And Code Begin With Known Byte\r\n", 123, "Message And Code Begin With Known Byte");       // from data

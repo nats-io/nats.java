@@ -19,6 +19,8 @@ import java.net.UnknownHostException;
 public final class NatsInetAddress {
     private static NatsInetAddressProvider PROVIDER = new NatsInetAddressProvider() {};
 
+    private NatsInetAddress() {} /* ensures cannot be constructed */
+
     /**
      * Set the provider. Null will reset to system default
      * @param provider the provider

@@ -1156,7 +1156,7 @@ public class OptionsTests {
 
     @Test
     public void testSslContextIsProvided() {
-        Options o = new Options.Builder().server("nats://localhost").build();
+        Options o = new Options.Builder().server("localhost").build();
         assertNull(o.getSslContext());
         o = new Options.Builder().server("ws://localhost").build();
         assertNull(o.getSslContext());

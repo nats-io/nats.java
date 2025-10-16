@@ -40,7 +40,7 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
     }
 
     @Override
-    public void afterConstruct(Options options) {
+    public void afterConstruct(@NonNull Options options) {
         super.afterConstruct(options);
         writeTimeoutNanos = options.getSocketWriteTimeout() == null
             ? Options.DEFAULT_SOCKET_WRITE_TIMEOUT.toNanos()

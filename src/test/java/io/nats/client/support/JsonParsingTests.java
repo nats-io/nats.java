@@ -950,4 +950,22 @@ public final class JsonParsingTests {
         assertEquals("A", stringString.get("a"));
         assertEquals("B", stringString.get("b"));
     }
+
+    @Test
+    public void testJsonParseExceptionCoverage() {
+        JsonParseException m = new JsonParseException("message constructor");
+        assertTrue(m.getMessage().contains("message constructor"));
+
+        Exception e = new Exception("foo");
+        JsonParseException mt = new JsonParseException("message throwable constructor", e);
+        assertNotNull(mt.getCause());
+        assertTrue(mt.getCause().getMessage().contains("foo"));
+        assertTrue(mt.getMessage().contains("message throwable constructor"));
+
+        JsonParseException t = new JsonParseException(e);
+        assertNotNull(t.getCause());
+        assertTrue(t.getCause().getMessage().contains("foo"));
+        assertTrue(t.getMessage().contains("java.lang.Exception"));
+        assertTrue(t.getMessage().contains("foo"));
+    }
 }
