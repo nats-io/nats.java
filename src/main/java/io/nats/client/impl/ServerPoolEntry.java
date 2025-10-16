@@ -16,8 +16,8 @@ package io.nats.client.impl;
 import io.nats.client.support.NatsUri;
 
 public class ServerPoolEntry {
-    public NatsUri nuri;
-    public boolean isGossiped;
+    public final NatsUri nuri;
+    public final boolean isGossiped;
     public int failedAttempts;
     public long lastAttempt;
 

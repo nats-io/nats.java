@@ -936,6 +936,7 @@ public class ServiceTests extends JetStreamTestBase {
             ServiceEndpoint se = ServiceEndpoint.builder()
                 .endpointName("testServiceMessage")
                 .handler(m -> {
+                    assertNotNull(m.getReplyTo());
                     // Coverage // just hitting all the reply variations
                     switch (which.incrementAndGet()) {
                         case 1:

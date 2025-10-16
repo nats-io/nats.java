@@ -53,16 +53,16 @@ public class SimplificationTests extends JetStreamTestBase {
             TestingStreamContainer tsc = new TestingStreamContainer(jsm);
             StreamContext streamContext = nc.getStreamContext(tsc.stream);
             assertEquals(tsc.stream, streamContext.getStreamName());
-            _testStreamContext(js, tsc, streamContext);
+            _testStreamContext(jsm, js, tsc, streamContext);
 
             tsc = new TestingStreamContainer(jsm);
             streamContext = js.getStreamContext(tsc.stream);
             assertEquals(tsc.stream, streamContext.getStreamName());
-            _testStreamContext(js, tsc, streamContext);
+            _testStreamContext(jsm, js, tsc, streamContext);
         });
     }
 
-    private void _testStreamContext(JetStream js, TestingStreamContainer tsc, StreamContext streamContext) throws IOException, JetStreamApiException {
+    private void _testStreamContext(JetStreamManagement jsm, JetStream js, TestingStreamContainer tsc, StreamContext streamContext) throws IOException, JetStreamApiException {
         String durable = durable();
         assertThrows(JetStreamApiException.class, () -> streamContext.getConsumerContext(durable));
         assertThrows(JetStreamApiException.class, () -> streamContext.deleteConsumer(durable));
@@ -128,6 +128,28 @@ public class SimplificationTests extends JetStreamTestBase {
 
         streamContext.purge(PurgeOptions.builder().sequence(5).build());
         assertThrows(JetStreamApiException.class, () -> streamContext.getMessage(1));
+
+        StreamInfo si = jsm.getStreamInfo(tsc.stream);
+        assertEquals(2, si.getStreamState().getMsgCount());
+        assertEquals(5, si.getStreamState().getFirstSequence());
+        assertEquals(6, si.getStreamState().getLastSequence());
+
+        js.publish(tsc.subject(), "aone".getBytes());
+        js.publish(tsc.subject(), "btwo".getBytes());
+        js.publish(tsc.subject(), "cthree".getBytes());
+        js.publish(tsc.subject(), "dfour".getBytes());
+        js.publish(tsc.subject(), "efive".getBytes());
+        js.publish(tsc.subject(), "fsix".getBytes());
+
+        si = jsm.getStreamInfo(tsc.stream);
+        assertEquals(8, si.getStreamState().getMsgCount());
+        assertEquals(12, si.getStreamState().getLastSequence());
+
+        streamContext.purge();
+
+        si = jsm.getStreamInfo(tsc.stream);
+        assertEquals(0, si.getStreamState().getMsgCount());
+        assertEquals(12, si.getStreamState().getLastSequence());
     }
 
     private void validateConsumerName(BaseConsumerContext bcc, MessageConsumer consumer, String consumerName) throws IOException, JetStreamApiException {
@@ -442,6 +464,29 @@ public class SimplificationTests extends JetStreamTestBase {
                 assertEquals(2, m.metaData().streamSequence());
             }
         });
+    }
+
+    @Test
+    public void testOrderedConsumerCoverage() {
+        OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration()
+            .filterSubjects("foo", "bar")
+            .filterSubject(null);
+        assertNotNull(occ.getFilterSubjects());
+        assertEquals(1, occ.getFilterSubjects().size());
+        assertEquals(GREATER_THAN, occ.getFilterSubjects().get(0));
+
+        occ = new OrderedConsumerConfiguration()
+            .filterSubjects("foo", "bar")
+            .filterSubject("");
+        assertNotNull(occ.getFilterSubjects());
+        assertEquals(1, occ.getFilterSubjects().size());
+        assertEquals(GREATER_THAN, occ.getFilterSubjects().get(0));
+
+        occ = new OrderedConsumerConfiguration()
+            .filterSubjects("foo");
+        assertNotNull(occ.getFilterSubjects());
+        assertEquals(1, occ.getFilterSubjects().size());
+        assertEquals("foo", occ.getFilterSubjects().get(0));
     }
 
     @Test

@@ -22,10 +22,6 @@ abstract class StringListReader extends AbstractListReader {
 
     List<String> strings;
 
-    StringListReader(String objectName) {
-        this(objectName, null);
-    }
-
     StringListReader(String objectName, String filterFieldName) {
         super(objectName, filterFieldName);
         strings = new ArrayList<>();

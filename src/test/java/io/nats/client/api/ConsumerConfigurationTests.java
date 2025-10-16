@@ -85,6 +85,8 @@ public class ConsumerConfigurationTests extends TestBase {
         assertNotNull(ccr.toString()); // COVERAGE
         assertEquals(STREAM, ccr.getStreamName());
         assertNotNull(ccr.getConfig());
+        assertNotNull(ccr.getAction());
+        assertSame(ConsumerCreateRequest.Action.CreateOrUpdate, ccr.getAction());
 
         assertAsBuilt(ConsumerConfiguration.builder().json(ccr.getConfig().toJson()).build(), zdt);
         assertAsBuilt(ConsumerConfiguration.builder().jsonValue(ccr.getConfig().toJsonValue()).build(), zdt);

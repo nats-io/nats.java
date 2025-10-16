@@ -1302,7 +1302,8 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder numReplicas(Integer numReplicas) {
-            this.numReplicas = numReplicas == null ? null : validateNumberOfReplicas(numReplicas);
+            this.numReplicas = numReplicas == null || numReplicas <= INTEGER_UNSET
+                ? null : validateNumberOfReplicas(numReplicas);
             return this;
         }
 

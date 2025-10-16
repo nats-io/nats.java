@@ -27,6 +27,7 @@ public class ServerPoolTests extends TestBase {
 
     public static final String BOOT_ONE = "nats://b1";
     public static final String BOOT_TWO = "nats://b2";
+    public static final String BOOT_ONE_SECURE = "tls://b1";
     public static final String DISC_ONE = "nats://d1";
     public static final String DISC_TWO = "nats://d2";
     public static final String DISC_THREE = "nats://d3";
@@ -61,6 +62,18 @@ public class ServerPoolTests extends TestBase {
         o = new Options.Builder().ignoreDiscoveredServers().servers(bootstrap).build();
         nsp = newNatsServerPool(o, null, discoveredServers);
         validateNslp(nsp, null, false, BOOT_ONE, BOOT_TWO);
+
+        // testing that duplicates don't get added
+        String[] secureAndNotSecure = new String[]{BOOT_ONE, BOOT_ONE_SECURE};
+        String[] secureBootstrap = new String[]{BOOT_ONE_SECURE};
+        o = new Options.Builder().servers(secureAndNotSecure).build();
+        nsp = newNatsServerPool(o, null, null);
+        validateNslp(nsp, null, false, secureBootstrap);
+
+        secureAndNotSecure = new String[]{BOOT_ONE_SECURE, BOOT_ONE};
+        o = new Options.Builder().servers(secureAndNotSecure).build();
+        nsp = newNatsServerPool(o, null, null);
+        validateNslp(nsp, null, false, secureBootstrap);
     }
 
     @Test
@@ -174,5 +187,22 @@ public class ServerPoolTests extends TestBase {
         if (last != null) {
             assertEquals(last, supplied.get(supplied.size() - 1));
         }
+    }
+
+    @Test
+    public void testServerPoolEntry() throws URISyntaxException {
+        NatsUri nuri = new NatsUri(BOOT_ONE);
+        ServerPoolEntry entry = new ServerPoolEntry(nuri, true);
+        assertEquals(nuri, entry.nuri);
+        assertTrue(entry.isGossiped);
+        assertTrue(entry.toString().contains(nuri.toString()));
+        assertTrue(entry.toString().contains("true/0"));
+
+        entry = new ServerPoolEntry(nuri, false);
+        entry.failedAttempts = 1;
+        assertEquals(nuri, entry.nuri);
+        assertFalse(entry.isGossiped);
+        assertTrue(entry.toString().contains(nuri.toString()));
+        assertTrue(entry.toString().contains("false/1"));
     }
 }

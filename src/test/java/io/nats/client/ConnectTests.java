@@ -18,6 +18,7 @@ import io.nats.client.NatsServerProtocolMock.ExitAt;
 import io.nats.client.api.ServerInfo;
 import io.nats.client.impl.ListenerForTesting;
 import io.nats.client.impl.SimulateSocketDataPortException;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -29,6 +30,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -638,5 +640,39 @@ public class ConnectTests {
             Connection nc = standardConnection(options);
             standardCloseConnection(nc);
         }
+    }
+
+    @Test
+    void testConnectPendingCountCoverage() throws Exception {
+        TestBase.runInJsServer(nc -> {
+            AtomicLong outgoingPendingMessageCount = new AtomicLong();
+            AtomicLong outgoingPendingBytes = new AtomicLong();
+
+            AtomicBoolean tKeepGoing = new AtomicBoolean(true);
+            Thread t = new Thread(() -> {
+                while (tKeepGoing.get()) {
+                    outgoingPendingMessageCount.set(Math.max(outgoingPendingMessageCount.get(), nc.outgoingPendingMessageCount()));
+                    outgoingPendingBytes.set(Math.max(outgoingPendingBytes.get(), nc.outgoingPendingBytes()));
+                    try {
+                        Thread.sleep(10);
+                    }
+                    catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            });
+            t.start();
+
+            String subject = subject();
+            byte[] data = new byte[8 * 1024];
+            for (int x = 0; x < 5000; x++) {
+                nc.publish(subject, data);
+            }
+            tKeepGoing.set(false);
+            t.join();
+
+            assertTrue(outgoingPendingMessageCount.get() > 0);
+            assertTrue(outgoingPendingBytes.get() > outgoingPendingMessageCount.get() * 1000);
+        });
     }
 }

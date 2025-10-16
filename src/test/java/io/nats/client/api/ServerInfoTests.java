@@ -146,9 +146,18 @@ public class ServerInfoTests {
 
     @Test
     public void testInvalid() {
+        IllegalArgumentException e =
         assertThrows(IllegalArgumentException.class, () -> new ServerInfo(null));
-        assertThrows(IllegalArgumentException.class, () -> new ServerInfo(""));
-        assertThrows(IllegalArgumentException.class, () -> new ServerInfo("invalid}"));
+        assertTrue(e.getMessage().contains("Invalid Server Info"));
+
+        e = assertThrows(IllegalArgumentException.class, () -> new ServerInfo(""));
+        assertTrue(e.getMessage().contains("Invalid Server Info"));
+
+        e = assertThrows(IllegalArgumentException.class, () -> new ServerInfo("invalid no bracket}"));
+        assertTrue(e.getMessage().contains("Invalid Server Info"));
+
+        e = assertThrows(IllegalArgumentException.class, () -> new ServerInfo("{invalid json"));
+        assertTrue(e.getMessage().contains("Invalid Server Info Json"));
     }
 
     @Test

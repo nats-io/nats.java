@@ -220,6 +220,7 @@ public class HeadersTests {
         assertThrows(UnsupportedOperationException.class, () -> headers1.put(KEY1, VAL2));
         assertThrows(UnsupportedOperationException.class, () -> headers1.put(KEY1, VAL1, VAL2));
         assertThrows(UnsupportedOperationException.class, () -> headers1.put(KEY1, Arrays.asList(VAL1, VAL2)));
+        assertThrows(UnsupportedOperationException.class, () -> headers1.put(new HashMap<>()));
         assertThrows(UnsupportedOperationException.class, () -> headers1.remove(KEY1));
         assertThrows(UnsupportedOperationException.class, () -> headers1.remove(KEY1,KEY2));
         assertThrows(UnsupportedOperationException.class, () -> headers1.remove(Arrays.asList(KEY1,KEY2)));
@@ -276,6 +277,28 @@ public class HeadersTests {
         assertNotNull(values);
         assertEquals(3, values.size());
         validateDirtyAndLength(headers);
+
+        Map<String, List<String>> map = new HashMap<>();
+        map.put("x", new ArrayList<>());
+        map.put("y", null);
+        headers.put(map);
+        assertEquals(3, values.size());
+
+        String[] n = null;
+        headers.remove(n); // coverage
+        assertFalse(headers.isDirty());
+
+        List<String> nk = null;
+        headers.remove(nk); // coverage
+        assertFalse(headers.isDirty());
+
+        nk = new ArrayList<>();
+        nk.add("x");
+        nk.add(null);
+        nk.add("y");
+        headers.remove(nk);
+        assertEquals(3, values.size());
+        assertFalse(headers.isDirty());
     }
 
     @Test
@@ -527,7 +550,7 @@ public class HeadersTests {
     }
 
     @Test
-    public void constructStatusWithValidBytes() {
+    public void constructStatusWithValidBytesAndCoverage() {
         assertValidStatus("NATS/1.0 503\r\n", 503, NO_RESPONDERS_TEXT); // status made message
         assertValidStatus("NATS/1.0 404\r\n", 404, "Server Status Message: 404");          // status made message
         assertValidStatus("NATS/1.0 123 Message And Code Begin With Known Byte\r\n", 123, "Message And Code Begin With Known Byte");       // from data

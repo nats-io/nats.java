@@ -16,6 +16,8 @@ package io.nats.client;
 public final class NatsSystemClock {
     private static NatsSystemClockProvider PROVIDER = new NatsSystemClockProvider() {};
 
+    private NatsSystemClock() {}  /* ensures cannot be constructed */
+
     /**
      * Set the provider. Null will reset to system default
      * @param provider the provider
