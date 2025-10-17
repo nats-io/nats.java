@@ -226,34 +226,40 @@ public class ParseTests {
     }
 
     @Test
-    public void testOpFor_ForCoverage() {
-        coverOpFor(OP_MSG,  "MSG");
-        coverOpFor(OP_OK,   "+OK");
-        coverOpFor(OP_PING, "PING");
-        coverOpFor(OP_PONG, "PONG");
-        coverOpFor(OP_ERR,  "-ERR");
-        coverOpFor(OP_INFO, "INFO");
-        coverOpFor(OP_HMSG, "HMSG");
+    public void testOpForCoverage() {
+        coverOpFor(NatsConnectionReader.Op.MSG,  OP_MSG);
+        coverOpFor(NatsConnectionReader.Op.OK,   OP_OK);
+        coverOpFor(NatsConnectionReader.Op.PING, OP_PING);
+        coverOpFor(NatsConnectionReader.Op.PONG, OP_PONG);
+        coverOpFor(NatsConnectionReader.Op.ERR,  OP_ERR);
+        coverOpFor(NatsConnectionReader.Op.INFO, OP_INFO);
+        coverOpFor(NatsConnectionReader.Op.HMSG, OP_HMSG);
 
         assertUnknownOpFor(1, "X".toCharArray());
+        assertUnknownOpFor(2, "Xx".toCharArray());
+        assertUnknownOpFor(5, "Xxxxx".toCharArray());
     }
 
-    private void coverOpFor(String op, String s) {
+    private void coverOpFor(NatsConnectionReader.Op op, String s) {
         _coverOpFor(op, s.toUpperCase());
         _coverOpFor(op, s.toLowerCase());
     }
 
-    private void _coverOpFor(String op, String s) {
+    private void _coverOpFor(NatsConnectionReader.Op op, String s) {
         int len = s.length();
         assertEquals(op, NatsConnectionReader.opFor(s.toCharArray(), len));
         for (int x = 0; x < len; x++) {
             char[] chars = s.toCharArray();
+            chars[x] = Character.toLowerCase(chars[x]);
+            assertEquals(op, NatsConnectionReader.opFor(chars, len));
+
+            chars = s.toCharArray();
             chars[x] = 'X';
             assertUnknownOpFor(len, chars);
         }
     }
 
     private void assertUnknownOpFor(int len, char[] chars) {
-        assertEquals(UNKNOWN_OP, NatsConnectionReader.opFor(chars, len));
+        assertEquals(NatsConnectionReader.Op.UNKNOWN, NatsConnectionReader.opFor(chars, len));
     }
 }
