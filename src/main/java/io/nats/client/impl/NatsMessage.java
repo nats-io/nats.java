@@ -54,6 +54,7 @@ public class NatsMessage implements Message {
     protected NatsSubscription subscription;
 
     // for accumulate
+    protected NatsMessage prev;
     protected NatsMessage next;
     protected boolean flushImmediatelyAfterPublish;
 

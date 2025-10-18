@@ -268,6 +268,12 @@ public class Options {
      * {@link Builder#statisticsCollector(StatisticsCollector) statisticsCollector}.
      */
     public static final String PROP_STATISTICS_COLLECTOR = PFX + "statisticscollector";
+
+    /**
+     * Property used to configure a builder from a Properties object. {@value}, see
+     * {@link Builder#writeBufferListener(WriteBufferListener) writeBufferListener}.
+     */
+    public static final String PROP_WRITE_BUFFER_LISTENER = PFX + "write.buffer.listener";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#maxPingsOut(int) maxPingsOut}.
      */
@@ -699,6 +705,7 @@ public class Options {
     private final ConnectionListener connectionListener;
     private final ReadListener readListener;
     private final StatisticsCollector statisticsCollector;
+    private final WriteBufferListener writeBufferListener;
     private final String dataPortType;
 
     private final boolean trackAdvancedStats;
@@ -848,6 +855,7 @@ public class Options {
         private ConnectionListener connectionListener = null;
         private ReadListener readListener = null;
         private StatisticsCollector statisticsCollector = null;
+        private WriteBufferListener writeBufferListener = null;
         private String dataPortType = DEFAULT_DATA_PORT_TYPE;
         private ExecutorService executor;
         private ScheduledExecutorService scheduledExecutor;
@@ -972,6 +980,7 @@ public class Options {
             classnameProperty(props, PROP_CONNECTION_CB, o -> this.connectionListener = (ConnectionListener) o);
             classnameProperty(props, PROP_READ_LISTENER_CLASS, o -> this.readListener = (ReadListener) o);
             classnameProperty(props, PROP_STATISTICS_COLLECTOR, o -> this.statisticsCollector = (StatisticsCollector) o);
+            classnameProperty(props, PROP_WRITE_BUFFER_LISTENER, o -> this.writeBufferListener = (WriteBufferListener) o);
 
             stringProperty(props, PROP_DATA_PORT_TYPE, s -> this.dataPortType = s);
             stringProperty(props, PROP_INBOX_PREFIX, this::inboxPrefix);
@@ -1688,6 +1697,19 @@ public class Options {
         }
 
         /**
+         * Set the {@link WriteBufferListener WriteBufferListener} to track messages buffered from the queue to the socket buffer.
+         * <p>
+         * If not set, no implementation will be used
+         *
+         * @param listener the new WriteBufferListener for this connection.
+         * @return the Builder for chaining
+         */
+        public Builder writeBufferListener(WriteBufferListener listener) {
+            this.writeBufferListener = listener;
+            return this;
+        }
+
+        /**
          * Set the {@link ExecutorService ExecutorService} used to run threaded tasks. The default is a
          * cached thread pool that names threads after the connection name (or a default). This executor
          * is used for reading and writing the underlying sockets as well as for each Dispatcher.
@@ -2096,6 +2118,7 @@ public class Options {
             this.connectionListener = o.connectionListener;
             this.readListener = o.readListener;
             this.statisticsCollector = o.statisticsCollector;
+            this.writeBufferListener = o.writeBufferListener;
             this.dataPortType = o.dataPortType;
             this.trackAdvancedStats = o.trackAdvancedStats;
             this.executor = o.executor;
@@ -2168,6 +2191,7 @@ public class Options {
         this.connectionListener = b.connectionListener;
         this.readListener = b.readListener;
         this.statisticsCollector = b.statisticsCollector;
+        this.writeBufferListener = b.writeBufferListener;
         this.dataPortType = b.dataPortType;
         this.trackAdvancedStats = b.trackAdvancedStats;
         this.executor = b.executor;
@@ -2300,6 +2324,13 @@ public class Options {
      */
     public StatisticsCollector getStatisticsCollector() {
         return this.statisticsCollector;
+    }
+
+    /**
+     * @return the WriteBufferListener, or null, see {@link Builder#writeBufferListener(WriteBufferListener) writeBufferListener()} in the builder doc
+     */
+    public WriteBufferListener getWriteBufferListener() {
+        return this.writeBufferListener;
     }
 
     /**
