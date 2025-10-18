@@ -28,6 +28,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsConstants.GREATER_THAN;
+import static io.nats.client.support.NatsJetStreamConstants.JS_SEQUENCE_TEMPORARILY_UNKNOWN;
 import static io.nats.client.support.NatsJetStreamConstants.JS_WRONG_LAST_SEQUENCE;
 import static io.nats.client.support.NatsKeyValueUtil.*;
 import static io.nats.client.support.Validator.*;
@@ -169,7 +170,8 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
             return _update(key, value, 0, messageTtl);
         }
         catch (JetStreamApiException e) {
-            if (e.getApiErrorCode() == JS_WRONG_LAST_SEQUENCE) {
+            int code = e.getApiErrorCode();
+            if (code == JS_WRONG_LAST_SEQUENCE || code == JS_SEQUENCE_TEMPORARILY_UNKNOWN) {
                 // must check if the last message for this subject is a delete or purge
                 // if it was, it's okay to "create" it, as long as someone doesn't create in the meantime
                 // which is why I use the revision, which must be greater than zero b/c I just tried zero
