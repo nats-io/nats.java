@@ -150,4 +150,5 @@ public interface NatsJetStreamConstants {
     int JS_CONSUMER_NOT_FOUND_ERR = 10014;
     int JS_NO_MESSAGE_FOUND_ERR = 10037;
     int JS_WRONG_LAST_SEQUENCE = 10071;
+    int JS_SEQUENCE_TEMPORARILY_UNKNOWN = 10164;
 }
