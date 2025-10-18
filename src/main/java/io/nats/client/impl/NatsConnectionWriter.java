@@ -16,6 +16,7 @@ package io.nats.client.impl;
 
 import io.nats.client.Options;
 import io.nats.client.StatisticsCollector;
+import io.nats.client.WriteBufferListener;
 import io.nats.client.support.ByteArrayBuilder;
 
 import java.io.IOException;
@@ -40,6 +41,8 @@ class NatsConnectionWriter implements Runnable {
     private static final int BUFFER_BLOCK_SIZE = 256;
 
     private final NatsConnection connection;
+    private final StatisticsCollector stats;
+    private final WriteBufferListener writeBufferListener;
 
     private final ReentrantLock writerLock;
     private Future<Boolean> stopped;
@@ -58,6 +61,8 @@ class NatsConnectionWriter implements Runnable {
 
     NatsConnectionWriter(NatsConnection connection, NatsConnectionWriter sourceWriter) {
         this.connection = connection;
+        stats = connection.getStatisticsCollector();
+        writeBufferListener = connection.getOptions().getWriteBufferListener();
         writerLock = new ReentrantLock();
 
         this.running = new AtomicBoolean(false);
@@ -129,7 +134,7 @@ class NatsConnectionWriter implements Runnable {
 
     private static final NatsMessage END_RECONNECT = new NatsMessage("_end", null, EMPTY_BODY);
 
-    void sendMessageBatch(NatsMessage msg, DataPort dataPort, StatisticsCollector stats) throws IOException {
+    void sendMessageBatch(NatsMessage msg, DataPort dataPort) throws IOException {
         writerLock.lock();
         try {
             int sendPosition = 0;
@@ -176,8 +181,19 @@ class NatsConnectionWriter implements Runnable {
                     sendBuffer[sendPosition++] = LF;
                 }
 
-                stats.incrementOutMsgs();
-                stats.incrementOutBytes(size);
+                if (writeBufferListener == null) {
+                    stats.incrementOutMsgs();
+                    stats.incrementOutBytes(size);
+                }
+                else {
+                    NatsMessage finalMsg = msg;
+                    writeBufferListener.executorService.
+                        submit(() -> {
+                            stats.incrementOutMsgs();
+                            stats.incrementOutBytes(size);
+                            writeBufferListener.buffered(finalMsg);
+                        });
+                }
 
                 if (msg.flushImmediatelyAfterPublish) {
                     dataPort.flush();
@@ -203,7 +219,6 @@ class NatsConnectionWriter implements Runnable {
 
         try {
             dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
-            StatisticsCollector stats = this.connection.getStatisticsCollector();
 
             while (running.get() && !Thread.interrupted()) {
                 NatsMessage msg;
@@ -214,7 +229,7 @@ class NatsConnectionWriter implements Runnable {
                     msg = this.reconnectOutgoing.accumulate(sendBufferLength.get(), Options.MAX_MESSAGES_IN_NETWORK_BUFFER, reconnectTimeout);
                 }
                 if (msg != null) {
-                    sendMessageBatch(msg, dataPort, stats);
+                    sendMessageBatch(msg, dataPort);
                 }
             }
         } catch (IOException | BufferOverflowException io) {
