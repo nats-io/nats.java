@@ -16,13 +16,25 @@ package io.nats.client;
 import io.nats.client.impl.NatsMessage;
 
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-public abstract class WriteBufferListener {
+public abstract class WriteListener {
     public final ExecutorService executorService;
 
-    public WriteBufferListener(ExecutorService executorService) {
+    public WriteListener() {
+        this.executorService = Executors.newSingleThreadExecutor();
+    }
+
+    public WriteListener(ExecutorService executorService) {
         this.executorService = executorService;
     }
+
+    public final void submit(Runnable runnable) {
+        executorService.submit(runnable);
+    }
+
+    public void runStarted(int instanceHashCode) {}
+    public void runEnded(int instanceHashCode) {}
 
     public abstract void buffered(NatsMessage msg);
 }

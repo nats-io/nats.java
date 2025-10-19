@@ -16,7 +16,7 @@ package io.nats.client.impl;
 
 import io.nats.client.Options;
 import io.nats.client.StatisticsCollector;
-import io.nats.client.WriteBufferListener;
+import io.nats.client.WriteListener;
 import io.nats.client.support.ByteArrayBuilder;
 
 import java.io.IOException;
@@ -42,7 +42,7 @@ class NatsConnectionWriter implements Runnable {
 
     private final NatsConnection connection;
     private final StatisticsCollector stats;
-    private final WriteBufferListener writeBufferListener;
+    private final WriteListener writeListener;
 
     private final ReentrantLock writerLock;
     private Future<Boolean> stopped;
@@ -62,7 +62,7 @@ class NatsConnectionWriter implements Runnable {
     NatsConnectionWriter(NatsConnection connection, NatsConnectionWriter sourceWriter) {
         this.connection = connection;
         stats = connection.getStatisticsCollector();
-        writeBufferListener = connection.getOptions().getWriteBufferListener();
+        writeListener = connection.getOptions().getWriteListener();
         writerLock = new ReentrantLock();
 
         this.running = new AtomicBoolean(false);
@@ -181,18 +181,17 @@ class NatsConnectionWriter implements Runnable {
                     sendBuffer[sendPosition++] = LF;
                 }
 
-                if (writeBufferListener == null) {
+                if (writeListener == null) {
                     stats.incrementOutMsgs();
                     stats.incrementOutBytes(size);
                 }
                 else {
                     NatsMessage finalMsg = msg;
-                    writeBufferListener.executorService.
-                        submit(() -> {
-                            stats.incrementOutMsgs();
-                            stats.incrementOutBytes(size);
-                            writeBufferListener.buffered(finalMsg);
-                        });
+                    writeListener.submit(() -> {
+                        stats.incrementOutMsgs();
+                        stats.incrementOutBytes(size);
+                        writeListener.buffered(finalMsg);
+                    });
                 }
 
                 if (msg.flushImmediatelyAfterPublish) {
@@ -220,6 +219,10 @@ class NatsConnectionWriter implements Runnable {
         try {
             dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
 
+            if (writeListener != null) {
+                writeListener.submit(() -> writeListener.runStarted(this.hashCode()));
+            }
+
             while (running.get() && !Thread.interrupted()) {
                 NatsMessage msg;
                 if (mode.get() == Mode.Normal) {
@@ -244,6 +247,9 @@ class NatsConnectionWriter implements Runnable {
             Thread.currentThread().interrupt();
         } finally {
             this.running.set(false);
+            if (writeListener != null) {
+                writeListener.submit(() -> writeListener.runEnded(this.hashCode()));
+            }
         }
     }
 
