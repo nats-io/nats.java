@@ -132,7 +132,7 @@ class NatsConnectionWriter implements Runnable {
         return this.stopped;
     }
 
-    void preventWrite() {
+    void stopWriting() {
         allowedToWrite.set(false);
     }
 

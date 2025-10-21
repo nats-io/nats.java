@@ -292,16 +292,7 @@ class NatsConnection implements Connection {
     }
 
     void forceReconnectImpl(@NonNull ForceReconnectOptions frOpts) throws InterruptedException {
-        if (frOpts.getFlushWait() != null) {
-            try {
-                flush(frOpts.getFlushWait());
-            }
-            catch (TimeoutException e) {
-                // Ignored. Manual test demonstrates that if the connection is dropped
-                // in the middle of the flush, the most likely reason for a TimeoutException,
-                // the socket is closed.
-            }
-        }
+        writer.stopWriting();
 
         closeSocketLock.lock();
         try {
@@ -722,7 +713,7 @@ class NatsConnection implements Connection {
             statusLock.unlock();
         }
 
-        writer.preventWrite();
+        writer.stopWriting();
 
         processException(io);
         if (currentServer != null) {
