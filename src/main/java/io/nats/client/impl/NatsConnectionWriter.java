@@ -157,8 +157,8 @@ class NatsConnectionWriter implements Runnable {
 
                 if (sendPosition + size > sbl) {
                     if (sendPosition > 0) {
-                        dataPort.write(sendBuffer, sendPosition);
                         stats.registerWrite(sendPosition);
+                        dataPort.write(sendBuffer, sendPosition);
                         sendPosition = 0;
                     }
                     if (size > sbl) { // have to resize b/c can't fit 1 message
@@ -189,15 +189,11 @@ class NatsConnectionWriter implements Runnable {
                     sendBuffer[sendPosition++] = LF;
                 }
 
-                if (writeListener == null) {
-                    stats.incrementOutMsgs();
-                    stats.incrementOutBytes(size);
-                }
-                else {
+                stats.incrementOutMsgs();
+                stats.incrementOutBytes(size);
+                if (writeListener != null) {
                     NatsMessage finalMsg = msg;
                     writeListener.submit(() -> {
-                        stats.incrementOutMsgs();
-                        stats.incrementOutBytes(size);
                         writeListener.buffered(finalMsg);
                     });
                 }
@@ -210,8 +206,8 @@ class NatsConnectionWriter implements Runnable {
 
             // no need to write if there are no bytes
             if (sendPosition > 0) {
-                dataPort.write(sendBuffer, sendPosition);
                 stats.registerWrite(sendPosition);
+                dataPort.write(sendBuffer, sendPosition);
             }
         }
         finally {
