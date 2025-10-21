@@ -722,7 +722,7 @@ class NatsConnection implements Connection {
             statusLock.unlock();
         }
 
-        executor.submit(() -> { writer.stop(); });
+        writer.preventWrite();
 
         processException(io);
         if (currentServer != null) {

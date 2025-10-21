@@ -48,6 +48,7 @@ class NatsConnectionWriter implements Runnable {
     private Future<Boolean> stopped;
     private Future<DataPort> dataPortFuture;
     private DataPort dataPort;
+    private final AtomicBoolean allowedToWrite;
     private final AtomicBoolean running;
     private final AtomicReference<Mode> mode;
     private final ReentrantLock startStopLock;
@@ -66,6 +67,7 @@ class NatsConnectionWriter implements Runnable {
         writerLock = new ReentrantLock();
 
         this.running = new AtomicBoolean(false);
+        this.allowedToWrite = new AtomicBoolean(false);
         if (sourceWriter == null) {
             mode = new AtomicReference<>(Mode.Normal);
         }
@@ -100,6 +102,7 @@ class NatsConnectionWriter implements Runnable {
         this.startStopLock.lock();
         try {
             this.dataPortFuture = dataPortFuture;
+            this.allowedToWrite.set(true);
             this.running.set(true);
             this.normalOutgoing.resume();
             this.reconnectOutgoing.resume();
@@ -114,6 +117,7 @@ class NatsConnectionWriter implements Runnable {
     // method does.
     Future<Boolean> stop() {
         if (running.get()) {
+            allowedToWrite.set(false);
             running.set(false);
             startStopLock.lock();
             try {
@@ -126,6 +130,10 @@ class NatsConnectionWriter implements Runnable {
             }
         }
         return this.stopped;
+    }
+
+    void preventWrite() {
+        allowedToWrite.set(false);
     }
 
     boolean isRunning() {
@@ -219,7 +227,7 @@ class NatsConnectionWriter implements Runnable {
         try {
             dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
 
-            while (running.get() && !Thread.interrupted()) {
+            while (allowedToWrite.get() && !Thread.interrupted()) {
                 NatsMessage msg;
                 if (mode.get() == Mode.Normal) {
                     msg = this.normalOutgoing.accumulate(sendBufferLength.get(), Options.MAX_MESSAGES_IN_NETWORK_BUFFER, outgoingTimeout);
@@ -242,7 +250,8 @@ class NatsConnectionWriter implements Runnable {
             // Exit
             Thread.currentThread().interrupt();
         } finally {
-            this.running.set(false);
+            allowedToWrite.set(false);
+            running.set(false);
         }
     }
 
