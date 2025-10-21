@@ -219,10 +219,6 @@ class NatsConnectionWriter implements Runnable {
         try {
             dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
 
-            if (writeListener != null) {
-                writeListener.submit(() -> writeListener.runStarted(this.hashCode()));
-            }
-
             while (running.get() && !Thread.interrupted()) {
                 NatsMessage msg;
                 if (mode.get() == Mode.Normal) {
@@ -247,9 +243,6 @@ class NatsConnectionWriter implements Runnable {
             Thread.currentThread().interrupt();
         } finally {
             this.running.set(false);
-            if (writeListener != null) {
-                writeListener.submit(() -> writeListener.runEnded(this.hashCode()));
-            }
         }
     }
 

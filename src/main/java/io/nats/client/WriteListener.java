@@ -22,19 +22,18 @@ public abstract class WriteListener {
     public final ExecutorService executorService;
 
     public WriteListener() {
-        this.executorService = Executors.newSingleThreadExecutor();
+        this(null);
     }
 
     public WriteListener(ExecutorService executorService) {
-        this.executorService = executorService;
+        this.executorService = executorService == null
+            ? Executors.newSingleThreadExecutor()
+            : executorService;
     }
 
     public final void submit(Runnable runnable) {
         executorService.submit(runnable);
     }
-
-    public void runStarted(int instanceHashCode) {}
-    public void runEnded(int instanceHashCode) {}
 
     public abstract void buffered(NatsMessage msg);
 }

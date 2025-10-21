@@ -722,6 +722,8 @@ class NatsConnection implements Connection {
             statusLock.unlock();
         }
 
+        executor.submit(() -> { writer.stop(); });
+
         processException(io);
         if (currentServer != null) {
             serverPool.connectFailed(currentServer);
