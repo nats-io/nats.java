@@ -127,6 +127,18 @@ public class NatsStatistics implements StatisticsCollector {
     }
 
     @Override
+    public void incrementIn(long bytes) {
+        this.inMsgs.incrementAndGet();
+        this.inBytes.addAndGet(bytes);
+    }
+
+    @Override
+    public void incrementOut(long bytes) {
+        this.outMsgs.incrementAndGet();
+        this.outBytes.addAndGet(bytes);
+    }
+
+    @Override
     public void incrementInMsgs() {
         this.inMsgs.incrementAndGet();
     }

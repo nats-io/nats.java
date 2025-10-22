@@ -189,8 +189,7 @@ class NatsConnectionWriter implements Runnable {
                     sendBuffer[sendPosition++] = LF;
                 }
 
-                stats.incrementOutMsgs();
-                stats.incrementOutBytes(size);
+                stats.incrementOut(size);
                 if (writeListener != null) {
                     NatsMessage finalMsg = msg;
                     writeListener.submit(() -> {

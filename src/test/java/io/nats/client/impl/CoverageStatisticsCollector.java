@@ -21,14 +21,21 @@ import java.util.concurrent.atomic.AtomicLong;
 public class CoverageStatisticsCollector extends NoOpStatistics {
 
     private final AtomicLong outMsgs = new AtomicLong();
+    private final AtomicLong outBytes = new AtomicLong();
 
     @Override
-    public void incrementOutMsgs() {
+    public void incrementOut(long bytes) {
         outMsgs.incrementAndGet();
+        outBytes.addAndGet(bytes);
     }
 
     @Override
     public long getOutMsgs() {
         return outMsgs.get();
+    }
+
+    @Override
+    public long getOutBytes() {
+        return outBytes.get();
     }
 }

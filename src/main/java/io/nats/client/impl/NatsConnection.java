@@ -1827,8 +1827,7 @@ class NatsConnection implements Connection {
 
     void deliverMessage(NatsMessage msg) {
         this.needPing.set(false);
-        this.statistics.incrementInMsgs();
-        this.statistics.incrementInBytes(msg.getSizeInBytes());
+        this.statistics.incrementIn(msg.getSizeInBytes());
 
         NatsSubscription sub = subscribers.get(msg.getSID());
 

@@ -82,25 +82,51 @@ public interface StatisticsCollector extends Statistics {
     void incrementOrphanRepliesReceived();
 
     /**
-     * Increments the total number of messages that have come in to this connection.
+     * Increments the total number of messages that have come in to this connection
+     * by 1 AND the number of bytes in the same call.
      */
-    void incrementInMsgs();
+    default void incrementIn(long bytes) {
+        incrementInMsgs();
+        incrementInBytes(bytes);
+    }
 
     /**
      * Increments the total number of messages that have gone out of this connection.
+     * by 1 AND the number of bytes in the same call.
      */
+    default void incrementOut(long bytes) {
+        incrementOutMsgs();
+        incrementOutBytes(bytes);
+    }
+
+    /**
+     * @deprecated Was always called with incrementInBytes. Replaced with incrementIn(long bytes)
+     * Increments the total number of messages that have come in to this connection.
+     */
+    @Deprecated
+    void incrementInMsgs();
+
+    /**
+     * @deprecated Was always called with incrementOutBytes. Replaced with incrementOut(long bytes)
+     * Increments the total number of messages that have gone out of this connection.
+     */
+    @Deprecated
     void incrementOutMsgs();
 
     /**
+     * @deprecated Was always called with incrementIn. Replaced with incrementIn(long bytes)
      * Increment the total number of message bytes that have come in to this connection.
      * @param bytes the number of bytes coming in
      */
+    @Deprecated
     void incrementInBytes(long bytes);
 
     /**
+     * @deprecated Was always called with incrementOut. Replaced with incrementOut(long bytes)
      * Increment the total number of message bytes that have gone out of this connection.
      * @param bytes the number of bytes going out
      */
+    @Deprecated
     void incrementOutBytes(long bytes);
 
     /**
