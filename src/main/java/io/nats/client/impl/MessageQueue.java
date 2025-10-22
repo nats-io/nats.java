@@ -292,7 +292,6 @@ class MessageQueue {
                     count++;
 
                     this.queue.poll(); // we need to get the message out of the queue b/c we only peeked
-                    next.prev = cursor;
                     cursor.next = next;
                     if (next.flushImmediatelyAfterPublish) {
                         // if we are going to flush, then don't accumulate more
