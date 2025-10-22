@@ -1,5 +1,4 @@
-
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2015-2025 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -16,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.Options;
 import io.nats.client.StatisticsCollector;
+import io.nats.client.WriteListener;
 import io.nats.client.support.ByteArrayBuilder;
 
 import java.io.IOException;
@@ -129,7 +129,7 @@ class NatsConnectionWriter implements Runnable {
 
     private static final NatsMessage END_RECONNECT = new NatsMessage("_end", null, EMPTY_BODY);
 
-    void sendMessageBatch(NatsMessage msg, DataPort dataPort, StatisticsCollector stats) throws IOException {
+    void sendMessageBatch(NatsMessage msg, DataPort dataPort, StatisticsCollector stats, WriteListener writeListener) throws IOException {
         writerLock.lock();
         try {
             int sendPosition = 0;
@@ -177,6 +177,10 @@ class NatsConnectionWriter implements Runnable {
                 }
 
                 stats.incrementOut(size);
+                if (writeListener != null) {
+                    NatsMessage finalMsg = msg;
+                    writeListener.submit(() -> writeListener.buffered(finalMsg));
+                }
 
                 if (msg.flushImmediatelyAfterPublish) {
                     dataPort.flush();
@@ -202,7 +206,8 @@ class NatsConnectionWriter implements Runnable {
 
         try {
             dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
-            StatisticsCollector stats = this.connection.getStatisticsCollector();
+            StatisticsCollector stats = connection.getStatisticsCollector();
+            WriteListener writeListener = connection.getOptions().getWriteListener();
 
             while (running.get() && !Thread.interrupted()) {
                 NatsMessage msg;
@@ -213,7 +218,7 @@ class NatsConnectionWriter implements Runnable {
                     msg = this.reconnectOutgoing.accumulate(sendBufferLength.get(), Options.MAX_MESSAGES_IN_NETWORK_BUFFER, reconnectTimeout);
                 }
                 if (msg != null) {
-                    sendMessageBatch(msg, dataPort, stats);
+                    sendMessageBatch(msg, dataPort, stats, writeListener);
                 }
             }
         } catch (IOException | BufferOverflowException io) {
