@@ -628,15 +628,20 @@ public class OptionsTests {
 
         Options o = new Options.Builder(props).build();
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
-        assertNotNull(o.getStatisticsCollector(), "property statistics collector");
 
-        o.getStatisticsCollector().incrementOutMsgs();
-        assertEquals(o.getStatisticsCollector().getOutMsgs(), 1, "property statistics collector class");
+        StatisticsCollector stats = o.getStatisticsCollector();
+        assertNotNull(stats);
+
+        stats.incrementOut(42);
+        assertEquals(1, stats.getOutMsgs());
+        assertEquals(42, stats.getOutBytes());
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testStatisticsCoverage() {
         validateStatisticsCollector(new NatsStatistics());
+
         StatisticsCollector stats = new NoOpStatistics();
         stats.setAdvancedTracking(true);
         stats.incrementPingCount();
@@ -653,6 +658,8 @@ public class OptionsTests {
         stats.incrementOutMsgs();
         stats.incrementInBytes(42);
         stats.incrementOutBytes(73);
+        stats.incrementIn(42);
+        stats.incrementOut(73);
         stats.incrementFlushCounter();
         stats.incrementOutstandingRequests();
         stats.decrementOutstandingRequests();
