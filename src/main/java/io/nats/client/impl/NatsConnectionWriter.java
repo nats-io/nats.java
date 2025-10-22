@@ -66,8 +66,8 @@ class NatsConnectionWriter implements Runnable {
         writeListener = connection.getOptions().getWriteListener();
         writerLock = new ReentrantLock();
 
+        this.allowedToWrite = new AtomicBoolean(true);
         this.running = new AtomicBoolean(false);
-        this.allowedToWrite = new AtomicBoolean(false);
         if (sourceWriter == null) {
             mode = new AtomicReference<>(Mode.Normal);
         }
@@ -192,9 +192,7 @@ class NatsConnectionWriter implements Runnable {
                 stats.incrementOut(size);
                 if (writeListener != null) {
                     NatsMessage finalMsg = msg;
-                    writeListener.submit(() -> {
-                        writeListener.buffered(finalMsg);
-                    });
+                    writeListener.submit(() -> writeListener.buffered(finalMsg));
                 }
 
                 if (msg.flushImmediatelyAfterPublish) {
@@ -221,7 +219,6 @@ class NatsConnectionWriter implements Runnable {
 
         try {
             dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
-
             while (allowedToWrite.get() && !Thread.interrupted()) {
                 NatsMessage msg;
                 if (mode.get() == Mode.Normal) {
@@ -245,7 +242,6 @@ class NatsConnectionWriter implements Runnable {
             // Exit
             Thread.currentThread().interrupt();
         } finally {
-            allowedToWrite.set(false);
             running.set(false);
         }
     }
@@ -283,7 +279,7 @@ class NatsConnectionWriter implements Runnable {
         // of the APIs here.
         writerLock.lock();
         try {
-            if (this.running.get()) {
+            if (running.get() && allowedToWrite.get()) {
                 dataPort.flush();
             }
         } catch (Exception e) {
