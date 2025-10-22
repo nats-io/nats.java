@@ -219,7 +219,7 @@ class NatsConnectionWriter implements Runnable {
 
         try {
             dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
-            while (allowedToWrite.get() && !Thread.interrupted()) {
+            while (running.get() && !Thread.interrupted()) {
                 NatsMessage msg;
                 if (mode.get() == Mode.Normal) {
                     msg = this.normalOutgoing.accumulate(sendBufferLength.get(), Options.MAX_MESSAGES_IN_NETWORK_BUFFER, outgoingTimeout);
@@ -279,7 +279,7 @@ class NatsConnectionWriter implements Runnable {
         // of the APIs here.
         writerLock.lock();
         try {
-            if (running.get() && allowedToWrite.get()) {
+            if (running.get()) {
                 dataPort.flush();
             }
         } catch (Exception e) {
