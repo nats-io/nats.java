@@ -140,22 +140,22 @@ public class NatsStatistics implements StatisticsCollector {
 
     @Override
     public void incrementInMsgs() {
-        this.inMsgs.incrementAndGet();
+        // incrementIn is called instead
     }
 
     @Override
     public void incrementOutMsgs() {
-        this.outMsgs.incrementAndGet();
+        // incrementOut is called instead
     }
 
     @Override
     public void incrementInBytes(long bytes) {
-        this.inBytes.addAndGet(bytes);
+        // incrementIn is called instead
     }
 
     @Override
     public void incrementOutBytes(long bytes) {
-        this.outBytes.addAndGet(bytes);
+        // incrementOut is called instead
     }
 
     @Override
