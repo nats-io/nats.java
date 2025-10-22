@@ -48,7 +48,6 @@ class NatsConnectionWriter implements Runnable {
     private Future<Boolean> stopped;
     private Future<DataPort> dataPortFuture;
     private DataPort dataPort;
-    private final AtomicBoolean allowedToWrite;
     private final AtomicBoolean running;
     private final AtomicReference<Mode> mode;
     private final ReentrantLock startStopLock;
@@ -66,7 +65,6 @@ class NatsConnectionWriter implements Runnable {
         writeListener = connection.getOptions().getWriteListener();
         writerLock = new ReentrantLock();
 
-        this.allowedToWrite = new AtomicBoolean(true);
         this.running = new AtomicBoolean(false);
         if (sourceWriter == null) {
             mode = new AtomicReference<>(Mode.Normal);
@@ -102,7 +100,6 @@ class NatsConnectionWriter implements Runnable {
         this.startStopLock.lock();
         try {
             this.dataPortFuture = dataPortFuture;
-            this.allowedToWrite.set(true);
             this.running.set(true);
             this.normalOutgoing.resume();
             this.reconnectOutgoing.resume();
@@ -117,7 +114,6 @@ class NatsConnectionWriter implements Runnable {
     // method does.
     Future<Boolean> stop() {
         if (running.get()) {
-            allowedToWrite.set(false);
             running.set(false);
             startStopLock.lock();
             try {
@@ -130,10 +126,6 @@ class NatsConnectionWriter implements Runnable {
             }
         }
         return this.stopped;
-    }
-
-    void stopWriting() {
-        allowedToWrite.set(false);
     }
 
     boolean isRunning() {

@@ -292,8 +292,6 @@ class NatsConnection implements Connection {
     }
 
     void forceReconnectImpl(@NonNull ForceReconnectOptions frOpts) throws InterruptedException {
-        writer.stopWriting();
-
         closeSocketLock.lock();
         try {
             updateStatus(Status.DISCONNECTED);
@@ -712,8 +710,6 @@ class NatsConnection implements Connection {
         finally {
             statusLock.unlock();
         }
-
-        writer.stopWriting();
 
         processException(io);
         if (currentServer != null) {
