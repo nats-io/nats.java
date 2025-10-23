@@ -443,13 +443,17 @@ public class MessageQueueTests {
         NatsMessage msg3 = new ProtocolMessage(THREE);
         long expected = 0;
 
-        q.push(msg1);    expected += msg1.getSizeInBytes();
+        q.push(msg1);
+        expected += msg1.getSizeInBytes();
         assertEquals(expected, q.sizeInBytes());
-        q.push(msg2);    expected += msg2.getSizeInBytes();
+        q.push(msg2);
+        expected += msg2.getSizeInBytes();
         assertEquals(expected, q.sizeInBytes());
-        q.push(msg3);    expected += msg3.getSizeInBytes();
+        q.push(msg3);
+        expected += msg3.getSizeInBytes();
         assertEquals(expected, q.sizeInBytes());
-        q.popNow();      expected -= msg1.getSizeInBytes();
+        q.popNow();
+        expected -= msg1.getSizeInBytes();
         assertEquals(expected, q.sizeInBytes());
         q.accumulate(100,100, null); expected = 0;
         assertEquals(expected, q.sizeInBytes());
@@ -471,16 +475,55 @@ public class MessageQueueTests {
         assertEquals(72, msg2.getSizeInBytes());
         assertEquals(78, msg3.getSizeInBytes());
 
-        q.push(msg1);    expected += msg1.getSizeInBytes();
+        q.push(msg1);
+        expected += msg1.getSizeInBytes();
         assertEquals(expected, q.sizeInBytes());
-        q.push(msg2);    expected += msg2.getSizeInBytes();
+        q.push(msg2);
+        expected += msg2.getSizeInBytes();
         assertEquals(expected, q.sizeInBytes());
-        q.push(msg3);    expected += msg3.getSizeInBytes();
+        q.push(msg3);
+        expected += msg3.getSizeInBytes();
         assertEquals(expected, q.sizeInBytes());
-        q.popNow();      expected -= msg1.getSizeInBytes();
+        q.popNow();
+        expected -= msg1.getSizeInBytes();
         assertEquals(expected, q.sizeInBytes());
         q.accumulate(1000,100, null); expected = 0;
         assertEquals(expected, q.sizeInBytes());
+    }
+
+    @Test
+    public void testDrainTo() throws InterruptedException {
+        MessageQueue q1 = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
+
+        String subject = "subj";
+        String replyTo = "reply";
+        Headers h = new Headers().add("Content-Type", "text/plain");
+        NatsMessage msg1 = new NatsMessage(subject, null, h, new byte[8]);
+        NatsMessage msg2 = new NatsMessage(subject, null, h, new byte[16]);
+        NatsMessage msg3 = new NatsMessage(subject, replyTo, h, new byte[16]);
+        long expected = 0;
+
+        assertEquals(64, msg1.getSizeInBytes());
+        assertEquals(72, msg2.getSizeInBytes());
+        assertEquals(78, msg3.getSizeInBytes());
+
+        q1.push(msg1);
+        expected += msg1.getSizeInBytes();
+        assertEquals(1, q1.length());
+        assertEquals(expected, q1.sizeInBytes());
+        q1.push(msg2);
+        expected += msg2.getSizeInBytes();
+        assertEquals(2, q1.length());
+        assertEquals(expected, q1.sizeInBytes());
+        q1.push(msg3);
+        expected += msg3.getSizeInBytes();
+        assertEquals(3, q1.length());
+        assertEquals(expected, q1.sizeInBytes());
+
+        MessageQueue q2 = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
+        q1.drainTo(q2);
+        assertEquals(3, q2.length());
+        assertEquals(expected, q2.sizeInBytes());
     }
 
     @Test

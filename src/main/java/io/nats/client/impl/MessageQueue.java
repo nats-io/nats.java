@@ -98,7 +98,8 @@ class MessageQueue {
         editLock.lock();
         try {
             queue.drainTo(target.queue);
-            target.length.set(queue.size());
+            target.length.set(length.get());
+            target.sizeInBytes.set(sizeInBytes.get());
         } finally {
             editLock.unlock();
         }
