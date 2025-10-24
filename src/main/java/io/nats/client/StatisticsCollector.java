@@ -84,6 +84,7 @@ public interface StatisticsCollector extends Statistics {
     /**
      * Increments the total number of messages that have come in to this connection
      * by 1 AND the number of bytes in the same call.
+     * @param bytes the number of bytes
      */
     default void incrementIn(long bytes) {
         incrementInMsgs();
@@ -93,6 +94,7 @@ public interface StatisticsCollector extends Statistics {
     /**
      * Increments the total number of messages that have gone out of this connection.
      * by 1 AND the number of bytes in the same call.
+     * @param bytes the number of bytes
      */
     default void incrementOut(long bytes) {
         incrementOutMsgs();
