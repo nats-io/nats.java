@@ -79,8 +79,8 @@ class MessageQueue {
         this.queue = maxMessagesInOutgoingQueue > 0 ? new LinkedBlockingQueue<>(maxMessagesInOutgoingQueue) : new LinkedBlockingQueue<>();
         this.discardWhenFull = discardWhenFull;
         this.running = new AtomicInteger(RUNNING);
-        this.sizeInBytes = new AtomicLong(0);
-        this.length = new AtomicLong(0);
+        sizeInBytes = new AtomicLong(0);
+        length = new AtomicLong(0);
         this.offerLockNanos = requestCleanupInterval.toNanos();
         this.offerTimeoutNanos = Math.max(MIN_OFFER_TIMEOUT_NANOS, requestCleanupInterval.toMillis() * NANOS_PER_MILLI * 95 / 100) ;
 
@@ -98,8 +98,8 @@ class MessageQueue {
         editLock.lock();
         try {
             queue.drainTo(target.queue);
-            target.length.set(length.get());
-            target.sizeInBytes.set(sizeInBytes.get());
+            target.length.set(length.getAndSet(0));
+            target.sizeInBytes.set(sizeInBytes.getAndSet(0));
         } finally {
             editLock.unlock();
         }
@@ -132,8 +132,8 @@ class MessageQueue {
     }
 
     boolean isDrained() {
-        // poison pill is not included in the length count, or the size
-        return this.running.get() == DRAINING && this.length.get() == 0;
+        // poison pill  and any other "mark" messages are not included in the length count, or the size
+        return this.running.get() == DRAINING && length.get() == 0;
     }
 
     boolean push(NatsMessage msg) {
@@ -165,17 +165,19 @@ class MessageQueue {
              */
             if (editLock.tryLock(offerLockNanos, TimeUnit.NANOSECONDS)) {
                 try {
-                    if (!internal && this.discardWhenFull) {
-                        return this.queue.offer(msg);
+                    // offer with no timeout returns true if the queue was not full
+                    if (!internal && discardWhenFull) {
+                        return queue.offer(msg);
                     }
 
                     long timeoutNanosLeft = Math.max(MIN_OFFER_TIMEOUT_NANOS, offerTimeoutNanos - (NatsSystemClock.nanoTime() - startNanos));
 
-                    if (!this.queue.offer(msg, timeoutNanosLeft, TimeUnit.NANOSECONDS)) {
+                    // offer with timeout
+                    if (!queue.offer(msg, timeoutNanosLeft, TimeUnit.NANOSECONDS)) {
                         throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
                     }
-                    this.sizeInBytes.getAndAdd(msg.getSizeInBytes());
-                    this.length.incrementAndGet();
+                    sizeInBytes.getAndAdd(msg.getSizeInBytes());
+                    length.incrementAndGet();
                     return true;
 
                 }
@@ -196,13 +198,20 @@ class MessageQueue {
     /**
      * poisoning the queue puts the known poison pill into the queue, forcing any waiting code to stop
      * waiting and return.
+     * This is done outside of push so it is not counted in length or size
+     * offer is used instead of add since we don't care if it fails because it was full
      */
     void poisonTheQueue() {
-        try {
-            this.queue.add(POISON_PILL);
-        } catch (IllegalStateException ie) { // queue was full, so we don't really need poison pill
-            // ok to ignore this
-        }
+        queue.offer(POISON_PILL);
+    }
+
+    /**
+     * Marking the queue, like POISON, is a message we don't want to count.
+     * Intended to only be used with an unbounded queue. Use at your own risk.
+     * @param msg the mark
+     */
+    void markTheQueue(NatsMessage msg) {
+        queue.offer(msg);
     }
 
     NatsMessage poll(Duration timeout) throws InterruptedException {
@@ -240,8 +249,8 @@ class MessageQueue {
             return null;
         }
 
-        this.sizeInBytes.getAndAdd(-msg.getSizeInBytes());
-        this.length.decrementAndGet();
+        sizeInBytes.getAndAdd(-msg.getSizeInBytes());
+        length.decrementAndGet();
 
         return msg;
     }
@@ -276,12 +285,12 @@ class MessageQueue {
         long size = msg.getSizeInBytes();
 
         if (maxMessagesToAccumulate <= 1 || size >= maxBytesToAccumulate) {
-            this.sizeInBytes.addAndGet(-size);
-            this.length.decrementAndGet();
+            sizeInBytes.addAndGet(-size);
+            length.decrementAndGet();
             return msg;
         }
 
-        long count = 1;
+        long accumulated = 1;
         NatsMessage cursor = msg;
 
         while (true) {
@@ -290,7 +299,7 @@ class MessageQueue {
                 long s = next.getSizeInBytes();
                 if (maxBytesToAccumulate < 0 || (size + s) < maxBytesToAccumulate) { // keep going
                     size += s;
-                    count++;
+                    accumulated++;
 
                     this.queue.poll(); // we need to get the message out of the queue b/c we only peeked
                     cursor.next = next;
@@ -298,7 +307,7 @@ class MessageQueue {
                         // if we are going to flush, then don't accumulate more
                         break;
                     }
-                    if (count == maxMessagesToAccumulate) {
+                    if (accumulated == maxMessagesToAccumulate) {
                         break;
                     }
                     cursor = cursor.next;
@@ -310,8 +319,8 @@ class MessageQueue {
             }
         }
 
-        this.sizeInBytes.addAndGet(-size);
-        this.length.addAndGet(-count);
+        sizeInBytes.addAndGet(-size);
+        length.addAndGet(-accumulated);
 
         return msg;
     }
@@ -322,11 +331,11 @@ class MessageQueue {
     }
 
     long length() {
-        return this.length.get();
+        return length.get();
     }
 
     long sizeInBytes() {
-        return this.sizeInBytes.get();
+        return sizeInBytes.get();
     }
 
     void filter(Predicate<NatsMessage> p) {
@@ -341,8 +350,8 @@ class MessageQueue {
                 if (!p.test(cursor)) {
                     newQueue.add(cursor);
                 } else {
-                    this.sizeInBytes.addAndGet(-cursor.getSizeInBytes());
-                    this.length.decrementAndGet();
+                    sizeInBytes.addAndGet(-cursor.getSizeInBytes());
+                    length.decrementAndGet();
                 }
                 cursor = this.queue.poll();
             }
@@ -356,8 +365,8 @@ class MessageQueue {
         editLock.lock();
         try {
             this.queue.clear();
-            this.length.set(0);
-            this.sizeInBytes.set(0);
+            length.set(0);
+            sizeInBytes.set(0);
         } finally {
             editLock.unlock();
         }
