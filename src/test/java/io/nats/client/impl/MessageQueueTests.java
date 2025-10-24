@@ -15,7 +15,6 @@ package io.nats.client.impl;
 
 import org.junit.jupiter.api.Test;
 
-import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
@@ -24,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.support.NatsConstants.OUTPUT_QUEUE_IS_FULL;
+import static io.nats.client.utils.TestBase.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class MessageQueueTests {
@@ -141,7 +141,7 @@ public class MessageQueueTests {
         int threads = 10;
 
         for (int i=0;i<threads;i++) {
-            Thread t = new Thread(() -> {q.push(new ProtocolMessage(PING));});
+            Thread t = new Thread(() -> q.push(new ProtocolMessage(PING)));
             t.start();
         }
 
@@ -168,13 +168,19 @@ public class MessageQueueTests {
 
         for (int i=0;i<threads;i++) {
             Thread t = new Thread(() -> {
-                                try{NatsMessage msg = q.pop(Duration.ofMillis(500)); 
-                                if(msg!=null){count.incrementAndGet();}
-                                latch.countDown();}catch(Exception e){}});
+                try {
+                    NatsMessage msg = q.pop(Duration.ofMillis(500));
+                    if (msg !=null ) {
+                        count.incrementAndGet();
+                    }
+                    latch.countDown();
+                }
+                catch (Exception ignored){}
+            });
             t.start();
         }
 
-        latch.await(500, TimeUnit.MILLISECONDS);
+        assertTrue(latch.await(500, TimeUnit.MILLISECONDS));
 
         assertEquals(threads, count.get());
         
@@ -193,23 +199,30 @@ public class MessageQueueTests {
 
         for (int i=0;i<threads;i++) {
             Thread t = new Thread(() -> {
-                                for (int j=0;j<msgPerThread;j++) {
-                                    q.push(new ProtocolMessage(PING));
-                                }});
+                for (int j=0;j<msgPerThread;j++) {
+                    q.push(new ProtocolMessage(PING));
+                }
+            });
             t.start();
         }
 
         for (int i=0;i<threads;i++) {
             Thread t = new Thread(() -> {
-                                for (int j=0;j<msgPerThread;j++) {
-                                    try{NatsMessage msg = q.pop(Duration.ofMillis(300)); 
-                                    if(msg!=null){count.incrementAndGet();}
-                                    latch.countDown();}catch(Exception e){}
-                                }});
+                for (int j=0;j<msgPerThread;j++) {
+                    try{
+                        NatsMessage msg = q.pop(Duration.ofMillis(300));
+                        if( msg != null) {
+                            count.incrementAndGet();
+                        }
+                        latch.countDown();
+                    }
+                    catch(Exception ignored){}
+                }
+            });
             t.start();
         }
 
-        latch.await(5, TimeUnit.SECONDS);
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
 
         assertEquals(threads * msgPerThread, count.get());
         
@@ -229,16 +242,22 @@ public class MessageQueueTests {
         // Each thread writes 1 and reads one, could be a different one
         for (int i=0;i<threads;i++) {
             Thread t = new Thread(() -> {
-                                for (int j=0;j<msgPerThread;j++) {
-                                    q.push(new ProtocolMessage(PING));
-                                    try{NatsMessage msg = q.pop(Duration.ofMillis(300)); 
-                                        if(msg!=null){count.incrementAndGet();}
-                                        latch.countDown();}catch(Exception e){}
-                                }});
+                for (int j = 0; j < msgPerThread; j++) {
+                    q.push(new ProtocolMessage(PING));
+                    try{
+                        NatsMessage msg = q.pop(Duration.ofMillis(300));
+                        if ( msg != null) {
+                            count.incrementAndGet();
+                        }
+                        latch.countDown();
+                    }
+                    catch(Exception ignored){}
+                }
+            });
             t.start();
         }
 
-        latch.await(5, TimeUnit.SECONDS);
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
 
         assertEquals(threads * msgPerThread, count.get());
         
@@ -382,7 +401,7 @@ public class MessageQueueTests {
                 for (int j=0;j<msgPerThread;j++) {
                     q.push(new ProtocolMessage(PING));
                     sent.incrementAndGet();
-                };
+                }
             });
             t.start();
         }
@@ -396,7 +415,7 @@ public class MessageQueueTests {
                 msg = msg.next;
             }
             tries--;
-            Thread.sleep(1);
+            sleep(1);
         }
 
         assertEquals(msgCount, sent.get());
@@ -410,7 +429,7 @@ public class MessageQueueTests {
     public void testInteruptAccumulate() throws InterruptedException {
         // Possible flaky test, since we can't be sure of thread timing
         MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
-        Thread t = new Thread(() -> {try {Thread.sleep(100);}catch(Exception e){} q.pause();});
+        Thread t = new Thread(() -> {try {Thread.sleep(100);}catch(Exception ignored){} q.pause();});
         t.start();
         NatsMessage msg = q.accumulate(100,100, Duration.ZERO);
         assertNull(msg);
@@ -492,7 +511,7 @@ public class MessageQueueTests {
     }
 
     @Test
-    public void testDrainTo() throws InterruptedException {
+    public void testDrainTo() {
         MessageQueue q1 = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
 
         String subject = "subj";
@@ -524,10 +543,12 @@ public class MessageQueueTests {
         q1.drainTo(q2);
         assertEquals(3, q2.length());
         assertEquals(expected, q2.sizeInBytes());
+        assertEquals(0, q1.length());
+        assertEquals(0, q1.sizeInBytes());
     }
 
     @Test
-    public void testFilterTail() throws InterruptedException, UnsupportedEncodingException {
+    public void testFilterTail() throws InterruptedException {
         MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         NatsMessage msg1 = new ProtocolMessage(ONE);
         NatsMessage msg2 = new ProtocolMessage(TWO);
@@ -540,7 +561,7 @@ public class MessageQueueTests {
 
         long before = q.sizeInBytes();
         q.pause();
-        q.filter((msg) -> {return Arrays.equals(expected, msg.getProtocolBytes());});
+        q.filter((msg) -> Arrays.equals(expected, msg.getProtocolBytes()));
         q.resume();
         long after = q.sizeInBytes();
 
@@ -551,7 +572,7 @@ public class MessageQueueTests {
     }
 
     @Test
-    public void testFilterHead() throws InterruptedException, UnsupportedEncodingException {
+    public void testFilterHead() throws InterruptedException {
         MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         NatsMessage msg1 = new ProtocolMessage(ONE);
         NatsMessage msg2 = new ProtocolMessage(TWO);
@@ -564,7 +585,7 @@ public class MessageQueueTests {
 
         long before = q.sizeInBytes();
         q.pause();
-        q.filter((msg) -> {return Arrays.equals(expected, msg.getProtocolBytes());});
+        q.filter((msg) -> Arrays.equals(expected, msg.getProtocolBytes()));
         q.resume();
         long after = q.sizeInBytes();
 
@@ -575,7 +596,7 @@ public class MessageQueueTests {
     }
 
     @Test
-    public void testFilterMiddle() throws InterruptedException, UnsupportedEncodingException {
+    public void testFilterMiddle() throws InterruptedException {
         MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         NatsMessage msg1 = new ProtocolMessage(ONE);
         NatsMessage msg2 = new ProtocolMessage(TWO);
@@ -588,7 +609,7 @@ public class MessageQueueTests {
 
         long before = q.sizeInBytes();
         q.pause();
-        q.filter((msg) -> {return Arrays.equals(expected, msg.getProtocolBytes());});
+        q.filter((msg) -> Arrays.equals(expected, msg.getProtocolBytes()));
         q.resume();
         long after = q.sizeInBytes();
 

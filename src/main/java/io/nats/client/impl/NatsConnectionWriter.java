@@ -237,7 +237,7 @@ class NatsConnectionWriter implements Runnable {
     }
 
     void enterWaitingForEndReconnectMode() {
-        reconnectOutgoing.push(END_RECONNECT);
+        reconnectOutgoing.markTheQueue(END_RECONNECT);
         mode.set(Mode.WaitingForEndReconnect);
     }
 
