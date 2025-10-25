@@ -15,7 +15,6 @@ package io.nats.client.impl;
 
 import io.nats.client.Options;
 import io.nats.client.StatisticsCollector;
-import io.nats.client.WriteListener;
 import io.nats.client.support.ByteArrayBuilder;
 
 import java.io.IOException;
@@ -34,7 +33,7 @@ import static io.nats.client.support.BuilderBase.bufferAllocSize;
 import static io.nats.client.support.NatsConstants.*;
 
 class NatsConnectionWriter implements Runnable {
-    enum Mode {
+    public enum Mode {
         Normal, Reconnect, WaitingForEndReconnect
     }
     private static final int BUFFER_BLOCK_SIZE = 256;
@@ -179,7 +178,7 @@ class NatsConnectionWriter implements Runnable {
                 stats.incrementOut(size);
                 if (writeListener != null) {
                     NatsMessage finalMsg = msg;
-                    writeListener.submit(() -> writeListener.buffered(finalMsg));
+                    writeListener.submit(() -> writeListener.buffered(finalMsg, mode.get()));
                 }
 
                 if (msg.flushImmediatelyAfterPublish) {

@@ -11,9 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client;
+package io.nats.client.impl;
 
-import io.nats.client.impl.NatsMessage;
 import org.jspecify.annotations.Nullable;
 
 import java.util.concurrent.ExecutorService;
@@ -36,5 +35,5 @@ public abstract class WriteListener {
         executorService.submit(runnable);
     }
 
-    public abstract void buffered(NatsMessage msg);
+    public abstract void buffered(NatsMessage msg, NatsConnectionWriter.Mode mode);
 }
