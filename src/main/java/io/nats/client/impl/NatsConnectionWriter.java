@@ -20,10 +20,7 @@ import io.nats.client.support.ByteArrayBuilder;
 import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.time.Duration;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -177,8 +174,7 @@ class NatsConnectionWriter implements Runnable {
 
                 stats.incrementOut(size);
                 if (writeListener != null) {
-                    NatsMessage finalMsg = msg;
-                    writeListener.submit(() -> writeListener.buffered(finalMsg, mode.get().name()));
+                    writeListener.buffered(msg, mode.get().name());
                 }
 
                 if (msg.flushImmediatelyAfterPublish) {
@@ -206,7 +202,12 @@ class NatsConnectionWriter implements Runnable {
         try {
             dataPort = this.dataPortFuture.get(); // Will wait for the future to complete
             StatisticsCollector stats = connection.getStatisticsCollector();
-            WriteListener writeListener = connection.getOptions().getWriteListener();
+            WriteListener writeListener = null;
+            WriteListener userWriteListener = connection.getOptions().getWriteListener();
+            if (userWriteListener != null) {
+                ExecutorService executor = connection.getOptions().getExecutor();
+                writeListener = (m, o) -> executor.submit(() -> userWriteListener.buffered(m, o));
+            }
 
             while (running.get() && !Thread.interrupted()) {
                 NatsMessage msg;

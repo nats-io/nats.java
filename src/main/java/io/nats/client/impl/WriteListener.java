@@ -14,27 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.Message;
-import org.jspecify.annotations.Nullable;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-public abstract class WriteListener {
-    public final ExecutorService executorService;
-
-    public WriteListener() {
-        this(null);
-    }
-
-    public WriteListener(@Nullable ExecutorService executorService) {
-        this.executorService = executorService == null
-            ? Executors.newSingleThreadExecutor()
-            : executorService;
-    }
-
-    public final void submit(Runnable runnable) {
-        executorService.submit(runnable);
-    }
-
-    public abstract void buffered(Message msg, String mode);
+public interface WriteListener {
+    void buffered(Message msg, String mode);
 }
