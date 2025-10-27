@@ -178,7 +178,7 @@ class NatsConnectionWriter implements Runnable {
                 stats.incrementOut(size);
                 if (writeListener != null) {
                     NatsMessage finalMsg = msg;
-                    writeListener.submit(() -> writeListener.buffered(finalMsg, mode.get()));
+                    writeListener.submit(() -> writeListener.buffered(finalMsg, mode.get().name()));
                 }
 
                 if (msg.flushImmediatelyAfterPublish) {

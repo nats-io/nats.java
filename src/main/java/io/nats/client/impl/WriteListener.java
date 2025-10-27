@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.Message;
 import org.jspecify.annotations.Nullable;
 
 import java.util.concurrent.ExecutorService;
@@ -35,5 +36,5 @@ public abstract class WriteListener {
         executorService.submit(runnable);
     }
 
-    public abstract void buffered(NatsMessage msg, NatsConnectionWriter.Mode mode);
+    public abstract void buffered(Message msg, String mode);
 }
