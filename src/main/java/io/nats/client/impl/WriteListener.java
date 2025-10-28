@@ -15,6 +15,24 @@ package io.nats.client.impl;
 
 import io.nats.client.Message;
 
-public interface WriteListener {
-    void buffered(Message msg, String mode);
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+public abstract class WriteListener implements AutoCloseable {
+    public final ExecutorService executorService;
+
+    public WriteListener() {
+        executorService = Executors.newSingleThreadExecutor();
+    }
+
+    final void accept(Message msg, String mode) {
+        executorService.submit(() -> buffered(msg, mode));
+    }
+
+    public abstract void buffered(Message msg, String mode);
+
+    @Override
+    public void close() throws Exception {
+        executorService.shutdown();
+    }
 }
