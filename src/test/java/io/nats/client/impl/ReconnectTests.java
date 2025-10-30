@@ -818,19 +818,19 @@ public class ReconnectTests {
                 ForceReconnectQueueCheckDataPort.DELAY = 75;
 
                 String subject = subject();
-                ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
+                ForceReconnectQueueCheckDataPort.setCheck("PUB " + subject);
                 _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, false, 0);
 
                 subject = subject();
-                ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
+                ForceReconnectQueueCheckDataPort.setCheck("PUB " + subject);
                 _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, false, flushWait);
 
                 subject = subject();
-                ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
+                ForceReconnectQueueCheckDataPort.setCheck("PUB " + subject);
                 _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, true, 0);
 
                 subject = subject();
-                ForceReconnectQueueCheckDataPort.WRITE_CHECK = "PUB " + subject;
+                ForceReconnectQueueCheckDataPort.setCheck("PUB " + subject);
                 _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, true, flushWait);
             }
         });
@@ -972,7 +972,7 @@ public class ReconnectTests {
                 try {
                     nc.publish(subject, ("" + pubId.incrementAndGet()).getBytes());
                     if (pubId.get() == 10) {
-                        SocketDataPortBlockSimulator.SIMULATE_SOCKET_BLOCK.set(60000);
+                        SocketDataPortBlockSimulator.simulateBlock();
                     }
                 }
                 catch (Exception e) {
