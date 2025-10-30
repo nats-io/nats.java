@@ -29,24 +29,15 @@ class ProtocolMessage extends NatsPublishableMessage {
     }
 
     ProtocolMessage(byte[] protocol) {
-        super(false);
-        protocolBab = new ByteArrayBuilder(protocol);
-        sizeInBytes = controlLineLength = protocolBab.length() + 2; // CRLF, protocol doesn't have data
-        this.filterOnStop = true;
+        this(new ByteArrayBuilder(protocol), true);
     }
 
     ProtocolMessage(byte[] protocol, boolean filterOnStop) {
-        super(false);
-        protocolBab = new ByteArrayBuilder(protocol);
-        sizeInBytes = controlLineLength = protocolBab.length() + 2; // CRLF, protocol doesn't have data
-        this.filterOnStop = filterOnStop;
+        this(new ByteArrayBuilder(protocol), filterOnStop);
     }
 
     ProtocolMessage(ProtocolMessage pm) {
-        super(false);
-        protocolBab = pm.protocolBab;
-        sizeInBytes = controlLineLength = pm.sizeInBytes;
-        filterOnStop = pm.filterOnStop;
+        this(pm.protocolBab, pm.filterOnStop);
     }
 
     @Override
