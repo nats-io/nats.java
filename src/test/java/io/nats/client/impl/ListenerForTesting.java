@@ -14,8 +14,10 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.Status;
 
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -291,8 +293,14 @@ public class ListenerForTesting implements ErrorListener, ConnectionListener {
         }
     }
 
+    public static final DateTimeFormatter SIMPLE_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
+
+    public static String simpleTime() {
+        return SIMPLE_TIME_FORMATTER.format(DateTimeUtils.gmtNow());
+    }
+
     private void report(String func, Object message) {
-        System.out.println("[" + System.currentTimeMillis() + " ListenerForTesting." + func + "] " + message);
+        System.out.println("[" + simpleTime() + " ListenerForTesting." + func + "] " + message);
     }
 
     private final ReentrantLock listLock = new ReentrantLock();
