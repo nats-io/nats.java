@@ -16,7 +16,6 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.api.ServerInfo;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 
@@ -806,7 +805,6 @@ public class ReconnectTests {
     }
 
     @Test
-    @Disabled("TODO FIGURE THIS OUT")
     public void testForceReconnectQueueBehaviorCheck() throws Exception {
         runInJsCluster((nc0, nc1, nc2) -> {
             if (atLeast2_9_0(nc0)) {
