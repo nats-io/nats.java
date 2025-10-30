@@ -74,7 +74,12 @@ public class SocketDataPortBlockSimulator extends SocketDataPort {
             });
     }
 
-    public static AtomicLong SIMULATE_SOCKET_BLOCK = new AtomicLong();
+    private static final AtomicLong SIMULATE_SOCKET_BLOCK = new AtomicLong();
+
+    public static void simulateBlock() {
+        SIMULATE_SOCKET_BLOCK.set(60000);
+    }
+
     AtomicLong blocking = new AtomicLong();
     public void write(byte[] src, int toWrite) throws IOException {
         try {
@@ -87,6 +92,7 @@ public class SocketDataPortBlockSimulator extends SocketDataPort {
                     blocking.addAndGet(-100);
                 }
                 catch (InterruptedException ignore) {
+                    Thread.currentThread().interrupt();
                     return;
                 }
             }
