@@ -90,14 +90,12 @@ public class ConsumerInfoTests {
         PriorityGroupState pgs = ci.getPriorityGroupStates().get(0);
         assertEquals("group1", pgs.getGroup());
 
-// TODO - PINNED CONSUMER SUPPORT
-//        assertEquals("pci1", pgs.getPinnedClientId());
-//        assertEquals(DateTimeUtils.parseDateTime("2025-09-24T16:01:01.163377Z"), pgs.getPinnedTime());
+        assertEquals("pci1", pgs.getPinnedClientId());
+        assertEquals(DateTimeUtils.parseDateTime("2025-09-24T16:01:01.163377Z"), pgs.getPinnedTime());
         pgs = ci.getPriorityGroupStates().get(1);
         assertEquals("group2", pgs.getGroup());
-// TODO - PINNED CONSUMER SUPPORT
-//        assertEquals("pci2", pgs.getPinnedClientId());
-//        assertEquals(DateTimeUtils.parseDateTime("2025-09-24T16:02:02.163377Z"), pgs.getPinnedTime());
+        assertEquals("pci2", pgs.getPinnedClientId());
+        assertEquals(DateTimeUtils.parseDateTime("2025-09-24T16:02:02.163377Z"), pgs.getPinnedTime());
 
         assertNotNull(pgs.toString()); // COVERAGE
 

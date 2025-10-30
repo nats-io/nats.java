@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.JetStreamApiException;
 import io.nats.client.MessageConsumer;
+import io.nats.client.PullRequestOptions;
 import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
@@ -139,18 +140,17 @@ class NatsMessageConsumerBase implements MessageConsumer {
         }
     }
 
-// TODO - PINNED CONSUMER SUPPORT
-//    static class PinnablePullRequestOptions extends PullRequestOptions {
-//        final String pinId;
-//
-//        public PinnablePullRequestOptions(String pinId, Builder b) {
-//            super(b);
-//            this.pinId = pinId;
-//        }
-//
-//        @Override
-//        protected String getPinId() {
-//            return pinId;
-//        }
-//    }
+    static class PinnablePullRequestOptions extends PullRequestOptions {
+        final String pinId;
+
+        public PinnablePullRequestOptions(String pinId, Builder b) {
+            super(b);
+            this.pinId = pinId;
+        }
+
+        @Override
+        protected String getPinId() {
+            return pinId;
+        }
+    }
 }

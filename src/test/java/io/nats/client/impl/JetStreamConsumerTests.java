@@ -412,7 +412,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
 
     @Test
     public void testRaiseStatusWarnings1194() throws Exception {
-        ListenerForTesting listenerForTesting = new ListenerForTesting(true, true);
+        ListenerForTesting listenerForTesting = new ListenerForTesting(false, false);
         runInJsServer(listenerForTesting, nc -> {
             // Setup
             JetStreamManagement jsm = nc.jetStreamManagement();

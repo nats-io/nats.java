@@ -97,16 +97,14 @@ abstract class MessageManager {
             NatsJetStreamMetaData meta = msg.metaData();
             lastStreamSeq = meta.streamSequence();
             lastConsumerSeq++;
-// TODO - PINNED CONSUMER SUPPORT
-//            subTrackJsMessage(msg); // for subclasses so they don't have to acquire the lock
+            subTrackJsMessage(msg); // for subclasses so they don't have to acquire the lock
         }
         finally {
             stateChangeLock.unlock();
         }
     }
 
-// TODO - PINNED CONSUMER SUPPORT
-//    protected void subTrackJsMessage(Message msg) {}
+    protected void subTrackJsMessage(Message msg) {}
 
     protected void handleHeartbeatError() {
         conn.executeCallback((c, el) -> el.heartbeatAlarm(c, sub, lastStreamSeq, lastConsumerSeq));

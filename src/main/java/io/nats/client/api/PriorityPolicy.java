@@ -24,10 +24,8 @@ import java.util.Map;
 public enum PriorityPolicy {
     None("none"),
     Overflow("overflow"),
-    Prioritized("prioritized");
-
-// TODO - PINNED CONSUMER SUPPORT
-//    PinnedClient("pinned_client")
+    Prioritized("prioritized"),
+    PinnedClient("pinned_client");
 
     private final String policy;
 
