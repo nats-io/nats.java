@@ -74,7 +74,10 @@ public class SocketDataPort implements DataPort {
                 socket = connectToFastestIp(options, host, port, (int) timeout);
             } else {
                 socket = createSocket(options);
-                socket.connect(new InetSocketAddress(host, port), (int) timeout);
+                boolean shouldCreateUnresolvedInetAddress = (options.isNoResolveHostnames() && !nuri.hostIsIpAddress() && (options.getProxy() != null));
+                InetSocketAddress inetSocketAddress = shouldCreateUnresolvedInetAddress ?
+                        InetSocketAddress.createUnresolved(host, port) : new InetSocketAddress(host, port);
+                socket.connect(inetSocketAddress, (int) timeout);
             }
 
             if (options.getSocketReadTimeoutMillis() > 0) {
