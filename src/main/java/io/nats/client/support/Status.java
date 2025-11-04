@@ -38,9 +38,8 @@ public class Status {
     public static final int CONFLICT_CODE = 409;
     public static final int EOB_CODE = 204;
 
-// TODO - PINNED CONSUMER SUPPORT
-//    public static final int PIN_ERROR_CODE = 423;
-//    public static final byte[] PIN_ERROR_CODE_BYTES = ("" + PIN_ERROR_CODE).getBytes(ISO_8859_1);
+    public static final int PIN_ERROR_CODE = 423;
+    public static final byte[] PIN_ERROR_CODE_BYTES = ("" + PIN_ERROR_CODE).getBytes(ISO_8859_1);
 
     public static final String BAD_REQUEST                    = "Bad Request"; // 400
     public static final String NO_MESSAGES                    = "No Messages"; // 404

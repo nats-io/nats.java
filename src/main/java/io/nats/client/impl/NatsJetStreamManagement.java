@@ -362,20 +362,19 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
         return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
     }
 
-// TODO - PINNED CONSUMER SUPPORT
-//    /**
-//     * {@inheritDoc}
-//     */
-//    @Override
-//    public boolean unpinConsumer(String streamName, String consumerName, String consumerGroup) throws IOException, JetStreamApiException {
-//        validateNotNull(streamName, "Stream Name");
-//        validateNotNull(consumerName, "Consumer Name");
-//        validateNotNull(consumerGroup, "Consumer Group");
-//        String subj = String.format(JSAPI_CONSUMER_UNPIN, streamName, consumerName);
-//        byte[] payload = String.format("{\"group\": \"%s\"}", consumerGroup).getBytes();
-//        Message resp = makeRequestResponseRequired(subj, payload, getTimeout());
-//        return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
-//    }
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean unpinConsumer(String streamName, String consumerName, String consumerGroup) throws IOException, JetStreamApiException {
+        validateNotNull(streamName, "Stream Name");
+        validateNotNull(consumerName, "Consumer Name");
+        validateNotNull(consumerGroup, "Consumer Group");
+        String subj = String.format(JSAPI_CONSUMER_UNPIN, streamName, consumerName);
+        byte[] payload = String.format("{\"group\": \"%s\"}", consumerGroup).getBytes();
+        Message resp = makeRequestResponseRequired(subj, payload, getTimeout());
+        return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
+    }
 
     /**
      * {@inheritDoc}
