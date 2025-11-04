@@ -160,9 +160,8 @@ public class NatsOrderedConsumerContext implements OrderedConsumerContext {
         return impl.consume(consumeOptions, dispatcher, handler);
     }
 
-// TODO - PINNED CONSUMER SUPPORT
-//    @Override
-//    public boolean unpin(String group) throws IOException, JetStreamApiException {
-//        return impl.unpin(group);
-//    }
+    @Override
+    public boolean unpin(String group) throws IOException, JetStreamApiException {
+        return impl.unpin(group);
+    }
 }
