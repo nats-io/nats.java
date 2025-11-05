@@ -137,7 +137,7 @@ public class SocketDataPortProxyHostnameTest extends TestBase {
      * This allows proxies with domain whitelisting to work correctly.
      */
     @Test
-    public void testProxyReceivesDomainNameWithNoResolveHostnames() throws Exception {
+    public void testProxyReceivesDomainNameWithEnableInetAddressCreateUnresolved() throws Exception {
         testProxyHostnameResolution(
             true,  // enableNoResolveHostnames
             "nats://localhost:4222",
@@ -146,15 +146,15 @@ public class SocketDataPortProxyHostnameTest extends TestBase {
     }
 
     /**
-     * Test that WITHOUT noResolveHostnames(), the proxy receives an IP address instead
+     * Test that WITHOUT isEnableInetAddressCreateUnresolved(), the proxy receives an IP address instead
      * of the domain name. This demonstrates the bug that was fixed.
      *
-     * When noResolveHostnames() is NOT set and a proxy is configured, the hostname
+     * When isEnableInetAddressCreateUnresolved() is NOT set and a proxy is configured, the hostname
      * gets resolved to an IP address before being sent to the proxy. This breaks
      * proxies with domain name whitelisting.
      */
     @Test
-    public void testProxyReceivesIpAddressWithoutNoResolveHostnames() throws Exception {
+    public void testProxyReceivesIpAddressWithoutEnableInetAddressCreateUnresolved() throws Exception {
         testProxyHostnameResolution(
             false, // disableNoResolveHostnames
             "nats://localhost:4222",
@@ -165,11 +165,11 @@ public class SocketDataPortProxyHostnameTest extends TestBase {
     /**
      * Helper method to test proxy hostname resolution behavior.
      *
-     * @param useNoResolveHostnames Whether to enable noResolveHostnames() option
+     * @param useEnableInetAddressCreateUnresolved Whether to enable isEnableInetAddressCreateUnresolved() option
      * @param targetUri The URI to connect to
      * @param expectIpAddress True if expecting proxy to receive an IP, false for hostname
      */
-    private void testProxyHostnameResolution(boolean useNoResolveHostnames, String targetUri,
+    private void testProxyHostnameResolution(boolean useEnableInetAddressCreateUnresolved, String targetUri,
                                             boolean expectIpAddress)
             throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(3);
@@ -182,8 +182,8 @@ public class SocketDataPortProxyHostnameTest extends TestBase {
                 .proxy(new Proxy(Proxy.Type.HTTP, new InetSocketAddress("localhost", proxyServer.getPort())))
                 .noReconnect();
 
-            if (useNoResolveHostnames) {
-                optionsBuilder.noResolveHostnames();
+            if (useEnableInetAddressCreateUnresolved) {
+                optionsBuilder.enableInetAddressCreateUnresolved();
             }
 
             Options options = optionsBuilder.build();
