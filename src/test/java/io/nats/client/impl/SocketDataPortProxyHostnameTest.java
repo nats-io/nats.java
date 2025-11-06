@@ -98,7 +98,9 @@ public class SocketDataPortProxyHostnameTest extends TestBase {
                     }
 
                     // Send 200 OK response
-                    out.write("HTTP/1.0 200 Connection established\r\n\r\n".getBytes());
+                    out.write("HTTP/1.1 200 Connection Established\r\n".getBytes());
+                    out.write("Content-Length: 0\r\n".getBytes());
+                    out.write("\r\n".getBytes());
                     out.flush();
 
                     // Keep the connection open for a bit so the client can use it
