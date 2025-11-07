@@ -104,7 +104,7 @@ public class SocketDataPortProxyHostnameTest extends TestBase {
                     out.flush();
 
                     // Keep the connection open for a bit so the client can use it
-                    Thread.sleep(100);
+                    Thread.sleep(1000);
                 }
             } catch (IOException | InterruptedException e) {
                 // Connection closed or error
