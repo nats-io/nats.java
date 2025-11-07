@@ -22,8 +22,11 @@ import java.util.logging.Level;
 
 public class NatsTestServer extends NatsServerRunner {
     static {
+        NatsTestServer.quiet();
         NatsServerRunner.setDefaultOutputSupplier(ConsoleOutput::new);
-        quiet();
+        NatsServerRunner.setDefaultValidateTries(5);
+        NatsServerRunner.setDefaultInitialValidateDelay(100);
+        NatsServerRunner.setDefaultSubsequentValidateDelay(50);
     }
 
     public static void quiet() {

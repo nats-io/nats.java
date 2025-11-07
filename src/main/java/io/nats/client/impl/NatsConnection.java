@@ -1920,8 +1920,8 @@ class NatsConnection implements Connection {
         this.lastError.set(errorText);
         this.connectError.set(errorText); // even if this isn't during connection, save it just in case
 
-        // If we are connected && we get an authentication error, save it
-        if (this.isConnected() && this.isAuthenticationError(errorText) && currentServer != null) {
+        // If we get an authentication error, save it
+        if (this.isAuthenticationError(errorText) && currentServer != null) {
             this.serverAuthErrors.put(currentServer, errorText);
         }
 
