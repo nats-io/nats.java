@@ -96,7 +96,11 @@ public class TLSConnectTests {
     @Test
     public void testSimpleTlsFirstConnection() throws Exception {
         if (TestBase.atLeast2_10_3(ensureRunServerInfo())) {
-            try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls_first.conf", false)) {
+            try (NatsTestServer ts = new NatsTestServer(
+                NatsTestServer.builder()
+                    .configFilePath("src/test/resources/tls_first.conf")
+                    .connectValidateTlsFirstMode())
+            ) {
                 String servers = ts.getURI();
                 Options options = new Options.Builder()
                     .server(servers)
@@ -444,11 +448,15 @@ public class TLSConnectTests {
         5. client regular secure | secure proxy | server tls required  -> connects
         6. client regular secure | secure proxy | server tls available -> connects
     */
-
     @Test
     public void testProxyTlsFirst() throws Exception {
         if (TestBase.atLeast2_10_3(ensureRunServerInfo())) {
-            try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls_first.conf", false)) {
+            // cannot check connect b/c tls first
+            try (NatsTestServer ts = new NatsTestServer(
+                NatsTestServer.builder()
+                    .configFilePath("src/test/resources/tls_first.conf")
+                    .connectValidateTlsFirstMode())
+            ) {
                 // 1. client tls first | secure proxy | server insecure -> connects
                 ProxyConnection connTI = new ProxyConnection(ts.getURI(), true, null, SERVER_INSECURE);
                 connTI.connect(false);

@@ -52,7 +52,9 @@ public class JetStreamTestBase extends TestBase {
 
     @AfterAll
     public static void afterAll() throws Exception {
-        jsServer.close();
+        if (jsServer != null) {
+            jsServer.close();
+        }
     }
 
     public static final Duration DEFAULT_TIMEOUT = Duration.ofMillis(1000);
