@@ -602,9 +602,10 @@ public class OptionsTests {
         assertNotNull(o.getErrorListener(), "property error listener");
 
         o.getErrorListener().errorOccurred(null, "bad subject");
-        assertEquals(((ListenerForTesting) o.getErrorListener()).getCount(), 1, "property error listener class");
+        assertEquals(1, ((ListenerForTesting) o.getErrorListener()).getCount(), "property error listener class");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testPropertyConnectionListeners() {
         Properties props = new Properties();
@@ -618,7 +619,7 @@ public class OptionsTests {
         o.getConnectionListener().connectionEvent(null, Events.RECONNECTED);
         o.getConnectionListener().connectionEvent(null, Events.CLOSED);
 
-        assertEquals(((ListenerForTesting) o.getConnectionListener()).getCount(), 3, "property connect listener class");
+        assertEquals(3, ((ListenerForTesting) o.getConnectionListener()).getCount(), "property connect listener class");
     }
 
     @Test
