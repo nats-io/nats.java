@@ -49,7 +49,7 @@ public class PurgeResponse extends ApiResponse<PurgeResponse> {
      */
     @Deprecated
     public int getPurgedCount() {
-        return new Long(purged).intValue();
+        return Long.valueOf(purged).intValue();
     }
 
     /**
