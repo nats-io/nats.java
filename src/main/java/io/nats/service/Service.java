@@ -39,9 +39,21 @@ import static io.nats.client.support.Validator.nullOrEmpty;
  * When multiple instances of a service endpoints are active they work in a queue, meaning only one listener responds to any given request.
  */
 public class Service {
+    /**
+     * Constant for the PING service
+     */
     public static final String SRV_PING = "PING";
+    /**
+     * Constant for the INFO service
+     */
     public static final String SRV_INFO = "INFO";
+    /**
+     * Constant for the STATS service
+     */
     public static final String SRV_STATS = "STATS";
+    /**
+     * Constant of the service prefix
+     */
     public static final String DEFAULT_SERVICE_PREFIX = "$SRV.";
 
     private final Connection conn;

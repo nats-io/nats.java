@@ -55,6 +55,10 @@ public class Placement implements JsonSerializable {
         this.tags = tags == null || tags.isEmpty() ? null : tags;
     }
 
+    /**
+     * Whether the Placement has either a cluster or tags
+     * @return true if the Placement has data
+     */
     public boolean hasData() {
         return cluster != null || tags != null;
     }
@@ -108,6 +112,11 @@ public class Placement implements JsonSerializable {
     public static class Builder {
         private String cluster;
         private List<String> tags;
+
+        /**
+         * Construct a builder for Placement
+         */
+        public Builder() {}
 
         /**
          * Set the cluster string.

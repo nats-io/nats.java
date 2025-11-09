@@ -137,6 +137,11 @@ public class ServiceEndpoint {
         private Endpoint.Builder endpointBuilder = Endpoint.builder();
 
         /**
+         * Construct an instance of the builder
+         */
+        public Builder() {}
+
+        /**
          * Set the {@link Group} for this ServiceEndpoint
          * @param group the group
          * @return the ServiceEndpoint.Builder

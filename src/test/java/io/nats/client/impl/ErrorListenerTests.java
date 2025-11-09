@@ -417,7 +417,7 @@ public class ErrorListenerTests {
         _cover(new ReaderListenerConsoleImpl());
         _cover(new ReadListener() {
             @Override
-            public void protocol(String op, String string) {
+            public void protocol(String op, String text) {
             }
 
             @Override

@@ -56,11 +56,19 @@ public class ObjectLink implements JsonSerializable {
         return endJson(sb).toString();
     }
 
+    /**
+     * Get the bucket the linked object is in
+     * @return the bucket name
+     */
     @NonNull
     public String getBucket() {
         return bucket;
     }
 
+    /**
+     * Get the name of the object for the link
+     * @return the object name
+     */
     @Nullable
     public String getObjectName() {
         return objectName;

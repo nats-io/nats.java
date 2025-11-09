@@ -37,6 +37,10 @@ public class PullRequestOptions implements JsonSerializable {
     private final long minPending;
     private final long minAckPending;
 
+    /**
+     * Construct PullRequestOptions from the builder
+     * @param b the builder
+     */
     public PullRequestOptions(Builder b) {
         this.batchSize = b.batchSize;
         this.maxBytes = b.maxBytes;
@@ -110,16 +114,32 @@ public class PullRequestOptions implements JsonSerializable {
         return idleHeartbeat;
     }
 
+    /**
+     * Get the group option
+     * @return the group
+     */
     public String getGroup() {
         return group;
     }
 
+    /**
+     * Get the priority
+     * @return the priority
+     */
     public int getPriority() { return priority; }
 
+    /**
+     * Get the min pending setting
+     * @return the min pending
+     */
     public long getMinPending() {
         return minPending;
     }
 
+    /**
+     * Get the min ack pending setting
+     * @return the min ack setting
+     */
     public long getMinAckPending() {
         return minAckPending;
     }
@@ -142,6 +162,9 @@ public class PullRequestOptions implements JsonSerializable {
         return new Builder().batchSize(batchSize).noWait();
     }
 
+    /**
+     * The builder for PullRequestOptions
+     */
     public static class Builder {
         private int batchSize;
         private long maxBytes;
@@ -152,6 +175,11 @@ public class PullRequestOptions implements JsonSerializable {
         private int priority;
         private long minPending = -1;
         private long minAckPending = -1;
+
+        /**
+         * Construct an instance of the builder
+         */
+        public Builder() {}
 
         /**
          * Set the batch size for the pull

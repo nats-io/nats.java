@@ -24,7 +24,14 @@ public class JetStreamStatusException extends IllegalStateException {
      */
     public static final String DEFAULT_DESCRIPTION = "Unknown or unprocessed status message";
 
+    /**
+     * The subscription that this exception occured on
+     */
     private final JetStreamSubscription sub;
+
+    /**
+     * The status object
+     */
     private final Status status;
 
     /**

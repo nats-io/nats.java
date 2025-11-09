@@ -22,6 +22,9 @@ import org.jspecify.annotations.NonNull;
  * related to JetStream.
  */
 public class JetStreamApiException extends Exception {
+    /**
+     * The error that this exception represents if there is one
+     */
     private final Error error;
 
     /**

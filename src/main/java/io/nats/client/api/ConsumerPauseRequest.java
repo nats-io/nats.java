@@ -27,6 +27,10 @@ import static io.nats.client.support.JsonUtils.*;
 public class ConsumerPauseRequest implements JsonSerializable {
     private final ZonedDateTime pauseUntil;
 
+    /**
+     * Construct a consumer pause request with the time requested to pause
+     * @param pauseUntil the time
+     */
     public ConsumerPauseRequest(ZonedDateTime pauseUntil) {
         this.pauseUntil = pauseUntil;
     }

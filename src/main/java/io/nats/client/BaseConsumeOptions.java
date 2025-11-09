@@ -31,12 +31,19 @@ import static io.nats.client.support.JsonValueUtils.readLong;
  * fetch operate. It is the base class for ConsumeOptions and FetchConsumeOptions.
  */
 public class BaseConsumeOptions implements JsonSerializable {
+    /** constant for default message count */
     public static final int DEFAULT_MESSAGE_COUNT = 500;
+    /** constant for default message count when bytes */
     public static final int DEFAULT_MESSAGE_COUNT_WHEN_BYTES = 1_000_000;
+    /** constant for default threshold percent */
     public static final int DEFAULT_THRESHOLD_PERCENT = 25;
+    /** constant for default expires in millis */
     public static final long DEFAULT_EXPIRES_IN_MILLIS = 30000;
+    /** constant for min expires mills */
     public static final long MIN_EXPIRES_MILLS = 1000;
+    /** constant for max heartbeat millis */
     public static final long MAX_HEARTBEAT_MILLIS = 30000;
+    /** constant for max idle heartbeat percent */
     public static final int MAX_IDLE_HEARTBEAT_PERCENT = 50;
 
     protected final int messages;

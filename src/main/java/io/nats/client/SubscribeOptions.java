@@ -25,6 +25,9 @@ import static io.nats.client.support.Validator.*;
  * The SubscribeOptions is the base class for PushSubscribeOptions and PullSubscribeOptions
  */
 public abstract class SubscribeOptions {
+    /**
+     * Constant for the default ordered heartbeat time in milliseconds
+     */
     public static final long DEFAULT_ORDERED_HEARTBEAT = 5000;
 
     protected final String stream;

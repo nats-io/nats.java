@@ -84,34 +84,62 @@ public class ObjectInfo implements JsonSerializable {
         return endJson(sb).toString();
     }
 
+    /**
+     * the bucket name
+     * @return the name
+     */
     @NonNull
     public String getBucket() {
         return bucket;
     }
 
+    /**
+     * the bucket nuid
+     * @return the nuid
+     */
     @Nullable
     public String getNuid() {
         return nuid;
     }
 
+    /**
+     * The size of the object
+     * @return the size in bytes
+     */
     public long getSize() {
         return size;
     }
 
+    /**
+     * When the object was last modified
+     * @return the last modified date
+     */
     @Nullable
     public ZonedDateTime getModified() {
         return modified;
     }
 
+    /**
+     * The total number of chunks in the object
+     * @return the number of chunks
+     */
     public long getChunks() {
         return chunks;
     }
 
+    /**
+     * The digest string for the object
+     * @return the digest
+     */
     @Nullable
     public String getDigest() {
         return digest;
     }
 
+    /**
+     * Whether the object is deleted
+     * @return the deleted state
+     */
     public boolean isDeleted() {
         return deleted;
     }

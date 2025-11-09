@@ -18,6 +18,9 @@ import io.nats.client.support.JsonValueUtils;
 
 import java.util.List;
 
+/**
+ * Replica Peer Info
+ */
 public class Replica extends PeerInfo {
 
     static List<Replica> optionalListOf(JsonValue vReplicas) {
