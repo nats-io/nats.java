@@ -56,7 +56,7 @@ public class JsonParser {
      * Parse JSON from a char array
      * @param json the JSON
      * @return the JsonValue
-     * @throws JsonParseException if there is a problem parsing
+     * @throws JsonParseException if there is a problem parsing the json
      */
     @NonNull
     public static JsonValue parse(char @Nullable [] json) throws JsonParseException {
@@ -68,7 +68,7 @@ public class JsonParser {
      * @param json the JSON
      * @param startIndex the starting index in the array
      * @return the JsonValue
-     * @throws JsonParseException if there is a problem parsing
+     * @throws JsonParseException if there is a problem parsing the json
      */
     @NonNull
     public static JsonValue parse(char @Nullable [] json, int startIndex) throws JsonParseException {
@@ -80,7 +80,7 @@ public class JsonParser {
      * @param json the JSON
      * @param options options for how to parse
      * @return the JsonValue
-     * @throws JsonParseException if there is a problem parsing
+     * @throws JsonParseException if there is a problem parsing the json
      */
     @NonNull
     public static JsonValue parse(char @Nullable [] json, @Nullable Option... options) throws JsonParseException {
@@ -93,7 +93,7 @@ public class JsonParser {
      * @param startIndex the starting index in the array
      * @param options options for how to parse
      * @return the JsonValue
-     * @throws JsonParseException if there is a problem parsing
+     * @throws JsonParseException if there is a problem parsing the json
      */
     @NonNull
     public static JsonValue parse(char @Nullable [] json, int startIndex, @Nullable Option... options) throws JsonParseException {
@@ -105,7 +105,7 @@ public class JsonParser {
      * Parse JSON from a String
      * @param json the JSON
      * @return the JsonValue
-     * @throws JsonParseException if there is a problem parsing
+     * @throws JsonParseException if there is a problem parsing the json
      */
     @NonNull
     public static JsonValue parse(String json) throws JsonParseException {
@@ -118,7 +118,7 @@ public class JsonParser {
      * @param json the JSON
      * @param startIndex the starting index in the string
      * @return the JsonValue
-     * @throws JsonParseException if there is a problem parsing
+     * @throws JsonParseException if there is a problem parsing the json
      */
     @NonNull
     public static JsonValue parse(String json, int startIndex) throws JsonParseException {
@@ -130,7 +130,7 @@ public class JsonParser {
      * @param json the JSON
      * @param options options for how to parse
      * @return the JsonValue
-     * @throws JsonParseException if there is a problem parsing
+     * @throws JsonParseException if there is a problem parsing the json
      */
     @NonNull
     public static JsonValue parse(String json, @Nullable Option... options) throws JsonParseException {
@@ -143,7 +143,7 @@ public class JsonParser {
      * @param startIndex the starting index in the array
      * @param options options for how to parse
      * @return the JsonValue
-     * @throws JsonParseException if there is a problem parsing
+     * @throws JsonParseException if there is a problem parsing the json
      */
     @NonNull
     public static JsonValue parse(String json, int startIndex, @Nullable Option... options) throws JsonParseException {
@@ -154,7 +154,7 @@ public class JsonParser {
      * Parse JSON from a byte array
      * @param json the JSON
      * @return the JsonValue
-     * @throws JsonParseException if there is a problem parsing
+     * @throws JsonParseException if there is a problem parsing the json
      */
     @NonNull
     public static JsonValue parse(byte[] json) throws JsonParseException {
@@ -166,7 +166,7 @@ public class JsonParser {
      * @param json the JSON
      * @param startIndex the starting index in the array
      * @return the JsonValue
-     * @throws JsonParseException if there is a problem parsing
+     * @throws JsonParseException if there is a problem parsing the json
      */
     @NonNull
     public static JsonValue parse(byte[] json, int startIndex) throws JsonParseException {
@@ -178,7 +178,7 @@ public class JsonParser {
      * @param json the JSON
      * @param options options for how to parse
      * @return the JsonValue
-     * @throws JsonParseException if there is a problem parsing
+     * @throws JsonParseException if there is a problem parsing the json
      */
     @NonNull
     public static JsonValue parse(byte[] json, @Nullable Option... options) throws JsonParseException {
@@ -191,7 +191,7 @@ public class JsonParser {
      * @param startIndex the starting index in the array
      * @param options options for how to parse
      * @return the JsonValue
-     * @throws JsonParseException if there is a problem parsing
+     * @throws JsonParseException if there is a problem parsing the json
      */
     @NonNull
     public static JsonValue parse(byte[] json, int startIndex, @Nullable Option... options) throws JsonParseException {
@@ -411,7 +411,7 @@ public class JsonParser {
     /**
      * Parse the JSON
      * @return a JsonValue
-     * @throws JsonParseException if there is a problem parsing
+     * @throws JsonParseException if there is a problem parsing the json
      */
     @NonNull
     public JsonValue parse() throws JsonParseException {

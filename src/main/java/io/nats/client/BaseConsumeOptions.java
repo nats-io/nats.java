@@ -101,34 +101,66 @@ public class BaseConsumeOptions implements JsonSerializable {
 
     protected void subclassSpecificToJson(StringBuilder sb) {}
 
+    /**
+     * Get the expires setting
+     * @return the expires, in milliseconds
+     */
     public long getExpiresInMillis() {
         return expiresIn;
     }
 
+    /**
+     * Get the idle heartbeat value
+     * @return the idle heartbeat in milliseconds
+     */
     public long getIdleHeartbeat() {
         return idleHeartbeat;
     }
 
+    /**
+     * Get the threshold percent setting
+     * @return the threshold percent
+     */
     public int getThresholdPercent() {
         return thresholdPercent;
     }
 
+    /**
+     * Whether to raise status warnings to the error listener
+     * @return true if should raise status warnings
+     */
     public boolean raiseStatusWarnings() {
         return raiseStatusWarnings;
     }
 
+    /**
+     * Get the priority group setting
+     * @return the priority group
+     */
     public String getGroup() {
         return group;
     }
 
+    /**
+     * Get the priority setting
+     * @return the priority
+     */
     public int getPriority() {
         return priority;
     }
 
+    /**
+     * Get the min pending setting
+     * @return the min pending
+     */
     public long getMinPending() {
         return minPending;
     }
 
+    /**
+     * Get the min ack pending setting
+     * @return the min ack pending
+     */
     public long getMinAckPending() {
         return minAckPending;
     }
@@ -150,7 +182,7 @@ public class BaseConsumeOptions implements JsonSerializable {
          * Initialize values from the json string.
          * @param json the json string to parse
          * @return the builder
-         * @throws JsonParseException if the json is invalid
+         * @throws JsonParseException if there is a problem parsing the json
          */
         public B json(String json) throws JsonParseException {
             return jsonValue(JsonParser.parse(json));

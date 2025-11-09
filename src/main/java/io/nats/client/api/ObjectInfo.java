@@ -49,10 +49,18 @@ public class ObjectInfo implements JsonSerializable {
         objectMeta = b.metaBuilder.build();
     }
 
+    /**
+     * Construct ObjectInfo from message info
+     * @param mi the message info
+     */
     public ObjectInfo(MessageInfo mi) {
         this(mi.getData(), mi.getTime());
     }
 
+    /**
+     * Construct ObjectInfo from a message
+     * @param m the message
+     */
     public ObjectInfo(Message m) {
         this(m.getData(), m.metaData().timestamp());
     }
@@ -206,18 +214,38 @@ public class ObjectInfo implements JsonSerializable {
         return objectMeta.getObjectMetaOptions() == null ? null : objectMeta.getObjectMetaOptions().getLink();
     }
 
+    /**
+     * Get an instance of the builder initialized with a bucket and object meta
+     * @param bucket the bucket name
+     * @param objectName the object name
+     * @return the builder
+     */
     public static Builder builder(String bucket, String objectName) {
         return new Builder(bucket, objectName);
     }
 
+    /**
+     * Get an instance of the builder initialized with a bucket and object meta
+     * @param bucket the bucket
+     * @param meta the object meta
+     * @return the builder
+     */
     public static Builder builder(String bucket, ObjectMeta meta) {
         return new Builder(bucket, meta);
     }
 
+    /**
+     * Get an instance of the builder initialized from existing ObjectInfo
+     * @param info the info
+     * @return the builder
+     */
     public static Builder builder(ObjectInfo info) {
         return new Builder(info);
     }
 
+    /**
+     * A builder for ObjectInfo
+     */
     public static class Builder {
         String bucket;
         String nuid;
@@ -228,16 +256,30 @@ public class ObjectInfo implements JsonSerializable {
         boolean deleted;
         ObjectMeta.Builder metaBuilder;
 
+        /**
+         * Construct the builder initialized with a bucket and object name
+         * @param bucket the bucket name
+         * @param objectName the object name
+         */
         public Builder(String bucket, String objectName) {
             metaBuilder = ObjectMeta.builder(objectName);
             bucket(bucket);
         }
 
+        /**
+         * Construct the builder initialized with a bucket and object meta
+         * @param bucket the bucket name
+         * @param meta the object meta
+         */
         public Builder(String bucket, ObjectMeta meta) {
             metaBuilder = ObjectMeta.builder(meta);
             bucket(bucket);
         }
 
+        /**
+         * Construct the builder initialized from existing ObjectInfo
+         * @param info the info
+         */
         public Builder(ObjectInfo info) {
             bucket = info.bucket;
             nuid = info.nuid;
@@ -249,86 +291,171 @@ public class ObjectInfo implements JsonSerializable {
             metaBuilder = ObjectMeta.builder(info.objectMeta);
         }
 
+        /**
+         * set the object name
+         * @param name the name
+         * @return the builder
+         */
         public Builder objectName(String name) {
             metaBuilder.objectName(name);
             return this;
         }
 
+        /**
+         * set the object's bucket name
+         * @param bucket the bucket name
+         * @return the builder
+         */
         public Builder bucket(String bucket) {
             this.bucket = Validator.validateBucketName(bucket, true);
             return this;
         }
 
+        /**
+         * set the object's nuid
+         * @param nuid the nuid
+         * @return the builder
+         */
         public Builder nuid(String nuid) {
             this.nuid = nuid;
             return this;
         }
 
+        /**
+         * set the object's size
+         * @param size the size
+         * @return the builder
+         */
         public Builder size(long size) {
             this.size = size;
             return this;
         }
 
+        /**
+         * set the object's modified time
+         * @param modified the time
+         * @return the builder
+         */
         public Builder modified(ZonedDateTime modified) {
             this.modified = modified;
             return this;
         }
 
+        /**
+         * set the object's number of chunks
+         * @param chunks the number of chunks
+         * @return the builder
+         */
         public Builder chunks(long chunks) {
             this.chunks = chunks;
             return this;
         }
 
+        /**
+         * set the object's digest 
+         * @param digest the digest
+         * @return the builder
+         */
         public Builder digest(String digest) {
             this.digest = digest;
             return this;
         }
 
+        /**
+         * set the object's deleted state 
+         * @param deleted the state
+         * @return the builder
+         */
         public Builder deleted(boolean deleted) {
             this.deleted = deleted;
             return this;
         }
 
+        /**
+         * convenience method to set the object's ObjectMeta description
+         * @param description the description text
+         * @return the builder
+         */
         public Builder description(String description) {
             metaBuilder.description(description);
             return this;
         }
 
+        /**
+         * convenience method to set the object's ObjectMeta headers 
+         * @param headers the headers
+         * @return the builder
+         */
         public Builder headers(Headers headers) {
             metaBuilder.headers(headers);
             return this;
         }
 
+        /**
+         * convenience method to set the object's ObjectMeta meta data 
+         * @param metadata the meta data
+         * @return the builder
+         */
         public Builder metadata(Map<String, String> metadata) {
             metaBuilder.metadata(metadata);
             return this;
         }
 
+        /**
+         * convenience method to set the object's ObjectMeta meta options
+         * @param objectMetaOptions the options
+         * @return the builder
+         */
         public Builder options(ObjectMetaOptions objectMetaOptions) {
             metaBuilder.options(objectMetaOptions);
             return this;
         }
 
+        /**
+         * convenience method to set the object's ObjectMeta chunk size 
+         * @param chunkSize the size of the chunks
+         * @return the builder
+         */
         public Builder chunkSize(int chunkSize) {
             metaBuilder.chunkSize(chunkSize);
             return this;
         }
 
+        /**
+         * convenience method to set the object's ObjectMeta link
+         * @param link the link
+         * @return the builder
+         */
         public Builder link(ObjectLink link) {
             metaBuilder.link(link);
             return this;
         }
 
+        /**
+         * convenience method to set the object's ObjectMeta link bucket name
+         * @param bucket the link bucket name
+         * @return the builder
+         */
         public Builder bucketLink(String bucket) {
             metaBuilder.link(ObjectLink.bucket(bucket));
             return this;
         }
 
+        /**
+         * convenience method to set the object's ObjectMeta link
+         * @param bucket the link's bucket name
+         * @param objectName the link's object name
+         * @return the builder
+         */
         public Builder objectLink(String bucket, String objectName) {
             metaBuilder.link(ObjectLink.object(bucket, objectName));
             return this;
         }
 
+        /**
+         * Build an ObjectInfo
+         * @return the ObjectInfo instance
+         */
         public ObjectInfo build() {
             return new ObjectInfo(this);
         }

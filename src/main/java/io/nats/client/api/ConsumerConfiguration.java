@@ -844,7 +844,7 @@ public class ConsumerConfiguration implements JsonSerializable {
          * Initialize values from the json string.
          * @param json the json string to parse
          * @return the builder
-         * @throws JsonParseException if the json is invalid
+         * @throws JsonParseException if there is a problem parsing the json
          */
         public Builder json(String json) throws JsonParseException {
             return jsonValue(JsonParser.parse(json));
