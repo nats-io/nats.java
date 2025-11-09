@@ -139,10 +139,15 @@ public abstract class SourceBase implements JsonSerializable {
         public SourceBaseBuilder(SourceBase base) {
             this.name = base.name;
             this.startSeq = base.startSeq;
-            this.startTime = base.startTime;
+            this.startTime = base.startTime; // zdt is immutable so copy is fine
             this.filterSubject = base.filterSubject;
-            this.external = base.external;
-            this.subjectTransforms = base.getSubjectTransforms();
+            this.external = new External(base.external);
+            if (base.getSubjectTransforms() == null) {
+                this.subjectTransforms = null;
+            }
+            else {
+                this.subjectTransforms = new ArrayList<>(base.getSubjectTransforms());
+            }
         }
 
         public T sourceName(String name) {

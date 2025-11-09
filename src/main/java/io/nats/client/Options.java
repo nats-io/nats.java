@@ -1229,7 +1229,7 @@ public class Options {
         }
 
         /**
-         *
+         * the path to the keystore file
          * @param keystore the path to the keystore file
          * @return the Builder for chaining
          */
@@ -1239,7 +1239,7 @@ public class Options {
         }
 
         /**
-         *
+         * the password for the keystore
          * @param keystorePassword the password for the keystore
          * @return the Builder for chaining
          */
@@ -1249,7 +1249,7 @@ public class Options {
         }
 
         /**
-         *
+         * the path to the trust store file
          * @param truststore the path to the trust store file
          * @return the Builder for chaining
          */
@@ -1259,7 +1259,7 @@ public class Options {
         }
 
         /**
-         *
+         * The password for the trust store
          * @param truststorePassword the password for the trust store
          * @return the Builder for chaining
          */
@@ -1269,8 +1269,8 @@ public class Options {
         }
 
         /**
-         *
-         * @param tlsAlgorithm the tls algorithm. Default is {@value SSLUtils#DEFAULT_TLS_ALGORITHM}
+         * The tls algorithm to use Default is {@value SSLUtils#DEFAULT_TLS_ALGORITHM}
+         * @param tlsAlgorithm the tls algorithm.
          * @return the Builder for chaining
          */
         public Builder tlsAlgorithm(String tlsAlgorithm) {
@@ -1279,8 +1279,8 @@ public class Options {
         }
 
         /**
-         *
-         * @param credentialPath the path to the credentials file for creating an {@link AuthHandler AuthHandler}
+         * the path to the credentials file for creating an {@link AuthHandler AuthHandler}
+         * @param credentialPath the path to the credentials file
          * @return the Builder for chaining
          */
         public Builder credentialPath(String credentialPath) {
@@ -2192,6 +2192,7 @@ public class Options {
     // GETTERS
     // ----------------------------------------------------------------------------------------------------
     /**
+     * Get the general executor
      * @return the executor, see {@link Builder#executor(ExecutorService) executor()} in the builder doc
      */
     public ExecutorService getExecutor() {
@@ -2207,6 +2208,7 @@ public class Options {
     }
 
     /**
+     * Get the ScheduledExecutorService instance
      * @return the ScheduledExecutorService, see {@link Builder#scheduledExecutor(ScheduledExecutorService) scheduledExecutor()} in the builder doc
      */
     public ScheduledExecutorService getScheduledExecutor() {

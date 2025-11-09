@@ -242,6 +242,8 @@ public abstract class SubscribeOptions {
     /**
      * PushSubscribeOptions can be created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
+     * @param <B> The builder type
+     * @param <SO> The resulting option type
      */
     protected static abstract class Builder<B, SO> {
         protected String stream;

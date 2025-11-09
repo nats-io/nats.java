@@ -21,7 +21,14 @@ import java.time.Duration;
  */
 public class ForceReconnectOptions {
 
+    /**
+     * A default instance of ForceReconnectOptions
+     */
     public static final ForceReconnectOptions DEFAULT_INSTANCE = ForceReconnectOptions.builder().build();
+
+    /**
+     * An instance representing the force close option
+     */
     public static final ForceReconnectOptions FORCE_CLOSE_INSTANCE = ForceReconnectOptions.builder().forceClose().build();
 
     private final boolean forceClose;
@@ -32,14 +39,26 @@ public class ForceReconnectOptions {
         this.flushWait = b.flushWait;
     }
 
+    /**
+     * True if these options represent force close
+     * @return the flag
+     */
     public boolean isForceClose() {
         return forceClose;
     }
 
+    /**
+     * True if these options represent to flush
+     * @return the flag
+     */
     public boolean isFlush() {
         return flushWait != null;
     }
 
+    /**
+     * Get the flush wait setting
+     * @return the duration
+     */
     public Duration getFlushWait() {
         return flushWait;
     }
@@ -64,15 +83,20 @@ public class ForceReconnectOptions {
          */
         public Builder() {}
 
+        /**
+         * set the force close flag to true
+         * @return the builder
+         */
         public Builder forceClose() {
             this.forceClose = true;
             return this;
         }
 
         /**
-         * @param flushWait if supplied and at least 1 millisecond, the forceReconnect will try to
-         *                  flush before closing for the specified wait time. Flush happens before close
-         *                  so not affected by forceClose option
+         * if supplied and at least 1 millisecond, the forceReconnect will try to
+         * flush before closing for the specified wait time. Flush happens before close
+         * so not affected by forceClose option
+         * @param flushWait the flush wait duraton
          * @return the builder
          */
         public Builder flush(Duration flushWait) {
@@ -81,9 +105,10 @@ public class ForceReconnectOptions {
         }
 
         /**
-         * @param flushWaitMillis if supplied and at least 1 millisecond, the forceReconnect will try to
-         *                        flush before closing for the specified wait time. Flush happens before close
-         *                        so not affected by forceClose option
+         * if supplied and at least 1 millisecond, the forceReconnect will try to
+         * flush before closing for the specified wait time. Flush happens before close
+         * so not affected by forceClose option
+         * @param flushWaitMillis the flush wait millis
          * @return the builder
          */
         public Builder flush(long flushWaitMillis) {

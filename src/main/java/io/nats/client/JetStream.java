@@ -13,10 +13,7 @@
 
 package io.nats.client;
 
-import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.PublishAck;
-import io.nats.client.api.StorageType;
-import io.nats.client.api.StreamConfiguration;
 import io.nats.client.impl.Headers;
 
 import java.io.IOException;
@@ -25,8 +22,6 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * JetStream context for access to streams and consumers in NATS.
- *
- * <h3>Basic usage</h3>
  *
  * <p>{@link #publish(String, byte[]) JetStream.Publish} will send a message on the specified subject, waiting for acknowledgement.
  * A  <b>503 No responders</b> error will be received if no stream is listening on said subject.
@@ -41,8 +36,7 @@ import java.util.concurrent.CompletableFuture;
  * It can create a named durable consumers though Options, but we prefer to avoid creating durable consumers implictly.
  * It is <b>recommened</b> to manage consumers explicitly through {@link StreamContext StreamContext} and {@link ConsumerContext ConsumerContext} or {@link JetStreamManagement JetStreamManagement}
  *
- *
- * <h3>Recommended usage for creating streams, consumers, publish and listen on a stream</h3>
+ * Recommended usage for creating streams, consumers, publish and listen on a stream
  * <pre>
  *  io.nats.client.Connection nc = Nats.connect();
  *
@@ -80,7 +74,7 @@ import java.util.concurrent.CompletableFuture;
  *
  *  </pre>
  *
- *	<h3>Recommended usage of asynchronous publishing</h3>
+ *	Recommended usage of asynchronous publishing
  *
  *  Jetstream messages can be published asynchronously, returning a CompletableFuture.
  *  Note that you need to check the Future eventually otherwise the delivery guarantee is the same a regular {@link Connection#publish(String, byte[]) Connection.Publish}
@@ -104,7 +98,7 @@ import java.util.concurrent.CompletableFuture;
  *    }
  *  }
  *
- *  //Now we may send anther batch
+ *  // Now we may send another batch
  *
  * </pre>
  *

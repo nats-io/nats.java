@@ -19,14 +19,25 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * The delivery policy for this consumer.
+ * The delivery policy for this consumer, the point in the stream from which to receive messages
  */
 public enum DeliverPolicy {
+    /** all messages */
     All("all"),
+
+    /** start at the last message */
     Last("last"),
+
+    /** start at any new messages */
     New("new"),
+
+    /** by start sequence */
     ByStartSequence("by_start_sequence"),
+
+    /** by start time */
     ByStartTime("by_start_time"),
+
+    /** last per subject */
     LastPerSubject("last_per_subject");
 
     private final String policy;
@@ -48,6 +59,11 @@ public enum DeliverPolicy {
         }
     }
 
+    /**
+     * Get an instance from the JSON value
+     * @param value the value
+     * @return the instance or null if the string is not matched
+     */
     @Nullable
     public static DeliverPolicy get(String value) {
         return strEnumHash.get(value);

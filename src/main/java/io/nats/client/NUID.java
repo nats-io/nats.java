@@ -84,6 +84,7 @@ public final class NUID {
     }
 
     /**
+     * the next NUID string from a shared global NUID instance
      * @return the next NUID string from a shared global NUID instance
      */
     public static String nextGlobal() {
@@ -91,6 +92,7 @@ public final class NUID {
     }
 
     /**
+     * the next sequence portion of the NUID string from a shared global NUID instance
      * @return the next sequence portion of the NUID string from a shared global NUID instance
      */
     public static String nextGlobalSequence() {
@@ -178,6 +180,7 @@ public final class NUID {
     }
 
     /**
+     * The pre portion of the NUID
      * @return the pre
      */
     char[] getPre() {
@@ -186,7 +189,6 @@ public final class NUID {
 
     /**
      * Return the current sequence value.
-     *
      * @return the seq
      */
     long getSeq() {
@@ -195,9 +197,7 @@ public final class NUID {
 
     /**
      * Set the sequence to the supplied value.
-     *
-     * @param seq
-     *                the seq to set
+     * @param seq the seq to set
      */
     void setSeq(long seq) {
         this.seq = seq;

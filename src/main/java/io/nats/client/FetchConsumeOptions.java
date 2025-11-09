@@ -56,16 +56,32 @@ public class FetchConsumeOptions extends BaseConsumeOptions {
         return bytes;
     }
 
+    /**
+     * If the options specify no wait
+     * @return the flag
+     */
     public boolean isNoWait() {
         return noWait;
     }
 
+    /**
+     * Get an instance of the builder
+     * @return a builder
+     */
     public static Builder builder() {
         return new Builder();
     }
 
+    /**
+     * The builder for FetchConsumeOptions
+     */
     public static class Builder
         extends BaseConsumeOptions.Builder<Builder, FetchConsumeOptions> {
+
+        /**
+         * Construct a builder for FetchConsumeOptions
+         */
+        public Builder() {}
 
         protected boolean noWait = false;
 

@@ -22,6 +22,9 @@ import java.util.Arrays;
 
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
+/**
+ * A class that wraps a ByteBuffer that can automatically grow
+ */
 public class ByteArrayBuilder extends BuilderBase {
     private ByteBuffer buffer;
 

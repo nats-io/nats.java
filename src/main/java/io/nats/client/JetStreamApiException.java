@@ -25,16 +25,21 @@ public class JetStreamApiException extends Exception {
     private final Error error;
 
     /**
-     * @deprecated Prefer to construct with JetStreamApiException(@NonNull Error error)
+     * @deprecated Prefer to construct with JetStreamApiException(@NonNull Error)
      * Construct an exception with the response from the server.
      * @param apiResponse the response from the server.
      */
     @Deprecated
     public JetStreamApiException(ApiResponse<?> apiResponse) {
         // deprecated because of getErrorObject() is marked as @Nullable
+        //noinspection DataFlowIssue
         this(apiResponse.getErrorObject());
     }
 
+    /**
+     * Construct an exception with an Error
+     * @param error the error
+     */
     public JetStreamApiException(@NonNull Error error) {
         super(error.toString());
         this.error = error;
@@ -42,7 +47,6 @@ public class JetStreamApiException extends Exception {
 
     /**
      * Get the error code from the response
-     *
      * @return the code
      */
     public int getErrorCode() {
@@ -51,7 +55,6 @@ public class JetStreamApiException extends Exception {
 
     /**
      * Get the error code from the response
-     *
      * @return the code
      */
     public int getApiErrorCode() {
@@ -60,7 +63,6 @@ public class JetStreamApiException extends Exception {
 
     /**
      * Get the description from the response
-     *
      * @return the description
      */
     public String getErrorDescription() {

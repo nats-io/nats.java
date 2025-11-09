@@ -38,26 +38,79 @@ import static io.nats.client.support.Validator.*;
  * <P> By default this will create a <b>pull consumer</b> unless {@link ConsumerConfiguration.Builder#deliverSubject(String) ConsumerConfiguration.Builder.deliverSubject(String) } is set.
  */
 public class ConsumerConfiguration implements JsonSerializable {
-    @Deprecated
-    public static final Duration DURATION_MIN = Duration.ofNanos(1);
-
+    /**
+     * The default deliver policy for consumers
+     */
     public static final DeliverPolicy DEFAULT_DELIVER_POLICY = DeliverPolicy.All;
+
+    /**
+     * The default ack policy for consumers
+     */
     public static final AckPolicy DEFAULT_ACK_POLICY = AckPolicy.Explicit;
+
+    /**
+     * The default replay policy for consumers
+     */
     public static final ReplayPolicy DEFAULT_REPLAY_POLICY = ReplayPolicy.Instant;
+
+    /**
+     * The default priority policy for consumers
+     */
     public static final PriorityPolicy DEFAULT_PRIORITY_POLICY = PriorityPolicy.None;
 
-    public static final Duration DURATION_UNSET = Duration.ZERO;
+    /**
+     * The minimum allowed idle heartbeat setting
+     */
     public static final Duration MIN_IDLE_HEARTBEAT = Duration.ofMillis(100);
 
+    /**
+     * Constant used to unset a Duration setting in the builder
+     */
+    public static final Duration DURATION_UNSET = Duration.ZERO;
+
+    /**
+     * Constant used to unset a Duration setting in the builder
+     */
     public static final int INTEGER_UNSET = -1;
+
+    /**
+     * Constant used to unset a long setting in the builder
+     */
     public static final long LONG_UNSET = -1;
+
+    /**
+     * Constant used to unset a long that represents an unsigned long setting in the builder
+     */
     public static final long ULONG_UNSET = 0;
+
+    /**
+     * Constant used to unset a long setting in the builder
+     */
     public static final long DURATION_UNSET_LONG = 0;
+
+    /**
+     * Constant used to unset a Duration setting in the builder
+     */
     public static final long DURATION_MIN_LONG = 1;
+
+    /**
+     * Constant used to as a standard minimum value
+     */
     public static final int STANDARD_MIN = 0;
+
+    /**
+     * Constant representing the minimum max deliver
+     */
     public static final int MAX_DELIVER_MIN = 1;
 
+    /**
+     * Constant representing the minimum idle heartbeat in nanos
+     */
     public static final long MIN_IDLE_HEARTBEAT_NANOS = MIN_IDLE_HEARTBEAT.toNanos();
+
+    /**
+     * Constant representing the minimum idle heartbeat in milliseconds
+     */
     public static final long MIN_IDLE_HEARTBEAT_MILLIS = MIN_IDLE_HEARTBEAT.toMillis();
 
     protected final DeliverPolicy deliverPolicy;
@@ -1576,4 +1629,10 @@ public class ConsumerConfiguration implements JsonSerializable {
     protected static AckPolicy GetOrDefault(AckPolicy p) { return p == null ? DEFAULT_ACK_POLICY : p; }
     protected static ReplayPolicy GetOrDefault(ReplayPolicy p) { return p == null ? DEFAULT_REPLAY_POLICY : p; }
     protected static PriorityPolicy GetOrDefault(PriorityPolicy p) { return p == null ? DEFAULT_PRIORITY_POLICY : p; }
+
+    /**
+     * Not used
+     */
+    @Deprecated
+    public static final Duration DURATION_MIN = Duration.ofNanos(1);
 }
