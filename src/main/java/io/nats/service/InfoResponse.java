@@ -32,6 +32,9 @@ import static io.nats.client.support.JsonValueUtils.*;
  * <code>{"id":"JlkwZvmHAXCQGwwxiPwaBJ","name":"MyService","version":"0.0.1","endpoints":[{"name":"MyEndpoint","subject":"myend"}],"type":"io.nats.micro.v1.info_response"}</code>
  */
 public class InfoResponse extends ServiceResponse {
+    /**
+     * The API response type for InfoResponse
+     */
     public static final String TYPE = "io.nats.micro.v1.info_response";
 
     private final String description;

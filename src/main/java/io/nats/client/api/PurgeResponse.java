@@ -20,11 +20,18 @@ import static io.nats.client.support.ApiConstants.SUCCESS;
 import static io.nats.client.support.JsonValueUtils.readBoolean;
 import static io.nats.client.support.JsonValueUtils.readLong;
 
+/**
+ * The response to a request to Purge a stream
+ */
 public class PurgeResponse extends ApiResponse<PurgeResponse> {
 
     private final boolean success;
     private final long purged;
 
+    /**
+     * Construct an instance of the PurgeResponse with the message
+     * @param msg the message
+     */
     public PurgeResponse(Message msg) {
         super(msg);
         success = readBoolean(jv, SUCCESS);
@@ -40,8 +47,8 @@ public class PurgeResponse extends ApiResponse<PurgeResponse> {
     }
 
     /**
-     * Returns the number of items purged from the stream
      * @deprecated
+     * Returns the number of items purged from the stream
      * This method is replaced since the purged value is a long
      * value, not an int value
      * See {@link #getPurged()} instead.
@@ -49,7 +56,7 @@ public class PurgeResponse extends ApiResponse<PurgeResponse> {
      */
     @Deprecated
     public int getPurgedCount() {
-        return new Long(purged).intValue();
+        return Long.valueOf(purged).intValue();
     }
 
     /**

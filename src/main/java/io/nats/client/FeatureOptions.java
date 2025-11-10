@@ -37,6 +37,8 @@ public abstract class FeatureOptions {
     /**
      * KeyValueOptions can be created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
+     * @param <B> The builder type
+     * @param <FO> the resulting option type
      */
     protected static abstract class Builder<B, FO> {
 

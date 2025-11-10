@@ -167,7 +167,7 @@ public class StreamConfiguration implements JsonSerializable {
      * @see #toJson()
      * @param json the json representing the Stream Configuration
      * @return StreamConfiguration for the given json
-     * @throws JsonParseException thrown if the parsing fails for invalid json
+     * @throws JsonParseException if there is a problem parsing the json
      */
     public static StreamConfiguration instance(String json) throws JsonParseException {
         return instance(JsonParser.parse(json));

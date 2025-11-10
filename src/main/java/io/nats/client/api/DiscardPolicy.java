@@ -22,7 +22,9 @@ import java.util.Map;
  * Stream discard policies
  */
 public enum DiscardPolicy {
+    /** discard new messages */
     New("new"),
+    /** discard old messages */
     Old("old");
 
     private final String policy;
@@ -44,6 +46,11 @@ public enum DiscardPolicy {
         }
     }
 
+    /**
+     * Get an instance from the JSON value
+     * @param value the value
+     * @return the instance or null if the string is not matched
+     */
     @Nullable
     public static DiscardPolicy get(String value) {
         return strEnumHash.get(value);

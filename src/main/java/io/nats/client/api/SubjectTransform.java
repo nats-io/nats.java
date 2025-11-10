@@ -100,6 +100,11 @@ public class SubjectTransform implements JsonSerializable {
         private String destination;
 
         /**
+         * Construct an instance of the builder
+         */
+        public Builder() {}
+
+        /**
          * Set the Published Subject-matching filter
          * @param source the source
          * @return the builder

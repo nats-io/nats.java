@@ -88,10 +88,18 @@ public class PurgeOptions implements JsonSerializable {
         return new Builder().subject(subject).build();
     }
 
+    /**
+     * Builder class for PurgeOptions
+     */
     public static class Builder {
         private String subject;
         private long seq = -1;
         private long keep = -1;
+
+        /**
+         * Construct a builder instance
+         */
+        public Builder() {}
 
         /**
          * Set the subject to filter the purge. Wildcards allowed.

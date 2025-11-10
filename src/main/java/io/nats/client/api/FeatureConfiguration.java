@@ -25,6 +25,9 @@ import java.util.Map;
 import static io.nats.client.support.Validator.validateBucketName;
 import static io.nats.client.support.Validator.validateMaxBucketBytes;
 
+/**
+ * base class for feature configurations
+ */
 public abstract class FeatureConfiguration implements JsonSerializable {
     protected static final CompressionOption JS_COMPRESSION_YES = CompressionOption.S2;
     protected static final CompressionOption JS_COMPRESSION_NO = CompressionOption.None;
@@ -54,6 +57,11 @@ public abstract class FeatureConfiguration implements JsonSerializable {
         return mb.toJsonValue();
     }
 
+    /**
+     * Construct a FeatureConfiguration from a StreamConfiguration and a bucket name
+     * @param sc the StreamConfiguration
+     * @param bucketName the bucket name
+     */
     public FeatureConfiguration(StreamConfiguration sc, String bucketName) {
         this.sc = sc;
         this.bucketName = bucketName;

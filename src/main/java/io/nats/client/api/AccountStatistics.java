@@ -35,6 +35,10 @@ public class AccountStatistics extends ApiResponse<AccountStatistics> {
     private final ApiStats api;
     private final Map<String, AccountTier> tiers;
 
+    /**
+     * Construct an AccountStatistics
+     * @param msg the api response message
+     */
     public AccountStatistics(Message msg) {
         super(msg);
         rollupTier = new AccountTier(jv);

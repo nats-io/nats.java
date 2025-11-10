@@ -138,6 +138,12 @@ public abstract class Encoding {
     private static final int[] BASE32_LOOKUP;
     private static final int MASK = 31;
     private static final int SHIFT = 5;
+
+    /**
+     * base32 encode a byte array
+     * @param input the input
+     * @return the encoded character array
+     */
     public static char[] base32Encode(final byte[] input) {
         int last = input.length;
         char[] charBuff = new char[(last + 7) * 8 / SHIFT];
@@ -191,6 +197,11 @@ public abstract class Encoding {
         }
     }
 
+    /**
+     * base32 decode a character array
+     * @param input the input
+     * @return the decoded byte array
+     */
     public static byte[] base32Decode(final char[] input) {
         byte[] bytes = new byte[input.length * SHIFT / 8];
         int buffer = 0;
@@ -216,6 +227,11 @@ public abstract class Encoding {
         return bytes;
     }
 
+    /**
+     * json decoding of a string
+     * @param s the string
+     * @return the decoded string
+     */
     public static String jsonDecode(String s) {
         int len = s.length();
         StringBuilder sb = new StringBuilder(len);
@@ -263,10 +279,21 @@ public abstract class Encoding {
         return sb.toString();
     }
 
+    /**
+     * json encode a string
+     * @param s the string
+     * @return the encoded string
+     */
     public static String jsonEncode(String s) {
         return jsonEncode(new StringBuilder(), s).toString();
     }
 
+    /**
+     * json encode a string appended into a StringBuilder
+     * @param sb the target StringBuilder
+     * @param s the string
+     * @return the StringBuilder fluent style
+     */
     public static StringBuilder jsonEncode(StringBuilder sb, String s) {
         int len = s.length();
         for (int x = 0; x < len; x++) {
@@ -275,10 +302,21 @@ public abstract class Encoding {
         return sb;
     }
 
+    /**
+     * json encode a char array
+     * @param chars the char array
+     * @return the encoded string
+     */
     public static String jsonEncode(char[] chars) {
         return jsonEncode(new StringBuilder(), chars).toString();
     }
 
+    /**
+     * json encode a char array appended into a StringBuilder
+     * @param sb the target StringBuilder
+     * @param chars the char array
+     * @return the StringBuilder fluent style
+     */
     public static StringBuilder jsonEncode(StringBuilder sb, char[] chars) {
         for (char aChar : chars) {
             appendChar(sb, aChar);
@@ -323,6 +361,11 @@ public abstract class Encoding {
         }
     }
 
+    /**
+     * perform basic uri decoding, replacing the plus sign with %2B
+     * @param source the source string
+     * @return tje decoded string
+     */
     public static String uriDecode(String source) {
         try {
             return URLDecoder.decode(source.replace("+", "%2B"), "UTF-8");

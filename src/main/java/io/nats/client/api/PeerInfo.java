@@ -21,6 +21,9 @@ import java.time.Duration;
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonValueUtils.*;
 
+/**
+ * Server peer information
+ */
 public class PeerInfo {
 
     private final String name;

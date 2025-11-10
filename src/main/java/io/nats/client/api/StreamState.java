@@ -26,6 +26,9 @@ import java.util.Map;
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonValueUtils.*;
 
+/**
+ * Object representing the state of a stream
+ */
 public class StreamState {
     private final long msgs;
     private final long bytes;

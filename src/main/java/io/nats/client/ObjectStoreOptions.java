@@ -60,10 +60,17 @@ public class ObjectStoreOptions extends FeatureOptions {
             return this;
         }
 
+        /**
+         * Construct the builder
+         */
         public Builder() {
             super();
         }
 
+        /**
+         * Construct the builder from existing options
+         * @param oso the options
+         */
         public Builder(ObjectStoreOptions oso) {
             super(oso);
         }

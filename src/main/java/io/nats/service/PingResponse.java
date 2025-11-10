@@ -20,6 +20,9 @@ import java.util.Map;
  * <code>{"id":"JlkwZvmHAXCQGwwxiPwaBJ","name":"MyService","version":"0.0.1","type":"io.nats.micro.v1.ping_response"}</code>
  */
 public class PingResponse extends ServiceResponse {
+    /**
+     * The API response type for PingResponse
+     */
     public static final String TYPE = "io.nats.micro.v1.ping_response";
 
     PingResponse(String id, String name, String version, Map<String, String> metadata) {

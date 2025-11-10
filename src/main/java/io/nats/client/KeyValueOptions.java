@@ -60,10 +60,17 @@ public class KeyValueOptions extends FeatureOptions {
             return this;
         }
 
+        /**
+         * Construct an instance of the builder
+         */
         public Builder() {
             super();
         }
 
+        /**
+         * Construct an instance of the builder based on an existing KeyValueOptions
+         * @param kvo the KeyValueOptions
+         */
         public Builder(KeyValueOptions kvo) {
             super(kvo);
         }

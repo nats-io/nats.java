@@ -22,9 +22,13 @@ import java.util.Map;
  * Represents the Priority Policy of a consumer
  */
 public enum PriorityPolicy {
+    /** none */
     None("none"),
+    /** overflow */
     Overflow("overflow"),
+    /** prioritized */
     Prioritized("prioritized"),
+    /** pinned_client */
     PinnedClient("pinned_client");
 
     private final String policy;
@@ -46,6 +50,11 @@ public enum PriorityPolicy {
         }
     }
 
+    /**
+     * Get an instance from the JSON value
+     * @param value the value
+     * @return the instance or null if the string is not matched
+     */
     @Nullable
     public static PriorityPolicy get(String value) {
         return strEnumHash.get(value);

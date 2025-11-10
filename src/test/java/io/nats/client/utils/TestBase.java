@@ -84,10 +84,6 @@ public class TestBase {
         HAS_SPACE, HAS_CR, HAS_LF, HAS_TAB, STARTS_SPACE, ENDS_SPACE, null, EMPTY
     };
 
-    static {
-        NatsTestServer.quiet();
-    }
-
     // ----------------------------------------------------------------------------------------------------
     // runners
     // ----------------------------------------------------------------------------------------------------
@@ -109,6 +105,7 @@ public class TestBase {
         default boolean includeAllServers() { return false; }
     }
 
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public interface VersionCheck {
         boolean runTest(ServerInfo si);
     }
@@ -269,8 +266,14 @@ public class TestBase {
         public final Options.Builder builder;
         public final ListenerForTesting listenerForTesting;
 
-        public LongRunningNatsTestServer(boolean debug, boolean jetstream, Options.Builder builder) throws IOException, InterruptedException {
-            super(debug, jetstream);
+        public LongRunningNatsTestServer(boolean debug, boolean jetstream, Options.Builder builder) throws IOException {
+            super(builder()
+                .debug(debug)
+                .jetstream(jetstream)
+                .connectValidateInitialDelay(100L)
+                .connectValidateSubsequentDelay(25L)
+                .connectValidateTries(15)
+            );
             this.jetstream = jetstream;
             if (builder == null) {
                 this.builder = new Options.Builder();

@@ -42,10 +42,18 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
     private final List<StreamAlternate> alternates;
     private final ZonedDateTime timestamp;
 
+    /**
+     * Construct a StreamInfo instance from a message
+     * @param msg the message
+     */
     public StreamInfo(@NonNull Message msg) {
         this(parseUnchecked(msg.getData()));
     }
 
+    /**
+     * Construct a StreamInfo instance from a JsonValue
+     * @param vStreamInfo the JsonValue
+     */
     public StreamInfo(@NonNull JsonValue vStreamInfo) {
         super(vStreamInfo);
         if (hasError()) {
@@ -111,21 +119,37 @@ public class StreamInfo extends ApiResponse<StreamInfo> {
         return createTime;
     }
 
+    /**
+     * Gets the mirror info
+     * @return the mirror info
+     */
     @Nullable
     public MirrorInfo getMirrorInfo() {
         return mirrorInfo;
     }
 
+    /**
+     * Gets the source info
+     * @return the source info
+     */
     @Nullable
     public List<SourceInfo> getSourceInfos() {
         return sourceInfos;
     }
 
+    /**
+     * Gets the cluster info
+     * @return the cluster info
+     */
     @Nullable
     public ClusterInfo getClusterInfo() {
         return clusterInfo;
     }
 
+    /**
+     * Gets the stream alternates
+     * @return the stream alternates
+     */
     @Nullable
     public List<StreamAlternate> getAlternates() {
         return alternates;

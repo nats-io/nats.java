@@ -17,6 +17,9 @@ package io.nats.client;
  * Consume Options are provided to customize the consume operation.
  */
 public class ConsumeOptions extends BaseConsumeOptions {
+    /**
+     * An instance of ConsumeOptions representing the default consume options
+     */
     public static final ConsumeOptions DEFAULT_CONSUME_OPTIONS = ConsumeOptions.builder().build();
 
     private ConsumeOptions(Builder b) {
@@ -30,6 +33,7 @@ public class ConsumeOptions extends BaseConsumeOptions {
     public int getBatchSize() {
         return messages;
     }
+
     /**
      * The initial batch size in bytes.
      * @return the initial batch size in bytes
@@ -38,12 +42,22 @@ public class ConsumeOptions extends BaseConsumeOptions {
         return bytes;
     }
 
+    /**
+     * Get an instance of the Builder
+     * @return a builder
+     */
     public static Builder builder() {
         return new Builder();
     }
 
-    public static class Builder
-        extends BaseConsumeOptions.Builder<Builder, ConsumeOptions> {
+    /**
+     * The Consume Options Builder
+     */
+    public static class Builder extends BaseConsumeOptions.Builder<Builder, ConsumeOptions> {
+        /**
+         * Construct a Consume Options Builder
+         */
+        public Builder() {}
 
         protected Builder getThis() { return this; }
 

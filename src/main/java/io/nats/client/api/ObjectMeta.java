@@ -129,18 +129,36 @@ public class ObjectMeta implements JsonSerializable {
         return objectMetaOptions;
     }
 
+    /**
+     * Get an instance of the ObjectMeta.Builder starting with the object name
+     * @param objectName the object name
+     * @return the builder
+     */
     public static Builder builder(String objectName) {
         return new Builder(objectName);
     }
 
+    /**
+     * Get an instance of the ObjectMeta.Builder as a copy of existing meta
+     * @param om the existing meta
+     * @return the builder
+     */
     public static Builder builder(ObjectMeta om) {
         return new Builder(om);
     }
 
+    /**
+     * Create object meta that only has the object name. Fairly common use case
+     * @param objectName the object name
+     * @return the ObjectMeta
+     */
     public static ObjectMeta objectName(String objectName) {
         return new Builder(objectName).build();
     }
 
+    /**
+     * The builder for ObjectMeta
+     */
     public static class Builder {
         String objectName;
         String description;
@@ -148,6 +166,10 @@ public class ObjectMeta implements JsonSerializable {
         Map<String, String> metadata;
         ObjectMetaOptions.Builder metaOptionsBuilder;
 
+        /**
+         * Construct a builder starting with the object name
+         * @param objectName the object name
+         */
         public Builder(String objectName) {
             headers = new Headers();
             metadata = new HashMap<>();
@@ -155,6 +177,10 @@ public class ObjectMeta implements JsonSerializable {
             objectName(objectName);
         }
 
+        /**
+         * Construct a builder as a copy of existing meta
+         * @param om the existing meta
+         */
         public Builder(ObjectMeta om) {
             objectName = om.objectName;
             description = om.description;
@@ -163,16 +189,31 @@ public class ObjectMeta implements JsonSerializable {
             metaOptionsBuilder = ObjectMetaOptions.builder(om.objectMetaOptions);
         }
 
+        /**
+         * Set the object name
+         * @param name the name
+         * @return the builder
+         */
         public Builder objectName(String name) {
             this.objectName = Validator.validateNotNull(name, "Object Name");
             return this;
         }
 
+        /**
+         * Set the object description
+         * @param description the description
+         * @return the builder
+         */
         public Builder description(String description) {
             this.description = description;
             return this;
         }
 
+        /**
+         * Set the object headers
+         * @param headers the headers
+         * @return the builder
+         */
         public Builder headers(Headers headers) {
             if (headers == null) {
                 this.headers.clear();
@@ -183,6 +224,11 @@ public class ObjectMeta implements JsonSerializable {
             return this;
         }
 
+        /**
+         * Set the object metadata
+         * @param metadata the metadata
+         * @return the builder
+         */
         public Builder metadata(Map<String, String> metadata) {
             if (metadata == null) {
                 this.metadata.clear();
@@ -193,21 +239,40 @@ public class ObjectMeta implements JsonSerializable {
             return this;
         }
 
+        /**
+         * Set the object meta options
+         * @param objectMetaOptions the objectMetaOptions
+         * @return the builder
+         */
         public Builder options(ObjectMetaOptions objectMetaOptions) {
             metaOptionsBuilder = ObjectMetaOptions.builder(objectMetaOptions);
             return this;
         }
 
+        /**
+         * Convenience method to set the ObjectMetaOptions chunk size
+         * @param chunkSize the size in bytes
+         * @return the builder
+         */
         public Builder chunkSize(int chunkSize) {
             metaOptionsBuilder.chunkSize(chunkSize);
             return this;
         }
 
+        /**
+         * Convenience method to set the ObjectMetaOptions to set the link
+         * @param link the link
+         * @return the builder
+         */
         public Builder link(ObjectLink link) {
             metaOptionsBuilder.link(link);
             return this;
         }
 
+        /**
+         * Build the Object Meta
+         * @return the ObjectMeta instance
+         */
         public ObjectMeta build() {
             return new ObjectMeta(this);
         }
