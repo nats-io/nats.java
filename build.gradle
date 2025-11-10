@@ -5,7 +5,7 @@ plugins {
     id("java-library")
     id("maven-publish")
     id("jacoco")
-    id("biz.aQute.bnd.builder") version "7.1.0"
+    id("biz.aQute.bnd.builder") version "5.1.2"
     id("org.gradle.test-retry") version "1.6.4"
     id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
     id("signing")
