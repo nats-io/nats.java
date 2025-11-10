@@ -22,12 +22,19 @@ import java.time.ZonedDateTime;
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonValueUtils.*;
 
+/**
+ * The response for a ConsumerPauseRequest
+ */
 public class ConsumerPauseResponse extends ApiResponse<ConsumerPauseResponse> {
 
     private final boolean paused;
     private final ZonedDateTime pauseUntil;
     private final Duration pauseRemaining;
 
+    /**
+     * Construct a ConsumerPauseResponse instance from a message
+     * @param msg the message
+     */
     public ConsumerPauseResponse(Message msg) {
         super(msg);
         paused = readBoolean(jv, PAUSED);

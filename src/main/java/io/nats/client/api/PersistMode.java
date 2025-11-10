@@ -23,7 +23,9 @@ import java.util.Map;
  * Stream persist modes
  */
 public enum PersistMode {
+    /** default mode */
     Default("default"),
+    /** async mode */
     Async("async");
 
     private final String mode;
@@ -32,6 +34,10 @@ public enum PersistMode {
         this.mode = mode;
     }
 
+    /**
+     * get the mode JSON value string
+     * @return the mode
+     */
     @NonNull
     public String getMode() {
         return mode;
@@ -50,6 +56,11 @@ public enum PersistMode {
         }
     }
 
+    /**
+     * Get an instance from the JSON value
+     * @param value the value
+     * @return the instance or null if the string is not matched
+     */
     @Nullable
     public static PersistMode get(String value) {
         return strEnumHash.get(value);

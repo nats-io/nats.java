@@ -235,7 +235,13 @@ public class ListenerForTesting implements ErrorListener, ConnectionListener {
         }
     }
 
+    @Override
     public void connectionEvent(Connection conn, Events type) {
+        connectionEvent(conn, type, null, null);
+    }
+
+    @Override
+    public void connectionEvent(Connection conn, Events type, Long time, String uriDetails) {
         lastEventConnection = conn;
         connectionEvents.add(type);
         count.incrementAndGet();

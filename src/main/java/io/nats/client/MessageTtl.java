@@ -25,6 +25,10 @@ public class MessageTtl {
         this.ttlString = ttlString;
     }
 
+    /**
+     * Get the string representation of the message ttl, used as a value
+     * @return the string
+     */
     public String getTtlString() {
         return ttlString;
     }

@@ -375,8 +375,12 @@ public class AuthTests extends TestBase {
             String[] customArgs = { "--auth", "colin" };
             try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
                 // See config file for user/pass
-                Options options = new Options.Builder().server(ts.getURI()).maxReconnects(0)
-                        .token("notthetoken".toCharArray()).build();
+                Options options = new Options.Builder()
+                    .server(ts.getURI())
+                    .maxReconnects(0)
+                    .errorListener(new ErrorListener() {})
+                    .token("notthetoken".toCharArray())
+                    .build();
                 Nats.connect(options); // expected to fail
             }
         });

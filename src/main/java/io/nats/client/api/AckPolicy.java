@@ -37,6 +37,10 @@ public enum AckPolicy {
 
     private final String policy;
 
+    /**
+     * Construct an AckPolicy
+     * @param p the policy JSON value text
+     */
     AckPolicy(String p) {
         policy = p;
     }
@@ -54,6 +58,11 @@ public enum AckPolicy {
         }
     }
 
+    /**
+     * Get an instance of the AckPolicy or null if the string does not match the JSON value text
+     * @param value the value to look up
+     * @return the AckPolicy or null if not found
+     */
     @Nullable
     public static AckPolicy get(String value) {
         return strEnumHash.get(value);

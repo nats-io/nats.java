@@ -20,6 +20,9 @@ import java.nio.charset.Charset;
 
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
+/**
+ * A class that wraps a byte array that can automatically grow
+ */
 public class ByteArrayPrimitiveBuilder extends BuilderBase {
     private byte[] buffer;
     private int position;

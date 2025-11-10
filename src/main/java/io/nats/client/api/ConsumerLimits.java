@@ -92,6 +92,11 @@ public class ConsumerLimits implements JsonSerializable {
         private Integer maxAckPending;
 
         /**
+         * Construct an instance of the builder
+         */
+        public Builder() {}
+
+        /**
          * sets the amount of time before the consumer is deemed inactive.
          * @param inactiveThreshold the threshold duration
          * @return Builder

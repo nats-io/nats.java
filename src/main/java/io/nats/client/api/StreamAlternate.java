@@ -23,6 +23,9 @@ import java.util.List;
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonValueUtils.readString;
 
+/**
+ * The Stream Alternate
+ */
 public class StreamAlternate {
     private final String name;
     private final String domain;

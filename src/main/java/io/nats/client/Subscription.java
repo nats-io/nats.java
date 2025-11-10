@@ -39,17 +39,20 @@ import java.time.Duration;
 public interface Subscription extends Consumer {
 
     /**
-     * @return the subject associated with this subscription, will be non-null
+     * the subject associated with this subscription, will be non-null
+     * @return the subject
      */
     String getSubject();
 
     /**
-     * @return the queue associated with this subscription, may be null.
+     * the queue associated with this subscription, may be null.
+     * @return the queue name
      */
     String getQueueName();
 
     /**
-     * @return the Dispatcher that owns this subscription, or null
+     * the Dispatcher that owns this subscription, or null
+     * @return the dispatcher instance
      */
     Dispatcher getDispatcher();
 

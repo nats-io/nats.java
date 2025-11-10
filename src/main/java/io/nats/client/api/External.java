@@ -50,6 +50,14 @@ public class External implements JsonSerializable {
     }
 
     /**
+     * Construct an External configuration copying the information from an External configuration
+     * @param external the source configuration
+     */
+    public External(External external) {
+        this.api = external.api;
+        this.deliver = external.deliver;
+    }
+    /**
      * Returns a JSON representation of this mirror
      *
      * @return json mirror json string
@@ -116,11 +124,16 @@ public class External implements JsonSerializable {
     }
 
     /**
-     * Placement can be created using a Builder.
+     * External can be created using a Builder.
      */
     public static class Builder {
         private String api;
         private String deliver;
+
+        /**
+         * Construct a builder for an External object
+         */
+        public Builder() {}
 
         /**
          * Set the api string.

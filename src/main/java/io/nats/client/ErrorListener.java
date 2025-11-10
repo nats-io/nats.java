@@ -118,7 +118,20 @@ public interface ErrorListener {
      */
     default void pullStatusError(Connection conn, JetStreamSubscription sub, Status status) {}
 
-    enum FlowControlSource { FLOW_CONTROL, HEARTBEAT }
+    /**
+     * Enum for the flow control source
+     */
+    enum FlowControlSource {
+        /**
+         * a flow control message
+         */
+        FLOW_CONTROL,
+
+        /**
+         * a heartbeat message
+         */
+        HEARTBEAT
+    }
 
     /**
      * Called by the connection when a flow control is processed.

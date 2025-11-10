@@ -26,6 +26,9 @@ import static io.nats.client.support.ApiConstants.*;
  */
 public class Error implements JsonSerializable {
 
+    /**
+     * represents an error code that was not set / provided
+     */
     public static final int NOT_SET = -1;
 
     private final JsonValue jv;
@@ -62,14 +65,26 @@ public class Error implements JsonSerializable {
         return jv;
     }
 
+    /**
+     * The request error code from the server
+     * @return the code
+     */
     public int getCode() {
         return JsonValueUtils.readInteger(jv, CODE, NOT_SET);
     }
 
+    /**
+     * The api error code from the server
+     * @return the code
+     */
     public int getApiErrorCode() {
         return JsonValueUtils.readInteger(jv, ERR_CODE, NOT_SET);
     }
 
+    /**
+     * Get the error description
+     * @return the description
+     */
     @NonNull
     public String getDescription() {
         return JsonValueUtils.readString(jv, DESCRIPTION, "Unknown JetStream Error");
@@ -91,6 +106,11 @@ public class Error implements JsonSerializable {
         return getDescription() + " [" + apiErrorCode + "]";
     }
 
+    /**
+     * Convert a status to an Error object. Only some status are supported, otherwise a generic error is returned
+     * @param status the status
+     * @return the error
+     */
     @NonNull
     public static Error convert(Status status) {
         switch (status.getCode()) {

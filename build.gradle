@@ -37,6 +37,7 @@ repositories {
     maven { url "https://repo1.maven.org/maven2/" }
     maven { url "https://central.sonatype.com/repository/maven-snapshots/" }
     maven { url "https://oss.sonatype.org/content/repositories/releases/" }
+    mavenLocal()
 }
 
 dependencies {
@@ -44,7 +45,7 @@ dependencies {
     implementation 'org.jspecify:jspecify:1.0.0'
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.9.0'
-    testImplementation 'io.nats:jnats-server-runner:2.0.0'
+    testImplementation 'io.nats:jnats-server-runner:3.0.1'
     testImplementation 'nl.jqno.equalsverifier:equalsverifier:3.12.3'
 }
 
@@ -97,12 +98,18 @@ test {
 
 javadoc {
     options.overview = 'src/main/javadoc/overview.html' // relative to source root
+    options.memberLevel = JavadocMemberLevel.PUBLIC
     source = sourceSets.main.allJava
     title = "NATS.IO Java API"
-    excludes = ['io/nats/client/impl',
-                'io/nats/examples',
-                "io/nats/client/api/ConsumerCreateRequest.java",
-                "io/nats/client/api/MessageGetRequest.java"
+    excludes = [
+            "io/nats/client/impl",
+            "io/nats/examples",
+            "io/nats/client/api/ConsumerCreateRequest.java",
+            "io/nats/client/api/MessageGetRequest.java",
+            "io/nats/client/api/MessageDeleteRequest.java",
+            "io/nats/client/support/IncomingHeadersProcessor.java",
+            "io/nats/client/support/**",
+            "**/Debug**"
     ]
     classpath = sourceSets.main.runtimeClasspath
     doLast {

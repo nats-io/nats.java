@@ -31,6 +31,9 @@ import static io.nats.client.support.NatsConstants.GREATER_THAN;
 import static io.nats.client.support.Validator.emptyAsNull;
 import static io.nats.client.support.Validator.nullOrEmpty;
 
+/**
+ * The ConsumerConfiguration class specifies the configuration for creating an ordered JetStream consumer
+ */
 public class OrderedConsumerConfiguration implements JsonSerializable {
 
     private final List<String> filterSubjects;
@@ -52,18 +55,32 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
         filterSubjects.add(GREATER_THAN);
     }
 
+    /**
+     * OrderedConsumerConfiguration creation works like a builder.
+     * The builder supports chaining and will create a default set of options if
+     * no methods are calls, including setting the filter subject to &gt;
+     * @param json the JSON used to seed the builder
+     * @throws JsonParseException if there is a problem parsing the json
+     */
     public OrderedConsumerConfiguration(@NonNull String json) throws JsonParseException {
         this(JsonParser.parse(json));
     }
 
-    public OrderedConsumerConfiguration(@NonNull JsonValue v) throws JsonParseException {
+    /**
+     * OrderedConsumerConfiguration creation works like a builder.
+     * The builder supports chaining and will create a default set of options if
+     * no methods are calls, including setting the filter subject to &gt;
+     * @param jv the JsonValue used to seed the builder
+     * @throws JsonParseException if there is a problem parsing the json
+     */
+    public OrderedConsumerConfiguration(@NonNull JsonValue jv) throws JsonParseException {
         this();
-        filterSubjects(readStringList(v, FILTER_SUBJECTS)); // readStringList won't return null but can return empty
-        deliverPolicy(DeliverPolicy.get(readString(v, DELIVER_POLICY)));
-        startSequence(readLong(v, OPT_START_SEQ, ConsumerConfiguration.LONG_UNSET));
-        startTime(readDate(v, OPT_START_TIME));
-        replayPolicy(ReplayPolicy.get(readString(v, REPLAY_POLICY)));
-        headersOnly(readBoolean(v, HEADERS_ONLY, null));
+        filterSubjects(readStringList(jv, FILTER_SUBJECTS)); // readStringList won't return null but can return empty
+        deliverPolicy(DeliverPolicy.get(readString(jv, DELIVER_POLICY)));
+        startSequence(readLong(jv, OPT_START_SEQ, ConsumerConfiguration.LONG_UNSET));
+        startTime(readDate(jv, OPT_START_TIME));
+        replayPolicy(ReplayPolicy.get(readString(jv, REPLAY_POLICY)));
+        headersOnly(readBoolean(jv, HEADERS_ONLY, null));
     }
 
     /**
@@ -198,49 +215,91 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
         return this;
     }
 
+    /**
+     * Gets the filter subject of this consumer configuration.
+     * With the introduction of multiple filter subjects, this method will
+     * return null if there are not exactly one filter subjects
+     * @return the first filter subject.
+     */
     @Nullable
     public String getFilterSubject() {
         return filterSubjects.size() != 1 ? null : filterSubjects.get(0);
     }
 
+    /**
+     * Gets the filter subjects as a list. May be null, otherwise won't be empty
+     * @return the list
+     */
     @NonNull
     public List<String> getFilterSubjects() {
         return filterSubjects;
     }
 
+    /**
+     * Whether there are multiple filter subjects for this consumer configuration.
+     * @return true if there are multiple filter subjects
+     */
     public boolean hasMultipleFilterSubjects() {
         return filterSubjects.size() > 1;
     }
 
+    /**
+     * Gets the deliver policy of this consumer configuration.
+     * @return the deliver policy.
+     */
     @Nullable
     public DeliverPolicy getDeliverPolicy() {
         return deliverPolicy;
     }
 
+    /**
+     * Gets the start sequence of this consumer configuration.
+     * @return the start sequence.
+     */
     @Nullable
     public Long getStartSequence() {
         return startSequence;
     }
 
+    /**
+     * Gets the start time of this consumer configuration.
+     * @return the start time.
+     */
     @Nullable
     public ZonedDateTime getStartTime() {
         return startTime;
     }
 
+    /**
+     * Gets the replay policy of this consumer configuration.
+     * @return the replay policy.
+     */
     @Nullable
     public ReplayPolicy getReplayPolicy() {
         return replayPolicy;
     }
 
+    /**
+     * Get the header only flag indicating whether it's on or off. Same as isHeadersOnly
+     * @return the flow control mode
+     */
     @Nullable
     public Boolean getHeadersOnly() {
         return headersOnly;
     }
 
+    /**
+     * Get the header only flag indicating whether it's on or off. Same as getHeadersOnly
+     * @return the flow control mode
+     */
     public boolean isHeadersOnly() {
         return headersOnly != null && headersOnly;
     }
 
+    /**
+     * Gets the prefix that will be used for names of underlying consumers
+     * @return the prefix
+     */
     public String getConsumerNamePrefix() {
         return consumerNamePrefix;
     }

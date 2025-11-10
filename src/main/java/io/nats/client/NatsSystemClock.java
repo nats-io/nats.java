@@ -13,6 +13,9 @@
 
 package io.nats.client;
 
+/**
+ * Bridge to the NatsSystemClockProvider implementation
+ */
 public final class NatsSystemClock {
     private static NatsSystemClockProvider PROVIDER = new NatsSystemClockProvider() {};
 
@@ -35,7 +38,7 @@ public final class NatsSystemClock {
     }
 
     /**
-     * Get the current nano time from the provider
+     * Get the current nano time from the provider, suitable for calculating elapsed time
      * @return the nano time
      */
     public static long nanoTime() {

@@ -15,6 +15,9 @@ package io.nats.client;
 
 import java.time.Duration;
 
+/**
+ * A simplified consumer that does endless consume on the style of an iterator
+ */
 public interface IterableConsumer extends MessageConsumer {
     /**
      * Read the next message. Return null if the calls times out.

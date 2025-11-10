@@ -18,6 +18,9 @@ package io.nats.client;
  * Options are set using the {@link PullSubscribeOptions.Builder} or static helper methods.
  */
 public class PullSubscribeOptions extends SubscribeOptions {
+    /**
+     * An instance of PullSubscribeOptions with the default options
+     */
     public static final PullSubscribeOptions DEFAULT_PULL_OPTS = PullSubscribeOptions.builder().build();
 
     private PullSubscribeOptions(Builder builder) {
@@ -71,6 +74,10 @@ public class PullSubscribeOptions extends SubscribeOptions {
      */
     public static class Builder
             extends SubscribeOptions.Builder<Builder, PullSubscribeOptions> {
+        /**
+         * Construct an instance of the builder
+         */
+        public Builder() {}
 
         @Override
         protected Builder getThis() {
