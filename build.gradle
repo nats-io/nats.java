@@ -1,30 +1,24 @@
 import aQute.bnd.gradle.Bundle
-import org.gradle.internal.os.OperatingSystem
 
 plugins {
-    id 'java'
-    id 'java-library'
-    id 'maven-publish'
-    id 'jacoco'
-//    id 'com.github.kt3k.coveralls' version '2.12.2'
-    id 'biz.aQute.bnd.builder' version '5.1.2'
-    id "org.gradle.test-retry" version "1.6.2"
-    id 'io.github.gradle-nexus.publish-plugin' version '1.1.0'
-    id 'signing'
+    id("java")
+    id("java-library")
+    id("maven-publish")
+    id("jacoco")
+    id("biz.aQute.bnd.builder") version "5.1.2"
+    id("org.gradle.test-retry") version "1.6.4"
+    id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
+    id("signing")
 }
 
 def jarVersion = "2.24.0"
 
-def buildEvent = System.getenv("BUILD_EVENT")
-def isRelease = buildEvent == "release"
+def isRelease = System.getenv("BUILD_EVENT") == "release"
 def brn = System.getenv("BRANCH_REF_NAME")
 def snap = brn == null || brn.equals("") ? "-SNAPSHOT" : "." + brn + "-SNAPSHOT"
 
-// version is the variable the build actually uses.
-version = isRelease ? jarVersion : jarVersion + snap
-
-archivesBaseName = 'jnats'
 group = 'io.nats'
+version = isRelease ? jarVersion : jarVersion + snap // version is the variable the build actually uses.
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
@@ -32,21 +26,21 @@ java {
 }
 
 repositories {
-    gradlePluginPortal()
-    mavenCentral()
-    maven { url "https://repo1.maven.org/maven2/" }
-    maven { url "https://central.sonatype.com/repository/maven-snapshots/" }
-    maven { url "https://oss.sonatype.org/content/repositories/releases/" }
     mavenLocal()
+    mavenCentral()
+    maven { url="https://repo1.maven.org/maven2/" }
+    maven { url="https://central.sonatype.com/repository/maven-snapshots/" }
 }
 
 dependencies {
-    implementation 'org.bouncycastle:bcprov-lts8on:2.73.8'
+    implementation 'org.bouncycastle:bcprov-lts8on:2.73.9'
     implementation 'org.jspecify:jspecify:1.0.0'
 
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.14.1'
     testImplementation 'io.nats:jnats-server-runner:3.0.1'
     testImplementation 'nl.jqno.equalsverifier:equalsverifier:3.12.3'
+
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 sourceSets {
@@ -68,15 +62,13 @@ tasks.register('bundle', Bundle) {
 }
 
 jar {
-    manifest {
-        attributes('Automatic-Module-Name': 'io.nats.jnats')
+    bundle {
+        bnd("Bundle-Name": "io.nats.jnats",
+                "Bundle-Vendor": "nats.io",
+                "Bundle-Description": "Java Nats",
+                "Bundle-DocURL": "https://github.com/nats-io/nats.java"
+        )
     }
-    bnd (['Implementation-Title': 'Java Nats',
-          'Implementation-Version': jarVersion,
-          'Implementation-Vendor': 'nats.io',
-          "Import-Package": "!org.bouncycastle:bcprov-lts8on"]
-    )
-    exclude("io/nats/examples/**")
 }
 
 test {
@@ -112,21 +104,6 @@ javadoc {
             "**/Debug**"
     ]
     classpath = sourceSets.main.runtimeClasspath
-    doLast {
-        if (!OperatingSystem.current().isWindows()) {
-            exec {
-                println "Updating favicon on all html files"
-                workingDir 'build/docs/javadoc'
-                // Only on linux, mac at this point
-                commandLine 'find', '.', '-name', '*.html', '-exec', 'sed', '-i', '-e', 's#<head>#<head><link rel="icon" type="image/ico" href="favicon.ico">#', '{}', ';'
-            }
-            copy {
-                println "Copying images to javadoc folder"
-                from 'src/main/javadoc/images'
-                into 'build/docs/javadoc'
-            }
-        }
-    }
 }
 
 tasks.register('examplesJar', Jar) {
@@ -168,8 +145,12 @@ tasks.register('fatJar', Jar) {
     with jar
 }
 
+artifacts {
+    archives javadocJar, sourcesJar, examplesJar, testsJar
+}
+
 jacoco {
-    toolVersion = "0.8.6"
+    toolVersion = "0.8.12"
 }
 
 jacocoTestReport {
@@ -179,15 +160,10 @@ jacocoTestReport {
     }
     afterEvaluate { // only report on main library not examples
         classDirectories.setFrom(files(classDirectories.files.collect {
-            fileTree(dir: it, exclude: [
-                    '**/examples/**', 'io/nats/client/tests/**', 'io/nats/client/support/Debug*'
-                    ])
+            fileTree(dir: it,
+                    exclude: ['**/examples/**', '**/Debug**'])
         }))
     }
-}
-
-artifacts {
-    archives javadocJar, sourcesJar, examplesJar, testsJar
 }
 
 nexusPublishing {
@@ -210,10 +186,10 @@ publishing {
             artifact javadocJar
             artifact testsJar
             pom {
-                name = 'jnats'
-                packaging = 'jar'
+                name = "jnats"
+                packaging = "jar"
                 groupId = group
-                artifactId = archivesBaseName
+                artifactId = "jnats"
                 description = 'Client library for working with the NATS messaging system.'
                 url = 'https://github.com/nats-io/nats.java'
                 licenses {
