@@ -1,5 +1,4 @@
 import aQute.bnd.gradle.Bundle
-import org.gradle.internal.os.OperatingSystem
 
 plugins {
     id("java")
@@ -12,7 +11,7 @@ plugins {
     id("signing")
 }
 
-def jarVersion = "2.23.1"
+def jarVersion = "2.24.1"
 
 def isRelease = System.getenv("BUILD_EVENT") == "release"
 def brn = System.getenv("BRANCH_REF_NAME")
@@ -39,7 +38,7 @@ dependencies {
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.14.1'
     testImplementation 'io.nats:jnats-server-runner:3.0.1'
-    testImplementation 'nl.jqno.equalsverifier:equalsverifier:4.2.1'
+    testImplementation 'nl.jqno.equalsverifier:equalsverifier:3.12.3'
 
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
@@ -85,8 +84,7 @@ test {
         maxFailures = 4
         maxRetries = 4
     }
-//    maxParallelForks = Runtime.runtime.availableProcessors()
-    maxParallelForks = 2
+    maxParallelForks = Runtime.runtime.availableProcessors()
     systemProperty 'junit.jupiter.execution.timeout.default', '3m'
 }
 
@@ -100,6 +98,9 @@ javadoc {
             "io/nats/examples",
             "io/nats/client/api/ConsumerCreateRequest.java",
             "io/nats/client/api/MessageGetRequest.java",
+            "io/nats/client/api/MessageDeleteRequest.java",
+            "io/nats/client/support/IncomingHeadersProcessor.java",
+            "io/nats/client/support/**",
             "**/Debug**"
     ]
     classpath = sourceSets.main.runtimeClasspath
