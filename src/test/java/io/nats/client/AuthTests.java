@@ -22,6 +22,8 @@ import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import javax.net.ssl.SSLContext;
 import java.io.BufferedWriter;
@@ -37,6 +39,7 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.condition.OS.WINDOWS;
 
+@Execution(ExecutionMode.SAME_THREAD)
 public class AuthTests extends TestBase {
 
     @Test
