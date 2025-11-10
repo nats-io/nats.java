@@ -18,8 +18,8 @@ import io.nats.client.ReadListener;
 
 public class ReaderListenerConsoleImpl implements ReadListener {
     @Override
-    public void protocol(String op, String string) {
-        System.out.println("RL/Protocol " + op + " " + string);
+    public void protocol(String op, String text) {
+        System.out.println("RL/Protocol " + op + " " + text);
     }
 
     @Override

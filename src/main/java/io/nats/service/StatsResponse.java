@@ -64,6 +64,9 @@ import static io.nats.client.support.JsonValueUtils.readValue;
  * </code>
  */
 public class StatsResponse extends ServiceResponse {
+    /**
+     * The API response type for StatsResponse
+     */
     public static final String TYPE = "io.nats.micro.v1.stats_response";
 
     private final ZonedDateTime started;

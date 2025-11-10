@@ -1,4 +1,5 @@
 import aQute.bnd.gradle.Bundle
+import org.gradle.internal.os.OperatingSystem
 
 plugins {
     id("java")

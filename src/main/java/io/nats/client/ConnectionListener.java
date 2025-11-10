@@ -18,6 +18,9 @@ package io.nats.client;
  * listener is configured in the {@link Options Options} at creation time.
  */
 public interface ConnectionListener {
+    /**
+     * Enum for connection events
+     */
     enum Events {
         /** The connection has successfully completed the handshake with the nats-server. */
         CONNECTED(true, "opened"),
@@ -38,6 +41,11 @@ public interface ConnectionListener {
         private final String event;
         private final String natsEvent;
 
+        /**
+         * Construct an events enum
+         * @param connectionEvent whether this is a connection event
+         * @param event the simple event text
+         */
         Events(boolean connectionEvent, String event) {
             this.connectionEvent = connectionEvent;
             this.event = event;
@@ -49,14 +57,26 @@ public interface ConnectionListener {
             }
         }
 
+        /**
+         * Whether this event is a connection event.
+         * @return the flag
+         */
         public boolean isConnectionEvent() {
             return connectionEvent;
         }
 
+        /**
+         * Get the simple event text
+         * @return the text
+         */
         public String getEvent() {
             return event;
         }
 
+        /**
+         * Get the event text calculated with if it's a connection event and prefixed with "nats:"
+         * @return the text
+         */
         public String getNatsEvent() {
             return natsEvent;
         }

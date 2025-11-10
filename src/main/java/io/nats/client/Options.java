@@ -1063,6 +1063,10 @@ public class Options {
             return this;
         }
 
+        /**
+         * set to report no responders
+         * @return the Builder for chaining
+         */
         public Builder reportNoResponders() {
             this.reportNoResponders = true;
             return this;
@@ -1229,7 +1233,7 @@ public class Options {
         }
 
         /**
-         *
+         * the path to the keystore file
          * @param keystore the path to the keystore file
          * @return the Builder for chaining
          */
@@ -1239,7 +1243,7 @@ public class Options {
         }
 
         /**
-         *
+         * the password for the keystore
          * @param keystorePassword the password for the keystore
          * @return the Builder for chaining
          */
@@ -1249,7 +1253,7 @@ public class Options {
         }
 
         /**
-         *
+         * the path to the trust store file
          * @param truststore the path to the trust store file
          * @return the Builder for chaining
          */
@@ -1259,7 +1263,7 @@ public class Options {
         }
 
         /**
-         *
+         * The password for the trust store
          * @param truststorePassword the password for the trust store
          * @return the Builder for chaining
          */
@@ -1269,8 +1273,8 @@ public class Options {
         }
 
         /**
-         *
-         * @param tlsAlgorithm the tls algorithm. Default is {@value SSLUtils#DEFAULT_TLS_ALGORITHM}
+         * The tls algorithm to use Default is {@value SSLUtils#DEFAULT_TLS_ALGORITHM}
+         * @param tlsAlgorithm the tls algorithm.
          * @return the Builder for chaining
          */
         public Builder tlsAlgorithm(String tlsAlgorithm) {
@@ -1279,8 +1283,8 @@ public class Options {
         }
 
         /**
-         *
-         * @param credentialPath the path to the credentials file for creating an {@link AuthHandler AuthHandler}
+         * the path to the credentials file for creating an {@link AuthHandler AuthHandler}
+         * @param credentialPath the path to the credentials file
          * @return the Builder for chaining
          */
         public Builder credentialPath(String credentialPath) {
@@ -2044,6 +2048,10 @@ public class Options {
         // ----------------------------------------------------------------------------------------------------
         // BUILDER COPY CONSTRUCTOR
         // ----------------------------------------------------------------------------------------------------
+        /**
+         * Construction an Options.Builder copying an existing Options
+         * @param o the options
+         */
         public Builder(Options o) {
             if (o == null) {
                 throw new IllegalArgumentException("Options cannot be null");
@@ -2192,6 +2200,7 @@ public class Options {
     // GETTERS
     // ----------------------------------------------------------------------------------------------------
     /**
+     * Get the general executor
      * @return the executor, see {@link Builder#executor(ExecutorService) executor()} in the builder doc
      */
     public ExecutorService getExecutor() {
@@ -2207,6 +2216,7 @@ public class Options {
     }
 
     /**
+     * Get the ScheduledExecutorService instance
      * @return the ScheduledExecutorService, see {@link Builder#scheduledExecutor(ScheduledExecutorService) scheduledExecutor()} in the builder doc
      */
     public ScheduledExecutorService getScheduledExecutor() {
@@ -2224,16 +2234,25 @@ public class Options {
         return stpe;
     }
 
+    /**
+     * whether the general executor is the internal one versus a user supplied one
+     * @return true if the executor is internal
+     */
     public boolean executorIsInternal() {
         return this.executor == null;
     }
 
+    /**
+     * whether the scheduled executor is the internal one versus a user supplied one
+     * @return true if the executor is internal
+     */
     public boolean scheduledExecutorIsInternal() {
         return this.scheduledExecutor == null;
     }
 
     /**
-     * @return the callback executor, see {@link Builder#callbackThreadFactory(ThreadFactory) callbackThreadFactory()} in the builder doc
+     * the callback executor, see {@link Builder#callbackThreadFactory(ThreadFactory) callbackThreadFactory()} in the builder doc
+     * @return the executor
      */
     public ExecutorService getCallbackExecutor() {
         return this.callbackThreadFactory == null ?
@@ -2241,7 +2260,8 @@ public class Options {
     }
 
     /**
-     * @return the connect executor, see {@link Builder#connectThreadFactory(ThreadFactory) connectThreadFactory()} in the builder doc
+     * the connect executor, see {@link Builder#connectThreadFactory(ThreadFactory) connectThreadFactory()} in the builder doc
+     * @return the executor
      */
     public ExecutorService getConnectExecutor() {
         return this.connectThreadFactory == null ?
@@ -2249,7 +2269,8 @@ public class Options {
     }
 
     /**
-     * @return the list of HttpRequest interceptors.
+     * the list of HttpRequest interceptors.
+     * @return the list
      */
     public List<java.util.function.Consumer<HttpRequest>> getHttpRequestInterceptors() {
         return null == this.httpRequestInterceptors
@@ -2258,14 +2279,16 @@ public class Options {
     }
 
     /**
-     * @return the proxy to used for all sockets.
+     * the proxy to used for all sockets.
+     * @return the proxy
      */
     public Proxy getProxy() {
         return this.proxy;
     }
 
     /**
-     * @return the error listener. Will be an instance of ErrorListenerLoggerImpl if not user supplied. See {@link Builder#errorListener(ErrorListener) errorListener()} in the builder doc
+     * the error listener. Will be an instance of ErrorListenerLoggerImpl if not user supplied. See {@link Builder#errorListener(ErrorListener) errorListener()} in the builder doc
+     * @return the listener
      */
     public ErrorListener getErrorListener() {
         return this.errorListener;
@@ -2282,49 +2305,56 @@ public class Options {
     }
 
     /**
-     * @return the connection listener, or null, see {@link Builder#connectionListener(ConnectionListener) connectionListener()} in the builder doc
+     * the connection listener, or null, see {@link Builder#connectionListener(ConnectionListener) connectionListener()} in the builder doc
+     * @return the listener
      */
     public ConnectionListener getConnectionListener() {
         return this.connectionListener;
     }
 
     /**
-     * @return the read listener, or null, see {@link Builder#readListener(ReadListener) readListener()} in the builder doc
+     * the read listener, or null, see {@link Builder#readListener(ReadListener) readListener()} in the builder doc
+     * @return the listener
      */
     public ReadListener getReadListener() {
         return this.readListener;
     }
 
     /**
-     * @return the statistics collector, or null, see {@link Builder#statisticsCollector(StatisticsCollector) statisticsCollector()} in the builder doc
+     * the statistics collector, or null, see {@link Builder#statisticsCollector(StatisticsCollector) statisticsCollector()} in the builder doc
+     * @return the collector
      */
     public StatisticsCollector getStatisticsCollector() {
         return this.statisticsCollector;
     }
 
     /**
-     * @return the auth handler, or null, see {@link Builder#authHandler(AuthHandler) authHandler()} in the builder doc
+     * the auth handler, or null, see {@link Builder#authHandler(AuthHandler) authHandler()} in the builder doc
+     * @return the handler
      */
     public AuthHandler getAuthHandler() {
         return this.authHandler;
     }
 
     /**
-     * @return the reconnection delay handler, or null, see {@link Builder#reconnectDelayHandler(ReconnectDelayHandler) reconnectDelayHandler()} in the builder doc
+     * the reconnection delay handler, or null, see {@link Builder#reconnectDelayHandler(ReconnectDelayHandler) reconnectDelayHandler()} in the builder doc
+     * @return the handler
      */
     public ReconnectDelayHandler getReconnectDelayHandler() {
         return this.reconnectDelayHandler;
     }
 
     /**
-     * @return the dataport type for connections created by this options object, see {@link Builder#dataPortType(String) dataPortType()} in the builder doc
+     * the DataPort class type for connections created by this options object, see {@link Builder#dataPortType(String) dataPortType()} in the builder doc
+     * @return the DataPort class type
      */
     public String getDataPortType() {
         return this.dataPortType;
     }
 
     /**
-     * @return the data port described by these options
+     * the data port described by these options
+     * @return the data port
      */
     public DataPort buildDataPort() {
         DataPort dp;
@@ -2344,7 +2374,8 @@ public class Options {
     }
 
     /**
-     * @return the servers configured in options, see {@link Builder#servers(String[]) servers()} in the builder doc
+     * the servers as configured in options as URI's, see {@link Builder#servers(String[]) servers()} in the builder doc
+     * @return the processed servers
      */
     public List<URI> getServers() {
         List<URI> list = new ArrayList<>();
@@ -2355,98 +2386,112 @@ public class Options {
     }
 
     /**
-     * @return the servers configured in options, see {@link Builder#servers(String[]) servers()} in the builder doc
+     * the servers as configured in options as NatsUri's, see {@link Builder#servers(String[]) servers()} in the builder doc
+     * @return the processed servers
      */
     public List<NatsUri> getNatsServerUris() {
         return natsServerUris;
     }
 
     /**
-     * @return the servers as given to the options, since the servers are normalized
+     * the servers as given to the options, since the servers are normalized
+     * @return the raw servers
      */
     public List<String> getUnprocessedServers() {
         return unprocessedServers;
     }
 
     /**
-     * @return should we turn off randomization for server connection attempts, see {@link Builder#noRandomize() noRandomize()} in the builder doc
+     * should we turn off randomization for server connection attempts, see {@link Builder#noRandomize() noRandomize()} in the builder doc
+     * @return true if we should turn off randomization
      */
     public boolean isNoRandomize() {
         return noRandomize;
     }
 
     /**
-     * @return should we resolve hostnames for server connection attempts, see {@link Builder#noResolveHostnames() noResolveHostnames()} in the builder doc
+     * should we resolve hostnames for server connection attempts, see {@link Builder#noResolveHostnames() noResolveHostnames()} in the builder doc
+     * @return true if we should resolve hostnames
      */
     public boolean isNoResolveHostnames() {
         return noResolveHostnames;
     }
 
     /**
-     * @return should complete with exception futures for requests that get no responders instead of cancelling the future, see {@link Builder#reportNoResponders() reportNoResponders()} in the builder doc
+     * should complete with exception futures for requests that get no responders instead of cancelling the future, see {@link Builder#reportNoResponders() reportNoResponders()} in the builder doc
+     * @return true if we should report no responders instead of cancelling them
      */
     public boolean isReportNoResponders() {
         return reportNoResponders;
     }
 
     /**
-     * @return the connectionName, see {@link Builder#connectionName(String) connectionName()} in the builder doc
+     * the connectionName, see {@link Builder#connectionName(String) connectionName()} in the builder doc
+     * @return the connectionName
      */
     public String getConnectionName() {
         return connectionName;
     }
 
     /**
-     * @return are we in verbose mode, see {@link Builder#verbose() verbose()} in the builder doc
+     * are we in verbose mode, see {@link Builder#verbose() verbose()} in the builder doc
+     * @return true if we are in verbose mode
      */
     public boolean isVerbose() {
         return verbose;
     }
 
     /**
-     * @return is echo-ing disabled, see {@link Builder#noEcho() noEcho()} in the builder doc
+     * is echo-ing disabled, see {@link Builder#noEcho() noEcho()} in the builder doc
+     * @return true if echo-ing is disabled
      */
     public boolean isNoEcho() {
         return noEcho;
     }
 
     /**
-     * @return are headers disabled, see {@link Builder#noHeaders() noHeaders()} in the builder doc
+     * are headers disabled, see {@link Builder#noHeaders() noHeaders()} in the builder doc
+     * @return true if headers are disabled
      */
     public boolean isNoHeaders() {
         return noHeaders;
     }
 
     /**
-     * @return is NoResponders ignored disabled, see {@link Builder#noNoResponders() noNoResponders()} in the builder doc
+     * is NoResponders ignored disabled, see {@link Builder#noNoResponders() noNoResponders()} in the builder doc
+     * @return true if no no-responders
      */
     public boolean isNoNoResponders() {
         return noNoResponders;
     }
 
     /**
-     * @return clientSideLimitChecks flag
+     * clientSideLimitChecks
+     * @return true if the client will perform limit checks
      */
     public boolean clientSideLimitChecks() {
         return clientSideLimitChecks;
     }
 
     /**
-     * @return whether utf8 subjects are supported, see {@link Builder#supportUTF8Subjects() supportUTF8Subjects()} in the builder doc.
+     * whether utf8 subjects are supported, see {@link Builder#supportUTF8Subjects() supportUTF8Subjects()} in the builder doc.
+     * @return true if utf8 subjects are supported
      */
     public boolean supportUTF8Subjects() {
         return supportUTF8Subjects;
     }
 
     /**
-     * @return are we using pedantic protocol, see {@link Builder#pedantic() pedantic()} in the builder doc
+     * are we using pedantic protocol, see {@link Builder#pedantic() pedantic()} in the builder doc
+     * @return true if using pedantic protocol
      */
     public boolean isPedantic() {
         return pedantic;
     }
 
     /**
-     * @return should we track advanced stats, see {@link Builder#turnOnAdvancedStats() turnOnAdvancedStats()} in the builder doc
+     * should we track advanced stats, see {@link Builder#turnOnAdvancedStats() turnOnAdvancedStats()} in the builder doc
+     * @return true is advance stat tracking is on
      */
     public boolean isTrackAdvancedStats() {
         return trackAdvancedStats;
@@ -2461,7 +2506,8 @@ public class Options {
     }
 
     /**
-     * @return the maximum length of a control line, see {@link Builder#maxControlLine(int) maxControlLine()} in the builder doc
+     * the maximum length of a control line, see {@link Builder#maxControlLine(int) maxControlLine()} in the builder doc
+     * @return the maximum length
      */
     public int getMaxControlLine() {
         return maxControlLine;
@@ -2469,120 +2515,137 @@ public class Options {
 
     /**
      *
-     * @return true if there is an sslContext for these Options, otherwise false, see {@link Builder#secure() secure()} in the builder doc
+     * is there an sslContext for these Options, otherwise false, see {@link Builder#secure() secure()} in the builder doc
+     * @return true if there is an sslContext
      */
     public boolean isTLSRequired() {
         return sslContext != null;
     }
 
     /**
-     * @return the sslContext, see {@link Builder#secure() secure()} in the builder doc
+     * the sslContext, see {@link Builder#secure() secure()} in the builder doc
+     * @return the sslContext
      */
     public SSLContext getSslContext() {
         return sslContext;
     }
 
     /**
-     * @return the maxReconnect attempts to make before failing, see {@link Builder#maxReconnects(int) maxReconnects()} in the builder doc
+     * the maxReconnect attempts to make before failing, see {@link Builder#maxReconnects(int) maxReconnects()} in the builder doc
+     * @return the maxReconnect attempts
      */
     public int getMaxReconnect() {
         return maxReconnect;
     }
 
     /**
-     * @return the reconnectWait, used between reconnect attempts, see {@link Builder#reconnectWait(Duration) reconnectWait()} in the builder doc
+     * the reconnectWait, used between reconnect attempts, see {@link Builder#reconnectWait(Duration) reconnectWait()} in the builder doc
+     * @return the reconnectWait
      */
     public Duration getReconnectWait() {
         return reconnectWait;
     }
 
     /**
-     * @return the reconnectJitter, used between reconnect attempts to vary the reconnect wait, see {@link Builder#reconnectJitter(Duration) reconnectJitter()} in the builder doc
+     * the reconnectJitter, used between reconnect attempts to vary the reconnect wait, see {@link Builder#reconnectJitter(Duration) reconnectJitter()} in the builder doc
+     * @return the reconnectJitter
      */
     public Duration getReconnectJitter() {
         return reconnectJitter;
     }
 
     /**
-     * @return the reconnectJitterTls, used between reconnect attempts to vary the reconnect wait whe using tls/secure, see {@link Builder#reconnectJitterTls(Duration) reconnectJitterTls()} in the builder doc
+     * the reconnectJitterTls, used between reconnect attempts to vary the reconnect wait whe using tls/secure, see {@link Builder#reconnectJitterTls(Duration) reconnectJitterTls()} in the builder doc
+     * @return the reconnectJitterTls
      */
     public Duration getReconnectJitterTls() {
         return reconnectJitterTls;
     }
 
     /**
-     * @return the connectionTimeout, see {@link Builder#connectionTimeout(Duration) connectionTimeout()} in the builder doc
+     * the connectionTimeout, see {@link Builder#connectionTimeout(Duration) connectionTimeout()} in the builder doc
+     * @return the connectionTimeout
      */
     public Duration getConnectionTimeout() {
         return connectionTimeout;
     }
 
     /**
-     * @return the socketReadTimeoutMillis, see {@link Builder#socketReadTimeoutMillis(int) socketReadTimeoutMillis} in the builder doc
+     * the socketReadTimeoutMillis, see {@link Builder#socketReadTimeoutMillis(int) socketReadTimeoutMillis} in the builder doc
+     * @return the socketReadTimeoutMillis
      */
     public int getSocketReadTimeoutMillis() {
         return socketReadTimeoutMillis;
     }
 
     /**
-     * @return the socketWriteTimeout, see {@link Builder#socketWriteTimeout(long) socketWriteTimeout} in the builder doc
+     * the socketWriteTimeout, see {@link Builder#socketWriteTimeout(long) socketWriteTimeout} in the builder doc
+     * @return the socketWriteTimeout
      */
     public Duration getSocketWriteTimeout() {
         return socketWriteTimeout;
     }
 
     /**
-     * @return the socket so linger number of seconds, see {@link Builder#socketSoLinger(int) socketSoLinger()} in the builder doc
+     * the socket so linger number of seconds, see {@link Builder#socketSoLinger(int) socketSoLinger()} in the builder doc
+     * @return the socket so linger number of seconds
      */
     public int getSocketSoLinger() {
         return socketSoLinger;
     }
 
     /**
-     * @return the number of bytes to set the for the SO_RCVBUF property on the socket  
+     * the number of bytes to set the for the SO_RCVBUF property on the socket
+     * @return the number of bytes
      */
     public int getReceiveBufferSize() {
         return receiveBufferSize;
     }
 
     /**
-     * @return the number of bytes to set the for the SO_SNDBUF property on the socket  
+     * the number of bytes to set the for the SO_SNDBUF property on the socket
+     * @return the number of bytes
      */
     public int getSendBufferSize() {
         return sendBufferSize;
     }
 
     /**
-     * @return the pingInterval, see {@link Builder#pingInterval(Duration) pingInterval()} in the builder doc
+     * the pingInterval, see {@link Builder#pingInterval(Duration) pingInterval()} in the builder doc
+     * @return interval
      */
     public Duration getPingInterval() {
         return pingInterval;
     }
 
     /**
-     * @return the request cleanup interval, see {@link Builder#requestCleanupInterval(Duration) requestCleanupInterval()} in the builder doc
+     * the request cleanup interval, see {@link Builder#requestCleanupInterval(Duration) requestCleanupInterval()} in the builder doc
+     * @return the interval
      */
     public Duration getRequestCleanupInterval() {
         return requestCleanupInterval;
     }
 
     /**
-     * @return the maxPingsOut to limit the number of pings on the wire, see {@link Builder#maxPingsOut(int) maxPingsOut()} in the builder doc
+     * the maxPingsOut to limit the number of pings on the wire, see {@link Builder#maxPingsOut(int) maxPingsOut()} in the builder doc
+     * @return the max pings out
      */
     public int getMaxPingsOut() {
         return maxPingsOut;
     }
 
     /**
-     * @return the reconnectBufferSize, to limit the amount of data held during
-     *         reconnection attempts, see {@link Builder#reconnectBufferSize(long) reconnectBufferSize()} in the builder doc
+     * the reconnectBufferSize, to limit the amount of data held during
+     * reconnection attempts, see {@link Builder#reconnectBufferSize(long) reconnectBufferSize()} in the builder doc
+     * @return the reconnectBufferSize
      */
     public long getReconnectBufferSize() {
         return reconnectBufferSize;
     }
 
     /**
-     * @return the default size for buffers in the connection code, see {@link Builder#bufferSize(int) bufferSize()} in the builder doc
+     * the default size for buffers in the connection code, see {@link Builder#bufferSize(int) bufferSize()} in the builder doc
+     * @return the default size in bytes
      */
     public int getBufferSize() {
         return bufferSize;
@@ -2598,7 +2661,8 @@ public class Options {
     }
 
     /**
-     * @return the username to use for basic authentication, see {@link Builder#userInfo(String, String) userInfo()} in the builder doc
+     * the username to use for basic authentication, see {@link Builder#userInfo(String, String) userInfo()} in the builder doc
+     * @return the username
      */
     public char[] getUsernameChars() {
         return username;
@@ -2614,7 +2678,8 @@ public class Options {
     }
 
     /**
-     * @return the password to use for basic authentication, see {@link Builder#userInfo(String, String) userInfo()} in the builder doc
+     * the password to use for basic authentication, see {@link Builder#userInfo(String, String) userInfo()} in the builder doc
+     * @return the password
      */
     public char[] getPasswordChars() {
         return password;
@@ -2631,37 +2696,43 @@ public class Options {
     }
 
     /**
-     * @return the token to be used for token-based authentication, see {@link Builder#token(String) token()} in the builder doc
+     * the token to be used for token-based authentication, see {@link Builder#token(String) token()} in the builder doc
+     * generated from the token supplier if the user supplied one.
+     * @return the token
      */
     public char[] getTokenChars() {
         return tokenSupplier.get();
     }
 
     /**
-     * @return the flag to turn on old style requests, see {@link Builder#oldRequestStyle() oldStyleRequest()} in the builder doc
+     * the flag to turn on old style requests, see {@link Builder#oldRequestStyle() oldStyleRequest()} in the builder doc
+     * @return the flag
      */
     public boolean isOldRequestStyle() {
         return useOldRequestStyle;
     }
 
     /**
-     * @return the inbox prefix to use for requests, see {@link Builder#inboxPrefix(String) inboxPrefix()} in the builder doc
+     * the inbox prefix to use for requests, see {@link Builder#inboxPrefix(String) inboxPrefix()} in the builder doc
+     * @return the inbox prefix
      */
     public String getInboxPrefix() {
         return inboxPrefix;
     }
 
     /**
-     * @return the maximum number of messages in the outgoing queue, see {@link Builder#maxMessagesInOutgoingQueue(int)
+     * the maximum number of messages in the outgoing queue, see {@link Builder#maxMessagesInOutgoingQueue(int)
      * maxMessagesInOutgoingQueue(int)} in the builder doc
+     * @return the maximum number of messages
      */
     public int getMaxMessagesInOutgoingQueue() {
         return maxMessagesInOutgoingQueue;
     }
 
     /**
-     * @return should we discard messages when the outgoing queue is full, see {@link Builder#discardMessagesWhenOutgoingQueueFull()
+     * should we discard messages when the outgoing queue is full, see {@link Builder#discardMessagesWhenOutgoingQueueFull()
      * discardMessagesWhenOutgoingQueueFull()} in the builder doc
+     * @return true if we should discard messages when the outgoing queue is full
      */
     public boolean isDiscardMessagesWhenOutgoingQueueFull() {
         return discardMessagesWhenOutgoingQueueFull;
@@ -2729,6 +2800,12 @@ public class Options {
         return enableFastFallback;
     }
 
+    /**
+     * create a URI from a server uri.
+     * @param serverURI the text uri
+     * @return the URI object
+     * @throws URISyntaxException if the text version is malformed or illegal
+     */
     public URI createURIForServer(String serverURI) throws URISyntaxException {
         return new NatsUri(serverURI).getUri();
     }

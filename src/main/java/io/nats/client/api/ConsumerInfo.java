@@ -49,12 +49,20 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
     private final ZonedDateTime timestamp;
     private final List<PriorityGroupState> priorityGroupStates;
 
+    /**
+     * Construct a ConsumerInfo instance from a message
+     * @param msg the message
+     */
     public ConsumerInfo(Message msg) {
         this(parseMessage(msg));
     }
 
-    public ConsumerInfo(JsonValue vConsumerInfo) {
-        super(vConsumerInfo);
+    /**
+     * Construct a ConsumerInfo instance from a JsonValue
+     * @param jsonValue the JsonValue
+     */
+    public ConsumerInfo(JsonValue jsonValue) {
+        super(jsonValue);
         if (hasError()) {
             this.configuration = ConsumerConfiguration.builder().build();
             stream = UNDEFINED;
@@ -74,29 +82,29 @@ public class ConsumerInfo extends ApiResponse<ConsumerInfo> {
             priorityGroupStates = null;
         }
         else {
-            JsonValue jvConfig = nullValueIsError(jv, CONFIG, JsonValue.EMPTY_MAP) ;
+            JsonValue jvConfig = nullValueIsError(this.jv, CONFIG, JsonValue.EMPTY_MAP) ;
             configuration = ConsumerConfiguration.builder().jsonValue(jvConfig).build();
 
-            stream = nullStringIsError(jv, STREAM_NAME);
-            name = nullStringIsError(jv, NAME);
-            created = nullDateIsError(jv, CREATED);
+            stream = nullStringIsError(this.jv, STREAM_NAME);
+            name = nullStringIsError(this.jv, NAME);
+            created = nullDateIsError(this.jv, CREATED);
 
-            delivered = new SequenceInfo(readObject(jv, DELIVERED));
-            ackFloor = new SequenceInfo(readObject(jv, ACK_FLOOR));
+            delivered = new SequenceInfo(readObject(this.jv, DELIVERED));
+            ackFloor = new SequenceInfo(readObject(this.jv, ACK_FLOOR));
 
-            numAckPending = readLong(jv, NUM_ACK_PENDING, 0);
-            numRedelivered = readLong(jv, NUM_REDELIVERED, 0);
-            numPending = readLong(jv, NUM_PENDING, 0);
-            numWaiting = readLong(jv, NUM_WAITING, 0);
-            paused = readBoolean(jv, PAUSED, false);
-            pauseRemaining = readNanos(jv, PAUSE_REMAINING);
+            numAckPending = readLong(this.jv, NUM_ACK_PENDING, 0);
+            numRedelivered = readLong(this.jv, NUM_REDELIVERED, 0);
+            numPending = readLong(this.jv, NUM_PENDING, 0);
+            numWaiting = readLong(this.jv, NUM_WAITING, 0);
+            paused = readBoolean(this.jv, PAUSED, false);
+            pauseRemaining = readNanos(this.jv, PAUSE_REMAINING);
 
-            clusterInfo = ClusterInfo.optionalInstance(readValue(jv, CLUSTER));
-            pushBound = readBoolean(jv, PUSH_BOUND);
+            clusterInfo = ClusterInfo.optionalInstance(readValue(this.jv, CLUSTER));
+            pushBound = readBoolean(this.jv, PUSH_BOUND);
 
-            timestamp = readDate(jv, TIMESTAMP);
+            timestamp = readDate(this.jv, TIMESTAMP);
 
-            priorityGroupStates = PriorityGroupState.optionalListOf(readObject(jv, PRIORITY_GROUPS));
+            priorityGroupStates = PriorityGroupState.optionalListOf(readObject(this.jv, PRIORITY_GROUPS));
         }
     }
 

@@ -12,6 +12,9 @@
 // limitations under the License.
 package io.nats.client.api;
 
+/**
+ * Options for the Key Value Watcher
+ */
 public enum KeyValueWatchOption {
     /**
      * Do not include deletes or purges in results.

@@ -35,12 +35,12 @@ public interface Consumer {
     /**
      * The default number of messages a consumer will hold before it starts to drop them.
      */
-    public static final long DEFAULT_MAX_MESSAGES = 512 * 1024;
+    long DEFAULT_MAX_MESSAGES = 512 * 1024;
 
     /**
      * The default number of bytes a consumer will hold before it starts to drop messages.
      */
-    public static final long DEFAULT_MAX_BYTES = 64 * 1024 * 1024;
+    long DEFAULT_MAX_BYTES = 64 * 1024 * 1024;
 
     /**
      * Set limits on the maximum number of messages, or maximum size of messages this consumer
@@ -57,48 +57,55 @@ public interface Consumer {
      * @param maxMessages the maximum message count to hold, defaults to {@value #DEFAULT_MAX_MESSAGES}
      * @param maxBytes the maximum bytes to hold, defaults to {@value #DEFAULT_MAX_BYTES}
      */
-    public void setPendingLimits(long maxMessages, long maxBytes);
+    void setPendingLimits(long maxMessages, long maxBytes);
 
     /**
-     * @return the pending message limit set by {@link #setPendingLimits(long, long) setPendingLimits}
+     * the pending message limit set by {@link #setPendingLimits(long, long) setPendingLimits}
+     * @return the pending message limit
      */
-    public long getPendingMessageLimit();
+    long getPendingMessageLimit();
 
     /**
-     * @return the pending byte limit set by {@link #setPendingLimits(long, long) setPendingLimits}
+     * the pending byte limit set by {@link #setPendingLimits(long, long) setPendingLimits}
+     * @return the pending byte limit
      */
-    public long getPendingByteLimit();
+    long getPendingByteLimit();
 
     /**
-     * @return the number of messages waiting to be delivered/popped, {@link #setPendingLimits(long, long) setPendingLimits}
+     * the number of messages waiting to be delivered/popped, {@link #setPendingLimits(long, long) setPendingLimits}
+     * @return the pending messages
      */
-    public long getPendingMessageCount();
+    long getPendingMessageCount();
 
     /**
-     * @return the cumulative size of the messages waiting to be delivered/popped, {@link #setPendingLimits(long, long) setPendingLimits}
+     * the cumulative size of the messages waiting to be delivered/popped, {@link #setPendingLimits(long, long) setPendingLimits}
+     * @return the number of bytes
      */
-    public long getPendingByteCount();
+    long getPendingByteCount();
 
     /**
-     * @return the total number of messages delivered to this consumer, for all time
+     * the total number of messages delivered to this consumer, for all time
+     * @return the delivered count
      */
-    public long getDeliveredCount();
+    long getDeliveredCount();
 
     /**
-     * @return the number of messages dropped from this consumer, since the last call to {@link #clearDroppedCount() clearDroppedCount}.
+     * the number of messages dropped from this consumer, since the last call to {@link #clearDroppedCount() clearDroppedCount}.
+     * @return the number of messages
      */
-    public long getDroppedCount();
+    long getDroppedCount();
 
     /**
      * Reset the drop count to 0.
      */
-    public void clearDroppedCount();
+    void clearDroppedCount();
 
     /**
-     * @return whether this consumer is still processing messages.
+     * whether this consumer is still processing messages.
      * For a subscription the answer is false after unsubscribe. For a dispatcher, false after stop.
+     * @return the active state
      */
-    public boolean isActive();
+    boolean isActive();
 
     /**
      * Drain tells the consumer to process in flight, or cached messages, but stop receiving new ones. The library will
@@ -114,5 +121,5 @@ public interface Consumer {
      * @return A future that can be used to check if the drain has completed
      * @throws InterruptedException if the thread is interrupted
      */
-    public CompletableFuture<Boolean> drain(Duration timeout) throws InterruptedException;
+    CompletableFuture<Boolean> drain(Duration timeout) throws InterruptedException;
 }

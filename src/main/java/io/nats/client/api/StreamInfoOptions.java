@@ -35,11 +35,19 @@ public class StreamInfoOptions implements JsonSerializable {
         this.deletedDetails = deletedDetails;
     }
 
+    /**
+     * Get the configured subject filter
+     * @return the subject filter
+     */
     @Nullable
     public String getSubjectsFilter() {
         return subjectsFilter;
     }
 
+    /**
+     * Get the configured flag requesting deleted details
+     * @return true if configured for deleted details
+     */
     public boolean isDeletedDetails() {
         return deletedDetails;
     }
@@ -69,6 +77,10 @@ public class StreamInfoOptions implements JsonSerializable {
         return new Builder().deletedDetails().build();
     }
 
+    /**
+     * Get an instance of the builder
+     * @return the builder
+     */
     public static Builder builder() {
         return new Builder();
     }
@@ -94,7 +106,7 @@ public class StreamInfoOptions implements JsonSerializable {
         private boolean deletedDetails;
 
         /**
-         * Default Builder
+         * Construct an instance of the builder
          */
         public Builder() {}
 

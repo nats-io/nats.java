@@ -21,8 +21,7 @@ import static io.nats.client.support.NatsConstants.CRLF;
 
 /**
  * Encapsulate an HttpRequest, in Java 11 we could use this class:
- * https://docs.oracle.com/en/java/javase/11/docs/api/java.net.http/java/net/http/HttpRequest.html
- * 
+ * <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.net.http/java/net/http/HttpRequest.html">Java HttpRequest</a>
  * ...but we want to support older JVMs.
  */
 public class HttpRequest {
@@ -32,6 +31,12 @@ public class HttpRequest {
     private final Headers headers = new Headers();
 
     /**
+     * construct an HttpRequest
+     */
+    public HttpRequest() {}
+
+    /**
+     * Get the headers
      * @return the attached http headers, defaults to GET
      */
     public Headers getHeaders() {
@@ -39,7 +44,8 @@ public class HttpRequest {
     }
 
     /**
-     * @return the request method (GET, POST, etc)
+     * Get the request method
+     * @return the request method (GET, POST, etc.)
      */
     public String getMethod() {
         return method;
@@ -85,7 +91,8 @@ public class HttpRequest {
     }
 
     /**
-     * @return the HTTP version to use for this request. Defaults to "1.1"
+     * the HTTP version to use for this request. Defaults to "1.1"
+     * @return the version
      */
     public String getVersion() {
         return version;
@@ -94,7 +101,6 @@ public class HttpRequest {
     /**
      * Note that no validation is performed on the version. Probably only makes
      * sense to use "0.9", "1.0", "1.1", or "2".
-     * 
      * @param version is the new HTTP version to use.
      * @return this for method chaining.
      */
@@ -107,7 +113,8 @@ public class HttpRequest {
     }
 
     /**
-     * @return the textual representation of the HTTP request line + headers (no body)
+     * the textual representation of the HTTP request line + headers (no body)
+     * @return the text
      */
     @Override
     public String toString() {

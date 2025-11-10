@@ -18,20 +18,54 @@ import java.nio.charset.Charset;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
+/**
+ * A base for "builder" classes
+ */
 public abstract class BuilderBase {
+    /**
+     * The default character set
+     */
     protected final Charset defaultCharset;
+
+    /**
+     * The allocation size
+     */
     protected int allocationSize;
 
+    /**
+     * Allocation boundary
+     */
     public static final int ALLOCATION_BOUNDARY = 32;
+
+    /**
+     * Default allocation for ASCII or ISO_8859_1 charset
+     */
     public static final int DEFAULT_ASCII_ALLOCATION = 32;
+
+    /**
+     * Default allocation for other charsets
+     */
     public static final int DEFAULT_OTHER_ALLOCATION = 64;
+
+    /**
+     * a byte array representing the word "null"
+     */
     public static final byte[] NULL = "null".getBytes(ISO_8859_1);
 
+    /**
+     * Construct a builder base
+     * @param defaultCharset the character set to use as default
+     * @param allocationSize the allocation size
+     */
     protected BuilderBase(Charset defaultCharset, int allocationSize) {
         this.defaultCharset = defaultCharset;
         _setAllocationSize(allocationSize);
     }
 
+    /**
+     * Internal delegate method to set the allocationSizeSuggestion
+     * @param allocationSizeSuggestion the suggestion
+     */
     protected void _setAllocationSize(int allocationSizeSuggestion) {
         int dcas = _defaultCharsetAllocationSize();
         if (allocationSizeSuggestion <= dcas) {
@@ -109,6 +143,12 @@ public abstract class BuilderBase {
         return defaultCharset == US_ASCII || defaultCharset == ISO_8859_1 ? DEFAULT_ASCII_ALLOCATION : DEFAULT_OTHER_ALLOCATION;
     }
 
+    /**
+     * calculate a buffer allocation size
+     * @param atLeast the allocation must be at least
+     * @param blockSize the blocksize
+     * @return the allocation size
+     */
     public static int bufferAllocSize(int atLeast, int blockSize) {
         return atLeast < blockSize
             ? blockSize

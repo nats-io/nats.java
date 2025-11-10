@@ -17,6 +17,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Use the Watcher interface to watch for updates
+ * @param <T> the type being watched
  */
 public interface Watcher<T> {
 

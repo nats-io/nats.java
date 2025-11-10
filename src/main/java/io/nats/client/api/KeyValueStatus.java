@@ -27,6 +27,10 @@ public class KeyValueStatus {
     private final StreamInfo streamInfo;
     private final KeyValueConfiguration config;
 
+    /**
+     * Construct an instance from the underlying stream info
+     * @param si the stream info
+     */
     public KeyValueStatus(StreamInfo si) {
         streamInfo = si;
         config = new KeyValueConfiguration(streamInfo.getConfiguration());

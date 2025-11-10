@@ -126,6 +126,11 @@ public class NKey {
             this.prefix = prefix;
         }
 
+        /**
+         * Get an instance of the type from a prefix
+         * @param prefix the prefix
+         * @return the instance or throws IllegalArgumentException if not found
+         */
         public static Type fromPrefix(int prefix) {
             if (prefix == PREFIX_BYTE_ACCOUNT) {
                 return ACCOUNT;
@@ -466,6 +471,7 @@ public class NKey {
     }
 
     /**
+     * if the public key is an account public key
      * @param src the encoded public key
      * @return true if the public key is an account public key
      */
@@ -474,6 +480,7 @@ public class NKey {
     }
 
     /**
+     * if the public key is a cluster public key
      * @param src the encoded public key
      * @return true if the public key is a cluster public key
      */
@@ -482,6 +489,7 @@ public class NKey {
     }
 
     /**
+     * if the public key is an operator public key
      * @param src the encoded public key
      * @return true if the public key is an operator public key
      */
@@ -490,6 +498,7 @@ public class NKey {
     }
 
     /**
+     * if the public key is a server public key
      * @param src the encoded public key
      * @return true if the public key is a server public key
      */
@@ -498,6 +507,7 @@ public class NKey {
     }
 
     /**
+     * if the public key is a user public key
      * @param src the encoded public key
      * @return true if the public key is a user public key
      */
@@ -541,6 +551,7 @@ public class NKey {
     }
 
     /**
+     * the string encoded seed for this NKey
      * @return the string encoded seed for this NKey
      */
     public char[] getSeed() {
@@ -558,6 +569,7 @@ public class NKey {
     }
 
     /**
+     * the encoded public key for this NKey
      * @return the encoded public key for this NKey
      *
      * @throws GeneralSecurityException if there is an encryption problem
@@ -572,6 +584,7 @@ public class NKey {
     }
 
     /**
+     * the encoded private key for this NKey
      * @return the encoded private key for this NKey
      *
      * @throws GeneralSecurityException if there is an encryption problem
@@ -587,8 +600,8 @@ public class NKey {
     }
 
     /**
-     * @return A Java security keypair that represents this NKey in Java security
-     *         form.
+     * A Java security keypair that represents this NKey in Java security form.
+     * @return A Java security keypair that represents this NKey in Java security form.
      *
      * @throws GeneralSecurityException if there is an encryption problem
      * @throws IOException              if there is a problem encoding or decoding
@@ -612,6 +625,7 @@ public class NKey {
     }
 
     /**
+     * the Type of this NKey
      * @return the Type of this NKey
      */
     public Type getType() {
