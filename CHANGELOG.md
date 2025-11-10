@@ -1,5 +1,44 @@
 # Change Log
 
+## 2.24.0
+
+### Core
+* [BUG] Properly return pending bytes #1437 @scottf
+* Improve ConnectionListener #1438 @scottf
+* Server Pool Improvement #1443 @scottf
+* Improved reconnect determining when to switch queues #1444 @scottf
+* Improve output queue push locking and error message #1446 @scottf
+* ConnectionListener event time #1448 @scottf
+* Optimize header reading #1449 @scottf
+* Header fine tuning #1451 @scottf
+* Header tuning don't over engineer #1453 @scottf
+* Micro-optimization getBytes(ISO_8859_1) vs getBytes(US_ASCII) #1455 @scottf
+* Reduce calls to stats by combining. #1465 @scottf
+* [BUG] MessageQueue drainTo was not properly copying length and size. #1468 @scottf
+* MessageQueue drainTo more #1469 @scottf
+* Auth Error is allowed to be set before being connected #1475 @scottf
+
+### JetStream
+* Stream Config Persist mode #1436 @scottf
+* Review methods with varargs for proper validation #1456 @scottf
+* [BUG] AccountTier read reserved values as int instead of long #1457 @scottf
+* Handle both wrong last sequence 10071 / 10164 #1463 @scottf
+* Pinned Consumer Support #1472 @scottf
+
+### Docs
+* Fixed the Typo in the Example Code #1450  @sikandar
+
+### Test
+* Refactor test to validate issue 1426 #1447 @scottf
+* Additional test coverage #1452 @scottf
+* Demonstrate Pull Status Warning Handling #1454 @scottf
+* Miscellaneous Test Coverage #1460 @scottf
+* Fix and Enable ReconnectTests testForceReconnectQueueBehaviorCheck #1473 @scottf
+* Javadoc Technical Debt #1476 @scottf
+
+### Build
+* Build modifications for Coveralls #1459 @scottf
+
 ## 2.23.0
 
 ### Server 2.12 Specific
