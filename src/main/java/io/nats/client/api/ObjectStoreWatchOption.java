@@ -13,6 +13,9 @@
 
 package io.nats.client.api;
 
+/**
+ * Options for the Object Store Watcher
+ */
 public enum ObjectStoreWatchOption {
     /**
      * Do not include deletes or purges in results.

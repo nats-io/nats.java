@@ -38,6 +38,9 @@ import static io.nats.client.support.Validator.validateIsRestrictedTerm;
  * </p>
  */
 public class Endpoint implements JsonSerializable {
+    /**
+     * The name of the default queue group
+     */
     public static final String DEFAULT_QGROUP = "q";
 
     private final String name;

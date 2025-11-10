@@ -115,6 +115,7 @@ public class ServiceMessage {
     }
 
     /**
+     * the subject that this message was sent to
      * @return the subject that this message was sent to
      */
     public String getSubject() {
@@ -122,6 +123,7 @@ public class ServiceMessage {
     }
 
     /**
+     * the subject the application is expected to send a reply message on
      * @return the subject the application is expected to send a reply message on
      */
     public String getReplyTo() {
@@ -129,6 +131,7 @@ public class ServiceMessage {
     }
 
     /**
+     * true if there are headers
      * @return true if there are headers
      */
     public boolean hasHeaders() {
@@ -136,6 +139,7 @@ public class ServiceMessage {
     }
 
     /**
+     * the headers object for the message
      * @return the headers object for the message
      */
     public Headers getHeaders() {
@@ -143,6 +147,7 @@ public class ServiceMessage {
     }
 
     /**
+     * the data from the message
      * @return the data from the message
      */
     public byte[] getData() {

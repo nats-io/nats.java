@@ -35,26 +35,49 @@ public class Source extends SourceBase {
         super(b);
     }
 
+    /**
+     * Get an instance of the builder
+     * @return the builder
+     */
     public static Builder builder() {
         return new Builder();
     }
 
+    /**
+     * Get an instance of the builder copying an existing source
+     * @param source the source
+     * @return the builder
+     */
     public static Builder builder(Source source) {
         return new Builder(source);
     }
 
+    /**
+     * The builder for a Source
+     */
     public static class Builder extends SourceBaseBuilder<Builder> {
         @Override
         Builder getThis() {
             return this;
         }
 
+        /**
+         * Construct an instance of the builder
+         */
         public Builder() {}
 
+        /**
+         * Construct an instance of the builder copying an existing source
+         * @param source the source
+         */
         public Builder(Source source) {
             super(source);
         }
 
+        /**
+         * Build a Source
+         * @return the Source
+         */
         public Source build() {
             return new Source(this);
         }

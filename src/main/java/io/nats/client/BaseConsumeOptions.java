@@ -31,12 +31,19 @@ import static io.nats.client.support.JsonValueUtils.readLong;
  * fetch operate. It is the base class for ConsumeOptions and FetchConsumeOptions.
  */
 public class BaseConsumeOptions implements JsonSerializable {
+    /** constant for default message count */
     public static final int DEFAULT_MESSAGE_COUNT = 500;
+    /** constant for default message count when bytes */
     public static final int DEFAULT_MESSAGE_COUNT_WHEN_BYTES = 1_000_000;
+    /** constant for default threshold percent */
     public static final int DEFAULT_THRESHOLD_PERCENT = 25;
+    /** constant for default expires in millis */
     public static final long DEFAULT_EXPIRES_IN_MILLIS = 30000;
+    /** constant for min expires mills */
     public static final long MIN_EXPIRES_MILLS = 1000;
+    /** constant for max heartbeat millis */
     public static final long MAX_HEARTBEAT_MILLIS = 30000;
+    /** constant for max idle heartbeat percent */
     public static final int MAX_IDLE_HEARTBEAT_PERCENT = 50;
 
     protected final int messages;
@@ -94,34 +101,66 @@ public class BaseConsumeOptions implements JsonSerializable {
 
     protected void subclassSpecificToJson(StringBuilder sb) {}
 
+    /**
+     * Get the expires setting
+     * @return the expires, in milliseconds
+     */
     public long getExpiresInMillis() {
         return expiresIn;
     }
 
+    /**
+     * Get the idle heartbeat value
+     * @return the idle heartbeat in milliseconds
+     */
     public long getIdleHeartbeat() {
         return idleHeartbeat;
     }
 
+    /**
+     * Get the threshold percent setting
+     * @return the threshold percent
+     */
     public int getThresholdPercent() {
         return thresholdPercent;
     }
 
+    /**
+     * Whether to raise status warnings to the error listener
+     * @return true if should raise status warnings
+     */
     public boolean raiseStatusWarnings() {
         return raiseStatusWarnings;
     }
 
+    /**
+     * Get the priority group setting
+     * @return the priority group
+     */
     public String getGroup() {
         return group;
     }
 
+    /**
+     * Get the priority setting
+     * @return the priority
+     */
     public int getPriority() {
         return priority;
     }
 
+    /**
+     * Get the min pending setting
+     * @return the min pending
+     */
     public long getMinPending() {
         return minPending;
     }
 
+    /**
+     * Get the min ack pending setting
+     * @return the min ack pending
+     */
     public long getMinAckPending() {
         return minAckPending;
     }
@@ -143,7 +182,7 @@ public class BaseConsumeOptions implements JsonSerializable {
          * Initialize values from the json string.
          * @param json the json string to parse
          * @return the builder
-         * @throws JsonParseException if the json is invalid
+         * @throws JsonParseException if there is a problem parsing the json
          */
         public B json(String json) throws JsonParseException {
             return jsonValue(JsonParser.parse(json));

@@ -21,6 +21,9 @@ import java.util.List;
 
 import static io.nats.client.support.JsonValueUtils.getLong;
 
+/**
+ * An object representing a stream's subject and the count of it's messages
+ */
 public class Subject implements Comparable<Subject> {
     private final String name;
     private final long count;
@@ -38,6 +41,11 @@ public class Subject implements Comparable<Subject> {
         return list;
     }
 
+    /**
+     * Construct a Subject instance
+     * @param name the subject name
+     * @param count the message count
+     */
     public Subject(String name, long count) {
         this.name = name;
         this.count = count;

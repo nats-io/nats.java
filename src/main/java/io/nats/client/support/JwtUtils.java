@@ -141,6 +141,20 @@ public abstract class JwtUtils {
         return issueUserJWT(signingKey, publicUserKey, name, expiration, issuedAt, null, new UserClaim(accountId).tags(tags));
     }
 
+    /**
+     * Issue a user JWT from a scoped signing key. See <a href="https://docs.nats.io/nats-tools/nsc/signing_keys">Signing Keys</a>
+     * @param signingKey a mandatory account nkey pair to sign the generated jwt.
+     * @param accountId a mandatory public account nkey. Will throw error when not set or not account nkey.
+     * @param publicUserKey a mandatory public user nkey. Will throw error when not set or not user nkey.
+     * @param name optional human-readable name. When absent, default to publicUserKey.
+     * @param expiration optional but recommended duration, when the generated jwt needs to expire. If not set, JWT will not expire.
+     * @param tags optional list of tags to be included in the JWT.
+     * @param issuedAt the current epoch seconds.
+     * @param audience the audience value
+     * @return a JWT
+     * @throws GeneralSecurityException if SHA-256 MessageDigest is missing, or if the signingKey can not be used for signing.
+     * @throws IOException if signingKey sign method throws this exception.
+     */
     public static String issueUserJWT(NKey signingKey, String accountId, String publicUserKey, String name, Duration expiration, String[] tags, long issuedAt, String audience) throws GeneralSecurityException, IOException {
         return issueUserJWT(signingKey, publicUserKey, name, expiration, issuedAt, audience, new UserClaim(accountId).tags(tags));
     }

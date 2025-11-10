@@ -98,12 +98,18 @@ test {
 
 javadoc {
     options.overview = 'src/main/javadoc/overview.html' // relative to source root
+    options.memberLevel = JavadocMemberLevel.PUBLIC
     source = sourceSets.main.allJava
     title = "NATS.IO Java API"
-    excludes = ['io/nats/client/impl',
-                'io/nats/examples',
-                "io/nats/client/api/ConsumerCreateRequest.java",
-                "io/nats/client/api/MessageGetRequest.java"
+    excludes = [
+            "io/nats/client/impl",
+            "io/nats/examples",
+            "io/nats/client/api/ConsumerCreateRequest.java",
+            "io/nats/client/api/MessageGetRequest.java",
+            "io/nats/client/api/MessageDeleteRequest.java",
+            "io/nats/client/support/IncomingHeadersProcessor.java",
+            "io/nats/client/support/**",
+            "**/Debug**"
     ]
     classpath = sourceSets.main.runtimeClasspath
     doLast {

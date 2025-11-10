@@ -38,70 +38,85 @@ import java.util.concurrent.TimeoutException;
 public interface Message {
 
 	/**
-	 * @return the subject that this message was sent to
+	 * the subject that this message was sent to
+	 * @return the subject
 	 */
 	String getSubject();
 
 	/**
-	 * @return the subject the application is expected to send a reply message on
+	 * the subject the application is expected to send a reply message on
+	 * @return the reply to
 	 */
 	String getReplyTo();
 
 	/**
-	 * @return true if there are headers
+	 * true if there are headers
+	 * @return the flag
 	 */
 	boolean hasHeaders();
 
 	/**
-	 * @return the headers object for the message
+	 * the headers object for the message
+	 * @return the headers
 	 */
 	Headers getHeaders();
 
 	/**
-	 * @return true if there is status
+	 * true if there is status
+	 * @return the flag
 	 */
 	boolean isStatusMessage();
 
 	/**
-	 * @return the status object message
+	 * the status object message if this is a status message
+	 * @return the status object
 	 */
 	Status getStatus();
 
 	/**
-	 * @return the data from the message
+	 * the data from the message
+	 * @return the data
 	 */
 	byte[] getData();
 
 	/**
-	 * @return if is utf8Mode
+	 * @deprecated because the mode doesn't matter
+	 * if is utf8Mode
+	 * @return always false
 	 */
+	@Deprecated
 	boolean isUtf8mode();
 
 	/**
-	 * @return the Subscription associated with this message, may be owned by a Dispatcher
+	 * the Subscription associated with this message, may be owned by a Dispatcher
+	 * @return the subscription
 	 */
 	Subscription getSubscription();
 
 	/**
-	 * @return the id associated with the subscription, used by the connection when processing an incoming
+	 * the id associated with the subscription, used by the connection when processing an incoming
 	 * message from the server
+	 * @return the SID
 	 */
 	String getSID();
 
 	/**
-	 * @return the connection which can be used for publishing, will be null if the subscription is null
+	 * the connection which can be used for publishing, will be null if the subscription is null
+	 * @return the connection
 	 */
 	Connection getConnection();
 
 	/**
 	 * Gets the metadata associated with a JetStream message.
-	 * @return metadata or null if the message is not a JetStream message.
+	 * metadata or null if the message is not a JetStream message.
+	 * @return the metadata
 	 */
 	NatsJetStreamMetaData metaData();
 
 	/**
 	 * the last ack that was done with this message
-	 * @return the last ack or null
+	 * the last ack or null
+	 * @return the last ack
 	 */
 	AckType lastAck();
 

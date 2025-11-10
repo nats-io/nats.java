@@ -84,6 +84,9 @@ import java.util.concurrent.TimeoutException;
  */
 public interface Connection extends AutoCloseable {
 
+    /**
+     * Enum representing the status of a connection
+     */
     enum Status {
         /**
          * The {@code Connection} is not connected.
@@ -515,13 +518,15 @@ public interface Connection extends AutoCloseable {
     Collection<String> getServers();
 
     /**
-     * @return a wrapper for useful statistics about the connection
+     * a wrapper for useful statistics about the connection
+     * @return the Statistics implementation
      */
     @NonNull
     Statistics getStatistics();
 
     /**
-     * @return the read-only options used to create this connection
+     * the read-only options used to create this connection
+     * @return the Options
      */
     @NonNull
     Options getOptions();
@@ -536,19 +541,22 @@ public interface Connection extends AutoCloseable {
     ServerInfo getServerInfo();
 
     /**
-     * @return the url used for the current connection, or null if disconnected
+     * the url used for the current connection, or null if disconnected
+     * @return the url string
      */
     @Nullable
     String getConnectedUrl();
 
     /**
-     * @return the InetAddress of client as known by the NATS server, otherwise null.
+     * the InetAddress of client as known by the NATS server, otherwise null.
+     * @return the InetAddress
      */
     @Nullable
     InetAddress getClientInetAddress();
 
     /**
-     * @return the error text from the last error sent by the server to this client
+     * the error text from the last error sent by the server to this client
+     * @return the last error text
      */
     @Nullable
     String getLastError();
@@ -559,9 +567,10 @@ public interface Connection extends AutoCloseable {
     void clearLastError();
 
     /**
-     * @return a new inbox subject, can be used for directed replies from
+     * Create a new inbox subject, can be used for directed replies from
      * subscribers. These are guaranteed to be unique, but can be shared and subscribed
      * to by others.
+     * @return the inbox
      */
     @NonNull
     String createInbox();

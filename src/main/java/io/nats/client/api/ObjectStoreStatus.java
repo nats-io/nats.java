@@ -27,6 +27,10 @@ public class ObjectStoreStatus {
     private final StreamInfo streamInfo;
     private final ObjectStoreConfiguration config;
 
+    /**
+     * Create an object store from the StreamInfo for the underlying stream
+     * @param si the stream info
+     */
     public ObjectStoreStatus(StreamInfo si) {
         streamInfo = si;
         config = new ObjectStoreConfiguration(streamInfo.getConfiguration());

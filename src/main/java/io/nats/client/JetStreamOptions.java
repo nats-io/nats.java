@@ -26,9 +26,16 @@ import static io.nats.client.support.Validator.validatePrefixOrDomain;
  */
 public class JetStreamOptions {
 
+    /**
+     * @deprecated
+     * Not used anymore
+     */
     @Deprecated
     public static final Duration DEFAULT_TIMEOUT = Options.DEFAULT_CONNECTION_TIMEOUT;
 
+    /**
+     * An instance of default options
+     */
     public static final JetStreamOptions DEFAULT_JS_OPTIONS = new Builder().build();
 
     private final String jsPrefix;
@@ -128,8 +135,15 @@ public class JetStreamOptions {
         private boolean publishNoAck;
         private boolean optOut290ConsumerCreate;
 
+        /**
+         * Construct a builder
+         */
         public Builder() {}
 
+        /**
+         * Construct a builder from an existing JetStreamOptions
+         * @param jso the options
+         */
         public Builder(JetStreamOptions jso) {
             if (jso != null) {
                 if (jso.isDefaultPrefix()) {
@@ -209,6 +223,11 @@ public class JetStreamOptions {
         }
     }
 
+    /**
+     * Helper function to convert a domain to a prefix
+     * @param domain the domain
+     * @return the prefix
+     */
     public static String convertDomainToPrefix(String domain) {
         String valid = validatePrefixOrDomain(domain, "Domain", false);
         return valid == null ? null

@@ -36,7 +36,9 @@ import static io.nats.service.Service.*;
  * <p>'maxResults' defaults tp {@value DEFAULT_DISCOVERY_MAX_RESULTS}</p>
  */
 public class Discovery {
+    /** Default discover time */
     public static final long DEFAULT_DISCOVERY_MAX_TIME_MILLIS = 5000;
+    /** Default discoverer max results */
     public static final int DEFAULT_DISCOVERY_MAX_RESULTS = 10;
 
     private final Connection conn;

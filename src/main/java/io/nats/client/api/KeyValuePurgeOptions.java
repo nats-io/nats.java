@@ -15,6 +15,9 @@ package io.nats.client.api;
 
 import java.time.Duration;
 
+/**
+ * Options used when purging keys
+ */
 public class KeyValuePurgeOptions {
 
     /**
@@ -47,12 +50,15 @@ public class KeyValuePurgeOptions {
     /**
      * KeyValuePurgeOptions is created using a Builder. The builder supports chaining and will
      * create a default set of options if no methods are calls.
-     *
-     * <p>{@code new KeyValuePurgeOptions.Builder().build()} will create a new KeyValuePurgeOptions.
-     *
+     * <p>{@code new KeyValuePurgeOptions.Builder().build()} will create a new KeyValuePurgeOptions.</p>
      */
     public static class Builder {
         private long deleteMarkersThresholdMillis = DEFAULT_THRESHOLD_MILLIS;
+
+        /**
+         * Construct an instance of the builder
+         */
+        public Builder() {}
 
         /**
          * Set the delete marker threshold.

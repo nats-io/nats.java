@@ -14,7 +14,14 @@ import static io.nats.client.support.Validator.*;
  * Use the Service static method <code>builder()</code> or <code>new ServiceBuilder()</code> to get an instance.
  */
 public class ServiceBuilder {
+    /**
+     * Constant for the default drain timeout in millis
+     */
     public static final long DEFAULT_DRAIN_TIMEOUT_MILLIS = 5000;
+
+    /**
+     * Constant for the default drain timeout as duration
+     */
     public static final Duration DEFAULT_DRAIN_TIMEOUT = Duration.ofMillis(DEFAULT_DRAIN_TIMEOUT_MILLIS);
 
     Connection conn;
@@ -27,6 +34,11 @@ public class ServiceBuilder {
     Dispatcher pingDispatcher;
     Dispatcher infoDispatcher;
     Dispatcher statsDispatcher;
+
+    /**
+     * Construct an instance of the builder
+     */
+    public ServiceBuilder() {}
 
     /**
      * The connection the service runs on

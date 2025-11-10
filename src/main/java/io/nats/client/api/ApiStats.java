@@ -35,6 +35,10 @@ public class ApiStats {
         this.inFlight = JsonValueUtils.readLong(vApiStats, INFLIGHT, 0);
     }
 
+    /**
+     * The JetStream API Level
+     * @return the level
+     */
     public int getLevel() {
         return level;
     }
@@ -55,6 +59,10 @@ public class ApiStats {
         return errors;
     }
 
+    /**
+     * The number of inflight API requests waiting to be processed
+     * @return inflight API requests
+     */
     public long getInFlight() {
         return inFlight;
     }
