@@ -27,7 +27,7 @@ public interface ReadListener {
     void protocol(String op, String text);
 
     /**
-     * Called when the
+     * Called when the message is any non-protocol message
      * @param op the message operation
      * @param message the actual message
      */
