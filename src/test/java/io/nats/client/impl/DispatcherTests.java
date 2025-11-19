@@ -18,12 +18,14 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static io.nats.client.utils.TestBase.sleep;
-import static io.nats.client.utils.TestBase.waitUntilStatus;
+import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 
@@ -33,6 +35,52 @@ import static org.junit.jupiter.api.Assertions.*;
 // the done message (or should) - wanted to note that somewhere
 
 public class DispatcherTests {
+    @Test
+    public void testDispatcherMultipleSubscriptionsBySubject() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false);
+             Connection nc = Nats.connect(ts.getURI())) {
+            standardConnectionWait(nc);
+            String subject1 = subject();
+            String subject2 = subject();
+
+            List<Integer> dflt = Collections.synchronizedList(new ArrayList<>());
+            List<Integer> sub21 = Collections.synchronizedList(new ArrayList<>());
+            List<Integer> sub22 = Collections.synchronizedList(new ArrayList<>());
+            List<Integer> sub31 = Collections.synchronizedList(new ArrayList<>());
+            List<Integer> sub32 = Collections.synchronizedList(new ArrayList<>());
+            Dispatcher d1 = nc.createDispatcher(m -> dflt.add(getDataId(m)));
+            d1.subscribe(subject1);
+            d1.subscribe(subject1, m -> sub21.add(getDataId(m)));
+            d1.subscribe(subject1, m -> sub22.add(getDataId(m)));
+            d1.subscribe(subject2, m -> sub31.add(getDataId(m)));
+            d1.subscribe(subject2, m -> sub32.add(getDataId(m)));
+
+            nc.publish(subject1, "1".getBytes());
+            nc.publish(subject2, "1".getBytes());
+            Thread.sleep(1000);
+            d1.unsubscribe(subject1);
+            nc.publish(subject1, "2".getBytes());
+            nc.publish(subject2, "2".getBytes());
+            Thread.sleep(1000);
+
+            assertTrue(dflt.contains(1));
+            assertTrue(sub21.contains(1));
+            assertTrue(sub22.contains(1));
+            assertTrue(sub31.contains(1));
+            assertTrue(sub32.contains(1));
+
+            assertFalse(dflt.contains(2));
+            assertFalse(sub21.contains(2));
+            assertFalse(sub22.contains(2));
+            assertTrue(sub31.contains(2));
+            assertTrue(sub32.contains(2));
+        }
+    }
+
+    private static int getDataId(Message m) {
+        return Integer.parseInt(new String(m.getData()));
+    }
+
     @Test
     public void testSingleMessage() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
