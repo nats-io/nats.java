@@ -2235,6 +2235,24 @@ public class Options {
     }
 
     /**
+     * the callback executor, see {@link Builder#callbackThreadFactory(ThreadFactory) callbackThreadFactory()} in the builder doc
+     * @return the executor
+     */
+    public ExecutorService getCallbackExecutor() {
+        return this.callbackThreadFactory == null ?
+                DEFAULT_SINGLE_THREAD_EXECUTOR.get() : Executors.newSingleThreadExecutor(this.callbackThreadFactory);
+    }
+
+    /**
+     * the connect executor, see {@link Builder#connectThreadFactory(ThreadFactory) connectThreadFactory()} in the builder doc
+     * @return the executor
+     */
+    public ExecutorService getConnectExecutor() {
+        return this.connectThreadFactory == null ?
+                DEFAULT_SINGLE_THREAD_EXECUTOR.get() : Executors.newSingleThreadExecutor(this.connectThreadFactory);
+    }
+
+    /**
      * whether the general executor is the internal one versus a user supplied one
      * @return true if the executor is internal
      */
@@ -2251,21 +2269,19 @@ public class Options {
     }
 
     /**
-     * the callback executor, see {@link Builder#callbackThreadFactory(ThreadFactory) callbackThreadFactory()} in the builder doc
-     * @return the executor
+     * whether the callback executor is the internal one versus a user supplied one
+     * @return true if the executor is internal
      */
-    public ExecutorService getCallbackExecutor() {
-        return this.callbackThreadFactory == null ?
-                DEFAULT_SINGLE_THREAD_EXECUTOR.get() : Executors.newSingleThreadExecutor(this.callbackThreadFactory);
+    public boolean callbackExecutorIsInternal() {
+        return this.callbackThreadFactory == null;
     }
 
     /**
-     * the connect executor, see {@link Builder#connectThreadFactory(ThreadFactory) connectThreadFactory()} in the builder doc
-     * @return the executor
+     * whether the connect executor is the internal one versus a user supplied one
+     * @return true if the executor is internal
      */
-    public ExecutorService getConnectExecutor() {
-        return this.connectThreadFactory == null ?
-                DEFAULT_SINGLE_THREAD_EXECUTOR.get() : Executors.newSingleThreadExecutor(this.connectThreadFactory);
+    public boolean connectExecutorIsInternal() {
+        return this.connectThreadFactory == null;
     }
 
     /**

@@ -875,22 +875,26 @@ class NatsConnection implements Connection {
             statusLock.unlock();
         }
 
-        // Stop the error handling and connect executors
-        callbackRunner.shutdown();
-        try {
-            // At this point in the flow, the connection is shutting down.
-            // There is really no use in giving this information to the developer,
-            // It's fair to say that an exception here anyway will practically never happen
-            // and if it did, the app is probably already frozen.
-            //noinspection ResultOfMethodCallIgnored
-            callbackRunner.awaitTermination(this.options.getConnectionTimeout().toNanos(), TimeUnit.NANOSECONDS);
-        }
-        finally {
-            callbackRunner.shutdownNow();
+        if (options.callbackExecutorIsInternal()) {
+            // Stop the error handling and connect executors
+            callbackRunner.shutdown();
+            try {
+                // At this point in the flow, the connection is shutting down.
+                // There is really no use in giving this information to the developer,
+                // It's fair to say that an exception here anyway will practically never happen
+                // and if it did, the app is probably already frozen.
+                //noinspection ResultOfMethodCallIgnored
+                callbackRunner.awaitTermination(this.options.getConnectionTimeout().toNanos(), TimeUnit.NANOSECONDS);
+            }
+            finally {
+                callbackRunner.shutdownNow();
+            }
         }
 
-        // There's no need to wait for running tasks since we're told to close
-        connectExecutor.shutdownNow();
+        if (options.connectExecutorIsInternal()) {
+            // There's no need to wait for running tasks since we're told to close
+            connectExecutor.shutdownNow();
+        }
 
         // The callbackRunner and connectExecutor always come from a factory,
         // so we always shut them down.
