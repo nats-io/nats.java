@@ -127,7 +127,7 @@ public class NatsServerProtocolMock implements Closeable{
     }
 
     public String getURI() {
-        return "nats://localhost:" + this.getPort();
+        return "nats://0.0.0.0:" + this.getPort();
     }
 
     public Progress getProgress() {
@@ -239,7 +239,7 @@ public class NatsServerProtocolMock implements Closeable{
         } catch (IOException io) {
             protocolFailure = true;
             // System.out.println("\n*** Mock Server @" + this.port + " got exception "+io.getMessage());
-            io.printStackTrace();
+            // io.printStackTrace();
         } catch (Exception ex) {
             // System.out.println("\n*** Mock Server @" + this.port + " got exception "+ex.getMessage());
             

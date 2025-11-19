@@ -16,7 +16,9 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.support.Status;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Isolated;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -26,9 +28,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static io.nats.client.utils.TestBase.*;
+import static io.nats.client.utils.TestBase.sleep;
+import static io.nats.client.utils.TestBase.standardCloseConnection;
 import static org.junit.jupiter.api.Assertions.*;
 
+@Isolated
 public class ErrorListenerTests {
 
     @Test
@@ -312,7 +316,7 @@ public class ErrorListenerTests {
                     connectionListener(listener).
                     errorListener(listener).
                     build();
-            Connection nc = standardConnection(options);
+            Connection nc = TestBase.standardConnectionWait(options);
 
             try {
                 nc.flush(Duration.ofSeconds(1)); // Get the sub to the server

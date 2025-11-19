@@ -39,7 +39,9 @@ public class AccountStatisticsTests extends JetStreamTestBase {
         assertEquals("ngs", as.getDomain());
 
         ApiStats api = as.getApi();
+        //noinspection deprecation
         assertEquals(301, api.getTotal()); // COVERAGE
+        //noinspection deprecation
         assertEquals(302, api.getErrors()); // COVERAGE
         assertEquals(301, api.getTotalApiRequests());
         assertEquals(302, api.getErrorCount());
@@ -70,7 +72,9 @@ public class AccountStatisticsTests extends JetStreamTestBase {
 
         api = as.getApi();
         assertNotNull(api);
+        //noinspection deprecation
         assertEquals(0, api.getTotal()); // COVERAGE
+        //noinspection deprecation
         assertEquals(0, api.getErrors()); // COVERAGE
         assertEquals(0, api.getTotalApiRequests());
         assertEquals(0, api.getErrorCount());
@@ -80,8 +84,10 @@ public class AccountStatisticsTests extends JetStreamTestBase {
 
     private void validateTier(AccountTier tier, int tierBase, int limitsIdBase) {
         assertNotNull(tier);
+        //noinspection deprecation
         assertEquals(tierBase + 1, tier.getMemory()); // COVERAGE
         assertEquals(tierBase + 1, tier.getMemoryBytes());
+        //noinspection deprecation
         assertEquals(tierBase + 2, tier.getStorage()); // COVERAGE
         assertEquals(tierBase + 2, tier.getStorageBytes());
         assertEquals(tierBase + 3, tier.getStreams());

@@ -40,15 +40,17 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testStreamCreate() throws Exception {
-        runInJsServer(nc -> {
+        runInLrServer((nc, jsm, js) -> {
             long now = ZonedDateTime.now().toEpochSecond();
 
-            JetStreamManagement jsm = nc.jetStreamManagement();
+            String stream = random();
+            String subject0 = random();
+            String subject1 = random();
 
             StreamConfiguration sc = StreamConfiguration.builder()
-                .name(STREAM)
+                .name(stream)
                 .storageType(StorageType.Memory)
-                .subjects(subject(0), subject(1))
+                .subjects(subject0, subject1)
                 .build();
 
             StreamInfo si = jsm.addStream(sc);
@@ -57,12 +59,12 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             assertNotNull(si.getConfiguration());
             sc = si.getConfiguration();
-            assertEquals(STREAM, sc.getName());
+            assertEquals(stream, sc.getName());
 
             assertEquals(2, sc.getSubjects().size());
-            assertEquals(subject(0), sc.getSubjects().get(0));
-            assertEquals(subject(1), sc.getSubjects().get(1));
-            assertTrue(subject(0).compareTo(subject(1)) != 0); // coverage
+            assertEquals(subject0, sc.getSubjects().get(0));
+            assertEquals(subject1, sc.getSubjects().get(1));
+            assertTrue(subject0.compareTo(subject1) != 0); // coverage
 
             assertEquals(RetentionPolicy.Limits, sc.getRetentionPolicy());
             assertEquals(DiscardPolicy.Old, sc.getDiscardPolicy());
@@ -72,6 +74,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(-1, sc.getMaxConsumers());
             assertEquals(-1, sc.getMaxMsgs());
             assertEquals(-1, sc.getMaxBytes());
+            //noinspection deprecation
             assertEquals(-1, sc.getMaxMsgSize()); // COVERAGE for deprecated
             assertEquals(-1, sc.getMaximumMessageSize());
             assertEquals(1, sc.getReplicas());
@@ -89,8 +92,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(0, ss.getConsumerCount());
 
             if (nc.getServerInfo().isSameOrNewerThanVersion("2.10")) {
-                JetStream js = jsm.jetStream();
-                String stream = stream();
+                stream = random();
                 sc = StreamConfiguration.builder()
                     .name(stream)
                     .storageType(StorageType.Memory)
@@ -107,14 +109,12 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testStreamMetadata() throws Exception {
-        jsServer.run(TestBase::atLeast2_9_0, nc -> {
+        runInLrServer(TestBase::atLeast2_9_0, (nc, jsm, js) -> {
             Map<String, String> metaData = new HashMap<>(); metaData.put(META_KEY, META_VALUE);
-            JetStreamManagement jsm = nc.jetStreamManagement();
-
             StreamConfiguration sc = StreamConfiguration.builder()
-                .name(stream())
+                .name(random())
                 .storageType(StorageType.Memory)
-                .subjects(subject())
+                .subjects(random())
                 .metadata(metaData)
                 .build();
 
@@ -126,12 +126,10 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testStreamCreateWithNoSubject() throws Exception {
-        jsServer.run(nc -> {
+        runInLrServer((nc, jsm, js) -> {
             long now = ZonedDateTime.now().toEpochSecond();
 
-            JetStreamManagement jsm = nc.jetStreamManagement();
-
-            String stream = stream();
+            String stream = random();
             StreamConfiguration sc = StreamConfiguration.builder()
                 .name(stream)
                 .storageType(StorageType.Memory)
@@ -174,16 +172,19 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testUpdateStream() throws Exception {
-        runInJsServer(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            StreamInfo si = addTestStream(jsm);
+        runInLrServer((nc, jsm, js) -> {
+            String stream = random();
+            String subject0 = random();
+            String subject1 = random();
+            String subject2 = random();
+            StreamInfo si = jsm.addStream(getTestStreamConfiguration(stream, new String[]{subject0, subject1}));
             StreamConfiguration sc = si.getConfiguration();
             assertNotNull(sc);
-            assertEquals(STREAM, sc.getName());
+            assertEquals(stream, sc.getName());
             assertNotNull(sc.getSubjects());
             assertEquals(2, sc.getSubjects().size());
-            assertEquals(subject(0), sc.getSubjects().get(0));
-            assertEquals(subject(1), sc.getSubjects().get(1));
+            assertEquals(subject0, sc.getSubjects().get(0));
+            assertEquals(subject1, sc.getSubjects().get(1));
             assertEquals(-1, sc.getMaxMsgs());
             assertEquals(-1, sc.getMaxBytes());
             assertEquals(-1, sc.getMaximumMessageSize());
@@ -196,9 +197,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertNull(sc.getTemplateOwner());
 
             sc = StreamConfiguration.builder()
-                .name(STREAM)
+                .name(stream)
                 .storageType(StorageType.Memory) // File is default, this ensures it's not a change
-                .subjects(subject(0), subject(1), subject(2))
+                .subjects(subject0, subject1, subject2)
                 .maxMessages(42)
                 .maxBytes(43)
                 .maximumMessageSize(44)
@@ -213,12 +214,12 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             sc = si.getConfiguration();
             assertNotNull(sc);
-            assertEquals(STREAM, sc.getName());
+            assertEquals(stream, sc.getName());
             assertNotNull(sc.getSubjects());
             assertEquals(3, sc.getSubjects().size());
-            assertEquals(subject(0), sc.getSubjects().get(0));
-            assertEquals(subject(1), sc.getSubjects().get(1));
-            assertEquals(subject(2), sc.getSubjects().get(2));
+            assertEquals(subject0, sc.getSubjects().get(0));
+            assertEquals(subject1, sc.getSubjects().get(1));
+            assertEquals(subject2, sc.getSubjects().get(2));
             assertEquals(42, sc.getMaxMsgs());
             assertEquals(43, sc.getMaxBytes());
             assertEquals(44, sc.getMaximumMessageSize());
@@ -232,38 +233,36 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertNull(sc.getTemplateOwner());
 
             // allowed to change Allow Direct
-            jsm.deleteStream(STREAM);
-            jsm.addStream(getTestStreamConfigurationBuilder().allowDirect(false).build());
-            jsm.updateStream(getTestStreamConfigurationBuilder().allowDirect(true).build());
-            jsm.updateStream(getTestStreamConfigurationBuilder().allowDirect(false).build());
+            jsm.deleteStream(stream);
+            jsm.addStream(getTestStreamConfigurationBuilder(stream, subject0).allowDirect(false).build());
+            jsm.updateStream(getTestStreamConfigurationBuilder(stream, subject0).allowDirect(true).build());
+            jsm.updateStream(getTestStreamConfigurationBuilder(stream, subject0).allowDirect(false).build());
 
             // allowed to change Mirror Direct
-            jsm.deleteStream(STREAM);
-            jsm.addStream(getTestStreamConfigurationBuilder().mirrorDirect(false).build());
-            jsm.updateStream(getTestStreamConfigurationBuilder().mirrorDirect(true).build());
-            jsm.updateStream(getTestStreamConfigurationBuilder().mirrorDirect(false).build());
+            jsm.deleteStream(stream);
+            jsm.addStream(getTestStreamConfigurationBuilder(stream, subject0).mirrorDirect(false).build());
+            jsm.updateStream(getTestStreamConfigurationBuilder(stream, subject0).mirrorDirect(true).build());
+            jsm.updateStream(getTestStreamConfigurationBuilder(stream, subject0).mirrorDirect(false).build());
         });
     }
 
     @Test
     public void testAddStreamInvalids() throws Exception {
-        jsServer.run(TestBase::atLeast2_10, nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-
+        runInLrServer(TestBase::atLeast2_10, (nc, jsm, js) -> {
             assertThrows(IllegalArgumentException.class, () -> jsm.addStream(null));
 
-            String stream = stream();
+            String stream = random();
 
             StreamConfiguration sc = StreamConfiguration.builder()
                 .name(stream)
-                .description(variant())
+                .description(random())
                 .storageType(StorageType.Memory)
-                .subjects(subject())
+                .subjects(random())
                 .build();
             jsm.addStream(sc);
 
-            assert10058(() -> jsm.addStream(StreamConfiguration.builder(sc).subjects(subject()).build()));
-            assert10058(() -> jsm.addStream(StreamConfiguration.builder(sc).description(variant()).build()));
+            assert10058(() -> jsm.addStream(StreamConfiguration.builder(sc).subjects(random()).build()));
+            assert10058(() -> jsm.addStream(StreamConfiguration.builder(sc).description(random()).build()));
             assert10058(() -> jsm.addStream(StreamConfiguration.builder(sc).retentionPolicy(RetentionPolicy.Interest).build()));
             assert10058(() -> jsm.addStream(StreamConfiguration.builder(sc).retentionPolicy(RetentionPolicy.WorkQueue).build()));
             assert10058(() -> jsm.addStream(StreamConfiguration.builder(sc).compressionOption(CompressionOption.S2).build()));
@@ -271,6 +270,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assert10058(() -> jsm.addStream(StreamConfiguration.builder(sc).maxMessages(1).build()));
             assert10058(() -> jsm.addStream(StreamConfiguration.builder(sc).maxMessagesPerSubject(1).build()));
             assert10058(() -> jsm.addStream(StreamConfiguration.builder(sc).maxAge(Duration.ofSeconds(1L)).build()));
+            //noinspection deprecation
             assert10058(() -> jsm.addStream(StreamConfiguration.builder(sc).maxMsgSize(1).build())); // COVERAGE for deprecated
             assert10058(() -> jsm.addStream(StreamConfiguration.builder(sc).maximumMessageSize(1).build()));
             assert10058(() -> jsm.addStream(StreamConfiguration.builder(sc).storageType(StorageType.File).build()));
@@ -293,13 +293,11 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testUpdateStreamInvalids() throws Exception {
-        jsServer.run(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-
+        runInLrServer((nc, jsm, js) -> {
             assertThrows(IllegalArgumentException.class, () -> jsm.updateStream(null));
 
-            String stream = stream();
-            String[] subjects = new String[]{subject(), subject()};
+            String stream = random();
+            String[] subjects = new String[]{random(), random()};
 
             // cannot update non existent stream
             StreamConfiguration sc = getTestStreamConfiguration(stream, subjects);
@@ -316,7 +314,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertThrows(JetStreamApiException.class, () -> jsm.updateStream(scMemToFile));
 
             // cannot change MaxConsumers
-            StreamConfiguration scMaxCon = getTestStreamConfigurationBuilder()
+            StreamConfiguration scMaxCon = getTestStreamConfigurationBuilder(stream, subjects)
                 .maxConsumers(2)
                 .build();
             assertThrows(JetStreamApiException.class, () -> jsm.updateStream(scMaxCon));
@@ -339,29 +337,18 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         });
     }
 
-    private static StreamInfo addTestStream(JetStreamManagement jsm) throws IOException, JetStreamApiException {
-        StreamInfo si = jsm.addStream(getTestStreamConfiguration());
-        assertNotNull(si);
-        return si;
+    private static StreamConfiguration.Builder getTestStreamConfigurationBuilder(String stream, String subject) {
+        return StreamConfiguration.builder()
+            .name(stream)
+            .storageType(StorageType.Memory)
+            .subjects(subject);
     }
 
-    private static StreamConfiguration getTestStreamConfiguration() {
-        return getTestStreamConfigurationBuilder().build();
-    }
-
-    private static StreamConfiguration getTestStreamConfiguration(String stream, String... subjects) {
+    private static StreamConfiguration getTestStreamConfiguration(String stream, String[] subjects) {
         return getTestStreamConfigurationBuilder(stream, subjects).build();
     }
 
-    private static StreamConfiguration.Builder getTestStreamConfigurationBuilder() {
-        return getTestStreamConfigurationBuilder(STREAM);
-    }
-
-    private static StreamConfiguration.Builder getTestStreamConfigurationBuilder(String stream, String... subjects) {
-        if (subjects == null || subjects.length == 0) {
-            subjects = new String[]{subject(0), subject(1)};
-        }
-
+    private static StreamConfiguration.Builder getTestStreamConfigurationBuilder(String stream, String[] subjects) {
         return StreamConfiguration.builder()
             .name(stream)
             .storageType(StorageType.Memory)
@@ -370,18 +357,14 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testGetStreamInfo() throws Exception {
-        jsServer.run(nc -> {
-            String stream = stream();
-
-            JetStreamManagement jsm = nc.jetStreamManagement();
+        runInLrServer((nc, jsm, js) -> {
+            String stream = random();
             assertThrows(JetStreamApiException.class, () -> jsm.getStreamInfo(stream));
 
-            JetStream js = nc.jetStream();
-
             String[] subjects = new String[6];
-            String subjectIx5 = subject();
+            String subjectIx5 = random();
             for (int x = 0; x < 5; x++) {
-                subjects[x] = subject() + x + 1;
+                subjects[x] = random() + x + 1;
             }
             subjects[5] = subjectIx5 + ".>";
 
@@ -476,104 +459,13 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testGetStreamInfoSubjectPagination() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/pagination.conf", false, true)) {
-            try (Connection nc = standardConnection(ts.getURI())) {
-                if (nc.getServerInfo().isNewerVersionThan("2.8.4")) {
-                    JetStreamManagement jsm = nc.jetStreamManagement();
-                    JetStream js = nc.jetStream();
-
-                    long rounds = 101;
-                    long size = 1000;
-                    long count = rounds * size;
-                    jsm.addStream(StreamConfiguration.builder()
-                        .name(stream(1))
-                        .storageType(StorageType.Memory)
-                        .subjects("s.*.*")
-                        .build());
-
-                    jsm.addStream(StreamConfiguration.builder()
-                        .name(stream(2))
-                        .storageType(StorageType.Memory)
-                        .subjects("t.*.*")
-                        .build());
-
-                    for (int x = 1; x <= rounds; x++) {
-                        for (int y = 1; y <= size; y++) {
-                            js.publish("s." + x + "." + y, null);
-                        }
-                    }
-
-                    for (int y = 1; y <= size; y++) {
-                        js.publish("t.7." + y, null);
-                    }
-
-                    StreamInfo si = jsm.getStreamInfo(stream(1));
-                    validateStreamInfo(si.getStreamState(), 0, 0, count);
-
-                    si = jsm.getStreamInfo(stream(1), StreamInfoOptions.allSubjects());
-                    validateStreamInfo(si.getStreamState(), count, count, count);
-
-                    si = jsm.getStreamInfo(stream(1), StreamInfoOptions.filterSubjects("s.7.*"));
-                    validateStreamInfo(si.getStreamState(), size, size, count);
-
-                    si = jsm.getStreamInfo(stream(1), StreamInfoOptions.filterSubjects("s.7.1"));
-                    validateStreamInfo(si.getStreamState(), 1L, 1, count);
-
-                    si = jsm.getStreamInfo(stream(2), StreamInfoOptions.filterSubjects("t.7.*"));
-                    validateStreamInfo(si.getStreamState(), size, size, size);
-
-                    si = jsm.getStreamInfo(stream(2), StreamInfoOptions.filterSubjects("t.7.1"));
-                    validateStreamInfo(si.getStreamState(), 1L, 1, size);
-
-                    List<StreamInfo> infos = jsm.getStreams();
-                    assertEquals(2, infos.size());
-                    si = infos.get(0);
-                    if (si.getConfiguration().getSubjects().get(0).equals("s.*.*")) {
-                        validateStreamInfo(si.getStreamState(), 0, 0, count);
-                        validateStreamInfo(infos.get(1).getStreamState(), 0, 0, size);
-                    }
-                    else {
-                        validateStreamInfo(si.getStreamState(), 0, 0, size);
-                        validateStreamInfo(infos.get(1).getStreamState(), 0, 0, count);
-                    }
-
-                    infos = jsm.getStreams(">");
-                    assertEquals(2, infos.size());
-
-                    infos = jsm.getStreams("*.7.*");
-                    assertEquals(2, infos.size());
-
-                    infos = jsm.getStreams("*.7.1");
-                    assertEquals(2, infos.size());
-
-                    infos = jsm.getStreams("s.7.*");
-                    assertEquals(1, infos.size());
-                    assertEquals("s.*.*", infos.get(0).getConfiguration().getSubjects().get(0));
-
-                    infos = jsm.getStreams("t.7.1");
-                    assertEquals(1, infos.size());
-                    assertEquals("t.*.*", infos.get(0).getConfiguration().getSubjects().get(0));
-                }
-            }
-        }
-    }
-
-    private void validateStreamInfo(StreamState streamState, long subjectsList, long filteredCount, long subjectCount) {
-        assertEquals(subjectsList, streamState.getSubjects().size());
-        assertEquals(filteredCount, streamState.getSubjects().size());
-        assertEquals(subjectCount, streamState.getSubjectCount());
-    }
-
-    @Test
     public void testGetStreamInfoOrNamesPaginationFilter() throws Exception {
-        runInJsServer(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-
+        runInLrServer((nc, jsm, js) -> {
             // getStreams pages at 256
             // getStreamNames pages at 1024
 
-            addStreams(jsm, 300, 0, "x256");
+            String prefix = random();
+            addStreams(jsm, prefix, 300, 0, "x256");
 
             List<StreamInfo> list = jsm.getStreams();
             assertEquals(300, list.size());
@@ -581,7 +473,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             List<String> names = jsm.getStreamNames();
             assertEquals(300, names.size());
 
-            addStreams(jsm, 1100, 300, "x1024");
+            addStreams(jsm, prefix, 1100, 300, "x1024");
 
             list = jsm.getStreams();
             assertEquals(1400, list.size());
@@ -603,209 +495,221 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         });
     }
 
-    private void addStreams(JetStreamManagement jsm, int count, int adj, String div) throws IOException, JetStreamApiException {
+    private void addStreams(JetStreamManagement jsm, String prefix, int count, int adj, String div) throws IOException, JetStreamApiException {
         for (int x = 0; x < count; x++) {
-            createMemoryStream(jsm, "stream-" + (x + adj), "sub" + (x + adj) + "." + div + ".*");
+            createMemoryStream(jsm, prefix + "-" + (x + adj), "sub" + (x + adj) + "." + div + ".*");
         }
     }
 
     @Test
     public void testGetStreamNamesBySubjectFilter() throws Exception {
-        runInJsServer(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-
-            createMemoryStream(jsm, stream(1), "foo");
-            createMemoryStream(jsm, stream(2), "bar");
-            createMemoryStream(jsm, stream(3), "a.a");
-            createMemoryStream(jsm, stream(4), "a.b");
+        runInLrServer((nc, jsm, js) -> {
+            String stream1 = random();
+            String stream2 = random();
+            String stream3 = random();
+            String stream4 = random();
+            createMemoryStream(jsm, stream1, "foo");
+            createMemoryStream(jsm, stream2, "bar");
+            createMemoryStream(jsm, stream3, "a.a");
+            createMemoryStream(jsm, stream4, "a.b");
 
             List<String> list = jsm.getStreamNames("*");
-            assertStreamNameList(list, 1, 2);
+            assertStreamNameList(list, stream1, stream2);
 
             list = jsm.getStreamNames(">");
-            assertStreamNameList(list, 1, 2, 3, 4);
+            assertStreamNameList(list, stream1, stream2, stream3, stream4);
 
             list = jsm.getStreamNames("*.*");
-            assertStreamNameList(list, 3, 4);
+            assertStreamNameList(list, stream3, stream4);
 
             list = jsm.getStreamNames("a.>");
-            assertStreamNameList(list, 3, 4);
+            assertStreamNameList(list, stream3, stream4);
 
             list = jsm.getStreamNames("a.*");
-            assertStreamNameList(list, 3, 4);
+            assertStreamNameList(list, stream3, stream4);
 
             list = jsm.getStreamNames("foo");
-            assertStreamNameList(list, 1);
+            assertStreamNameList(list, stream1);
 
             list = jsm.getStreamNames("a.a");
-            assertStreamNameList(list, 3);
+            assertStreamNameList(list, stream3);
 
             list = jsm.getStreamNames("nomatch");
             assertStreamNameList(list);
         });
     }
 
-    private void assertStreamNameList(List<String> list, int... ids) {
+    private void assertStreamNameList(List<String> list, String... streams) {
         assertNotNull(list);
-        assertEquals(ids.length, list.size());
-        for (int id : ids) {
-            assertTrue(list.contains(stream(id)));
+        assertEquals(streams.length, list.size());
+        for (String s : streams) {
+            assertTrue(list.contains(s));
         }
     }
 
     @Test
     public void testDeleteStream() throws Exception {
-        jsServer.run(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
+        runInLrServer((nc, jstc) -> {
             JetStreamApiException jsapiEx =
-                assertThrows(JetStreamApiException.class, () -> jsm.deleteStream(stream()));
+                assertThrows(JetStreamApiException.class, () -> jstc.jsm.deleteStream(random()));
             assertEquals(10059, jsapiEx.getApiErrorCode());
 
-            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
-            assertNotNull(jsm.getStreamInfo(tsc.stream));
-            assertTrue(jsm.deleteStream(tsc.stream));
+            assertNotNull(jstc.jsm.getStreamInfo(jstc.stream));
+            assertTrue(jstc.jsm.deleteStream(jstc.stream));
 
-            jsapiEx = assertThrows(JetStreamApiException.class, () -> jsm.getStreamInfo(tsc.stream));
+            jsapiEx = assertThrows(JetStreamApiException.class, () -> jstc.jsm.getStreamInfo(jstc.stream));
             assertEquals(10059, jsapiEx.getApiErrorCode());
 
-            jsapiEx = assertThrows(JetStreamApiException.class, () -> jsm.deleteStream(tsc.stream));
+            jsapiEx = assertThrows(JetStreamApiException.class, () -> jstc.jsm.deleteStream(jstc.stream));
             assertEquals(10059, jsapiEx.getApiErrorCode());
         });
     }
 
     @Test
     public void testPurgeStreamAndOptions() throws Exception {
-        jsServer.run(nc -> {
+        runInLrServer((nc, jsm, js) -> {
             // invalid to have both keep and seq
             assertThrows(IllegalArgumentException.class,
                 () -> PurgeOptions.builder().keep(1).sequence(1).build());
 
-            JetStreamManagement jsm = nc.jetStreamManagement();
-
             // error to purge a stream that does not exist
-            assertThrows(JetStreamApiException.class, () -> jsm.purgeStream(stream()));
+            assertThrows(JetStreamApiException.class, () -> jsm.purgeStream(random()));
 
-            TestingStreamContainer tsc = new TestingStreamContainer(nc, 2);
-            createMemoryStream(jsm, tsc.stream, tsc.subject(0), tsc.subject(1));
+            JetStreamTestingContext jstc = new JetStreamTestingContext(nc, 2);
+            createMemoryStream(jsm, jstc.stream, jstc.subject(0), jstc.subject(1));
 
-            StreamInfo si = jsm.getStreamInfo(tsc.stream);
+            StreamInfo si = jsm.getStreamInfo(jstc.stream);
             assertEquals(0, si.getStreamState().getMsgCount());
 
-            jsPublish(nc, tsc.subject(0), 10);
-            si = jsm.getStreamInfo(tsc.stream);
+            jsPublish(nc, jstc.subject(0), 10);
+            si = jsm.getStreamInfo(jstc.stream);
             assertEquals(10, si.getStreamState().getMsgCount());
 
             PurgeOptions options = PurgeOptions.builder().keep(7).build();
-            PurgeResponse pr = jsm.purgeStream(tsc.stream, options);
+            PurgeResponse pr = jsm.purgeStream(jstc.stream, options);
             assertTrue(pr.isSuccess());
             assertEquals(3, pr.getPurged());
 
             options = PurgeOptions.builder().sequence(9).build();
-            pr = jsm.purgeStream(tsc.stream, options);
+            pr = jsm.purgeStream(jstc.stream, options);
             assertTrue(pr.isSuccess());
             assertEquals(5, pr.getPurged());
-            si = jsm.getStreamInfo(tsc.stream);
+            si = jsm.getStreamInfo(jstc.stream);
             assertEquals(2, si.getStreamState().getMsgCount());
 
-            pr = jsm.purgeStream(tsc.stream);
+            pr = jsm.purgeStream(jstc.stream);
             assertTrue(pr.isSuccess());
             assertEquals(2, pr.getPurged());
-            si = jsm.getStreamInfo(tsc.stream);
+            si = jsm.getStreamInfo(jstc.stream);
             assertEquals(0, si.getStreamState().getMsgCount());
 
-            jsPublish(nc, tsc.subject(0), 10);
-            jsPublish(nc, tsc.subject(1), 10);
-            si = jsm.getStreamInfo(tsc.stream);
+            jsPublish(nc, jstc.subject(0), 10);
+            jsPublish(nc, jstc.subject(1), 10);
+            si = jsm.getStreamInfo(jstc.stream);
             assertEquals(20, si.getStreamState().getMsgCount());
-            jsm.purgeStream(tsc.stream, PurgeOptions.subject(tsc.subject(0)));
-            si = jsm.getStreamInfo(tsc.stream);
+            jsm.purgeStream(jstc.stream, PurgeOptions.subject(jstc.subject(0)));
+            si = jsm.getStreamInfo(jstc.stream);
             assertEquals(10, si.getStreamState().getMsgCount());
 
-            options = PurgeOptions.builder().subject(tsc.subject(0)).sequence(1).build();
-            assertEquals(tsc.subject(0), options.getSubject());
+            options = PurgeOptions.builder().subject(jstc.subject(0)).sequence(1).build();
+            assertEquals(jstc.subject(0), options.getSubject());
             assertEquals(1, options.getSequence());
 
-            options = PurgeOptions.builder().subject(tsc.subject(0)).keep(2).build();
+            options = PurgeOptions.builder().subject(jstc.subject(0)).keep(2).build();
             assertEquals(2, options.getKeep());
         });
     }
 
     @Test
     public void testAddDeleteConsumer() throws Exception {
-        runInJsServer(nc -> {
+        runInLrServer((nc, jsm, js) -> {
             boolean atLeast2dot9 = nc.getServerInfo().isSameOrNewerThanVersion("2.9");
 
-            JetStreamManagement jsm = nc.jetStreamManagement();
+            String stream = random();
+            String subject = random();
+            createMemoryStream(jsm, stream, subjectGt(subject));
 
-            createMemoryStream(jsm, STREAM, subjectDot(">"));
-
-            List<ConsumerInfo> list = jsm.getConsumers(STREAM);
+            List<ConsumerInfo> list = jsm.getConsumers(stream);
             assertEquals(0, list.size());
 
             final ConsumerConfiguration cc = ConsumerConfiguration.builder().build();
             IllegalArgumentException iae =
                 assertThrows(IllegalArgumentException.class, () -> jsm.addOrUpdateConsumer(null, cc));
             assertTrue(iae.getMessage().contains("Stream cannot be null or empty"));
-            iae = assertThrows(IllegalArgumentException.class, () -> jsm.addOrUpdateConsumer(STREAM, null));
+            iae = assertThrows(IllegalArgumentException.class, () -> jsm.addOrUpdateConsumer(stream, null));
             assertTrue(iae.getMessage().contains("Config cannot be null"));
 
             // durable and name can both be null
-            ConsumerInfo ci = jsm.addOrUpdateConsumer(STREAM, cc);
+            ConsumerInfo ci = jsm.addOrUpdateConsumer(stream, cc);
             assertNotNull(ci.getName());
 
             // threshold can be set for durable
-            final ConsumerConfiguration cc2 = ConsumerConfiguration.builder().durable(DURABLE).inactiveThreshold(10000).build();
-            ci = jsm.addOrUpdateConsumer(STREAM, cc2);
-            assertEquals(10000, ci.getConsumerConfiguration().getInactiveThreshold().toMillis());
+            final ConsumerConfiguration cc2 = ConsumerConfiguration.builder().durable(random()).inactiveThreshold(10000).build();
+            ci = jsm.addOrUpdateConsumer(stream, cc2);
+            assertNotNull(ci.getName());
+            ConsumerConfiguration cc2cc = ci.getConsumerConfiguration();
+            assertNotNull(cc2cc);
+            Duration duration = ci.getConsumerConfiguration().getInactiveThreshold();
+            assertNotNull(duration);
+            assertEquals(10000, duration.toMillis());
 
             // prep for next part of test
-            jsm.deleteStream(STREAM);
-            createMemoryStream(jsm, STREAM, subjectDot(">"));
+            jsm.deleteStream(stream);
+            createMemoryStream(jsm, stream, subjectGt(subject));
 
             // with and w/o deliver subject for push/pull
-            addConsumer(jsm, atLeast2dot9, 1, false, null, ConsumerConfiguration.builder()
-                .durable(durable(1))
+            String dur0 = random();
+            addConsumer(jsm, stream, atLeast2dot9, dur0, null, null, ConsumerConfiguration.builder()
+                .durable(dur0)
                 .build());
 
-            addConsumer(jsm, atLeast2dot9, 2, true, null, ConsumerConfiguration.builder()
-                .durable(durable(2))
-                .deliverSubject(deliver(2))
+            String dur = random();
+            String deliver = random();
+            addConsumer(jsm, stream, atLeast2dot9, dur, deliver, null, ConsumerConfiguration.builder()
+                .durable(dur)
+                .deliverSubject(deliver)
                 .build());
 
             // test delete here
-            List<String> consumers = jsm.getConsumerNames(STREAM);
+            List<String> consumers = jsm.getConsumerNames(stream);
             assertEquals(2, consumers.size());
-            assertTrue(jsm.deleteConsumer(STREAM, durable(1)));
-            consumers = jsm.getConsumerNames(STREAM);
+            assertTrue(jsm.deleteConsumer(stream, dur0));
+            consumers = jsm.getConsumerNames(stream);
             assertEquals(1, consumers.size());
-            assertThrows(JetStreamApiException.class, () -> jsm.deleteConsumer(STREAM, durable(1)));
+            assertThrows(JetStreamApiException.class, () -> jsm.deleteConsumer(stream, dur0));
 
             // some testing of new name
             if (atLeast2dot9) {
-                addConsumer(jsm, true, 3, false, null, ConsumerConfiguration.builder()
-                    .durable(durable(3))
-                    .name(durable(3))
+                dur = random();
+                addConsumer(jsm, stream, true, dur, null, null, ConsumerConfiguration.builder()
+                    .durable(dur)
+                    .name(dur)
                     .build());
 
-                addConsumer(jsm, true, 4, true, null, ConsumerConfiguration.builder()
-                    .durable(durable(4))
-                    .name(durable(4))
-                    .deliverSubject(deliver(4))
+                dur = random();
+                deliver = random();
+                addConsumer(jsm, stream, true, dur, deliver, null, ConsumerConfiguration.builder()
+                    .durable(dur)
+                    .name(dur)
+                    .deliverSubject(deliver)
                     .build());
 
-                addConsumer(jsm, true, 5, false, ">", ConsumerConfiguration.builder()
-                    .durable(durable(5))
+                dur = random();
+                addConsumer(jsm, stream, true, dur, null, ">", ConsumerConfiguration.builder()
+                    .durable(dur)
                     .filterSubject(">")
                     .build());
 
-                addConsumer(jsm, true, 6, false, subjectDot(">"), ConsumerConfiguration.builder()
-                    .durable(durable(6))
-                    .filterSubject(subjectDot(">"))
+                dur = random();
+                addConsumer(jsm, stream, true, dur, null, subjectGt(subject), ConsumerConfiguration.builder()
+                    .durable(dur)
+                    .filterSubject(subjectGt(subject))
                     .build());
 
-                addConsumer(jsm, true, 7, false, subjectDot("foo"), ConsumerConfiguration.builder()
-                    .durable(durable(7))
-                    .filterSubject(subjectDot("foo"))
+                dur = random();
+                addConsumer(jsm, stream, true, dur, null, subjectDot(subject, "foo"), ConsumerConfiguration.builder()
+                    .durable(dur)
+                    .filterSubject(subjectDot(subject, "foo"))
                     .build());
             }
         });
@@ -813,22 +717,20 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testAddPausedConsumer() throws Exception {
-        jsServer.run(TestBase::atLeast2_11, nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
-
-            List<ConsumerInfo> list = jsm.getConsumers(tsc.stream);
+        runInLrServer(TestBase::atLeast2_11, (nc, jstc) -> {
+            List<ConsumerInfo> list = jstc.jsm.getConsumers(jstc.stream);
             assertEquals(0, list.size());
 
             ZonedDateTime pauseUntil = ZonedDateTime.now(ZONE_ID_GMT).plusMinutes(2);
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                    .durable(tsc.consumerName())
+                    .durable(jstc.consumerName())
                     .pauseUntil(pauseUntil)
                     .build();
 
             // Consumer should be paused on creation.
-            ConsumerInfo ci = jsm.addOrUpdateConsumer(tsc.stream, cc);
+            ConsumerInfo ci = jstc.jsm.addOrUpdateConsumer(jstc.stream, cc);
             assertTrue(ci.getPaused());
+            assertNotNull(ci.getPauseRemaining());
             assertTrue(ci.getPauseRemaining().toMillis() > 60_000);
             assertEquals(pauseUntil, ci.getConsumerConfiguration().getPauseUntil());
         });
@@ -836,154 +738,157 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testPauseResumeConsumer() throws Exception {
-        jsServer.run(TestBase::atLeast2_11, nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
-
-            List<ConsumerInfo> list = jsm.getConsumers(tsc.stream);
+        runInLrServer(TestBase::atLeast2_11, (nc, jstc) -> {
+            List<ConsumerInfo> list = jstc.jsm.getConsumers(jstc.stream);
             assertEquals(0, list.size());
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                    .durable(tsc.consumerName())
+                    .durable(jstc.consumerName())
                     .build();
 
             // durable and name can both be null
-            ConsumerInfo ci = jsm.addOrUpdateConsumer(tsc.stream, cc);
+            ConsumerInfo ci = jstc.jsm.addOrUpdateConsumer(jstc.stream, cc);
             assertNotNull(ci.getName());
 
             // pause consumer
             ZonedDateTime pauseUntil = ZonedDateTime.now(ZONE_ID_GMT).plusMinutes(2);
-            ConsumerPauseResponse pauseResponse = jsm.pauseConsumer(tsc.stream, ci.getName(), pauseUntil);
+            ConsumerPauseResponse pauseResponse = jstc.jsm.pauseConsumer(jstc.stream, ci.getName(), pauseUntil);
             assertTrue(pauseResponse.isPaused());
             assertEquals(pauseUntil, pauseResponse.getPauseUntil());
 
-            ci = jsm.getConsumerInfo(tsc.stream, ci.getName());
+            ci = jstc.jsm.getConsumerInfo(jstc.stream, ci.getName());
             assertTrue(ci.getPaused());
+            assertNotNull(ci.getPauseRemaining());
             assertTrue(ci.getPauseRemaining().toMillis() > 60_000);
 
             // resume consumer
-            boolean isResumed = jsm.resumeConsumer(tsc.stream, ci.getName());
+            boolean isResumed = jstc.jsm.resumeConsumer(jstc.stream, ci.getName());
             assertTrue(isResumed);
 
-            ci = jsm.getConsumerInfo(tsc.stream, ci.getName());
+            ci = jstc.jsm.getConsumerInfo(jstc.stream, ci.getName());
             assertFalse(ci.getPaused());
 
             // pause again
-            pauseResponse = jsm.pauseConsumer(tsc.stream, ci.getName(), pauseUntil);
+            pauseResponse = jstc.jsm.pauseConsumer(jstc.stream, ci.getName(), pauseUntil);
             assertTrue(pauseResponse.isPaused());
             assertEquals(pauseUntil, pauseResponse.getPauseUntil());
 
             // resume via pause with no date
-            pauseResponse = jsm.pauseConsumer(tsc.stream, ci.getName(), null);
+            pauseResponse = jstc.jsm.pauseConsumer(jstc.stream, ci.getName(), null);
             assertFalse(pauseResponse.isPaused());
             assertEquals(DEFAULT_TIME, pauseResponse.getPauseUntil());
 
-            ci = jsm.getConsumerInfo(tsc.stream, ci.getName());
+            ci = jstc.jsm.getConsumerInfo(jstc.stream, ci.getName());
             assertFalse(ci.getPaused());
 
-            assertThrows(JetStreamApiException.class, () -> jsm.pauseConsumer(stream(), tsc.consumerName(), pauseUntil));
-            assertThrows(JetStreamApiException.class, () -> jsm.pauseConsumer(tsc.stream, name(), pauseUntil));
-            assertThrows(JetStreamApiException.class, () -> jsm.resumeConsumer(stream(), tsc.consumerName()));
-            assertThrows(JetStreamApiException.class, () -> jsm.resumeConsumer(tsc.stream, name()));
+            assertThrows(JetStreamApiException.class, () -> jstc.jsm.pauseConsumer(random(), jstc.consumerName(), pauseUntil));
+            assertThrows(JetStreamApiException.class, () -> jstc.jsm.pauseConsumer(jstc.stream, random(), pauseUntil));
+            assertThrows(JetStreamApiException.class, () -> jstc.jsm.resumeConsumer(random(), jstc.consumerName()));
+            assertThrows(JetStreamApiException.class, () -> jstc.jsm.resumeConsumer(jstc.stream, random()));
         });
     }
 
-    private static void addConsumer(JetStreamManagement jsm, boolean atLeast2dot9, int id, boolean deliver, String fs, ConsumerConfiguration cc) throws IOException, JetStreamApiException {
-        ConsumerInfo ci = jsm.addOrUpdateConsumer(STREAM, cc);
-        assertEquals(durable(id), ci.getName());
+    private static void addConsumer(JetStreamManagement jsm, String stream, boolean atLeast2dot9, String name, String deliver, String fs, ConsumerConfiguration cc) throws IOException, JetStreamApiException {
+        ConsumerInfo ci = jsm.addOrUpdateConsumer(stream, cc);
+        assertEquals(name, ci.getName());
         if (atLeast2dot9) {
-            assertEquals(durable(id), ci.getConsumerConfiguration().getName());
+            assertEquals(name, ci.getConsumerConfiguration().getName());
         }
-        assertEquals(durable(id), ci.getConsumerConfiguration().getDurable());
+        assertEquals(name, ci.getConsumerConfiguration().getDurable());
         if (fs == null) {
             assertNull(ci.getConsumerConfiguration().getFilterSubject());
         }
-        if (deliver) {
-            assertEquals(deliver(id), ci.getConsumerConfiguration().getDeliverSubject());
+        if (deliver != null) {
+            assertEquals(deliver, ci.getConsumerConfiguration().getDeliverSubject());
         }
     }
 
     @Test
     public void testValidConsumerUpdates() throws Exception {
-        runInJsServer(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            createMemoryStream(jsm, STREAM, SUBJECT_GT);
+        runInLrServer((nc, jsm, js) -> {
+            String stream = random();
+            String subject = random();
+            String subjectGt = subjectGt(subject);
+            createMemoryStream(jsm, stream, subjectGt);
 
-            ConsumerConfiguration cc = prepForUpdateTest(jsm);
-            cc = ConsumerConfiguration.builder(cc).deliverSubject(deliver(2)).build();
-            assertValidAddOrUpdate(jsm, cc);
+            ConsumerConfiguration cc = prepForUpdateTest(jsm, stream, subjectGt, null);
+            cc = ConsumerConfiguration.builder(cc).deliverSubject(random()).build();
+            assertValidAddOrUpdate(jsm, cc, stream);
 
-            cc = prepForUpdateTest(jsm);
+            cc = prepForUpdateTest(jsm, stream, subjectGt, cc.getDurable());
             cc = ConsumerConfiguration.builder(cc).ackWait(Duration.ofSeconds(5)).build();
-            assertValidAddOrUpdate(jsm, cc);
+            assertValidAddOrUpdate(jsm, cc, stream);
 
-            cc = prepForUpdateTest(jsm);
+            cc = prepForUpdateTest(jsm, stream, subjectGt, cc.getDurable());
             cc = ConsumerConfiguration.builder(cc).rateLimit(100).build();
-            assertValidAddOrUpdate(jsm, cc);
+            assertValidAddOrUpdate(jsm, cc, stream);
 
-            cc = prepForUpdateTest(jsm);
+            cc = prepForUpdateTest(jsm, stream, subjectGt, cc.getDurable());
             cc = ConsumerConfiguration.builder(cc).maxAckPending(100).build();
-            assertValidAddOrUpdate(jsm, cc);
+            assertValidAddOrUpdate(jsm, cc, stream);
 
-            cc = prepForUpdateTest(jsm);
+            cc = prepForUpdateTest(jsm, stream, subjectGt, cc.getDurable());
             cc = ConsumerConfiguration.builder(cc).maxDeliver(4).build();
-            assertValidAddOrUpdate(jsm, cc);
+            assertValidAddOrUpdate(jsm, cc, stream);
 
             if (nc.getServerInfo().isNewerVersionThan("2.8.4")) {
-                cc = prepForUpdateTest(jsm);
-                cc = ConsumerConfiguration.builder(cc).filterSubject(SUBJECT_STAR).build();
-                assertValidAddOrUpdate(jsm, cc);
+                cc = prepForUpdateTest(jsm, stream, subjectGt, cc.getDurable());
+                cc = ConsumerConfiguration.builder(cc).filterSubject(subjectStar(subject)).build();
+                assertValidAddOrUpdate(jsm, cc, stream);
             }
         });
     }
 
     @Test
     public void testInvalidConsumerUpdates() throws Exception {
-        runInJsServer(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            createMemoryStream(jsm, STREAM, SUBJECT_GT);
+        runInLrServer((nc, jsm, js) -> {
+            String stream = random();
+            String subject = random();
+            String subjectGt = subjectGt(subject);
+            createMemoryStream(jsm, stream, subjectGt);
 
-            ConsumerConfiguration cc = prepForUpdateTest(jsm);
+            ConsumerConfiguration cc = prepForUpdateTest(jsm, stream, subjectGt, null);
             cc = ConsumerConfiguration.builder(cc).deliverPolicy(DeliverPolicy.New).build();
-            assertInvalidConsumerUpdate(jsm, cc);
+            assertInvalidConsumerUpdate(jsm, cc, stream);
 
             if (nc.getServerInfo().isSameOrOlderThanVersion("2.8.4")) {
-                cc = prepForUpdateTest(jsm);
-                cc = ConsumerConfiguration.builder(cc).filterSubject(SUBJECT_STAR).build();
-                assertInvalidConsumerUpdate(jsm, cc);
+                cc = prepForUpdateTest(jsm, stream, subjectGt, cc.getDurable());
+                cc = ConsumerConfiguration.builder(cc).filterSubject(subjectStar(subject)).build();
+                assertInvalidConsumerUpdate(jsm, cc, stream);
             }
 
-            cc = prepForUpdateTest(jsm);
+            cc = prepForUpdateTest(jsm, stream, subjectGt, cc.getDurable());
             cc = ConsumerConfiguration.builder(cc).idleHeartbeat(Duration.ofMillis(111)).build();
-            assertInvalidConsumerUpdate(jsm, cc);
+            assertInvalidConsumerUpdate(jsm, cc, stream);
         });
     }
 
-    private ConsumerConfiguration prepForUpdateTest(JetStreamManagement jsm) throws IOException, JetStreamApiException {
+    private ConsumerConfiguration prepForUpdateTest(JetStreamManagement jsm, String stream, String subjectGt, String durableToDelete) throws IOException, JetStreamApiException {
         try {
-            jsm.deleteConsumer(STREAM, durable(1));
+            if (durableToDelete != null) {
+                jsm.deleteConsumer(stream, durableToDelete);
+            }
         }
         catch (Exception e) { /* ignore */ }
-
         ConsumerConfiguration cc = ConsumerConfiguration.builder()
-            .durable(durable(1))
+            .durable(random())
             .ackPolicy(AckPolicy.Explicit)
-            .deliverSubject(deliver(1))
+            .deliverSubject(random())
             .maxDeliver(3)
-            .filterSubject(SUBJECT_GT)
+            .filterSubject(subjectGt)
             .build();
-        assertValidAddOrUpdate(jsm, cc);
+        assertValidAddOrUpdate(jsm, cc, stream);
         return cc;
     }
 
-    private void assertInvalidConsumerUpdate(JetStreamManagement jsm, ConsumerConfiguration cc) {
-        JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> jsm.addOrUpdateConsumer(STREAM, cc));
+    private void assertInvalidConsumerUpdate(JetStreamManagement jsm, ConsumerConfiguration cc, String stream) {
+        JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> jsm.addOrUpdateConsumer(stream, cc));
         assertEquals(10012, e.getApiErrorCode());
         assertEquals(500, e.getErrorCode());
     }
 
-    private void assertValidAddOrUpdate(JetStreamManagement jsm, ConsumerConfiguration cc) throws IOException, JetStreamApiException {
-        ConsumerInfo ci = jsm.addOrUpdateConsumer(STREAM, cc);
+    private void assertValidAddOrUpdate(JetStreamManagement jsm, ConsumerConfiguration cc, String stream) throws IOException, JetStreamApiException {
+        ConsumerInfo ci = jsm.addOrUpdateConsumer(stream, cc);
         ConsumerConfiguration cicc = ci.getConsumerConfiguration();
         assertEquals(cc.getDurable(), ci.getName());
         assertEquals(cc.getDurable(), cicc.getDurable());
@@ -991,84 +896,81 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         assertEquals(cc.getMaxDeliver(), cicc.getMaxDeliver());
         assertEquals(cc.getDeliverPolicy(), cicc.getDeliverPolicy());
 
-        List<String> consumers = jsm.getConsumerNames(STREAM);
+        List<String> consumers = jsm.getConsumerNames(stream);
         assertEquals(1, consumers.size());
         assertEquals(cc.getDurable(), consumers.get(0));
     }
 
     @Test
     public void testConsumerMetadata() throws Exception {
-        jsServer.run(nc -> {
+        runInLrServer((nc, jstc) -> {
             Map<String, String> metaData = new HashMap<>(); metaData.put(META_KEY, META_VALUE);
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
-                .durable(tsc.consumerName())
+                .durable(random())
                 .metadata(metaData)
                 .build();
 
-            ConsumerInfo ci = jsm.addOrUpdateConsumer(tsc.stream, cc);
+            ConsumerInfo ci = jstc.jsm.addOrUpdateConsumer(jstc.stream, cc);
             assertMetaData(ci.getConsumerConfiguration().getMetadata());
         });
     }
 
     @Test
     public void testCreateConsumersWithFilters() throws Exception {
-        runInJsServer(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-
-            createDefaultTestStream(jsm);
+        runInLrServer((nc, jsm, js) -> {
+            String stream = random();
+            String subject = random();
+            createMemoryStream(jsm, stream, subject);
 
             // plain subject
-            ConsumerConfiguration.Builder builder = ConsumerConfiguration.builder().durable(DURABLE);
-            jsm.addOrUpdateConsumer(STREAM, builder.filterSubject(SUBJECT).build());
-            List<ConsumerInfo> cis = jsm.getConsumers(STREAM);
-            assertEquals(SUBJECT, cis.get(0).getConsumerConfiguration().getFilterSubject());
+            ConsumerConfiguration.Builder builder = ConsumerConfiguration.builder().durable(random());
+            jsm.addOrUpdateConsumer(stream, builder.filterSubject(subject).build());
+            List<ConsumerInfo> cis = jsm.getConsumers(stream);
+            assertEquals(subject, cis.get(0).getConsumerConfiguration().getFilterSubject());
 
             if (nc.getServerInfo().isSameOrNewerThanVersion("2.10")) {
                 // 2.10 and later you can set the filter to something that does not match
-                jsm.addOrUpdateConsumer(STREAM, builder.filterSubject(subjectDot("two-ten-allows-not-matching")).build());
-                cis = jsm.getConsumers(STREAM);
-                assertEquals(subjectDot("two-ten-allows-not-matching"), cis.get(0).getConsumerConfiguration().getFilterSubject());
+                jsm.addOrUpdateConsumer(stream, builder.filterSubject(subjectDot(subject, "two-ten-allows-not-matching")).build());
+                cis = jsm.getConsumers(stream);
+                assertEquals(subjectDot(subject, "two-ten-allows-not-matching"), cis.get(0).getConsumerConfiguration().getFilterSubject());
             }
             else {
                 assertThrows(JetStreamApiException.class,
-                    () -> jsm.addOrUpdateConsumer(STREAM, builder.filterSubject(subjectDot("not-match")).build()));
+                    () -> jsm.addOrUpdateConsumer(stream, builder.filterSubject(subjectDot(subject, "not-match")).build()));
             }
 
             // wildcard subject
-            jsm.deleteStream(STREAM);
-            createMemoryStream(jsm, STREAM, SUBJECT_STAR);
+            jsm.deleteStream(stream);
+            createMemoryStream(jsm, stream, subjectStar(subject));
 
-            jsm.addOrUpdateConsumer(STREAM, builder.filterSubject(subjectDot("A")).build());
-            cis = jsm.getConsumers(STREAM);
-            assertEquals(subjectDot("A"), cis.get(0).getConsumerConfiguration().getFilterSubject());
+            String subjectA = subjectDot(subject, "A");
+            jsm.addOrUpdateConsumer(stream, builder.filterSubject(subjectA).build());
+            cis = jsm.getConsumers(stream);
+            assertEquals(subjectA, cis.get(0).getConsumerConfiguration().getFilterSubject());
 
             // gt subject
-            jsm.deleteStream(STREAM);
-            createMemoryStream(jsm, STREAM, SUBJECT_GT);
+            jsm.deleteStream(stream);
+            createMemoryStream(jsm, stream, subjectGt(subject));
 
-            jsm.addOrUpdateConsumer(STREAM, builder.filterSubject(subjectDot("A")).build());
-            cis = jsm.getConsumers(STREAM);
-            assertEquals(subjectDot("A"), cis.get(0).getConsumerConfiguration().getFilterSubject());
+            jsm.addOrUpdateConsumer(stream, builder.filterSubject(subjectA).build());
+            cis = jsm.getConsumers(stream);
+            assertEquals(subjectA, cis.get(0).getConsumerConfiguration().getFilterSubject());
         });
     }
 
     @Test
     public void testGetConsumerInfo() throws Exception {
-        jsServer.run(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
-            assertThrows(JetStreamApiException.class, () -> jsm.getConsumerInfo(tsc.stream, tsc.consumerName()));
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(tsc.consumerName()).build();
-            ConsumerInfo ci = jsm.addOrUpdateConsumer(tsc.stream, cc);
-            assertEquals(tsc.stream, ci.getStreamName());
-            assertEquals(tsc.consumerName(), ci.getName());
-            ci = jsm.getConsumerInfo(tsc.stream, tsc.consumerName());
-            assertEquals(tsc.stream, ci.getStreamName());
-            assertEquals(tsc.consumerName(), ci.getName());
-            assertThrows(JetStreamApiException.class, () -> jsm.getConsumerInfo(tsc.stream, durable(999)));
+        runInLrServer((nc, jstc) -> {
+            assertThrows(JetStreamApiException.class, () -> jstc.jsm.getConsumerInfo(jstc.stream, jstc.consumerName()));
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(jstc.consumerName()).build();
+            ConsumerInfo ci = jstc.jsm.addOrUpdateConsumer(jstc.stream, cc);
+            assertEquals(jstc.stream, ci.getStreamName());
+            assertEquals(jstc.consumerName(), ci.getName());
+            ci = jstc.jsm.getConsumerInfo(jstc.stream, jstc.consumerName());
+            assertEquals(jstc.stream, ci.getStreamName());
+            assertEquals(jstc.consumerName(), ci.getName());
+            assertThrows(JetStreamApiException.class, () -> jstc.jsm.getConsumerInfo(jstc.stream, random()));
             if (nc.getServerInfo().isSameOrNewerThanVersion("2.10")) {
                 assertNotNull(ci.getTimestamp());
             }
@@ -1080,24 +982,22 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testGetConsumers() throws Exception {
-        jsServer.run(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
+        runInLrServer((nc, jstc) -> {
+            addConsumers(jstc.jsm, jstc.stream, 600); // getConsumers pages at 256
 
-            addConsumers(jsm, tsc.stream, 600, "A"); // getConsumers pages at 256
-
-            List<ConsumerInfo> list = jsm.getConsumers(tsc.stream);
+            List<ConsumerInfo> list = jstc.jsm.getConsumers(jstc.stream);
             assertEquals(600, list.size());
 
-            addConsumers(jsm, tsc.stream, 500, "B"); // getConsumerNames pages at 1024
-            List<String> names = jsm.getConsumerNames(tsc.stream);
+            addConsumers(jstc.jsm, jstc.stream, 500); // getConsumerNames pages at 1024
+            List<String> names = jstc.jsm.getConsumerNames(jstc.stream);
             assertEquals(1100, names.size());
         });
     }
 
-    private void addConsumers(JetStreamManagement jsm, String stream, int count, String durableVary) throws IOException, JetStreamApiException {
+    private void addConsumers(JetStreamManagement jsm, String stream, int count) throws IOException, JetStreamApiException {
+        String base = random() ;
         for (int x = 1; x <= count; x++) {
-            String dur = durable(durableVary, x);
+            String dur = base + "-" + x;
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
                 .durable(dur)
                 .build();
@@ -1122,88 +1022,59 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         assertFalse(mdr.isErase());
         assertTrue(mdr.isNoErase());
 
-        runInJsServer(nc -> {
-            createDefaultTestStream(nc);
-            JetStream js = nc.jetStream();
-
+        runInLrServer((nc, jstc) -> {
             Headers h = new Headers();
             h.add("foo", "bar");
 
             ZonedDateTime timeBeforeCreated = ZonedDateTime.now();
-            js.publish(NatsMessage.builder().subject(SUBJECT).headers(h).data(dataBytes(1)).build());
-            js.publish(NatsMessage.builder().subject(SUBJECT).build());
+            jstc.js.publish(NatsMessage.builder().subject(jstc.subject()).headers(h).data(dataBytes(1)).build());
+            jstc.js.publish(NatsMessage.builder().subject(jstc.subject()).build());
 
-            JetStreamManagement jsm = nc.jetStreamManagement();
-
-            MessageInfo mi = jsm.getMessage(STREAM, 1);
+            MessageInfo mi = jstc.jsm.getMessage(jstc.stream, 1);
             assertNotNull(mi.toString());
-            assertEquals(SUBJECT, mi.getSubject());
+            assertEquals(jstc.subject(), mi.getSubject());
+            assertNotNull(mi.getData());
             assertEquals(data(1), new String(mi.getData()));
             assertEquals(1, mi.getSeq());
+            assertNotNull(mi.getTime());
             assertTrue(mi.getTime().toEpochSecond() >= timeBeforeCreated.toEpochSecond());
             assertNotNull(mi.getHeaders());
-            assertEquals("bar", mi.getHeaders().get("foo").get(0));
+            List<String> foos = mi.getHeaders().get("foo");
+            assertNotNull(foos);
+            assertEquals("bar", foos.get(0));
 
-            mi = jsm.getMessage(STREAM, 2);
+            mi = jstc.jsm.getMessage(jstc.stream, 2);
             assertNotNull(mi.toString());
-            assertEquals(SUBJECT, mi.getSubject());
+            assertEquals(jstc.subject(), mi.getSubject());
             assertNull(mi.getData());
             assertEquals(2, mi.getSeq());
+            assertNotNull(mi.getTime());
             assertTrue(mi.getTime().toEpochSecond() >= timeBeforeCreated.toEpochSecond());
             assertTrue(mi.getHeaders() == null || mi.getHeaders().isEmpty());
 
-            assertTrue(jsm.deleteMessage(STREAM, 1, false)); // added coverage for use of erase (no_erase) flag.
-            assertThrows(JetStreamApiException.class, () -> jsm.deleteMessage(STREAM, 1));
-            assertThrows(JetStreamApiException.class, () -> jsm.getMessage(STREAM, 1));
-            assertThrows(JetStreamApiException.class, () -> jsm.getMessage(STREAM, 3));
-            assertThrows(JetStreamApiException.class, () -> jsm.deleteMessage(stream(999), 1));
-            assertThrows(JetStreamApiException.class, () -> jsm.getMessage(stream(999), 1));
+            assertTrue(jstc.jsm.deleteMessage(jstc.stream, 1, false)); // added coverage for use of erase (no_erase) flag.
+            assertThrows(JetStreamApiException.class, () -> jstc.jsm.deleteMessage(jstc.stream, 1));
+            assertThrows(JetStreamApiException.class, () -> jstc.jsm.getMessage(jstc.stream, 1));
+            assertThrows(JetStreamApiException.class, () -> jstc.jsm.getMessage(jstc.stream, 3));
+            assertThrows(JetStreamApiException.class, () -> jstc.jsm.deleteMessage(random(), 1));
+            assertThrows(JetStreamApiException.class, () -> jstc.jsm.getMessage(random(), 1));
         });
     }
 
     @Test
-    public void testAuthCreateUpdateStream() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/js_authorization.conf", false)) {
-            Options optionsSrc = new Options.Builder().server(ts.getURI())
-                .userInfo("serviceup".toCharArray(), "uppass".toCharArray()).build();
-
-            try (Connection nc = Nats.connect(optionsSrc)) {
-                JetStreamManagement jsm = nc.jetStreamManagement();
-
-                // add streams with both account
-                StreamConfiguration sc = StreamConfiguration.builder()
-                    .name(STREAM)
-                    .storageType(StorageType.Memory)
-                    .subjects(subject(1))
-                    .build();
-                StreamInfo si = jsm.addStream(sc);
-
-                sc = StreamConfiguration.builder(si.getConfiguration())
-                    .addSubjects(subject(2))
-                    .build();
-
-                jsm.updateStream(sc);
-            }
-        }
-    }
-
-    @Test
     public void testSealed() throws Exception {
-        jsServer.run(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
+        runInLrServer((nc, jstc) -> {
+            assertFalse(jstc.si.getConfiguration().getSealed());
 
-            TestingStreamContainer tsc = new TestingStreamContainer(nc);
-            assertFalse(tsc.si.getConfiguration().getSealed());
+            jstc.js.publish(jstc.subject(), "data1".getBytes());
 
-            JetStream js = nc.jetStream();
-            js.publish(tsc.subject(), "data1".getBytes());
-
-            StreamConfiguration sc = new StreamConfiguration.Builder(tsc.si.getConfiguration())
-                .seal().build();
-            StreamInfo si = jsm.updateStream(sc);
+            StreamConfiguration sc = new StreamConfiguration.Builder(jstc.si.getConfiguration())
+                .seal()
+                .build();
+            StreamInfo si = jstc.jsm.updateStream(sc);
             assertTrue(si.getConfiguration().getSealed());
 
-            assertThrows(JetStreamApiException.class, () -> js.publish(tsc.subject(), "data2".getBytes()));
+            assertThrows(JetStreamApiException.class, () -> jstc.js.publish(jstc.subject(), "data2".getBytes()));
         });
     }
 
@@ -1218,113 +1089,107 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testConsumerReplica() throws Exception {
-        jsServer.run(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            TestingStreamContainer tsc = new TestingStreamContainer(nc);
-
+        runInLrServer((nc, jstc) -> {
             final ConsumerConfiguration cc0 = ConsumerConfiguration.builder()
-                .durable(tsc.consumerName())
+                .durable(jstc.consumerName())
                 .build();
-            ConsumerInfo ci = jsm.addOrUpdateConsumer(tsc.stream, cc0);
+            ConsumerInfo ci = jstc.jsm.addOrUpdateConsumer(jstc.stream, cc0);
             // server returns 0 when value is not set
             assertEquals(0, ci.getConsumerConfiguration().getNumReplicas());
 
             final ConsumerConfiguration cc1 = ConsumerConfiguration.builder()
-                .durable(tsc.consumerName())
+                .durable(jstc.consumerName())
                 .numReplicas(1)
                 .build();
-            ci = jsm.addOrUpdateConsumer(tsc.stream, cc1);
+            ci = jstc.jsm.addOrUpdateConsumer(jstc.stream, cc1);
             assertEquals(1, ci.getConsumerConfiguration().getNumReplicas());
         });
     }
 
     @Test
     public void testGetMessage() throws Exception {
-        jsServer.run(nc -> {
-            if (nc.getServerInfo().isNewerVersionThan("2.8.4")) {
-                JetStreamManagement jsm = nc.jetStreamManagement();
-                JetStream js = nc.jetStream();
+        runInLrServer((nc, jsm, js) -> {
+            JetStreamTestingContext jstc = new JetStreamTestingContext(nc, 2);
+            assertFalse(jstc.si.getConfiguration().getAllowDirect());
 
-                TestingStreamContainer tsc = new TestingStreamContainer(nc, 2);
-                assertFalse(tsc.si.getConfiguration().getAllowDirect());
+            ZonedDateTime timeBeforeCreated = ZonedDateTime.now();
+            sleep(100);
+            jstc.js.publish(buildTestGetMessage(jstc, 0, 1));
+            jstc.js.publish(buildTestGetMessage(jstc, 1, 2));
+            jstc.js.publish(buildTestGetMessage(jstc, 0, 3));
+            jstc.js.publish(buildTestGetMessage(jstc, 1, 4));
+            jstc.js.publish(buildTestGetMessage(jstc, 0, 5));
+            jstc.js.publish(buildTestGetMessage(jstc, 1, 6));
 
-                ZonedDateTime timeBeforeCreated = ZonedDateTime.now();
-                sleep(100);
-                js.publish(buildTestGetMessage(tsc, 0, 1));
-                js.publish(buildTestGetMessage(tsc, 1, 2));
-                js.publish(buildTestGetMessage(tsc, 0, 3));
-                js.publish(buildTestGetMessage(tsc, 1, 4));
-                js.publish(buildTestGetMessage(tsc, 0, 5));
-                js.publish(buildTestGetMessage(tsc, 1, 6));
+            validateGetMessage(jstc.jsm, jstc, timeBeforeCreated);
 
-                validateGetMessage(jsm, tsc, timeBeforeCreated);
+            StreamConfiguration sc = StreamConfiguration.builder(jstc.si.getConfiguration()).allowDirect(true).build();
+            StreamInfo si = jstc.jsm.updateStream(sc);
+            assertTrue(si.getConfiguration().getAllowDirect());
+            validateGetMessage(jstc.jsm, jstc, timeBeforeCreated);
 
-                StreamConfiguration sc = StreamConfiguration.builder(tsc.si.getConfiguration()).allowDirect(true).build();
-                StreamInfo si = jsm.updateStream(sc);
-                assertTrue(si.getConfiguration().getAllowDirect());
-                validateGetMessage(jsm, tsc, timeBeforeCreated);
-
-                // error case stream doesn't exist
-                assertThrows(JetStreamApiException.class, () -> jsm.getMessage(stream(999), 1));
-            }
+            // error case stream doesn't exist
+            assertThrows(JetStreamApiException.class, () -> jstc.jsm.getMessage(random(), 1));
         });
     }
 
-    private static NatsMessage buildTestGetMessage(TestingStreamContainer tsc, int s, int q) {
-        String data = "s" + s + "-q" + q;
+    private static NatsMessage buildTestGetMessage(JetStreamTestingContext jstc, int n, int q) {
+        String data = "s" + n + "-q" + q;
         return NatsMessage.builder()
-            .subject(tsc.subject(s))
+            .subject(jstc.subject(n))
             .data("d-" + data)
             .headers(new Headers().put("h", "h-" + data))
             .build();
     }
 
-    private void validateGetMessage(JetStreamManagement jsm, TestingStreamContainer tsc, ZonedDateTime timeBeforeCreated) throws IOException, JetStreamApiException {
+    private void validateGetMessage(JetStreamManagement jsm, JetStreamTestingContext jstc, ZonedDateTime timeBeforeCreated) throws IOException, JetStreamApiException {
 
-        assertMessageInfo(tsc, 0, 1, jsm.getMessage(tsc.stream, 1), timeBeforeCreated);
-        assertMessageInfo(tsc, 0, 5, jsm.getLastMessage(tsc.stream, tsc.subject(0)), timeBeforeCreated);
-        assertMessageInfo(tsc, 1, 6, jsm.getLastMessage(tsc.stream, tsc.subject(1)), timeBeforeCreated);
+        assertMessageInfo(jstc, 0, 1, jsm.getMessage(jstc.stream, 1), timeBeforeCreated);
+        assertMessageInfo(jstc, 0, 5, jsm.getLastMessage(jstc.stream, jstc.subject(0)), timeBeforeCreated);
+        assertMessageInfo(jstc, 1, 6, jsm.getLastMessage(jstc.stream, jstc.subject(1)), timeBeforeCreated);
 
-        assertMessageInfo(tsc, 0, 1, jsm.getNextMessage(tsc.stream, -1, tsc.subject(0)), timeBeforeCreated);
-        assertMessageInfo(tsc, 1, 2, jsm.getNextMessage(tsc.stream, -1, tsc.subject(1)), timeBeforeCreated);
-        assertMessageInfo(tsc, 0, 1, jsm.getNextMessage(tsc.stream, 0, tsc.subject(0)), timeBeforeCreated);
-        assertMessageInfo(tsc, 1, 2, jsm.getNextMessage(tsc.stream, 0, tsc.subject(1)), timeBeforeCreated);
-        assertMessageInfo(tsc, 0, 1, jsm.getFirstMessage(tsc.stream, tsc.subject(0)), timeBeforeCreated);
-        assertMessageInfo(tsc, 1, 2, jsm.getFirstMessage(tsc.stream, tsc.subject(1)), timeBeforeCreated);
-        assertMessageInfo(tsc, 0, 1, jsm.getFirstMessage(tsc.stream, timeBeforeCreated), timeBeforeCreated);
-        assertMessageInfo(tsc, 0, 1, jsm.getFirstMessage(tsc.stream, timeBeforeCreated, tsc.subject(0)), timeBeforeCreated);
-        assertMessageInfo(tsc, 1, 2, jsm.getFirstMessage(tsc.stream, timeBeforeCreated, tsc.subject(1)), timeBeforeCreated);
+        assertMessageInfo(jstc, 0, 1, jsm.getNextMessage(jstc.stream, -1, jstc.subject(0)), timeBeforeCreated);
+        assertMessageInfo(jstc, 1, 2, jsm.getNextMessage(jstc.stream, -1, jstc.subject(1)), timeBeforeCreated);
+        assertMessageInfo(jstc, 0, 1, jsm.getNextMessage(jstc.stream, 0, jstc.subject(0)), timeBeforeCreated);
+        assertMessageInfo(jstc, 1, 2, jsm.getNextMessage(jstc.stream, 0, jstc.subject(1)), timeBeforeCreated);
+        assertMessageInfo(jstc, 0, 1, jsm.getFirstMessage(jstc.stream, jstc.subject(0)), timeBeforeCreated);
+        assertMessageInfo(jstc, 1, 2, jsm.getFirstMessage(jstc.stream, jstc.subject(1)), timeBeforeCreated);
+        assertMessageInfo(jstc, 0, 1, jsm.getFirstMessage(jstc.stream, timeBeforeCreated), timeBeforeCreated);
+        assertMessageInfo(jstc, 0, 1, jsm.getFirstMessage(jstc.stream, timeBeforeCreated, jstc.subject(0)), timeBeforeCreated);
+        assertMessageInfo(jstc, 1, 2, jsm.getFirstMessage(jstc.stream, timeBeforeCreated, jstc.subject(1)), timeBeforeCreated);
 
-        assertMessageInfo(tsc, 0, 1, jsm.getNextMessage(tsc.stream, 1, tsc.subject(0)), timeBeforeCreated);
-        assertMessageInfo(tsc, 1, 2, jsm.getNextMessage(tsc.stream, 1, tsc.subject(1)), timeBeforeCreated);
+        assertMessageInfo(jstc, 0, 1, jsm.getNextMessage(jstc.stream, 1, jstc.subject(0)), timeBeforeCreated);
+        assertMessageInfo(jstc, 1, 2, jsm.getNextMessage(jstc.stream, 1, jstc.subject(1)), timeBeforeCreated);
 
-        assertMessageInfo(tsc, 0, 3, jsm.getNextMessage(tsc.stream, 2, tsc.subject(0)), timeBeforeCreated);
-        assertMessageInfo(tsc, 1, 2, jsm.getNextMessage(tsc.stream, 2, tsc.subject(1)), timeBeforeCreated);
+        assertMessageInfo(jstc, 0, 3, jsm.getNextMessage(jstc.stream, 2, jstc.subject(0)), timeBeforeCreated);
+        assertMessageInfo(jstc, 1, 2, jsm.getNextMessage(jstc.stream, 2, jstc.subject(1)), timeBeforeCreated);
 
-        assertMessageInfo(tsc, 0, 5, jsm.getNextMessage(tsc.stream, 5, tsc.subject(0)), timeBeforeCreated);
-        assertMessageInfo(tsc, 1, 6, jsm.getNextMessage(tsc.stream, 5, tsc.subject(1)), timeBeforeCreated);
+        assertMessageInfo(jstc, 0, 5, jsm.getNextMessage(jstc.stream, 5, jstc.subject(0)), timeBeforeCreated);
+        assertMessageInfo(jstc, 1, 6, jsm.getNextMessage(jstc.stream, 5, jstc.subject(1)), timeBeforeCreated);
 
-        assertStatus(10003, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(tsc.stream, -1)));
-        assertStatus(10003, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(tsc.stream, 0)));
-        assertStatus(10037, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(tsc.stream, 9)));
-        assertStatus(10037, assertThrows(JetStreamApiException.class, () -> jsm.getLastMessage(tsc.stream, "not-a-subject")));
-        assertStatus(10037, assertThrows(JetStreamApiException.class, () -> jsm.getFirstMessage(tsc.stream, "not-a-subject")));
-        assertStatus(10037, assertThrows(JetStreamApiException.class, () -> jsm.getNextMessage(tsc.stream, 9, tsc.subject(0))));
-        assertStatus(10037, assertThrows(JetStreamApiException.class, () -> jsm.getNextMessage(tsc.stream, 1, "not-a-subject")));
+        assertStatus(10003, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(jstc.stream, -1)));
+        assertStatus(10003, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(jstc.stream, 0)));
+        assertStatus(10037, assertThrows(JetStreamApiException.class, () -> jsm.getMessage(jstc.stream, 9)));
+        assertStatus(10037, assertThrows(JetStreamApiException.class, () -> jsm.getLastMessage(jstc.stream, "not-a-subject")));
+        assertStatus(10037, assertThrows(JetStreamApiException.class, () -> jsm.getFirstMessage(jstc.stream, "not-a-subject")));
+        assertStatus(10037, assertThrows(JetStreamApiException.class, () -> jsm.getNextMessage(jstc.stream, 9, jstc.subject(0))));
+        assertStatus(10037, assertThrows(JetStreamApiException.class, () -> jsm.getNextMessage(jstc.stream, 1, "not-a-subject")));
     }
 
     private void assertStatus(int apiErrorCode, JetStreamApiException jsae) {
         assertEquals(apiErrorCode, jsae.getApiErrorCode());
     }
 
-    private void assertMessageInfo(TestingStreamContainer tsc, int subj, long seq, MessageInfo mi, ZonedDateTime timeBeforeCreated) {
-        assertEquals(tsc.stream, mi.getStream());
-        assertEquals(tsc.subject(subj), mi.getSubject());
+    private void assertMessageInfo(JetStreamTestingContext jstc, int subj, long seq, MessageInfo mi, ZonedDateTime timeBeforeCreated) {
+        assertEquals(jstc.stream, mi.getStream());
+        assertEquals(jstc.subject(subj), mi.getSubject());
         assertEquals(seq, mi.getSeq());
         assertNotNull(mi.getTime());
         assertTrue(mi.getTime().toEpochSecond() >= timeBeforeCreated.toEpochSecond());
         String expectedData = "s" + subj + "-q" + seq;
+        assertNotNull(mi.getData());
         assertEquals("d-" + expectedData, new String(mi.getData()));
+        assertNotNull(mi.getHeaders());
         assertEquals("h-" + expectedData, mi.getHeaders().getFirst("h"));
         assertNull(mi.getHeaders().getFirst(NATS_SUBJECT));
         assertNull(mi.getHeaders().getFirst(NATS_SEQUENCE));
@@ -1370,14 +1235,19 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     @Test
     public void testMessageGetRequestObjectDeprecatedMethods() {
         // coverage for deprecated methods
+        //noinspection deprecation
         MessageGetRequest.seqBytes(1);
-        MessageGetRequest.lastBySubjectBytes(SUBJECT);
+        //noinspection deprecation
+        MessageGetRequest.lastBySubjectBytes(random());
+        //noinspection deprecation
         new MessageGetRequest(1);
-        new MessageGetRequest(SUBJECT);
+        //noinspection deprecation
+        new MessageGetRequest(random());
 
         // coverage for MessageInfo, has error
         String json = dataAsString("GenericErrorResponse.json");
         NatsMessage m = new NatsMessage("sub", null, json.getBytes(StandardCharsets.US_ASCII));
+        //noinspection deprecation
         MessageInfo mi = new MessageInfo(m);
         assertTrue(mi.hasError());
         assertEquals(-1, mi.getLastSeq());
@@ -1386,10 +1256,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testDirectMessageRepublishedSubject() throws Exception {
-        jsServer.run(TestBase::atLeast2_9_0, nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            String streamBucketName = "sb-" + variant(null);
-            String subject = subject();
+        runInLrServer(TestBase::atLeast2_9_0, (nc, jsm, js) -> {
+            String streamBucketName = "sb-" + random();
+            String subject = random();
             String streamSubject = subject + ".>";
             String publishSubject1 = subject + ".one";
             String publishSubject2 = subject + ".two";
@@ -1431,8 +1300,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testCreateConsumerUpdateConsumer() throws Exception {
-        jsServer.run(TestBase::atLeast2_9_0, nc -> {
-            String streamPrefix = variant();
+        runInLrServer(TestBase::atLeast2_9_0, (nc, jsm, js) -> {
+            String streamPrefix = random();
             JetStreamManagement jsmNew = nc.jetStreamManagement();
             JetStreamManagement jsmPre290 = nc.jetStreamManagement(JetStreamOptions.builder().optOut290ConsumerCreate(true).build());
 
@@ -1440,8 +1309,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             // New without filter
             // --------------------------------------------------------
             String stream1 = streamPrefix + "-new";
-            String name = name();
-            String subject = name();
+            String name = random();
+            String subject = random();
             createMemoryStream(jsmNew, stream1, subject + ".*");
 
             ConsumerConfiguration cc11 = ConsumerConfiguration.builder().name(name).build();
@@ -1460,7 +1329,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertEquals(10148, e.getApiErrorCode());
 
             // update ok when exists
-            ConsumerConfiguration cc12 = ConsumerConfiguration.builder().name(name).description(variant()).build();
+            ConsumerConfiguration cc12 = ConsumerConfiguration.builder().name(name).description(random()).build();
             ci = jsmNew.updateConsumer(stream1, cc12);
             assertEquals(name, ci.getName());
             assertNull(ci.getConsumerConfiguration().getFilterSubject());
@@ -1469,8 +1338,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             // New with filter subject
             // --------------------------------------------------------
             String stream2 = streamPrefix + "-new-fs";
-            name = name();
-            subject = name();
+            name = random();
+            subject = random();
             String fs1 = subject + ".A";
             String fs2 = subject + ".B";
             createMemoryStream(jsmNew, stream2, subject + ".*");
@@ -1500,8 +1369,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             // Pre 290 durable pathway
             // --------------------------------------------------------
             String stream3 = streamPrefix + "-old-durable";
-            name = name();
-            subject = name();
+            name = random();
+            subject = random();
             fs1 = subject + ".A";
             fs2 = subject + ".B";
             String fs3 = subject + ".C";
@@ -1535,7 +1404,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             // --------------------------------------------------------
             // Pre 290 ephemeral pathway
             // --------------------------------------------------------
-            subject = name();
+            subject = random();
 
             String stream4 = streamPrefix + "-old-ephemeral";
             fs1 = subject + ".A";
@@ -1556,12 +1425,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     @Test
     public void testNoRespondersWhenConsumerDeleted() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        jsServer.run(new Options.Builder().errorListener(listener), TestBase::atLeast2_10_26, nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            JetStream js = nc.jetStream();
-
-            String stream = stream();
-            String subject = subject();
+        runInLrServer(new Options.Builder().errorListener(listener), TestBase::atLeast2_10_26, (nc, jsm, js) -> {
+            String stream = random();
+            String subject = random();
 
             assertThrows(JetStreamApiException.class, () -> jsm.getMessage(stream, 1));
 
@@ -1633,7 +1499,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     }
 
     private static String create1026Consumer(JetStreamManagement jsm, String stream, String subject) throws IOException, JetStreamApiException {
-        String consumer = name();
+        String consumer = random();
         jsm.addOrUpdateConsumer(stream, ConsumerConfiguration.builder()
             .durable(consumer)
             .filterSubject(subject)
@@ -1688,22 +1554,20 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testStreamPersistMode() throws Exception {
-        jsServer.run(TestBase::atLeast2_12, nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-
+        runInLrServer(TestBase::atLeast2_12, (nc, jsm, js) -> {
             StreamConfiguration sc = StreamConfiguration.builder()
-                .name(stream())
+                .name(random())
                 .storageType(StorageType.File)
-                .subjects(subject())
+                .subjects(random())
                 .build();
 
             StreamInfo si = jsm.addStream(sc);
             assertTrue(si.getConfiguration().getPersistMode() == null || si.getConfiguration().getPersistMode() == PersistMode.Default);
 
             sc = StreamConfiguration.builder()
-                .name(stream())
+                .name(random())
                 .storageType(StorageType.File)
-                .subjects(subject())
+                .subjects(random())
                 .persistMode(PersistMode.Default)
                 .build();
 
@@ -1711,9 +1575,9 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertTrue(si.getConfiguration().getPersistMode() == null || si.getConfiguration().getPersistMode() == PersistMode.Default);
 
             sc = StreamConfiguration.builder()
-                .name(stream())
+                .name(random())
                 .storageType(StorageType.File)
-                .subjects(subject())
+                .subjects(random())
                 .persistMode(PersistMode.Async)
                 .build();
 

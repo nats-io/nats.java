@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -24,7 +25,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
-import static io.nats.client.utils.TestBase.*;
+import static io.nats.client.utils.TestBase.standardCloseConnection;
+import static io.nats.client.utils.TestBase.standardConnectionWait;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ConnectionListenerTests {
@@ -42,7 +44,7 @@ public class ConnectionListenerTests {
                                 server(ts.getURI()).
                                 connectionListener(listener).
                                 build();
-            Connection nc = standardConnection(options);
+            Connection nc = TestBase.standardConnectionWait(options);
             assertEquals(ts.getURI(), nc.getConnectedUrl());
             standardCloseConnection(nc);
             assertNull(nc.getConnectedUrl());
@@ -64,7 +66,7 @@ public class ConnectionListenerTests {
                                     build();
                                     
                 listener.prepForStatusChange(Events.CONNECTED);
-                standardCloseConnection( listenerConnectionWait(options, listener) );
+                standardCloseConnection( TestBase.listenerConnectionWait(options, listener) );
                 assertEquals(1, listener.getEventCount(Events.DISCOVERED_SERVERS));
             }
         }
@@ -83,7 +85,7 @@ public class ConnectionListenerTests {
                     connectionListener(listener).
                     build();
             port = ts.getPort();
-            nc = standardConnection(options);
+            nc = TestBase.standardConnectionWait(options);
             assertEquals(ts.getURI(), nc.getConnectedUrl());
             listener.prepForStatusChange(Events.DISCONNECTED);
         }
@@ -110,7 +112,7 @@ public class ConnectionListenerTests {
                                 server(ts.getURI()).
                                 connectionListener(listener).
                                 build();
-            Connection nc = standardConnection(options);
+            Connection nc = TestBase.standardConnectionWait(options);
             standardCloseConnection(nc);
             assertTrue(((NatsConnection)nc).getStatisticsCollector().getExceptions() > 0);
         }
@@ -126,7 +128,7 @@ public class ConnectionListenerTests {
                                 server(ts.getURI()).
                                 connectionListener(listener).
                                 build();
-            Connection nc = standardConnection(options);
+            Connection nc = TestBase.standardConnectionWait(options);
             assertEquals(ts.getURI(), nc.getConnectedUrl());
 
             //noinspection DataFlowIssue // addConnectionListener parameter is annotated as @NonNull

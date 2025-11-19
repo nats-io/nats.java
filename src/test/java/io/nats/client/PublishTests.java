@@ -16,6 +16,7 @@ package io.nats.client;
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.NatsMessage;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.net.SocketException;
@@ -24,7 +25,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.support.NatsConstants.*;
@@ -34,62 +34,50 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class PublishTests {
     @Test
-    public void throwsIfClosedOnPublish() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                nc.close();
-                nc.publish("subject", "replyto", null);
-                fail();
-            }
+    public void throwsIfClosed() throws Exception {
+        runInLrServerCloseableConnection(nc -> {
+            nc.close();
+            // can't publish after close
+            assertThrows(IllegalStateException.class, () -> nc.publish("subject", "replyto", null));
+
+            // flush after close always times out
+            assertThrows(TimeoutException.class, () -> nc.flush(null));
         });
     }
 
     @Test
-    public void throwsIfClosedOnFlush() {
-        assertThrows(TimeoutException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                nc.close();
-                nc.flush(null);
-                fail();
-            }
-        });
-    }
-
-    @Test
-    public void testThrowsWithoutSubject() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                nc.publish(null, null);
-                fail();
-            }
+    public void testThrowsWithoutSubject() throws Exception {
+        runInLrServer(nc -> {
+            //noinspection DataFlowIssue
+            assertThrows(IllegalArgumentException.class, () -> nc.publish(null, null));
         });
     }
 
     @Test
     public void testThrowsIfTooBig() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/max_payload.conf", false, false))
-        {
-            Connection nc = Nats.connect(ts.getURI());
-            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+        try (NatsTestServer ts = NatsTestServer.configuredServer("max_payload.conf")) {
+            Connection nc = standardConnectionWait(ts.getURI());
 
-            byte[] body = new byte[1001];
-            assertThrows(IllegalArgumentException.class, () -> nc.publish("subject", null, null, body));
+            byte[] body = new byte[1024]; // 1024 is > than max_payload.conf max_payload: 1000
+            assertThrows(IllegalArgumentException.class, () -> nc.publish(random(), null, null, body));
             nc.close();
+            Thread.sleep(1000);
 
-            AtomicBoolean mpv = new AtomicBoolean(false);
-            AtomicBoolean se = new AtomicBoolean(false);
+            CountDownLatch mpvLatch = new CountDownLatch(1);
+            CountDownLatch seLatch = new CountDownLatch(1);
             ErrorListener el = new ErrorListener() {
                 @Override
                 public void errorOccurred(Connection conn, String error) {
-                    mpv.set(error.contains("Maximum Payload Violation"));
+                    if (error.contains("Maximum Payload Violation")) {
+                        mpvLatch.countDown();
+                    }
                 }
 
                 @Override
                 public void exceptionOccurred(Connection conn, Exception exp) {
-                    se.set(exp instanceof SocketException);
+                    if (exp instanceof SocketException) {
+                        seLatch.countDown();
+                    }
                 }
             };
             Options options = Options.builder()
@@ -97,13 +85,15 @@ public class PublishTests {
                 .clientSideLimitChecks(false)
                 .errorListener(el)
                 .build();
-            Connection nc2 = Nats.connect(options);
-            assertSame(Connection.Status.CONNECTED, nc2.getStatus(), "Connected Status");
-            nc2.publish("subject", null, null, body);
+            Connection nc2 = longConnectionWait(options);
+            nc2.publish(random(), null, null, body);
 
-            sleep(100);
-            assertTrue(mpv.get());
-            assertTrue(se.get());
+            if (!mpvLatch.await(1, TimeUnit.SECONDS)) {
+                fail();
+            }
+            if (!seLatch.await(1, TimeUnit.SECONDS)) {
+                fail();
+            }
         }
     }
 
@@ -191,7 +181,7 @@ public class PublishTests {
         };
 
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(receiveMessageCustomizer);
-             Connection nc = standardConnection(ts.getURI())) {
+             Connection nc = TestBase.standardConnectionWait(ts.getURI())) {
 
             byte[] bodyBytes;
             if (bodyString == null || bodyString.isEmpty()) {
@@ -267,7 +257,7 @@ public class PublishTests {
     @Test
     public void testUtf8Subjects() throws Exception {
         String subject = dataAsLines("utf8-test-strings.txt").get(0);
-        String jsSubject = variant() + "-" + subject; // just to have a different;
+        String jsSubject = random() + "-" + subject; // just to have a different;
 
         AtomicReference<String> coreReceivedSubjectNotSupported = new AtomicReference<>();
         AtomicReference<String> coreReceivedSubjectWhenSupported = new AtomicReference<>();
@@ -279,13 +269,13 @@ public class PublishTests {
         CountDownLatch jsReceivedLatchWhenSupported = new CountDownLatch(1);
 
         try (NatsTestServer ts = new NatsTestServer(false, true);
-             Connection ncNotSupported = standardConnection(standardOptionsBuilder(ts.getURI()).build());
-             Connection ncSupported = standardConnection(standardOptionsBuilder(ts.getURI()).supportUTF8Subjects().build()))
+             Connection ncNotSupported = TestBase.standardConnectionWait(standardOptionsBuilder(ts.getURI()).build());
+             Connection ncSupported = TestBase.standardConnectionWait(standardOptionsBuilder(ts.getURI()).supportUTF8Subjects().build()))
         {
             try {
                 ncNotSupported.jetStreamManagement().addStream(
                     StreamConfiguration.builder()
-                        .name(stream())
+                        .name(TestBase.random())
                         .subjects(jsSubject)
                         .build());
                 JetStream jsNotSupported = ncNotSupported.jetStream();

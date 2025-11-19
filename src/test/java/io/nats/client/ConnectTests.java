@@ -39,7 +39,7 @@ public class ConnectTests {
     @Test
     public void testDefaultConnection() throws Exception {
         try (NatsTestServer ignored = new NatsTestServer(Options.DEFAULT_PORT, false)) {
-            Connection nc = standardConnection();
+            Connection nc = TestBase.standardConnectionWait();
             assertEquals(Options.DEFAULT_PORT, nc.getServerInfo().getPort());
             standardCloseConnection(nc);
         }
@@ -48,10 +48,11 @@ public class ConnectTests {
     @Test
     public void testConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = standardConnection(ts.getURI());
+            Connection nc = TestBase.standardConnectionWait(ts.getURI());
             assertEquals(ts.getPort(), nc.getServerInfo().getPort());
             // coverage for getClientAddress
             InetAddress inetAddress = nc.getClientInetAddress();
+            assertNotNull(inetAddress);
             assertTrue(inetAddress.equals(InetAddress.getLoopbackAddress())
                 || inetAddress.equals(InetAddress.getLocalHost()));
             standardCloseConnection(nc);
@@ -158,8 +159,8 @@ public class ConnectTests {
                 int count = 0;
                 int maxTries = 100;
                 while (count++ < maxTries && (needOne || needTwo)) {
-                    Connection nc = standardConnection(ts1.getURI() + "," + ts2.getURI());
-                    if (nc.getConnectedUrl().equals(ts1.getURI())) {
+                    Connection nc = TestBase.standardConnectionWait(ts1.getURI() + "," + ts2.getURI());
+                    if (ts1.getURI().equals(nc.getConnectedUrl())) {
                         needOne = false;
                     } else {
                         needTwo = false;
@@ -186,8 +187,8 @@ public class ConnectTests {
                 for (int i = 0; i < 10; i++) {
                     String[] servers = { ts1.getURI(), ts2.getURI() };
                     Options options = new Options.Builder().noRandomize().servers(servers).build();
-                    Connection nc = standardConnection(options);
-                    if (nc.getConnectedUrl().equals(ts1.getURI())) {
+                    Connection nc = TestBase.standardConnectionWait(options);
+                    if (ts1.getURI().equals(nc.getConnectedUrl())) {
                         one++;
                     } else {
                         two++;
@@ -195,8 +196,8 @@ public class ConnectTests {
                     standardCloseConnection(nc);
                 }
 
-                assertEquals(one, 10, "always got one");
-                assertEquals(two, 0, "never got two");
+                assertEquals(10, one, "always got one");
+                assertEquals(0, two, "never got two");
             }
         }
     }
@@ -249,8 +250,6 @@ public class ConnectTests {
     @Test
     public void testAsyncConnection() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        Connection nc = null;
-
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = new Options.Builder().server(ts.getURI()).connectionListener(listener).build();
             listener.prepForStatusChange(Events.CONNECTED);
@@ -259,7 +258,7 @@ public class ConnectTests {
 
             listener.waitForStatusChange(1, TimeUnit.SECONDS);
 
-            nc = listener.getLastEventConnection();
+            Connection nc = listener.getLastEventConnection();
             assertNotNull(nc);
             assertConnected(nc);
             standardCloseConnection(nc);
@@ -282,7 +281,7 @@ public class ConnectTests {
 
         listener.prepForStatusChange(Events.RECONNECTED);
         try (NatsTestServer ignored = new NatsTestServer(port, false)) {
-            listenerConnectionWait(nc, listener);
+            TestBase.listenerConnectionWait(nc, listener);
             standardCloseConnection(nc);
         }
     }
@@ -410,7 +409,7 @@ public class ConnectTests {
     @Test
     public void testFlushBuffer() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = standardConnection(ts.getURI());
+            Connection nc = TestBase.standardConnectionWait(ts.getURI());
 
             // test connected
             nc.flushBuffer();
@@ -432,7 +431,7 @@ public class ConnectTests {
     @Test
     public void testFlushBufferThreadSafety() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = standardConnection(ts.getURI());
+            Connection nc = TestBase.standardConnectionWait(ts.getURI());
 
             // use two latches to sync the threads as close as
             // possible.
@@ -469,7 +468,8 @@ public class ConnectTests {
             // sync up the current thread and the publish thread
             // to get the most out of the test.
             try {
-               pubLatch.await(2, TimeUnit.SECONDS);
+                //noinspection ResultOfMethodCallIgnored
+                pubLatch.await(2, TimeUnit.SECONDS);
             } catch (Exception e) {
                 // NOOP
             }
@@ -637,14 +637,14 @@ public class ConnectTests {
     void testConnectWithFastFallback() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false)) {
             Options options = new Options.Builder().server(ts.getURI()).enableFastFallback().build();
-            Connection nc = standardConnection(options);
+            Connection nc = TestBase.standardConnectionWait(options);
             standardCloseConnection(nc);
         }
     }
 
     @Test
     void testConnectPendingCountCoverage() throws Exception {
-        TestBase.runInJsServer(nc -> {
+        runInServer(nc -> {
             AtomicLong outgoingPendingMessageCount = new AtomicLong();
             AtomicLong outgoingPendingBytes = new AtomicLong();
 
@@ -653,17 +653,12 @@ public class ConnectTests {
                 while (tKeepGoing.get()) {
                     outgoingPendingMessageCount.set(Math.max(outgoingPendingMessageCount.get(), nc.outgoingPendingMessageCount()));
                     outgoingPendingBytes.set(Math.max(outgoingPendingBytes.get(), nc.outgoingPendingBytes()));
-                    try {
-                        Thread.sleep(10);
-                    }
-                    catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
+                    sleep(10);
                 }
             });
             t.start();
 
-            String subject = subject();
+            String subject = TestBase.random();
             byte[] data = new byte[8 * 1024];
             for (int x = 0; x < 5000; x++) {
                 nc.publish(subject, data);

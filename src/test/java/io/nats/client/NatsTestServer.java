@@ -21,68 +21,102 @@ import java.io.IOException;
 import java.util.logging.Level;
 
 public class NatsTestServer extends NatsServerRunner {
+
+    private static final String CONFIG_FILE_BASE = "src/test/resources/";
+
     static {
         NatsTestServer.quiet();
-        NatsServerRunner.setDefaultOutputSupplier(ConsoleOutput::new);
-        NatsServerRunner.setDefaultValidateTries(5);
-        NatsServerRunner.setDefaultInitialValidateDelay(100);
-        NatsServerRunner.setDefaultSubsequentValidateDelay(50);
+        NatsRunnerUtils.setDefaultConnectValidateTries(10);
+        NatsRunnerUtils.setDefaultConnectValidateTimeout(200);
+        NatsRunnerUtils.setDefaultOutputSupplier(ConsoleOutput::new);
+        NatsRunnerUtils.setDefaultLocalhostHost(NatsRunnerUtils.LocalHost.ip);
     }
 
     public static void quiet() {
-        NatsServerRunner.setDefaultOutputLevel(Level.WARNING);
+        NatsRunnerUtils.setDefaultOutputLevel(Level.WARNING);
     }
 
     public static void verbose() {
-        NatsServerRunner.setDefaultOutputLevel(Level.ALL);
+        NatsRunnerUtils.setDefaultOutputLevel(Level.ALL);
+    }
+
+    public static String configFilePath(String configFilePath) {
+        return configFilePath.startsWith(CONFIG_FILE_BASE) ? configFilePath : CONFIG_FILE_BASE + configFilePath;
+    }
+
+    public static NatsTestServer configuredServer(String configFilePath) throws IOException {
+        return new NatsTestServer(
+            NatsServerRunner.builder()
+                .configFilePath(configFilePath(configFilePath)));
+    }
+
+    public static NatsTestServer configuredJsServer(String configFilePath) throws IOException {
+        return new NatsTestServer(
+            NatsServerRunner.builder()
+                .jetstream(true)
+                .configFilePath(configFilePath(configFilePath)));
+    }
+
+    public static NatsTestServer configuredServer(String configFilePath, int port) throws IOException {
+        return new NatsTestServer(
+            NatsServerRunner.builder()
+                .port(port)
+                .configFilePath(configFilePath(configFilePath)));
+    }
+
+    public static NatsTestServer skipValidateServer(String configFilePath) throws IOException {
+        return new NatsTestServer(
+            NatsServerRunner.builder()
+                .configFilePath(configFilePath(configFilePath))
+                .skipConnectValidate());
     }
 
     public NatsTestServer() throws IOException {
-        super();
+        this(builder());
     }
 
     public NatsTestServer(boolean debug) throws IOException {
-        super(debug);
+        this(builder().debug(debug));
     }
 
     public NatsTestServer(boolean debug, boolean jetstream) throws IOException {
-        super(debug, jetstream);
+        this(builder().debug(debug).jetstream(jetstream));
     }
 
     public NatsTestServer(int port, boolean debug) throws IOException {
-        super(port, debug);
+        this(builder().port(port).debug(debug));
     }
 
     public NatsTestServer(int port, boolean debug, boolean jetstream) throws IOException {
-        super(port, debug, jetstream);
+        this(builder().port(port).debug(debug).jetstream(jetstream));
     }
 
     public NatsTestServer(String configFilePath, boolean debug) throws IOException {
-        super(configFilePath, debug);
+        this(builder().configFilePath(configFilePath).debug(debug));
     }
 
     public NatsTestServer(String configFilePath, boolean debug, boolean jetstream) throws IOException {
-        super(configFilePath, debug, jetstream);
+        this(builder().configFilePath(configFilePath).debug(debug).jetstream(jetstream));
     }
 
     public NatsTestServer(String configFilePath, String[] configInserts, int port, boolean debug) throws IOException {
-        super(configFilePath, configInserts, port, debug);
+        this(builder().configFilePath(configFilePath).configInserts(configInserts).debug(debug));
     }
 
     public NatsTestServer(String configFilePath, int port, boolean debug) throws IOException {
-        super(configFilePath, port, debug);
+        this(builder().configFilePath(configFilePath).port(port).debug(debug));
     }
 
     public NatsTestServer(String[] customArgs, boolean debug) throws IOException {
-        super(customArgs, debug);
+        this(builder().customArgs(customArgs).debug(debug));
     }
 
     public NatsTestServer(String[] customArgs, int port, boolean debug) throws IOException {
-        super(customArgs, port, debug);
+        this(builder().customArgs(customArgs).port(port).debug(debug));
     }
 
     public NatsTestServer(int port, boolean debug, boolean jetstream, String configFilePath, String[] configInserts, String[] customArgs) throws IOException {
-        super(port, debug, jetstream, configFilePath, configInserts, customArgs);
+        this(builder().port(port).debug(debug).jetstream(jetstream).configFilePath(configFilePath).configInserts(configInserts).customArgs(customArgs));
     }
 
     public NatsTestServer(Builder b) throws IOException {

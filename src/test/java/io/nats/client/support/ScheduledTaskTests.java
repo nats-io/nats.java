@@ -1,12 +1,12 @@
 package io.nats.client.support;
 
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.nats.client.utils.TestBase.variant;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -30,7 +30,7 @@ public class ScheduledTaskTests {
 
         AtomicInteger counter100 = new AtomicInteger();
         SttRunnable sttr100 = new SttRunnable(400, counter100);
-        String id = "100-" + variant();
+        String id = "100-" + TestBase.random();
         ScheduledTask task100 = new ScheduledTask(id, stpe, 0, 100, TimeUnit.MILLISECONDS, sttr100);
         validateTaskPeriods(task100, 0, 100);
         assertEquals(id, task100.getId());

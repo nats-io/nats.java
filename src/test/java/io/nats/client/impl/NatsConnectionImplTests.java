@@ -15,13 +15,15 @@ package io.nats.client.impl;
 
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-import static io.nats.client.utils.TestBase.*;
+import static io.nats.client.utils.TestBase.standardOptions;
+import static io.nats.client.utils.TestBase.standardOptionsBuilder;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -31,16 +33,16 @@ public class NatsConnectionImplTests {
     public void testConnectionClosedProperly() throws Exception {
         try (NatsTestServer server = new NatsTestServer()) {
             Options options = standardOptions(server.getNatsLocalhostUri());
-            verifyInternalExecutors(options, (NatsConnection)standardConnection(options));
+            verifyInternalExecutors(options, (NatsConnection) TestBase.standardConnectionWait(options));
 
             // using the same options to demonstrate the executors came
             // from the internal factory and were not reused
-            verifyInternalExecutors(options, (NatsConnection)standardConnection(options));
+            verifyInternalExecutors(options, (NatsConnection) TestBase.standardConnectionWait(options));
 
             // using options copied from options to demonstrate the executors
             // came from the internal factory and were not reused
             options = new Options.Builder(options).build();
-            verifyInternalExecutors(options, (NatsConnection)standardConnection(options));
+            verifyInternalExecutors(options, (NatsConnection) TestBase.standardConnectionWait(options));
 
             ExecutorService es = Executors.newFixedThreadPool(3);
             ScheduledExecutorService ses = Executors.newScheduledThreadPool(3);
@@ -51,10 +53,10 @@ public class NatsConnectionImplTests {
                 .executor(es)
                 .scheduledExecutor(ses)
                 .build();
-            verifyExternalExecutors(options, (NatsConnection)standardConnection(options));
+            verifyExternalExecutors(options, (NatsConnection) TestBase.standardConnectionWait(options));
 
             // same options just because
-            verifyExternalExecutors(options, (NatsConnection)standardConnection(options));
+            verifyExternalExecutors(options, (NatsConnection) TestBase.standardConnectionWait(options));
 
             es.shutdown();
             ses.shutdown();

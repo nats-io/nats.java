@@ -37,7 +37,7 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void testConstruction() throws Exception {
-        runInJsServer(nc -> {
+        runInLrServer((nc, jsm, js) -> {
             NatsJetStreamSubscription sub = genericPushSub(nc);
             _pushConstruction(nc, true, true, push_hb_fc(), sub);
             _pushConstruction(nc, true, false, push_hb_xfc(), sub);
@@ -51,9 +51,9 @@ public class MessageManagerTests extends JetStreamTestBase {
         }
     }
 
-    private void _pushConstruction(Connection conn, boolean hb, boolean fc, SubscribeOptions so, NatsJetStreamSubscription sub) {
+    private void _pushConstruction(Connection nc, boolean hb, boolean fc, SubscribeOptions so, NatsJetStreamSubscription sub) {
         tf(ordered -> tf(syncMode -> tf(queueMode -> {
-            PushMessageManager manager = getPushManager(conn, so, sub, ordered, syncMode, queueMode);
+            PushMessageManager manager = getPushManager(nc, so, sub, ordered, syncMode, queueMode);
             assertEquals(syncMode, manager.isSyncMode());
             assertEquals(queueMode, manager.isQueueMode());
             if (queueMode) {
@@ -136,12 +136,13 @@ public class MessageManagerTests extends JetStreamTestBase {
         runInJsServer(listener, nc -> {
             NatsJetStreamSubscription sub = genericPullSub(nc);
 
+            String pullSubject = random();
             PullMessageManager pullMgr = getPullManager(nc, sub, true);
-            pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).build(), true, null);
+            pullMgr.startPullRequest(pullSubject, PullRequestOptions.builder(1).build(), true, null);
             testPullBqpAndManage(sub, listener, pullMgr);
 
             pullMgr = getPullManager(nc, sub, true);
-            pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).expiresIn(10000).idleHeartbeat(100).build(), true, null);
+            pullMgr.startPullRequest(pullSubject, PullRequestOptions.builder(1).expiresIn(10000).idleHeartbeat(100).build(), true, null);
             testPullBqpAndManage(sub, listener, pullMgr);
         });
     }
@@ -246,6 +247,7 @@ public class MessageManagerTests extends JetStreamTestBase {
     @Test
     public void testPullManagerHeartbeats() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
+        Options.Builder builder = new Options.Builder().errorListener(listener);
         runInJsServer(listener, nc -> {
             PullMessageManager pullMgr = getPullManager(nc, null, true);
             NatsJetStreamSubscription sub = mockSub((NatsConnection)nc, pullMgr);
@@ -386,14 +388,10 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void test_received_time() throws Exception {
-        runInJsServer(nc -> {
-            JetStream js = nc.jetStream();
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
-
-            _received_time_yes(push_hb_fc(), js, tsc.subject());
-            _received_time_yes(push_hb_xfc(), js, tsc.subject());
-            _received_time_no(js, jsm, tsc.stream, tsc.subject(), js.subscribe(tsc.subject(), push_xhb_xfc()));
+        runInLrServer((nc, jstc) -> {
+            _received_time_yes(push_hb_fc(), jstc.js, jstc.subject());
+            _received_time_yes(push_hb_xfc(), jstc.js, jstc.subject());
+            _received_time_no(jstc.js, jstc.jsm, jstc.stream, jstc.subject(), jstc.js.subscribe(jstc.subject(), push_xhb_xfc()));
         });
     }
 
@@ -429,7 +427,7 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void test_hb_yes_settings() throws Exception {
-        runInJsServer(nc -> {
+        runInLrServer((nc, jsm, js) -> {
             NatsJetStreamSubscription sub = genericPushSub(nc);
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder().idleHeartbeat(1000).build();
@@ -462,7 +460,7 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void test_hb_no_settings() throws Exception {
-        runInJsServer(nc -> {
+        runInLrServer((nc, jsm, js) -> {
             NatsJetStreamSubscription sub = genericPushSub(nc);
             SubscribeOptions so = push_xhb_xfc();
             PushMessageManager manager = getPushManager(nc, so, sub, false);
@@ -576,7 +574,7 @@ public class MessageManagerTests extends JetStreamTestBase {
         String fcSubject;
 
         public MockPublishInternal() {
-            this(new Options.Builder().errorListener(new ErrorListener() {}).build());
+            this(new Options.Builder().errorListener(NO_OP_EL).build());
         }
 
         public MockPublishInternal(Options options) {
@@ -605,8 +603,8 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     private static String genericSub(Connection nc) throws IOException, JetStreamApiException {
         String id = "-" + ID.incrementAndGet() + "-" + System.currentTimeMillis();
-        String stream = STREAM + id;
-        String subject = STREAM + id;
+        String stream = random() + id;
+        String subject = random() + id;
         createMemoryStream(nc, stream, subject);
         return subject;
     }

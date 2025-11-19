@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.*;
 
-import static io.nats.client.utils.TestBase.runInJsServer;
+import static io.nats.client.utils.TestBase.runInServer;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class PingTests {
@@ -266,7 +266,7 @@ public class PingTests {
 
     @Test
     public void testRtt() throws Exception {
-        runInJsServer(nc -> {
+        runInServer(nc -> {
             assertTrue(nc.RTT().toMillis() < 10);
             nc.close();
             assertThrows(IOException.class, nc::RTT);

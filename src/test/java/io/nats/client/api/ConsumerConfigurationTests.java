@@ -47,8 +47,8 @@ public class ConsumerConfigurationTests extends TestBase {
             .ackWait(Duration.ofSeconds(99)) // duration
             .deliverPolicy(DeliverPolicy.ByStartSequence)
             .description("blah")
-            .name(NAME)
-            .durable(NAME)
+            .name("name")
+            .durable("name")
             .filterSubject("fs")
             .maxDeliver(5555)
             .maxAckPending(6666)
@@ -57,7 +57,7 @@ public class ConsumerConfigurationTests extends TestBase {
             .sampleFrequency("10s")
             .startSequence(2001)
             .startTime(zdt)
-            .deliverSubject(DELIVER)
+            .deliverSubject("deliver")
             .flowControl(66000) // duration
             .maxPullWaiting(73)
             .maxBatch(55)
@@ -81,9 +81,10 @@ public class ConsumerConfigurationTests extends TestBase {
         assertNotNull(c.toString()); // COVERAGE
         assertAsBuilt(c, zdt);
 
-        ConsumerCreateRequest ccr = new ConsumerCreateRequest(STREAM, c);
+        String stream = random();
+        ConsumerCreateRequest ccr = new ConsumerCreateRequest(stream, c);
         assertNotNull(ccr.toString()); // COVERAGE
-        assertEquals(STREAM, ccr.getStreamName());
+        assertEquals(stream, ccr.getStreamName());
         assertNotNull(ccr.getConfig());
         assertNotNull(ccr.getAction());
         assertSame(ConsumerCreateRequest.Action.CreateOrUpdate, ccr.getAction());
@@ -206,7 +207,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertThrows(IllegalArgumentException.class,
             () -> ConsumerConfiguration.builder().backoff(DURATION_MIN_LONG - 1).build());
 
-        assertClientError(JsConsumerNameDurableMismatch, () -> ConsumerConfiguration.builder().name(NAME).durable(DURABLE).build());
+        assertClientError(JsConsumerNameDurableMismatch, () -> ConsumerConfiguration.builder().name(random()).durable(random()).build());
 
         // filter subjects vs filter subject
         builder.filterSubjects("subject-0", "subject-1");
@@ -252,8 +253,8 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Duration.ofSeconds(99), c.getAckWait());
         assertEquals(DeliverPolicy.ByStartSequence, c.getDeliverPolicy());
         assertEquals("blah", c.getDescription());
-        assertEquals(NAME, c.getDurable());
-        assertEquals(NAME, c.getName());
+        assertEquals("name", c.getDurable());
+        assertEquals("name", c.getName());
         assertEquals("fs", c.getFilterSubject());
         assertEquals(5555, c.getMaxDeliver());
         assertEquals(6666, c.getMaxAckPending());
@@ -262,7 +263,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals("10s", c.getSampleFrequency());
         assertEquals(2001, c.getStartSequence());
         assertEquals(zdt, c.getStartTime());
-        assertEquals(DELIVER, c.getDeliverSubject());
+        assertEquals("deliver", c.getDeliverSubject());
         assertTrue(c.isFlowControl());
         assertEquals(Duration.ofSeconds(66), c.getIdleHeartbeat());
         assertEquals(73, c.getMaxPullWaiting());

@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -34,7 +35,7 @@ public class DrainTests {
     @Test
     public void testCloseOnDrainFailure() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false)) {
-            final Connection nc = standardConnection(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
+            final Connection nc = TestBase.standardConnectionWait(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
 
             nc.subscribe("draintest");
             nc.flush(Duration.ofSeconds(1)); // Get the sub to the server, so drain has things to do

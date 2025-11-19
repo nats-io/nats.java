@@ -34,49 +34,45 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
     @Test
     public void testPublishVarieties() throws Exception {
-        jsServer.run(nc -> {
-            TestingStreamContainer tsc = new TestingStreamContainer(nc);
+        runInLrServer((nc, jstc) -> {
+            PublishAck pa = jstc.js.publish(jstc.subject(), dataBytes(1));
+            assertPublishAck(pa, jstc.stream, 1);
 
-            JetStream js = nc.jetStream();
-
-            PublishAck pa = js.publish(tsc.subject(), dataBytes(1));
-            assertPublishAck(pa, tsc.stream, 1);
-
-            Message msg = NatsMessage.builder().subject(tsc.subject()).data(dataBytes(2)).build();
-            pa = js.publish(msg);
-            assertPublishAck(pa, tsc.stream, 2);
+            Message msg = NatsMessage.builder().subject(jstc.subject()).data(dataBytes(2)).build();
+            pa = jstc.js.publish(msg);
+            assertPublishAck(pa, jstc.stream, 2);
 
             PublishOptions po = PublishOptions.builder().build();
-            pa = js.publish(tsc.subject(), dataBytes(3), po);
-            assertPublishAck(pa, tsc.stream, 3);
+            pa = jstc.js.publish(jstc.subject(), dataBytes(3), po);
+            assertPublishAck(pa, jstc.stream, 3);
 
-            msg = NatsMessage.builder().subject(tsc.subject()).data(dataBytes(4)).build();
-            pa = js.publish(msg, po);
-            assertPublishAck(pa, tsc.stream, 4);
+            msg = NatsMessage.builder().subject(jstc.subject()).data(dataBytes(4)).build();
+            pa = jstc.js.publish(msg, po);
+            assertPublishAck(pa, jstc.stream, 4);
 
-            pa = js.publish(tsc.subject(), null);
-            assertPublishAck(pa, tsc.stream, 5);
+            pa = jstc.js.publish(jstc.subject(), null);
+            assertPublishAck(pa, jstc.stream, 5);
 
-            msg = NatsMessage.builder().subject(tsc.subject()).build();
-            pa = js.publish(msg);
-            assertPublishAck(pa, tsc.stream, 6);
+            msg = NatsMessage.builder().subject(jstc.subject()).build();
+            pa = jstc.js.publish(msg);
+            assertPublishAck(pa, jstc.stream, 6);
 
-            pa = js.publish(tsc.subject(), null, po);
-            assertPublishAck(pa, tsc.stream, 7);
+            pa = jstc.js.publish(jstc.subject(), null, po);
+            assertPublishAck(pa, jstc.stream, 7);
 
-            msg = NatsMessage.builder().subject(tsc.subject()).build();
-            pa = js.publish(msg, po);
-            assertPublishAck(pa, tsc.stream, 8);
+            msg = NatsMessage.builder().subject(jstc.subject()).build();
+            pa = jstc.js.publish(msg, po);
+            assertPublishAck(pa, jstc.stream, 8);
 
             Headers h = new Headers().put("foo", "bar9");
-            pa = js.publish(tsc.subject(), h, dataBytes(9));
-            assertPublishAck(pa, tsc.stream, 9);
+            pa = jstc.js.publish(jstc.subject(), h, dataBytes(9));
+            assertPublishAck(pa, jstc.stream, 9);
 
             h = new Headers().put("foo", "bar10");
-            pa = js.publish(tsc.subject(), h, dataBytes(10), po);
-            assertPublishAck(pa, tsc.stream, 10);
+            pa = jstc.js.publish(jstc.subject(), h, dataBytes(10), po);
+            assertPublishAck(pa, jstc.stream, 10);
 
-            Subscription s = js.subscribe(tsc.subject());
+            Subscription s = jstc.js.subscribe(jstc.subject());
             assertNextMessage(s, data(1), null);
             assertNextMessage(s, data(2), null);
             assertNextMessage(s, data(3), null);
@@ -89,7 +85,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
             assertNextMessage(s, data(10), "bar10");
 
             // 503
-            assertThrows(IOException.class, () -> js.publish(subject(999), null));
+            assertThrows(IOException.class, () -> jstc.js.publish(random(), null));
         });
     }
 
@@ -119,40 +115,37 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
     @Test
     public void testPublishAsyncVarieties() throws Exception {
-        jsServer.run(nc -> {
-            TestingStreamContainer tsc = new TestingStreamContainer(nc);
-            JetStream js = nc.jetStream();
-
+        runInLrServer((nc, jstc) -> {
             List<CompletableFuture<PublishAck>> futures = new ArrayList<>();
 
-            futures.add(js.publishAsync(tsc.subject(), dataBytes(1)));
+            futures.add(jstc.js.publishAsync(jstc.subject(), dataBytes(1)));
 
-            Message msg = NatsMessage.builder().subject(tsc.subject()).data(dataBytes(2)).build();
-            futures.add(js.publishAsync(msg));
+            Message msg = NatsMessage.builder().subject(jstc.subject()).data(dataBytes(2)).build();
+            futures.add(jstc.js.publishAsync(msg));
 
             PublishOptions po = PublishOptions.builder().build();
-            futures.add(js.publishAsync(tsc.subject(), dataBytes(3), po));
+            futures.add(jstc.js.publishAsync(jstc.subject(), dataBytes(3), po));
 
-            msg = NatsMessage.builder().subject(tsc.subject()).data(dataBytes(4)).build();
-            futures.add(js.publishAsync(msg, po));
+            msg = NatsMessage.builder().subject(jstc.subject()).data(dataBytes(4)).build();
+            futures.add(jstc.js.publishAsync(msg, po));
 
             Headers h = new Headers().put("foo", "bar5");
-            futures.add(js.publishAsync(tsc.subject(), h, dataBytes(5)));
+            futures.add(jstc.js.publishAsync(jstc.subject(), h, dataBytes(5)));
 
             h = new Headers().put("foo", "bar6");
-            futures.add(js.publishAsync(tsc.subject(), h, dataBytes(6), po));
+            futures.add(jstc.js.publishAsync(jstc.subject(), h, dataBytes(6), po));
 
             sleep(100); // just make sure all the publish complete
 
             for (int i = 1; i <= 6; i++) {
                 CompletableFuture<PublishAck> future = futures.get(i-1);
                 PublishAck pa = future.get();
-                assertEquals(tsc.stream, pa.getStream());
+                assertEquals(jstc.stream, pa.getStream());
                 assertFalse(pa.isDuplicate());
                 assertEquals(i, pa.getSeqno());
             }
 
-            Subscription s = js.subscribe(tsc.subject());
+            Subscription s = jstc.js.subscribe(jstc.subject());
             for (int x = 1; x <= 6; x++) {
                 Message m = s.nextMessage(DEFAULT_TIMEOUT);
                 assertNotNull(m);
@@ -164,50 +157,50 @@ public class JetStreamPubTests extends JetStreamTestBase {
                 }
             }
 
-            assertFutureIOException(js.publishAsync(subject(999), null));
+            assertFutureIOException(jstc.js.publishAsync(random(), null));
 
-            msg = NatsMessage.builder().subject(subject(999)).build();
-            assertFutureIOException(js.publishAsync(msg));
+            msg = NatsMessage.builder().subject(random()).build();
+            assertFutureIOException(jstc.js.publishAsync(msg));
 
             PublishOptions pox1 = PublishOptions.builder().build();
 
-            assertFutureIOException(js.publishAsync(subject(999), null, pox1));
+            assertFutureIOException(jstc.js.publishAsync(random(), null, pox1));
 
-            msg = NatsMessage.builder().subject(subject(999)).build();
-            assertFutureIOException(js.publishAsync(msg, pox1));
+            msg = NatsMessage.builder().subject(random()).build();
+            assertFutureIOException(jstc.js.publishAsync(msg, pox1));
 
-            PublishOptions pox2 = PublishOptions.builder().expectedLastMsgId(messageId(999)).build();
+            PublishOptions pox2 = PublishOptions.builder().expectedLastMsgId(random()).build();
 
-            assertFutureJetStreamApiException(js.publishAsync(tsc.subject(), null, pox2));
+            assertFutureJetStreamApiException(jstc.js.publishAsync(jstc.subject(), null, pox2));
 
-            msg = NatsMessage.builder().subject(tsc.subject()).build();
-            assertFutureJetStreamApiException(js.publishAsync(msg, pox2));
+            msg = NatsMessage.builder().subject(jstc.subject()).build();
+            assertFutureJetStreamApiException(jstc.js.publishAsync(msg, pox2));
         });
     }
 
     @Test
     public void testMultithreadedPublishAsync() throws Exception {
+        //noinspection resource
         final ExecutorService executorService = Executors.newFixedThreadPool(3);
         try {
-            jsServer.run(nc -> {
-                TestingStreamContainer tsc = new TestingStreamContainer(nc);
+            runInLrServer((nc, jstc) -> {
                 final int messagesToPublish = 6;
                 // create a new connection that does not have the inbox dispatcher set
                 try (NatsConnection nc2 = new NatsConnection(nc.getOptions())){
                     nc2.connect(true);
-                    JetStream js = nc2.jetStream();
+                    JetStream js2 = nc2.jetStream();
 
                     List<Future<CompletableFuture<PublishAck>>> futures = new ArrayList<>();
                     for (int i = 0; i < messagesToPublish; i++) {
                         final Future<CompletableFuture<PublishAck>> submitFuture = executorService.submit(() ->
-                                js.publishAsync(tsc.subject(), dataBytes(1)));
+                            js2.publishAsync(jstc.subject(), dataBytes(1)));
                         futures.add(submitFuture);
                     }
                     // verify all messages were published
                     for (int i = 0; i < messagesToPublish; i++) {
                         CompletableFuture<PublishAck> future = futures.get(i).get(200, TimeUnit.MILLISECONDS);
                         PublishAck pa = future.get(200, TimeUnit.MILLISECONDS);
-                        assertEquals(tsc.stream, pa.getStream());
+                        assertEquals(jstc.stream, pa.getStream());
                         assertFalse(pa.isDuplicate());
                     }
                 }
@@ -231,146 +224,149 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
     @Test
     public void testPublishExpectations() throws Exception {
-        jsServer.run(nc -> {
-            JetStream js = nc.jetStream();
-            JetStreamManagement jsm = nc.jetStreamManagement();
-
-            String subjectPrefix = variant();
+        runInLrServer((nc, jsm, js) -> {
+            String stream1 = random();
+            String subjectPrefix = random();
             String streamSubject = subjectPrefix + ".>";
             String sub1 = subjectPrefix + ".foo.1";
             String sub2 = subjectPrefix + ".foo.2";
             String sub3 = subjectPrefix + ".bar.3";
 
-            TestingStreamContainer tsc = new TestingStreamContainer(nc, streamSubject);
-            String stream1 = tsc.stream;
             createMemoryStream(jsm, stream1, streamSubject);
 
+            String mid = random();
             PublishOptions po = PublishOptions.builder()
-                .expectedStream(tsc.stream)
-                .messageId(messageId(1))
+                .expectedStream(stream1)
+                .messageId(mid)
                 .build();
             PublishAck pa = js.publish(sub1, dataBytes(1), po);
-            assertPublishAck(pa, tsc.stream, 1);
+            assertPublishAck(pa, stream1, 1);
 
+            String lastId = mid;
+            mid = random();
             po = PublishOptions.builder()
-                .expectedLastMsgId(messageId(1))
-                .messageId(messageId(2))
+                .expectedLastMsgId(lastId)
+                .messageId(mid)
                 .build();
             pa = js.publish(sub1, dataBytes(2), po);
-            assertPublishAck(pa, tsc.stream, 2);
+            assertPublishAck(pa, stream1, 2);
 
+            mid = random();
             po = PublishOptions.builder()
                 .expectedLastSequence(2)
-                .messageId(messageId(3))
+                .messageId(mid)
                 .build();
             pa = js.publish(sub1, dataBytes(3), po);
-            assertPublishAck(pa, tsc.stream, 3);
+            assertPublishAck(pa, stream1, 3);
 
+            mid = random();
             po = PublishOptions.builder()
                 .expectedLastSequence(3)
-                .messageId(messageId(4))
+                .messageId(mid)
                 .build();
             pa = js.publish(sub2, dataBytes(4), po);
-            assertPublishAck(pa, tsc.stream, 4);
+            assertPublishAck(pa, stream1, 4);
 
+            mid = random();
             po = PublishOptions.builder()
                 .expectedLastSubjectSequence(3)
-                .messageId(messageId(5))
+                .messageId(mid)
                 .build();
             pa = js.publish(sub1, dataBytes(5), po);
-            assertPublishAck(pa, tsc.stream, 5);
+            assertPublishAck(pa, stream1, 5);
 
+            mid = random();
             po = PublishOptions.builder()
                 .expectedLastSubjectSequence(4)
-                .messageId(messageId(6))
+                .messageId(mid)
                 .build();
             pa = js.publish(sub2, dataBytes(6), po);
-            assertPublishAck(pa, tsc.stream, 6);
+            assertPublishAck(pa, stream1, 6);
 
-            PublishOptions po1 = PublishOptions.builder().expectedStream(stream(999)).build();
-            JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> js.publish(sub1, dataBytes(999), po1));
+            PublishOptions po1 = PublishOptions.builder().expectedStream(random()).build();
+            JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> js.publish(sub1, dataBytes(), po1));
             assertEquals(10060, e.getApiErrorCode());
 
-            PublishOptions po2 = PublishOptions.builder().expectedLastMsgId(messageId(999)).build();
-            e = assertThrows(JetStreamApiException.class, () -> js.publish(sub1, dataBytes(999), po2));
+            PublishOptions po2 = PublishOptions.builder().expectedLastMsgId(random()).build();
+            e = assertThrows(JetStreamApiException.class, () -> js.publish(sub1, dataBytes(), po2));
             assertEquals(10070, e.getApiErrorCode());
 
             PublishOptions po3 = PublishOptions.builder().expectedLastSequence(999).build();
-            e = assertThrows(JetStreamApiException.class, () -> js.publish(sub1, dataBytes(999), po3));
+            e = assertThrows(JetStreamApiException.class, () -> js.publish(sub1, dataBytes(), po3));
             assertEquals(10071, e.getApiErrorCode());
 
             PublishOptions po4 = PublishOptions.builder().expectedLastSubjectSequence(999).build();
-            e = assertThrows(JetStreamApiException.class, () -> js.publish(sub1, dataBytes(999), po4));
+            e = assertThrows(JetStreamApiException.class, () -> js.publish(sub1, dataBytes(), po4));
             assertEquals(10071, e.getApiErrorCode());
 
             // 0 has meaning to expectedLastSubjectSequence
-            tsc = new TestingStreamContainer(nc);
-            createMemoryStream(jsm, tsc.stream, tsc.subject());
+            JetStreamTestingContext tsc2 = new JetStreamTestingContext(nc);
+            createMemoryStream(jsm, tsc2.stream, tsc2.subject());
             PublishOptions poLss = PublishOptions.builder().expectedLastSubjectSequence(0).build();
-            pa = js.publish(tsc.subject(), dataBytes(22), poLss);
-            assertPublishAck(pa, tsc.stream, 1);
+            pa = tsc2.js.publish(tsc2.subject(), dataBytes(22), poLss);
+            assertPublishAck(pa, tsc2.stream, 1);
 
-            final String fSubject = tsc.subject();
-            e = assertThrows(JetStreamApiException.class, () -> js.publish(fSubject, dataBytes(999), poLss));
+            final String fSubject = tsc2.subject();
+            e = assertThrows(JetStreamApiException.class, () -> tsc2.js.publish(fSubject, dataBytes(), poLss));
             assertEquals(10071, e.getApiErrorCode());
 
             // 0 has meaning
-            tsc = new TestingStreamContainer(nc);
+            JetStreamTestingContext tsc3 = new JetStreamTestingContext(nc);
             PublishOptions poLs = PublishOptions.builder().expectedLastSequence(0).build();
-            pa = js.publish(tsc.subject(), dataBytes(331), poLs);
-            assertPublishAck(pa, tsc.stream, 1);
+            pa = tsc3.js.publish(tsc3.subject(), dataBytes(331), poLs);
+            assertPublishAck(pa, tsc3.stream, 1);
 
-            tsc = new TestingStreamContainer(nc);
+            JetStreamTestingContext tsc4 = new JetStreamTestingContext(nc);
             poLs = PublishOptions.builder().expectedLastSubjectSequence(0).build();
-            pa = js.publish(tsc.subject(), dataBytes(441), poLs);
-            assertPublishAck(pa, tsc.stream, 1);
+            pa = tsc4.js.publish(tsc4.subject(), dataBytes(441), poLs);
+            assertPublishAck(pa, tsc4.stream, 1);
 
             // expectedLastSubjectSequenceSubject
 
-            pa = js.publish(sub3, dataBytes(500));
+            pa = tsc4.js.publish(sub3, dataBytes(500));
             assertPublishAck(pa, stream1, 7);
 
             PublishOptions poLsss = PublishOptions.builder()
                 .expectedLastSubjectSequence(5)
                 .build();
-            pa = js.publish(sub1, dataBytes(501), poLsss);
+            pa = tsc4.js.publish(sub1, dataBytes(501), poLsss);
             assertPublishAck(pa, stream1, 8);
 
             poLsss = PublishOptions.builder()
                 .expectedLastSubjectSequence(6)
                 .build();
-            pa = js.publish(sub2, dataBytes(502), poLsss);
+            pa = tsc4.js.publish(sub2, dataBytes(502), poLsss);
             assertPublishAck(pa, stream1, 9);
 
             poLsss = PublishOptions.builder()
                 .expectedLastSubjectSequence(9)
                 .expectedLastSubjectSequenceSubject(streamSubject)
                 .build();
-            pa = js.publish(sub2, dataBytes(503), poLsss);
+            pa = tsc4.js.publish(sub2, dataBytes(503), poLsss);
             assertPublishAck(pa, stream1, 10);
 
             poLsss = PublishOptions.builder()
                 .expectedLastSubjectSequence(10)
                 .expectedLastSubjectSequenceSubject(subjectPrefix + ".foo.*")
                 .build();
-            pa = js.publish(sub2, dataBytes(504), poLsss);
+            pa = tsc4.js.publish(sub2, dataBytes(504), poLsss);
             assertPublishAck(pa, stream1, 11);
 
             PublishOptions final1 = poLsss;
-            assertThrows(JetStreamApiException.class, () -> js.publish(sub2, dataBytes(505), final1));
+            assertThrows(JetStreamApiException.class, () -> tsc4.js.publish(sub2, dataBytes(505), final1));
 
             poLsss = PublishOptions.builder()
                 .expectedLastSubjectSequence(7)
                 .expectedLastSubjectSequenceSubject(subjectPrefix + ".bar.*")
                 .build();
-            pa = js.publish(sub3, dataBytes(506), poLsss);
+            pa = tsc4.js.publish(sub3, dataBytes(506), poLsss);
             assertPublishAck(pa, stream1, 12);
 
             poLsss = PublishOptions.builder()
                 .expectedLastSubjectSequence(12)
                 .expectedLastSubjectSequenceSubject(streamSubject)
                 .build();
-            pa = js.publish(sub3, dataBytes(507), poLsss);
+            pa = tsc4.js.publish(sub3, dataBytes(507), poLsss);
             assertPublishAck(pa, stream1, 13);
 
             poLsss = PublishOptions.builder()
@@ -378,10 +374,10 @@ public class JetStreamPubTests extends JetStreamTestBase {
                 .build();
             if (atLeast2_12()) {
                 PublishOptions fpoLsss = poLsss;
-                assertThrows(JetStreamApiException.class, () -> js.publish(sub3, dataBytes(508), fpoLsss));
+                assertThrows(JetStreamApiException.class, () -> tsc4.js.publish(sub3, dataBytes(508), fpoLsss));
             }
             else {
-                pa = js.publish(sub3, dataBytes(508), poLsss);
+                pa = tsc4.js.publish(sub3, dataBytes(508), poLsss);
                 assertPublishAck(pa, stream1, 14);
             }
 
@@ -391,10 +387,10 @@ public class JetStreamPubTests extends JetStreamTestBase {
                 .build();
             if (atLeast2_12()) {
                 PublishOptions fpoLsss = poLsss;
-                assertThrows(JetStreamApiException.class, () -> js.publish(sub3, dataBytes(509), fpoLsss));
+                assertThrows(JetStreamApiException.class, () -> tsc4.js.publish(sub3, dataBytes(509), fpoLsss));
             }
             else {
-                pa = js.publish(sub3, dataBytes(509), poLsss);
+                pa = tsc4.js.publish(sub3, dataBytes(509), poLsss);
                 assertPublishAck(pa, stream1, 15);
             }
 
@@ -404,28 +400,25 @@ public class JetStreamPubTests extends JetStreamTestBase {
                 .build();
             PublishOptions final2 = poLsss;
             // JetStreamApiException: wrong last sequence: 0 [10071]
-            assertThrows(JetStreamApiException.class, () -> js.publish(sub3, dataBytes(510), final2));
+            assertThrows(JetStreamApiException.class, () -> tsc4.js.publish(sub3, dataBytes(510), final2));
         });
     }
 
     @Test
     public void testPublishMiscExceptions() throws Exception {
-        jsServer.run(nc -> {
-            TestingStreamContainer tsc = new TestingStreamContainer(nc);
-            JetStream js = nc.jetStream();
-
+        runInLrServer((nc, jstc) -> {
             // stream supplied and matches
             //noinspection deprecation
-            PublishOptions po = PublishOptions.builder().stream(tsc.stream).build();
-            js.publish(tsc.subject(), dataBytes(9), po);
+            PublishOptions po = PublishOptions.builder().stream(jstc.stream).build();
+            jstc.js.publish(jstc.subject(), dataBytes(9), po);
 
             // mismatch stream to PO stream
             //noinspection deprecation
-            PublishOptions pox = PublishOptions.builder().stream(stream()).build();
-            assertThrows(IOException.class, () -> js.publish(tsc.subject(), dataBytes(99), pox));
+            PublishOptions pox = PublishOptions.builder().stream(random()).build();
+            assertThrows(IOException.class, () -> jstc.js.publish(jstc.subject(), dataBytes(), pox));
 
             // invalid subject
-            assertThrows(IOException.class, () -> js.publish(subject(), dataBytes(999)));
+            assertThrows(IOException.class, () -> jstc.js.publish(random(), dataBytes()));
         });
     }
 
@@ -441,22 +434,20 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
     @Test
     public void testPublishNoAck() throws Exception {
-        jsServer.run(nc -> {
-            TestingStreamContainer tsc = new TestingStreamContainer(nc);
-
+        runInLrServer((nc, jstc) -> {
             JetStreamOptions jso = JetStreamOptions.builder().publishNoAck(true).build();
-            JetStream js = nc.jetStream(jso);
+            JetStream customJs = nc.jetStream(jso);
 
             String data1 = "noackdata1";
             String data2 = "noackdata2";
 
-            PublishAck pa = js.publish(tsc.subject(), data1.getBytes());
+            PublishAck pa = customJs.publish(jstc.subject(), data1.getBytes());
             assertNull(pa);
 
-            CompletableFuture<PublishAck> f = js.publishAsync(tsc.subject(), data2.getBytes());
+            CompletableFuture<PublishAck> f = customJs.publishAsync(jstc.subject(), data2.getBytes());
             assertNull(f);
 
-            JetStreamSubscription sub = js.subscribe(tsc.subject());
+            JetStreamSubscription sub = customJs.subscribe(jstc.subject());
             Message m = sub.nextMessage(Duration.ofSeconds(2));
             assertNotNull(m);
             assertEquals(data1, new String(m.getData()));
@@ -476,7 +467,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
         {
             Options options = standardOptionsBuilder().noReconnect().server(ts.getURI()).build();
             long expectedSeq = 0;
-            try (Connection nc = standardConnection(options)){
+            try (Connection nc = standardConnectionWait(options)){
                 JetStreamManagement jsm = nc.jetStreamManagement();
                 try { jsm.deleteStream(streamName); } catch (JetStreamApiException ignore) {}
                 jsm.addStream(StreamConfiguration.builder()
@@ -504,7 +495,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
                 }
             }
 
-            try (Connection nc = standardConnection(options)){
+            try (Connection nc = standardConnectionWait(options)){
                 JetStream js = nc.jetStream();
                 for (int x = 1; x <= 3; x++)
                 {
@@ -528,51 +519,49 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
     @Test
     public void testPublishWithTTL() throws Exception {
-        jsServer.run(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            JetStream js = nc.jetStream();
-
-            String stream = stream();
-            String subject = subject();
+        runInLrServer((nc, jstc) -> {
+            String stream = random();
+            String subject = random();
             StreamConfiguration sc = StreamConfiguration.builder()
                 .name(stream)
                 .storageType(StorageType.Memory)
                 .allowMessageTtl()
                 .subjects(subject).build();
 
-            jsm.addStream(sc);
+            jstc.jsm.addStream(sc);
 
             PublishOptions opts = PublishOptions.builder().messageTtlSeconds(1).build();
-            PublishAck pa1 = js.publish(subject, null, opts);
+            PublishAck pa1 = jstc.js.publish(subject, null, opts);
             assertNotNull(pa1);
 
             opts = PublishOptions.builder().messageTtlNever().build();
-            PublishAck paNever = js.publish(subject, null, opts);
+            PublishAck paNever = jstc.js.publish(subject, null, opts);
             assertNotNull(paNever);
 
-            MessageInfo mi1 = jsm.getMessage(stream, pa1.getSeqno());
-            assertEquals("1s", mi1.getHeaders().getFirst(MSG_TTL_HDR));
+            MessageInfo mi1 = jstc.jsm.getMessage(stream, pa1.getSeqno());
+            Headers h = mi1.getHeaders();
+            assertNotNull(h);
+            assertEquals("1s",h.getFirst(MSG_TTL_HDR));
 
-            MessageInfo miNever = jsm.getMessage(stream, paNever.getSeqno());
-            assertEquals("never", miNever.getHeaders().getFirst(MSG_TTL_HDR));
+            MessageInfo miNever = jstc.jsm.getMessage(stream, paNever.getSeqno());
+            h = miNever.getHeaders();
+            assertNotNull(h);
+            assertEquals("never",h.getFirst(MSG_TTL_HDR));
 
             sleep(1200);
 
-            JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> jsm.getMessage(stream, pa1.getSeqno()));
+            JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> jstc.jsm.getMessage(stream, pa1.getSeqno()));
             assertEquals(10037, e.getApiErrorCode());
 
-            assertNotNull((jsm.getMessage(stream, paNever.getSeqno())));
+            assertNotNull((jstc.jsm.getMessage(stream, paNever.getSeqno())));
         });
     }
 
     @Test
     public void testMsgDeleteMarkerMaxAge() throws Exception {
-        jsServer.run(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            JetStream js = nc.jetStream();
-
-            String stream = stream();
-            String subject = subject();
+        runInLrServer((nc, jsm, js) -> {
+            String stream = random();
+            String subject = random();
             StreamConfiguration sc = StreamConfiguration.builder()
                 .name(stream)
                 .storageType(StorageType.Memory)
@@ -590,8 +579,10 @@ public class JetStreamPubTests extends JetStreamTestBase {
             sleep(1200);
 
             MessageInfo mi = jsm.getLastMessage(stream, subject);
-            assertEquals("MaxAge", mi.getHeaders().getFirst(NATS_MARKER_REASON_HDR));
-            assertEquals("50s", mi.getHeaders().getFirst(MSG_TTL_HDR));
+            Headers h = mi.getHeaders();
+            assertNotNull(h);
+            assertEquals("MaxAge", h.getFirst(NATS_MARKER_REASON_HDR));
+            assertEquals("50s", h.getFirst(MSG_TTL_HDR));
 
             assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder()
                 .name(stream)

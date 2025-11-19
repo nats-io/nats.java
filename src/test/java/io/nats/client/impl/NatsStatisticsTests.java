@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -21,7 +22,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.nats.client.utils.TestBase.*;
+import static io.nats.client.utils.TestBase.runInServer;
+import static io.nats.client.utils.TestBase.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class NatsStatisticsTests {
@@ -221,12 +223,13 @@ public class NatsStatisticsTests {
                 sleep(5000);
                 handler.onMessage(msg);
             });
-            d1.subscribe(SUBJECT);
-            d2.subscribe(SUBJECT);
-            d3.subscribe(SUBJECT);
-            d4.subscribe(SUBJECT);
+            String subject = TestBase.random();
+            d1.subscribe(subject);
+            d2.subscribe(subject);
+            d3.subscribe(subject);
+            d4.subscribe(subject);
 
-            Message reply = nc.request(SUBJECT, null, Duration.ofSeconds(2));
+            Message reply = nc.request(subject, null, Duration.ofSeconds(2));
             assertNotNull(reply);
             sleep(2000);
             assertEquals(3, requests.get());
@@ -265,12 +268,13 @@ public class NatsStatisticsTests {
                 sleep(5000);
                 handler.onMessage(msg);
             });
-            d1.subscribe(SUBJECT);
-            d2.subscribe(SUBJECT);
-            d3.subscribe(SUBJECT);
-            d4.subscribe(SUBJECT);
+            String subject = TestBase.random();
+            d1.subscribe(subject);
+            d2.subscribe(subject);
+            d3.subscribe(subject);
+            d4.subscribe(subject);
 
-            Message reply = nc.request(SUBJECT, null, Duration.ofSeconds(2));
+            Message reply = nc.request(subject, null, Duration.ofSeconds(2));
             assertNotNull(reply);
             sleep(2000);
             assertEquals(3, requests.get());

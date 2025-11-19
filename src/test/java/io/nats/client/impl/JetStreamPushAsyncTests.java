@@ -31,15 +31,9 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
     @Test
     public void testHandlerSub() throws Exception {
-        jsServer.run(nc -> {
-            // Create our JetStream context.
-            JetStream js = nc.jetStream();
-
-            // create the stream.
-            TestingStreamContainer tsc = new TestingStreamContainer(nc);
-
+        runInLrServer((nc, jstc) -> {
             // publish some messages
-            jsPublish(js, tsc.subject(), 10);
+            jsPublish(jstc.js, jstc.subject(), 10);
 
             // create a dispatcher without a default handler.
             Dispatcher dispatcher = nc.createDispatcher();
@@ -55,7 +49,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             };
 
             // Subscribe using the handler
-            js.subscribe(tsc.subject(), dispatcher, handler, false);
+            jstc.js.subscribe(jstc.subject(), dispatcher, handler, false);
 
             // Wait for messages to arrive using the countdown latch.
             // make sure we don't wait forever
@@ -67,15 +61,9 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
     @Test
     public void testHandlerAutoAck() throws Exception {
-        jsServer.run(nc -> {
-            // Create our JetStream context.
-            JetStream js = nc.jetStream();
-
-            // create the stream.
-            TestingStreamContainer tsc = new TestingStreamContainer(nc);
-
+        runInLrServer((nc, jstc) -> {
             // publish some messages
-            jsPublish(js, tsc.subject(), 10);
+            jsPublish(jstc.js, jstc.subject(), 10);
 
             // create a dispatcher without a default handler.
             Dispatcher dispatcher = nc.createDispatcher();
@@ -91,8 +79,8 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             };
 
             // subscribe using the handler, auto ack true
-            PushSubscribeOptions pso1 = PushSubscribeOptions.builder().durable(durable(1)).build();
-            JetStreamSubscription sub  = js.subscribe(tsc.subject(), dispatcher, handler1, true, pso1);
+            PushSubscribeOptions pso1 = PushSubscribeOptions.builder().durable(random()).build();
+            JetStreamSubscription sub  = jstc.js.subscribe(jstc.subject(), dispatcher, handler1, true, pso1);
 
             // Wait for messages to arrive using the countdown latch.
             // make sure we don't wait forever
@@ -102,7 +90,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
             // check that all the messages were read by the durable
             dispatcher.unsubscribe(sub);
-            sub = js.subscribe(tsc.subject(), pso1);
+            sub = jstc.js.subscribe(jstc.subject(), pso1);
             assertNull(sub.nextMessage(Duration.ofSeconds(1)));
 
             // 2. auto ack false
@@ -117,8 +105,8 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
             // subscribe using the handler, auto ack false
             ConsumerConfiguration cc = ConsumerConfiguration.builder().ackWait(Duration.ofMillis(500)).build();
-            PushSubscribeOptions pso2 = PushSubscribeOptions.builder().durable(durable(2)).configuration(cc).build();
-            sub = js.subscribe(tsc.subject(), dispatcher, handler2, false, pso2);
+            PushSubscribeOptions pso2 = PushSubscribeOptions.builder().durable(random()).configuration(cc).build();
+            sub = jstc.js.subscribe(jstc.subject(), dispatcher, handler2, false, pso2);
 
             // Wait for messages to arrive using the countdown latch.
             // make sure we don't wait forever
@@ -131,7 +119,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             sleep(1000); // just give it time for the server to realize the messages are not ack'ed
 
             dispatcher.unsubscribe(sub);
-            sub = js.subscribe(tsc.subject(), pso2);
+            sub = jstc.js.subscribe(jstc.subject(), pso2);
             List<Message> list = readMessagesAck(sub, false);
             assertEquals(10, list.size());
         });
@@ -139,14 +127,8 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
     @Test
     public void testCantNextMessageOnAsyncPushSub() throws Exception {
-        jsServer.run(nc -> {
-            // Create our JetStream context.
-            JetStream js = nc.jetStream();
-
-            // create the stream.
-            TestingStreamContainer tsc = new TestingStreamContainer(nc);
-
-            JetStreamSubscription sub = js.subscribe(tsc.subject(), nc.createDispatcher(), msg -> {}, false);
+        runInLrServer((nc, jstc) -> {
+            JetStreamSubscription sub = jstc.js.subscribe(jstc.subject(), nc.createDispatcher(), msg -> {}, false);
 
             // this should exception, can't next message on an async push sub
             assertThrows(IllegalStateException.class, () -> sub.nextMessage(Duration.ofMillis(1000)));
@@ -156,16 +138,8 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
     @Test
     public void testPushAsyncFlowControl() throws Exception {
-        ListenerForTesting listenerForTesting = new ListenerForTesting();
-        Options.Builder ob = new Options.Builder().errorListener(listenerForTesting);
-
-        runInJsServer(ob, nc -> {
-            // Create our JetStream context.
-            JetStream js = nc.jetStream();
-
-            // create the stream.
-            TestingStreamContainer tsc = new TestingStreamContainer(nc);
-
+        ListenerForTesting listener = new ListenerForTesting();
+        runInLrServer(listener, (nc, jstc) -> {
             byte[] data = new byte[8192];
 
             int MSG_COUNT = 1000;
@@ -174,7 +148,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             for (int x = 100_000; x < MSG_COUNT + 100_000; x++) {
                 byte[] fill = (""+ x).getBytes();
                 System.arraycopy(fill, 0, data, 0, 6);
-                js.publish(NatsMessage.builder().subject(tsc.subject()).data(data).build());
+                jstc.js.publish(NatsMessage.builder().subject(jstc.subject()).data(data).build());
             }
 
             // create a dispatcher without a default handler.
@@ -197,29 +171,26 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder().flowControl(1000).build();
             PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
-            js.subscribe(tsc.subject(), dispatcher, handler, false, pso);
+            jstc.js.subscribe(jstc.subject(), dispatcher, handler, false, pso);
 
             // Wait for messages to arrive using the countdown latch.
             // make sure we don't wait forever
             awaitAndAssert(msgLatch);
 
             assertEquals(MSG_COUNT, count.get());
-            assertFalse(listenerForTesting.getFlowControlProcessedEvents().isEmpty());
+            assertFalse(listener.getFlowControlProcessedEvents().isEmpty());
         });
     }
 
     @Test
-    public void testDontAutoAckSituations() throws Exception {
-        String mockAckReply = "mock-ack-reply.";
+    public void testDoNotAutoAckSituations() throws Exception {
+        String mockAckReply = random(); // "mock-ack-reply.";
 
-        jsServer.run(nc -> {
+        runInLrServer((nc, jsm, js) -> {
             // create the stream.
-            String stream = stream();
-            String subject = subject();
-            createMemoryStream(nc, stream, subject, mockAckReply + "*");
-
-            // Create our JetStream context.
-            JetStream js = nc.jetStream();
+            String stream = random();
+            String subject = random();
+            createMemoryStream(nc, stream, subject, subjectStar(mockAckReply));
 
             int pubCount = 5;
 
@@ -243,23 +214,23 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
                 int f = count.incrementAndGet();
                 if (f == 1) {
-                    m.replyTo = mockAckReply + "ack";
+                    m.replyTo = subjectDot(mockAckReply, "ack");
                     m.ack();
                 }
                 else if (f == 2) {
-                    m.replyTo = mockAckReply + "nak";
+                    m.replyTo = subjectDot(mockAckReply, "nak");
                     m.nak();
                 }
                 else if (f == 3) {
-                    m.replyTo = mockAckReply + "term";
+                    m.replyTo = subjectDot(mockAckReply, "term");
                     m.term();
                 }
                 else if (f == 4) {
-                    m.replyTo = mockAckReply + "progress";
+                    m.replyTo = subjectDot(mockAckReply, "progress");
                     m.inProgress();
                 }
                 else {
-                    m.replyTo = mockAckReply + "auto";
+                    m.replyTo = subjectDot(mockAckReply, "auto");
                 }
                 msgLatchRef.get().countDown();
             };
@@ -273,30 +244,30 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             assertEquals(0, msgLatchRef.get().getCount());
             dispatcher.unsubscribe(async);
 
-            JetStreamSubscription mockAckReplySub = js.subscribe(mockAckReply + "*");
+            JetStreamSubscription mockAckReplySub = js.subscribe(subjectStar(mockAckReply));
             Message msg = mockAckReplySub.nextMessage(2000);
-            assertEquals(mockAckReply + "ack", msg.getSubject());
+            assertEquals(subjectDot(mockAckReply, "ack"), msg.getSubject());
             assertEquals("+ACK", new String(msg.getData()));
 
             msg = mockAckReplySub.nextMessage(500);
-            assertEquals(mockAckReply + "nak", msg.getSubject());
+            assertEquals(subjectDot(mockAckReply, "nak"), msg.getSubject());
             assertEquals("-NAK", new String(msg.getData()));
 
             msg = mockAckReplySub.nextMessage(500);
-            assertEquals(mockAckReply + "term", msg.getSubject());
+            assertEquals(subjectDot(mockAckReply, "term"), msg.getSubject());
             assertEquals("+TERM", new String(msg.getData()));
 
             msg = mockAckReplySub.nextMessage(500);
-            assertEquals(mockAckReply + "progress", msg.getSubject());
+            assertEquals(subjectDot(mockAckReply, "progress"), msg.getSubject());
             assertEquals("+WPI", new String(msg.getData()));
 
             // because it was in progress which is not a terminal ack, the auto ack acks
             msg = mockAckReplySub.nextMessage(500);
-            assertEquals(mockAckReply + "progress", msg.getSubject());
+            assertEquals(subjectDot(mockAckReply, "progress"), msg.getSubject());
             assertEquals("+ACK", new String(msg.getData()));
 
             msg = mockAckReplySub.nextMessage(500);
-            assertEquals(mockAckReply + "auto", msg.getSubject());
+            assertEquals(subjectDot(mockAckReply, "auto"), msg.getSubject());
             assertEquals("+ACK", new String(msg.getData()));
 
             // coverage explicit no ack flag
@@ -334,10 +305,11 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
     @Test
     public void testMemoryStorageServerBugPR2719() throws Exception {
-        String stream = stream();
-        String sub = "msbsub.>";
-        String key1 = "msbsub.key1";
-        String key2 = "msbsub.key2";
+        String stream = random();
+        String subBase = random();
+        String sub = subjectGt(subBase);
+        String key1 = subjectDot(subBase, "key1");
+        String key2 = subjectDot(subBase, "key2");
 
         Headers deleteHeaders = new Headers()
             .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.DELETE.name());
@@ -345,7 +317,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.PURGE.name())
             .put(ROLLUP_HDR, ROLLUP_HDR_SUBJECT);
 
-        jsServer.run(nc -> {
+        runInLrServer((nc, jsm, js) -> {
             StreamConfiguration sc = StreamConfiguration.builder()
                 .name(stream)
                 .storageType(StorageType.Memory)
@@ -354,9 +326,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
                 .denyDelete(true)
                 .build();
 
-            nc.jetStreamManagement().addStream(sc);
-
-            JetStream js = nc.jetStream();
+            jsm.addStream(sc);
 
             MemStorBugHandler fullHandler = new MemStorBugHandler();
             MemStorBugHandler onlyHandler = new MemStorBugHandler();

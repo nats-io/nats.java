@@ -17,22 +17,21 @@ import io.nats.client.Connection;
 import io.nats.client.ErrorListener;
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
-import java.time.Duration;
-import java.util.concurrent.atomic.AtomicBoolean;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import static io.nats.client.utils.TestBase.*;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AuthAndConnectTests {
     @Test
     public void testIsAuthError() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = standardConnection(ts.getURI());
+            Connection nc = TestBase.standardConnectionWait(ts.getURI());
             NatsConnection nats = (NatsConnection)nc;
 
             assertTrue(nats.isAuthenticationError("user authentication expired"));
@@ -49,7 +48,7 @@ public class AuthAndConnectTests {
     @Test()
     public void testConnectWhenClosed() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false)) {
-            NatsConnection nc = (NatsConnection)standardConnection(ts.getURI());
+            NatsConnection nc = (NatsConnection) TestBase.standardConnectionWait(ts.getURI());
             standardCloseConnection(nc);
             nc.connect(false); // should do nothing
             assertClosed(nc);
@@ -80,7 +79,7 @@ public class AuthAndConnectTests {
                     .errorListener(noopErrorListener)
                     .build();
 
-            NatsConnection nc = (NatsConnection) standardConnection(options);
+            NatsConnection nc = (NatsConnection) TestBase.standardConnectionWait(options);
 
             // After we've connected, shut down, so we can attempt reconnecting.
             ts.shutdown(true);

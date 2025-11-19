@@ -5,24 +5,35 @@ plugins {
     id("java-library")
     id("maven-publish")
     id("jacoco")
-    id("biz.aQute.bnd.builder") version "7.1.0"
+    id("biz.aQute.bnd.builder") version "5.1.2"
+//    id("biz.aQute.bnd.builder") version "7.1.0"
     id("org.gradle.test-retry") version "1.6.4"
     id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
     id("signing")
 }
 
 def jarVersion = "2.24.1"
+group = 'io.nats'
 
 def isRelease = System.getenv("BUILD_EVENT") == "release"
 def brn = System.getenv("BRANCH_REF_NAME")
 def snap = brn == null || brn.equals("") ? "-SNAPSHOT" : "." + brn + "-SNAPSHOT"
 
-group = 'io.nats'
+def tc = System.getenv("TARGET_COMPATIBILITY");
+def targetCompat = tc == "21" ? JavaVersion.VERSION_21 : (tc == "17" ? JavaVersion.VERSION_17 : JavaVersion.VERSION_1_8)
+def jarEnd =       tc == "21" ?  "-jdk21"              : (tc == "17" ? "-jdk17"               : "")
+def jarAndArtifactName = "jnats" + jarEnd
+
 version = isRelease ? jarVersion : jarVersion + snap // version is the variable the build actually uses.
+
+def javaVersion = System.getProperty("java.version");
+System.out.println("Java: " + javaVersion)
+System.out.println("Target Compatibility: " + targetCompat)
+System.out.println(group + ":" + jarAndArtifactName + ":" + version)
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = targetCompat
 }
 
 repositories {
@@ -37,8 +48,13 @@ dependencies {
     implementation 'org.jspecify:jspecify:1.0.0'
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.14.1'
-    testImplementation 'io.nats:jnats-server-runner:3.0.1'
-    testImplementation 'nl.jqno.equalsverifier:equalsverifier:3.12.3'
+    testImplementation 'io.nats:jnats-server-runner:3.0.2-SNAPSHOT'
+    if (javaVersion.startsWith("1.8")) {
+        testImplementation 'nl.jqno.equalsverifier:equalsverifier:3.12.3'
+    }
+    else {
+        testImplementation 'nl.jqno.equalsverifier:equalsverifier:4.2.2'
+    }
 
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
@@ -186,10 +202,10 @@ publishing {
             artifact javadocJar
             artifact testsJar
             pom {
-                name = "jnats"
+                name = jarAndArtifactName
                 packaging = "jar"
                 groupId = group
-                artifactId = "jnats"
+                artifactId = jarAndArtifactName
                 description = 'Client library for working with the NATS messaging system.'
                 url = 'https://github.com/nats-io/nats.java'
                 licenses {

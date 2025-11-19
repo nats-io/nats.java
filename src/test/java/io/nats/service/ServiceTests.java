@@ -68,9 +68,9 @@ public class ServiceTests extends JetStreamTestBase {
     @Test
     public void testServiceWorkflow() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            try (Connection serviceNc1 = standardConnection(ts.getURI());
-                 Connection serviceNc2 = standardConnection(ts.getURI());
-                 Connection clientNc = standardConnection(ts.getURI())) {
+            try (Connection serviceNc1 = standardConnectionWait(ts.getURI());
+                 Connection serviceNc2 = standardConnectionWait(ts.getURI());
+                 Connection clientNc = standardConnectionWait(ts.getURI())) {
 
                 Endpoint endEcho = Endpoint.builder()
                     .name(ECHO_ENDPOINT_NAME)
@@ -469,9 +469,9 @@ public class ServiceTests extends JetStreamTestBase {
     @Test
     public void testQueueGroup() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            try (Connection serviceNc1 = standardConnection(ts.getURI());
-                 Connection serviceNc2 = standardConnection(ts.getURI());
-                 Connection clientNc = standardConnection(ts.getURI())) {
+            try (Connection serviceNc1 = standardConnectionWait(ts.getURI());
+                 Connection serviceNc2 = standardConnectionWait(ts.getURI());
+                 Connection clientNc = standardConnectionWait(ts.getURI())) {
 
                 String yesQueueSubject = "subjyes";
                 String noQueueSubject = "subjno";
@@ -563,9 +563,9 @@ public class ServiceTests extends JetStreamTestBase {
     @Test
     public void testResponsesFromAllInstances() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            try (Connection serviceNc1 = standardConnection(ts.getURI());
-                 Connection serviceNc2 = standardConnection(ts.getURI());
-                 Connection clientNc = standardConnection(ts.getURI())) {
+            try (Connection serviceNc1 = standardConnectionWait(ts.getURI());
+                 Connection serviceNc2 = standardConnectionWait(ts.getURI());
+                 Connection clientNc = standardConnectionWait(ts.getURI())) {
 
                 Endpoint ep = Endpoint.builder()
                     .name("ep")
@@ -655,7 +655,7 @@ public class ServiceTests extends JetStreamTestBase {
     @Test
     public void testDispatchers() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            try (Connection nc = standardConnection(ts.getURI())) {
+            try (Connection nc = standardConnectionWait(ts.getURI())) {
 
                 Map<String, Dispatcher> dispatchers = getDispatchers(nc);
                 assertEquals(0, dispatchers.size());
@@ -759,16 +759,17 @@ public class ServiceTests extends JetStreamTestBase {
         Options options = new Options.Builder().build();
         Connection conn = new MockNatsConnection(options);
         ServiceEndpoint se = ServiceEndpoint.builder()
-            .endpoint(new Endpoint(name(0)))
+            .endpoint(new Endpoint(random()))
             .handler(m -> {
             })
             .build();
 
         // minimum valid service
-        Service service = Service.builder().connection(conn).name(NAME).version("1.0.0").addServiceEndpoint(se).build();
+        String name = random();
+        Service service = Service.builder().connection(conn).name(name).version("1.0.0").addServiceEndpoint(se).build();
         assertNotNull(service.toString()); // coverage
         assertNotNull(service.getId());
-        assertEquals(NAME, service.getName());
+        assertEquals(name, service.getName());
         assertEquals(ServiceBuilder.DEFAULT_DRAIN_TIMEOUT, service.getDrainTimeout());
         assertEquals("1.0.0", service.getVersion());
         assertNull(service.getDescription());
@@ -777,7 +778,7 @@ public class ServiceTests extends JetStreamTestBase {
         // additional fields
         Map<String, String> meta = new HashMap<>();
         meta.put("foo", "bar");
-        service = Service.builder().connection(conn).name(NAME).version("1.0.0").addServiceEndpoint(se)
+        service = Service.builder().connection(conn).name(name).version("1.0.0").addServiceEndpoint(se)
             .description("desc")
             .drainTimeout(Duration.ofSeconds(1))
             .metadata(meta)
@@ -788,14 +789,14 @@ public class ServiceTests extends JetStreamTestBase {
         assertNotNull(service.getPingResponse().getMetadata());
 
         // more coverage
-        service = Service.builder().connection(conn).name(NAME).version("1.0.0").addServiceEndpoint(se)
+        service = Service.builder().connection(conn).name(name).version("1.0.0").addServiceEndpoint(se)
             .drainTimeout(null)
             .metadata(new HashMap<>())
             .build();
         assertEquals(ServiceBuilder.DEFAULT_DRAIN_TIMEOUT, service.getDrainTimeout());
 
         //noinspection deprecation
-        service = Service.builder().connection(conn).name(NAME).version("1.0.0").addServiceEndpoint(se)
+        service = Service.builder().connection(conn).name(name).version("1.0.0").addServiceEndpoint(se)
             .drainTimeout(1000)
             .schemaDispatcher(null) // COVERAGE for deprecated
             .build();
@@ -821,7 +822,7 @@ public class ServiceTests extends JetStreamTestBase {
         assertThrows(IllegalArgumentException.class, () -> Service.builder().version("not-semver"));
 
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
-            () -> Service.builder().name(NAME).version("1.0.0").addServiceEndpoint(se).build());
+            () -> Service.builder().name(name).version("1.0.0").addServiceEndpoint(se).build());
         assertTrue(iae.getMessage().contains("Connection cannot be null"));
 
         iae = assertThrows(IllegalArgumentException.class,
@@ -829,11 +830,11 @@ public class ServiceTests extends JetStreamTestBase {
         assertTrue(iae.getMessage().contains("Name cannot be null or empty"));
 
         iae = assertThrows(IllegalArgumentException.class,
-            () -> Service.builder().connection(conn).name(NAME).addServiceEndpoint(se).build());
+            () -> Service.builder().connection(conn).name(name).addServiceEndpoint(se).build());
         assertTrue(iae.getMessage().contains("Version cannot be null or empty"));
 
         assertDoesNotThrow(
-            () -> Service.builder().connection(conn).name(NAME).version("1.0.0").build());
+            () -> Service.builder().connection(conn).name(name).version("1.0.0").build());
     }
 
     @Test
@@ -841,21 +842,22 @@ public class ServiceTests extends JetStreamTestBase {
         Options options = new Options.Builder().build();
         Connection conn = new MockNatsConnection(options);
         ServiceEndpoint se = ServiceEndpoint.builder()
-                .endpoint(new Endpoint(name(0)))
+                .endpoint(new Endpoint(random()))
                 .handler(m -> {
                 })
                 .build();
 
         // minimum valid service
-        Service service = Service.builder().connection(conn).name(NAME).version("1.0.0").addServiceEndpoint(se).build();
+        String name = random();
+        Service service = Service.builder().connection(conn).name(name).version("1.0.0").addServiceEndpoint(se).build();
         assertNotNull(service.toString()); // coverage
         assertNotNull(service.getId());
-        assertEquals(NAME, service.getName());
+        assertEquals(name, service.getName());
         assertEquals(ServiceBuilder.DEFAULT_DRAIN_TIMEOUT, service.getDrainTimeout());
         assertEquals("1.0.0", service.getVersion());
         assertNull(service.getDescription());
 
-        service = Service.builder().connection(conn).name(NAME).version("1.0.0")
+        service = Service.builder().connection(conn).name(name).version("1.0.0")
                 .description("desc")
                 .drainTimeout(Duration.ofSeconds(1))
                 .build();
@@ -884,7 +886,7 @@ public class ServiceTests extends JetStreamTestBase {
         assertThrows(IllegalArgumentException.class, () -> Service.builder().version("not-semver"));
 
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
-                () -> Service.builder().name(NAME).version("1.0.0").addServiceEndpoint(se).build());
+                () -> Service.builder().name(name).version("1.0.0").addServiceEndpoint(se).build());
         assertTrue(iae.getMessage().contains("Connection cannot be null"));
 
         iae = assertThrows(IllegalArgumentException.class,
@@ -892,10 +894,10 @@ public class ServiceTests extends JetStreamTestBase {
         assertTrue(iae.getMessage().contains("Name cannot be null or empty"));
 
         iae = assertThrows(IllegalArgumentException.class,
-                () -> Service.builder().connection(conn).name(NAME).addServiceEndpoint(se).build());
+                () -> Service.builder().connection(conn).name(name).addServiceEndpoint(se).build());
         assertTrue(iae.getMessage().contains("Version cannot be null or empty"));
 
-        assertDoesNotThrow(() -> Service.builder().connection(conn).name(NAME).version("1.0.0").build());
+        assertDoesNotThrow(() -> Service.builder().connection(conn).name(name).version("1.0.0").build());
     }
 
     @Test
@@ -1027,41 +1029,44 @@ public class ServiceTests extends JetStreamTestBase {
         EqualsVerifier.simple().forClass(Endpoint.class).verify();
         Map<String, String> metadata = new HashMap<>();
 
-        Endpoint e = new Endpoint(NAME);
-        assertEpNameSubQ(e, NAME);
+        String name = random();
+        String subject = random();
+
+        Endpoint e = new Endpoint(name);
+        assertEpNameSubQ(e, name, name);
         assertEquals(e, Endpoint.builder().endpoint(e).build());
         assertNull(e.getMetadata());
         String jep = e.toJson();
         String sep = e.toString();
         assertTrue(sep.contains(jep));
 
-        e = new Endpoint(NAME, metadata);
-        assertEpNameSubQ(e, NAME);
+        e = new Endpoint(name, metadata);
+        assertEpNameSubQ(e, name, name);
         assertEquals(e, Endpoint.builder().endpoint(e).build());
         assertNull(e.getMetadata());
 
-        e = new Endpoint(NAME, SUBJECT);
-        assertEpNameSubQ(e);
+        e = new Endpoint(name, subject);
+        assertEpNameSubQ(e, name, subject);
         assertEquals(e, Endpoint.builder().endpoint(e).build());
         assertEquals(Endpoint.DEFAULT_QGROUP, e.getQueueGroup());
 
         e = Endpoint.builder()
-            .name(NAME).subject(SUBJECT)
+            .name(name).subject(subject)
             .build();
-        assertEpNameSubQ(e);
+        assertEpNameSubQ(e, name, subject);
         assertEquals(e, Endpoint.builder().endpoint(e).build());
 
         e = Endpoint.builder()
-            .name(NAME).subject(SUBJECT)
+            .name(name).subject(subject)
             .metadata(metadata)
             .queueGroup(null) // coverage
             .build();
-        assertEpNameSubQ(e);
+        assertEpNameSubQ(e, name, subject);
         assertNull(e.getMetadata());
         assertEquals(Endpoint.DEFAULT_QGROUP, e.getQueueGroup());
 
         e = Endpoint.builder()
-            .name(NAME).subject(SUBJECT)
+            .name(name).subject(subject)
             .metadata(metadata)
             .queueGroup("qg") // coverage
             .build();
@@ -1070,30 +1075,30 @@ public class ServiceTests extends JetStreamTestBase {
 
         metadata.put("k", "v");
 
-        e = new Endpoint(NAME, SUBJECT, metadata);
-        assertEpNameSubQ(e);
+        e = new Endpoint(name, subject, metadata);
+        assertEpNameSubQ(e, name, subject);
         assertTrue(JsonUtils.mapEquals(metadata, e.getMetadata()));
 
         e = Endpoint.builder()
-            .name(NAME).subject(SUBJECT)
+            .name(name).subject(subject)
             .metadata(metadata)
             .build();
-        assertEpNameSubQ(e);
+        assertEpNameSubQ(e, name, subject);
         assertTrue(JsonUtils.mapEquals(metadata, e.getMetadata()));
 
         // internal allows null queue group
-        e = new Endpoint(NAME, SUBJECT, null, metadata, false);
+        e = new Endpoint(name, subject, null, metadata, false);
         assertNull(e.getQueueGroup());
 
         // some subject testing
-        e = new Endpoint(NAME, "foo.>");
+        e = new Endpoint(name, "foo.>");
         assertEquals("foo.>", e.getSubject());
-        e = new Endpoint(NAME, "foo.*");
+        e = new Endpoint(name, "foo.*");
         assertEquals("foo.*", e.getSubject());
 
         // coverage
-        e = new Endpoint(NAME, SUBJECT, metadata);
-        assertEpNameSubQ(e);
+        e = new Endpoint(name, subject, metadata);
+        assertEpNameSubQ(e, name, subject);
         assertTrue(JsonUtils.mapEquals(metadata, e.getMetadata()));
         assertThrows(IllegalArgumentException.class, () -> Endpoint.builder().build());
 
@@ -1114,20 +1119,16 @@ public class ServiceTests extends JetStreamTestBase {
         assertThrows(IllegalArgumentException.class, () -> new Endpoint(HAS_TIC));
 
         // typical subjects are bad
-        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, HAS_SPACE));
-        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, HAS_CR));
-        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, HAS_LF));
-        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, STAR_NOT_SEGMENT));
-        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, GT_NOT_SEGMENT));
-        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, STARTS_WITH_DOT));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(name, HAS_SPACE));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(name, HAS_CR));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(name, HAS_LF));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(name, STAR_NOT_SEGMENT));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(name, GT_NOT_SEGMENT));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(name, STARTS_WITH_DOT));
     }
 
-    private static void assertEpNameSubQ(Endpoint ep) {
-        assertEpNameSubQ(ep, SUBJECT);
-    }
-
-    private static void assertEpNameSubQ(Endpoint ep, String exSubject) {
-        assertEquals(NAME, ep.getName());
+    private static void assertEpNameSubQ(Endpoint ep, String name, String exSubject) {
+        assertEquals(name, ep.getName());
         assertEquals(exSubject, ep.getSubject());
         assertEquals(Endpoint.DEFAULT_QGROUP, ep.getQueueGroup());
     }
@@ -1180,37 +1181,40 @@ public class ServiceTests extends JetStreamTestBase {
 
     @Test
     public void testGroupConstruction() {
-        Group g1 = new Group(subject(1));
-        Group g2 = new Group(subject(2));
-        Group g3 = new Group(subject(3));
-        assertEquals(subject(1), g1.getName());
-        assertEquals(subject(1), g1.getSubject());
-        assertEquals(subject(2), g2.getName());
-        assertEquals(subject(2), g2.getSubject());
-        assertEquals(subject(3), g3.getName());
-        assertEquals(subject(3), g3.getSubject());
+        String subject1 = random();
+        String subject2 = random();
+        String subject3 = random();
+        Group g1 = new Group(subject1);
+        Group g2 = new Group(subject2);
+        Group g3 = new Group(subject3);
+        assertEquals(subject1, g1.getName());
+        assertEquals(subject1, g1.getSubject());
+        assertEquals(subject2, g2.getName());
+        assertEquals(subject2, g2.getSubject());
+        assertEquals(subject3, g3.getName());
+        assertEquals(subject3, g3.getSubject());
         assertNull(g1.getNext());
         assertNull(g2.getNext());
         assertNull(g3.getNext());
-        assertTrue(g1.toString().contains(subject(1))); // coverage
-        assertTrue(g2.toString().contains(subject(2))); // coverage
-        assertTrue(g3.toString().contains(subject(3))); // coverage
+        assertTrue(g1.toString().contains(subject1)); // coverage
+        assertTrue(g2.toString().contains(subject2)); // coverage
+        assertTrue(g3.toString().contains(subject3)); // coverage
 
         assertEquals(g1, g1.appendGroup(g2));
-        assertEquals(subject(2), g1.getNext().getName());
+        assertEquals(subject2, g1.getNext().getName());
         assertNull(g2.getNext());
-        assertEquals(subject(1), g1.getName());
-        assertEquals(subject(1) + DOT + subject(2), g1.getSubject());
-        assertEquals(subject(2), g2.getName());
-        assertEquals(subject(2), g2.getSubject());
-        assertTrue(g1.toString().contains(subject(2))); // coverage
+        assertEquals(subject1, g1.getName());
+        assertEquals(subject1 + DOT + subject2, g1.getSubject());
+        assertEquals(subject2, g2.getName());
+        assertEquals(subject2, g2.getSubject());
+        assertTrue(g1.toString().contains(subject2)); // coverage
 
         assertEquals(g1, g1.appendGroup(g3));
-        assertEquals(subject(2), g1.getNext().getName());
-        assertEquals(subject(3), g1.getNext().getNext().getName());
-        assertEquals(subject(1), g1.getName());
-        assertEquals(subject(1) + DOT + subject(2) + DOT + subject(3), g1.getSubject());
-        assertTrue(g1.toString().contains(subject(3))); // coverage
+        assertEquals(subject2, g1.getNext().getName());
+        assertEquals(subject3, g1.getNext().getNext().getName());
+        assertEquals(subject1, g1.getName());
+        assertEquals(subject1 + DOT + subject2 + DOT + subject3, g1.getSubject());
+        assertTrue(g1.toString().contains(subject3)); // coverage
 
         g1 = new Group("foo.*");
         assertEquals("foo.*", g1.getName());
@@ -1227,10 +1231,12 @@ public class ServiceTests extends JetStreamTestBase {
 
     @Test
     public void testServiceEndpointConstruction() {
-        Group g1 = new Group(subject(1));
-        Group g2 = new Group(subject(2)).appendGroup(g1);
-        Endpoint e1 = new Endpoint(name(100), subject(100));
-        Endpoint e2 = new Endpoint(name(200), subject(200));
+        String subject1 = random();
+        String subject2 = random();
+        Group g1 = new Group(subject1);
+        Group g2 = new Group(subject2).appendGroup(g1);
+        Endpoint e1 = new Endpoint(random(), random());
+        Endpoint e2 = new Endpoint(random(), random());
         ServiceMessageHandler smh = m -> {};
         Supplier<JsonValue> sds = () -> null;
 

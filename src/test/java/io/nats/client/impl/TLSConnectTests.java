@@ -99,7 +99,7 @@ public class TLSConnectTests {
             try (NatsTestServer ts = new NatsTestServer(
                 NatsTestServer.builder()
                     .configFilePath("src/test/resources/tls_first.conf")
-                    .connectValidateTlsFirstMode())
+                    .skipConnectValidate())
             ) {
                 String servers = ts.getURI();
                 Options options = new Options.Builder()
@@ -254,7 +254,7 @@ public class TLSConnectTests {
                 .maxReconnects(0)
                 .sslContext(ctx)
                 .build();
-            Connection nc = standardConnection(options);
+            Connection nc = TestBase.standardConnectionWait(options);
             Dispatcher d = nc.createDispatcher((msg) -> {
                 nc.publish(msg.getReplyTo(), new byte[16]);
             });
@@ -289,7 +289,7 @@ public class TLSConnectTests {
                     connectionListener(listener).
                     reconnectWait(Duration.ofMillis(10)).
                     build();
-            nc = standardConnection(options);
+            nc = TestBase.standardConnectionWait(options);
             assertInstanceOf(SocketDataPort.class, ((NatsConnection) nc).getDataPort(), "Correct data port class");
             listener.prepForStatusChange(Events.DISCONNECTED);
         }
@@ -298,7 +298,7 @@ public class TLSConnectTests {
         listener.prepForStatusChange(Events.RESUBSCRIBED);
 
         try (NatsTestServer ignored = new NatsTestServer("src/test/resources/tlsverify.conf", newPort, false)) {
-            listenerConnectionWait(nc, listener, 10000);
+            listenerConnectionWait(nc, listener, VERY_LONG_CONNECTION_WAIT_MS);
         }
 
         standardCloseConnection(nc);
@@ -455,7 +455,7 @@ public class TLSConnectTests {
             try (NatsTestServer ts = new NatsTestServer(
                 NatsTestServer.builder()
                     .configFilePath("src/test/resources/tls_first.conf")
-                    .connectValidateTlsFirstMode())
+                    .skipConnectValidate())
             ) {
                 // 1. client tls first | secure proxy | server insecure -> connects
                 ProxyConnection connTI = new ProxyConnection(ts.getURI(), true, null, SERVER_INSECURE);
