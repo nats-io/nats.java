@@ -30,6 +30,7 @@ import static io.nats.client.impl.MessageManager.ManageResult;
 import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
 import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 import static io.nats.client.support.Status.*;
+import static io.nats.client.utils.TestOptions.NOOP_EL;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SuppressWarnings("SameParameterValue")
@@ -574,7 +575,7 @@ public class MessageManagerTests extends JetStreamTestBase {
         String fcSubject;
 
         public MockPublishInternal() {
-            this(new Options.Builder().errorListener(NO_OP_EL).build());
+            this(new Options.Builder().errorListener(NOOP_EL).build());
         }
 
         public MockPublishInternal(Options options) {

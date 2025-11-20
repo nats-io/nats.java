@@ -37,6 +37,7 @@ import java.util.function.BiConsumer;
 import static io.nats.client.NatsTestServer.getNatsLocalhostUri;
 import static io.nats.client.support.NatsConstants.OUTPUT_QUEUE_IS_FULL;
 import static io.nats.client.utils.TestBase.*;
+import static io.nats.client.utils.TestOptions.NOOP_EL;
 import static org.junit.jupiter.api.Assertions.*;
 
 @Isolated
@@ -74,7 +75,7 @@ public class ReconnectTests {
                 .maxReconnects(-1)
                 .reconnectWait(Duration.ofMillis(1000))
                 .connectionListener(listener)
-                .errorListener(NO_OP_EL);
+                .errorListener(NOOP_EL);
             optSetter.accept(ts, builder);
             Options options = builder.build();
 
@@ -140,7 +141,7 @@ public class ReconnectTests {
                 .maxReconnects(-1)
                 .reconnectWait(Duration.ofMillis(20))
                 .connectionListener(listener)
-                .errorListener(NO_OP_EL)
+                .errorListener(NOOP_EL)
                 .build();
                                 port = ts.getPort();
             nc = (NatsConnection) TestBase.standardConnectionWait(options);
@@ -193,7 +194,7 @@ public class ReconnectTests {
                 .maxReconnects(-1)
                 .userInfo("stephen".toCharArray(), "password".toCharArray())
                 .reconnectWait(Duration.ofMillis(1000)).connectionListener(listener)
-                .errorListener(NO_OP_EL).build();
+                .errorListener(NOOP_EL).build();
             nc = (NatsConnection) TestBase.standardConnectionWait(options);
 
             sub = nc.subscribe("subsubject");
@@ -261,7 +262,7 @@ public class ReconnectTests {
                 .server(ts.getURI())
                 .maxReconnects(1)
                 .connectionListener(listener)
-                .errorListener(NO_OP_EL)
+                .errorListener(NOOP_EL)
                 .reconnectWait(Duration.ofMillis(10))
                 .build();
             nc = TestBase.standardConnectionWait(options);
@@ -285,7 +286,7 @@ public class ReconnectTests {
                     .server(ts.getURI())
                     .noRandomize()
                     .connectionListener(listener)
-                    .errorListener(NO_OP_EL)
+                    .errorListener(NOOP_EL)
                     .maxReconnects(-1)
                     .build();
                 nc = (NatsConnection) TestBase.standardConnectionWait(options);
@@ -313,7 +314,7 @@ public class ReconnectTests {
                     .server(ts.getURI())
                     .noRandomize()
                     .connectionListener(listener)
-                    .errorListener(NO_OP_EL)
+                    .errorListener(NOOP_EL)
                     .maxReconnects(-1)
                     .build();
                 nc = (NatsConnection) TestBase.standardConnectionWait(options);
@@ -344,7 +345,7 @@ public class ReconnectTests {
                     .maxReconnects(-1)
                     .connectionTimeout(Duration.ofSeconds(5))
                     .reconnectWait(Duration.ofSeconds(1))
-                    .errorListener(NO_OP_EL)
+                    .errorListener(NOOP_EL)
                     .build();
                 nc = (NatsConnection) TestBase.standardConnectionWait(options);
                 assertEquals(nc.getConnectedUrl(), ts2.getURI());
@@ -371,7 +372,7 @@ public class ReconnectTests {
                     .server(ts.getURI())
                     .maxReconnects(-1)
                     .connectionListener(listener)
-                    .errorListener(NO_OP_EL)
+                    .errorListener(NOOP_EL)
                     .reconnectBufferSize(4*512)
                     .reconnectWait(Duration.ofSeconds(480))
                     .build();
@@ -397,7 +398,7 @@ public class ReconnectTests {
                 .server(ts.getURI())
                 .maxReconnects(5)
                 .connectionListener(listener)
-                .errorListener(NO_OP_EL)
+                .errorListener(NOOP_EL)
                 .reconnectBufferSize(-1)
                 .reconnectWait(Duration.ofSeconds(30))
                 .build();
@@ -459,7 +460,7 @@ public class ReconnectTests {
                 .maxReconnects(-1)
                 .reconnectWait(reconnectWait)
                 .connectionListener(listener)
-                .errorListener(NO_OP_EL)
+                .errorListener(NOOP_EL)
                 .build();
             port = ts.getPort();
             nc = (NatsConnection) Nats.connect(options);
@@ -544,7 +545,7 @@ public class ReconnectTests {
                 .server(ts.getURI())
                 .secure()
                 .connectionListener(listener)
-                .errorListener(NO_OP_EL)
+                .errorListener(NOOP_EL)
                 .maxReconnects(20)
                 .reconnectWait(Duration.ofMillis(100))
                 .connectionTimeout(Duration.ofSeconds(5))
@@ -577,7 +578,7 @@ public class ReconnectTests {
             Options options = new Options.Builder()
                 .server("tls://localhost:"+ts.getPort())
                 .connectionTimeout(Duration.ofSeconds(5))
-                .errorListener(NO_OP_EL)
+                .errorListener(NOOP_EL)
                 .maxReconnects(0)
                 .build();
             assertCanConnect(options);
@@ -592,7 +593,7 @@ public class ReconnectTests {
             Options options = new Options.Builder()
                 .server("opentls://localhost:"+ts.getPort())
                 .maxReconnects(0)
-                .errorListener(NO_OP_EL)
+                .errorListener(NOOP_EL)
                 .build();
             assertCanConnect(options);
         }
@@ -609,7 +610,7 @@ public class ReconnectTests {
                 .server(ts.getURI())
                 .noReconnect()
                 .connectionListener(listener)
-                .errorListener(NO_OP_EL)
+                .errorListener(NOOP_EL)
                 .build();
 
             nc = (NatsConnection) Nats.connect(options);
@@ -659,7 +660,7 @@ public class ReconnectTests {
             .connectionTimeout(Duration.ofSeconds(1))
             .reconnectWait(Duration.ofMillis(250))
             .connectionListener(trwh)
-            .errorListener(NO_OP_EL)
+            .errorListener(NOOP_EL)
             .build();
 
         NatsTestServer ts = new NatsTestServer(port, false);
@@ -675,7 +676,7 @@ public class ReconnectTests {
     @Test
     public void testReconnectOnConnect() throws Exception {
         int port = NatsTestServer.nextPort();
-        Options options = Options.builder().server(getNatsLocalhostUri(port)).errorListener(NO_OP_EL).build();
+        Options options = Options.builder().server(getNatsLocalhostUri(port)).errorListener(NOOP_EL).build();
 
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<Connection> testConn = new AtomicReference<>();
@@ -792,7 +793,7 @@ public class ReconnectTests {
                 if (index == 0) {
                     builder
                         .connectionListener(listener)
-                        .errorListener(NO_OP_EL)
+                        .errorListener(NOOP_EL)
                         .ignoreDiscoveredServers()
                         .noRandomize();
                 }
@@ -858,7 +859,7 @@ public class ReconnectTests {
         Options options = Options.builder()
             .server(getNatsLocalhostUri(port))
             .connectionListener(listener)
-            .errorListener(NO_OP_EL)
+            .errorListener(NOOP_EL)
             .dataPortType(ForceReconnectQueueCheckDataPort.class.getCanonicalName())
             .build();
 

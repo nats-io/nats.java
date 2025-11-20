@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.time.Duration;
 
+import static io.nats.client.utils.TestOptions.NOOP_EL;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class EchoTests {
@@ -29,7 +30,7 @@ public class EchoTests {
         assertThrows(IOException.class, () -> {
             Connection nc = null;
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-                Options opt = new Options.Builder().server(ts.getURI()).noEcho().noReconnect().errorListener(TestBase.NO_OP_EL).build();
+                Options opt = new Options.Builder().server(ts.getURI()).noEcho().noReconnect().errorListener(NOOP_EL).build();
                 try {
                     nc = Nats.connect(opt); // Should fail
                 }
@@ -47,7 +48,7 @@ public class EchoTests {
     public void testConnectToOldServerWithEcho() throws Exception {
         Connection nc = null;
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-            Options opt = new Options.Builder().server(ts.getURI()).noReconnect().errorListener(TestBase.NO_OP_EL).build();
+            Options opt = new Options.Builder().server(ts.getURI()).noReconnect().errorListener(NOOP_EL).build();
             try {
                 nc = Nats.connect(opt);
             } finally {

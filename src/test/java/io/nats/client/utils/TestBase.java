@@ -37,6 +37,7 @@ import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_ARGUMENT;
 import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_STATE;
+import static io.nats.client.utils.TestOptions.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestBase {
@@ -86,8 +87,6 @@ public class TestBase {
     public static String[] BAD_SUBJECTS_OR_QUEUES = new String[] {
         HAS_SPACE, HAS_CR, HAS_LF, HAS_TAB, STARTS_SPACE, ENDS_SPACE, null, EMPTY
     };
-
-    public static ErrorListener NO_OP_EL = new ErrorListener() {};
 
     // ----------------------------------------------------------------------------------------------------
     // VersionCheck
@@ -219,6 +218,32 @@ public class TestBase {
     // ----------------------------------------------------------------------------------------------------
     // runners -> new server
     // ----------------------------------------------------------------------------------------------------
+    private static void _runInServer(boolean jetstream, Options.Builder builder, VersionCheck vc, InServerTest inServerTest) throws Exception {
+        if (vc != null && RUN_SERVER_INFO != null && !vc.runTest(RUN_SERVER_INFO)) {
+            return; // had vc, already had run server info and fails check
+        }
+
+        try (NatsTestServer ts = new NatsTestServer(NatsTestServer.builder().jetstream(jetstream))) {
+            if (builder == null) {
+                builder = optionsBuilder();
+            }
+
+            try (Connection nc = standardConnectionWait(builder.server(ts.getURI()).build())) {
+                initRunServerInfo(nc);
+                if (vc == null || vc.runTest(RUN_SERVER_INFO)) {
+                    try {
+                        inServerTest.test(nc);
+                    }
+                    finally {
+                        if (jetstream) {
+                            cleanupJs(nc);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     public static void runInServer(InServerTest inServerTest) throws Exception {
         _runInServer(false, null, null, inServerTest);
     }
@@ -236,15 +261,11 @@ public class TestBase {
     }
 
     public static void runInJsServer(ErrorListener el, InServerTest inServerTest) throws Exception {
-        _runInServer(true, Options.builder().errorListener(el), null, inServerTest);
+        _runInServer(true, optionsBuilder(el), null, inServerTest);
     }
 
     public static void runInJsServer(ErrorListener el, VersionCheck vc, InServerTest inServerTest) throws Exception {
-        _runInServer(true, Options.builder().errorListener(el), vc, inServerTest);
-    }
-
-    private static Options.Builder builder(ErrorListener el) {
-        return Options.builder().errorListener(el);
+        _runInServer(true, optionsBuilder(el), vc, inServerTest);
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -270,12 +291,16 @@ public class TestBase {
         _runInLrServer(null, vc, null, jsTest, null);
     }
 
-    public static void runInLrServer(ErrorListener el, InJetStreamTest jsTest) throws Exception {
-        _runInLrServer(builder(el), null, null, jsTest, null);
-    }
-
     public static void runInLrServer(Options.Builder builder, VersionCheck vc, InJetStreamTest jsTest) throws Exception {
         _runInLrServer(builder, vc, null, jsTest, null);
+    }
+
+    public static void runInLrServer(ErrorListener el, InJetStreamTest jsTest) throws Exception {
+        _runInLrServer(optionsBuilder(el), null, null, jsTest, null);
+    }
+
+    public static void runInLrServer(ErrorListener el, VersionCheck vc, InJetStreamTest jsTest) throws Exception {
+        _runInLrServer(optionsBuilder(el), vc, null, jsTest, null);
     }
 
     public static void runInLrServer(InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
@@ -287,11 +312,11 @@ public class TestBase {
     }
 
     public static void runInLrServer(ErrorListener el, VersionCheck vc, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
-        _runInLrServer(builder(el), vc, null, null, oneSubjectJstcTest);
+        _runInLrServer(optionsBuilder(el), vc, null, null, oneSubjectJstcTest);
     }
 
     public static void runInLrServer(ErrorListener el, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
-        _runInLrServer(builder(el), null, null, null, oneSubjectJstcTest);
+        _runInLrServer(optionsBuilder(el), null, null, null, oneSubjectJstcTest);
     }
 
     public static void runInLrServer(Options.Builder builder, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
@@ -300,36 +325,6 @@ public class TestBase {
 
     public static void runInLrServer(Options.Builder builder, VersionCheck vc, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
         _runInLrServer(builder, vc, null, null, oneSubjectJstcTest);
-    }
-
-    // ----------------------------------------------------------------------------------------------------
-    // runners impl -> new server
-    // runners impl -> long running server
-    // ----------------------------------------------------------------------------------------------------
-    private static void _runInServer(boolean jetstream, Options.Builder builder, VersionCheck vc, InServerTest inServerTest) throws Exception {
-        if (vc != null && RUN_SERVER_INFO != null && !vc.runTest(RUN_SERVER_INFO)) {
-            return; // had vc, already had run server info and fails check
-        }
-
-        try (NatsTestServer ts = new NatsTestServer(NatsTestServer.builder().jetstream(jetstream))) {
-            if (builder == null) {
-                builder = new Options.Builder().errorListener(NO_OP_EL);
-            }
-
-            try (Connection nc = standardConnectionWait(builder.server(ts.getURI()).build())) {
-                initRunServerInfo(nc);
-                if (vc == null || vc.runTest(RUN_SERVER_INFO)) {
-                    try {
-                        inServerTest.test(nc);
-                    }
-                    finally {
-                        if (jetstream) {
-                            cleanupJs(nc);
-                        }
-                    }
-                }
-            }
-        }
     }
 
     private static void _runInLrServer(Options.Builder builder, VersionCheck vc,
@@ -350,7 +345,7 @@ public class TestBase {
         }
         else {
             closeWhenDone = true;
-            nc = longConnectionWait(builder.server(LongRunningServer.uri()).build());
+            nc = longConnectionWait(builder.server(LongRunningServer.server()).build());
         }
 
         initRunServerInfo(nc);

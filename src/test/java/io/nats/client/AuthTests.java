@@ -39,6 +39,7 @@ import java.util.concurrent.TimeUnit;
 
 import static io.nats.client.NatsTestServer.configuredServer;
 import static io.nats.client.NatsTestServer.skipValidateServer;
+import static io.nats.client.utils.TestOptions.NOOP_EL;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.condition.OS.WINDOWS;
 
@@ -385,7 +386,7 @@ public class AuthTests extends TestBase {
                 Options options = new Options.Builder()
                     .server(ts.getURI())
                     .maxReconnects(0)
-                    .errorListener(NO_OP_EL)
+                    .errorListener(NOOP_EL)
                     .token("notthetoken".toCharArray())
                     .build();
                 Nats.connect(options); // expected to fail
@@ -688,7 +689,7 @@ public class AuthTests extends TestBase {
                 .maxReconnects(-1)
                 .noRandomize()
                 .authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds"))
-                .errorListener(NO_OP_EL)
+                .errorListener(NOOP_EL)
                 .build();
 
             Connection nc = standardConnectionWait(options);

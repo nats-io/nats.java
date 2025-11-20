@@ -13,7 +13,10 @@
 
 package io.nats.client.utils;
 
-import io.nats.client.*;
+import io.nats.client.Connection;
+import io.nats.client.Nats;
+import io.nats.client.NatsTestServer;
+import io.nats.client.Options;
 
 import java.io.IOException;
 import java.util.concurrent.locks.ReentrantLock;
@@ -23,28 +26,26 @@ import static io.nats.client.utils.TestBase.initRunServerInfo;
 
 public abstract class LongRunningServer {
 
-    private static final ErrorListener NO_OP_EL = new ErrorListener() {};
-
     private static final ReentrantLock lock = new ReentrantLock();
     private static final int MAX_TRIES = 3;
 
     private static NatsTestServer natsTestServer;
-    private static String uri;
+    private static String server;
     private static Connection[] ncs;
 
     public static Options.Builder optionsBuilder() throws IOException {
-        return new Options.Builder().server(uri()).errorListener(NO_OP_EL);
+        return TestOptions.optionsBuilder(server());
     }
 
     public static Options options() throws IOException {
         return optionsBuilder().build();
     }
 
-    public static String uri() throws IOException {
-        if (uri == null) {
+    public static String server() throws IOException {
+        if (server == null) {
             ensureInitialized();
         }
-        return uri;
+        return server;
     }
 
     // do not use LrConns in try-resources
@@ -96,14 +97,12 @@ public abstract class LongRunningServer {
                         .jetstream(true)
                         .customName("LongRunningServer")
                 );
-                uri = natsTestServer.getURI();
-//                System.out.println("LongRunningServer create " + uri);
+                server = natsTestServer.getURI();
 
                 final Thread shutdownHookThread = new Thread("LongRunningServer-Shutdown-Hook") {
                     @Override
                     public void run() {
                         try {
-//                            System.out.println("LongRunningServer shutting down");
                             natsTestServer.shutdown(false);
                         }
                         catch (InterruptedException e) {
@@ -114,7 +113,6 @@ public abstract class LongRunningServer {
 
                 Runtime.getRuntime().addShutdownHook(shutdownHookThread);
             }
-//            System.out.println("LongRunningServer return " + natsTestServer.getNatsLocalhostUri());
         }
         finally {
             lock.unlock();

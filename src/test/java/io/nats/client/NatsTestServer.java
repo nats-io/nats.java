@@ -29,7 +29,6 @@ public class NatsTestServer extends NatsServerRunner {
         NatsRunnerUtils.setDefaultConnectValidateTries(10);
         NatsRunnerUtils.setDefaultConnectValidateTimeout(200);
         NatsRunnerUtils.setDefaultOutputSupplier(ConsoleOutput::new);
-        NatsRunnerUtils.setDefaultLocalhostHost(NatsRunnerUtils.LocalHost.ip);
     }
 
     public static void quiet() {

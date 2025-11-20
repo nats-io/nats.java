@@ -69,6 +69,10 @@ public class ListenerForTesting implements ErrorListener, ConnectionListener {
         this(false, false);
     }
 
+    public ListenerForTesting(boolean verbose) {
+        this(false, verbose);
+    }
+
     public ListenerForTesting(boolean printExceptions, boolean verbose) {
         this.printExceptions = printExceptions;
         this.verbose = verbose;

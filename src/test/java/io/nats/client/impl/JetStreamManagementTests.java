@@ -1425,7 +1425,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     @Test
     public void testNoRespondersWhenConsumerDeleted() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInLrServer(new Options.Builder().errorListener(listener), TestBase::atLeast2_10_26, (nc, jsm, js) -> {
+        runInLrServer(listener, TestBase::atLeast2_10_26, (nc, jsm, js) -> {
             String stream = random();
             String subject = random();
 
@@ -1486,7 +1486,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     private static void validate1026(Message m, ListenerForTesting listener, boolean empty) {
         assertNull(m);
-        sleep(100); // give time for the message to get there
+        sleep(250); // give time for the message to get there
         assertEquals(empty, listener.getPullStatusWarnings().isEmpty());
     }
 
