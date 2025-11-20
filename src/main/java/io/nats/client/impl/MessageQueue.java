@@ -15,15 +15,16 @@ package io.nats.client.impl;
 
 import io.nats.client.NatsSystemClock;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Predicate;
 
 import static io.nats.client.support.NatsConstants.*;
 
@@ -33,8 +34,9 @@ class MessageQueue {
     protected static final int DRAINING = 2;
     protected static final long MIN_OFFER_TIMEOUT_NANOS = 100 * NANOS_PER_MILLI;
 
-    protected final AtomicLong length;
     protected final AtomicLong sizeInBytes;
+    protected final AtomicLong length;
+    protected final AtomicBoolean filtered;
     protected final AtomicInteger running;
     protected final boolean singleReaderMode;
     protected final LinkedBlockingQueue<NatsMessage> queue;
@@ -45,12 +47,18 @@ class MessageQueue {
     protected final long offerTimeoutNanos;
     protected final Duration requestCleanupInterval;
 
+    static class MarkerMessage extends ProtocolMessage {
+        MarkerMessage(String mark) {
+            super(mark.getBytes(StandardCharsets.ISO_8859_1), false);
+        }
+    }
+
     // SPECIAL MARKER MESSAGES
     // A simple == is used to resolve if any message is exactly the static pill object in question
     // ----------
     // 1. Poison pill is a graphic, but common term for an item that breaks loops or stop something.
     // In this class the poison pill is used to break out of timed waits on the blocking queue.
-    protected static final NatsMessage POISON_PILL = new NatsMessage("_poison", null, EMPTY_BODY);
+    protected static final MarkerMessage POISON_PILL = new MarkerMessage("_poison");
 
     MessageQueue(boolean singleReaderMode, Duration requestCleanupInterval) {
         this(singleReaderMode, -1, false, requestCleanupInterval, null);
@@ -81,6 +89,7 @@ class MessageQueue {
         this.running = new AtomicInteger(RUNNING);
         sizeInBytes = new AtomicLong(0);
         length = new AtomicLong(0);
+        filtered = new AtomicBoolean(true);
         this.offerLockNanos = requestCleanupInterval.toNanos();
         this.offerTimeoutNanos = Math.max(MIN_OFFER_TIMEOUT_NANOS, requestCleanupInterval.toMillis() * NANOS_PER_MILLI * 95 / 100) ;
 
@@ -97,9 +106,11 @@ class MessageQueue {
     void drainTo(MessageQueue target) {
         editLock.lock();
         try {
-            queue.drainTo(target.queue);
-            target.length.set(length.getAndSet(0));
+            this.queue.drainTo(target.queue);
             target.sizeInBytes.set(sizeInBytes.getAndSet(0));
+            target.length.set(length.getAndSet(0));
+            target.filtered.set(false);
+            this.filtered.set(true);
         } finally {
             editLock.unlock();
         }
@@ -178,6 +189,7 @@ class MessageQueue {
                     }
                     sizeInBytes.getAndAdd(msg.getSizeInBytes());
                     length.incrementAndGet();
+                    filtered.set(false);
                     return true;
 
                 }
@@ -206,11 +218,11 @@ class MessageQueue {
     }
 
     /**
-     * Marking the queue, like POISON, is a message we don't want to count.
+     * Marking the queue, like poisonTheQueue, is a message we don't want to count.
      * Intended to only be used with an unbounded queue. Use at your own risk.
      * @param msg the mark
      */
-    void markTheQueue(NatsMessage msg) {
+    void markTheQueue(MarkerMessage msg) {
         queue.offer(msg);
     }
 
@@ -250,7 +262,7 @@ class MessageQueue {
         }
 
         sizeInBytes.getAndAdd(-msg.getSizeInBytes());
-        length.decrementAndGet();
+        filtered.set(length.decrementAndGet() == 0);
 
         return msg;
     }
@@ -286,7 +298,7 @@ class MessageQueue {
 
         if (maxMessagesToAccumulate <= 1 || size >= maxBytesToAccumulate) {
             sizeInBytes.addAndGet(-size);
-            length.decrementAndGet();
+            filtered.set(length.decrementAndGet() == 0);
             return msg;
         }
 
@@ -320,7 +332,7 @@ class MessageQueue {
         }
 
         sizeInBytes.addAndGet(-size);
-        length.addAndGet(-accumulated);
+        filtered.set(length.addAndGet(-accumulated) == 0);
 
         return msg;
     }
@@ -338,24 +350,32 @@ class MessageQueue {
         return sizeInBytes.get();
     }
 
-    void filter(Predicate<NatsMessage> p) {
+    void filterOnStop() {
         editLock.lock();
         try {
             if (this.isRunning()) {
                 throw new IllegalStateException("Filter is only supported when the queue is paused");
             }
-            ArrayList<NatsMessage> newQueue = new ArrayList<>();
-            NatsMessage cursor = this.queue.poll();
-            while (cursor != null) {
-                if (!p.test(cursor)) {
-                    newQueue.add(cursor);
-                } else {
-                    sizeInBytes.addAndGet(-cursor.getSizeInBytes());
-                    length.decrementAndGet();
+            if (!filtered.get()) {
+                long removed = 0;
+                long removedBytes = 0;
+                ArrayList<NatsMessage> newQueue = new ArrayList<>();
+                NatsMessage cursor = this.queue.poll();
+                while (cursor != null) {
+                    if (cursor.isProtocolFilterOnStop()) {
+                        removedBytes += cursor.getSizeInBytes();
+                        removed++;
+                    }
+                    else {
+                        newQueue.add(cursor);
+                    }
+                    cursor = this.queue.poll();
                 }
-                cursor = this.queue.poll();
+                this.queue.addAll(newQueue);
+                sizeInBytes.addAndGet(-removedBytes);
+                length.addAndGet(-removed);
+                filtered.set(true);
             }
-            this.queue.addAll(newQueue);
         } finally {
             editLock.unlock();
         }
@@ -367,6 +387,7 @@ class MessageQueue {
             this.queue.clear();
             length.set(0);
             sizeInBytes.set(0);
+            filtered.set(true);
         } finally {
             editLock.unlock();
         }
