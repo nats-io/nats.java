@@ -16,7 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.DateTimeUtils;
-import io.nats.client.utils.TestBase;
+import io.nats.client.utils.VersionUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 
@@ -34,6 +34,7 @@ import static io.nats.client.support.DateTimeUtils.DEFAULT_TIME;
 import static io.nats.client.support.DateTimeUtils.ZONE_ID_GMT;
 import static io.nats.client.support.NatsJetStreamConstants.*;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamManagementTests extends JetStreamTestBase {
@@ -109,7 +110,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testStreamMetadata() throws Exception {
-        runInLrServer(TestBase::atLeast2_9_0, (nc, jsm, js) -> {
+        runInLrServer(VersionUtils::atLeast2_9_0, (nc, jsm, js) -> {
             Map<String, String> metaData = new HashMap<>(); metaData.put(META_KEY, META_VALUE);
             StreamConfiguration sc = StreamConfiguration.builder()
                 .name(random())
@@ -248,7 +249,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testAddStreamInvalids() throws Exception {
-        runInLrServer(TestBase::atLeast2_10, (nc, jsm, js) -> {
+        runInLrServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
             assertThrows(IllegalArgumentException.class, () -> jsm.addStream(null));
 
             String stream = random();
@@ -717,7 +718,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testAddPausedConsumer() throws Exception {
-        runInLrServer(TestBase::atLeast2_11, (nc, jstc) -> {
+        runInLrServer(VersionUtils::atLeast2_11, (nc, jstc) -> {
             List<ConsumerInfo> list = jstc.jsm.getConsumers(jstc.stream);
             assertEquals(0, list.size());
 
@@ -738,7 +739,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testPauseResumeConsumer() throws Exception {
-        runInLrServer(TestBase::atLeast2_11, (nc, jstc) -> {
+        runInLrServer(VersionUtils::atLeast2_11, (nc, jstc) -> {
             List<ConsumerInfo> list = jstc.jsm.getConsumers(jstc.stream);
             assertEquals(0, list.size());
 
@@ -1256,7 +1257,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testDirectMessageRepublishedSubject() throws Exception {
-        runInLrServer(TestBase::atLeast2_9_0, (nc, jsm, js) -> {
+        runInLrServer(VersionUtils::atLeast2_9_0, (nc, jsm, js) -> {
             String streamBucketName = "sb-" + random();
             String subject = random();
             String streamSubject = subject + ".>";
@@ -1300,7 +1301,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testCreateConsumerUpdateConsumer() throws Exception {
-        runInLrServer(TestBase::atLeast2_9_0, (nc, jsm, js) -> {
+        runInLrServer(VersionUtils::atLeast2_9_0, (nc, jsm, js) -> {
             String streamPrefix = random();
             JetStreamManagement jsmNew = nc.jetStreamManagement();
             JetStreamManagement jsmPre290 = nc.jetStreamManagement(JetStreamOptions.builder().optOut290ConsumerCreate(true).build());
@@ -1425,7 +1426,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     @Test
     public void testNoRespondersWhenConsumerDeleted() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInLrServer(listener, TestBase::atLeast2_10_26, (nc, jsm, js) -> {
+        runInLrServer(listener, VersionUtils::atLeast2_10_26, (nc, jsm, js) -> {
             String stream = random();
             String subject = random();
 
@@ -1554,7 +1555,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testStreamPersistMode() throws Exception {
-        runInLrServer(TestBase::atLeast2_12, (nc, jsm, js) -> {
+        runInLrServer(VersionUtils::atLeast2_12, (nc, jsm, js) -> {
             StreamConfiguration sc = StreamConfiguration.builder()
                 .name(random())
                 .storageType(StorageType.File)

@@ -15,13 +15,13 @@ package io.nats.client.impl;
 
 import io.nats.client.Nats;
 import io.nats.client.NatsTestServer;
-import io.nats.client.Options;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 import static io.nats.client.support.NatsConstants.*;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -55,7 +55,7 @@ public class ParseTests {
     @Test
     public void testLongProtocolOpThrows() {
         assertThrows(IOException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
+            try (NatsTestServer ts = new NatsTestServer();
                     NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
                 NatsConnectionReader reader = nc.getReader();
                 byte[] bytes = ("thisistoolong\r\n").getBytes(StandardCharsets.US_ASCII);
@@ -68,7 +68,7 @@ public class ParseTests {
     @Test
     public void testMissingLineFeed() {
         assertThrows(IOException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
+            try (NatsTestServer ts = new NatsTestServer();
                     NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
                 NatsConnectionReader reader = nc.getReader();
                 byte[] bytes = ("PING\rPONG").getBytes(StandardCharsets.US_ASCII);
@@ -81,7 +81,7 @@ public class ParseTests {
     @Test
     public void testMissingSubject() {
         assertThrows(IOException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
+            try (NatsTestServer ts = new NatsTestServer();
                     NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
                 NatsConnectionReader reader = nc.getReader();
                 byte[] bytes = ("MSG  1 1\r\n").getBytes(StandardCharsets.US_ASCII);
@@ -96,7 +96,7 @@ public class ParseTests {
     @Test
     public void testMissingSID() {
         assertThrows(IOException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
+            try (NatsTestServer ts = new NatsTestServer();
                     NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
                 NatsConnectionReader reader = nc.getReader();
                 byte[] bytes = ("MSG subject  1\r\n").getBytes(StandardCharsets.US_ASCII);
@@ -111,7 +111,7 @@ public class ParseTests {
     @Test
     public void testMissingLength() {
         assertThrows(IOException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
+            try (NatsTestServer ts = new NatsTestServer();
                     NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
                 NatsConnectionReader reader = nc.getReader();
                 byte[] bytes = ("MSG subject 2 \r\n").getBytes(StandardCharsets.US_ASCII);
@@ -126,7 +126,7 @@ public class ParseTests {
     @Test
     public void testBadLength() {
         assertThrows(IOException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
+            try (NatsTestServer ts = new NatsTestServer();
                     NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
                 NatsConnectionReader reader = nc.getReader();
                 byte[] bytes = ("MSG subject 2 x\r\n").getBytes(StandardCharsets.US_ASCII);
@@ -141,11 +141,10 @@ public class ParseTests {
     @Test
     public void testMessageLineTooLong() {
         assertThrows(IOException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                    NatsConnection nc = (NatsConnection) Nats.connect(new Options.Builder().
-                                                                        server(ts.getURI()).
-                                                                        maxControlLine(16).
-                                                                        build())) {
+            try (NatsTestServer ts = new NatsTestServer();
+                 NatsConnection nc = (NatsConnection) Nats.connect(
+                     optionsBuilder(ts.getURI()).maxControlLine(16).build())
+            ) {
                 NatsConnectionReader reader = nc.getReader();
                 byte[] bytes = ("MSG reallylongsubjectobreakthelength 1 1\r\n").getBytes(StandardCharsets.US_ASCII);
                 reader.fakeReadForTest(bytes);
@@ -159,11 +158,10 @@ public class ParseTests {
     @Test
     public void testProtocolLineTooLong() {
         assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                    NatsConnection nc = (NatsConnection) Nats.connect(new Options.Builder().
-                                                                        server(ts.getURI()).
-                                                                        maxControlLine(1024).
-                                                                        build())) {
+            try (NatsTestServer ts = new NatsTestServer();
+                 NatsConnection nc = (NatsConnection) Nats.connect(
+                     optionsBuilder(ts.getURI()).maxControlLine(1024).build())
+            ) {
                 NatsConnectionReader reader = nc.getReader();
                 StringBuilder longString = new StringBuilder();
 
@@ -203,7 +201,7 @@ public class ParseTests {
             OP_OK, OP_PONG, OP_PONG, OP_MSG
         };
 
-        try (NatsTestServer ts = new NatsTestServer(false);
+        try (NatsTestServer ts = new NatsTestServer();
                 NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
             NatsConnectionReader reader = nc.getReader();
 

@@ -15,7 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
-import io.nats.client.utils.TestBase;
+import io.nats.client.utils.VersionUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static io.nats.client.support.NatsJetStreamClientError.JsSubOrderedNotAllowOnQueues;
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamConsumerTests extends JetStreamTestBase {
@@ -335,7 +336,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
 
     @Test
     public void testMultipleSubjectFilters() throws Exception {
-        runInLrServer(TestBase::atLeast2_10, (nc, jsm, js) -> {
+        runInLrServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
             JetStreamTestingContext jstc = new JetStreamTestingContext(nc, 2);
             jsPublish(jstc.js, jstc.subject(0), 10);
             jsPublish(jstc.js, jstc.subject(1), 5);

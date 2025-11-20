@@ -23,13 +23,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.*;
 
 
 public class MessageContentTests {
     @Test
     public void testSimpleString() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
+        try (NatsTestServer ts = new NatsTestServer();
                 Connection nc = Nats.connect(ts.getURI())) {
             assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
@@ -51,7 +52,7 @@ public class MessageContentTests {
 
     @Test
     public void testUTF8String() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
+        try (NatsTestServer ts = new NatsTestServer();
                 Connection nc = Nats.connect(ts.getURI())) {
             assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
@@ -73,7 +74,7 @@ public class MessageContentTests {
 
     @Test
     public void testDifferentSizes() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
+        try (NatsTestServer ts = new NatsTestServer();
                 Connection nc = Nats.connect(ts.getURI())) {
             assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
@@ -100,7 +101,7 @@ public class MessageContentTests {
 
     @Test
     public void testZeros() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
+        try (NatsTestServer ts = new NatsTestServer();
                 Connection nc = Nats.connect(ts.getURI())) {
             assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
@@ -202,7 +203,7 @@ public class MessageContentTests {
         ListenerForTesting listener = new ListenerForTesting();
 
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(badServer, null)) {
-            Options options = new Options.Builder().
+            Options options = optionsBuilder().
                                 server(ts.getURI()).
                                 maxReconnects(0).
                                 errorListener(listener).

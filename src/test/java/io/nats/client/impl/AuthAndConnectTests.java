@@ -17,21 +17,21 @@ import io.nats.client.Connection;
 import io.nats.client.ErrorListener;
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
-import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static io.nats.client.utils.TestBase.*;
+import static io.nats.client.utils.ConnectionUtils.*;
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class AuthAndConnectTests {
     @Test
     public void testIsAuthError() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = TestBase.standardConnectionWait(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Connection nc = standardConnectionWait(ts.getURI());
             NatsConnection nats = (NatsConnection)nc;
 
             assertTrue(nats.isAuthenticationError("user authentication expired"));
@@ -47,8 +47,8 @@ public class AuthAndConnectTests {
 
     @Test()
     public void testConnectWhenClosed() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            NatsConnection nc = (NatsConnection) TestBase.standardConnectionWait(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer()) {
+            NatsConnection nc = (NatsConnection) standardConnectionWait(ts.getURI());
             standardCloseConnection(nc);
             nc.connect(false); // should do nothing
             assertClosed(nc);
@@ -71,7 +71,7 @@ public class AuthAndConnectTests {
             }
         };
 
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer()) {
             Options options = Options.builder()
                     .server(ts.getURI())
                     .maxReconnects(-1)
@@ -79,7 +79,7 @@ public class AuthAndConnectTests {
                     .errorListener(noopErrorListener)
                     .build();
 
-            NatsConnection nc = (NatsConnection) TestBase.standardConnectionWait(options);
+            NatsConnection nc = (NatsConnection) standardConnectionWait(options);
 
             // After we've connected, shut down, so we can attempt reconnecting.
             ts.shutdown(true);

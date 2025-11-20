@@ -22,8 +22,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class InfoHandlerTests {
     @Test
@@ -33,16 +33,14 @@ public class InfoHandlerTests {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo)) {
             Connection nc = Nats.connect(ts.getURI());
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 assertEquals("myid", nc.getServerInfo().getServerId(), "got custom info");
             } finally {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
-
-
 
     @Test
     public void testUnsolicitedInfo() throws IOException, InterruptedException, ExecutionException {
@@ -69,9 +67,8 @@ public class InfoHandlerTests {
             w.write("PING\r\n");
             w.flush();
 
-            String pong = "";
-
             System.out.println("*** Mock Server @" + ts.getPort() + " waiting for PONG ...");
+            String pong;
             try {
                 pong = r.readLine();
             } catch (Exception e) {
@@ -91,15 +88,15 @@ public class InfoHandlerTests {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(infoCustomizer, customInfo)) {
             Connection nc = Nats.connect(ts.getURI());
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 assertEquals("myid", nc.getServerInfo().getServerId(), "got custom info");
                 sendInfo.complete(Boolean.TRUE);
 
-                assertTrue(gotPong.get().booleanValue(), "Got pong."); // Server round tripped so we should have new info
+                assertTrue(gotPong.get(), "Got pong."); // Server round tripped so we should have new info
                 assertEquals("replacement", nc.getServerInfo().getServerId(), "got replacement info");
             } finally {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -114,7 +111,6 @@ public class InfoHandlerTests {
         CompletableFuture<ConnectionListener.Events> connectLDM = new CompletableFuture<>();
 
         NatsServerProtocolMock.Customizer infoCustomizer = (ts, r, w) -> {
-
             // Wait for client to be ready.
             try {
                 sendInfo.get();
@@ -132,9 +128,8 @@ public class InfoHandlerTests {
             w.write("PING\r\n");
             w.flush();
 
-            String pong = "";
-
             System.out.println("*** Mock Server @" + ts.getPort() + " waiting for PONG ...");
+            String pong;
             try {
                 pong = r.readLine();
             } catch (Exception e) {
@@ -153,16 +148,15 @@ public class InfoHandlerTests {
 
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(infoCustomizer, customInfo)) {
 
-            Options options = new Options.Builder().server(ts.getURI()).connectionListener(new ConnectionListener() {
-                @Override
-                public void connectionEvent(Connection conn, Events type) {
-                    if (type.equals(Events.LAME_DUCK)) connectLDM.complete(type);
-                }
-            }).build();
+            ConnectionListener cl = (conn, type) -> {
+                if (type.equals(ConnectionListener.Events.LAME_DUCK)) connectLDM.complete(type);
+            };
+
+            Options options = optionsBuilder().server(ts.getURI()).connectionListener(cl).build();
 
             Connection nc = Nats.connect(options);
             try {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 assertEquals("myid", nc.getServerInfo().getServerId(), "got custom info");
                 sendInfo.complete(Boolean.TRUE);
 
@@ -170,12 +164,12 @@ public class InfoHandlerTests {
                 assertEquals("replacement", nc.getServerInfo().getServerId(), "got replacement info");
             } finally {
                 nc.close();
-                assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
+                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
 
         ConnectionListener.Events event = connectLDM.get(5, TimeUnit.SECONDS);
-        assertEquals(event, ConnectionListener.Events.LAME_DUCK);
+        assertEquals(ConnectionListener.Events.LAME_DUCK, event);
         System.out.println(event);
     }
 }

@@ -22,13 +22,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class SlowConsumerTests {
 
     @Test
     public void testDefaultPendingLimits() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
+        try (NatsTestServer ts = new NatsTestServer();
                 NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
             
             Subscription sub = nc.subscribe("subject");
@@ -45,7 +46,7 @@ public class SlowConsumerTests {
     @Test
     public void testSlowSubscriberByMessages() throws Exception {
 
-        try (NatsTestServer ts = new NatsTestServer(false);
+        try (NatsTestServer ts = new NatsTestServer();
                 NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
             
             Subscription sub = nc.subscribe("subject");
@@ -78,7 +79,7 @@ public class SlowConsumerTests {
     @Test
     public void testSlowSubscriberByBytes() throws Exception {
 
-        try (NatsTestServer ts = new NatsTestServer(false);
+        try (NatsTestServer ts = new NatsTestServer();
                 NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
             
             Subscription sub = nc.subscribe("subject");
@@ -109,7 +110,7 @@ public class SlowConsumerTests {
     @Test
     public void testSlowSDispatcherByMessages() throws Exception {
 
-        try (NatsTestServer ts = new NatsTestServer(false);
+        try (NatsTestServer ts = new NatsTestServer();
                 NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
             
             final CompletableFuture<Void> ok = new CompletableFuture<>();
@@ -150,7 +151,7 @@ public class SlowConsumerTests {
     @Test
     public void testSlowSDispatcherByBytes() throws Exception {
 
-        try (NatsTestServer ts = new NatsTestServer(false);
+        try (NatsTestServer ts = new NatsTestServer();
                 NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
             
             final CompletableFuture<Void> ok = new CompletableFuture<>();
@@ -191,9 +192,8 @@ public class SlowConsumerTests {
     @Test
     public void testSlowSubscriberNotification() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        try (NatsTestServer ts = new NatsTestServer(false);
-                NatsConnection nc = (NatsConnection) Nats.connect(new Options.Builder().
-                                                                    server(ts.getURI()).errorListener(listener).build())) {
+        try (NatsTestServer ts = new NatsTestServer();
+             NatsConnection nc = (NatsConnection) Nats.connect(optionsBuilder(ts).errorListener(listener).build())) {
             
             Subscription sub = nc.subscribe("subject");
             sub.setPendingLimits(1, -1);

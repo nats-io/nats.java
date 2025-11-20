@@ -25,13 +25,16 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.support.NatsRequestCompletableFuture.CancelAction;
+import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class RequestTests extends TestBase {
     @Test
     public void testSimpleRequest() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+        try (NatsTestServer ts = new NatsTestServer();
+                Connection nc = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
             Dispatcher d = nc.createDispatcher((msg) -> {
@@ -117,8 +120,8 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testSimpleResponseMessageHasConnection() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+        try (NatsTestServer ts = new NatsTestServer();
+                Connection nc = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
             Dispatcher d = nc.createDispatcher((msg) -> {
@@ -140,8 +143,8 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testSafeRequest() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+        try (NatsTestServer ts = new NatsTestServer();
+                Connection nc = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
             Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), null));
@@ -158,8 +161,8 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testMultipleRequest() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+        try (NatsTestServer ts = new NatsTestServer();
+                Connection nc = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
             Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), new byte[7]));
@@ -179,8 +182,7 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testMultipleReplies() throws Exception {
-        Options.Builder builder = new Options.Builder().turnOnAdvancedStats();
-
+        Options.Builder builder = optionsBuilder().turnOnAdvancedStats();
         runInServer(builder, nc -> {
             AtomicInteger requests = new AtomicInteger();
             MessageHandler handler = (msg) -> { requests.incrementAndGet(); nc.publish(msg.getReplyTo(), null); };
@@ -215,7 +217,7 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testManualRequestReplyAndPublishSignatures() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
+        try (NatsTestServer ts = new NatsTestServer();
              Connection nc = Nats.connect(ts.getURI())) {
             assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
 
@@ -251,8 +253,8 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testRequestWithCustomInboxPrefix() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(new Options.Builder().inboxPrefix("myinbox").server(ts.getURI()).maxReconnects(0).build())) {
+        try (NatsTestServer ts = new NatsTestServer();
+                Connection nc = Nats.connect(optionsBuilder(ts).inboxPrefix("myinbox").maxReconnects(0).build())) {
             assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
             Dispatcher d = nc.createDispatcher((msg) -> {
@@ -273,8 +275,8 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testRequireCleanupOnTimeoutNoNoResponders() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Options options = new Options.Builder().server(ts.getURI())
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = optionsBuilder(ts)
                     .requestCleanupInterval(Duration.ofHours(1))
                     .noNoResponders().build();
 
@@ -295,11 +297,11 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testRequireCleanupOnTimeoutCleanCompletable() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer()) {
 
             long cleanupInterval = 100;
 
-            Options options = new Options.Builder().server(ts.getURI())
+            Options options = optionsBuilder(ts)
                     .requestCleanupInterval(Duration.ofMillis(cleanupInterval))
                     .noNoResponders().build();
 
@@ -324,9 +326,9 @@ public class RequestTests extends TestBase {
     @Test
     public void testSimpleRequestWithTimeout() throws Exception {
 
-        try (NatsTestServer ts = new NatsTestServer(false))
+        try (NatsTestServer ts = new NatsTestServer())
         {
-            Options options = new Options.Builder().server(ts.getURI()).requestCleanupInterval(Duration.ofHours(1)).build();
+            Options options = optionsBuilder(ts).requestCleanupInterval(Duration.ofHours(1)).build();
             Connection nc = Nats.connect(options);
 
             try {
@@ -375,10 +377,10 @@ public class RequestTests extends TestBase {
     @Test
     public void testSimpleRequestWithTimeoutSlowProducer() throws Exception {
 
-        try (NatsTestServer ts = new NatsTestServer(false))
+        try (NatsTestServer ts = new NatsTestServer())
         {
             long cleanupInterval = 10;
-            Options options = new Options.Builder().server(ts.getURI()).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
+            Options options = optionsBuilder(ts).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
             NatsConnection nc = (NatsConnection) Nats.connect(options);
 
             try {
@@ -409,8 +411,8 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testRequireCleanupOnCancelFromNoResponders() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Options options = new Options.Builder().server(ts.getURI())
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = optionsBuilder(ts)
                     .requestCleanupInterval(Duration.ofHours(1)).build();
 
             Connection nc = Nats.connect(options);
@@ -429,8 +431,8 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testRequireCleanupWithTimeoutNoResponders() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Options options = new Options.Builder().server(ts.getURI())
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = optionsBuilder(ts)
                     .requestCleanupInterval(Duration.ofHours(1)).build();
 
             Connection nc = Nats.connect(options);
@@ -448,8 +450,8 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testRequireCleanupWithTimeoutNoNoResponders() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Options options = new Options.Builder().server(ts.getURI())
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = optionsBuilder(ts)
                     .requestCleanupInterval(Duration.ofHours(1))
                     .noNoResponders().build();
 
@@ -470,8 +472,8 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testRequireCleanupOnCancel() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Options options = new Options.Builder().server(ts.getURI()).requestCleanupInterval(Duration.ofHours(1)).build();
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = optionsBuilder(ts).requestCleanupInterval(Duration.ofHours(1)).build();
             Connection nc = Nats.connect(options);
             try {
                 assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
@@ -491,9 +493,9 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testCleanupTimerWorks() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer()) {
             long cleanupInterval = 50;
-            Options options = new Options.Builder().server(ts.getURI()).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
+            Options options = optionsBuilder(ts).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
             Connection nc = Nats.connect(options);
             try {
                 assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
@@ -530,10 +532,10 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testRequestsVsCleanup() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer()) {
             long cleanupInterval = 50;
             int msgCount = 100;
-            Options options = new Options.Builder().server(ts.getURI()).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
+            Options options = optionsBuilder(ts).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
             Connection nc = Nats.connect(options);
             try {
                 assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
@@ -565,7 +567,7 @@ public class RequestTests extends TestBase {
 
         @Test
         public void testDelayInPickingUpFuture() throws Exception {
-            try (NatsTestServer ts = new NatsTestServer(false)) {
+            try (NatsTestServer ts = new NatsTestServer()) {
                 int msgCount = 100;
                 ArrayList<Future<Message>> messages = new ArrayList<>();
                 Connection nc = Nats.connect(ts.getURI());
@@ -614,19 +616,11 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testBuffersResize() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer()) {
             int initialSize = 128;
             int messageSize = 1024;
-            Options options = new Options.Builder().
-                                    server(ts.getURI()).
-                                    bufferSize(initialSize).
-                                    connectionTimeout(Duration.ofSeconds(10)).
-                                    build();
-
-            Connection nc = Nats.connect(options);
-            try {
-                assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-                
+            Options options = optionsBuilder(ts).bufferSize(initialSize).connectionTimeout(Duration.ofSeconds(10)).build();
+            try (Connection nc = standardConnectionWait(options)) {
                 Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), msg.getData()));
                 d.subscribe("subject");
 
@@ -642,9 +636,6 @@ public class RequestTests extends TestBase {
                 assertEquals(0, nc.getStatistics().getOutstandingRequests());
                 assertNotNull(msg);
                 assertEquals(messageSize, msg.getData().length);
-            } finally {
-                nc.close();
-                assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -652,7 +643,7 @@ public class RequestTests extends TestBase {
     @Test
     public void throwsIfClosed() {
         assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
+            try (NatsTestServer ts = new NatsTestServer();
                         Connection nc = Nats.connect(ts.getURI())) {
                 nc.close();
                 nc.request("subject", null);
@@ -664,7 +655,7 @@ public class RequestTests extends TestBase {
     @Test
     public void testThrowsWithoutSubject() {
         assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
+            try (NatsTestServer ts = new NatsTestServer();
                  Connection nc = Nats.connect(ts.getURI())) {
                 //noinspection DataFlowIssue
                 nc.request((String)null, null);
@@ -676,7 +667,7 @@ public class RequestTests extends TestBase {
     @Test
     public void testThrowsEmptySubject() {
         assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
+            try (NatsTestServer ts = new NatsTestServer();
                     Connection nc = Nats.connect(ts.getURI())) {
                 nc.request("", null);
                 fail();
@@ -748,7 +739,7 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testCancelledFutureMustNotErrorOnCleanResponses() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer()) {
             Options options = Options.builder()
                     .server(ts.getURI())
                     .noNoResponders()

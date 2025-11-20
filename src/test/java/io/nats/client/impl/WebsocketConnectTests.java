@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 
 import static io.nats.client.ConnectionListener.Events.CONNECTED;
 import static io.nats.client.NatsTestServer.*;
+import static io.nats.client.utils.ConnectionUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class WebsocketConnectTests extends TestBase {

@@ -15,7 +15,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.NatsKeyValueUtil;
-import io.nats.client.utils.TestBase;
+import io.nats.client.utils.VersionUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -34,6 +34,9 @@ import static io.nats.client.api.KeyValuePurgeOptions.DEFAULT_THRESHOLD_MILLIS;
 import static io.nats.client.api.KeyValueWatchOption.*;
 import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsJetStreamConstants.SERVER_DEFAULT_DUPLICATE_WINDOW_MS;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
+import static io.nats.client.utils.ThreadUtils.sleep;
+import static io.nats.client.utils.VersionUtils.atLeast2_10;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class KeyValueTests extends JetStreamTestBase {
@@ -51,7 +54,7 @@ public class KeyValueTests extends JetStreamTestBase {
         String stringValue1 = "String Value 1";
         String stringValue2 = "String Value 2";
 
-        runInLrServer(TestBase::atLeast2_10, (nc, jsm, js) -> {
+        runInLrServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
             // get the kv management context
             KeyValueManagement kvm = nc.keyValueManagement();
             nc.keyValueManagement(KeyValueOptions.builder(DEFAULT_JS_OPTIONS).build()); // coverage
@@ -565,7 +568,7 @@ public class KeyValueTests extends JetStreamTestBase {
             assertEquals(1, history.size());
             assertEquals(2, history.get(0).getValueAsLong());
 
-            boolean compression = atLeast2_10(ensureRunServerInfo());
+            boolean compression = atLeast2_10();
             String desc = random();
             KeyValueConfiguration kvc = KeyValueConfiguration.builder(kvs.getConfiguration())
                 .description(desc)
@@ -1166,8 +1169,8 @@ public class KeyValueTests extends JetStreamTestBase {
     @Test
     public void testWithAccount() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/kv_account.conf", false)) {
-            Options acctA = new Options.Builder().server(ts.getURI()).userInfo("a", "a").build();
-            Options acctI = new Options.Builder().server(ts.getURI()).userInfo("i", "i").inboxPrefix("ForI").build();
+            Options acctA = optionsBuilder(ts).userInfo("a", "a").build();
+            Options acctI = optionsBuilder(ts).userInfo("i", "i").inboxPrefix("ForI").build();
 
             try (Connection connUserA = Nats.connect(acctA); Connection connUserI = Nats.connect(acctI)) {
 
@@ -1708,7 +1711,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testKeyValueTransform() throws Exception {
-        runInLrServer(TestBase::atLeast2_10_3, (nc, jsm, js) -> {
+        runInLrServer(VersionUtils::atLeast2_10_3, (nc, jsm, js) -> {
             KeyValueManagement kvm = nc.keyValueManagement();
 
             String kvName1 = random();
@@ -1766,7 +1769,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testSubjectFiltersAgainst209OptOut() throws Exception {
-        runInLrServer(TestBase::atLeast2_10, (nc, jsm, js) -> {
+        runInLrServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
             KeyValueManagement kvm = nc.keyValueManagement();
 
             String bucket = random();
@@ -1786,7 +1789,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testTtlAndDuplicateWindowRoundTrip() throws Exception {
-        runInLrServer(TestBase::atLeast2_10, (nc, jsm, js) -> {
+        runInLrServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
             KeyValueManagement kvm = nc.keyValueManagement();
             String bucket = random();
             KeyValueConfiguration config = KeyValueConfiguration.builder()
@@ -1825,7 +1828,7 @@ public class KeyValueTests extends JetStreamTestBase {
     @Test
     public void testConsumeKeys() throws Exception {
         int count = 10000;
-        runInLrServer(TestBase::atLeast2_10, (nc, jsm, js) -> {
+        runInLrServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
             KeyValueManagement kvm = nc.keyValueManagement();
             String bucket = random();
             KeyValueConfiguration config = KeyValueConfiguration.builder()
@@ -1860,7 +1863,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testLimitMarkerCoverage() throws Exception {
-        runInLrServer(TestBase::atLeast2_12, (nc, jsm, js) -> {
+        runInLrServer(VersionUtils::atLeast2_12, (nc, jsm, js) -> {
             KeyValueManagement kvm = nc.keyValueManagement();
             String bucket = random();
             KeyValueConfiguration config = KeyValueConfiguration.builder()
@@ -1909,7 +1912,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testLimitMarkerBehavior() throws Exception {
-        runInLrServer(TestBase::atLeast2_12, (nc, jsm, js) -> {
+        runInLrServer(VersionUtils::atLeast2_12, (nc, jsm, js) -> {
             String bucket = random();
             String key1 = random();
             String key2 = random();
@@ -2026,7 +2029,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testJustLimitMarkerCreatePurge() throws Exception {
-        runInLrServer(TestBase::atLeast2_12, (nc, jsm, js) -> {
+        runInLrServer(VersionUtils::atLeast2_12, (nc, jsm, js) -> {
             String bucket = random();
             String rawStream = "KV_" + bucket;
             String key = random();
@@ -2135,7 +2138,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testJustTtlForDeletePurge() throws Exception {
-        runInLrServer(TestBase::atLeast2_12, (nc, jsm, js) -> {
+        runInLrServer(VersionUtils::atLeast2_12, (nc, jsm, js) -> {
             String bucket = random();
             String rawStream = "KV_" + bucket;
             String key = random();

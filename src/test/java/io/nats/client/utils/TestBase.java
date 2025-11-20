@@ -14,14 +14,14 @@
 package io.nats.client.utils;
 
 import io.nats.client.*;
-import io.nats.client.api.ServerInfo;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
 import io.nats.client.impl.*;
 import io.nats.client.support.NatsJetStreamClientError;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.function.Executable;
-import org.opentest4j.AssertionFailedError;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -30,17 +30,23 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.LockSupport;
 import java.util.function.Supplier;
 
 import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_ARGUMENT;
 import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_STATE;
-import static io.nats.client.utils.TestOptions.optionsBuilder;
+import static io.nats.client.utils.ConnectionUtils.*;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
+import static io.nats.client.utils.ThreadUtils.sleep;
+import static io.nats.client.utils.VersionUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestBase {
+    @BeforeAll
+    public static void setup(TestInfo info) {
+        TestDebugger.clazz(info.getDisplayName());
+    }
 
     public static final String STAR_SEGMENT        = "*.star.*.segment.*";
     public static final String GT_NOT_LAST_SEGMENT = "gt.>.notlast";
@@ -77,94 +83,9 @@ public class TestBase {
     public static final String META_KEY   = "meta-test-key";
     public static final String META_VALUE = "meta-test-value";
 
-    public static final long STANDARD_CONNECTION_WAIT_MS = 5000;
-    public static final long LONG_CONNECTION_WAIT_MS = 7500;
-    public static final long VERY_LONG_CONNECTION_WAIT_MS = 10000;
-    public static final long STANDARD_FLUSH_TIMEOUT_MS = 2000;
-    public static final long MEDIUM_FLUSH_TIMEOUT_MS = 5000;
-    public static final long LONG_TIMEOUT_MS = 15000;
-
     public static String[] BAD_SUBJECTS_OR_QUEUES = new String[] {
         HAS_SPACE, HAS_CR, HAS_LF, HAS_TAB, STARTS_SPACE, ENDS_SPACE, null, EMPTY
     };
-
-    // ----------------------------------------------------------------------------------------------------
-    // VersionCheck
-    // ----------------------------------------------------------------------------------------------------
-    public static ServerInfo RUN_SERVER_INFO;
-
-    public static ServerInfo ensureRunServerInfo() throws Exception {
-        if (RUN_SERVER_INFO == null) {
-            _runInServer(false, null, null, nc -> {});
-        }
-        return RUN_SERVER_INFO;
-    }
-
-    public static void initRunServerInfo(Connection nc) {
-        if (RUN_SERVER_INFO == null) {
-            RUN_SERVER_INFO = nc.getServerInfo();
-        }
-    }
-
-    public interface VersionCheck {
-        boolean runTest(ServerInfo si);
-    }
-
-    public static boolean atLeast2_9_0() {
-        return atLeast2_9_0(RUN_SERVER_INFO);
-    }
-
-    public static boolean atLeast2_9_0(Connection nc) {
-        return atLeast2_9_0(nc.getServerInfo());
-    }
-
-    public static boolean atLeast2_9_0(ServerInfo si) {
-        return si.isSameOrNewerThanVersion("2.9.0");
-    }
-
-    public static boolean atLeast2_10_26(ServerInfo si) {
-        return si.isSameOrNewerThanVersion("2.10.26");
-    }
-
-    public static boolean atLeast2_9_1(ServerInfo si) {
-        return si.isSameOrNewerThanVersion("2.9.1");
-    }
-
-    public static boolean atLeast2_10() {
-        return atLeast2_10(RUN_SERVER_INFO);
-    }
-
-    public static boolean atLeast2_10(ServerInfo si) {
-        return si.isNewerVersionThan("2.9.99");
-    }
-
-    public static boolean atLeast2_10_3(ServerInfo si) {
-        return si.isSameOrNewerThanVersion("2.10.3");
-    }
-
-    public static boolean atLeast2_11() {
-        return atLeast2_11(RUN_SERVER_INFO);
-    }
-
-    public static boolean atLeast2_11(ServerInfo si) {
-        return si.isNewerVersionThan("2.10.99");
-    }
-
-    public static boolean before2_11() {
-        return before2_11(RUN_SERVER_INFO);
-    }
-
-    public static boolean before2_11(ServerInfo si) {
-        return si.isOlderThanVersion("2.11");
-    }
-
-    public static boolean atLeast2_12() {
-        return atLeast2_12(RUN_SERVER_INFO);
-    }
-
-    public static boolean atLeast2_12(ServerInfo si) {
-        return si.isSameOrNewerThanVersion("2.11.99");
-    }
 
     // ----------------------------------------------------------------------------------------------------
     // runners / test interfaces
@@ -219,7 +140,7 @@ public class TestBase {
     // runners -> new server
     // ----------------------------------------------------------------------------------------------------
     private static void _runInServer(boolean jetstream, Options.Builder builder, VersionCheck vc, InServerTest inServerTest) throws Exception {
-        if (vc != null && RUN_SERVER_INFO != null && !vc.runTest(RUN_SERVER_INFO)) {
+        if (vc != null && VERSION_SERVER_INFO != null && !vc.runTest(VERSION_SERVER_INFO)) {
             return; // had vc, already had run server info and fails check
         }
 
@@ -229,8 +150,8 @@ public class TestBase {
             }
 
             try (Connection nc = standardConnectionWait(builder.server(ts.getURI()).build())) {
-                initRunServerInfo(nc);
-                if (vc == null || vc.runTest(RUN_SERVER_INFO)) {
+                initVersionServerInfo(nc);
+                if (vc == null || vc.runTest(VERSION_SERVER_INFO)) {
                     try {
                         inServerTest.test(nc);
                     }
@@ -276,7 +197,7 @@ public class TestBase {
     }
 
     public static void runInLrServerCloseableConnection(InServerTest test) throws Exception {
-        _runInLrServer(LongRunningServer.optionsBuilder(), null, test, null, null);
+        _runInLrServer(optionsBuilder(LongRunningServer.server()), null, test, null, null);
     }
 
     public static void runInLrServer(Options.Builder builder, InServerTest test) throws Exception {
@@ -331,7 +252,7 @@ public class TestBase {
                                        InServerTest test,
                                        InJetStreamTest jsTest,
                                        InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
-        if (vc != null && RUN_SERVER_INFO != null && !vc.runTest(RUN_SERVER_INFO)) {
+        if (vc != null && VERSION_SERVER_INFO != null && !vc.runTest(VERSION_SERVER_INFO)) {
             return; // had vc, already had run server info and fails check
         }
 
@@ -348,8 +269,8 @@ public class TestBase {
             nc = longConnectionWait(builder.server(LongRunningServer.server()).build());
         }
 
-        initRunServerInfo(nc);
-        if (vc == null || vc.runTest(RUN_SERVER_INFO)) {
+        initVersionServerInfo(nc);
+        if (vc == null || vc.runTest(VERSION_SERVER_INFO)) {
             try {
                 if (oneSubjectJstcTest != null) {
                     try (JetStreamTestingContext jstc = new JetStreamTestingContext(nc, 1)) {
@@ -590,32 +511,6 @@ public class TestBase {
     // ----------------------------------------------------------------------------------------------------
     // assertions
     // ----------------------------------------------------------------------------------------------------
-    public static void assertConnected(Connection conn) {
-        assertSame(Connection.Status.CONNECTED, conn.getStatus(),
-                () -> expectingMessage(conn, Connection.Status.CONNECTED));
-    }
-
-    public static void assertNotConnected(Connection conn) {
-        assertNotSame(Connection.Status.CONNECTED, conn.getStatus(),
-                () -> "Failed not expecting Connection Status " + Connection.Status.CONNECTED.name());
-    }
-
-    public static void assertClosed(Connection conn) {
-        assertSame(Connection.Status.CLOSED, conn.getStatus(),
-                () -> expectingMessage(conn, Connection.Status.CLOSED));
-    }
-
-    public static void assertCanConnect() throws IOException, InterruptedException {
-        standardCloseConnection( standardConnectionWait() );
-    }
-
-    public static void assertCanConnect(String serverURL) throws IOException, InterruptedException {
-        standardCloseConnection( standardConnectionWait(serverURL) );
-    }
-
-    public static void assertCanConnect(Options options) throws IOException, InterruptedException {
-        standardCloseConnection( standardConnectionWait(options) );
-    }
 
     public static void assertCanConnectAndPubSub() throws IOException, InterruptedException {
         Connection conn = standardConnectionWait();
@@ -658,38 +553,6 @@ public class TestBase {
     }
 
     // ----------------------------------------------------------------------------------------------------
-    // utils / macro utils
-    // ----------------------------------------------------------------------------------------------------
-    public static void sleep(long ms) {
-        try { Thread.sleep(ms); } catch (InterruptedException ignored) { /* ignored */ }
-    }
-
-    public static void park(Duration d) {
-        try { LockSupport.parkNanos(d.toNanos()); } catch (Exception ignored) { /* ignored */ }
-    }
-
-    public static void debugPrintln(Object... debug) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(System.currentTimeMillis());
-        sb.append(" [");
-        sb.append(Thread.currentThread().getName());
-        sb.append(",");
-        sb.append(Thread.currentThread().getPriority());
-        sb.append("] ");
-        boolean flag = true;
-        for (Object o : debug) {
-            if (flag) {
-                flag = false;
-            }
-            else {
-                sb.append(" | ");
-            }
-            sb.append(o);
-        }
-        System.out.println(sb.toString());
-    }
-
-    // ----------------------------------------------------------------------------------------------------
     // flush
     // ----------------------------------------------------------------------------------------------------
     public static void flushConnection(Connection conn) {
@@ -711,106 +574,6 @@ public class TestBase {
 
     public static void flushAndWaitLong(Connection conn, ListenerForTesting listener) {
         flushAndWait(conn, listener, STANDARD_FLUSH_TIMEOUT_MS, LONG_TIMEOUT_MS);
-    }
-
-    // ----------------------------------------------------------------------------------------------------
-    // connect or wait for a connection
-    // ----------------------------------------------------------------------------------------------------
-    public static Options.Builder standardOptionsBuilder() {
-        return Options.builder().reportNoResponders().errorListener(new ListenerForTesting());
-    }
-
-    public static Options.Builder standardOptionsBuilder(String serverURL) {
-        return standardOptionsBuilder().server(serverURL);
-    }
-
-    public static Options standardOptions() {
-        return standardOptionsBuilder().build();
-    }
-
-    public static Options standardOptions(String serverURL) {
-        return standardOptionsBuilder(serverURL).build();
-    }
-
-    public static Connection connectionWait(Connection conn, long millis) {
-        return waitUntilStatus(conn, millis, Connection.Status.CONNECTED);
-    }
-
-    public static Connection standardConnectionWait() throws IOException, InterruptedException {
-        return standardConnectionWait( Nats.connect(standardOptions()) );
-    }
-
-    public static Connection standardConnectionWait(String serverURL) throws IOException, InterruptedException {
-        return connectionWait(Nats.connect(standardOptions(serverURL)), STANDARD_CONNECTION_WAIT_MS);
-    }
-
-    public static Connection standardConnectionWait(Options options) throws IOException, InterruptedException {
-        return connectionWait(Nats.connect(options), STANDARD_CONNECTION_WAIT_MS);
-    }
-
-    public static Connection standardConnectionWait(Connection conn) {
-        return connectionWait(conn, STANDARD_CONNECTION_WAIT_MS);
-    }
-
-    public static Connection longConnectionWait(String serverURL) throws IOException, InterruptedException {
-        return connectionWait(Nats.connect(standardOptions(serverURL)), LONG_CONNECTION_WAIT_MS);
-    }
-
-    public static Connection longConnectionWait(Options options) throws IOException, InterruptedException {
-        return connectionWait(Nats.connect(options), LONG_CONNECTION_WAIT_MS);
-    }
-
-    public static Connection listenerConnectionWait(Options options, ListenerForTesting listener) throws IOException, InterruptedException {
-        Connection conn = Nats.connect(options);
-        listenerConnectionWait(conn, listener, LONG_CONNECTION_WAIT_MS);
-        return conn;
-    }
-
-    public static void listenerConnectionWait(Connection conn, ListenerForTesting listener) {
-        listenerConnectionWait(conn, listener, LONG_CONNECTION_WAIT_MS);
-    }
-
-    public static void listenerConnectionWait(Connection conn, ListenerForTesting listener, long millis) {
-        listener.waitForStatusChange(millis, TimeUnit.MILLISECONDS);
-        assertConnected(conn);
-    }
-
-    // ----------------------------------------------------------------------------------------------------
-    // close
-    // ----------------------------------------------------------------------------------------------------
-    public static void standardCloseConnection(Connection conn) {
-        closeConnection(conn, STANDARD_CONNECTION_WAIT_MS);
-    }
-
-    public static void closeConnection(Connection conn, long millis) {
-        if (conn != null) {
-            close(conn);
-            waitUntilStatus(conn, millis, Connection.Status.CLOSED);
-            assertClosed(conn);
-        }
-    }
-
-    public static void close(Connection conn) {
-        try { conn.close(); } catch (InterruptedException e) { /* ignored */ }
-    }
-
-    // ----------------------------------------------------------------------------------------------------
-    // connection waiting
-    // ----------------------------------------------------------------------------------------------------
-    public static Connection waitUntilStatus(Connection conn, long millis, Connection.Status waitUntilStatus) {
-        long times = (millis + 99) / 100;
-        for (long x = 0; x < times; x++) {
-            sleep(100);
-            if (conn.getStatus() == waitUntilStatus) {
-                return conn;
-            }
-        }
-
-        throw new AssertionFailedError(expectingMessage(conn, waitUntilStatus));
-    }
-
-    private static String expectingMessage(Connection conn, Connection.Status expecting) {
-        return "Failed expecting Connection Status " + expecting.name() + " but was " + conn.getStatus();
     }
 
     public static void assertTrueByTimeout(long millis, Supplier<Boolean> test) {

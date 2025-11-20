@@ -39,6 +39,8 @@ import java.util.function.Supplier;
 import static io.nats.client.Options.*;
 import static io.nats.client.support.Encoding.base64UrlEncodeToString;
 import static io.nats.client.support.NatsConstants.DEFAULT_PORT;
+import static io.nats.client.utils.OptionsUtils.options;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class OptionsTests {
@@ -54,7 +56,7 @@ public class OptionsTests {
 
     @Test
     public void testDefaultOptions() {
-        Options o = new Options.Builder().build();
+        Options o = optionsBuilder().errorListener(null).build();
         _testDefaultOptions(o);
         _testDefaultOptions(new Options.Builder(o).build());
     }
@@ -105,7 +107,7 @@ public class OptionsTests {
 
     @Test
     public void testOldStyle() {
-        Options o = new Options.Builder().build();
+        Options o = options();
         assertFalse(o.isOldRequestStyle(), "default oldstyle");
         //noinspection deprecation
         o.setOldRequestStyle(true);
@@ -117,7 +119,7 @@ public class OptionsTests {
 
     @Test
     public void testChainedBooleanOptions() {
-        Options o = new Options.Builder().verbose().pedantic().noRandomize()
+        Options o = optionsBuilder().verbose().pedantic().noRandomize()
             .noEcho().oldRequestStyle().noHeaders().noNoResponders()
             .discardMessagesWhenOutgoingQueueFull()
             .build();
@@ -139,7 +141,7 @@ public class OptionsTests {
 
     @Test
     public void testChainedStringOptions() {
-        Options o = new Options.Builder().userInfo("hello".toCharArray(), "world".toCharArray()).connectionName("name").build();
+        Options o = optionsBuilder().userInfo("hello".toCharArray(), "world".toCharArray()).connectionName("name").build();
         _testChainedStringOptions(o);
         _testChainedStringOptions(new Options.Builder(o).build());
     }
@@ -155,7 +157,7 @@ public class OptionsTests {
     public void testChainedSecure() throws Exception {
         SSLContext ctx = SslTestingHelper.createTestSSLContext();
         SSLContext.setDefault(ctx);
-        Options o = new Options.Builder().secure().build();
+        Options o = optionsBuilder().secure().build();
         _testChainedSecure(ctx, o);
         _testChainedSecure(ctx, new Options.Builder(o).build());
     }
@@ -167,7 +169,7 @@ public class OptionsTests {
     @Test
     public void testChainedSSLOptions() throws Exception {
         SSLContext ctx = SslTestingHelper.createTestSSLContext();
-        Options o = new Options.Builder().sslContext(ctx).build();
+        Options o = optionsBuilder().sslContext(ctx).build();
         _testChainedSSLOptions(ctx, o);
         _testChainedSSLOptions(ctx, new Options.Builder(o).build());
     }
@@ -179,7 +181,7 @@ public class OptionsTests {
 
     @Test
     public void testChainedIntOptions() {
-        Options o = new Options.Builder().maxReconnects(100).maxPingsOut(200).reconnectBufferSize(300)
+        Options o = optionsBuilder().maxReconnects(100).maxPingsOut(200).reconnectBufferSize(300)
             .maxControlLine(400)
             .maxMessagesInOutgoingQueue(500)
             .build();
@@ -198,7 +200,7 @@ public class OptionsTests {
 
     @Test
     public void testChainedDurationOptions() {
-        Options o = new Options.Builder().reconnectWait(Duration.ofMillis(101))
+        Options o = optionsBuilder().reconnectWait(Duration.ofMillis(101))
             .connectionTimeout(Duration.ofMillis(202)).pingInterval(Duration.ofMillis(303))
             .requestCleanupInterval(Duration.ofMillis(404))
             .reconnectJitter(Duration.ofMillis(505))
@@ -226,13 +228,13 @@ public class OptionsTests {
         java.util.function.Consumer<HttpRequest> interceptor2 = req -> {
             req.getHeaders().add("Test2", "Header");
         };
-        Options o = new Options.Builder()
+        Options o = optionsBuilder()
             .httpRequestInterceptor(interceptor1)
             .httpRequestInterceptor(interceptor2)
             .build();
         assertEquals(o.getHttpRequestInterceptors(), Arrays.asList(interceptor1, interceptor2));
 
-        o = new Options.Builder()
+        o = optionsBuilder()
             .httpRequestInterceptors(Arrays.asList(interceptor2, interceptor1))
             .build();
         assertEquals(o.getHttpRequestInterceptors(), Arrays.asList(interceptor2, interceptor1));
@@ -360,10 +362,10 @@ public class OptionsTests {
 
     @Test
     public void testSupportUTF8Subjects() {
-        Options o = new Options.Builder().build();
+        Options o = options();
         assertFalse(o.supportUTF8Subjects());
 
-        o = new Options.Builder().supportUTF8Subjects().build();
+        o = optionsBuilder().supportUTF8Subjects().build();
         assertTrue(o.supportUTF8Subjects());
 
         Properties props = new Properties();
@@ -374,13 +376,13 @@ public class OptionsTests {
 
     @Test
     public void testBuilderCoverageOptions() {
-        Options o = new Options.Builder().build();
+        Options o = options();
         assertTrue(o.clientSideLimitChecks());
         assertNull(o.getServerPool()); // there is a default provider
 
-        o = new Options.Builder().clientSideLimitChecks(true).build();
+        o = optionsBuilder().clientSideLimitChecks(true).build();
         assertTrue(o.clientSideLimitChecks());
-        o = new Options.Builder()
+        o = optionsBuilder()
             .clientSideLimitChecks(false)
             .serverPool(new NatsServerPool())
             .build();
@@ -456,7 +458,7 @@ public class OptionsTests {
             .build();
         assertEquals(1000, o.getMaxMessagesInOutgoingQueue());
 
-        o = new Options.Builder()
+        o = optionsBuilder()
             .maxMessagesInOutgoingQueue(1000)
             .properties(props)
             .build();
@@ -702,7 +704,7 @@ public class OptionsTests {
 
     @Test
     public void testDefaultConnectOptions() {
-        Options o = new Options.Builder().build();
+        Options o = options();
         String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
             + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,\"headers\":true,\"no_responders\":true}";
         assertEquals(expected, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null).toString(), "default connect options");
@@ -710,7 +712,7 @@ public class OptionsTests {
 
     @Test
     public void testNonDefaultConnectOptions() {
-        Options o = new Options.Builder().noNoResponders().noHeaders().noEcho().pedantic().verbose().build();
+        Options o = optionsBuilder().noNoResponders().noHeaders().noEcho().pedantic().verbose().build();
         String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
             + ",\"protocol\":1,\"verbose\":true,\"pedantic\":true,\"tls_required\":false,\"echo\":false,\"headers\":false,\"no_responders\":false}";
         assertEquals(expected, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null).toString(), "non default connect options");
@@ -719,7 +721,7 @@ public class OptionsTests {
     @Test
     public void testConnectOptionsWithNameAndContext() throws Exception {
         SSLContext ctx = SslTestingHelper.createTestSSLContext();
-        Options o = new Options.Builder().sslContext(ctx).connectionName("c1").build();
+        Options o = optionsBuilder().sslContext(ctx).connectionName("c1").build();
         String expected = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\",\"name\":\"c1\""
             + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":true,\"echo\":true,\"headers\":true,\"no_responders\":true}";
         assertEquals(expected, o.buildProtocolConnectOptionsString("nats://localhost:4222", false, null).toString(), "default connect options");
@@ -727,7 +729,7 @@ public class OptionsTests {
 
     @Test
     public void testAuthConnectOptions() {
-        Options o = new Options.Builder().userInfo("hello".toCharArray(), "world".toCharArray()).build();
+        Options o = optionsBuilder().userInfo("hello".toCharArray(), "world".toCharArray()).build();
         String expectedNoAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
             + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,\"headers\":true,\"no_responders\":true}";
         String expectedWithAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
@@ -747,7 +749,7 @@ public class OptionsTests {
         byte[] nonce = "abcdefg".getBytes(StandardCharsets.UTF_8);
         String sig = base64UrlEncodeToString(th.sign(nonce));
 
-        Options o = new Options.Builder().authHandler(th).build();
+        Options o = optionsBuilder().authHandler(th).build();
         String expectedNoAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
             + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,\"headers\":true,\"no_responders\":true}";
         String expectedWithAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
@@ -775,7 +777,7 @@ public class OptionsTests {
         String sig = Base64.getUrlEncoder().withoutPadding().encodeToString(th.sign(nonce));
 
         // Assert that no auth and user info is given
-        Options options = new Options.Builder().authHandler(th)
+        Options options = optionsBuilder().authHandler(th)
                 .userInfo(username.toCharArray(), password.toCharArray()).build();
         String expectedWithoutAuth = "{\"lang\":\"java\",\"version\":\"" + Nats.CLIENT_VERSION + "\""
                 + ",\"protocol\":1,\"verbose\":false,\"pedantic\":false,\"tls_required\":false,\"echo\":true,"
@@ -794,7 +796,7 @@ public class OptionsTests {
         assertEquals(expectedWithAuth, actualWithAuthInOptions);
 
         // Assert that auth is given via options and user info is given via server URI
-        Options optionsWithoutUserInfo = new Options.Builder().authHandler(th).build();
+        Options optionsWithoutUserInfo = optionsBuilder().authHandler(th).build();
         String serverUriWithAuth = "nats://" + username + ":" + password + "@localhost:4222";
         String actualWithAuthInServerUri = optionsWithoutUserInfo
                 .buildProtocolConnectOptionsString(serverUriWithAuth, true, nonce).toString();
@@ -804,12 +806,12 @@ public class OptionsTests {
 
     @Test
     public void testDefaultDataPort() {
-        Options o = new Options.Builder().socketWriteTimeout(null).build();
+        Options o = optionsBuilder().socketWriteTimeout(null).build();
         DataPort dataPort = o.buildDataPort();
         assertNotNull(dataPort);
         assertEquals(Options.DEFAULT_DATA_PORT_TYPE, dataPort.getClass().getCanonicalName(), "old default dataPort");
 
-        o = new Options.Builder().build();
+        o = options();
         dataPort = o.buildDataPort();
         assertNotNull(dataPort);
         assertEquals(SocketDataPortWithWriteTimeout.class.getCanonicalName(), dataPort.getClass().getCanonicalName(), "new default dataPort");
@@ -842,7 +844,7 @@ public class OptionsTests {
     @Test
     public void testUserPassInURL() {
         String serverURI = "nats://derek:password@localhost:2222";
-        Options o = new Options.Builder().server(serverURI).build();
+        Options o = optionsBuilder(serverURI).build();
 
         String connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
         assertTrue(connectString.contains("\"user\":\"derek\""));
@@ -853,7 +855,7 @@ public class OptionsTests {
     @Test
     public void testTokenInURL() {
         String serverURI = "nats://alberto@localhost:2222";
-        Options o = new Options.Builder().server(serverURI).build();
+        Options o = optionsBuilder(serverURI).build();
 
         String connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
         assertTrue(connectString.contains("\"auth_token\":\"alberto\""));
@@ -864,31 +866,31 @@ public class OptionsTests {
     @Test
     public void testTokenSupplier() {
         String serverURI = "nats://localhost:2222";
-        Options o = new Options.Builder().build();
+        Options o = options();
         String connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
         assertFalse(connectString.contains("\"auth_token\""));
 
         //noinspection deprecation
-        o = new Options.Builder().token((String)null).build();
+        o = optionsBuilder().token((String)null).build();
         connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
         assertFalse(connectString.contains("\"auth_token\""));
 
         //noinspection deprecation
-        o = new Options.Builder().token("   ").build();
+        o = optionsBuilder().token("   ").build();
         connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
         assertFalse(connectString.contains("\"auth_token\""));
 
-        o = new Options.Builder().token((char[])null).build();
+        o = optionsBuilder().token((char[])null).build();
         connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
         assertFalse(connectString.contains("\"auth_token\""));
 
-        o = new Options.Builder().token(new char[0]).build();
+        o = optionsBuilder().token(new char[0]).build();
         connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
         assertFalse(connectString.contains("\"auth_token\""));
 
         AtomicInteger counter = new AtomicInteger(0);
         Supplier<char[]> tokenSupplier = () -> ("short-lived-token-" + counter.incrementAndGet()).toCharArray();
-        o = new Options.Builder().tokenSupplier(tokenSupplier).build();
+        o = optionsBuilder().tokenSupplier(tokenSupplier).build();
 
         connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
         assertTrue(connectString.contains("\"auth_token\":\"short-lived-token-1\""));
@@ -898,7 +900,7 @@ public class OptionsTests {
 
         Properties properties = new Properties();
         properties.setProperty(PROP_TOKEN_SUPPLIER, TestingDynamicTokenSupplier.class.getCanonicalName());
-        o = new Options.Builder().properties(properties).build();
+        o = optionsBuilder().properties(properties).build();
 
         connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
         assertTrue(connectString.contains("\"auth_token\":\"dynamic-token-1\""));
@@ -935,20 +937,20 @@ public class OptionsTests {
     @Test
     public void testServers() {
         String[] serverUrls = {URL_PROTO_HOST_PORT_8080, URL_HOST_PORT_8081};
-        Options options = new Options.Builder().servers(serverUrls).build();
+        Options options = optionsBuilder(serverUrls).build();
         assertServersAndUnprocessed(true, options);
     }
 
     @Test
     public void testServersWithCommas() {
-        String serverURLs = URL_PROTO_HOST_PORT_8080 + "," + URL_HOST_PORT_8081;
-        assertServersAndUnprocessed(true, new Options.Builder().server(serverURLs).build());
+        String commaDelimited = URL_PROTO_HOST_PORT_8080 + "," + URL_HOST_PORT_8081;
+        assertServersAndUnprocessed(true, optionsBuilder().server(commaDelimited).build());
     }
 
     @Test
     public void testEmptyAndNullStringsInServers() {
         String[] serverUrls = {"", null, URL_PROTO_HOST_PORT_8080, URL_HOST_PORT_8081};
-        assertServersAndUnprocessed(true, new Options.Builder().servers(serverUrls).build());
+        assertServersAndUnprocessed(true, optionsBuilder(serverUrls).build());
     }
 
     private void assertServersAndUnprocessed(boolean two, Options o) {
@@ -991,27 +993,27 @@ public class OptionsTests {
     @Test
     public void testTokenAndUserThrows() {
         assertThrows(IllegalStateException.class,
-            () -> new Options.Builder().token("foo".toCharArray()).userInfo("foo".toCharArray(), "bar".toCharArray()).build());
+            () -> optionsBuilder().token("foo".toCharArray()).userInfo("foo".toCharArray(), "bar".toCharArray()).build());
     }
 
     @Test
     public void testThrowOnBadServerURI() {
         assertThrows(IllegalArgumentException.class,
-            () -> new Options.Builder().server("foo:/bar\\:blammer").build());
+            () -> optionsBuilder("foo:/bar\\:blammer").build());
     }
 
     @Test
     public void testThrowOnBadServersURI() {
         assertThrows(IllegalArgumentException.class, () -> {
             String[] serverUrls = {URL_PROTO_HOST_PORT_8080, "foo:/bar\\:blammer"};
-            new Options.Builder().servers(serverUrls).build();
+            optionsBuilder(serverUrls).build();
         });
     }
 
     @Test
     public void testSetExecutor() {
         ExecutorService exec = Executors.newCachedThreadPool();
-        Options options = new Options.Builder().executor(exec).build();
+        Options options = optionsBuilder().executor(exec).build();
         assertEquals(exec, options.getExecutor());
     }
 
@@ -1031,7 +1033,7 @@ public class OptionsTests {
     @Test
     public void testCallbackExecutor() throws ExecutionException, InterruptedException, TimeoutException {
         ThreadFactory threadFactory = r -> new Thread(r, "test");
-        Options options = new Options.Builder()
+        Options options = optionsBuilder()
                 .callbackThreadFactory(threadFactory)
                 .build();
         Future<?> callbackFuture = options.getCallbackExecutor().submit(() -> {
@@ -1043,7 +1045,7 @@ public class OptionsTests {
     @Test
     public void testConnectExecutor() throws ExecutionException, InterruptedException, TimeoutException {
         ThreadFactory threadFactory = r -> new Thread(r, "test");
-        Options options = new Options.Builder()
+        Options options = optionsBuilder()
                 .connectThreadFactory(threadFactory)
                 .build();
         Future<?> connectFuture = options.getConnectExecutor().submit(() -> {
@@ -1147,7 +1149,7 @@ public class OptionsTests {
     public void testReconnectDelayHandler() {
         ReconnectDelayHandler rdh = l -> Duration.ofSeconds(l * 2);
 
-        Options o = new Options.Builder().reconnectDelayHandler(rdh).build();
+        Options o = optionsBuilder().reconnectDelayHandler(rdh).build();
         ReconnectDelayHandler rdhO = o.getReconnectDelayHandler();
 
         assertNotNull(rdhO);
@@ -1156,43 +1158,39 @@ public class OptionsTests {
 
     @Test
     public void testInboxPrefixCoverage() {
-        Options o = new Options.Builder().inboxPrefix("foo").build();
+        Options o = optionsBuilder().inboxPrefix("foo").build();
         assertEquals("foo.", o.getInboxPrefix());
-        o = new Options.Builder().inboxPrefix("foo.").build();
+        o = optionsBuilder().inboxPrefix("foo.").build();
         assertEquals("foo.", o.getInboxPrefix());
     }
 
     @Test
     public void testSslContextIsProvided() {
-        Options o = new Options.Builder().server("localhost").build();
+        Options o = options("localhost");
         assertNull(o.getSslContext());
-        o = new Options.Builder().server("ws://localhost").build();
+        o = options("ws://localhost");
         assertNull(o.getSslContext());
-        o = new Options.Builder().server("localhost").build();
+        o = options("localhost");
         assertNull(o.getSslContext());
-        o = new Options.Builder().server("tls://localhost").build();
+        o = options("tls://localhost");
         assertNotNull(o.getSslContext());
-        o = new Options.Builder().server("wss://localhost").build();
+        o = options("wss://localhost");
         assertNotNull(o.getSslContext());
-        o = new Options.Builder().server("opentls://localhost").build();
+        o = options("opentls://localhost");
         assertNotNull(o.getSslContext());
-        o = new Options.Builder().server("nats://localhost,tls://localhost").build();
+        o = optionsBuilder().server("nats://localhost,tls://localhost").build();
         assertNotNull(o.getSslContext());
     }
 
     @SuppressWarnings("deprecation")
     @Test
     public void coverageForDeprecated() {
-        Options o = new Options.Builder()
-            .token("deprecated")
-            .build();
+        Options o = optionsBuilder().token("deprecated").build();
         assertEquals("deprecated", o.getToken());
         assertNull(o.getUsername());
         assertNull(o.getPassword());
 
-        o = new Options.Builder()
-            .userInfo("user", "pass")
-            .build();
+        o = optionsBuilder().userInfo("user", "pass").build();
         assertEquals("user", o.getUsername());
         assertEquals("pass", o.getPassword());
         assertNull(o.getToken());
@@ -1200,7 +1198,7 @@ public class OptionsTests {
 
     @Test
     public void testFastFallback() {
-        Options options = new Options.Builder().enableFastFallback().build();
+        Options options = optionsBuilder().enableFastFallback().build();
         assertTrue(options.isEnableFastFallback());
     }
 
@@ -1213,7 +1211,7 @@ public class OptionsTests {
         try {
             System.setProperty("javax.net.ssl.keyStore", "foo");
             System.setProperty("javax.net.ssl.trustStore", "bar");
-            new Options.Builder().secure().build();
+            optionsBuilder().secure().build();
             assertFalse(true);
         }
         finally {
@@ -1227,7 +1225,7 @@ public class OptionsTests {
         try {
             System.setProperty("javax.net.ssl.keyStore", "foo");
             System.setProperty("javax.net.ssl.trustStore", "bar");
-            new Options.Builder().server("tls://localhost:4242").build();
+            optionsBuilder("tls://localhost:4242").build();
             assertFalse(true);
         }
         finally {

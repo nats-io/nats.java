@@ -30,6 +30,7 @@ import static io.nats.client.api.CompressionOption.None;
 import static io.nats.client.api.CompressionOption.S2;
 import static io.nats.client.api.ConsumerConfiguration.*;
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.utils.VersionUtils.atLeast2_10;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class StreamConfigurationTests extends JetStreamTestBase {
@@ -54,7 +55,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     @Test
     public void testRoundTrip() throws Exception {
         runInLrServer((nc, jsm, js) -> {
-            CompressionOption compressionOption = atLeast2_10(ensureRunServerInfo()) ? S2 : None;
+            CompressionOption compressionOption = atLeast2_10() ? S2 : None;
             String stream = random();
             StreamConfiguration sc = StreamConfiguration.builder(getTestConfiguration())
                 .name(stream)

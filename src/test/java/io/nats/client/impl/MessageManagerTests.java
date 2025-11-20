@@ -30,7 +30,8 @@ import static io.nats.client.impl.MessageManager.ManageResult;
 import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
 import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 import static io.nats.client.support.Status.*;
-import static io.nats.client.utils.TestOptions.NOOP_EL;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SuppressWarnings("SameParameterValue")
@@ -248,7 +249,6 @@ public class MessageManagerTests extends JetStreamTestBase {
     @Test
     public void testPullManagerHeartbeats() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        Options.Builder builder = new Options.Builder().errorListener(listener);
         runInJsServer(listener, nc -> {
             PullMessageManager pullMgr = getPullManager(nc, null, true);
             NatsJetStreamSubscription sub = mockSub((NatsConnection)nc, pullMgr);
@@ -575,7 +575,7 @@ public class MessageManagerTests extends JetStreamTestBase {
         String fcSubject;
 
         public MockPublishInternal() {
-            this(new Options.Builder().errorListener(NOOP_EL).build());
+            this(optionsBuilder().build());
         }
 
         public MockPublishInternal(Options options) {
@@ -636,6 +636,7 @@ public class MessageManagerTests extends JetStreamTestBase {
     @Test
     public void testMessageManagerInterfaceDefaultImplCoverage() {
         // make a dummy connection so we can make a subscription
+        // notice we don't nc.connect
         Options options = Options.builder().build();
         NatsConnection nc = new NatsConnection(options);
 

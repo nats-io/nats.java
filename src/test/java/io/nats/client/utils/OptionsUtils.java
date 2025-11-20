@@ -14,21 +14,26 @@
 package io.nats.client.utils;
 
 import io.nats.client.ErrorListener;
+import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
 import org.jspecify.annotations.NonNull;
 
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.nats.NatsRunnerUtils.getNatsLocalhostUri;
+
 /**
  * ----------------------------------------------------------------------------------------------------
  * THIS IS THE PREFERRED WAY TO BUILD ANY OPTIONS FOR TESTING
  * ----------------------------------------------------------------------------------------------------
- * Use optionsBuilder(uri) if you need to customize some stuff, for instance custom listeners
- * Use options(uri) if you need the default options
- * ----------------------------------------------------------------------------------------------------
  */
-public abstract class TestOptions {
+public abstract class OptionsUtils {
+
+    private static ExecutorService ES;
+    private static ScheduledThreadPoolExecutor SCHD;
+    private static ThreadFactory CB;
+    private static ThreadFactory CN;
 
     public static ErrorListener NOOP_EL = new ErrorListener() {};
 
@@ -36,12 +41,20 @@ public abstract class TestOptions {
         return optionsBuilder().errorListener(el);
     }
 
-    public static Options.Builder optionsBuilder(String server) {
-        return optionsBuilder().server(server);
+    public static Options.Builder optionsBuilder(NatsTestServer ts) {
+        return optionsBuilder().server(ts.getNatsLocalhostUri());
     }
 
-    public static Options options(String server) {
-        return optionsBuilder().server(server).build();
+    public static Options.Builder optionsBuilder(int port) {
+        return optionsBuilder().server(getNatsLocalhostUri(port));
+    }
+
+    public static Options.Builder optionsBuilder(String... servers) {
+        return optionsBuilder().servers(servers);
+    }
+
+    public static Options options(String... servers) {
+        return optionsBuilder().servers(servers).build();
     }
 
     public static Options.Builder optionsBuilder() {
@@ -95,9 +108,4 @@ public abstract class TestOptions {
             return t;
         }
     }
-
-    static ExecutorService ES;
-    static ScheduledThreadPoolExecutor SCHD;
-    static ThreadFactory CB;
-    static ThreadFactory CN;
 }

@@ -19,7 +19,7 @@ import io.nats.client.Message;
 import io.nats.client.PushSubscribeOptions;
 import io.nats.client.api.*;
 import io.nats.client.support.DateTimeUtils;
-import io.nats.client.utils.TestBase;
+import io.nats.client.utils.VersionUtils;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
@@ -294,7 +294,7 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
     @Test
     @Disabled("This used to work.")
     public void testSourceAndTransformsRoundTrips() throws Exception {
-        runInLrServer(TestBase::atLeast2_10, (nc, jsm, js) -> {
+        runInLrServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
             StreamConfiguration scSource = StreamConfigurationTests.getStreamConfigurationFromJson(
                 "StreamConfigurationSourcedSubjectTransform.json");
 
@@ -336,7 +336,7 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
 
     @Test
     public void testMirror() throws Exception {
-        runInLrServer(TestBase::atLeast2_10, (nc, jsm, js) -> {
+        runInLrServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
             StreamConfiguration scMirror = StreamConfigurationTests.getStreamConfigurationFromJson(
                 "StreamConfigurationMirrorSubjectTransform.json");
 

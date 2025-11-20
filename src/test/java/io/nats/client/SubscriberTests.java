@@ -13,14 +13,16 @@
 
 package io.nats.client;
 
-import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 
-import static io.nats.client.utils.TestBase.*;
+import static io.nats.client.utils.ConnectionUtils.standardCloseConnection;
+import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
+import static io.nats.client.utils.TestBase.random;
+import static io.nats.client.utils.TestBase.runInLrServer;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class SubscriberTests {
@@ -107,7 +109,7 @@ public class SubscriberTests {
         };
 
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(receiveMessageCustomizer);
-             Connection nc = TestBase.standardConnectionWait(ts.getURI())) {
+             Connection nc = standardConnectionWait(ts.getURI())) {
 
             String subject = random();
             Subscription sub = nc.subscribe(subject);
@@ -353,7 +355,7 @@ public class SubscriberTests {
     @Test
     public void throwsSubscriptionExceptions() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-             Connection nc = TestBase.standardConnectionWait(ts.getURI())) {
+             Connection nc = standardConnectionWait(ts.getURI())) {
             String subject = random();
             Subscription sub = nc.subscribe(subject);
 

@@ -28,6 +28,10 @@ import java.util.concurrent.*;
 
 import static io.nats.client.support.NatsJetStreamConstants.MSG_TTL_HDR;
 import static io.nats.client.support.NatsJetStreamConstants.NATS_MARKER_REASON_HDR;
+import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
+import static io.nats.client.utils.ConnectionUtils.standardOptionsBuilder;
+import static io.nats.client.utils.ThreadUtils.sleep;
+import static io.nats.client.utils.VersionUtils.atLeast2_12;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamPubTests extends JetStreamTestBase {

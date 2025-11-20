@@ -45,6 +45,9 @@ import static io.nats.client.support.JsonValueUtils.readInteger;
 import static io.nats.client.support.JsonValueUtils.readString;
 import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsConstants.EMPTY;
+import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
+import static io.nats.client.utils.OptionsUtils.options;
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static io.nats.service.Service.SRV_PING;
 import static io.nats.service.ServiceMessage.NATS_SERVICE_ERROR;
 import static io.nats.service.ServiceMessage.NATS_SERVICE_ERROR_CODE;
@@ -756,7 +759,7 @@ public class ServiceTests extends JetStreamTestBase {
 
     @Test
     public void testServiceBuilderConstruction() {
-        Options options = new Options.Builder().build();
+        Options options = options();
         Connection conn = new MockNatsConnection(options);
         ServiceEndpoint se = ServiceEndpoint.builder()
             .endpoint(new Endpoint(random()))
@@ -839,7 +842,7 @@ public class ServiceTests extends JetStreamTestBase {
 
     @Test
     public void testAddingEndpointAfterServiceBuilderConstruction() {
-        Options options = new Options.Builder().build();
+        Options options = options();
         Connection conn = new MockNatsConnection(options);
         ServiceEndpoint se = ServiceEndpoint.builder()
                 .endpoint(new Endpoint(random()))

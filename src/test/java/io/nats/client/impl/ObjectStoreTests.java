@@ -14,7 +14,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
-import io.nats.client.utils.TestBase;
+import io.nats.client.utils.VersionUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.*;
@@ -30,6 +30,7 @@ import static io.nats.client.JetStreamOptions.DEFAULT_JS_OPTIONS;
 import static io.nats.client.api.ObjectStoreWatchOption.IGNORE_DELETE;
 import static io.nats.client.support.NatsJetStreamClientError.*;
 import static io.nats.client.support.NatsObjectStoreUtil.DEFAULT_CHUNK_SIZE;
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ObjectStoreTests extends JetStreamTestBase {
@@ -489,7 +490,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
     @Test
     public void testCompression() throws Exception {
-        runInLrServer(TestBase::atLeast2_10, (nc, jsm, js) -> {
+        runInLrServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
             String bucket = random();
             ObjectStoreManagement osm = nc.objectStoreManagement();
             osm.create(ObjectStoreConfiguration.builder(bucket)

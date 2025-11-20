@@ -32,6 +32,10 @@ import java.util.concurrent.TimeoutException;
 import static io.nats.client.api.ConsumerConfiguration.*;
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.support.NatsJetStreamClientError.*;
+import static io.nats.client.utils.ConnectionUtils.longConnectionWait;
+import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
+import static io.nats.client.utils.VersionUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamGeneralTests extends JetStreamTestBase {
@@ -60,7 +64,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     @Test
     public void testJetEnabledGoodAccount() throws Exception {
         try (NatsTestServer ts = NatsTestServer.configuredJsServer("js_authorization.conf")) {
-            Options options = new Options.Builder().server(ts.getURI())
+            Options options = optionsBuilder(ts)
                 .userInfo("serviceup".toCharArray(), "uppass".toCharArray()).build();
             try (Connection nc = longConnectionWait(options)) {
                 nc.jetStreamManagement();
@@ -398,10 +402,10 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
         String subjectMadeByTar = "sub-made-by.tar";
 
         try (NatsTestServer ts = NatsTestServer.configuredJsServer("js_prefix.conf")) {
-            Options optionsSrc = new Options.Builder().server(ts.getURI())
+            Options optionsSrc = optionsBuilder(ts)
                     .userInfo("src".toCharArray(), "spass".toCharArray()).build();
 
-            Options optionsTar = new Options.Builder().server(ts.getURI())
+            Options optionsTar = optionsBuilder(ts)
                     .userInfo("tar".toCharArray(), "tpass".toCharArray()).build();
 
             try (Connection ncSrc = standardConnectionWait(optionsSrc);
@@ -1104,7 +1108,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     @Test
     public void testRequestNoResponder() throws Exception {
         runInLrServer((ncCancel, jsm, js) -> {
-            Options optReport = LongRunningServer.optionsBuilder().reportNoResponders().build();
+            Options optReport = optionsBuilder(LongRunningServer.server()).reportNoResponders().build();
             try (Connection ncReport = standardConnectionWait(optReport)) {
                 assertThrows(CancellationException.class, () -> ncCancel.request(random(), null).get());
                 ExecutionException ee = assertThrows(ExecutionException.class, () -> ncReport.request(random(), null).get());

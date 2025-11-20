@@ -15,7 +15,6 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.utils.LongRunningServer;
-import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -29,7 +28,13 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static io.nats.client.utils.TestBase.*;
+import static io.nats.client.utils.ConnectionUtils.longConnectionWait;
+import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
+import static io.nats.client.utils.OptionsUtils.options;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
+import static io.nats.client.utils.TestBase.BAD_SUBJECTS_OR_QUEUES;
+import static io.nats.client.utils.TestBase.random;
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 
@@ -43,7 +48,7 @@ public class DispatcherTests {
     @BeforeAll
     public static void beforeAll() {
         try {
-            nc = TestBase.longConnectionWait(LongRunningServer.options());
+            nc = longConnectionWait(options(LongRunningServer.server()));
         }
         catch (IOException e) {
             throw new RuntimeException(e);
@@ -65,20 +70,16 @@ public class DispatcherTests {
     @Test
     public void testDispatcherSubscribingExceptions() throws Exception {
         // InvalidSubjectsAndQueueNames
-        Dispatcher dx = nc.createDispatcher(m -> {
-        });
+        Dispatcher dx = nc.createDispatcher(m -> {});
         for (String bad : BAD_SUBJECTS_OR_QUEUES) {
             assertThrows(IllegalArgumentException.class, () -> nc.subscribe(bad));
             assertThrows(IllegalArgumentException.class, () -> dx.subscribe(bad));
-            assertThrows(IllegalArgumentException.class, () -> dx.subscribe(bad, m -> {
-            }));
+            assertThrows(IllegalArgumentException.class, () -> dx.subscribe(bad, m -> {}));
             assertThrows(IllegalArgumentException.class, () -> dx.subscribe(bad, "q"));
-            assertThrows(IllegalArgumentException.class, () -> dx.subscribe(bad, "q", m -> {
-            }));
+            assertThrows(IllegalArgumentException.class, () -> dx.subscribe(bad, "q", m -> {}));
             assertThrows(IllegalArgumentException.class, () -> nc.subscribe("s", bad));
             assertThrows(IllegalArgumentException.class, () -> dx.subscribe("s", bad));
-            assertThrows(IllegalArgumentException.class, () -> dx.subscribe("s", bad, m -> {
-            }));
+            assertThrows(IllegalArgumentException.class, () -> dx.subscribe("s", bad, m -> {}));
         }
 
         String subject = random();
@@ -223,7 +224,7 @@ public class DispatcherTests {
     @Test
     public void testDispatcherMessageContainsConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-             Connection nc = TestBase.standardConnectionWait(ts.getURI())) {
+             Connection nc = standardConnectionWait(ts.getURI())) {
 
             final CompletableFuture<Message> msgFuture = new CompletableFuture<>();
             final CompletableFuture<Connection> connFuture = new CompletableFuture<>();
@@ -253,7 +254,7 @@ public class DispatcherTests {
     @Test
     public void testMultiSubject() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-             Connection nc = TestBase.standardConnectionWait(ts.getURI())) {
+             Connection nc = standardConnectionWait(ts.getURI())) {
 
             final CompletableFuture<Message> one = new CompletableFuture<>();
             final CompletableFuture<Message> two = new CompletableFuture<>();
@@ -362,7 +363,7 @@ public class DispatcherTests {
     @Test
     public void testQueueSubscribers() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-             Connection nc = TestBase.standardConnectionWait(ts.getURI())) {
+             Connection nc = standardConnectionWait(ts.getURI())) {
             int msgs = 100;
             AtomicInteger received = new AtomicInteger();
             AtomicInteger sub1Count = new AtomicInteger();
@@ -850,7 +851,7 @@ public class DispatcherTests {
     @Test
     public void testDispatcherFactoryCoverage() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-             Connection nc = longConnectionWait(Options.builder().server(ts.getURI()).useDispatcherWithExecutor().build()))
+             Connection nc = longConnectionWait(optionsBuilder(ts).useDispatcherWithExecutor().build()))
         {
             CountDownLatch latch = new CountDownLatch(1);
             Dispatcher d = nc.createDispatcher(msg -> latch.countDown());

@@ -16,13 +16,14 @@ package io.nats.client.utils;
 import io.nats.client.Connection;
 import io.nats.client.Nats;
 import io.nats.client.NatsTestServer;
-import io.nats.client.Options;
 
 import java.io.IOException;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static io.nats.client.utils.TestBase.VERY_LONG_CONNECTION_WAIT_MS;
-import static io.nats.client.utils.TestBase.initRunServerInfo;
+import static io.nats.client.utils.ConnectionUtils.VERY_LONG_CONNECTION_WAIT_MS;
+import static io.nats.client.utils.ConnectionUtils.connectionWait;
+import static io.nats.client.utils.OptionsUtils.options;
+import static io.nats.client.utils.VersionUtils.initVersionServerInfo;
 
 public abstract class LongRunningServer {
 
@@ -32,14 +33,6 @@ public abstract class LongRunningServer {
     private static NatsTestServer natsTestServer;
     private static String server;
     private static Connection[] ncs;
-
-    public static Options.Builder optionsBuilder() throws IOException {
-        return TestOptions.optionsBuilder(server());
-    }
-
-    public static Options options() throws IOException {
-        return optionsBuilder().build();
-    }
 
     public static String server() throws IOException {
         if (server == null) {
@@ -64,8 +57,8 @@ public abstract class LongRunningServer {
                 ncs = new Connection[2];
             }
             if (ncs[ix] == null) {
-                ncs[ix] = TestBase.connectionWait(Nats.connect(optionsBuilder().build()), VERY_LONG_CONNECTION_WAIT_MS);
-                initRunServerInfo(ncs[ix]);
+                ncs[ix] = connectionWait(Nats.connect(options(server())), VERY_LONG_CONNECTION_WAIT_MS);
+                initVersionServerInfo(ncs[ix]);
             }
             else if (ncs[ix].getStatus() != Connection.Status.CONNECTED) {
                 if (++tries < MAX_TRIES) {

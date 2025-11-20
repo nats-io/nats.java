@@ -21,16 +21,16 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.time.Duration;
 
-import static io.nats.client.utils.TestOptions.NOOP_EL;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class EchoTests {
+public class EchoTests extends TestBase {
     @Test
     public void testFailWithBadServerProtocol() {
         assertThrows(IOException.class, () -> {
             Connection nc = null;
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-                Options opt = new Options.Builder().server(ts.getURI()).noEcho().noReconnect().errorListener(NOOP_EL).build();
+                Options opt = optionsBuilder(ts.getURI()).noEcho().noReconnect().build();
                 try {
                     nc = Nats.connect(opt); // Should fail
                 }
@@ -48,7 +48,7 @@ public class EchoTests {
     public void testConnectToOldServerWithEcho() throws Exception {
         Connection nc = null;
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-            Options opt = new Options.Builder().server(ts.getURI()).noReconnect().errorListener(NOOP_EL).build();
+            Options opt = optionsBuilder(ts.getURI()).noReconnect().build();
             try {
                 nc = Nats.connect(opt);
             } finally {
@@ -91,8 +91,7 @@ public class EchoTests {
 
     @Test
     public void testWithNoEcho() throws Exception {
-        Options options = LongRunningServer.optionsBuilder().noEcho().noReconnect().build();
-        try (Connection nc1 = Nats.connect(options);) {
+        runInLrServer(optionsBuilder().noEcho().noReconnect(), nc1 -> {
             String subject = TestBase.random();
             // Echo is off so sub should get messages from pub from other connections
             Subscription sub1 = nc1.subscribe(subject);
@@ -103,6 +102,6 @@ public class EchoTests {
             nc1.flush(Duration.ofSeconds(1));
             Message msg = sub1.nextMessage(Duration.ofSeconds(1));
             assertNull(msg); // no message for sub1 from pub 1
-        }
+        });
     }
 }

@@ -28,6 +28,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.support.NatsConstants.*;
+import static io.nats.client.utils.ConnectionUtils.*;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -80,8 +82,7 @@ public class PublishTests {
                     }
                 }
             };
-            Options options = Options.builder()
-                .server(ts.getURI())
+            Options options = optionsBuilder(ts)
                 .clientSideLimitChecks(false)
                 .errorListener(el)
                 .build();
@@ -98,12 +99,13 @@ public class PublishTests {
     }
 
     @Test
-    public void testThrowsIfheadersNotSupported() {
+    public void testThrowsIfHeadersNotSupported() {
         assertThrows(IllegalArgumentException.class, () -> {
             String customInfo = "{\"server_id\":\"test\", \"version\":\"9.9.99\"}";
 
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo);
-                 Connection nc = Nats.connect(ts.getURI())) {
+                 Connection nc = Nats.connect(ts.getURI()))
+            {
                 assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
 
                 nc.publish(NatsMessage.builder()
@@ -181,7 +183,7 @@ public class PublishTests {
         };
 
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(receiveMessageCustomizer);
-             Connection nc = TestBase.standardConnectionWait(ts.getURI())) {
+             Connection nc = standardConnectionWait(ts.getURI())) {
 
             byte[] bodyBytes;
             if (bodyString == null || bodyString.isEmpty()) {
@@ -269,8 +271,8 @@ public class PublishTests {
         CountDownLatch jsReceivedLatchWhenSupported = new CountDownLatch(1);
 
         try (NatsTestServer ts = new NatsTestServer(false, true);
-             Connection ncNotSupported = TestBase.standardConnectionWait(standardOptionsBuilder(ts.getURI()).build());
-             Connection ncSupported = TestBase.standardConnectionWait(standardOptionsBuilder(ts.getURI()).supportUTF8Subjects().build()))
+             Connection ncNotSupported = standardConnectionWait(standardOptionsBuilder(ts.getURI()).build());
+             Connection ncSupported = standardConnectionWait(standardOptionsBuilder(ts.getURI()).supportUTF8Subjects().build()))
         {
             try {
                 ncNotSupported.jetStreamManagement().addStream(
