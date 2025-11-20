@@ -78,6 +78,9 @@ tasks.register('bundle', Bundle) {
 }
 
 jar {
+    manifest {
+        attributes('Automatic-Module-Name': 'io.nats.jnats')
+    }
     bundle {
         bnd("Bundle-Name": "io.nats.jnats",
                 "Bundle-Vendor": "nats.io",
