@@ -49,7 +49,7 @@ public class NatsServerProtocolMock implements Closeable {
     }
 
     public interface Customizer {
-        void customizeTest(NatsServerProtocolMock ts, BufferedReader reader, PrintWriter writer);
+        void customizeTest(NatsServerProtocolMock mockTs, BufferedReader reader, PrintWriter writer);
     }
 
     private final int port;
@@ -126,8 +126,8 @@ public class NatsServerProtocolMock implements Closeable {
         return port;
     }
 
-    public String getURI() {
-        return "nats://0.0.0.0:" + this.getPort();
+    public String getMockUri() {
+        return "nats://0.0.0.0:" + port;
     }
 
     public Progress getProgress() {

@@ -606,6 +606,9 @@ class NatsConnectionReader implements Runnable {
 
     //For testing
     void fakeReadForTest(byte[] bytes) {
+        for (int x = 0; x < this.buffer.length; x++) {
+            this.buffer[x] = 0;
+        }
         System.arraycopy(bytes, 0, this.buffer, 0, bytes.length);
         this.bufferPosition = 0;
         this.op = UNKNOWN_OP;

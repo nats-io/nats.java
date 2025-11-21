@@ -28,8 +28,7 @@ import java.util.concurrent.*;
 
 import static io.nats.client.support.NatsJetStreamConstants.MSG_TTL_HDR;
 import static io.nats.client.support.NatsJetStreamConstants.NATS_MARKER_REASON_HDR;
-import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
-import static io.nats.client.utils.ConnectionUtils.standardOptionsBuilder;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static io.nats.client.utils.VersionUtils.atLeast2_12;
 import static org.junit.jupiter.api.Assertions.*;
@@ -463,62 +462,49 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
     @Test
     public void testMaxPayloadJs() throws Exception {
-        String streamName = "stream-max-payload-test";
-        String subject1 = "mptest1";
-        String subject2 = "mptest2";
+        String streamName = random();
+        String subject1 = random();
+        String subject2 = random();
 
-        try (NatsTestServer ts = new NatsTestServer(false, true))
-        {
-            Options options = standardOptionsBuilder().noReconnect().server(ts.getURI()).build();
+        runInLrServerOwnNc(optionsBuilder().noReconnect(), (nc, jsm, js) -> {
             long expectedSeq = 0;
-            try (Connection nc = standardConnectionWait(options)){
-                JetStreamManagement jsm = nc.jetStreamManagement();
-                try { jsm.deleteStream(streamName); } catch (JetStreamApiException ignore) {}
-                jsm.addStream(StreamConfiguration.builder()
-                    .name(streamName)
-                    .storageType(StorageType.Memory)
-                    .subjects(subject1, subject2)
-                    .maximumMessageSize(1000)
-                    .build()
-                );
+            jsm.addStream(StreamConfiguration.builder()
+                .name(streamName)
+                .storageType(StorageType.Memory)
+                .subjects(subject1, subject2)
+                .maximumMessageSize(1000)
+                .build()
+            );
 
-                JetStream js = nc.jetStream();
-                for (int x = 1; x <= 3; x++)
+            for (int x = 1; x <= 3; x++) {
+                int size = 1000 + x - 2;
+                if (size > 1000) {
+                    JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> js.publish(subject1, new byte[size]));
+                    assertEquals(10054, e.getApiErrorCode());
+                }
+                else
                 {
-                    int size = 1000 + x - 2;
-                    if (size > 1000)
-                    {
-                        JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> js.publish(subject1, new byte[size]));
-                        assertEquals(10054, e.getApiErrorCode());
-                    }
-                    else
-                    {
-                        PublishAck pa = js.publish(subject1, new byte[size]);
-                        assertEquals(++expectedSeq, pa.getSeqno());
-                    }
+                    PublishAck pa = js.publish(subject1, new byte[size]);
+                    assertEquals(++expectedSeq, pa.getSeqno());
                 }
             }
 
-            try (Connection nc = standardConnectionWait(options)){
-                JetStream js = nc.jetStream();
-                for (int x = 1; x <= 3; x++)
+            for (int x = 1; x <= 3; x++) {
+                int size = 1000 + x - 2;
+                CompletableFuture<PublishAck> paFuture = js.publishAsync(subject1, new byte[size]);
+                if (size > 1000)
                 {
-                    int size = 1000 + x - 2;
-                    CompletableFuture<PublishAck> paFuture = js.publishAsync(subject1, new byte[size]);
-                    if (size > 1000)
-                    {
-                        ExecutionException e = assertThrows(ExecutionException.class, () -> paFuture.get(1000, TimeUnit.MILLISECONDS));
-                        JetStreamApiException j = (JetStreamApiException)e.getCause().getCause();
-                        assertEquals(10054, j.getApiErrorCode());
-                    }
-                    else
-                    {
-                        PublishAck pa = paFuture.get(1000, TimeUnit.MILLISECONDS);
-                        assertEquals(++expectedSeq, pa.getSeqno());
-                    }
+                    ExecutionException e = assertThrows(ExecutionException.class, () -> paFuture.get(1000, TimeUnit.MILLISECONDS));
+                    JetStreamApiException j = (JetStreamApiException)e.getCause().getCause();
+                    assertEquals(10054, j.getApiErrorCode());
+                }
+                else
+                {
+                    PublishAck pa = paFuture.get(1000, TimeUnit.MILLISECONDS);
+                    assertEquals(++expectedSeq, pa.getSeqno());
                 }
             }
-        }
+        });
     }
 
     @Test

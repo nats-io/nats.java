@@ -71,9 +71,9 @@ public class ServiceTests extends JetStreamTestBase {
     @Test
     public void testServiceWorkflow() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            try (Connection serviceNc1 = standardConnectionWait(ts.getURI());
-                 Connection serviceNc2 = standardConnectionWait(ts.getURI());
-                 Connection clientNc = standardConnectionWait(ts.getURI())) {
+            try (Connection serviceNc1 = standardConnectionWait(ts.getLocalhostUri());
+                 Connection serviceNc2 = standardConnectionWait(ts.getLocalhostUri());
+                 Connection clientNc = standardConnectionWait(ts.getLocalhostUri())) {
 
                 Endpoint endEcho = Endpoint.builder()
                     .name(ECHO_ENDPOINT_NAME)
@@ -472,9 +472,9 @@ public class ServiceTests extends JetStreamTestBase {
     @Test
     public void testQueueGroup() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            try (Connection serviceNc1 = standardConnectionWait(ts.getURI());
-                 Connection serviceNc2 = standardConnectionWait(ts.getURI());
-                 Connection clientNc = standardConnectionWait(ts.getURI())) {
+            try (Connection serviceNc1 = standardConnectionWait(ts.getLocalhostUri());
+                 Connection serviceNc2 = standardConnectionWait(ts.getLocalhostUri());
+                 Connection clientNc = standardConnectionWait(ts.getLocalhostUri())) {
 
                 String yesQueueSubject = "subjyes";
                 String noQueueSubject = "subjno";
@@ -566,9 +566,9 @@ public class ServiceTests extends JetStreamTestBase {
     @Test
     public void testResponsesFromAllInstances() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            try (Connection serviceNc1 = standardConnectionWait(ts.getURI());
-                 Connection serviceNc2 = standardConnectionWait(ts.getURI());
-                 Connection clientNc = standardConnectionWait(ts.getURI())) {
+            try (Connection serviceNc1 = standardConnectionWait(ts.getLocalhostUri());
+                 Connection serviceNc2 = standardConnectionWait(ts.getLocalhostUri());
+                 Connection clientNc = standardConnectionWait(ts.getLocalhostUri())) {
 
                 Endpoint ep = Endpoint.builder()
                     .name("ep")
@@ -658,7 +658,7 @@ public class ServiceTests extends JetStreamTestBase {
     @Test
     public void testDispatchers() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            try (Connection nc = standardConnectionWait(ts.getURI())) {
+            try (Connection nc = standardConnectionWait(ts.getLocalhostUri())) {
 
                 Map<String, Dispatcher> dispatchers = getDispatchers(nc);
                 assertEquals(0, dispatchers.size());

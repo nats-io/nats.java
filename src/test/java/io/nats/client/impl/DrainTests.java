@@ -88,12 +88,12 @@ public class DrainTests {
             assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
 
             AtomicInteger count = new AtomicInteger();
-            Dispatcher d = subCon.createDispatcher((msg) -> {
+            Dispatcher d = subCon.createDispatcher(msg -> {
                 count.incrementAndGet();
                 sleep(2000); // go slow so the main app can drain us
             });
             d.subscribe("draintest");
-            d.subscribe("draintest", (msg) -> count.incrementAndGet());
+            d.subscribe("draintest", msg -> count.incrementAndGet());
             subCon.flush(Duration.ofSeconds(5)); // Get the sub to the server
 
             pubCon.publish("draintest", null);
@@ -121,7 +121,7 @@ public class DrainTests {
             assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
 
             AtomicInteger count = new AtomicInteger();
-            Dispatcher d = subCon.createDispatcher((msg) -> {
+            Dispatcher d = subCon.createDispatcher(msg -> {
                 count.incrementAndGet();
                 sleep(500); // go slow so the main app can drain us
             });
@@ -160,7 +160,7 @@ public class DrainTests {
             assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
 
             AtomicInteger count = new AtomicInteger();
-            Dispatcher d = subCon.createDispatcher((msg) -> {
+            Dispatcher d = subCon.createDispatcher(msg -> {
                 count.incrementAndGet();
                 sleep(500); // go slow so the main app can drain us
             });
@@ -266,7 +266,7 @@ public class DrainTests {
 
                 CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(500));
 
-                subCon.createDispatcher((msg) -> {
+                subCon.createDispatcher(msg -> {
                 });
                 assertTrue(tracker.get(1000, TimeUnit.SECONDS));
             }
@@ -282,7 +282,7 @@ public class DrainTests {
             assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
 
             AtomicInteger count = new AtomicInteger();
-            Dispatcher d = subCon.createDispatcher((msg) -> {
+            Dispatcher d = subCon.createDispatcher(msg -> {
                 count.incrementAndGet();
                 sleep(1000); // go slow so the main app can drain us
             });
@@ -327,7 +327,7 @@ public class DrainTests {
             AtomicInteger count = new AtomicInteger();
             AtomicReference<Dispatcher> dispatcher = new AtomicReference<>();
             AtomicReference<CompletableFuture<Boolean>> tracker = new AtomicReference<>();
-            Dispatcher d = subCon.createDispatcher((msg) -> {
+            Dispatcher d = subCon.createDispatcher(msg -> {
                 count.incrementAndGet();
                 tracker.set(dispatcher.get().drain(Duration.ofSeconds(1)));
             });
@@ -358,7 +358,7 @@ public class DrainTests {
             assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
 
             AtomicInteger count = new AtomicInteger();
-            Dispatcher d = subCon.createDispatcher((msg) -> {
+            Dispatcher d = subCon.createDispatcher(msg -> {
                 count.incrementAndGet();
                 sleep(500); // go slow so the main app can drain us
             });
@@ -406,7 +406,7 @@ public class DrainTests {
                 Subscription sub = subCon.subscribe("draintest");
                 subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-                Dispatcher d = pubCon.createDispatcher((msg) -> pubCon.publish(msg.getReplyTo(), null));
+                Dispatcher d = pubCon.createDispatcher(msg -> pubCon.publish(msg.getReplyTo(), null));
                 d.subscribe("reply");
                 pubCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
@@ -444,7 +444,7 @@ public class DrainTests {
                 Subscription sub = subCon.subscribe("draintest");
                 subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-                Dispatcher d = pubCon.createDispatcher((msg) -> pubCon.publish(msg.getReplyTo(), null));
+                Dispatcher d = pubCon.createDispatcher(msg -> pubCon.publish(msg.getReplyTo(), null));
                 d.subscribe("reply");
                 pubCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
@@ -495,7 +495,7 @@ public class DrainTests {
             Connection draining = Nats.connect(optionsBuilder(ts).maxReconnects(0).build());
             assertSame(Connection.Status.CONNECTED, draining.getStatus(), "Connected Status");
 
-            drainingD = (NatsDispatcher) draining.createDispatcher((msg) -> count.incrementAndGet()).subscribe("draintest", "queue");
+            drainingD = (NatsDispatcher) draining.createDispatcher(msg -> count.incrementAndGet()).subscribe("draintest", "queue");
             draining.flush(Duration.ofSeconds(5));
 
             Thread pubThread = new Thread(() -> {
@@ -512,7 +512,7 @@ public class DrainTests {
 
                 working = Nats.connect(optionsBuilder(ts).maxReconnects(0).build());
                 assertSame(Connection.Status.CONNECTED, working.getStatus(), "Connected Status");
-                workingD = (NatsDispatcher) working.createDispatcher((msg) -> count.incrementAndGet()).subscribe("draintest", "queue");
+                workingD = (NatsDispatcher) working.createDispatcher(msg -> count.incrementAndGet()).subscribe("draintest", "queue");
                 working.flush(Duration.ofSeconds(5));
 
                 park(sleepBetweenDrains);
@@ -585,7 +585,7 @@ public class DrainTests {
             assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
 
             AtomicInteger count = new AtomicInteger();
-            Dispatcher d = subCon.createDispatcher((msg) -> {
+            Dispatcher d = subCon.createDispatcher(msg -> {
                 try {
                     Thread.sleep(1500); // go slow so the main app can drain us
                 } catch (Exception e) {
@@ -625,7 +625,7 @@ public class DrainTests {
             assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
 
             AtomicInteger count = new AtomicInteger();
-            Dispatcher d = subCon.createDispatcher((msg) -> {
+            Dispatcher d = subCon.createDispatcher(msg -> {
                 try {
                     Thread.sleep(3000); // go slow so the main app can drain us
                 } catch (Exception e) {

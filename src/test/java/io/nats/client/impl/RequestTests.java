@@ -37,7 +37,7 @@ public class RequestTests extends TestBase {
                 Connection nc = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
-            Dispatcher d = nc.createDispatcher((msg) -> {
+            Dispatcher d = nc.createDispatcher(msg -> {
                 assertTrue(msg.getReplyTo().startsWith(Options.DEFAULT_INBOX_PREFIX));
                 if (msg.hasHeaders()) {
                     nc.publish(msg.getReplyTo(), msg.getHeaders(), null);
@@ -71,7 +71,7 @@ public class RequestTests extends TestBase {
     @Test
     public void testRequestVarieties() throws Exception {
         runInServer(nc -> {
-            Dispatcher d = nc.createDispatcher((msg) -> {
+            Dispatcher d = nc.createDispatcher(msg -> {
                 if (msg.hasHeaders()) {
                     nc.publish(msg.getReplyTo(), msg.getHeaders(), msg.getData());
                 }
@@ -124,7 +124,7 @@ public class RequestTests extends TestBase {
                 Connection nc = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
-            Dispatcher d = nc.createDispatcher((msg) -> {
+            Dispatcher d = nc.createDispatcher(msg -> {
                 assertTrue(msg.getReplyTo().startsWith(Options.DEFAULT_INBOX_PREFIX));
                 msg.getConnection().publish(msg.getReplyTo(), null);
             });
@@ -147,7 +147,7 @@ public class RequestTests extends TestBase {
                 Connection nc = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
-            Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), null));
+            Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), null));
             d.subscribe("subject");
 
             Message msg = nc.request("subject", null, Duration.ofMillis(1000));
@@ -165,7 +165,7 @@ public class RequestTests extends TestBase {
                 Connection nc = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
-            Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), new byte[7]));
+            Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), new byte[7]));
             d.subscribe("subject");
 
             for (int i=0; i<10; i++) {
@@ -185,7 +185,7 @@ public class RequestTests extends TestBase {
         Options.Builder builder = optionsBuilder().turnOnAdvancedStats();
         runInServer(builder, nc -> {
             AtomicInteger requests = new AtomicInteger();
-            MessageHandler handler = (msg) -> { requests.incrementAndGet(); nc.publish(msg.getReplyTo(), null); };
+            MessageHandler handler = msg -> { requests.incrementAndGet(); nc.publish(msg.getReplyTo(), null); };
             Dispatcher d1 = nc.createDispatcher(handler);
             Dispatcher d2 = nc.createDispatcher(handler);
             Dispatcher d3 = nc.createDispatcher(handler);
@@ -218,7 +218,7 @@ public class RequestTests extends TestBase {
     @Test
     public void testManualRequestReplyAndPublishSignatures() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-             Connection nc = Nats.connect(ts.getURI())) {
+             Connection nc = Nats.connect(ts.getLocalhostUri())) {
             assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
 
             Dispatcher d = nc.createDispatcher(msg -> {
@@ -257,7 +257,7 @@ public class RequestTests extends TestBase {
                 Connection nc = Nats.connect(optionsBuilder(ts).inboxPrefix("myinbox").maxReconnects(0).build())) {
             assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
-            Dispatcher d = nc.createDispatcher((msg) -> {
+            Dispatcher d = nc.createDispatcher(msg -> {
                 assertTrue(msg.getReplyTo().startsWith("myinbox"));
                 nc.publish(msg.getReplyTo(), null);
             });
@@ -335,7 +335,7 @@ public class RequestTests extends TestBase {
 
                 assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
 
-                Dispatcher d = nc.createDispatcher((msg) -> {
+                Dispatcher d = nc.createDispatcher(msg -> {
                     assertTrue(msg.getReplyTo().startsWith(Options.DEFAULT_INBOX_PREFIX));
                     if (msg.hasHeaders()) {
                         nc.publish(msg.getReplyTo(), msg.getHeaders(), null);
@@ -390,7 +390,7 @@ public class RequestTests extends TestBase {
                 //slow responder
                 long delay = 2 * cleanupInterval + Options.DEFAULT_CONNECTION_TIMEOUT.toMillis();
 
-                Dispatcher d = nc.createDispatcher((msg) -> {
+                Dispatcher d = nc.createDispatcher(msg -> {
                     assertTrue(msg.getReplyTo().startsWith(Options.DEFAULT_INBOX_PREFIX));
                     Thread.sleep(delay);
                     nc.publish(msg.getReplyTo(), null);
@@ -540,7 +540,7 @@ public class RequestTests extends TestBase {
             try {
                 assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 
-                Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), null));
+                Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), null));
                 d.subscribe("subject");
 
                 long start = System.nanoTime();
@@ -570,11 +570,11 @@ public class RequestTests extends TestBase {
             try (NatsTestServer ts = new NatsTestServer()) {
                 int msgCount = 100;
                 ArrayList<Future<Message>> messages = new ArrayList<>();
-                Connection nc = Nats.connect(ts.getURI());
+                Connection nc = Nats.connect(ts.getLocalhostUri());
                 try {
                     assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                     
-                    Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), new byte[1]));
+                    Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), new byte[1]));
                     d.subscribe("subject");
         
                     for (int i=0;i<msgCount;i++) {
@@ -599,9 +599,9 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testOldStyleRequest() throws Exception {
-        runInLrServer(Options.builder().oldRequestStyle(), nc -> {
+        runInLrServerOwnNc(Options.builder().oldRequestStyle(), nc -> {
             String subject = random();
-            Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), null));
+            Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), null));
             d.subscribe(subject);
 
             Future<Message> incoming = nc.request(subject, null);
@@ -621,7 +621,7 @@ public class RequestTests extends TestBase {
             int messageSize = 1024;
             Options options = optionsBuilder(ts).bufferSize(initialSize).connectionTimeout(Duration.ofSeconds(10)).build();
             try (Connection nc = standardConnectionWait(options)) {
-                Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), msg.getData()));
+                Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), msg.getData()));
                 d.subscribe("subject");
 
                 Future<Message> incoming = nc.request("subject", new byte[messageSize]); // force the buffers to resize
@@ -644,7 +644,7 @@ public class RequestTests extends TestBase {
     public void throwsIfClosed() {
         assertThrows(IllegalStateException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer();
-                        Connection nc = Nats.connect(ts.getURI())) {
+                        Connection nc = Nats.connect(ts.getLocalhostUri())) {
                 nc.close();
                 nc.request("subject", null);
                 fail();
@@ -656,7 +656,7 @@ public class RequestTests extends TestBase {
     public void testThrowsWithoutSubject() {
         assertThrows(IllegalArgumentException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer();
-                 Connection nc = Nats.connect(ts.getURI())) {
+                 Connection nc = Nats.connect(ts.getLocalhostUri())) {
                 //noinspection DataFlowIssue
                 nc.request((String)null, null);
                 fail();
@@ -668,7 +668,7 @@ public class RequestTests extends TestBase {
     public void testThrowsEmptySubject() {
         assertThrows(IllegalArgumentException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer();
-                    Connection nc = Nats.connect(ts.getURI())) {
+                    Connection nc = Nats.connect(ts.getLocalhostUri())) {
                 nc.request("", null);
                 fail();
             }
@@ -741,7 +741,7 @@ public class RequestTests extends TestBase {
     public void testCancelledFutureMustNotErrorOnCleanResponses() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
             Options options = Options.builder()
-                    .server(ts.getURI())
+                    .server(ts.getLocalhostUri())
                     .noNoResponders()
                     .requestCleanupInterval(Duration.ofSeconds(10))
                     .build();

@@ -30,8 +30,8 @@ public class InfoHandlerTests {
     public void testInitialInfo() throws IOException, InterruptedException {
         String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\"}";
 
-        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(null, customInfo)) {
+            Connection nc = Nats.connect(mockTs.getMockUri());
             try {
                 assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 assertEquals("myid", nc.getServerInfo().getServerId(), "got custom info");
@@ -85,8 +85,8 @@ public class InfoHandlerTests {
             }
         };
 
-        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(infoCustomizer, customInfo)) {
-            Connection nc = Nats.connect(ts.getURI());
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(infoCustomizer, customInfo)) {
+            Connection nc = Nats.connect(mockTs.getMockUri());
             try {
                 assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 assertEquals("myid", nc.getServerInfo().getServerId(), "got custom info");
@@ -146,13 +146,13 @@ public class InfoHandlerTests {
             }
         };
 
-        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(infoCustomizer, customInfo)) {
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(infoCustomizer, customInfo)) {
 
             ConnectionListener cl = (conn, type) -> {
                 if (type.equals(ConnectionListener.Events.LAME_DUCK)) connectLDM.complete(type);
             };
 
-            Options options = optionsBuilder().server(ts.getURI()).connectionListener(cl).build();
+            Options options = optionsBuilder().server(mockTs.getMockUri()).connectionListener(cl).build();
 
             Connection nc = Nats.connect(options);
             try {

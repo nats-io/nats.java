@@ -21,8 +21,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static io.nats.client.utils.ConnectionUtils.standardCloseConnection;
 import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
-import static io.nats.client.utils.TestBase.random;
-import static io.nats.client.utils.TestBase.runInLrServer;
+import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class SubscriberTests {
@@ -108,8 +107,8 @@ public class SubscriberTests {
             w.flush();
         };
 
-        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(receiveMessageCustomizer);
-             Connection nc = standardConnectionWait(ts.getURI())) {
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(receiveMessageCustomizer);
+             Connection nc = standardConnectionWait(mockTs.getMockUri())) {
 
             String subject = random();
             Subscription sub = nc.subscribe(subject);
@@ -354,8 +353,7 @@ public class SubscriberTests {
 
     @Test
     public void throwsSubscriptionExceptions() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer();
-             Connection nc = standardConnectionWait(ts.getURI())) {
+        runInLrServerOwnNc(nc -> {
             String subject = random();
             Subscription sub = nc.subscribe(subject);
 
@@ -369,7 +367,7 @@ public class SubscriberTests {
 
             /// can't auto unsubscribe when closed
             assertThrows(IllegalStateException.class, () -> sub.unsubscribe(1));
-        }
+        });
     }
 
     @Test

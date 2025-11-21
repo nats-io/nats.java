@@ -14,13 +14,12 @@
 package io.nats.client.utils;
 
 import io.nats.client.*;
+import io.nats.client.api.ServerInfo;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
 import io.nats.client.impl.*;
 import io.nats.client.support.NatsJetStreamClientError;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.function.Executable;
 
 import java.io.IOException;
@@ -43,11 +42,6 @@ import static io.nats.client.utils.VersionUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestBase {
-    @BeforeAll
-    public static void setup(TestInfo info) {
-        TestDebugger.clazz(info.getDisplayName());
-    }
-
     public static final String STAR_SEGMENT        = "*.star.*.segment.*";
     public static final String GT_NOT_LAST_SEGMENT = "gt.>.notlast";
     public static final String GT_LAST_SEGMENT     = "gt.last.>";
@@ -86,6 +80,13 @@ public class TestBase {
     public static String[] BAD_SUBJECTS_OR_QUEUES = new String[] {
         HAS_SPACE, HAS_CR, HAS_LF, HAS_TAB, STARTS_SPACE, ENDS_SPACE, null, EMPTY
     };
+
+    public static ServerInfo ensureVersionServerInfo() throws Exception {
+        if (VERSION_SERVER_INFO == null) {
+            runInLrServer(VersionUtils::initVersionServerInfo);
+        }
+        return VERSION_SERVER_INFO;
+    }
 
     // ----------------------------------------------------------------------------------------------------
     // runners / test interfaces
@@ -149,7 +150,7 @@ public class TestBase {
                 builder = optionsBuilder();
             }
 
-            try (Connection nc = standardConnectionWait(builder.server(ts.getURI()).build())) {
+            try (Connection nc = standardConnectionWait(builder.server(ts.getLocalhostUri()).build())) {
                 initVersionServerInfo(nc);
                 if (vc == null || vc.runTest(VERSION_SERVER_INFO)) {
                     try {
@@ -196,11 +197,15 @@ public class TestBase {
         _runInLrServer(null, null, test, null, null);
     }
 
-    public static void runInLrServerCloseableConnection(InServerTest test) throws Exception {
+    public static void runInLrServerOwnNc(InServerTest test) throws Exception {
         _runInLrServer(optionsBuilder(LongRunningServer.server()), null, test, null, null);
     }
 
-    public static void runInLrServer(Options.Builder builder, InServerTest test) throws Exception {
+    public static void runInLrServerOwnNc(ErrorListener el, InServerTest test) throws Exception {
+        _runInLrServer(optionsBuilder(el), null, test, null, null);
+    }
+
+    public static void runInLrServerOwnNc(Options.Builder builder, InServerTest test) throws Exception {
         _runInLrServer(builder, null, test, null, null);
     }
 
@@ -212,15 +217,19 @@ public class TestBase {
         _runInLrServer(null, vc, null, jsTest, null);
     }
 
+    public static void runInLrServerOwnNc(Options.Builder builder, InJetStreamTest jsTest) throws Exception {
+        _runInLrServer(builder, null, null, jsTest, null);
+    }
+
     public static void runInLrServer(Options.Builder builder, VersionCheck vc, InJetStreamTest jsTest) throws Exception {
         _runInLrServer(builder, vc, null, jsTest, null);
     }
 
-    public static void runInLrServer(ErrorListener el, InJetStreamTest jsTest) throws Exception {
+    public static void runInLrServerOwnNc(ErrorListener el, InJetStreamTest jsTest) throws Exception {
         _runInLrServer(optionsBuilder(el), null, null, jsTest, null);
     }
 
-    public static void runInLrServer(ErrorListener el, VersionCheck vc, InJetStreamTest jsTest) throws Exception {
+    public static void runInLrServerOwnNc(ErrorListener el, VersionCheck vc, InJetStreamTest jsTest) throws Exception {
         _runInLrServer(optionsBuilder(el), vc, null, jsTest, null);
     }
 
@@ -232,19 +241,19 @@ public class TestBase {
         _runInLrServer(null, vc, null, null, oneSubjectJstcTest);
     }
 
-    public static void runInLrServer(ErrorListener el, VersionCheck vc, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
+    public static void runInLrServerOwnNc(ErrorListener el, VersionCheck vc, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
         _runInLrServer(optionsBuilder(el), vc, null, null, oneSubjectJstcTest);
     }
 
-    public static void runInLrServer(ErrorListener el, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
+    public static void runInLrServerOwnNc(ErrorListener el, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
         _runInLrServer(optionsBuilder(el), null, null, null, oneSubjectJstcTest);
     }
 
-    public static void runInLrServer(Options.Builder builder, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
+    public static void runInLrServerOwnNc(Options.Builder builder, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
         _runInLrServer(builder, null, null, null, oneSubjectJstcTest);
     }
 
-    public static void runInLrServer(Options.Builder builder, VersionCheck vc, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
+    public static void runInLrServerOwnNc(Options.Builder builder, VersionCheck vc, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
         _runInLrServer(builder, vc, null, null, oneSubjectJstcTest);
     }
 
@@ -348,9 +357,9 @@ public class TestBase {
         };
 
         try (NatsTestServer hub = new NatsTestServer(hubPort, false, true, null, hubInserts, null);
-             Connection nchub = standardConnectionWait(hub.getURI());
+             Connection nchub = standardConnectionWait(hub.getLocalhostUri());
              NatsTestServer leaf = new NatsTestServer(leafPort, false, true, null, leafInserts, null);
-             Connection ncleaf = standardConnectionWait(leaf.getURI())
+             Connection ncleaf = standardConnectionWait(leaf.getLocalhostUri())
         ) {
             try {
                 twoServerTest.test(nchub, ncleaf);
@@ -442,12 +451,12 @@ public class TestBase {
             String[] servers = new String[srvs.length];
             for (int i = 0; i < srvs.length; i++) {
                 NatsTestServer nts = srvs[i];
-                servers[i] = nts.getURI();
+                servers[i] = nts.getLocalhostUri();
             }
             b.servers(servers);
         }
         else {
-            b.server(srvs[0].getURI());
+            b.server(srvs[0].getLocalhostUri());
         }
         if (tstOpts.configureAccount()) {
             b.authHandler(Nats.staticCredentials(null, USER_SEED.toCharArray()));

@@ -16,6 +16,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -27,16 +28,11 @@ import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.*;
 
 
-public class MessageContentTests {
+public class MessageContentTests extends TestBase {
     @Test
     public void testSimpleString() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer();
-                Connection nc = Nats.connect(ts.getURI())) {
-            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-            
-            Dispatcher d = nc.createDispatcher((msg) -> {
-                nc.publish(msg.getReplyTo(), msg.getData());
-            });
+        runInLrServer(nc -> {
+            Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), msg.getData()));
             d.subscribe("subject");
 
             String body = "hello world";
@@ -47,18 +43,13 @@ public class MessageContentTests {
             assertNotNull(msg);
             assertEquals(bodyBytes.length, msg.getData().length);
             assertEquals(body, new String(msg.getData(), StandardCharsets.UTF_8));
-        }
+        });
     }
 
     @Test
     public void testUTF8String() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer();
-                Connection nc = Nats.connect(ts.getURI())) {
-            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-            
-            Dispatcher d = nc.createDispatcher((msg) -> {
-                nc.publish(msg.getReplyTo(), msg.getData());
-            });
+        runInLrServer(nc -> {
+            Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), msg.getData()));
             d.subscribe("subject");
 
             String body = "??????";
@@ -69,18 +60,13 @@ public class MessageContentTests {
             assertNotNull(msg);
             assertEquals(bodyBytes.length, msg.getData().length);
             assertEquals(body, new String(msg.getData(), StandardCharsets.UTF_8));
-        }
+        });
     }
 
     @Test
     public void testDifferentSizes() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer();
-                Connection nc = Nats.connect(ts.getURI())) {
-            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-            
-            Dispatcher d = nc.createDispatcher((msg) -> {
-                nc.publish(msg.getReplyTo(), msg.getData());
-            });
+        runInLrServer(nc -> {
+            Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), msg.getData()));
             d.subscribe("subject");
 
             String body = "hello world";
@@ -96,18 +82,13 @@ public class MessageContentTests {
 
                 body = body+body;
             }
-        }
+        });
     }
 
     @Test
     public void testZeros() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer();
-                Connection nc = Nats.connect(ts.getURI())) {
-            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-            
-            Dispatcher d = nc.createDispatcher((msg) -> {
-                nc.publish(msg.getReplyTo(), msg.getData());
-            });
+        runInLrServer(nc -> {
+            Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), msg.getData()));
             d.subscribe("subject");
 
             byte[] data = new byte[17];
@@ -117,7 +98,7 @@ public class MessageContentTests {
             assertNotNull(msg);
             assertEquals(data.length, msg.getData().length);
             assertArrayEquals(msg.getData(), data);
-        }
+        });
     }
     
     @Test
@@ -202,13 +183,13 @@ public class MessageContentTests {
     void runBadContentTest(NatsServerProtocolMock.Customizer badServer, CompletableFuture<Boolean> ready) throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
 
-        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(badServer, null)) {
-            Options options = optionsBuilder().
-                                server(ts.getURI()).
-                                maxReconnects(0).
-                                errorListener(listener).
-                                connectionListener(listener).
-                                build();
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(badServer, null)) {
+            Options options = optionsBuilder()
+                .server(mockTs.getMockUri())
+                .maxReconnects(0)
+                .errorListener(listener)
+                .connectionListener(listener)
+                .build();
             Connection nc = Nats.connect(options);
             try {
                 assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");

@@ -46,9 +46,9 @@ public class ErrorListenerTests {
              NatsTestServer ts2 = new NatsTestServer(customArgs, false); //ts2 requires auth
              NatsTestServer ts3 = new NatsTestServer()) {
             Options options = optionsBuilder()
-                .server(ts.getURI())
-                .server(ts2.getURI())
-                .server(ts3.getURI())
+                .server(ts.getLocalhostUri())
+                .server(ts2.getLocalhostUri())
+                .server(ts3.getLocalhostUri())
                 .noRandomize()
                 .connectionListener(listener)
                 .errorListener(listener)
@@ -56,7 +56,7 @@ public class ErrorListenerTests {
                 .build();
             nc = (NatsConnection) Nats.connect(options);
             assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-            assertEquals(ts.getURI(), nc.getConnectedUrl());
+            assertEquals(ts.getLocalhostUri(), nc.getConnectedUrl());
             listener.prepForStatusChange(Events.DISCONNECTED);
 
             ts.close();
@@ -76,7 +76,7 @@ public class ErrorListenerTests {
             assertTrue(listener.errorsEventually("Authorization Violation", 2000));
 
             assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-            assertEquals(ts3.getURI(), nc.getConnectedUrl());
+            assertEquals(ts3.getLocalhostUri(), nc.getConnectedUrl());
         } finally {
             standardCloseConnection(nc);
         }
@@ -92,9 +92,9 @@ public class ErrorListenerTests {
              NatsTestServer ts2 = new NatsTestServer(customArgs, false); //ts2 requires auth
              NatsTestServer ts3 = new NatsTestServer()) {
             Options options = optionsBuilder()
-                .server(ts.getURI())
-                .server(ts2.getURI())
-                .server(ts3.getURI())
+                .server(ts.getLocalhostUri())
+                .server(ts2.getLocalhostUri())
+                .server(ts3.getLocalhostUri())
                 .noRandomize()
                 .connectionListener(listener)
                 .errorListener(listener)
@@ -102,7 +102,7 @@ public class ErrorListenerTests {
                 .build();
             nc = (NatsConnection) Nats.connect(options);
             assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-            assertEquals(ts.getURI(), nc.getConnectedUrl());
+            assertEquals(ts.getLocalhostUri(), nc.getConnectedUrl());
             listener.prepForStatusChange(Events.DISCONNECTED);
 
             ts.close();
@@ -122,7 +122,7 @@ public class ErrorListenerTests {
             assertTrue(listener.errorsEventually("Authorization Violation", 2000));
 
             assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-            assertEquals(ts3.getURI(), nc.getConnectedUrl());
+            assertEquals(ts3.getLocalhostUri(), nc.getConnectedUrl());
 
             nc.clearLastError();
             assertNull(nc.getLastError());
@@ -168,7 +168,7 @@ public class ErrorListenerTests {
                 .build();
             Connection nc = Nats.connect(options);
             try {
-                Dispatcher d = nc.createDispatcher((msg) -> {
+                Dispatcher d = nc.createDispatcher(msg -> {
                     throw new ArithmeticException();
                 });
                 d.subscribe("subject");
@@ -236,7 +236,7 @@ public class ErrorListenerTests {
             Options options = optionsBuilder(ts).maxReconnects(0).errorListener(listener).build();
             Connection nc = Nats.connect(options);
             try {
-                Dispatcher d = nc.createDispatcher((msg) -> {
+                Dispatcher d = nc.createDispatcher(msg -> {
                     throw new ArithmeticException();
                 });
                 d.subscribe("subject");

@@ -31,7 +31,7 @@ public class AuthAndConnectTests {
     @Test
     public void testIsAuthError() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            Connection nc = standardConnectionWait(ts.getURI());
+            Connection nc = standardConnectionWait(ts.getLocalhostUri());
             NatsConnection nats = (NatsConnection)nc;
 
             assertTrue(nats.isAuthenticationError("user authentication expired"));
@@ -48,7 +48,7 @@ public class AuthAndConnectTests {
     @Test()
     public void testConnectWhenClosed() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            NatsConnection nc = (NatsConnection) standardConnectionWait(ts.getURI());
+            NatsConnection nc = (NatsConnection) standardConnectionWait(ts.getLocalhostUri());
             standardCloseConnection(nc);
             nc.connect(false); // should do nothing
             assertClosed(nc);
@@ -73,33 +73,34 @@ public class AuthAndConnectTests {
 
         try (NatsTestServer ts = new NatsTestServer()) {
             Options options = Options.builder()
-                    .server(ts.getURI())
+                    .server(ts.getLocalhostUri())
                     .maxReconnects(-1)
                     .reconnectWait(Duration.ZERO)
                     .errorListener(noopErrorListener)
                     .build();
 
-            NatsConnection nc = (NatsConnection) standardConnectionWait(options);
+            try (NatsConnection nc = (NatsConnection) standardConnectionWait(options)) {
 
-            // After we've connected, shut down, so we can attempt reconnecting.
-            ts.shutdown(true);
+                // After we've connected, shut down, so we can attempt reconnecting.
+                ts.shutdown(true);
 
-            final AtomicBoolean running = new AtomicBoolean(true);
-            Thread parallelCommunicationIssues = new Thread(() -> {
-                while (running.get()) {
-                    nc.handleCommunicationIssue(new Exception());
+                final AtomicBoolean running = new AtomicBoolean(true);
+                Thread parallelCommunicationIssues = new Thread(() -> {
+                    while (running.get()) {
+                        nc.handleCommunicationIssue(new Exception());
 
-                    // Shortly sleep, to not spam at full speed.
-                    sleep(1);
-                }
-            });
-            parallelCommunicationIssues.start();
+                        // Shortly sleep, to not spam at full speed.
+                        sleep(1);
+                    }
+                });
+                parallelCommunicationIssues.start();
 
-            // Wait for some time to allow for reconnection logic to run.
-            Thread.sleep(2000);
-            running.set(false);
+                // Wait for some time to allow for reconnection logic to run.
+                Thread.sleep(2000);
+                running.set(false);
 
-            assertNotEquals(Connection.Status.CLOSED, nc.getStatus());
+                assertNotEquals(Connection.Status.CLOSED, nc.getStatus());
+            }
         }
     }
 }

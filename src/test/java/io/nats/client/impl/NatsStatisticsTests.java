@@ -32,8 +32,8 @@ import static org.junit.jupiter.api.Assertions.*;
 public class NatsStatisticsTests extends TestBase {
     @Test
     public void testHumanReadableString() throws Exception {
-        runInLrServer(optionsBuilder().turnOnAdvancedStats(), nc -> {
-            Dispatcher d = nc.createDispatcher((msg) -> {
+        runInLrServerOwnNc(optionsBuilder().turnOnAdvancedStats(), nc -> {
+            Dispatcher d = nc.createDispatcher(msg -> {
                 nc.publish(msg.getReplyTo(), new byte[16]);
             });
             d.subscribe("subject");
@@ -54,8 +54,8 @@ public class NatsStatisticsTests extends TestBase {
 
     @Test
     public void testInOutOKRequestStats() throws Exception {
-        runInLrServer(optionsBuilder().verbose(), nc -> {
-            Dispatcher d = nc.createDispatcher((msg) -> {
+        runInLrServerOwnNc(optionsBuilder().verbose(), nc -> {
+            Dispatcher d = nc.createDispatcher(msg -> {
                 Message m = NatsMessage.builder()
                     .subject(msg.getReplyTo())
                     .data(new byte[16])
@@ -86,8 +86,8 @@ public class NatsStatisticsTests extends TestBase {
 
     @Test
     public void testReadWriteAdvancedStatsEnabled() throws Exception {
-        runInLrServer(optionsBuilder().verbose().turnOnAdvancedStats(), nc -> {
-            Dispatcher d = nc.createDispatcher((msg) -> {
+        runInLrServerOwnNc(optionsBuilder().verbose().turnOnAdvancedStats(), nc -> {
+            Dispatcher d = nc.createDispatcher(msg -> {
                 Message m = NatsMessage.builder()
                     .subject(msg.getReplyTo())
                     .data(new byte[16])
@@ -124,8 +124,8 @@ public class NatsStatisticsTests extends TestBase {
 
     @Test
     public void testReadWriteAdvancedStatsDisabled() throws Exception {
-        runInLrServer(optionsBuilder().verbose(), nc -> {
-            Dispatcher d = nc.createDispatcher((msg) -> {
+        runInLrServerOwnNc(optionsBuilder().verbose(), nc -> {
+            Dispatcher d = nc.createDispatcher(msg -> {
                 Message m = NatsMessage.builder()
                     .subject(msg.getReplyTo())
                     .data(new byte[16])
@@ -177,9 +177,9 @@ public class NatsStatisticsTests extends TestBase {
 
     @Test
     public void testOrphanDuplicateRepliesAdvancedStatsEnabled() throws Exception {
-        runInLrServer(optionsBuilder().turnOnAdvancedStats(), nc -> {
+        runInLrServerOwnNc(optionsBuilder().turnOnAdvancedStats(), nc -> {
             AtomicInteger requests = new AtomicInteger();
-            MessageHandler handler = (msg) -> {
+            MessageHandler handler = msg -> {
                 requests.incrementAndGet();
                 nc.publish(msg.getReplyTo(), null);
             };
@@ -222,7 +222,7 @@ public class NatsStatisticsTests extends TestBase {
     public void testOrphanDuplicateRepliesAdvancedStatsDisabled() throws Exception {
         runInServer(optionsBuilder(), nc -> {
             AtomicInteger requests = new AtomicInteger();
-            MessageHandler handler = (msg) -> {
+            MessageHandler handler = msg -> {
                 requests.incrementAndGet();
                 nc.publish(msg.getReplyTo(), null);
             };

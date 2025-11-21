@@ -5,8 +5,8 @@ plugins {
     id("java-library")
     id("maven-publish")
     id("jacoco")
-    id("biz.aQute.bnd.builder") version "5.1.2"
-//    id("biz.aQute.bnd.builder") version "7.1.0"
+//    id("biz.aQute.bnd.builder") version "5.1.2"
+    id("biz.aQute.bnd.builder") version "7.1.0"
     id("org.gradle.test-retry") version "1.6.4"
     id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
     id("signing")
@@ -26,10 +26,15 @@ def jarAndArtifactName = "jnats" + jarEnd
 
 version = isRelease ? jarVersion : jarVersion + snap // version is the variable the build actually uses.
 
+def os = System.getProperty("os.name")
+def isNotWindows = !os.contains("Windows")
 def javaVersion = System.getProperty("java.version");
+def compilerIsJava8 = javaVersion.startsWith("1.8")
+
+System.out.println("OS: " + os)
 System.out.println("Java: " + javaVersion)
 System.out.println("Target Compatibility: " + targetCompat)
-System.out.println(group + ":" + jarAndArtifactName + ":" + version)
+System.out.println("Output: " + group + ":" + jarAndArtifactName + ":" + version)
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
@@ -49,7 +54,7 @@ dependencies {
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.14.1'
     testImplementation 'io.nats:jnats-server-runner:3.0.2-SNAPSHOT'
-    if (javaVersion.startsWith("1.8")) {
+    if (compilerIsJava8) {
         testImplementation 'nl.jqno.equalsverifier:equalsverifier:3.12.3'
     }
     else {
@@ -88,6 +93,7 @@ jar {
                 "Bundle-DocURL": "https://github.com/nats-io/nats.java"
         )
     }
+    archiveBaseName = jarAndArtifactName
 }
 
 test {
@@ -103,7 +109,9 @@ test {
         maxFailures = 4
         maxRetries = 4
     }
-    maxParallelForks = Runtime.runtime.availableProcessors()
+    if (compilerIsJava8 || isNotWindows) {
+        maxParallelForks = Runtime.runtime.availableProcessors()
+    }
     systemProperty 'junit.jupiter.execution.timeout.default', '3m'
 }
 

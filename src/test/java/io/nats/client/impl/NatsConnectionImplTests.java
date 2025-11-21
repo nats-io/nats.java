@@ -30,7 +30,7 @@ public class NatsConnectionImplTests {
     @Test
     public void testConnectionClosedProperly() throws Exception {
         try (NatsTestServer server = new NatsTestServer()) {
-            Options options = standardOptions(server.getNatsLocalhostUri());
+            Options options = standardOptions(server.getLocalhostUri());
             verifyInternalExecutors(options, (NatsConnection) standardConnectionWait(options));
 
             // using the same options to demonstrate the executors came
@@ -47,7 +47,7 @@ public class NatsConnectionImplTests {
             assertFalse(es.isShutdown());
             assertFalse(ses.isShutdown());
 
-            options = standardOptionsBuilder(server.getNatsLocalhostUri())
+            options = standardOptionsBuilder(server.getLocalhostUri())
                 .executor(es)
                 .scheduledExecutor(ses)
                 .build();

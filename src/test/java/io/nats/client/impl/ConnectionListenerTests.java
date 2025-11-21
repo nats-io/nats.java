@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -28,7 +29,7 @@ import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class ConnectionListenerTests {
+public class ConnectionListenerTests extends TestBase {
 
     @Test
     public void testToString() {
@@ -37,28 +38,23 @@ public class ConnectionListenerTests {
     
     @Test
     public void testCloseCount() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer()) {
-            ListenerForTesting listener = new ListenerForTesting();
-            Options options = optionsBuilder(ts).
-                                connectionListener(listener).
-                                build();
-            Connection nc = standardConnectionWait(options);
-            assertEquals(ts.getURI(), nc.getConnectedUrl());
+        ListenerForTesting listener = new ListenerForTesting();
+        runInLrServerOwnNc(optionsBuilder().connectionListener(listener), nc -> {
             standardCloseConnection(nc);
             assertNull(nc.getConnectedUrl());
             assertEquals(1, listener.getEventCount(Events.CLOSED));
-        }
+        });
     }
 
     @Test
     public void testDiscoveredServersCountAndListenerInOptions() throws Exception {
 
         try (NatsTestServer ts = new NatsTestServer()) {
-            String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\",\"connect_urls\": [\""+ts.getURI()+"\"]}";
-            try (NatsServerProtocolMock ts2 = new NatsServerProtocolMock(null, customInfo)) {
+            String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\",\"connect_urls\": [\""+ts.getLocalhostUri()+"\"]}";
+            try (NatsServerProtocolMock mockTs2 = new NatsServerProtocolMock(null, customInfo)) {
                 ListenerForTesting listener = new ListenerForTesting();
                 Options options = optionsBuilder()
-                    .server(ts2.getURI())
+                    .server(mockTs2.getMockUri())
                     .maxReconnects(0)
                     .connectionListener(listener)
                     .build();
@@ -76,14 +72,14 @@ public class ConnectionListenerTests {
         Connection nc;
         ListenerForTesting listener = new ListenerForTesting();
         try (NatsTestServer ts = new NatsTestServer()) {
-            Options options = optionsBuilder(ts).
-                    reconnectWait(Duration.ofMillis(100)).
-                    maxReconnects(-1).
-                    connectionListener(listener).
-                    build();
+            Options options = optionsBuilder(ts)
+                .reconnectWait(Duration.ofMillis(100))
+                .maxReconnects(-1)
+                .connectionListener(listener)
+                .build();
             port = ts.getPort();
             nc = standardConnectionWait(options);
-            assertEquals(ts.getURI(), nc.getConnectedUrl());
+            assertEquals(ts.getLocalhostUri(), nc.getConnectedUrl());
             listener.prepForStatusChange(Events.DISCONNECTED);
         }
 
@@ -96,31 +92,25 @@ public class ConnectionListenerTests {
         try (NatsTestServer ts = new NatsTestServer(port, false)) {
             standardConnectionWait(nc);
             assertEquals(1, listener.getEventCount(Events.RECONNECTED));
-            assertEquals(ts.getURI(), nc.getConnectedUrl());
+            assertEquals(ts.getLocalhostUri(), nc.getConnectedUrl());
             standardCloseConnection(nc);
         }
     }
 
     @Test
     public void testExceptionInConnectionListener() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer()) {
-            BadHandler listener = new BadHandler();
-            Options options = optionsBuilder(ts).connectionListener(listener).build();
-            Connection nc = standardConnectionWait(options);
+        BadHandler listener = new BadHandler();
+        runInLrServerOwnNc(optionsBuilder().connectionListener(listener), nc -> {
             standardCloseConnection(nc);
             assertTrue(((NatsConnection)nc).getStatisticsCollector().getExceptions() > 0);
-        }
+        });
     }
 
     @Test
     public void testMultipleConnectionListeners() throws Exception {
+        ListenerForTesting listener = new ListenerForTesting();
         Set<String> capturedEvents = ConcurrentHashMap.newKeySet();
-
-        try (NatsTestServer ts = new NatsTestServer()) {
-            ListenerForTesting listener = new ListenerForTesting();
-            Options options = optionsBuilder(ts).connectionListener(listener).build();
-            Connection nc = standardConnectionWait(options);
-            assertEquals(ts.getURI(), nc.getConnectedUrl());
+        runInLrServerOwnNc(optionsBuilder().connectionListener(listener), nc -> {
 
             //noinspection DataFlowIssue // addConnectionListener parameter is annotated as @NonNull
             assertThrows(NullPointerException.class, () -> nc.addConnectionListener(null));
@@ -140,14 +130,13 @@ public class ConnectionListenerTests {
             assertNull(nc.getConnectedUrl());
             assertEquals(1, listener.getEventCount(Events.CLOSED));
             assertTrue(((NatsConnection)nc).getStatisticsCollector().getExceptions() > 0);
-        }
+        });
 
         Set<String> expectedEvents = new HashSet<>(Arrays.asList(
                 "CL1-CLOSED",
                 "CL2-CLOSED",
                 "CL3-CLOSED",
                 "CL4-CLOSED"));
-
         assertEquals(expectedEvents, capturedEvents);
     }
 

@@ -16,17 +16,19 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.*;
 
+import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
-import static io.nats.client.utils.TestBase.runInServer;
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class PingTests {
+public class PingTests extends TestBase {
     @Test
     public void testHandlingPing() throws Exception,ExecutionException {
         CompletableFuture<Boolean> gotPong = new CompletableFuture<>();
@@ -56,8 +58,8 @@ public class PingTests {
             }
         };
 
-        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(pingPongCustomizer)) {
-            Connection  nc = Nats.connect(ts.getURI());
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(pingPongCustomizer)) {
+            Connection  nc = Nats.connect(mockTs.getMockUri());
             try {
                 assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 assertTrue(gotPong.get(), "Got pong.");
@@ -70,29 +72,20 @@ public class PingTests {
 
     @Test
     public void testPingTimer() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer()) {
-            Options options = optionsBuilder(ts)
-                .pingInterval(Duration.ofMillis(5))
-                .maxPingsOut(10000) // just don't want this to be what fails the test
-                .build();
-            NatsConnection nc = (NatsConnection) Nats.connect(options);
-            StatisticsCollector stats = nc.getStatisticsCollector();
-
-            try {
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-                try { Thread.sleep(200); } catch (Exception ignore) {} // 1200 / 100 ... should get 10+ pings
-                assertTrue(stats.getPings() > 10, "got pings");
-            } finally {
-                nc.close();
-                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
-            }
-        }
+        Options.Builder builder = optionsBuilder()
+            .pingInterval(Duration.ofMillis(5))
+            .maxPingsOut(10000); // just don't want this to be what fails the test
+        runInLrServerOwnNc(builder, nc -> {
+            Statistics stats = nc.getStatistics();
+            try { Thread.sleep(200); } catch (Exception ignore) {} // 1200 / 100 ... should get 10+ pings
+            assertTrue(stats.getPings() > 10, "got pings");
+        });
     }
 
     @Test
     public void testPingFailsWhenClosed() throws Exception {
-        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-            Options options = optionsBuilder().server(ts.getURI()).
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
+            Options options = optionsBuilder().server(mockTs.getMockUri()).
                                             pingInterval(Duration.ofMillis(10)).
                                             maxPingsOut(5).
                                             maxReconnects(0).
@@ -113,9 +106,9 @@ public class PingTests {
 
     @Test
     public void testMaxPingsOut() throws Exception {
-        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
             Options options = optionsBuilder().
-                                            server(ts.getURI()).
+                                            server(mockTs.getMockUri()).
                                             pingInterval(Duration.ofSeconds(10)). // Avoid auto pings
                                             maxPingsOut(2).
                                             maxReconnects(0).
@@ -137,9 +130,9 @@ public class PingTests {
     @Test
     public void testFlushTimeout() {
         assertThrows(TimeoutException.class, () -> {
-            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
+            try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
                 Options options = optionsBuilder().
-                                                server(ts.getURI()).
+                                                server(mockTs.getMockUri()).
                                                 maxReconnects(0).
                                                 build();
                 NatsConnection nc = (NatsConnection) Nats.connect(options);
@@ -157,26 +150,24 @@ public class PingTests {
     }
 
     @Test
-    public void testFlushTimeoutDisconnected() {
-        assertThrows(TimeoutException.class, () -> {
-            ListenerForTesting listener = new ListenerForTesting();
-            try (NatsTestServer ts = new NatsTestServer()) {
-                Options options = optionsBuilder(ts).connectionListener(listener).build();
-                NatsConnection nc = (NatsConnection) Nats.connect(options);
-
-                try {
-                    assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-                    nc.flush(Duration.ofSeconds(2));
-                    listener.prepForStatusChange(Events.DISCONNECTED);
-                    ts.close();
-                    listener.waitForStatusChange(2, TimeUnit.SECONDS);
-                    nc.flush(Duration.ofSeconds(2));
-                } finally {
-                    nc.close();
-                    assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
-                }
+    public void testFlushTimeoutDisconnected() throws Exception {
+        ListenerForTesting listener = new ListenerForTesting();
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = optionsBuilder(ts).connectionListener(listener).build();
+            NatsConnection nc = (NatsConnection) Nats.connect(options);
+            try {
+                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                nc.flush(Duration.ofSeconds(2));
+                listener.prepForStatusChange(Events.DISCONNECTED);
+                ts.close();
+                listener.waitForStatusChange(2, TimeUnit.SECONDS);
+                assertThrows(TimeoutException.class, () -> nc.flush(Duration.ofSeconds(2)));
             }
-        });
+            finally {
+                nc.close();
+                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
+            }
+        }
     }
 
     @Test
@@ -184,36 +175,23 @@ public class PingTests {
         ListenerForTesting listener = new ListenerForTesting();
         try (NatsTestServer ts = new NatsTestServer()) {
             try (NatsTestServer ts2 = new NatsTestServer()) {
-                Options options = optionsBuilder()
+                Options options = optionsBuilder(ts.getLocalhostUri(), ts2.getLocalhostUri())
                     .connectionListener(listener)
-                    .server(ts.getURI())
-                    .server(ts2.getURI())
                     .pingInterval(Duration.ofMillis(5))
                     .maxPingsOut(10000) // just don't want this to be what fails the test
                     .build();
-                NatsConnection nc = (NatsConnection) Nats.connect(options);
-                StatisticsCollector stats = nc.getStatisticsCollector();
-
-                try {
-                    assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-                    try {
-                        Thread.sleep(200); // should get 10+ pings
-                    } catch (Exception exp)
-                    {
-                        //Ignore
-                    }
+                try (NatsConnection nc = (NatsConnection) standardConnectionWait(options)) {
+                    StatisticsCollector stats = nc.getStatisticsCollector();
+                    sleep(200);
                     long pings = stats.getPings();
                     assertTrue(pings > 10, "got pings");
                     listener.prepForStatusChange(Events.RECONNECTED);
                     ts.close();
                     listener.waitForStatusChange(5, TimeUnit.SECONDS);
                     pings = stats.getPings();
-                    Thread.sleep(250); // should get more pings
+                    sleep(250); // should get more pings
                     assertTrue(stats.getPings() > pings, "more pings");
-                    Thread.sleep(1000);
-                } finally {
-                    nc.close();
-                    assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
+                    sleep(1000);
                 }
             }
         }
@@ -222,46 +200,38 @@ public class PingTests {
 
     @Test
     public void testMessagesDelayPings() throws Exception, ExecutionException, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer()) {
-            Options options = optionsBuilder(ts).
-                                    pingInterval(Duration.ofMillis(200)).build();
-            NatsConnection nc = (NatsConnection) Nats.connect(options);
-            StatisticsCollector stats = nc.getStatisticsCollector();
+        Options.Builder builder = optionsBuilder().pingInterval(Duration.ofMillis(200));
+        runInLrServerOwnNc(builder, nc -> {
+            Statistics stats = nc.getStatistics();
+            final CompletableFuture<Boolean> done = new CompletableFuture<>();
 
-            try {
-                final CompletableFuture<Boolean> done = new CompletableFuture<>();
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-
-                Dispatcher d = nc.createDispatcher((msg) -> {
-                    if (msg.getSubject().equals("done")) {
-                        done.complete(Boolean.TRUE);
-                    }
-                });
-
-                d.subscribe("subject");
-                d.subscribe("done");
-                nc.flush(Duration.ofMillis(1000)); // wait for them to go through
-
-                long b4 = stats.getPings();
-                for (int i=0;i<10;i++) {
-                    Thread.sleep(50);
-                    nc.publish("subject", new byte[16]);
+            Dispatcher d = nc.createDispatcher(msg -> {
+                if (msg.getSubject().equals("done")) {
+                    done.complete(Boolean.TRUE);
                 }
-                long after = stats.getPings();
-                assertEquals(after, b4, "pings hidden");
-                nc.publish("done", new byte[16]);
-                nc.flush(Duration.ofMillis(1000)); // wait for them to go through
-                done.get(500, TimeUnit.MILLISECONDS);
+            });
 
-                // no more messages, pings should start to go through
-                b4 = stats.getPings();
-                Thread.sleep(500);
-                after = stats.getPings();
-                assertTrue(after > b4, "pings restarted");
-            } finally {
-                nc.close();
+            d.subscribe("subject");
+            d.subscribe("done");
+            nc.flush(Duration.ofMillis(1000)); // wait for them to go through
+
+            long b4 = stats.getPings();
+            for (int i=0;i<10;i++) {
+                Thread.sleep(50);
+                nc.publish("subject", new byte[16]);
             }
-        }
+            long after = stats.getPings();
+            assertEquals(after, b4, "pings hidden");
+            nc.publish("done", new byte[16]);
+            nc.flush(Duration.ofMillis(1000)); // wait for them to go through
+            done.get(500, TimeUnit.MILLISECONDS);
+
+            // no more messages, pings should start to go through
+            b4 = stats.getPings();
+            sleep(500);
+            after = stats.getPings();
+            assertTrue(after > b4, "pings restarted");
+        });
     }
 
     @Test

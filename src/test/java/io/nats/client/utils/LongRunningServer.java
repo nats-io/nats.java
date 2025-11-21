@@ -90,7 +90,7 @@ public abstract class LongRunningServer {
                         .jetstream(true)
                         .customName("LongRunningServer")
                 );
-                server = natsTestServer.getURI();
+                server = natsTestServer.getLocalhostUri();
 
                 final Thread shutdownHookThread = new Thread("LongRunningServer-Shutdown-Hook") {
                     @Override

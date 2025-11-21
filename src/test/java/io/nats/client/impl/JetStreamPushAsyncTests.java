@@ -140,7 +140,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
     @Test
     public void testPushAsyncFlowControl() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInLrServer(listener, (nc, jstc) -> {
+        runInLrServerOwnNc(listener, (nc, jstc) -> {
             byte[] data = new byte[8192];
 
             int MSG_COUNT = 1000;

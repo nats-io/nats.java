@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class PublishTests {
     @Test
     public void throwsIfClosed() throws Exception {
-        runInLrServerCloseableConnection(nc -> {
+        runInLrServerOwnNc(nc -> {
             nc.close();
             // can't publish after close
             assertThrows(IllegalStateException.class, () -> nc.publish("subject", "replyto", null));
@@ -57,8 +57,8 @@ public class PublishTests {
 
     @Test
     public void testThrowsIfTooBig() throws Exception {
-        try (NatsTestServer ts = NatsTestServer.configuredServer("max_payload.conf")) {
-            Connection nc = standardConnectionWait(ts.getURI());
+        try (NatsTestServer ts = NatsTestServer.configFileServer("max_payload.conf")) {
+            Connection nc = standardConnectionWait(ts.getLocalhostUri());
 
             byte[] body = new byte[1024]; // 1024 is > than max_payload.conf max_payload: 1000
             assertThrows(IllegalArgumentException.class, () -> nc.publish(random(), null, null, body));
@@ -103,8 +103,8 @@ public class PublishTests {
         assertThrows(IllegalArgumentException.class, () -> {
             String customInfo = "{\"server_id\":\"test\", \"version\":\"9.9.99\"}";
 
-            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo);
-                 Connection nc = Nats.connect(ts.getURI()))
+            try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(null, customInfo);
+                 Connection nc = Nats.connect(mockTs.getMockUri()))
             {
                 assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
 
@@ -182,8 +182,8 @@ public class PublishTests {
             }
         };
 
-        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(receiveMessageCustomizer);
-             Connection nc = standardConnectionWait(ts.getURI())) {
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(receiveMessageCustomizer);
+             Connection nc = standardConnectionWait(mockTs.getMockUri())) {
 
             byte[] bodyBytes;
             if (bodyString == null || bodyString.isEmpty()) {
@@ -227,14 +227,14 @@ public class PublishTests {
 
     @Test
     public void testMaxPayload() throws Exception {
-        runInServer(standardOptionsBuilder().noReconnect(), nc -> {
+        TestBase.runInLrServerOwnNc(standardOptionsBuilder().noReconnect(), nc -> {
             int maxPayload = (int)nc.getServerInfo().getMaxPayload();
             nc.publish("mptest", new byte[maxPayload-1]);
             nc.publish("mptest", new byte[maxPayload]);
         });
 
         try {
-            runInServer(standardOptionsBuilder().noReconnect().clientSideLimitChecks(false), nc -> {
+            TestBase.runInLrServerOwnNc(standardOptionsBuilder().noReconnect().clientSideLimitChecks(false), nc -> {
                 int maxPayload = (int)nc.getServerInfo().getMaxPayload();
                 for (int x = 1; x < 1000; x++) {
                     nc.publish("mptest", new byte[maxPayload + x]);
@@ -245,7 +245,7 @@ public class PublishTests {
         catch (IllegalStateException ignore) {}
 
         try {
-            runInServer(standardOptionsBuilder().noReconnect(), nc -> {
+            TestBase.runInLrServerOwnNc(standardOptionsBuilder().noReconnect(), nc -> {
                 int maxPayload = (int)nc.getServerInfo().getMaxPayload();
                 for (int x = 1; x < 1000; x++) {
                     nc.publish("mptest", new byte[maxPayload + x]);
@@ -270,11 +270,10 @@ public class PublishTests {
         CountDownLatch jsReceivedLatchNotSupported = new CountDownLatch(1);
         CountDownLatch jsReceivedLatchWhenSupported = new CountDownLatch(1);
 
-        try (NatsTestServer ts = new NatsTestServer(false, true);
-             Connection ncNotSupported = standardConnectionWait(standardOptionsBuilder(ts.getURI()).build());
-             Connection ncSupported = standardConnectionWait(standardOptionsBuilder(ts.getURI()).supportUTF8Subjects().build()))
-        {
-            try {
+        Options.Builder ncNotSupportedOptionsBuilder = optionsBuilder().noReconnect().clientSideLimitChecks(false);
+        TestBase.runInLrServerOwnNc(ncNotSupportedOptionsBuilder, ncNotSupported -> {
+            Options ncSupportedOptions = optionsBuilder(ncNotSupported.getConnectedUrl()).supportUTF8Subjects().build();
+            try (Connection ncSupported = standardConnectionWait(ncSupportedOptions)) {
                 ncNotSupported.jetStreamManagement().addStream(
                     StreamConfiguration.builder()
                         .name(TestBase.random())
@@ -318,11 +317,7 @@ public class PublishTests {
                 assertEquals(subject, coreReceivedSubjectWhenSupported.get());
                 assertNotEquals(jsSubject, jsReceivedSubjectNotSupported.get());
                 assertEquals(jsSubject, jsReceivedSubjectWhenSupported.get());
-
             }
-            finally {
-                cleanupJs(ncSupported);
-            }
-        }
+        });
     }
 }

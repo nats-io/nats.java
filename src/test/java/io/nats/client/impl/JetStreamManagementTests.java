@@ -1426,7 +1426,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     @Test
     public void testNoRespondersWhenConsumerDeleted() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInLrServer(listener, VersionUtils::atLeast2_10_26, (nc, jsm, js) -> {
+        runInLrServerOwnNc(listener, VersionUtils::atLeast2_10_26, (nc, jsm, js) -> {
             String stream = random();
             String subject = random();
 

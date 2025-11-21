@@ -23,14 +23,6 @@ public abstract class VersionUtils {
         boolean runTest(ServerInfo si);
     }
 
-    public static ServerInfo ensureRunServerInfo() throws Exception {
-//        if (VERSION_SERVER_INFO == null) {
-//            _runInServer(false, null, null, nc -> {});
-//        }
-//        return VERSION_SERVER_INFO;
-        return null;
-    }
-
     public static void initVersionServerInfo(Connection nc) {
         if (VERSION_SERVER_INFO == null) {
             VERSION_SERVER_INFO = nc.getServerInfo();

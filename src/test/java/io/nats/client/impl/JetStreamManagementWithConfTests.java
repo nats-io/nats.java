@@ -29,7 +29,7 @@ public class JetStreamManagementWithConfTests extends JetStreamTestBase {
     @Test
     public void testGetStreamInfoSubjectPagination() throws Exception {
         try (NatsTestServer ts = configuredJsServer("pagination.conf")) {
-            try (Connection nc = standardConnectionWait(ts.getURI())) {
+            try (Connection nc = standardConnectionWait(ts.getLocalhostUri())) {
                 if (nc.getServerInfo().isNewerVersionThan("2.8.4")) {
                     JetStreamManagement jsm = nc.jetStreamManagement();
                     JetStream js = nc.jetStream();

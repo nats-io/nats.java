@@ -1525,7 +1525,7 @@ public class SimplificationTests extends JetStreamTestBase {
     @Test
     public void testOverflowIterate() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInLrServer(listener, VersionUtils::atLeast2_11, (nc, jstc) -> {
+        runInLrServerOwnNc(listener, VersionUtils::atLeast2_11, (nc, jstc) -> {
             jsPublish(jstc.js, jstc.subject(), 100);
 
             // Testing min ack pending
@@ -1611,7 +1611,7 @@ public class SimplificationTests extends JetStreamTestBase {
     @Test
     public void testOverflowConsume() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInLrServer(listener, VersionUtils::atLeast2_11, (nc, jstc) -> {
+        runInLrServerOwnNc(listener, VersionUtils::atLeast2_11, (nc, jstc) -> {
             jsPublish(jstc.js, jstc.subject(), 1000);
 
             // Testing min ack pending
@@ -1677,7 +1677,7 @@ public class SimplificationTests extends JetStreamTestBase {
     @Test
     public void testFinishEmptyStream() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInLrServer(listener, (nc, jstc) -> {
+        runInLrServerOwnNc(listener, (nc, jstc) -> {
             String name = random();
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
                 .name(name)
@@ -1714,7 +1714,7 @@ public class SimplificationTests extends JetStreamTestBase {
         Options options = optionsBuilder()
             .connectionListener(lft)
             .errorListener(lft)
-            .server(NatsTestServer.getNatsLocalhostUri(port)).build();
+            .server(NatsTestServer.getLocalhostUri(port)).build();
         NatsConnection nc;
 
         String stream = random();

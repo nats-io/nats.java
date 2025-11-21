@@ -402,7 +402,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
     @Test
     public void testRaiseStatusWarnings1194() throws Exception {
         ListenerForTesting listener = new ListenerForTesting(false, false);
-        runInLrServer(listener, (nc, jstc) -> {
+        runInLrServerOwnNc(listener, (nc, jstc) -> {
             // Setup
             StreamContext streamContext = nc.getStreamContext(jstc.stream);
 

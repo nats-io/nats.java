@@ -29,8 +29,8 @@ public class EchoTests extends TestBase {
     public void testFailWithBadServerProtocol() {
         assertThrows(IOException.class, () -> {
             Connection nc = null;
-            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-                Options opt = optionsBuilder(ts.getURI()).noEcho().noReconnect().build();
+            try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
+                Options opt = optionsBuilder(mockTs.getMockUri()).noEcho().noReconnect().build();
                 try {
                     nc = Nats.connect(opt); // Should fail
                 }
@@ -47,8 +47,8 @@ public class EchoTests extends TestBase {
     @Test
     public void testConnectToOldServerWithEcho() throws Exception {
         Connection nc = null;
-        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-            Options opt = optionsBuilder(ts.getURI()).noReconnect().build();
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
+            Options opt = optionsBuilder(mockTs.getMockUri()).noReconnect().build();
             try {
                 nc = Nats.connect(opt);
             } finally {
@@ -91,7 +91,7 @@ public class EchoTests extends TestBase {
 
     @Test
     public void testWithNoEcho() throws Exception {
-        runInLrServer(optionsBuilder().noEcho().noReconnect(), nc1 -> {
+        runInLrServerOwnNc(optionsBuilder().noEcho().noReconnect(), nc1 -> {
             String subject = TestBase.random();
             // Echo is off so sub should get messages from pub from other connections
             Subscription sub1 = nc1.subscribe(subject);

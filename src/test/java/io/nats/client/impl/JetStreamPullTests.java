@@ -301,7 +301,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testNoWait() throws Exception {
-        runInLrServer(noPullWarnings(), (nc, jstc) -> {
+        runInLrServerOwnNc(noPullWarnings(), (nc, jstc) -> {
             // Build our subscription options.
             PullSubscribeOptions options = PullSubscribeOptions.builder().durable(jstc.consumerName()).build();
 
@@ -369,7 +369,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testPullExpires() throws Exception {
-        runInLrServer(noPullWarnings(), (nc, jstc) -> {
+        runInLrServerOwnNc(noPullWarnings(), (nc, jstc) -> {
             // Build our subscription options.
             PullSubscribeOptions options = PullSubscribeOptions.builder().durable(jstc.consumerName()).build();
 
@@ -570,7 +570,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testDurable() throws Exception {
-        runInLrServer(noPullWarnings(), (nc, jstc) -> {
+        runInLrServerOwnNc(noPullWarnings(), (nc, jstc) -> {
             String durable = random();
 
             // Build our subscription options normally
@@ -605,7 +605,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testNamed() throws Exception {
-        runInLrServer(noPullWarnings(), VersionUtils::atLeast2_9_0, (nc, jstc) -> {
+        runInLrServerOwnNc(noPullWarnings(), VersionUtils::atLeast2_9_0, (nc, jstc) -> {
             String name = random();
 
             jstc.jsm.addOrUpdateConsumer(jstc.stream, ConsumerConfiguration.builder()
@@ -740,7 +740,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     private void testConflictStatus(int statusCode, String statusText, int type, String targetVersion, ConflictSetup setup) throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
         AtomicBoolean skip = new AtomicBoolean(false);
-        runInLrServer(listener, (nc, jstc) -> {
+        runInLrServerOwnNc(listener, (nc, jstc) -> {
             skip.set(versionIsBefore(nc, targetVersion));
             if (skip.get()) {
                 return;
@@ -1005,7 +1005,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testExceedsMaxRequestBytesNthMessageSyncSub() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInLrServer(listener, VersionUtils::atLeast2_9_1, (nc, jstc) -> {
+        runInLrServerOwnNc(listener, VersionUtils::atLeast2_9_1, (nc, jstc) -> {
             String dur = random();
             jstc.jsm.addOrUpdateConsumer(jstc.stream, builder().durable(dur).ackPolicy(AckPolicy.None).filterSubjects(jstc.subject()).build());
             PullSubscribeOptions so = PullSubscribeOptions.bind(jstc.stream, dur);
@@ -1030,7 +1030,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testExceedsMaxRequestBytesExactBytes() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInLrServer(listener, VersionUtils::atLeast2_9_1, (nc, jstc) -> {
+        runInLrServerOwnNc(listener, VersionUtils::atLeast2_9_1, (nc, jstc) -> {
             String stream = randomWide(6); // six letters so I can count
             String subject = randomWide(5); // five letters so I can count
             String durable = randomWide(10); // short keeps under max bytes
@@ -1117,7 +1117,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testOverflow() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInLrServer(listener, VersionUtils::atLeast2_11, (nc, jstc) -> {
+        runInLrServerOwnNc(listener, VersionUtils::atLeast2_11, (nc, jstc) -> {
             jsPublish(jstc.js, jstc.subject(), 100);
 
             // Setting PriorityPolicy requires at least one PriorityGroup to be set
@@ -1243,7 +1243,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
         // close the #1, #2 should get messages
         // start another priority 1 (#3), #2 should stop getting messages #3 should get messages
         ListenerForTesting listener = new ListenerForTesting();
-        runInLrServer(listener, VersionUtils::atLeast2_12, (nc, jstc) -> {
+        runInLrServerOwnNc(listener, VersionUtils::atLeast2_12, (nc, jstc) -> {
             String consumer = random();
             String group = random();
 
@@ -1340,7 +1340,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
         // start consuming, tracking pin ids and counts
         // unpin 10 times and make sure that new pins are made
         ListenerForTesting listener = new ListenerForTesting();
-        runInLrServer(listener, VersionUtils::atLeast2_12, (nc, jstc) -> {
+        runInLrServerOwnNc(listener, VersionUtils::atLeast2_12, (nc, jstc) -> {
             String consumer = random();
             String group = random();
 

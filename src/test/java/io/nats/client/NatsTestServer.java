@@ -43,31 +43,24 @@ public class NatsTestServer extends NatsServerRunner {
         return configFilePath.startsWith(CONFIG_FILE_BASE) ? configFilePath : CONFIG_FILE_BASE + configFilePath;
     }
 
-    public static NatsTestServer configuredServer(String configFilePath) throws IOException {
-        return new NatsTestServer(
-            NatsServerRunner.builder()
-                .configFilePath(configFilePath(configFilePath)));
+    public static Builder configFileBuilder(String configFilePath) {
+        return NatsServerRunner.builder().configFilePath(configFilePath(configFilePath));
+    }
+
+    public static NatsTestServer configFileServer(String configFilePath) throws IOException {
+        return new NatsTestServer(configFileBuilder(configFilePath));
+    }
+
+    public static NatsTestServer configFileServer(String configFilePath, int port) throws IOException {
+        return new NatsTestServer(configFileBuilder(configFilePath).port(port));
     }
 
     public static NatsTestServer configuredJsServer(String configFilePath) throws IOException {
-        return new NatsTestServer(
-            NatsServerRunner.builder()
-                .jetstream(true)
-                .configFilePath(configFilePath(configFilePath)));
+        return new NatsTestServer(configFileBuilder(configFilePath).jetstream());
     }
 
-    public static NatsTestServer configuredServer(String configFilePath, int port) throws IOException {
-        return new NatsTestServer(
-            NatsServerRunner.builder()
-                .port(port)
-                .configFilePath(configFilePath(configFilePath)));
-    }
-
-    public static NatsTestServer skipValidateServer(String configFilePath) throws IOException {
-        return new NatsTestServer(
-            NatsServerRunner.builder()
-                .configFilePath(configFilePath(configFilePath))
-                .skipConnectValidate());
+    public static NatsTestServer skipConnectValidateServer(String configFilePath) throws IOException {
+        return new NatsTestServer(configFileBuilder(configFilePath).skipConnectValidate());
     }
 
     public NatsTestServer() throws IOException {
@@ -130,15 +123,23 @@ public class NatsTestServer extends NatsServerRunner {
         return NatsRunnerUtils.getLocalhostUri(schema, getPort());
     }
 
-    public String getNatsLocalhostUri() {
+    public String getLocalhostUri() {
         return NatsRunnerUtils.getNatsLocalhostUri(getPort());
     }
 
-    public static String getNatsLocalhostUri(int port) {
+    public static String getLocalhostUri(int port) {
         return NatsRunnerUtils.getNatsLocalhostUri(port);
     }
 
     public static String getLocalhostUri(String schema, int port) {
         return NatsRunnerUtils.getLocalhostUri(schema, port);
+    }
+
+    public static String[] getLocalhostUris(String schema, NatsTestServer... servers) {
+        String[] results = new String[servers.length];
+        for (int x = 0; x < servers.length; x++) {
+            results[x] = NatsRunnerUtils.getLocalhostUri(schema, servers[x].getPort());
+        }
+        return results;
     }
 }

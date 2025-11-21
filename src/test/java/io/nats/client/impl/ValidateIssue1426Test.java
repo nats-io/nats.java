@@ -13,7 +13,6 @@
 
 package io.nats.client.impl;
 
-import io.nats.NatsRunnerUtils;
 import io.nats.client.*;
 import org.junit.jupiter.api.Test;
 
@@ -52,7 +51,7 @@ public class ValidateIssue1426Test {
                 }
             };
 
-            Options options = optionsBuilder("nats://" + NatsRunnerUtils.getDefaultLocalhostHost().host + ":" + port)
+            Options options = optionsBuilder(port)
                 .token(new char[]{'1', '2', '3', '4'})
                 .maxMessagesInOutgoingQueue(NUMBER_OF_SUBS )
                 .reconnectBufferSize(NUMBER_OF_SUBS * 100)

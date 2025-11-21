@@ -21,8 +21,6 @@ import org.jspecify.annotations.NonNull;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.nats.NatsRunnerUtils.getNatsLocalhostUri;
-
 /**
  * ----------------------------------------------------------------------------------------------------
  * THIS IS THE PREFERRED WAY TO BUILD ANY OPTIONS FOR TESTING
@@ -42,15 +40,27 @@ public abstract class OptionsUtils {
     }
 
     public static Options.Builder optionsBuilder(NatsTestServer ts) {
-        return optionsBuilder().server(ts.getNatsLocalhostUri());
+        return optionsBuilder().server(ts.getLocalhostUri());
+    }
+
+    public static Options.Builder optionsBuilder(NatsTestServer ts, String schema) {
+        return optionsBuilder().server(ts.getLocalhostUri(schema));
     }
 
     public static Options.Builder optionsBuilder(int port) {
-        return optionsBuilder().server(getNatsLocalhostUri(port));
+        return optionsBuilder().server(NatsTestServer.getLocalhostUri(port));
     }
 
     public static Options.Builder optionsBuilder(String... servers) {
         return optionsBuilder().servers(servers);
+    }
+
+    public static Options options(int port) {
+        return optionsBuilder(port).build();
+    }
+
+    public static Options options(NatsTestServer ts) {
+        return optionsBuilder(ts).build();
     }
 
     public static Options options(String... servers) {
