@@ -25,16 +25,19 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.support.NatsRequestCompletableFuture.CancelAction;
+import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class RequestTests extends TestBase {
     @Test
     public void testSimpleRequest() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+        try (NatsTestServer ts = new NatsTestServer();
+                Connection nc = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
-            Dispatcher d = nc.createDispatcher((msg) -> {
+            Dispatcher d = nc.createDispatcher(msg -> {
                 assertTrue(msg.getReplyTo().startsWith(Options.DEFAULT_INBOX_PREFIX));
                 if (msg.hasHeaders()) {
                     nc.publish(msg.getReplyTo(), msg.getHeaders(), null);
@@ -48,7 +51,7 @@ public class RequestTests extends TestBase {
             Future<Message> incoming = nc.request("subject", null);
             Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
-            assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+            assertEquals(0, nc.getStatistics().getOutstandingRequests());
             assertNotNull(msg);
             assertEquals(0, msg.getData().length);
             assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
@@ -56,7 +59,7 @@ public class RequestTests extends TestBase {
             incoming = nc.request("subject", new Headers().put("foo", "bar"), null);
             msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
-            assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+            assertEquals(0, nc.getStatistics().getOutstandingRequests());
             assertNotNull(msg);
             assertEquals(0, msg.getData().length);
             assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
@@ -68,7 +71,7 @@ public class RequestTests extends TestBase {
     @Test
     public void testRequestVarieties() throws Exception {
         runInServer(nc -> {
-            Dispatcher d = nc.createDispatcher((msg) -> {
+            Dispatcher d = nc.createDispatcher(msg -> {
                 if (msg.hasHeaders()) {
                     nc.publish(msg.getReplyTo(), msg.getHeaders(), msg.getData());
                 }
@@ -76,41 +79,52 @@ public class RequestTests extends TestBase {
                     nc.publish(msg.getReplyTo(), msg.getData());
                 }
             });
-            d.subscribe(SUBJECT);
+            String subject = random();
+            d.subscribe(subject);
 
-            Future<Message> f = nc.request(SUBJECT, dataBytes(1));
+            Future<Message> f = nc.request(subject, dataBytes(1));
             Message msg = f.get(500, TimeUnit.MILLISECONDS);
             assertEquals(data(1), new String(msg.getData()));
 
-            NatsMessage outMsg = NatsMessage.builder().subject(SUBJECT).data(dataBytes(2)).build();
+            NatsMessage outMsg = NatsMessage.builder().subject(subject).data(dataBytes(2)).build();
             f = nc.request(outMsg);
             msg = f.get(500, TimeUnit.MILLISECONDS);
+            assertNotNull(msg);
+            assertNotNull(msg.getData());
             assertEquals(data(2), new String(msg.getData()));
 
-            msg = nc.request(SUBJECT, dataBytes(3), Duration.ofSeconds(1));
+            msg = nc.request(subject, dataBytes(3), Duration.ofSeconds(1));
+            assertNotNull(msg);
+            assertNotNull(msg.getData());
             assertEquals(data(3), new String(msg.getData()));
 
-            outMsg = NatsMessage.builder().subject(SUBJECT).data(dataBytes(4)).build();
+            outMsg = NatsMessage.builder().subject(subject).data(dataBytes(4)).build();
             msg = nc.request(outMsg, Duration.ofSeconds(1));
+            assertNotNull(msg);
+            assertNotNull(msg.getData());
             assertEquals(data(4), new String(msg.getData()));
 
-            msg = nc.request(SUBJECT, new Headers().put("foo", "bar"), dataBytes(5), Duration.ofSeconds(1));
+            msg = nc.request(subject, new Headers().put("foo", "bar"), dataBytes(5), Duration.ofSeconds(1));
+            assertNotNull(msg);
+            assertNotNull(msg.getData());
             assertEquals(data(5), new String(msg.getData()));
             assertTrue(msg.hasHeaders());
             assertEquals("bar", msg.getHeaders().getFirst("foo"));
 
+            //noinspection DataFlowIssue
             assertThrows(IllegalArgumentException.class, () -> nc.request(null));
+            //noinspection DataFlowIssue
             assertThrows(IllegalArgumentException.class, () -> nc.request(null, Duration.ofSeconds(1)));
         });
     }
 
     @Test
     public void testSimpleResponseMessageHasConnection() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+        try (NatsTestServer ts = new NatsTestServer();
+                Connection nc = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
-            Dispatcher d = nc.createDispatcher((msg) -> {
+            Dispatcher d = nc.createDispatcher(msg -> {
                 assertTrue(msg.getReplyTo().startsWith(Options.DEFAULT_INBOX_PREFIX));
                 msg.getConnection().publish(msg.getReplyTo(), null);
             });
@@ -119,7 +133,7 @@ public class RequestTests extends TestBase {
             Future<Message> incoming = nc.request("subject", null);
             Message msg = incoming.get(5000, TimeUnit.MILLISECONDS);
 
-            assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+            assertEquals(0, nc.getStatistics().getOutstandingRequests());
             assertNotNull(msg);
             assertEquals(0, msg.getData().length);
             assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
@@ -129,16 +143,16 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testSafeRequest() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+        try (NatsTestServer ts = new NatsTestServer();
+                Connection nc = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
-            Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), null));
+            Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), null));
             d.subscribe("subject");
 
             Message msg = nc.request("subject", null, Duration.ofMillis(1000));
 
-            assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+            assertEquals(0, nc.getStatistics().getOutstandingRequests());
             assertNotNull(msg);
             assertEquals(0, msg.getData().length);
             assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
@@ -147,18 +161,18 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testMultipleRequest() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+        try (NatsTestServer ts = new NatsTestServer();
+                Connection nc = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
-            Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), new byte[7]));
+            Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), new byte[7]));
             d.subscribe("subject");
 
             for (int i=0; i<10; i++) {
                 Future<Message> incoming = nc.request("subject", new byte[11]);
                 Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
-                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                assertEquals(0, nc.getStatistics().getOutstandingRequests());
                 assertNotNull(msg);
                 assertEquals(7, msg.getData().length);
                 assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
@@ -168,21 +182,22 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testMultipleReplies() throws Exception {
-        Options.Builder builder = new Options.Builder().turnOnAdvancedStats();
-
+        Options.Builder builder = optionsBuilder().turnOnAdvancedStats();
         runInServer(builder, nc -> {
             AtomicInteger requests = new AtomicInteger();
-            MessageHandler handler = (msg) -> { requests.incrementAndGet(); nc.publish(msg.getReplyTo(), null); };
+            MessageHandler handler = msg -> { requests.incrementAndGet(); nc.publish(msg.getReplyTo(), null); };
             Dispatcher d1 = nc.createDispatcher(handler);
             Dispatcher d2 = nc.createDispatcher(handler);
             Dispatcher d3 = nc.createDispatcher(handler);
             Dispatcher d4 = nc.createDispatcher(msg -> { sleep(5000); handler.onMessage(msg); });
-            d1.subscribe(SUBJECT);
-            d2.subscribe(SUBJECT);
-            d3.subscribe(SUBJECT);
-            d4.subscribe(SUBJECT);
 
-            Message reply = nc.request(SUBJECT, null, Duration.ofSeconds(2));
+            String subject = random();
+            d1.subscribe(subject);
+            d2.subscribe(subject);
+            d3.subscribe(subject);
+            d4.subscribe(subject);
+
+            Message reply = nc.request(subject, null, Duration.ofSeconds(2));
             assertNotNull(reply);
             sleep(2000);
             assertEquals(3, requests.get());
@@ -202,8 +217,8 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testManualRequestReplyAndPublishSignatures() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-             Connection nc = Nats.connect(ts.getURI())) {
+        try (NatsTestServer ts = new NatsTestServer();
+             Connection nc = Nats.connect(ts.getLocalhostUri())) {
             assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
 
             Dispatcher d = nc.createDispatcher(msg -> {
@@ -238,11 +253,11 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testRequestWithCustomInboxPrefix() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(new Options.Builder().inboxPrefix("myinbox").server(ts.getURI()).maxReconnects(0).build())) {
+        try (NatsTestServer ts = new NatsTestServer();
+                Connection nc = Nats.connect(optionsBuilder(ts).inboxPrefix("myinbox").maxReconnects(0).build())) {
             assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             
-            Dispatcher d = nc.createDispatcher((msg) -> {
+            Dispatcher d = nc.createDispatcher(msg -> {
                 assertTrue(msg.getReplyTo().startsWith("myinbox"));
                 nc.publish(msg.getReplyTo(), null);
             });
@@ -251,7 +266,7 @@ public class RequestTests extends TestBase {
             Future<Message> incoming = nc.request("subject", null);
             Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
-            assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+            assertEquals(0, nc.getStatistics().getOutstandingRequests());
             assertNotNull(msg);
             assertEquals(0, msg.getData().length);
             assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
@@ -260,8 +275,8 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testRequireCleanupOnTimeoutNoNoResponders() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Options options = new Options.Builder().server(ts.getURI())
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = optionsBuilder(ts)
                     .requestCleanupInterval(Duration.ofHours(1))
                     .noNoResponders().build();
 
@@ -272,7 +287,7 @@ public class RequestTests extends TestBase {
                 assertThrows(TimeoutException.class,
                         () -> nc.request("subject", null).get(100, TimeUnit.MILLISECONDS));
 
-                assertEquals(1, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                assertEquals(1, nc.getStatistics().getOutstandingRequests());
             } finally {
                 nc.close();
                 assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
@@ -282,24 +297,24 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testRequireCleanupOnTimeoutCleanCompletable() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer()) {
 
             long cleanupInterval = 100;
 
-            Options options = new Options.Builder().server(ts.getURI())
+            Options options = optionsBuilder(ts)
                     .requestCleanupInterval(Duration.ofMillis(cleanupInterval))
                     .noNoResponders().build();
 
             NatsConnection nc = (NatsConnection) Nats.connect(options);
             try {
                 assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-                NatsMessage nm = NatsMessage.builder().subject(SUBJECT).data(dataBytes(2)).build();
+                NatsMessage nm = NatsMessage.builder().subject(random()).data(dataBytes(2)).build();
                 CompletableFuture<Message> future = nc.requestWithTimeout(nm, Duration.ofMillis(cleanupInterval));
                 
                 Thread.sleep(2 * cleanupInterval + Options.DEFAULT_CONNECTION_TIMEOUT.toMillis());
 
                 assertTrue(future.isCompletedExceptionally());
-                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                assertEquals(0, nc.getStatistics().getOutstandingRequests());
 
             } finally {
                 nc.close();
@@ -311,16 +326,16 @@ public class RequestTests extends TestBase {
     @Test
     public void testSimpleRequestWithTimeout() throws Exception {
 
-        try (NatsTestServer ts = new NatsTestServer(false))
+        try (NatsTestServer ts = new NatsTestServer())
         {
-            Options options = new Options.Builder().server(ts.getURI()).requestCleanupInterval(Duration.ofHours(1)).build();
+            Options options = optionsBuilder(ts).requestCleanupInterval(Duration.ofHours(1)).build();
             Connection nc = Nats.connect(options);
 
             try {
 
                 assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
 
-                Dispatcher d = nc.createDispatcher((msg) -> {
+                Dispatcher d = nc.createDispatcher(msg -> {
                     assertTrue(msg.getReplyTo().startsWith(Options.DEFAULT_INBOX_PREFIX));
                     if (msg.hasHeaders()) {
                         nc.publish(msg.getReplyTo(), msg.getHeaders(), null);
@@ -329,23 +344,23 @@ public class RequestTests extends TestBase {
                         nc.publish(msg.getReplyTo(), null);
                     }
                 });
-                d.subscribe(SUBJECT);
+                String subject = random();
+                d.subscribe(subject);
 
-                NatsMessage outMsg = NatsMessage.builder().subject(SUBJECT).data(dataBytes(2)).build();
-                CompletableFuture<Message> incoming = nc.requestWithTimeout("subject", null, Duration.ofMillis(100));
+                CompletableFuture<Message> incoming = nc.requestWithTimeout(subject, null, Duration.ofMillis(100));
 
                 Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
-                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                assertEquals(0, nc.getStatistics().getOutstandingRequests());
                 assertNotNull(msg);
                 assertEquals(0, msg.getData().length);
                 assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
 
-                incoming = nc.requestWithTimeout("subject", new Headers().put("foo", "bar"), null, Duration.ofMillis(100));
+                incoming = nc.requestWithTimeout(subject, new Headers().put("foo", "bar"), null, Duration.ofMillis(100));
 
                 msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
-                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                assertEquals(0, nc.getStatistics().getOutstandingRequests());
                 assertNotNull(msg);
                 assertEquals(0, msg.getData().length);
                 assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
@@ -362,10 +377,10 @@ public class RequestTests extends TestBase {
     @Test
     public void testSimpleRequestWithTimeoutSlowProducer() throws Exception {
 
-        try (NatsTestServer ts = new NatsTestServer(false))
+        try (NatsTestServer ts = new NatsTestServer())
         {
             long cleanupInterval = 10;
-            Options options = new Options.Builder().server(ts.getURI()).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
+            Options options = optionsBuilder(ts).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
             NatsConnection nc = (NatsConnection) Nats.connect(options);
 
             try {
@@ -375,14 +390,14 @@ public class RequestTests extends TestBase {
                 //slow responder
                 long delay = 2 * cleanupInterval + Options.DEFAULT_CONNECTION_TIMEOUT.toMillis();
 
-                Dispatcher d = nc.createDispatcher((msg) -> {
+                Dispatcher d = nc.createDispatcher(msg -> {
                     assertTrue(msg.getReplyTo().startsWith(Options.DEFAULT_INBOX_PREFIX));
                     Thread.sleep(delay);
                     nc.publish(msg.getReplyTo(), null);
                 });
-                d.subscribe(SUBJECT);
+                String subject = random();
+                d.subscribe(subject);
 
-                NatsMessage nm = NatsMessage.builder().subject(SUBJECT).data(dataBytes(2)).build();
                 CompletableFuture<Message> incoming = nc.requestWithTimeout("subject", null, Duration.ofMillis(cleanupInterval));
                 assertThrows(CancellationException.class, () -> incoming.get(delay, TimeUnit.MILLISECONDS));
 
@@ -396,8 +411,8 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testRequireCleanupOnCancelFromNoResponders() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Options options = new Options.Builder().server(ts.getURI())
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = optionsBuilder(ts)
                     .requestCleanupInterval(Duration.ofHours(1)).build();
 
             Connection nc = Nats.connect(options);
@@ -405,7 +420,7 @@ public class RequestTests extends TestBase {
                 assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 assertThrows(CancellationException.class, () -> nc.request("subject", null).get(100, TimeUnit.MILLISECONDS));
 
-                assertEquals(0, ((NatsStatistics) nc.getStatistics()).getOutstandingRequests());
+                assertEquals(0, nc.getStatistics().getOutstandingRequests());
             } finally {
                 nc.close();
                 assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
@@ -416,15 +431,15 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testRequireCleanupWithTimeoutNoResponders() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Options options = new Options.Builder().server(ts.getURI())
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = optionsBuilder(ts)
                     .requestCleanupInterval(Duration.ofHours(1)).build();
 
             Connection nc = Nats.connect(options);
             try {
                 assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 assertThrows(CancellationException.class, () -> nc.requestWithTimeout("subject", null, Duration.ofMillis(100)).get(100, TimeUnit.MILLISECONDS));
-                assertEquals(0, ((NatsStatistics) nc.getStatistics()).getOutstandingRequests());
+                assertEquals(0, nc.getStatistics().getOutstandingRequests());
             } finally {
                 nc.close();
                 assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
@@ -435,8 +450,8 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testRequireCleanupWithTimeoutNoNoResponders() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Options options = new Options.Builder().server(ts.getURI())
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = optionsBuilder(ts)
                     .requestCleanupInterval(Duration.ofHours(1))
                     .noNoResponders().build();
 
@@ -446,7 +461,7 @@ public class RequestTests extends TestBase {
 
                 assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 assertThrows(TimeoutException.class, () -> nc.requestWithTimeout("subject", null, Duration.ofMillis(100)).get(100, TimeUnit.MILLISECONDS));
-                assertEquals(1, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                assertEquals(1, nc.getStatistics().getOutstandingRequests());
 
             } finally {
                 nc.close();
@@ -457,14 +472,14 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testRequireCleanupOnCancel() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Options options = new Options.Builder().server(ts.getURI()).requestCleanupInterval(Duration.ofHours(1)).build();
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = optionsBuilder(ts).requestCleanupInterval(Duration.ofHours(1)).build();
             Connection nc = Nats.connect(options);
             try {
                 assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 NatsRequestCompletableFuture incoming = (NatsRequestCompletableFuture)nc.request("subject", null);
                 incoming.cancel(true);
-                NatsStatistics stats = ((NatsStatistics)nc.getStatistics());
+                NatsStatistics stats = (NatsStatistics)nc.getStatistics();
                 // sometimes if the machine is very fast, the request gets a reply (even if it's no responders)
                 // so there is either an outstanding or a received
                 assertEquals(1, stats.getOutstandingRequests() + stats.getRepliesReceived());
@@ -478,9 +493,9 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testCleanupTimerWorks() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer()) {
             long cleanupInterval = 50;
-            Options options = new Options.Builder().server(ts.getURI()).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
+            Options options = optionsBuilder(ts).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
             Connection nc = Nats.connect(options);
             try {
                 assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
@@ -496,7 +511,7 @@ public class RequestTests extends TestBase {
                 long timeout = 10 * cleanupInterval;
 
                 sleep(sleep);
-                assertTrueByTimeout(timeout, () -> ((NatsStatistics)nc.getStatistics()).getOutstandingRequests() == 0);
+                assertTrueByTimeout(timeout, () -> nc.getStatistics().getOutstandingRequests() == 0);
 
                 // Make sure it is still running
                 incoming = nc.request("subject", null);
@@ -507,7 +522,7 @@ public class RequestTests extends TestBase {
                 incoming.cancel(true);
 
                 sleep(sleep);
-                assertTrueByTimeout(timeout, () -> ((NatsStatistics)nc.getStatistics()).getOutstandingRequests() == 0);
+                assertTrueByTimeout(timeout, () -> nc.getStatistics().getOutstandingRequests() == 0);
             } finally {
                 nc.close();
                 assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
@@ -517,15 +532,15 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testRequestsVsCleanup() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer()) {
             long cleanupInterval = 50;
             int msgCount = 100;
-            Options options = new Options.Builder().server(ts.getURI()).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
+            Options options = optionsBuilder(ts).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
             Connection nc = Nats.connect(options);
             try {
                 assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 
-                Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), null));
+                Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), null));
                 d.subscribe("subject");
 
                 long start = System.nanoTime();
@@ -542,7 +557,7 @@ public class RequestTests extends TestBase {
                 }
 
                 assertTrue((end-start) > 2 * cleanupInterval * 1_000_000);
-                assertTrue(0 >= ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                assertTrue(0 >= nc.getStatistics().getOutstandingRequests());
             } finally {
                 nc.close();
                 assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
@@ -552,14 +567,14 @@ public class RequestTests extends TestBase {
 
         @Test
         public void testDelayInPickingUpFuture() throws Exception {
-            try (NatsTestServer ts = new NatsTestServer(false)) {
+            try (NatsTestServer ts = new NatsTestServer()) {
                 int msgCount = 100;
                 ArrayList<Future<Message>> messages = new ArrayList<>();
-                Connection nc = Nats.connect(ts.getURI());
+                Connection nc = Nats.connect(ts.getLocalhostUri());
                 try {
                     assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                     
-                    Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), new byte[1]));
+                    Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), new byte[1]));
                     d.subscribe("subject");
         
                     for (int i=0;i<msgCount;i++) {
@@ -574,7 +589,7 @@ public class RequestTests extends TestBase {
                         assertEquals(1, msg.getData().length);
                     }
         
-                    assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                    assertEquals(0, nc.getStatistics().getOutstandingRequests());
                 } finally {
                     nc.close();
                     assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
@@ -584,45 +599,29 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testOldStyleRequest() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Options options = new Options.Builder().server(ts.getURI()).oldRequestStyle().build();
-            Connection nc = Nats.connect(options);
-            try {
-                assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-                
-                Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), null));
-                d.subscribe("subject");
+        runInLrServerOwnNc(Options.builder().oldRequestStyle(), nc -> {
+            String subject = random();
+            Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), null));
+            d.subscribe(subject);
 
-                Future<Message> incoming = nc.request("subject", null);
-                Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
+            Future<Message> incoming = nc.request(subject, null);
+            Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
-                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
-                assertNotNull(msg);
-                assertEquals(0, msg.getData().length);
-                assertEquals(msg.getSubject().indexOf('.'), msg.getSubject().lastIndexOf('.'));
-            } finally {
-                nc.close();
-                assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
-            }
-        }
+            assertEquals(0, nc.getStatistics().getOutstandingRequests());
+            assertNotNull(msg);
+            assertEquals(0, msg.getData().length);
+            assertEquals(msg.getSubject().indexOf('.'), msg.getSubject().lastIndexOf('.'));
+        });
     }
 
     @Test
     public void testBuffersResize() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer()) {
             int initialSize = 128;
             int messageSize = 1024;
-            Options options = new Options.Builder().
-                                    server(ts.getURI()).
-                                    bufferSize(initialSize).
-                                    connectionTimeout(Duration.ofSeconds(10)).
-                                    build();
-
-            Connection nc = Nats.connect(options);
-            try {
-                assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-                
-                Dispatcher d = nc.createDispatcher((msg) -> nc.publish(msg.getReplyTo(), msg.getData()));
+            Options options = optionsBuilder(ts).bufferSize(initialSize).connectionTimeout(Duration.ofSeconds(10)).build();
+            try (Connection nc = standardConnectionWait(options)) {
+                Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), msg.getData()));
                 d.subscribe("subject");
 
                 Future<Message> incoming = nc.request("subject", new byte[messageSize]); // force the buffers to resize
@@ -634,12 +633,9 @@ public class RequestTests extends TestBase {
                     exp.printStackTrace();
                 }
 
-                assertEquals(0, ((NatsStatistics)nc.getStatistics()).getOutstandingRequests());
+                assertEquals(0, nc.getStatistics().getOutstandingRequests());
                 assertNotNull(msg);
                 assertEquals(messageSize, msg.getData().length);
-            } finally {
-                nc.close();
-                assertEquals(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
             }
         }
     }
@@ -647,8 +643,8 @@ public class RequestTests extends TestBase {
     @Test
     public void throwsIfClosed() {
         assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
+            try (NatsTestServer ts = new NatsTestServer();
+                        Connection nc = Nats.connect(ts.getLocalhostUri())) {
                 nc.close();
                 nc.request("subject", null);
                 fail();
@@ -659,8 +655,9 @@ public class RequestTests extends TestBase {
     @Test
     public void testThrowsWithoutSubject() {
         assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection nc = Nats.connect(ts.getURI())) {
+            try (NatsTestServer ts = new NatsTestServer();
+                 Connection nc = Nats.connect(ts.getLocalhostUri())) {
+                //noinspection DataFlowIssue
                 nc.request((String)null, null);
                 fail();
             }
@@ -670,8 +667,8 @@ public class RequestTests extends TestBase {
     @Test
     public void testThrowsEmptySubject() {
         assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection nc = Nats.connect(ts.getURI())) {
+            try (NatsTestServer ts = new NatsTestServer();
+                    Connection nc = Nats.connect(ts.getLocalhostUri())) {
                 nc.request("", null);
                 fail();
             }
@@ -726,7 +723,7 @@ public class RequestTests extends TestBase {
         assertTrue(ftot.useTimeoutException());
         ftot.cancelTimedOut();
         ExecutionException ee = assertThrows(ExecutionException.class, ftot::get);
-        assertTrue(ee.getCause() instanceof TimeoutException);
+        assertInstanceOf(TimeoutException.class, ee.getCause());
     }
 
     @Test
@@ -742,9 +739,9 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testCancelledFutureMustNotErrorOnCleanResponses() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer()) {
             Options options = Options.builder()
-                    .server(ts.getURI())
+                    .server(ts.getLocalhostUri())
                     .noNoResponders()
                     .requestCleanupInterval(Duration.ofSeconds(10))
                     .build();
@@ -754,9 +751,7 @@ public class RequestTests extends TestBase {
             future.cancelClosing();
 
             // Future is already cancelled, collecting it shouldn't result in an exception being thrown.
-            assertDoesNotThrow(() -> {
-                nc.cleanResponses(false);
-            });
+            assertDoesNotThrow(() -> nc.cleanResponses(false));
         }
     }
 }

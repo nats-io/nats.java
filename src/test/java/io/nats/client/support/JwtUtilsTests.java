@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static io.nats.client.support.JwtUtils.*;
-import static io.nats.client.utils.TestBase.sleep;
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JwtUtilsTests {

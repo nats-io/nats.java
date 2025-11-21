@@ -52,7 +52,7 @@ public class RequestBenchmarkWithStats {
                         build();
 
             Connection handlerC = Nats.connect(o);
-            Dispatcher d = handlerC.createDispatcher((msg) -> {
+            Dispatcher d = handlerC.createDispatcher(msg -> {
                 try {
                     handlerC.publish(msg.getReplyTo(), msg.getData());
                     msgsHandled.incrementAndGet();

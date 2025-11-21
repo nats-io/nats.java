@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.support.NatsConstants.OUTPUT_QUEUE_IS_FULL;
-import static io.nats.client.utils.TestBase.sleep;
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class MessageQueueTests {
@@ -561,7 +561,7 @@ public class MessageQueueTests {
 
         long before = q.sizeInBytes();
         q.pause();
-        q.filter((msg) -> Arrays.equals(expected, msg.getProtocolBytes()));
+        q.filter(msg -> Arrays.equals(expected, msg.getProtocolBytes()));
         q.resume();
         long after = q.sizeInBytes();
 
@@ -585,7 +585,7 @@ public class MessageQueueTests {
 
         long before = q.sizeInBytes();
         q.pause();
-        q.filter((msg) -> Arrays.equals(expected, msg.getProtocolBytes()));
+        q.filter(msg -> Arrays.equals(expected, msg.getProtocolBytes()));
         q.resume();
         long after = q.sizeInBytes();
 
@@ -609,7 +609,7 @@ public class MessageQueueTests {
 
         long before = q.sizeInBytes();
         q.pause();
-        q.filter((msg) -> Arrays.equals(expected, msg.getProtocolBytes()));
+        q.filter(msg -> Arrays.equals(expected, msg.getProtocolBytes()));
         q.resume();
         long after = q.sizeInBytes();
 
@@ -631,7 +631,7 @@ public class MessageQueueTests {
     public void testThrowOnFilterIfRunning() {
         assertThrows(IllegalStateException.class, () -> {
             MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
-            q.filter((msg) -> true);
+            q.filter(msg -> true);
             fail();
         });
     }

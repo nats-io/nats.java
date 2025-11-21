@@ -20,6 +20,7 @@ import io.nats.client.impl.ListenerForTesting;
 import io.nats.client.impl.SimulateSocketDataPortException;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Isolated;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -32,26 +33,23 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static io.nats.client.utils.ConnectionUtils.*;
+import static io.nats.client.utils.OptionsUtils.options;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.TestBase.*;
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
+@Isolated
 public class ConnectTests {
     @Test
-    public void testDefaultConnection() throws Exception {
-        try (NatsTestServer ignored = new NatsTestServer(Options.DEFAULT_PORT, false)) {
-            Connection nc = standardConnection();
-            assertEquals(Options.DEFAULT_PORT, nc.getServerInfo().getPort());
-            standardCloseConnection(nc);
-        }
-    }
-
-    @Test
     public void testConnection() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = standardConnection(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Connection nc = standardConnectionWait(ts.getLocalhostUri());
             assertEquals(ts.getPort(), nc.getServerInfo().getPort());
             // coverage for getClientAddress
             InetAddress inetAddress = nc.getClientInetAddress();
+            assertNotNull(inetAddress);
             assertTrue(inetAddress.equals(InetAddress.getLoopbackAddress())
                 || inetAddress.equals(InetAddress.getLocalHost()));
             standardCloseConnection(nc);
@@ -60,32 +58,32 @@ public class ConnectTests {
 
     @Test
     public void testConnectionWithOptions() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Options options = new Options.Builder().server(ts.getURI()).build();
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = optionsBuilder(ts).build();
             assertCanConnect(options);
         }
     }
 
     @Test
     public void testFullFakeConnect() throws Exception {
-        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-            assertCanConnect(ts.getURI());
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
+            assertCanConnect(mockTs.getMockUri());
         }
     }
 
     @Test
     public void testFullFakeConnectWithTabs() throws Exception {
-        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-            ts.useTabs();
-            assertCanConnect(ts.getURI());
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
+            mockTs.useTabs();
+            assertCanConnect(mockTs.getMockUri());
         }
     }
 
     @Test
     public void testConnectExitBeforeInfo() {
         assertThrows(IOException.class, () -> {
-            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_BEFORE_INFO)) {
-                Options options = new Options.Builder().server(ts.getURI()).noReconnect().build();
+            try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.EXIT_BEFORE_INFO)) {
+                Options options = optionsBuilder(mockTs.getMockUri()).noReconnect().build();
                 assertCanConnect(options);
             }
         });
@@ -94,8 +92,8 @@ public class ConnectTests {
     @Test
     public void testConnectExitAfterInfo() {
         assertThrows(IOException.class, () -> {
-            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_INFO)) {
-                Options options = new Options.Builder().server(ts.getURI()).noReconnect().build();
+            try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_INFO)) {
+                Options options = optionsBuilder(mockTs.getMockUri()).noReconnect().build();
                 assertCanConnect(options);
             }
         });
@@ -104,8 +102,8 @@ public class ConnectTests {
     @Test
     public void testConnectExitAfterConnect() {
         assertThrows(IOException.class, () -> {
-            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_CONNECT)) {
-                Options options = new Options.Builder().server(ts.getURI()).noReconnect().build();
+            try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_CONNECT)) {
+                Options options = optionsBuilder(mockTs.getMockUri()).noReconnect().build();
                 assertCanConnect(options);
             }
         });
@@ -114,8 +112,8 @@ public class ConnectTests {
     @Test
     public void testConnectExitAfterPing() {
         assertThrows(IOException.class, () -> {
-            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_PING)) {
-                Options options = new Options.Builder().server(ts.getURI()).noReconnect().build();
+            try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_PING)) {
+                Options options = optionsBuilder(mockTs.getMockUri()).noReconnect().build();
                 assertCanConnect(options);
             }
         });
@@ -123,11 +121,11 @@ public class ConnectTests {
 
     @Test
     public void testConnectionFailureWithFallback() throws Exception {
-
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer()) {
             try (NatsServerProtocolMock fake = new NatsServerProtocolMock(ExitAt.EXIT_AFTER_PING)) {
-                Options options = new Options.Builder().connectionTimeout(Duration.ofSeconds(5)).server(fake.getURI())
-                        .server(ts.getURI()).build();
+                Options options = optionsBuilder(fake.getMockUri(), ts.getLocalhostUri())
+                    .connectionTimeout(Duration.ofSeconds(5))
+                    .build();
                 assertCanConnect(options);
             }
         }
@@ -136,37 +134,37 @@ public class ConnectTests {
     @Test
     public void testConnectWithConfig() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/simple.conf", false)) {
-            assertCanConnect(ts.getURI());
+            assertCanConnect(ts.getLocalhostUri());
         }
     }
 
     @Test
     public void testConnectWithCommas() throws Exception {
-        try (NatsTestServer ts1 = new NatsTestServer(false)) {
-            try (NatsTestServer ts2 = new NatsTestServer(false)) {
-                assertCanConnect(ts1.getURI() + "," + ts2.getURI());
+        try (NatsTestServer ts1 = new NatsTestServer()) {
+            try (NatsTestServer ts2 = new NatsTestServer()) {
+                assertCanConnect(ts1.getLocalhostUri() + "," + ts2.getLocalhostUri());
             }
         }
     }
 
     @Test
     public void testConnectRandomize() throws Exception {
-        try (NatsTestServer ts1 = new NatsTestServer(false)) {
-            try (NatsTestServer ts2 = new NatsTestServer(false)) {
+        try (NatsTestServer ts1 = new NatsTestServer()) {
+            try (NatsTestServer ts2 = new NatsTestServer()) {
                 boolean needOne = true;
                 boolean needTwo = true;
                 int count = 0;
                 int maxTries = 100;
                 while (count++ < maxTries && (needOne || needTwo)) {
-                    Connection nc = standardConnection(ts1.getURI() + "," + ts2.getURI());
-                    if (nc.getConnectedUrl().equals(ts1.getURI())) {
+                    Connection nc = standardConnectionWait(ts1.getLocalhostUri() + "," + ts2.getLocalhostUri());
+                    if (ts1.getLocalhostUri().equals(nc.getConnectedUrl())) {
                         needOne = false;
                     } else {
                         needTwo = false;
                     }
                     Collection<String> servers = nc.getServers();
-                    assertTrue(servers.contains(ts1.getURI()));
-                    assertTrue(servers.contains(ts2.getURI()));
+                    assertTrue(servers.contains(ts1.getLocalhostUri()));
+                    assertTrue(servers.contains(ts2.getLocalhostUri()));
                     standardCloseConnection(nc);
                 }
                 assertFalse(needOne);
@@ -177,17 +175,16 @@ public class ConnectTests {
 
     @Test
     public void testConnectNoRandomize() throws Exception {
-        try (NatsTestServer ts1 = new NatsTestServer(false)) {
-            try (NatsTestServer ts2 = new NatsTestServer(false)) {
+        try (NatsTestServer ts1 = new NatsTestServer()) {
+            try (NatsTestServer ts2 = new NatsTestServer()) {
                 int one = 0;
                 int two = 0;
 
                 // should get at least 1 for each
                 for (int i = 0; i < 10; i++) {
-                    String[] servers = { ts1.getURI(), ts2.getURI() };
-                    Options options = new Options.Builder().noRandomize().servers(servers).build();
-                    Connection nc = standardConnection(options);
-                    if (nc.getConnectedUrl().equals(ts1.getURI())) {
+                    Options options = optionsBuilder(ts1.getLocalhostUri(), ts2.getLocalhostUri()).noRandomize().build();
+                    Connection nc = standardConnectionWait(options);
+                    if (ts1.getLocalhostUri().equals(nc.getConnectedUrl())) {
                         one++;
                     } else {
                         two++;
@@ -195,8 +192,8 @@ public class ConnectTests {
                     standardCloseConnection(nc);
                 }
 
-                assertEquals(one, 10, "always got one");
-                assertEquals(two, 0, "never got two");
+                assertEquals(10, one, "always got one");
+                assertEquals(0, two, "never got two");
             }
         }
     }
@@ -205,8 +202,8 @@ public class ConnectTests {
     public void testFailWithMissingLineFeedAfterInfo() {
         assertThrows(IOException.class, () -> {
             String badInfo = "{\"server_id\":\"test\", \"version\":\"9.9.99\"}\rmore stuff";
-            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, badInfo)) {
-                Options options = new Options.Builder().server(ts.getURI()).reconnectWait(Duration.ofDays(1)).build();
+            try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(null, badInfo)) {
+                Options options = optionsBuilder(mockTs.getMockUri()).reconnectWait(Duration.ofDays(1)).build();
                 Nats.connect(options);
             }
         });
@@ -216,8 +213,8 @@ public class ConnectTests {
     public void testFailWithStuffAfterInitialInfo() {
         assertThrows(IOException.class, () -> {
             String badInfo = "{\"server_id\":\"test\", \"version\":\"9.9.99\"}\r\nmore stuff";
-            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, badInfo)) {
-                Options options = new Options.Builder().server(ts.getURI()).reconnectWait(Duration.ofDays(1)).build();
+            try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(null, badInfo)) {
+                Options options = optionsBuilder(mockTs.getMockUri()).reconnectWait(Duration.ofDays(1)).build();
                 Nats.connect(options);
             }
         });
@@ -227,9 +224,9 @@ public class ConnectTests {
     public void testFailWrongInitialInfoOP() {
         assertThrows(IOException.class, () -> {
             String badInfo = "PING {\"server_id\":\"test\", \"version\":\"9.9.99\"}\r\n"; // wrong op code
-            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, badInfo)) {
-                ts.useCustomInfoAsFullInfo();
-                Options options = new Options.Builder().server(ts.getURI()).reconnectWait(Duration.ofDays(1)).build();
+            try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(null, badInfo)) {
+                mockTs.useCustomInfoAsFullInfo();
+                Options options = optionsBuilder(mockTs.getMockUri()).reconnectWait(Duration.ofDays(1)).build();
                 Nats.connect(options);
             }
         });
@@ -239,8 +236,8 @@ public class ConnectTests {
     public void testIncompleteInitialInfo() {
         assertThrows(IOException.class, () -> {
             String badInfo = "{\"server_id\"\r\n";
-            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, badInfo)) {
-                Options options = new Options.Builder().server(ts.getURI()).reconnectWait(Duration.ofDays(1)).build();
+            try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(null, badInfo)) {
+                Options options = optionsBuilder(mockTs.getMockUri()).reconnectWait(Duration.ofDays(1)).build();
                 Nats.connect(options);
             }
         });
@@ -249,17 +246,15 @@ public class ConnectTests {
     @Test
     public void testAsyncConnection() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        Connection nc = null;
-
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Options options = new Options.Builder().server(ts.getURI()).connectionListener(listener).build();
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = optionsBuilder(ts).connectionListener(listener).build();
             listener.prepForStatusChange(Events.CONNECTED);
 
             Nats.connectAsynchronously(options, false);
 
             listener.waitForStatusChange(1, TimeUnit.SECONDS);
 
-            nc = listener.getLastEventConnection();
+            Connection nc = listener.getLastEventConnection();
             assertNotNull(nc);
             assertConnected(nc);
             standardCloseConnection(nc);
@@ -270,7 +265,7 @@ public class ConnectTests {
     public void testAsyncConnectionWithReconnect() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
         int port = NatsTestServer.nextPort();
-        Options options = new Options.Builder().server("nats://localhost:" + port).maxReconnects(-1)
+        Options options = optionsBuilder(port).maxReconnects(-1)
                 .reconnectWait(Duration.ofMillis(100)).connectionListener(listener).build();
 
         Nats.connectAsynchronously(options, true);
@@ -290,8 +285,8 @@ public class ConnectTests {
     @Test
     public void testThrowOnAsyncWithoutListener() {
         assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false)) {
-                Options options = new Options.Builder().server(ts.getURI()).build();
+            try (NatsTestServer ts = new NatsTestServer()) {
+                Options options = optionsBuilder(ts).build();
                 Nats.connectAsynchronously(options, false);
             }
         });
@@ -300,7 +295,7 @@ public class ConnectTests {
     @Test
     public void testErrorOnAsync() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        Options options = new Options.Builder().server("nats://localhost:" + NatsTestServer.nextPort())
+        Options options = optionsBuilder(NatsTestServer.nextPort())
                 .connectionListener(listener).errorListener(listener).noReconnect().build();
         listener.prepForStatusChange(Events.CLOSED);
         Nats.connectAsynchronously(options, false);
@@ -313,8 +308,8 @@ public class ConnectTests {
     @Test
     public void testConnectionTimeout() {
         assertThrows(IOException.class, () -> {
-            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.SLEEP_BEFORE_INFO)) { // will sleep for 3
-                Options options = new Options.Builder().server(ts.getURI()).noReconnect().traceConnection()
+            try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.SLEEP_BEFORE_INFO)) { // will sleep for 3
+                Options options = optionsBuilder(mockTs.getMockUri()).noReconnect().traceConnection()
                         .connectionTimeout(Duration.ofSeconds(2)). // 2 is also the default but explicit for test
                 build();
                 Connection nc = Nats.connect(options);
@@ -325,8 +320,8 @@ public class ConnectTests {
 
     @Test
     public void testSlowConnectionNoTimeout() throws Exception {
-        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.SLEEP_BEFORE_INFO)) {
-            Options options = new Options.Builder().server(ts.getURI()).noReconnect()
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.SLEEP_BEFORE_INFO)) {
+            Options options = optionsBuilder(mockTs.getMockUri()).noReconnect()
                     .connectionTimeout(Duration.ofSeconds(6)). // longer than the sleep
                     build();
             assertCanConnect(options);
@@ -338,11 +333,11 @@ public class ConnectTests {
         List<String> traces = new ArrayList<>();
         TimeTraceLogger l = (f, a) -> traces.add(String.format(f, a));
 
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Options options = new Options.Builder().server(ts.getURI()).traceConnection().build();
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = optionsBuilder(ts).traceConnection().build();
             assertCanConnect(options);
 
-            options = new Options.Builder().server(ts.getURI()).timeTraceLogger(l).build();
+            options = optionsBuilder(ts).timeTraceLogger(l).build();
             assertCanConnect(options);
         }
 
@@ -376,9 +371,8 @@ public class ConnectTests {
         List<String> traces = new ArrayList<>();
         TimeTraceLogger l = (f, a) -> traces.add(String.format(f, a));
 
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Options options = new Options.Builder()
-                    .server(ts.getURI())
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = optionsBuilder(ts)
                     .traceConnection()
                     .timeTraceLogger(l)
                     .reconnectWait(Duration.ofSeconds(1))
@@ -400,7 +394,7 @@ public class ConnectTests {
     @Test
     public void testConnectExceptionHasURLS() {
         try {
-            Nats.connect("nats://testserver.notnats:4222, nats://testserver.alsonotnats:4223");
+            Nats.connect(options("nats://testserver.notnats:4222, nats://testserver.alsonotnats:4223"));
         } catch (Exception e) {
             assertTrue(e.getMessage().contains("testserver.notnats:4222"));
             assertTrue(e.getMessage().contains("testserver.alsonotnats:4223"));
@@ -409,8 +403,8 @@ public class ConnectTests {
 
     @Test
     public void testFlushBuffer() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = standardConnection(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Connection nc = standardConnectionWait(ts.getLocalhostUri());
 
             // test connected
             nc.flushBuffer();
@@ -431,8 +425,8 @@ public class ConnectTests {
 
     @Test
     public void testFlushBufferThreadSafety() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = standardConnection(ts.getURI());
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Connection nc = standardConnectionWait(ts.getLocalhostUri());
 
             // use two latches to sync the threads as close as
             // possible.
@@ -469,7 +463,8 @@ public class ConnectTests {
             // sync up the current thread and the publish thread
             // to get the most out of the test.
             try {
-               pubLatch.await(2, TimeUnit.SECONDS);
+                //noinspection ResultOfMethodCallIgnored
+                pubLatch.await(2, TimeUnit.SECONDS);
             } catch (Exception e) {
                 // NOOP
             }
@@ -508,8 +503,7 @@ public class ConnectTests {
             }
         };
 
-        Options options = new Options.Builder()
-            .server(NatsTestServer.getNatsLocalhostUri(port))
+        Options options = optionsBuilder(port)
             .dataPortType("io.nats.client.impl.SimulateSocketDataPortException")
             .connectionListener(listener)
             .errorListener(el)
@@ -635,16 +629,16 @@ public class ConnectTests {
 
     @Test
     void testConnectWithFastFallback() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Options options = new Options.Builder().server(ts.getURI()).enableFastFallback().build();
-            Connection nc = standardConnection(options);
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = optionsBuilder(ts).enableFastFallback().build();
+            Connection nc = standardConnectionWait(options);
             standardCloseConnection(nc);
         }
     }
 
     @Test
     void testConnectPendingCountCoverage() throws Exception {
-        TestBase.runInJsServer(nc -> {
+        runInServer(nc -> {
             AtomicLong outgoingPendingMessageCount = new AtomicLong();
             AtomicLong outgoingPendingBytes = new AtomicLong();
 
@@ -653,17 +647,12 @@ public class ConnectTests {
                 while (tKeepGoing.get()) {
                     outgoingPendingMessageCount.set(Math.max(outgoingPendingMessageCount.get(), nc.outgoingPendingMessageCount()));
                     outgoingPendingBytes.set(Math.max(outgoingPendingBytes.get(), nc.outgoingPendingBytes()));
-                    try {
-                        Thread.sleep(10);
-                    }
-                    catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
+                    sleep(10);
                 }
             });
             t.start();
 
-            String subject = subject();
+            String subject = TestBase.random();
             byte[] data = new byte[8 * 1024];
             for (int x = 0; x < 5000; x++) {
                 nc.publish(subject, data);

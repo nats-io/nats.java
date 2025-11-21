@@ -1,8 +1,13 @@
 pluginManagement {
     repositories {
+        gradlePluginPortal()
         mavenCentral()
-        maven { url "https://oss.sonatype.org/content/repositories/releases/" }
-        maven { url "https://plugins.gradle.org/m2/" }
+        maven { url="https://repo1.maven.org/maven2/" }
+        maven { url="https://central.sonatype.com/repository/maven-snapshots/" }
+        maven { url="https://plugins.gradle.org/m2/" }
+    }
+    plugins {
+        id("biz.aQute.bnd.builder") version "7.1.0"
     }
 }
 rootProject.name = 'java-nats'

@@ -24,6 +24,8 @@ import java.util.List;
 
 import static io.nats.client.support.NatsConstants.OP_PING;
 import static io.nats.client.support.NatsConstants.OP_PING_BYTES;
+import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -121,11 +123,7 @@ public class NatsMessageTests extends JetStreamTestBase {
             }
 
             try (NatsTestServer ts = new NatsTestServer()) {
-                Options options = new Options.Builder().
-                        server(ts.getURI()).
-                        maxReconnects(0).
-                        maxControlLine(maxControlLine).
-                        build();
+                Options options = optionsBuilder(ts).maxReconnects(0).maxControlLine(maxControlLine).build();
                 Connection nc = Nats.connect(options);
                 standardConnectionWait(nc);
                 nc.request(subject, body);
@@ -142,8 +140,8 @@ public class NatsMessageTests extends JetStreamTestBase {
                 subject += subject;
             }
 
-            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT);
-                 NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+            try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT);
+                 NatsConnection nc = (NatsConnection) Nats.connect(mockTs.getMockUri())) {
                 standardConnectionWait(nc);
                 nc.subscribe(subject);
             }
@@ -161,8 +159,8 @@ public class NatsMessageTests extends JetStreamTestBase {
                 subject += subject;
             }
 
-            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT);
-                 NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+            try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT);
+                 NatsConnection nc = (NatsConnection) Nats.connect(mockTs.getMockUri())) {
                 standardConnectionWait(nc);
                 nc.publish(subject, replyTo, body);
             }
@@ -331,14 +329,14 @@ public class NatsMessageTests extends JetStreamTestBase {
 
     @Test
     public void testHeadersMutableBeforePublish() throws Exception {
-        jsServer.run(connection -> {
-            String subject = subject();
-            Subscription sub = connection.subscribe(subject);
+        runInLrServer(nc -> {
+            String subject = random();
+            Subscription sub = nc.subscribe(subject);
 
             Headers h = new Headers();
             h.put("one", "A");
             Message m = new NatsMessage(subject, null, h, null);
-            connection.publish(m);
+            nc.publish(m);
             Message incoming = sub.nextMessage(1000);
             assertEquals(1, incoming.getHeaders().size());
 
@@ -346,13 +344,13 @@ public class NatsMessageTests extends JetStreamTestBase {
             // so this will affect the message which is the same
             // as the local copy
             h.put("two", "B");
-            connection.publish(m);
+            nc.publish(m);
             incoming = sub.nextMessage(1000);
             assertEquals(2, incoming.getHeaders().size());
 
             // also if you get the headers from the message
             m.getHeaders().put("three", "C");
-            connection.publish(m);
+            nc.publish(m);
             incoming = sub.nextMessage(1000);
             assertEquals(3, incoming.getHeaders().size());
         });

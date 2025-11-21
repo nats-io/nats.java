@@ -24,7 +24,7 @@ import static io.nats.client.support.Encoding.base64UrlEncodeToString;
  * Handles the begining of the connect sequence, all hard coded, but
  * is configurable to fail at specific points to allow client testing.
  */
-public class NatsServerProtocolMock implements Closeable{
+public class NatsServerProtocolMock implements Closeable {
 
     // Default is to exit after pong
     public enum ExitAt {
@@ -49,11 +49,11 @@ public class NatsServerProtocolMock implements Closeable{
     }
 
     public interface Customizer {
-        public void customizeTest(NatsServerProtocolMock ts, BufferedReader reader, PrintWriter writer);
+        void customizeTest(NatsServerProtocolMock mockTs, BufferedReader reader, PrintWriter writer);
     }
 
-    private int port;
-    private ExitAt exitAt;
+    private final int port;
+    private final ExitAt exitAt;
     private Progress progress;
     private boolean protocolFailure;
     private CompletableFuture<Boolean> waitForIt;
@@ -105,7 +105,7 @@ public class NatsServerProtocolMock implements Closeable{
     private void start() {
         this.progress = Progress.NO_CLIENT;
         this.waitForIt = new CompletableFuture<>();
-        Thread t = new Thread(() -> {accept();});
+        Thread t = new Thread(this::accept);
         t.start();
         try {
             Thread.sleep(100);
@@ -126,8 +126,8 @@ public class NatsServerProtocolMock implements Closeable{
         return port;
     }
 
-    public String getURI() {
-        return "nats://localhost:" + this.getPort();
+    public String getMockUri() {
+        return "nats://0.0.0.0:" + port;
     }
 
     public Progress getProgress() {
@@ -239,7 +239,7 @@ public class NatsServerProtocolMock implements Closeable{
         } catch (IOException io) {
             protocolFailure = true;
             // System.out.println("\n*** Mock Server @" + this.port + " got exception "+io.getMessage());
-            io.printStackTrace();
+            // io.printStackTrace();
         } catch (Exception ex) {
             // System.out.println("\n*** Mock Server @" + this.port + " got exception "+ex.getMessage());
             

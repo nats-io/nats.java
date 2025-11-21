@@ -97,12 +97,13 @@ public class PublishOptionsTests extends TestBase {
 
     @Test
     public void testProperties() {
+        String stream = random();
         Properties p = new Properties();
         p.setProperty(PublishOptions.PROP_PUBLISH_TIMEOUT, "PT20M");
-        p.setProperty(PublishOptions.PROP_STREAM_NAME, STREAM);
+        p.setProperty(PublishOptions.PROP_STREAM_NAME, stream);
         PublishOptions po = new PublishOptions.Builder(p).build();
         //noinspection deprecation
-        assertEquals(STREAM, po.getStream(), "stream foo");
+        assertEquals(stream, po.getStream(), "stream foo");
         assertEquals(Duration.ofMinutes(20), po.getStreamTimeout(), "20M timeout");
 
         p = new Properties();
