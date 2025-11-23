@@ -57,7 +57,7 @@ public class OptionsTests {
 
     @Test
     public void testDefaultOptions() {
-        Options o = optionsBuilder().errorListener(null).build();
+        Options o = new Options.Builder().build();
         _testDefaultOptions(o);
         _testDefaultOptions(new Options.Builder(o).build());
     }

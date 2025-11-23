@@ -99,7 +99,7 @@ public abstract class OptionsUtils {
     }
 
     static class TestThreadFactory implements ThreadFactory {
-        private final ThreadGroup group;
+        final ThreadGroup group;
         final String name;
         final AtomicInteger threadNumber;
 
