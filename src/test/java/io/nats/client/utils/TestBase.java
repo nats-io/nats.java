@@ -42,6 +42,7 @@ import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_ARGUM
 import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_STATE;
 import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
+import static io.nats.client.utils.ResourceUtils.configResource;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static io.nats.client.utils.VersionUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -129,6 +130,7 @@ public class TestBase {
     private static void _runInOwnServer(
         Options.Builder optionsBuilder,
         VersionCheck vc,
+        String configFilePath,
         InServerTest inServerTest,
         InJetStreamTest jsTest
     ) throws Exception {
@@ -137,6 +139,9 @@ public class TestBase {
         }
 
         NatsServerRunner.Builder builder = NatsServerRunner.builder().jetstream(jsTest != null);
+        if (configFilePath != null) {
+            builder.configFilePath(configResource(configFilePath));
+        }
         try (NatsTestServer ts = new NatsTestServer(builder)) {
             Options options = (optionsBuilder == null ? optionsBuilder() : optionsBuilder)
                 .server(ts.getLocalhostUri())
@@ -158,19 +163,27 @@ public class TestBase {
     }
 
     public static void runInOwnServer(InServerTest inServerTest) throws Exception {
-        _runInOwnServer(null, null, inServerTest, null);
+        _runInOwnServer(null, null, null, inServerTest, null);
     }
 
     public static void runInOwnServer(Options.Builder builder, InServerTest inServerTest) throws Exception {
-        _runInOwnServer(builder, null, inServerTest, null);
+        _runInOwnServer(builder, null, null, inServerTest, null);
     }
 
     public static void runInOwnJsServer(InJetStreamTest inJetStreamTest) throws Exception {
-        _runInOwnServer(null, null, null, inJetStreamTest);
+        _runInOwnServer(null, null, null, null, inJetStreamTest);
     }
 
     public static void runInOwnJsServer(VersionCheck vc, InJetStreamTest inJetStreamTest) throws Exception {
-        _runInOwnServer(null, vc, null, inJetStreamTest);
+        _runInOwnServer(null, vc, null, null, inJetStreamTest);
+    }
+
+    public static void runInConfiguredServer(String configFilePath, InServerTest inServerTest) throws Exception {
+        _runInOwnServer(null, null, null, inServerTest, null);
+    }
+
+    public static void runInConfiguredJsServer(String configFilePath, InJetStreamTest inJetStreamTest) throws Exception {
+        _runInOwnServer(null, null, null, null, inJetStreamTest);
     }
 
     // ----------------------------------------------------------------------------------------------------

@@ -39,7 +39,8 @@ public class ConnectionListenerTests extends TestBase {
     @Test
     public void testCloseCount() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInSharedOwnNc(listener, nc -> {
+        Options.Builder builder = optionsBuilder().connectionListener(listener);
+        runInSharedOwnNc(builder, nc -> {
             standardCloseConnection(nc);
             assertNull(nc.getConnectedUrl());
             assertEquals(1, listener.getEventCount(Events.CLOSED));
@@ -100,7 +101,8 @@ public class ConnectionListenerTests extends TestBase {
     @Test
     public void testExceptionInConnectionListener() throws Exception {
         BadHandler listener = new BadHandler();
-        runInSharedOwnNc(listener, nc -> {
+        Options.Builder builder = optionsBuilder().connectionListener(listener);
+        runInOwnServer(builder, nc -> {
             standardCloseConnection(nc);
             assertTrue(((NatsConnection)nc).getStatisticsCollector().getExceptions() > 0);
         });
@@ -110,7 +112,8 @@ public class ConnectionListenerTests extends TestBase {
     public void testMultipleConnectionListeners() throws Exception {
         Set<String> capturedEvents = ConcurrentHashMap.newKeySet();
         ListenerForTesting listener = new ListenerForTesting();
-        runInSharedOwnNc(listener, nc -> {
+        Options.Builder builder = optionsBuilder().connectionListener(listener);
+        runInSharedOwnNc(builder, nc -> {
             //noinspection DataFlowIssue // addConnectionListener parameter is annotated as @NonNull
             assertThrows(NullPointerException.class, () -> nc.addConnectionListener(null));
             //noinspection DataFlowIssue // removeConnectionListener parameter is annotated as @NonNull

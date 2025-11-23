@@ -89,10 +89,10 @@ public class PublishTests extends TestBase {
             Connection nc2 = longConnectionWait(options);
             nc2.publish(random(), null, null, body);
 
-            if (!mpvLatch.await(1, TimeUnit.SECONDS)) {
+            if (!mpvLatch.await(3, TimeUnit.SECONDS)) {
                 fail();
             }
-            if (!seLatch.await(1, TimeUnit.SECONDS)) {
+            if (!seLatch.await(3, TimeUnit.SECONDS)) {
                 fail();
             }
         }

@@ -18,6 +18,7 @@ import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
 import org.jspecify.annotations.NonNull;
 
+import java.time.Duration;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -29,7 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public abstract class OptionsUtils {
 
     private static ExecutorService ES;
-    private static ScheduledThreadPoolExecutor SCHD;
+    private static ScheduledThreadPoolExecutor SC;
     private static ThreadFactory CB;
     private static ThreadFactory CN;
 
@@ -69,46 +70,49 @@ public abstract class OptionsUtils {
 
     public static Options.Builder optionsBuilder() {
         if (ES == null) {
-            ES = new ThreadPoolExecutor(0, Integer.MAX_VALUE,
-                500L, TimeUnit.MILLISECONDS,
+            ES = new ThreadPoolExecutor(5, Integer.MAX_VALUE, 30, TimeUnit.SECONDS,
                 new SynchronousQueue<>(),
-                new TestThreadFactory("ES"));
+                new TestThreadFactory("es"));
         }
 
-        if (SCHD == null) {
-            SCHD = new ScheduledThreadPoolExecutor(3, new TestThreadFactory("SCHD"));
-            SCHD.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
-            SCHD.setRemoveOnCancelPolicy(true);
+        if (SC == null) {
+            SC = new ScheduledThreadPoolExecutor(3, new TestThreadFactory("sc"));
+            SC.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+            SC.setRemoveOnCancelPolicy(true);
         }
 
         if (CB == null) {
-            CB = new TestThreadFactory("CB");
+            CB = new TestThreadFactory("cb");
         }
 
         if (CN == null) {
-            CN = new TestThreadFactory("CN");
+            CN = new TestThreadFactory("cn");
         }
 
         return Options.builder()
+            .connectionTimeout(Duration.ofSeconds(5))
             .executor(ES)
-            .scheduledExecutor(SCHD)
+            .scheduledExecutor(SC)
             .callbackThreadFactory(CB)
             .connectThreadFactory(CN)
             .errorListener(NOOP_EL);
     }
 
     static class TestThreadFactory implements ThreadFactory {
+        private final ThreadGroup group;
         final String name;
-        final AtomicInteger threadNo;
+        final AtomicInteger threadNumber;
 
         public TestThreadFactory(String name) {
+            SecurityManager s = System.getSecurityManager();
+            group = (s != null) ? s.getThreadGroup() : Thread.currentThread().getThreadGroup();
             this.name = name;
-            this.threadNo = new AtomicInteger(0);
+            this.threadNumber = new AtomicInteger(1);
         }
 
         public Thread newThread(@NonNull Runnable r) {
-            String threadName = "test." + name + "." + threadNo.incrementAndGet();
-            Thread t = new Thread(r, threadName);
+            String threadName = "test." + name + "." + threadNumber.incrementAndGet();
+            Thread t = new Thread(group, r, threadName);
             if (t.isDaemon()) {
                 t.setDaemon(false);
             }
