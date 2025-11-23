@@ -29,10 +29,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public abstract class OptionsUtils {
 
-    private static ExecutorService ES;
+    private static ExecutorService EX;
     private static ScheduledThreadPoolExecutor SC;
-    private static ThreadFactory CB;
-    private static ThreadFactory CN;
+    private static ExecutorService CB;
+    private static ExecutorService CN;
 
     public static ErrorListener NOOP_EL = new ErrorListener() {};
 
@@ -69,10 +69,10 @@ public abstract class OptionsUtils {
     }
 
     public static Options.Builder optionsBuilder() {
-        if (ES == null) {
-            ES = new ThreadPoolExecutor(5, Integer.MAX_VALUE, 30, TimeUnit.SECONDS,
+        if (EX == null) {
+            EX = new ThreadPoolExecutor(4, Integer.MAX_VALUE, 30, TimeUnit.SECONDS,
                 new SynchronousQueue<>(),
-                new TestThreadFactory("es"));
+                new TestThreadFactory("ex"));
         }
 
         if (SC == null) {
@@ -82,37 +82,38 @@ public abstract class OptionsUtils {
         }
 
         if (CB == null) {
-            CB = new TestThreadFactory("cb");
+            CB = new ThreadPoolExecutor(2, Integer.MAX_VALUE, 30, TimeUnit.SECONDS,
+                new SynchronousQueue<>(),
+                new TestThreadFactory("cb"));
         }
 
         if (CN == null) {
-            CN = new TestThreadFactory("cn");
+            CN = new ThreadPoolExecutor(4, Integer.MAX_VALUE, 30, TimeUnit.SECONDS,
+                new SynchronousQueue<>(),
+                new TestThreadFactory("cn"));
         }
 
         return Options.builder()
-            .connectionTimeout(Duration.ofSeconds(5))
-            .executor(ES)
+            .connectionTimeout(Duration.ofSeconds(4))
+            .executor(EX)
             .scheduledExecutor(SC)
-            .callbackThreadFactory(CB)
-            .connectThreadFactory(CN)
+            .callbackExecutor(CB)
+            .connectExecutor(CN)
             .errorListener(NOOP_EL);
     }
 
     static class TestThreadFactory implements ThreadFactory {
-        final ThreadGroup group;
         final String name;
         final AtomicInteger threadNumber;
 
         public TestThreadFactory(String name) {
-            SecurityManager s = System.getSecurityManager();
-            group = (s != null) ? s.getThreadGroup() : Thread.currentThread().getThreadGroup();
             this.name = name;
             this.threadNumber = new AtomicInteger(1);
         }
 
         public Thread newThread(@NonNull Runnable r) {
             String threadName = "test." + name + "." + threadNumber.incrementAndGet();
-            Thread t = new Thread(group, r, threadName);
+            Thread t = new Thread(r, threadName);
             if (t.isDaemon()) {
                 t.setDaemon(false);
             }

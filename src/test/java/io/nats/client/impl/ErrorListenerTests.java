@@ -27,8 +27,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static io.nats.client.utils.ConnectionUtils.standardCloseConnection;
-import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
+import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
@@ -38,7 +37,7 @@ public class ErrorListenerTests {
 
     @Test
     public void testLastError() throws Exception {
-        NatsConnection nc = null;
+        NatsConnection nc;
         ListenerForTesting listener = new ListenerForTesting();
         String[] customArgs = {"--user", "stephen", "--pass", "password"};
 
@@ -75,10 +74,8 @@ public class ErrorListenerTests {
 
             assertTrue(listener.errorsEventually("Authorization Violation", 3000));
 
-            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+            longConnectionWait(nc);
             assertEquals(ts3.getLocalhostUri(), nc.getConnectedUrl());
-        } finally {
-            standardCloseConnection(nc);
         }
     }
 

@@ -82,6 +82,10 @@ public abstract class ConnectionUtils {
         return connectionWait(Nats.connect(options), LONG_CONNECTION_WAIT_MS);
     }
 
+    public static Connection longConnectionWait(Connection conn) throws IOException, InterruptedException {
+        return connectionWait(conn, LONG_CONNECTION_WAIT_MS);
+    }
+
     public static Connection listenerConnectionWait(Options options, ListenerForTesting listener) throws IOException, InterruptedException {
         Connection conn = Nats.connect(options);
         listenerConnectionWait(conn, listener, LONG_CONNECTION_WAIT_MS);

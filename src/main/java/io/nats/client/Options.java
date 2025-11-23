@@ -728,20 +728,17 @@ public class Options {
     private final boolean enableFastFallback;
 
     static class DefaultThreadFactory implements ThreadFactory {
-        final ThreadGroup group;
         final String name;
         final AtomicInteger threadNumber;
 
         public DefaultThreadFactory (String name){
             this.name = name;
-            SecurityManager s = System.getSecurityManager();
-            group = (s != null) ? s.getThreadGroup() : Thread.currentThread().getThreadGroup();
             threadNumber = new AtomicInteger(0);
         }
 
         public Thread newThread(@NonNull Runnable r) {
             String threadName = name + ":"+  threadNumber.incrementAndGet();
-            Thread t = new Thread(group, r, threadName);
+            Thread t = new Thread(r, threadName);
             if (t.isDaemon()) {
                 t.setDaemon(false);
             }
