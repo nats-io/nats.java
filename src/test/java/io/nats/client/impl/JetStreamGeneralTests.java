@@ -16,7 +16,6 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.NatsJetStreamUtil;
-import io.nats.client.utils.LongRunningServer;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -29,6 +28,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
+import static io.nats.client.NatsTestServer.configuredJsServer;
 import static io.nats.client.api.ConsumerConfiguration.*;
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.support.NatsJetStreamClientError.*;
@@ -42,7 +42,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testJetStreamContextCreate() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             jstc.jsm.getAccountStatistics(); // another management
             jstc.js.publish(jstc.subject(), dataBytes(1));
         });
@@ -50,7 +50,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testJetNotEnabled() throws Exception {
-        runInServer(nc -> {
+        runInOwnServer(nc -> {
             // get normal context, try to do an operation
             JetStream js = nc.jetStream();
             assertThrows(IOException.class, () -> js.subscribe(random()));
@@ -63,7 +63,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testJetEnabledGoodAccount() throws Exception {
-        try (NatsTestServer ts = NatsTestServer.configuredJsServer("js_authorization.conf")) {
+        try (NatsTestServer ts = configuredJsServer("js_authorization.conf")) {
             Options options = optionsBuilder(ts)
                 .userInfo("serviceup".toCharArray(), "uppass".toCharArray()).build();
             try (Connection nc = longConnectionWait(options)) {
@@ -75,27 +75,22 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testJetStreamPublishDefaultOptions() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             PublishAck ack = jsPublish(jstc.js, jstc.subject());
             assertEquals(1, ack.getSeqno());
         });
     }
 
     @Test
-    public void testConnectionClosing() throws Exception {
-        runInJsServer(null, null, nc -> {
-            nc.close();
-            assertThrows(IOException.class, nc::jetStream);
-            assertThrows(IOException.class, nc::jetStreamManagement);
-        });
-    }
-
-    @Test
-    public void testCreateWithOptionsForCoverage() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
+    public void testExceptionsAndCoverage() throws Exception {
+        runInSharedOwnNc(nc -> {
             JetStreamOptions jso = JetStreamOptions.builder().build();
             nc.jetStream(jso);
             nc.jetStreamManagement(jso);
+
+            nc.close();
+            assertThrows(IOException.class, nc::jetStream);
+            assertThrows(IOException.class, nc::jetStreamManagement);
         });
     }
 
@@ -111,7 +106,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testJetStreamSubscribe() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             jsPublish(jstc.js, jstc.subject());
 
             // default ephemeral subscription.
@@ -231,7 +226,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testJetStreamSubscribeLenientSubject() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             Dispatcher d = nc.createDispatcher();
 
             jstc.js.subscribe(jstc.subject(), (PushSubscribeOptions)null);
@@ -278,7 +273,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testJetStreamSubscribeErrors() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             String stream = random();
             // stream not found
             PushSubscribeOptions psoInvalidStream = PushSubscribeOptions.builder().stream(stream).build();
@@ -329,23 +324,22 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testFilterSubjectEphemeral() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
-            String stream = random();
+        runInSharedCustomStream((nc, jstc) -> {
             String subject = random();
             String subjectWild = subject + ".*";
             String subjectA = subject + ".A";
             String subjectB = subject + ".B";
-            createMemoryStream(jsm, stream, subjectWild);
+            jstc.createStream(subjectWild);
 
-            jsPublish(js, subjectA, 1);
-            jsPublish(js, subjectB, 1);
-            jsPublish(js, subjectA, 1);
-            jsPublish(js, subjectB, 1);
+            jsPublish(jstc.js, subjectA, 1);
+            jsPublish(jstc.js, subjectB, 1);
+            jsPublish(jstc.js, subjectA, 1);
+            jsPublish(jstc.js, subjectB, 1);
 
             // subscribe to the wildcard
             ConsumerConfiguration cc = builder().ackPolicy(AckPolicy.None).build();
             PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
-            JetStreamSubscription sub = js.subscribe(subjectWild, pso);
+            JetStreamSubscription sub = jstc.js.subscribe(subjectWild, pso);
             nc.flush(Duration.ofSeconds(1));
 
             Message m = sub.nextMessage(Duration.ofSeconds(1));
@@ -364,7 +358,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             // subscribe to A
             cc = builder().filterSubject(subjectA).ackPolicy(AckPolicy.None).build();
             pso = PushSubscribeOptions.builder().configuration(cc).build();
-            sub = js.subscribe(subjectA, pso);
+            sub = jstc.js.subscribe(subjectA, pso);
             nc.flush(Duration.ofSeconds(1));
 
             m = sub.nextMessage(Duration.ofSeconds(1));
@@ -379,7 +373,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             // subscribe to B
             cc = builder().filterSubject(subjectB).ackPolicy(AckPolicy.None).build();
             pso = PushSubscribeOptions.builder().configuration(cc).build();
-            sub = js.subscribe(subjectB, pso);
+            sub = jstc.js.subscribe(subjectB, pso);
             nc.flush(Duration.ofSeconds(1));
 
             m = sub.nextMessage(Duration.ofSeconds(1));
@@ -401,7 +395,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
         String subjectMadeBySrc = "sub-made-by.src";
         String subjectMadeByTar = "sub-made-by.tar";
 
-        try (NatsTestServer ts = NatsTestServer.configuredJsServer("js_prefix.conf")) {
+        try (NatsTestServer ts = configuredJsServer("js_prefix.conf")) {
             Options optionsSrc = optionsBuilder(ts)
                     .userInfo("src".toCharArray(), "spass".toCharArray()).build();
 
@@ -465,7 +459,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testBindPush() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             jsPublish(jstc.js, jstc.subject(), 1, 1);
             PushSubscribeOptions pso = PushSubscribeOptions.builder()
                     .durable(jstc.consumerName())
@@ -513,7 +507,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testBindPull() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             jsPublish(jstc.js, jstc.subject(), 1, 1);
 
             PullSubscribeOptions pso = PullSubscribeOptions.builder()
@@ -553,7 +547,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testBindErrors() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             // bind errors
             PushSubscribeOptions pushbinderr = PushSubscribeOptions.bind(jstc.stream, "binddur");
             IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(jstc.subject(), pushbinderr));
@@ -567,87 +561,92 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testFilterMismatchErrors() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInOwnJsServer((nc, jsm, js) -> {
+            String stream = random();
+            String subject = random();
+
+            createMemoryStream(nc, stream, subject);
+
             // will work as SubscribeSubject equals Filter Subject
-            filterMatchSubscribeOk(jstc, jstc.stream, jstc.subject(), jstc.subject());
-            filterMatchSubscribeOk(jstc, jstc.stream, ">", ">");
-            filterMatchSubscribeOk(jstc, jstc.stream, "*", "*");
+            filterMatchSubscribeOk(js, jsm, stream, subject, subject);
+            filterMatchSubscribeOk(js, jsm, stream, ">", ">");
+            filterMatchSubscribeOk(js, jsm, stream, "*", "*");
 
             // will not work
-            filterMatchSubscribeEx(jstc, jstc.stream, jstc.subject(), "");
-            filterMatchSubscribeEx(jstc, jstc.stream, jstc.subject(), ">");
-            filterMatchSubscribeEx(jstc, jstc.stream, jstc.subject(), "*");
+            filterMatchSubscribeEx(js, jsm, stream, subject, "");
+            filterMatchSubscribeEx(js, jsm, stream, subject, ">");
+            filterMatchSubscribeEx(js, jsm, stream, subject, "*");
 
             // multiple subjects no wildcards
-            jstc.jsm.deleteStream(jstc.stream);
-            createMemoryStream(jstc.jsm, jstc.stream, jstc.subject(), random());
+            jsm.deleteStream(stream);
+            createMemoryStream(jsm, stream, subject, subject(2));
 
             // will work as SubscribeSubject equals Filter Subject
-            filterMatchSubscribeOk(jstc, jstc.stream, jstc.subject(), jstc.subject());
-            filterMatchSubscribeOk(jstc, jstc.stream, ">", ">");
-            filterMatchSubscribeOk(jstc, jstc.stream, "*", "*");
+            filterMatchSubscribeOk(js, jsm, stream, subject, subject);
+            filterMatchSubscribeOk(js, jsm, stream, ">", ">");
+            filterMatchSubscribeOk(js, jsm, stream, "*", "*");
 
             // will not work because stream has more than 1 subject
-            filterMatchSubscribeEx(jstc, jstc.stream, jstc.subject(), "");
-            filterMatchSubscribeEx(jstc, jstc.stream, jstc.subject(), ">");
-            filterMatchSubscribeEx(jstc, jstc.stream, jstc.subject(), "*");
+            filterMatchSubscribeEx(js, jsm, stream, subject, "");
+            filterMatchSubscribeEx(js, jsm, stream, subject, ">");
+            filterMatchSubscribeEx(js, jsm, stream, subject, "*");
 
-            String subjectGt = jstc.subject() + ".>";
-            String subjectStar = jstc.subject() + ".*";
-            String subjectDot = jstc.subject() + "." + random();
+            String subjectGt = subject + ".>";
+            String subjectStar = subject + ".*";
+            String subjectDot = subject + "." + random();
 
             // multiple subjects via '>'
-            jstc.jsm.deleteStream(jstc.stream);
-            createMemoryStream(jstc.jsm, jstc.stream, subjectGt);
+            jsm.deleteStream(stream);
+            createMemoryStream(jsm, stream, subjectGt);
 
             // will work, exact matches
-            filterMatchSubscribeOk(jstc, jstc.stream, subjectDot, subjectDot);
-            filterMatchSubscribeOk(jstc, jstc.stream, ">", ">");
+            filterMatchSubscribeOk(js, jsm, stream, subjectDot, subjectDot);
+            filterMatchSubscribeOk(js, jsm, stream, ">", ">");
 
             // will not work because mismatch / stream has more than 1 subject
-            filterMatchSubscribeEx(jstc, jstc.stream, subjectDot, "");
-            filterMatchSubscribeEx(jstc, jstc.stream, subjectDot, ">");
-            filterMatchSubscribeEx(jstc, jstc.stream, subjectDot, subjectGt);
+            filterMatchSubscribeEx(js, jsm, stream, subjectDot, "");
+            filterMatchSubscribeEx(js, jsm, stream, subjectDot, ">");
+            filterMatchSubscribeEx(js, jsm, stream, subjectDot, subjectGt);
 
             // multiple subjects via '*'
-            jstc.jsm.deleteStream(jstc.stream);
-            createMemoryStream(jstc.jsm, jstc.stream, subjectStar);
+            jsm.deleteStream(stream);
+            createMemoryStream(jsm, stream, subjectStar);
 
             // will work, exact matches
-            filterMatchSubscribeOk(jstc, jstc.stream, subjectDot, subjectDot);
-            filterMatchSubscribeOk(jstc, jstc.stream, ">", ">");
+            filterMatchSubscribeOk(js, jsm, stream, subjectDot, subjectDot);
+            filterMatchSubscribeOk(js, jsm, stream, ">", ">");
 
             // will not work because mismatch / stream has more than 1 subject
-            filterMatchSubscribeEx(jstc, jstc.stream, subjectDot, "");
-            filterMatchSubscribeEx(jstc, jstc.stream, subjectDot, ">");
-            filterMatchSubscribeEx(jstc, jstc.stream, subjectDot, subjectStar);
+            filterMatchSubscribeEx(js, jsm, stream, subjectDot, "");
+            filterMatchSubscribeEx(js, jsm, stream, subjectDot, ">");
+            filterMatchSubscribeEx(js, jsm, stream, subjectDot, subjectStar);
         });
     }
 
-    private void filterMatchSubscribeOk(JetStreamTestingContext jstc, String stream, String subscribeSubject, String... filterSubjects) throws IOException, JetStreamApiException {
+    private void filterMatchSubscribeOk(JetStream js, JetStreamManagement jsm, String stream, String subscribeSubject, String... filterSubjects) throws IOException, JetStreamApiException {
         String deliver = random();
         String dur = random();
-        filterMatchSetupConsumer(jstc, deliver, dur, stream, filterSubjects);
-        unsubscribeEnsureNotBound(jstc.js.subscribe(subscribeSubject, builder().durable(dur).buildPushSubscribeOptions()));
+        filterMatchSetupConsumer(jsm, deliver, dur, stream, filterSubjects);
+        unsubscribeEnsureNotBound(js.subscribe(subscribeSubject, builder().durable(dur).buildPushSubscribeOptions()));
     }
 
-    private void filterMatchSubscribeEx(JetStreamTestingContext jstc, String stream, String subscribeSubject, String... filterSubjects) throws IOException, JetStreamApiException {
+    private void filterMatchSubscribeEx(JetStream js, JetStreamManagement jsm, String stream, String subscribeSubject, String... filterSubjects) throws IOException, JetStreamApiException {
         String deliver = random();
         String dur = random();
-        filterMatchSetupConsumer(jstc, deliver, dur, stream, filterSubjects);
+        filterMatchSetupConsumer(jsm, deliver, dur, stream, filterSubjects);
         IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
-            () -> jstc.js.subscribe(subscribeSubject, builder().durable(dur).buildPushSubscribeOptions()));
+            () -> js.subscribe(subscribeSubject, builder().durable(dur).buildPushSubscribeOptions()));
         assertTrue(iae.getMessage().contains(JsSubSubjectDoesNotMatchFilter.id()));
     }
 
-    private void filterMatchSetupConsumer(JetStreamTestingContext jstc, String deliver, String dur, String stream, String... fs) throws IOException, JetStreamApiException {
-        jstc.jsm.addOrUpdateConsumer(stream,
+    private void filterMatchSetupConsumer(JetStreamManagement jsm, String deliver, String dur, String stream, String... fs) throws IOException, JetStreamApiException {
+        jsm.addOrUpdateConsumer(stream,
             builder().deliverSubject(deliver).durable(dur).filterSubjects(fs).build());
     }
 
     @Test
     public void testBindDurableDeliverSubject() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             // create a durable push subscriber - has a deliver subject
             String dur1 = random();
             String dur2 = random();
@@ -697,7 +696,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testConsumerIsNotModified() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             // test with config in issue 105
             String dur = random();
             String q = random();
@@ -799,7 +798,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testSubscribeDurableConsumerMustMatch() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             String stream = jstc.stream;
             String subject = jstc.subject();
 
@@ -926,7 +925,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testGetConsumerInfoFromSubscription() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             JetStreamSubscription sub = jstc.js.subscribe(jstc.subject());
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
@@ -937,7 +936,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testInternalLookupConsumerInfoCoverage() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             // - consumer not found
             // - stream does not exist
             jstc.js.subscribe(jstc.subject());
@@ -1006,7 +1005,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testMoreCreateSubscriptionErrors() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             IllegalStateException ise = assertThrows(IllegalStateException.class, () -> jstc.js.subscribe(random()));
             assertTrue(ise.getMessage().contains(JsSubNoMatchingStreamForSubject.id()));
 
@@ -1107,19 +1106,18 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testRequestNoResponder() throws Exception {
-        runInLrServer((ncCancel, jsm, js) -> {
-            Options optReport = optionsBuilder(LongRunningServer.server()).reportNoResponders().build();
+        runInSharedCustomStream((ncCancel, jstc) -> {
+            Options optReport = optionsBuilder(ncCancel.getConnectedUrl()).reportNoResponders().build();
             try (Connection ncReport = standardConnectionWait(optReport)) {
                 assertThrows(CancellationException.class, () -> ncCancel.request(random(), null).get());
                 ExecutionException ee = assertThrows(ExecutionException.class, () -> ncReport.request(random(), null).get());
                 assertInstanceOf(JetStreamStatusException.class, ee.getCause());
                 assertTrue(ee.getMessage().contains("503 No Responders Available For Request"));
 
-                String stream = random();
                 String subject = random();
-                ncCancel.jetStreamManagement().addStream(
+                jstc.jsm.addStream(
                     StreamConfiguration.builder()
-                        .name(stream).subjects(subject).storageType(StorageType.Memory)
+                        .name(jstc.stream).subjects(subject).storageType(StorageType.Memory)
                         .build());
 
                 JetStream jsCancel = ncCancel.jetStream();

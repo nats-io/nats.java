@@ -329,7 +329,7 @@ public class NatsMessageTests extends JetStreamTestBase {
 
     @Test
     public void testHeadersMutableBeforePublish() throws Exception {
-        runInLrServer(nc -> {
+        runInShared(nc -> {
             String subject = random();
             Subscription sub = nc.subscribe(subject);
 

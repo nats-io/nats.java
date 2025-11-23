@@ -32,7 +32,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
     @Test
     public void testHandlerSub() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             // publish some messages
             jsPublish(jstc.js, jstc.subject(), 10);
 
@@ -62,7 +62,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
     @Test
     public void testHandlerAutoAck() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             // publish some messages
             jsPublish(jstc.js, jstc.subject(), 10);
 
@@ -128,7 +128,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
     @Test
     public void testCantNextMessageOnAsyncPushSub() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             JetStreamSubscription sub = jstc.js.subscribe(jstc.subject(), nc.createDispatcher(), msg -> {}, false);
 
             // this should exception, can't next message on an async push sub
@@ -140,7 +140,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
     @Test
     public void testPushAsyncFlowControl() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInLrServerOwnNc(listener, (nc, jstc) -> {
+        runInSharedOwnNc(listener, (nc, jstc) -> {
             byte[] data = new byte[8192];
 
             int MSG_COUNT = 1000;
@@ -187,16 +187,14 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
     public void testDoNotAutoAckSituations() throws Exception {
         String mockAckReply = random(); // "mock-ack-reply.";
 
-        runInLrServer((nc, jsm, js) -> {
-            // create the stream.
-            String stream = random();
-            String subject = random();
-            createMemoryStream(nc, stream, subject, subjectStar(mockAckReply));
+        runInSharedCustomStream((nc, jstc) -> {
+            String subject = jstc.subject();
+            jstc.createStream(subject, subjectStar(mockAckReply));
 
             int pubCount = 5;
 
             // publish a message
-            jsPublish(js, subject, pubCount);
+            jsPublish(jstc.js, subject, pubCount);
 
             // create a dispatcher without a default handler.
             Dispatcher dispatcher = nc.createDispatcher();
@@ -237,7 +235,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             };
 
             // subscribe using the handler, auto  ack true
-            JetStreamSubscription async = js.subscribe(subject, dispatcher, handler, true);
+            JetStreamSubscription async = jstc.js.subscribe(subject, dispatcher, handler, true);
 
             // Wait for messages to arrive using the countdown latch.
             // make sure we don't wait forever
@@ -245,7 +243,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             assertEquals(0, msgLatchRef.get().getCount());
             dispatcher.unsubscribe(async);
 
-            JetStreamSubscription mockAckReplySub = js.subscribe(subjectStar(mockAckReply));
+            JetStreamSubscription mockAckReplySub = jstc.js.subscribe(subjectStar(mockAckReply));
             Message msg = mockAckReplySub.nextMessage(2000);
             assertEquals(subjectDot(mockAckReply, "ack"), msg.getSubject());
             assertEquals("+ACK", new String(msg.getData()));
@@ -274,7 +272,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             // coverage explicit no ack flag
             msgLatchRef.set(new CountDownLatch(pubCount));
             PushSubscribeOptions pso = ConsumerConfiguration.builder().ackWait(Duration.ofMinutes(2)).buildPushSubscribeOptions();
-            async = js.subscribe(subject, dispatcher, handler, false, pso);
+            async = jstc.js.subscribe(subject, dispatcher, handler, false, pso);
             awaitAndAssert(msgLatchRef.get());
             assertEquals(0, msgLatchRef.get().getCount());
             dispatcher.unsubscribe(async);
@@ -285,7 +283,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             // coverage explicit AckPolicyNone
             msgLatchRef.set(new CountDownLatch(pubCount));
             pso = ConsumerConfiguration.builder().ackPolicy(AckPolicy.None).buildPushSubscribeOptions();
-            async = js.subscribe(subject, dispatcher, handler, true, pso);
+            async = jstc.js.subscribe(subject, dispatcher, handler, true, pso);
             awaitAndAssert(msgLatchRef.get());
             assertEquals(0, msgLatchRef.get().getCount());
             dispatcher.unsubscribe(async);
@@ -318,16 +316,14 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             .put(KV_OPERATION_HEADER_KEY, KeyValueOperation.PURGE.name())
             .put(ROLLUP_HDR, ROLLUP_HDR_SUBJECT);
 
-        runInLrServer((nc, jsm, js) -> {
-            StreamConfiguration sc = StreamConfiguration.builder()
-                .name(stream)
-                .storageType(StorageType.Memory)
+        runInSharedCustomStream((nc, jstc) -> {
+            StreamConfiguration sc = jstc.scBuilder(0)
                 .subjects(sub)
                 .allowRollup(true)
                 .denyDelete(true)
                 .build();
 
-            jsm.addStream(sc);
+            jstc.jsm.addStream(sc);
 
             MemStorBugHandler fullHandler = new MemStorBugHandler();
             MemStorBugHandler onlyHandler = new MemStorBugHandler();
@@ -349,8 +345,8 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
                 .buildPushSubscribeOptions();
 
             Dispatcher d = nc.createDispatcher();
-            js.subscribe(sub, d, fullHandler, false, psoFull);
-            js.subscribe(sub, d, onlyHandler, false, psoOnly);
+            jstc.js.subscribe(sub, d, fullHandler, false, psoFull);
+            jstc.js.subscribe(sub, d, onlyHandler, false, psoOnly);
 
             Object[] expecteds = new Object[] {
                 "a", "aa", "z", "zz",
@@ -360,22 +356,22 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
                 KeyValueOperation.PURGE, KeyValueOperation.PURGE,
             };
 
-            js.publish(NatsMessage.builder().subject(key1).data((String)expecteds[0]).build());
-            js.publish(NatsMessage.builder().subject(key1).data((String)expecteds[1]).build());
-            js.publish(NatsMessage.builder().subject(key2).data((String)expecteds[2]).build());
-            js.publish(NatsMessage.builder().subject(key2).data((String)expecteds[3]).build());
+            jstc.js.publish(NatsMessage.builder().subject(key1).data((String)expecteds[0]).build());
+            jstc.js.publish(NatsMessage.builder().subject(key1).data((String)expecteds[1]).build());
+            jstc.js.publish(NatsMessage.builder().subject(key2).data((String)expecteds[2]).build());
+            jstc.js.publish(NatsMessage.builder().subject(key2).data((String)expecteds[3]).build());
 
-            js.publish(NatsMessage.builder().subject(key1).headers(deleteHeaders).build());
-            js.publish(NatsMessage.builder().subject(key2).headers(deleteHeaders).build());
+            jstc.js.publish(NatsMessage.builder().subject(key1).headers(deleteHeaders).build());
+            jstc.js.publish(NatsMessage.builder().subject(key2).headers(deleteHeaders).build());
 
-            js.publish(NatsMessage.builder().subject(key1).data((String)expecteds[6]).build());
-            js.publish(NatsMessage.builder().subject(key2).data((String)expecteds[7]).build());
+            jstc.js.publish(NatsMessage.builder().subject(key1).data((String)expecteds[6]).build());
+            jstc.js.publish(NatsMessage.builder().subject(key2).data((String)expecteds[7]).build());
 
-            js.publish(NatsMessage.builder().subject(key1).headers(deleteHeaders).build());
-            js.publish(NatsMessage.builder().subject(key2).headers(deleteHeaders).build());
+            jstc.js.publish(NatsMessage.builder().subject(key1).headers(deleteHeaders).build());
+            jstc.js.publish(NatsMessage.builder().subject(key2).headers(deleteHeaders).build());
 
-            js.publish(NatsMessage.builder().subject(key1).headers(purgeHeaders).build());
-            js.publish(NatsMessage.builder().subject(key2).headers(purgeHeaders).build());
+            jstc.js.publish(NatsMessage.builder().subject(key1).headers(purgeHeaders).build());
+            jstc.js.publish(NatsMessage.builder().subject(key2).headers(purgeHeaders).build());
 
             sleep(2000); // give time for the handler to get messages
 

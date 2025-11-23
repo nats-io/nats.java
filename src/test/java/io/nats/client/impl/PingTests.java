@@ -75,7 +75,7 @@ public class PingTests extends TestBase {
         Options.Builder builder = optionsBuilder()
             .pingInterval(Duration.ofMillis(5))
             .maxPingsOut(10000); // just don't want this to be what fails the test
-        runInLrServerOwnNc(builder, nc -> {
+        runInSharedOwnNc(builder, nc -> {
             Statistics stats = nc.getStatistics();
             try { Thread.sleep(200); } catch (Exception ignore) {} // 1200 / 100 ... should get 10+ pings
             assertTrue(stats.getPings() > 10, "got pings");
@@ -201,7 +201,7 @@ public class PingTests extends TestBase {
     @Test
     public void testMessagesDelayPings() throws Exception, ExecutionException, TimeoutException {
         Options.Builder builder = optionsBuilder().pingInterval(Duration.ofMillis(200));
-        runInLrServerOwnNc(builder, nc -> {
+        runInSharedOwnNc(builder, nc -> {
             Statistics stats = nc.getStatistics();
             final CompletableFuture<Boolean> done = new CompletableFuture<>();
 
@@ -236,7 +236,7 @@ public class PingTests extends TestBase {
 
     @Test
     public void testRtt() throws Exception {
-        runInServer(nc -> {
+        runInOwnServer(nc -> {
             assertTrue(nc.RTT().toMillis() < 10);
             nc.close();
             assertThrows(IOException.class, nc::RTT);

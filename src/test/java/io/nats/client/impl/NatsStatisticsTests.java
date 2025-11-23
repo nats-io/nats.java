@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class NatsStatisticsTests extends TestBase {
     @Test
     public void testHumanReadableString() throws Exception {
-        runInLrServerOwnNc(optionsBuilder().turnOnAdvancedStats(), nc -> {
+        runInSharedOwnNc(optionsBuilder().turnOnAdvancedStats(), nc -> {
             Dispatcher d = nc.createDispatcher(msg -> {
                 nc.publish(msg.getReplyTo(), new byte[16]);
             });
@@ -54,7 +54,7 @@ public class NatsStatisticsTests extends TestBase {
 
     @Test
     public void testInOutOKRequestStats() throws Exception {
-        runInLrServerOwnNc(optionsBuilder().verbose(), nc -> {
+        runInSharedOwnNc(optionsBuilder().verbose(), nc -> {
             Dispatcher d = nc.createDispatcher(msg -> {
                 Message m = NatsMessage.builder()
                     .subject(msg.getReplyTo())
@@ -86,7 +86,7 @@ public class NatsStatisticsTests extends TestBase {
 
     @Test
     public void testReadWriteAdvancedStatsEnabled() throws Exception {
-        runInLrServerOwnNc(optionsBuilder().verbose().turnOnAdvancedStats(), nc -> {
+        runInSharedOwnNc(optionsBuilder().verbose().turnOnAdvancedStats(), nc -> {
             Dispatcher d = nc.createDispatcher(msg -> {
                 Message m = NatsMessage.builder()
                     .subject(msg.getReplyTo())
@@ -124,7 +124,7 @@ public class NatsStatisticsTests extends TestBase {
 
     @Test
     public void testReadWriteAdvancedStatsDisabled() throws Exception {
-        runInLrServerOwnNc(optionsBuilder().verbose(), nc -> {
+        runInSharedOwnNc(optionsBuilder().verbose(), nc -> {
             Dispatcher d = nc.createDispatcher(msg -> {
                 Message m = NatsMessage.builder()
                     .subject(msg.getReplyTo())
@@ -177,7 +177,7 @@ public class NatsStatisticsTests extends TestBase {
 
     @Test
     public void testOrphanDuplicateRepliesAdvancedStatsEnabled() throws Exception {
-        runInLrServerOwnNc(optionsBuilder().turnOnAdvancedStats(), nc -> {
+        runInSharedOwnNc(optionsBuilder().turnOnAdvancedStats(), nc -> {
             AtomicInteger requests = new AtomicInteger();
             MessageHandler handler = msg -> {
                 requests.incrementAndGet();
@@ -220,7 +220,7 @@ public class NatsStatisticsTests extends TestBase {
 
     @Test
     public void testOrphanDuplicateRepliesAdvancedStatsDisabled() throws Exception {
-        runInServer(optionsBuilder(), nc -> {
+        runInSharedOwnNc(optionsBuilder(), nc -> {
             AtomicInteger requests = new AtomicInteger();
             MessageHandler handler = msg -> {
                 requests.incrementAndGet();

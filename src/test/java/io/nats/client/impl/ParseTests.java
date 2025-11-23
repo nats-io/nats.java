@@ -54,7 +54,7 @@ public class ParseTests extends TestBase {
 
     @Test
     public void testBadGather() throws Exception {
-        runInLrServerOwnNc(c -> {
+        runInSharedOwnNc(c -> {
             NatsConnection nc = (NatsConnection)c;
             NatsConnectionReader reader = nc.getReader();
             _testBadGather(reader, "thisistoolong\r\n"); // too long protocol
@@ -70,7 +70,7 @@ public class ParseTests extends TestBase {
 
     @Test
     public void testBadParse() throws Exception {
-        runInLrServerOwnNc(c -> {
+        runInSharedOwnNc(c -> {
             NatsConnection nc = (NatsConnection)c;
             NatsConnectionReader reader = nc.getReader();
             _testBadParse(reader, "MSG  1 1\r\n"); // missing subject
@@ -97,7 +97,7 @@ public class ParseTests extends TestBase {
 
     @Test
     public void testProtocolLineTooLong() throws Exception {
-        runInLrServerOwnNc(optionsBuilder().maxControlLine(1024), c -> {
+        runInSharedOwnNc(optionsBuilder().maxControlLine(1024), c -> {
             NatsConnection nc = (NatsConnection)c;
             NatsConnectionReader reader = nc.getReader();
             StringBuilder longString = new StringBuilder();
@@ -135,7 +135,7 @@ public class ParseTests extends TestBase {
             OP_ERR, OP_INFO, OP_PING, OP_MSG,
             OP_OK, OP_PONG, OP_PONG, OP_MSG
         };
-        runInLrServerOwnNc(c -> {
+        runInSharedOwnNc(c -> {
             NatsConnection nc = (NatsConnection) c;
             NatsConnectionReader reader = nc.getReader();
 

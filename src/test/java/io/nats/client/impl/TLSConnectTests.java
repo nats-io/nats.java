@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.NatsTestServer.configFileServer;
+import static io.nats.client.NatsTestServer.skipConnectValidateServer;
 import static io.nats.client.Options.PROP_SSL_CONTEXT_FACTORY_CLASS;
 import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
@@ -75,7 +76,7 @@ public class TLSConnectTests {
     @Test
     public void testSimpleTLSConnection() throws Exception {
         //System.setProperty("javax.net.debug", "all");
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
+        try (NatsTestServer ts = configFileServer("tls.conf")) {
             String servers = ts.getLocalhostUri();
             assertCanConnectAndPubSub(createTestOptionsManually(servers));
             assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
@@ -87,11 +88,7 @@ public class TLSConnectTests {
     @Test
     public void testSimpleTlsFirstConnection() throws Exception {
         if (atLeast2_10_3(ensureVersionServerInfo())) {
-            try (NatsTestServer ts = new NatsTestServer(
-                NatsTestServer.builder()
-                    .configFilePath("src/test/resources/tls_first.conf")
-                    .skipConnectValidate())
-            ) {
+            try (NatsTestServer ts = skipConnectValidateServer("tls_first.conf")) {
                 Options options = optionsBuilder(ts)
                     .maxReconnects(0)
                     .tlsFirst()
@@ -105,7 +102,7 @@ public class TLSConnectTests {
     @Test
     public void testSimpleUrlTLSConnection() throws Exception {
         //System.setProperty("javax.net.debug", "all");
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
+        try (NatsTestServer ts = configFileServer("tls.conf")) {
             String[] servers = NatsTestServer.getLocalhostUris("tls", ts);
             assertCanConnectAndPubSub(createTestOptionsManually(servers));
             assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
@@ -117,8 +114,8 @@ public class TLSConnectTests {
     @Test
     public void testMultipleUrlTLSConnectionSetContext() throws Exception {
         //System.setProperty("javax.net.debug", "all");
-        try (NatsTestServer server1 = new NatsTestServer("src/test/resources/tls.conf", false);
-             NatsTestServer server2 = new NatsTestServer("src/test/resources/tls.conf", false)
+        try (NatsTestServer server1 = configFileServer("tls.conf");
+             NatsTestServer server2 = configFileServer("tls.conf")
         ) {
             String[] servers = NatsTestServer.getLocalhostUris("tls", server1, server2);
             assertCanConnectAndPubSub(createTestOptionsManually(servers));
@@ -131,7 +128,7 @@ public class TLSConnectTests {
     @Test
     public void testSimpleIPTLSConnection() throws Exception {
         //System.setProperty("javax.net.debug", "all");
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
+        try (NatsTestServer ts = configFileServer("tls.conf")) {
             String servers = "127.0.0.1:" + ts.getPort();
             assertCanConnectAndPubSub(createTestOptionsManually(servers));
             assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
@@ -142,7 +139,7 @@ public class TLSConnectTests {
 
     @Test
     public void testVerifiedTLSConnection() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
+        try (NatsTestServer ts = configFileServer("tlsverify.conf")) {
             String servers = ts.getLocalhostUri();
             assertCanConnectAndPubSub(createTestOptionsManually(servers));
             assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
@@ -153,7 +150,7 @@ public class TLSConnectTests {
 
     @Test
     public void testOpenTLSConnection() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
+        try (NatsTestServer ts = configFileServer("tls.conf")) {
             String servers = ts.getLocalhostUri();
             Options options = optionsBuilder()
                 .server(servers)
@@ -172,7 +169,7 @@ public class TLSConnectTests {
 
     @Test
     public void testURISchemeTLSConnection() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
+        try (NatsTestServer ts = configFileServer("tlsverify.conf")) {
             String servers = "tls://localhost:"+ts.getPort();
             assertCanConnectAndPubSub(createTestOptionsManually(servers));
             assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
@@ -183,7 +180,7 @@ public class TLSConnectTests {
 
     @Test
     public void testURISchemeIPTLSConnection() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
+        try (NatsTestServer ts = configFileServer("tlsverify.conf")) {
             String servers = "tls://127.0.0.1:"+ts.getPort();
             assertCanConnectAndPubSub(createTestOptionsManually(servers));
             assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
@@ -194,7 +191,7 @@ public class TLSConnectTests {
 
     @Test
     public void testURISchemeOpenTLSConnection() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
+        try (NatsTestServer ts = configFileServer("tls.conf")) {
             String[] servers = NatsTestServer.getLocalhostUris("opentls", ts);
             Options options = optionsBuilder(servers)
                 .maxReconnects(0)
@@ -427,7 +424,7 @@ public class TLSConnectTests {
     public void testProxyTlsFirst() throws Exception {
         if (atLeast2_10_3(ensureVersionServerInfo())) {
             // cannot check connect b/c tls first
-            try (NatsTestServer ts = NatsTestServer.skipConnectValidateServer("tls_first.conf")) {
+            try (NatsTestServer ts = skipConnectValidateServer("tls_first.conf")) {
                 // 1. client tls first | secure proxy | server insecure -> connects
                 ProxyConnection connTI = new ProxyConnection(ts.getLocalhostUri(), true, null, SERVER_INSECURE);
                 connTI.connect(false);

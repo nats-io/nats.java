@@ -13,6 +13,7 @@
 
 package io.nats.client.utils;
 
+import io.nats.NatsServerRunner;
 import io.nats.client.*;
 import io.nats.client.api.ServerInfo;
 import io.nats.client.api.StorageType;
@@ -20,12 +21,16 @@ import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
 import io.nats.client.impl.*;
 import io.nats.client.support.NatsJetStreamClientError;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.function.Executable;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -83,7 +88,7 @@ public class TestBase {
 
     public static ServerInfo ensureVersionServerInfo() throws Exception {
         if (VERSION_SERVER_INFO == null) {
-            runInLrServer(VersionUtils::initVersionServerInfo);
+            runInShared(VersionUtils::initVersionServerInfo);
         }
         return VERSION_SERVER_INFO;
     }
@@ -107,6 +112,7 @@ public class TestBase {
         default void append(int index, Options.Builder builder) {}
         default boolean configureAccount() { return false; }
         default boolean includeAllServers() { return false; }
+        default boolean jetStream() { return false; }
     }
 
     public interface InJetStreamTest {
@@ -118,194 +124,188 @@ public class TestBase {
     }
 
     // ----------------------------------------------------------------------------------------------------
-    // runners / js cleanup
+    // runners -> own server
     // ----------------------------------------------------------------------------------------------------
-    public static void cleanupJs(Connection c)
-    {
-        try {
-            cleanupJs(c.jetStreamManagement());
-        } catch (Exception ignore) {}
-    }
-
-    public static void cleanupJs(JetStreamManagement jsm)
-    {
-        try {
-            List<String> streams = jsm.getStreamNames();
-            for (String s : streams) {
-                jsm.deleteStream(s);
-            }
-        } catch (Exception ignore) {}
-    }
-
-    // ----------------------------------------------------------------------------------------------------
-    // runners -> new server
-    // ----------------------------------------------------------------------------------------------------
-    private static void _runInServer(boolean jetstream, Options.Builder builder, VersionCheck vc, InServerTest inServerTest) throws Exception {
+    private static void _runInOwnServer(
+        Options.Builder optionsBuilder,
+        VersionCheck vc,
+        InServerTest inServerTest,
+        InJetStreamTest jsTest
+    ) throws Exception {
         if (vc != null && VERSION_SERVER_INFO != null && !vc.runTest(VERSION_SERVER_INFO)) {
             return; // had vc, already had run server info and fails check
         }
 
-        try (NatsTestServer ts = new NatsTestServer(NatsTestServer.builder().jetstream(jetstream))) {
-            if (builder == null) {
-                builder = optionsBuilder();
-            }
-
-            try (Connection nc = standardConnectionWait(builder.server(ts.getLocalhostUri()).build())) {
+        NatsServerRunner.Builder builder = NatsServerRunner.builder().jetstream(jsTest != null);
+        try (NatsTestServer ts = new NatsTestServer(builder)) {
+            Options options = (optionsBuilder == null ? optionsBuilder() : optionsBuilder)
+                .server(ts.getLocalhostUri())
+                .build();
+            try (Connection nc = standardConnectionWait(options)) {
                 initVersionServerInfo(nc);
                 if (vc == null || vc.runTest(VERSION_SERVER_INFO)) {
-                    try {
+                    if (jsTest == null) {
                         inServerTest.test(nc);
                     }
-                    finally {
-                        if (jetstream) {
-                            cleanupJs(nc);
-                        }
+                    else {
+                        NatsJetStreamManagement jsm = (NatsJetStreamManagement) nc.jetStreamManagement();
+                        NatsJetStream js = (NatsJetStream) nc.jetStream();
+                        jsTest.test(nc, jsm, js);
                     }
                 }
             }
         }
     }
 
-    public static void runInServer(InServerTest inServerTest) throws Exception {
-        _runInServer(false, null, null, inServerTest);
+    public static void runInOwnServer(InServerTest inServerTest) throws Exception {
+        _runInOwnServer(null, null, inServerTest, null);
     }
 
-    public static void runInServer(Options.Builder builder, InServerTest inServerTest) throws Exception {
-        _runInServer(false, builder, null, inServerTest);
+    public static void runInOwnServer(Options.Builder builder, InServerTest inServerTest) throws Exception {
+        _runInOwnServer(builder, null, inServerTest, null);
     }
 
-    public static void runInJsServer(InServerTest inServerTest) throws Exception {
-        _runInServer(true, null, null, inServerTest);
+    public static void runInOwnJsServer(InJetStreamTest inJetStreamTest) throws Exception {
+        _runInOwnServer(null, null, null, inJetStreamTest);
     }
 
-    public static void runInJsServer(VersionCheck vc, InServerTest inServerTest) throws Exception {
-        _runInServer(true, null, vc, inServerTest);
-    }
-
-    public static void runInJsServer(ErrorListener el, InServerTest inServerTest) throws Exception {
-        _runInServer(true, optionsBuilder(el), null, inServerTest);
-    }
-
-    public static void runInJsServer(ErrorListener el, VersionCheck vc, InServerTest inServerTest) throws Exception {
-        _runInServer(true, optionsBuilder(el), vc, inServerTest);
+    public static void runInOwnJsServer(VersionCheck vc, InJetStreamTest inJetStreamTest) throws Exception {
+        _runInOwnServer(null, vc, null, inJetStreamTest);
     }
 
     // ----------------------------------------------------------------------------------------------------
     // runners -> long running server
     // ----------------------------------------------------------------------------------------------------
-    public static void runInLrServer(InServerTest test) throws Exception {
-        _runInLrServer(null, null, test, null, null);
+    private static String classReusable;
+
+    @BeforeAll
+    public static void beforeAll(TestInfo info) throws Exception {
+        classReusable = info.getDisplayName();
     }
 
-    public static void runInLrServerOwnNc(InServerTest test) throws Exception {
-        _runInLrServer(optionsBuilder(LongRunningServer.server()), null, test, null, null);
+    @AfterAll
+    public static void afterAll() throws Exception {
+        ReusableServer.shutdownInstance(classReusable);
     }
 
-    public static void runInLrServerOwnNc(ErrorListener el, InServerTest test) throws Exception {
-        _runInLrServer(optionsBuilder(el), null, test, null, null);
+    public static void runInShared(InServerTest test) throws Exception {
+        _runInShared(null, null, test, null, -1);
     }
 
-    public static void runInLrServerOwnNc(Options.Builder builder, InServerTest test) throws Exception {
-        _runInLrServer(builder, null, test, null, null);
+    public static void runInShared(VersionCheck vc, InServerTest test) throws Exception {
+        _runInShared(null, vc, test, null, -1);
     }
 
-    public static void runInLrServer(InJetStreamTest jsTest) throws Exception {
-        _runInLrServer(null, null, null, jsTest, null);
+    public static void runInSharedOwnNc(InServerTest test) throws Exception {
+        _runInShared(optionsBuilder(), null, test, null, -1);
     }
 
-    public static void runInLrServer(VersionCheck vc, InJetStreamTest jsTest) throws Exception {
-        _runInLrServer(null, vc, null, jsTest, null);
+    public static void runInSharedOwnNc(ErrorListener el, InServerTest test) throws Exception {
+        _runInShared(optionsBuilder(el), null, test, null, -1);
     }
 
-    public static void runInLrServerOwnNc(Options.Builder builder, InJetStreamTest jsTest) throws Exception {
-        _runInLrServer(builder, null, null, jsTest, null);
+    public static void runInSharedOwnNc(Options.Builder builder, InServerTest test) throws Exception {
+        _runInShared(builder, null, test, null, -1);
     }
 
-    public static void runInLrServer(Options.Builder builder, VersionCheck vc, InJetStreamTest jsTest) throws Exception {
-        _runInLrServer(builder, vc, null, jsTest, null);
+    // --------------------------------------------------
+    // InJetStreamTestingContextTest custom stream create
+    // --------------------------------------------------
+    public static void runInSharedCustomStream(InJetStreamTestingContextTest customStreamCreateJstcTest) throws Exception {
+        _runInShared(null, null, null, customStreamCreateJstcTest, 0);
     }
 
-    public static void runInLrServerOwnNc(ErrorListener el, InJetStreamTest jsTest) throws Exception {
-        _runInLrServer(optionsBuilder(el), null, null, jsTest, null);
+    public static void runInSharedCustomStream(VersionCheck vc, InJetStreamTestingContextTest customStreamCreateJstcTest) throws Exception {
+        _runInShared(null, vc, null, customStreamCreateJstcTest, 0);
     }
 
-    public static void runInLrServerOwnNc(ErrorListener el, VersionCheck vc, InJetStreamTest jsTest) throws Exception {
-        _runInLrServer(optionsBuilder(el), vc, null, jsTest, null);
+    public static void runInSharedCustomStream(Options.Builder builder, InJetStreamTestingContextTest customStreamCreateJstcTest) throws Exception {
+        _runInShared(builder, null, null, customStreamCreateJstcTest, -1);
     }
 
-    public static void runInLrServer(InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
-        _runInLrServer(null, null, null, null, oneSubjectJstcTest);
+    // ------------------------------------------------
+    // InJetStreamTestingContextTest oneSubjectJstcTest
+    // ------------------------------------------------
+    public static void runInShared(InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
+        _runInShared(null, null, null, oneSubjectJstcTest, 1);
     }
 
-    public static void runInLrServer(VersionCheck vc, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
-        _runInLrServer(null, vc, null, null, oneSubjectJstcTest);
+    public static void runInShared(VersionCheck vc, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
+        _runInShared(null, vc, null, oneSubjectJstcTest, 1);
     }
 
-    public static void runInLrServerOwnNc(ErrorListener el, VersionCheck vc, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
-        _runInLrServer(optionsBuilder(el), vc, null, null, oneSubjectJstcTest);
+    public static void runInSharedOwnNc(ErrorListener el, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
+        _runInShared(optionsBuilder(el), null, null, oneSubjectJstcTest, 1);
     }
 
-    public static void runInLrServerOwnNc(ErrorListener el, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
-        _runInLrServer(optionsBuilder(el), null, null, null, oneSubjectJstcTest);
+    public static void runInSharedOwnNc(ErrorListener el, VersionCheck vc, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
+        _runInShared(optionsBuilder(el), vc, null, oneSubjectJstcTest, 1);
     }
 
-    public static void runInLrServerOwnNc(Options.Builder builder, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
-        _runInLrServer(builder, null, null, null, oneSubjectJstcTest);
+    public static void runInSharedOwnNc(Options.Builder builder, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
+        _runInShared(builder, null, null, oneSubjectJstcTest, 1);
     }
 
-    public static void runInLrServerOwnNc(Options.Builder builder, VersionCheck vc, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
-        _runInLrServer(builder, vc, null, null, oneSubjectJstcTest);
+    public static void runInSharedOwnNc(Options.Builder builder, VersionCheck vc, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
+        _runInShared(builder, vc, null, oneSubjectJstcTest, 1);
     }
 
-    private static void _runInLrServer(Options.Builder builder, VersionCheck vc,
-                                       InServerTest test,
-                                       InJetStreamTest jsTest,
-                                       InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
+    private static void _runInShared(
+        Options.Builder optionsBuilder,
+        VersionCheck vc,
+        InServerTest test,
+        InJetStreamTestingContextTest jstcTest,
+        int jstcTestSubjectCount
+    ) throws Exception {
         if (vc != null && VERSION_SERVER_INFO != null && !vc.runTest(VERSION_SERVER_INFO)) {
             return; // had vc, already had run server info and fails check
         }
 
+        ReusableServer reusable = ReusableServer.getInstance("shared");
+
         // no builder, we can use the long-running connection since it's totally generic
         // with a builder, just make a fresh connection and close it at the end.
-        boolean closeWhenDone;
+        boolean closeNcWhenDone;
         Connection nc;
-        if (builder == null) {
-            closeWhenDone = false;
-            nc = LongRunningServer.getLrConn();
+        if (optionsBuilder == null) {
+            closeNcWhenDone = false;
+            nc = reusable.getReusableNc();
         }
         else {
-            closeWhenDone = true;
-            nc = longConnectionWait(builder.server(LongRunningServer.server()).build());
+            closeNcWhenDone = true;
+            nc = longConnectionWait(optionsBuilder.server(reusable.serverUri).build());
         }
 
         initVersionServerInfo(nc);
         if (vc == null || vc.runTest(VERSION_SERVER_INFO)) {
             try {
-                if (oneSubjectJstcTest != null) {
-                    try (JetStreamTestingContext jstc = new JetStreamTestingContext(nc, 1)) {
-                        oneSubjectJstcTest.test(nc, jstc);
+                if (jstcTest != null) {
+                    try (JetStreamTestingContext jstc = new JetStreamTestingContext(nc, jstcTestSubjectCount)) {
+                        jstcTest.test(nc, jstc);
                     }
-                }
-                else if (jsTest != null) {
-                    NatsJetStreamManagement jsm = (NatsJetStreamManagement) nc.jetStreamManagement();
-                    NatsJetStream js = (NatsJetStream) nc.jetStream();
-                    jsTest.test(nc, jsm, js);
                 }
                 else {
                     test.test(nc);
                 }
             }
             finally {
-                if (test == null) {
-                    cleanupJs(nc);
-                }
-                if (closeWhenDone) {
-                    try {
-                        nc.close();
-                    }
-                    catch (Exception ignore) {}
+                if (closeNcWhenDone) {
+                    try { nc.close(); } catch (Exception ignore) {}
                 }
             }
+        }
+    }
+
+    public static void deleteStreams(JetStreamManagement jsm) throws IOException, JetStreamApiException {
+        List<String> streams = jsm.getStreamNames();
+        for (String stream : streams) {
+            try { jsm.deleteStream(stream); } catch (Exception ignore) {}
+        }
+    }
+
+    public static void deleteStreams(JetStreamManagement jsm, String... streams) throws IOException, JetStreamApiException {
+        for (String stream : streams) {
+            try { jsm.deleteStream(stream); } catch (Exception ignore) {}
         }
     }
 
@@ -356,90 +356,81 @@ public class TestBase {
             "}"
         };
 
-        try (NatsTestServer hub = new NatsTestServer(hubPort, false, true, null, hubInserts, null);
+        try (NatsTestServer hub = new NatsTestServer(hubPort, true, null, hubInserts, null);
              Connection nchub = standardConnectionWait(hub.getLocalhostUri());
-             NatsTestServer leaf = new NatsTestServer(leafPort, false, true, null, leafInserts, null);
+             NatsTestServer leaf = new NatsTestServer(leafPort, true, null, leafInserts, null);
              Connection ncleaf = standardConnectionWait(leaf.getLocalhostUri())
         ) {
-            try {
-                twoServerTest.test(nchub, ncleaf);
-            }
-            finally {
-                cleanupJs(nchub);
-                cleanupJs(ncleaf);
-            }
+            twoServerTest.test(nchub, ncleaf);
         }
     }
 
-    public static void runInJsCluster(ThreeServerTest threeServerTest) throws Exception {
-        runInJsCluster(null, threeServerTest);
+    public static void runInCluster(ThreeServerTest threeServerTest) throws Exception {
+        runInCluster(null, threeServerTest);
     }
 
-    public static void runInJsCluster(ThreeServerTestOptions tstOpts, ThreeServerTest threeServerTest) throws Exception {
+    public static void runInCluster(ThreeServerTestOptions tstOpts, ThreeServerTest threeServerTest) throws Exception {
+        if (tstOpts == null) {
+            tstOpts = new ThreeServerTestOptions() {};
+        }
+
         int port1 = NatsTestServer.nextPort();
         int port2 = NatsTestServer.nextPort();
         int port3 = NatsTestServer.nextPort();
         int listen1 = NatsTestServer.nextPort();
         int listen2 = NatsTestServer.nextPort();
         int listen3 = NatsTestServer.nextPort();
-        String dir1 = tempJsStoreDir();
-        String dir2 = tempJsStoreDir();
-        String dir3 = tempJsStoreDir();
+        String dir1 = tstOpts.jetStream() ? tempJsStoreDir() : null;
+        String dir2 = tstOpts.jetStream() ? tempJsStoreDir() : null;
+        String dir3 = tstOpts.jetStream() ? tempJsStoreDir() : null;
         String cluster = "cluster_" + random();
         String serverPrefix = "server_" + random() + "_";
 
-        if (tstOpts == null) {
-            tstOpts = new ThreeServerTestOptions() {};
-        }
         boolean configureAccount = tstOpts.configureAccount();
 
         String[] server1Inserts = makeInsert(cluster, serverPrefix + 1, dir1, listen1, listen2, listen3, configureAccount);
         String[] server2Inserts = makeInsert(cluster, serverPrefix + 2, dir2, listen2, listen1, listen3, configureAccount);
         String[] server3Inserts = makeInsert(cluster, serverPrefix + 3, dir3, listen3, listen1, listen2, configureAccount);
 
-        try (NatsTestServer srv1 = new NatsTestServer(port1, false, true, null, server1Inserts, null);
-             NatsTestServer srv2 = new NatsTestServer(port2, false, true, null, server2Inserts, null);
-             NatsTestServer srv3 = new NatsTestServer(port3, false, true, null, server3Inserts, null);
+        try (NatsTestServer srv1 = new NatsTestServer(port1, tstOpts.jetStream(), null, server1Inserts, null);
+             NatsTestServer srv2 = new NatsTestServer(port2, tstOpts.jetStream(), null, server2Inserts, null);
+             NatsTestServer srv3 = new NatsTestServer(port3, tstOpts.jetStream(), null, server3Inserts, null);
              Connection nc1 = standardConnectionWait(makeOptions(0, tstOpts, srv1, srv2, srv3));
              Connection nc2 = standardConnectionWait(makeOptions(1, tstOpts, srv2, srv1, srv3));
              Connection nc3 = standardConnectionWait(makeOptions(2, tstOpts, srv3, srv1, srv2))
         ) {
-            try {
-                threeServerTest.test(nc1, nc2, nc3);
-            }
-            finally {
-                cleanupJs(nc1);
-                cleanupJs(nc2);
-                cleanupJs(nc3);
-            }
+            threeServerTest.test(nc1, nc2, nc3);
         }
     }
 
     private static String[] makeInsert(String clusterName, String serverName, String jsStoreDir, int listen, int route1, int route2, boolean configureAccount) {
-        String[] serverInserts = new String[configureAccount ? 19 : 12];
-        int x = -1;
-        serverInserts[++x] = "jetstream {";
-        serverInserts[++x] = "    store_dir=" + jsStoreDir;
-        serverInserts[++x] = "}";
-        serverInserts[++x] = "server_name=" + serverName;
-        serverInserts[++x] = "cluster {";
-        serverInserts[++x] = "  name: " + clusterName;
-        serverInserts[++x] = "  listen: 127.0.0.1:" + listen;
-        serverInserts[++x] = "  routes: [";
-        serverInserts[++x] = "    nats-route://127.0.0.1:" + route1;
-        serverInserts[++x] = "    nats-route://127.0.0.1:" + route2;
-        serverInserts[++x] = "  ]";
-        serverInserts[++x] = "}";
-        if (configureAccount) {
-            serverInserts[++x] = "accounts {";
-            serverInserts[++x] = "  $SYS: {}";
-            serverInserts[++x] = "  NVCF: {";
-            serverInserts[++x] = "    jetstream: \"enabled\",";
-            serverInserts[++x] = "    users: [ { nkey: " + USER_NKEY + " } ]";
-            serverInserts[++x] = "  }";
-            serverInserts[++x] = "}";
+        List<String> serverInserts = new ArrayList<>();
+        if (jsStoreDir != null) {
+            serverInserts.add("jetstream {");
+            serverInserts.add("    store_dir=" + jsStoreDir);
+            serverInserts.add("}");
         }
-        return serverInserts;
+        serverInserts.add("server_name=" + serverName);
+        serverInserts.add("cluster {");
+        serverInserts.add("  name: " + clusterName);
+        serverInserts.add("  listen: 127.0.0.1:" + listen);
+        serverInserts.add("  routes: [");
+        serverInserts.add("    nats-route://127.0.0.1:" + route1);
+        serverInserts.add("    nats-route://127.0.0.1:" + route2);
+        serverInserts.add("  ]");
+        serverInserts.add("}");
+        if (configureAccount) {
+            serverInserts.add("accounts {");
+            serverInserts.add("  $SYS: {}");
+            serverInserts.add("  NVCF: {");
+            if (jsStoreDir != null) {
+                serverInserts.add("    jetstream: \"enabled\",");
+            }
+            serverInserts.add("    users: [ { nkey: " + USER_NKEY + " } ]");
+            serverInserts.add("  }");
+            serverInserts.add("}");
+        }
+        return serverInserts.toArray(new String[0]);
     }
 
     private static final String USER_NKEY = "UBAX6GCZQYLJDLSNPBDDPLY6KIBRO2JAUYNPW4HCWBRCZ4OU57YQQQS3";

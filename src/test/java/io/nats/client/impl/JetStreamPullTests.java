@@ -58,7 +58,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testFetch() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             long fetchMs = 3000;
             Duration fetchDur = Duration.ofMillis(fetchMs);
             Duration ackWaitDur = Duration.ofMillis(fetchMs * 2);
@@ -127,7 +127,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testIterate() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             long fetchMs = 5000;
             Duration fetchDur = Duration.ofMillis(fetchMs);
             Duration ackWaitDur = Duration.ofMillis(fetchMs * 2);
@@ -208,7 +208,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testBasic() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             // Build our subscription options.
             PullSubscribeOptions options = PullSubscribeOptions.builder().durable(jstc.consumerName()).build();
 
@@ -301,7 +301,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testNoWait() throws Exception {
-        runInLrServerOwnNc(noPullWarnings(), (nc, jstc) -> {
+        runInSharedOwnNc(noPullWarnings(), (nc, jstc) -> {
             // Build our subscription options.
             PullSubscribeOptions options = PullSubscribeOptions.builder().durable(jstc.consumerName()).build();
 
@@ -369,7 +369,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testPullExpires() throws Exception {
-        runInLrServerOwnNc(noPullWarnings(), (nc, jstc) -> {
+        runInSharedOwnNc(noPullWarnings(), (nc, jstc) -> {
             // Build our subscription options.
             PullSubscribeOptions options = PullSubscribeOptions.builder().durable(jstc.consumerName()).build();
 
@@ -454,7 +454,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testAckNak() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             PullSubscribeOptions pso = PullSubscribeOptions.builder().durable(random()).build();
             JetStreamSubscription sub = jstc.js.subscribe(jstc.subject(), pso);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
@@ -484,7 +484,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testAckTerm() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             PullSubscribeOptions pso = PullSubscribeOptions.builder().durable(random()).build();
             JetStreamSubscription sub = jstc.js.subscribe(jstc.subject(), pso);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
@@ -506,7 +506,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testAckReplySyncCoverage() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             JetStreamSubscription sub = jstc.js.subscribe(jstc.subject());
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
@@ -525,7 +525,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testAckWaitTimeout() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
                 .ackWait(1500)
                 .build();
@@ -570,7 +570,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testDurable() throws Exception {
-        runInLrServerOwnNc(noPullWarnings(), (nc, jstc) -> {
+        runInSharedOwnNc(noPullWarnings(), (nc, jstc) -> {
             String durable = random();
 
             // Build our subscription options normally
@@ -605,7 +605,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testNamed() throws Exception {
-        runInLrServerOwnNc(noPullWarnings(), VersionUtils::atLeast2_9_0, (nc, jstc) -> {
+        runInSharedOwnNc(noPullWarnings(), VersionUtils::atLeast2_9_0, (nc, jstc) -> {
             String name = random();
 
             jstc.jsm.addOrUpdateConsumer(jstc.stream, ConsumerConfiguration.builder()
@@ -740,7 +740,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     private void testConflictStatus(int statusCode, String statusText, int type, String targetVersion, ConflictSetup setup) throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
         AtomicBoolean skip = new AtomicBoolean(false);
-        runInLrServerOwnNc(listener, (nc, jstc) -> {
+        runInSharedOwnNc(listener, (nc, jstc) -> {
             skip.set(versionIsBefore(nc, targetVersion));
             if (skip.get()) {
                 return;
@@ -1005,7 +1005,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testExceedsMaxRequestBytesNthMessageSyncSub() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInLrServerOwnNc(listener, VersionUtils::atLeast2_9_1, (nc, jstc) -> {
+        runInSharedOwnNc(listener, VersionUtils::atLeast2_9_1, (nc, jstc) -> {
             String dur = random();
             jstc.jsm.addOrUpdateConsumer(jstc.stream, builder().durable(dur).ackPolicy(AckPolicy.None).filterSubjects(jstc.subject()).build());
             PullSubscribeOptions so = PullSubscribeOptions.bind(jstc.stream, dur);
@@ -1030,7 +1030,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testExceedsMaxRequestBytesExactBytes() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInLrServerOwnNc(listener, VersionUtils::atLeast2_9_1, (nc, jstc) -> {
+        runInSharedOwnNc(listener, VersionUtils::atLeast2_9_1, (nc, jstc) -> {
             String stream = randomWide(6); // six letters so I can count
             String subject = randomWide(5); // five letters so I can count
             String durable = randomWide(10); // short keeps under max bytes
@@ -1058,7 +1058,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testReader() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             // Pre define a consumer
             ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(jstc.consumerName()).filterSubjects(jstc.subject()).build();
             jstc.jsm.addOrUpdateConsumer(jstc.stream, cc);
@@ -1117,7 +1117,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testOverflow() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInLrServerOwnNc(listener, VersionUtils::atLeast2_11, (nc, jstc) -> {
+        runInSharedOwnNc(listener, VersionUtils::atLeast2_11, (nc, jstc) -> {
             jsPublish(jstc.js, jstc.subject(), 100);
 
             // Setting PriorityPolicy requires at least one PriorityGroup to be set
@@ -1243,7 +1243,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
         // close the #1, #2 should get messages
         // start another priority 1 (#3), #2 should stop getting messages #3 should get messages
         ListenerForTesting listener = new ListenerForTesting();
-        runInLrServerOwnNc(listener, VersionUtils::atLeast2_12, (nc, jstc) -> {
+        runInSharedOwnNc(listener, VersionUtils::atLeast2_12, (nc, jstc) -> {
             String consumer = random();
             String group = random();
 
@@ -1340,7 +1340,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
         // start consuming, tracking pin ids and counts
         // unpin 10 times and make sure that new pins are made
         ListenerForTesting listener = new ListenerForTesting();
-        runInLrServerOwnNc(listener, VersionUtils::atLeast2_12, (nc, jstc) -> {
+        runInSharedOwnNc(listener, VersionUtils::atLeast2_12, (nc, jstc) -> {
             String consumer = random();
             String group = random();
 

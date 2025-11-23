@@ -133,7 +133,7 @@ public class ConnectTests {
 
     @Test
     public void testConnectWithConfig() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/simple.conf", false)) {
+        try (NatsTestServer ts = NatsTestServer.configFileServer("simple.conf")) {
             assertCanConnect(ts.getLocalhostUri());
         }
     }
@@ -276,7 +276,7 @@ public class ConnectTests {
         assertNotNull(nc);
 
         listener.prepForStatusChange(Events.RECONNECTED);
-        try (NatsTestServer ignored = new NatsTestServer(port, false)) {
+        try (NatsTestServer ignored = new NatsTestServer(port)) {
             listenerConnectionWait(nc, listener);
             standardCloseConnection(nc);
         }
@@ -513,7 +513,7 @@ public class ConnectTests {
         Connection connection = null;
 
         // 1. DO NOT RECONNECT ON CONNECT
-        try (NatsTestServer ts = new NatsTestServer(port, false)) {
+        try (NatsTestServer ts = new NatsTestServer(port)) {
             try {
                 SimulateSocketDataPortException.THROW_ON_CONNECT.set(true);
                 connection = Nats.connect(options);
@@ -528,7 +528,7 @@ public class ConnectTests {
         simExReceived.set(false);
 
         // 2. RECONNECT ON CONNECT
-        try (NatsTestServer ts = new NatsTestServer(port, false)) {
+        try (NatsTestServer ts = new NatsTestServer(port)) {
             try {
                 SimulateSocketDataPortException.THROW_ON_CONNECT.set(true);
                 listener.prepForStatusChange(Events.RECONNECTED);
@@ -546,7 +546,7 @@ public class ConnectTests {
 
         // 2. NORMAL RECONNECT
         listener.prepForStatusChange(Events.RECONNECTED);
-        try (NatsTestServer ts = new NatsTestServer(port, false)) {
+        try (NatsTestServer ts = new NatsTestServer(port)) {
             SimulateSocketDataPortException.THROW_ON_CONNECT.set(true);
             try {
                 assertTrue(listener.waitForStatusChange(5, TimeUnit.SECONDS));
@@ -581,13 +581,13 @@ public class ConnectTests {
             }
         };
 
-        runInJsCluster(ConnectTests::validateRunInJsCluster);
+        runInCluster(ConnectTests::validateRunInJsCluster);
 
         listeners[0] = new ListenerForTesting();
         listeners[1] = new ListenerForTesting();
         listeners[2] = new ListenerForTesting();
 
-        runInJsCluster(tstOpts, ConnectTests::validateRunInJsCluster);
+        runInCluster(tstOpts, ConnectTests::validateRunInJsCluster);
     }
 
     private static void validateRunInJsCluster(Connection nc1, Connection nc2, Connection nc3) throws InterruptedException {
@@ -638,7 +638,7 @@ public class ConnectTests {
 
     @Test
     void testConnectPendingCountCoverage() throws Exception {
-        runInServer(nc -> {
+        runInOwnServer(nc -> {
             AtomicLong outgoingPendingMessageCount = new AtomicLong();
             AtomicLong outgoingPendingBytes = new AtomicLong();
 

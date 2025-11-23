@@ -14,13 +14,13 @@
 package io.nats.client;
 
 import io.nats.client.NatsServerProtocolMock.ExitAt;
-import io.nats.client.utils.LongRunningServer;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
 
+import static io.nats.client.utils.ConnectionUtils.longConnectionWait;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -62,44 +62,45 @@ public class EchoTests extends TestBase {
     
     @Test
     public void testWithEcho() throws Exception {
-        // do not open LrConns in try-resources
-        Connection nc1 = LongRunningServer.getLrConn();
-        Connection nc2 = LongRunningServer.getLrConn2();
-        // Echo is on so both sub should get messages from both pub
-        String subject = TestBase.random();
-        Subscription sub1 = nc1.subscribe(subject);
-        nc1.flush(Duration.ofSeconds(1));
-        Subscription sub2 = nc2.subscribe(subject);
-        nc2.flush(Duration.ofSeconds(1));
+        runInSharedOwnNc(nc1 -> {
+            try (Connection nc2 = longConnectionWait(optionsBuilder(nc1.getConnectedUrl()).build())) {
+                // Echo is on so both sub should get messages from both pub
+                String subject = TestBase.random();
+                Subscription sub1 = nc1.subscribe(subject);
+                nc1.flush(Duration.ofSeconds(1));
+                Subscription sub2 = nc2.subscribe(subject);
+                nc2.flush(Duration.ofSeconds(1));
 
-        // Pub from connect 1
-        nc1.publish(subject, null);
-        nc1.flush(Duration.ofSeconds(1));
-        Message msg = sub1.nextMessage(Duration.ofSeconds(1));
-        assertNotNull(msg);
-        msg = sub2.nextMessage(Duration.ofSeconds(1));
-        assertNotNull(msg);
+                // Pub from connect 1
+                nc1.publish(subject, null);
+                nc1.flush(Duration.ofSeconds(1));
+                Message msg = sub1.nextMessage(Duration.ofSeconds(1));
+                assertNotNull(msg);
+                msg = sub2.nextMessage(Duration.ofSeconds(1));
+                assertNotNull(msg);
 
-        // Pub from connect 2
-        nc2.publish(subject, null);
-        nc2.flush(Duration.ofSeconds(1));
-        msg = sub1.nextMessage(Duration.ofSeconds(1));
-        assertNotNull(msg);
-        msg = sub2.nextMessage(Duration.ofSeconds(1));
-        assertNotNull(msg);
+                // Pub from connect 2
+                nc2.publish(subject, null);
+                nc2.flush(Duration.ofSeconds(1));
+                msg = sub1.nextMessage(Duration.ofSeconds(1));
+                assertNotNull(msg);
+                msg = sub2.nextMessage(Duration.ofSeconds(1));
+                assertNotNull(msg);
+            }
+        });
     }
 
     @Test
     public void testWithNoEcho() throws Exception {
-        runInLrServerOwnNc(optionsBuilder().noEcho().noReconnect(), nc1 -> {
+        runInSharedOwnNc(optionsBuilder().noEcho().noReconnect(), nc -> {
             String subject = TestBase.random();
             // Echo is off so sub should get messages from pub from other connections
-            Subscription sub1 = nc1.subscribe(subject);
-            nc1.flush(Duration.ofSeconds(1));
+            Subscription sub1 = nc.subscribe(subject);
+            nc.flush(Duration.ofSeconds(1));
 
             // Pub from connect 1
-            nc1.publish(subject, null);
-            nc1.flush(Duration.ofSeconds(1));
+            nc.publish(subject, null);
+            nc.flush(Duration.ofSeconds(1));
             Message msg = sub1.nextMessage(Duration.ofSeconds(1));
             assertNull(msg); // no message for sub1 from pub 1
         });

@@ -70,7 +70,7 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testRequestVarieties() throws Exception {
-        runInServer(nc -> {
+        runInOwnServer(nc -> {
             Dispatcher d = nc.createDispatcher(msg -> {
                 if (msg.hasHeaders()) {
                     nc.publish(msg.getReplyTo(), msg.getHeaders(), msg.getData());
@@ -183,7 +183,7 @@ public class RequestTests extends TestBase {
     @Test
     public void testMultipleReplies() throws Exception {
         Options.Builder builder = optionsBuilder().turnOnAdvancedStats();
-        runInServer(builder, nc -> {
+        runInOwnServer(builder, nc -> {
             AtomicInteger requests = new AtomicInteger();
             MessageHandler handler = msg -> { requests.incrementAndGet(); nc.publish(msg.getReplyTo(), null); };
             Dispatcher d1 = nc.createDispatcher(handler);
@@ -376,9 +376,7 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testSimpleRequestWithTimeoutSlowProducer() throws Exception {
-
-        try (NatsTestServer ts = new NatsTestServer())
-        {
+        try (NatsTestServer ts = new NatsTestServer()) {
             long cleanupInterval = 10;
             Options options = optionsBuilder(ts).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
             NatsConnection nc = (NatsConnection) Nats.connect(options);
@@ -599,7 +597,7 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testOldStyleRequest() throws Exception {
-        runInLrServerOwnNc(Options.builder().oldRequestStyle(), nc -> {
+        runInSharedOwnNc(Options.builder().oldRequestStyle(), nc -> {
             String subject = random();
             Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), null));
             d.subscribe(subject);
@@ -641,37 +639,13 @@ public class RequestTests extends TestBase {
     }
     
     @Test
-    public void throwsIfClosed() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer();
-                        Connection nc = Nats.connect(ts.getLocalhostUri())) {
-                nc.close();
-                nc.request("subject", null);
-                fail();
-            }
-        });
-    }
-
-    @Test
-    public void testThrowsWithoutSubject() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer();
-                 Connection nc = Nats.connect(ts.getLocalhostUri())) {
-                //noinspection DataFlowIssue
-                nc.request((String)null, null);
-                fail();
-            }
-        });
-    }
-
-    @Test
-    public void testThrowsEmptySubject() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer();
-                    Connection nc = Nats.connect(ts.getLocalhostUri())) {
-                nc.request("", null);
-                fail();
-            }
+    public void testRequestErrors() throws Exception {
+        runInSharedOwnNc(nc -> {
+            //noinspection DataFlowIssue
+            assertThrows(IllegalArgumentException.class, () -> nc.request((String)null, null)); // null subject bad
+            assertThrows(IllegalArgumentException.class, () -> nc.request("", null)); // empty subject bad
+            nc.close();
+            assertThrows(IllegalStateException.class, () -> nc.request("subject", null)); // can't request after close
         });
     }
 

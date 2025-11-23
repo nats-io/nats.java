@@ -32,14 +32,18 @@ public class NatsFeatureBase {
     protected final NatsJetStreamManagement jsm;
     protected String streamName;
 
-    NatsFeatureBase(NatsConnection connection, FeatureOptions fo) throws IOException {
-        if (fo == null) {
+    NatsFeatureBase(NatsConnection connection, FeatureOptions fo, NatsJetStreamManagement jsm) throws IOException {
+        if (jsm != null) {
+            this.jsm = jsm;
+            js = (NatsJetStream)jsm.jetStream();
+        }
+        else if (fo == null) {
             js = new NatsJetStream(connection, null);
-            jsm = new NatsJetStreamManagement(connection, null);
+            this.jsm = new NatsJetStreamManagement(connection, null);
         }
         else {
             js = new NatsJetStream(connection, fo.getJetStreamOptions());
-            jsm = new NatsJetStreamManagement(connection, fo.getJetStreamOptions());
+            this.jsm = new NatsJetStreamManagement(connection, fo.getJetStreamOptions());
         }
     }
 

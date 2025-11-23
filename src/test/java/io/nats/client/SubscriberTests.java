@@ -28,7 +28,7 @@ public class SubscriberTests {
 
     @Test
     public void testCreateInbox() throws Exception {
-        runInLrServer(nc -> {
+        runInShared(nc -> {
             HashSet<String> check = new HashSet<>();
             for (int i=0; i < 100; i++) {
                 String inbox = nc.createInbox();
@@ -40,7 +40,7 @@ public class SubscriberTests {
 
     @Test
     public void testSingleMessage() throws Exception {
-        runInLrServer(nc -> {
+        runInShared(nc -> {
             String subject = random();
             Subscription sub = nc.subscribe(subject);
             nc.publish(subject, new byte[16]);
@@ -57,7 +57,7 @@ public class SubscriberTests {
 
     @Test
     public void testMessageFromSubscriptionContainsConnection() throws Exception {
-        runInLrServer(nc -> {
+        runInShared(nc -> {
             String subject = random();
             Subscription sub = nc.subscribe(subject);
             nc.publish(subject, new byte[16]);
@@ -131,7 +131,7 @@ public class SubscriberTests {
 
     @Test
     public void testMultiMessage() throws Exception {
-        runInLrServer(nc -> {
+        runInShared(nc -> {
             String subject = random();
             Subscription sub = nc.subscribe(subject);
             nc.publish(subject, new byte[16]);
@@ -155,7 +155,7 @@ public class SubscriberTests {
 
     @Test
     public void testQueueSubscribers() throws Exception {
-        runInLrServer(nc -> {
+        runInShared(nc -> {
             int msgs = 100;
             int received = 0;
             int sub1Count = 0;
@@ -204,7 +204,7 @@ public class SubscriberTests {
 
     @Test
     public void testUnsubscribe() throws Exception {
-        runInLrServer(nc -> {
+        runInShared(nc -> {
             String subject = random();
             Subscription sub = nc.subscribe(subject);
             nc.publish(subject, new byte[16]);
@@ -220,7 +220,7 @@ public class SubscriberTests {
 
     @Test
     public void testAutoUnsubscribe() throws Exception {
-        runInLrServer(nc -> {
+        runInShared(nc -> {
             String subject = random();
             Subscription sub = nc.subscribe(subject).unsubscribe(1);
             nc.publish(subject, new byte[16]);
@@ -234,7 +234,7 @@ public class SubscriberTests {
 
     @Test
     public void testMultiAutoUnsubscribe() throws Exception {
-        runInLrServer(nc -> {
+        runInShared(nc -> {
             String subject = random();
             int msgCount = 10;
             Subscription sub = nc.subscribe(subject).unsubscribe(msgCount);
@@ -255,18 +255,17 @@ public class SubscriberTests {
 
     @Test
     public void testOnlyOneUnsubscribe() throws Exception {
-        runInLrServer(nc -> {
+        runInShared(nc -> {
             String subject = random();
             Subscription sub = nc.subscribe(subject);
             sub.unsubscribe();
-
             assertThrows(IllegalStateException.class, sub::unsubscribe);
         });
     }
 
     @Test
     public void testOnlyOneAutoUnsubscribe() throws Exception {
-        runInLrServer(nc -> {
+        runInShared(nc -> {
             String subject = random();
 
             Subscription sub = nc.subscribe(subject).unsubscribe(1);
@@ -281,7 +280,7 @@ public class SubscriberTests {
 
     @Test
     public void testUnsubscribeInAnotherThread() throws Exception {
-        runInLrServer(nc -> {
+        runInShared(nc -> {
             String subject = random();
             Subscription sub = nc.subscribe(subject);
             new Thread(sub::unsubscribe).start();
@@ -291,7 +290,7 @@ public class SubscriberTests {
 
     @Test
     public void testAutoUnsubAfterMaxIsReached() throws Exception {
-        runInLrServer(nc -> {
+        runInShared(nc -> {
             String subject = random();
             Subscription sub = nc.subscribe(subject);
 
@@ -313,50 +312,38 @@ public class SubscriberTests {
     }
 
     @Test
-    public void testThrowOnNullSubject() throws Exception {
-        runInLrServer(nc -> {
+    public void testSubscribesThatException() throws Exception {
+        // own nc b/c we will close
+        runInShared(nc -> {
+
+            // null subject
             //noinspection DataFlowIssue
             assertThrows(IllegalArgumentException.class, () -> nc.subscribe(null));
-        });
-    }
 
-    @Test
-    public void testThrowOnEmptySubject() throws Exception {
-        runInLrServer(nc -> assertThrows(IllegalArgumentException.class, () -> nc.subscribe("")));
-    }
+            // empty subject
+            assertThrows(IllegalArgumentException.class, () -> nc.subscribe(""));
 
-    @Test
-    public void testThrowOnNullQueue() throws Exception {
-        runInLrServer(nc -> {
+            // null queue
             //noinspection DataFlowIssue
             assertThrows(IllegalArgumentException.class, () -> nc.subscribe(random(), null));
-        });
-    }
 
-    @Test
-    public void testThrowOnEmptyQueue() throws Exception {
-        runInLrServer(nc -> assertThrows(IllegalArgumentException.class, () -> nc.subscribe(random(), "")));
-    }
+            // empty queue
+            assertThrows(IllegalArgumentException.class, () -> nc.subscribe(random(), ""));
 
-    @Test
-    public void testThrowOnNullSubjectWithQueue() throws Exception {
-        runInLrServer(nc -> {
+            // null subject with queue
             //noinspection DataFlowIssue
             assertThrows(IllegalArgumentException.class, () -> nc.subscribe(null, random()));
+
+            // empty subject with queue
+            assertThrows(IllegalArgumentException.class, () -> nc.subscribe("", random()));
         });
     }
 
     @Test
-    public void testThrowOnEmptySubjectWithQueue() throws Exception {
-        runInLrServer(nc -> assertThrows(IllegalArgumentException.class, () -> nc.subscribe("", random())));
-    }
-
-    @Test
-    public void throwsSubscriptionExceptions() throws Exception {
-        runInLrServerOwnNc(nc -> {
-            String subject = random();
-            Subscription sub = nc.subscribe(subject);
-
+    public void testSubscribesThatExceptionAfterClose() throws Exception {
+        // own nc b/c we will close
+        runInSharedOwnNc(nc -> {
+            Subscription sub = nc.subscribe(random());
             nc.close();
 
             /// can't subscribe when closed
@@ -372,7 +359,7 @@ public class SubscriberTests {
 
     @Test
     public void testUnsubscribeWhileWaiting() throws Exception {
-        runInLrServer(nc -> {
+        runInShared(nc -> {
             String subject = random();
             Subscription sub = nc.subscribe(subject);
             nc.flush(Duration.ofMillis(1000));

@@ -37,8 +37,8 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
     private final String rawChunkPrefix;
     private final String rawMetaPrefix;
 
-    NatsObjectStore(NatsConnection connection, String bucketName, ObjectStoreOptions oso) throws IOException {
-        super(connection, oso);
+    NatsObjectStore(String bucketName, NatsConnection connection, ObjectStoreOptions oso, NatsJetStreamManagement jsm) throws IOException {
+        super(connection, oso, jsm);
         this.oso = oso;
         this.bucketName = Validator.validateBucketName(bucketName, true);
         streamName = toStreamName(bucketName);

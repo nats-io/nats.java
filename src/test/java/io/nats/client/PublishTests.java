@@ -13,6 +13,7 @@
 
 package io.nats.client;
 
+import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.NatsMessage;
@@ -31,13 +32,12 @@ import static io.nats.client.support.NatsConstants.*;
 import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
-import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class PublishTests {
+public class PublishTests extends TestBase {
     @Test
     public void throwsIfClosed() throws Exception {
-        runInLrServerOwnNc(nc -> {
+        runInSharedOwnNc(nc -> {
             nc.close();
             // can't publish after close
             assertThrows(IllegalStateException.class, () -> nc.publish("subject", "replyto", null));
@@ -49,7 +49,7 @@ public class PublishTests {
 
     @Test
     public void testThrowsWithoutSubject() throws Exception {
-        runInLrServer(nc -> {
+        runInShared(nc -> {
             //noinspection DataFlowIssue
             assertThrows(IllegalArgumentException.class, () -> nc.publish(null, null));
         });
@@ -227,14 +227,14 @@ public class PublishTests {
 
     @Test
     public void testMaxPayload() throws Exception {
-        TestBase.runInLrServerOwnNc(standardOptionsBuilder().noReconnect(), nc -> {
+        runInSharedOwnNc(standardOptionsBuilder().noReconnect(), nc -> {
             int maxPayload = (int)nc.getServerInfo().getMaxPayload();
             nc.publish("mptest", new byte[maxPayload-1]);
             nc.publish("mptest", new byte[maxPayload]);
         });
 
         try {
-            TestBase.runInLrServerOwnNc(standardOptionsBuilder().noReconnect().clientSideLimitChecks(false), nc -> {
+            runInSharedOwnNc(standardOptionsBuilder().noReconnect().clientSideLimitChecks(false), nc -> {
                 int maxPayload = (int)nc.getServerInfo().getMaxPayload();
                 for (int x = 1; x < 1000; x++) {
                     nc.publish("mptest", new byte[maxPayload + x]);
@@ -245,7 +245,7 @@ public class PublishTests {
         catch (IllegalStateException ignore) {}
 
         try {
-            TestBase.runInLrServerOwnNc(standardOptionsBuilder().noReconnect(), nc -> {
+            runInSharedOwnNc(standardOptionsBuilder().noReconnect(), nc -> {
                 int maxPayload = (int)nc.getServerInfo().getMaxPayload();
                 for (int x = 1; x < 1000; x++) {
                     nc.publish("mptest", new byte[maxPayload + x]);
@@ -271,12 +271,13 @@ public class PublishTests {
         CountDownLatch jsReceivedLatchWhenSupported = new CountDownLatch(1);
 
         Options.Builder ncNotSupportedOptionsBuilder = optionsBuilder().noReconnect().clientSideLimitChecks(false);
-        TestBase.runInLrServerOwnNc(ncNotSupportedOptionsBuilder, ncNotSupported -> {
+        runInSharedOwnNc(ncNotSupportedOptionsBuilder, ncNotSupported -> {
             Options ncSupportedOptions = optionsBuilder(ncNotSupported.getConnectedUrl()).supportUTF8Subjects().build();
             try (Connection ncSupported = standardConnectionWait(ncSupportedOptions)) {
                 ncNotSupported.jetStreamManagement().addStream(
                     StreamConfiguration.builder()
-                        .name(TestBase.random())
+                        .name(random())
+                        .storageType(StorageType.Memory)
                         .subjects(jsSubject)
                         .build());
                 JetStream jsNotSupported = ncNotSupported.jetStream();

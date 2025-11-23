@@ -45,16 +45,16 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testStreamContextErrors() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_9_1, (nc, jsm, js) -> {
+        runInShared(VersionUtils::atLeast2_9_1, nc -> {
             assertThrows(JetStreamApiException.class, () -> nc.getStreamContext(random()));
             assertThrows(JetStreamApiException.class, () -> nc.getStreamContext(random(), JetStreamOptions.DEFAULT_JS_OPTIONS));
-            assertThrows(JetStreamApiException.class, () -> js.getStreamContext(random()));
+            assertThrows(JetStreamApiException.class, () -> nc.jetStream().getStreamContext(random()));
         });
     }
 
     @Test
     public void testStreamContextFromConnection() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
+        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
             StreamContext streamContext = nc.getStreamContext(jstc.stream);
             assertEquals(jstc.stream, streamContext.getStreamName());
             _testStreamContext(jstc, streamContext);
@@ -63,7 +63,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testStreamContextFromContext() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
+        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
             StreamContext streamContext = jstc.js.getStreamContext(jstc.stream);
             assertEquals(jstc.stream, streamContext.getStreamName());
             _testStreamContext(jstc, streamContext);
@@ -194,7 +194,7 @@ public class SimplificationTests extends JetStreamTestBase {
     static int FETCH_ORDERED = 3;
     @Test
     public void testFetch() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
+        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
             for (int x = 1; x <= 20; x++) {
                 jstc.js.publish(jstc.subject(), ("test-fetch-msg-" + x).getBytes());
             }
@@ -333,7 +333,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testFetchNoWaitPlusExpires() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
+        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
             jstc.jsm.addOrUpdateConsumer(jstc.stream, ConsumerConfiguration.builder()
                 .name(jstc.consumerName())
                 .inactiveThreshold(100000) // I could have used a durable, but this is long enough for the test
@@ -397,7 +397,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testIterableConsumer() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
+        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
             // Pre define a consumer
             ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(jstc.consumerName()).build();
             jstc.jsm.addOrUpdateConsumer(jstc.stream, cc);
@@ -424,7 +424,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedConsumerDeliverPolices() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
+        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
             jsPublish(jstc.js, jstc.subject(), 101, 3, 100);
             ZonedDateTime startTime = getStartTimeFirstMessage(jstc);
 
@@ -479,7 +479,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedIterableConsumerBasic() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
+        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
             StreamContext sctx = nc.getStreamContext(jstc.stream);
 
             int stopCount = 500;
@@ -543,7 +543,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testConsumeWithHandler() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
+        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
             jsPublish(jstc.js, jstc.subject(), 2500);
 
             // Pre define a consumer
@@ -631,7 +631,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testNext() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
+        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
             jsPublish(jstc.js, jstc.subject(), 4);
 
             String name = random();
@@ -703,7 +703,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testCoverage() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
+        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
             // Pre define a consumer
             jstc.jsm.addOrUpdateConsumer(jstc.stream, ConsumerConfiguration.builder().durable(jstc.consumerName(1)).build());
             jstc.jsm.addOrUpdateConsumer(jstc.stream, ConsumerConfiguration.builder().durable(jstc.consumerName(2)).build());
@@ -925,8 +925,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedBehaviorNext() throws Exception {
-        runInJsServer(VersionUtils::atLeast2_9_1, nc -> {
-            JetStreamTestingContext jstc = new JetStreamTestingContext(nc);
+        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
             StreamContext sctx = jstc.js.getStreamContext(jstc.stream);
 
             jsPublish(jstc.js, jstc.subject(), 101, 6, 100);
@@ -1007,8 +1006,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedBehaviorFetch() throws Exception {
-        runInJsServer(VersionUtils::atLeast2_9_1, nc -> {
-            JetStreamTestingContext jstc = new JetStreamTestingContext(nc);
+        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
             StreamContext sctx = jstc.js.getStreamContext(jstc.stream);
 
             jsPublish(jstc.js, jstc.subject(), 101, 6, 100);
@@ -1077,8 +1075,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedBehaviorIterable() throws Exception {
-        runInJsServer(VersionUtils::atLeast2_9_1, nc -> {
-            JetStreamTestingContext jstc = new JetStreamTestingContext(nc);
+        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
             StreamContext sctx = jstc.js.getStreamContext(jstc.stream);
 
             jsPublish(jstc.js, jstc.subject(), 101, 6, 100);
@@ -1161,7 +1158,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedConsume() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
+        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration()
                 .filterSubject(jstc.subject());
             _testOrderedConsume(jstc, occ);
@@ -1170,7 +1167,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedConsumeWithPrefix() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
+        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration()
                 .consumerNamePrefix(random())
                 .filterSubject(jstc.subject());
@@ -1212,8 +1209,8 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedConsumeMultipleSubjects() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
-            JetStreamTestingContext jstc = new JetStreamTestingContext(nc, 2);
+        runInSharedCustomStream(VersionUtils::atLeast2_10, (nc, jstc) -> {
+            jstc.createStream(2);
             jsPublish(jstc.js, jstc.subject(0), 10);
             jsPublish(jstc.js, jstc.subject(1), 5);
 
@@ -1245,7 +1242,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedMultipleWays() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
+        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
             StreamContext sctx = jstc.js.getStreamContext(jstc.stream);
 
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(jstc.subject());
@@ -1462,8 +1459,7 @@ public class SimplificationTests extends JetStreamTestBase {
     @Test
     public void testOverflowFetch() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInJsServer(listener, VersionUtils::atLeast2_9_1, nc -> {
-            JetStreamTestingContext jstc = new JetStreamTestingContext(nc);
+        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
             jsPublish(jstc.js, jstc.subject(), 100);
 
             // Testing min ack pending
@@ -1525,7 +1521,7 @@ public class SimplificationTests extends JetStreamTestBase {
     @Test
     public void testOverflowIterate() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInLrServerOwnNc(listener, VersionUtils::atLeast2_11, (nc, jstc) -> {
+        runInSharedOwnNc(listener, VersionUtils::atLeast2_11, (nc, jstc) -> {
             jsPublish(jstc.js, jstc.subject(), 100);
 
             // Testing min ack pending
@@ -1611,7 +1607,7 @@ public class SimplificationTests extends JetStreamTestBase {
     @Test
     public void testOverflowConsume() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInLrServerOwnNc(listener, VersionUtils::atLeast2_11, (nc, jstc) -> {
+        runInSharedOwnNc(listener, VersionUtils::atLeast2_11, (nc, jstc) -> {
             jsPublish(jstc.js, jstc.subject(), 1000);
 
             // Testing min ack pending
@@ -1677,7 +1673,7 @@ public class SimplificationTests extends JetStreamTestBase {
     @Test
     public void testFinishEmptyStream() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInLrServerOwnNc(listener, (nc, jstc) -> {
+        runInSharedOwnNc(listener, (nc, jstc) -> {
             String name = random();
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
                 .name(name)
@@ -1740,7 +1736,7 @@ public class SimplificationTests extends JetStreamTestBase {
         String firstConsumerName;
 
         //noinspection unused
-        try (NatsTestServer ts = new NatsTestServer(port, false, true)) {
+        try (NatsTestServer ts = new NatsTestServer(port, true)) {
             nc = (NatsConnection) standardConnectionWait(options);
             StreamConfiguration sc = StreamConfiguration.builder()
                 .name(stream)
@@ -1771,7 +1767,7 @@ public class SimplificationTests extends JetStreamTestBase {
         assertEquals(count1, nextExpectedSequence.get());
 
         // reconnect and get some more messages
-        try (NatsTestServer ignored = new NatsTestServer(port, false, true)) {
+        try (NatsTestServer ignored = new NatsTestServer(port, true)) {
             standardConnectionWait(nc);
             sleep(6000); // long enough to get messages and for the hb alarm to have tripped
         }
@@ -1783,7 +1779,7 @@ public class SimplificationTests extends JetStreamTestBase {
         assertEquals(count2, nextExpectedSequence.get());
 
         sleep(6000); // enough delay before reconnect to trip hb alarm again
-        try (NatsTestServer ignored = new NatsTestServer(port, false, true)) {
+        try (NatsTestServer ignored = new NatsTestServer(port, true)) {
             standardConnectionWait(nc);
             sleep(6000); // long enough to get messages and for the hb alarm to have tripped
 

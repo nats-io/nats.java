@@ -32,7 +32,7 @@ public class JetStreamPushQueueTests extends JetStreamTestBase {
 
     @Test
     public void testQueueSubWorkflow() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             // Set up the subscribers
             // - the PushSubscribeOptions can be re-used since all the subscribers are the same
             // - use a concurrent integer to track all the messages received

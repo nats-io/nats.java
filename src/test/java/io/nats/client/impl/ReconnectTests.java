@@ -34,8 +34,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
-import static io.nats.client.NatsTestServer.configFileServer;
-import static io.nats.client.NatsTestServer.getLocalhostUri;
+import static io.nats.client.AuthTests.getUserCredsAuthHander;
+import static io.nats.client.NatsTestServer.*;
 import static io.nats.client.support.NatsConstants.OUTPUT_QUEUE_IS_FULL;
 import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.*;
@@ -59,11 +59,11 @@ public class ReconnectTests {
 
     @Test
     public void testWsReconnect() throws Exception { //Includes test for subscriptions and dispatchers across reconnect
-        _testReconnect(NatsServerRunner.builder().configFilePath("src/test/resources/ws_operator.conf"),
+        _testReconnect(configFileBuilder("ws_operator.conf"),
             (ts, optionsBuilder) ->
                 optionsBuilder
                     .server(ts.getLocalhostUri("ws"))
-                    .authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds")));
+                    .authHandler(getUserCredsAuthHander()));
     }
 
     private void _testReconnect(NatsServerRunner.Builder nsrb, BiConsumer<NatsTestServer, Options.Builder> optSetter) throws Exception {
@@ -160,7 +160,7 @@ public class ReconnectTests {
 
         listener.prepForStatusChange(Events.RECONNECTED);
 
-        try (NatsTestServer ignored = new NatsTestServer(port, false)) {
+        try (NatsTestServer ignored = new NatsTestServer(port)) {
             listenerConnectionWait(nc, listener);
 
             // Make sure the dispatcher and subscription are still there
@@ -189,7 +189,7 @@ public class ReconnectTests {
         long end;
         String[] customArgs = {"--user","stephen","--pass","password"};
 
-        try (NatsTestServer ts = new NatsTestServer(customArgs, port, false)) {
+        try (NatsTestServer ts = new NatsTestServer(customArgs, port)) {
             Options options = optionsBuilder(ts)
                 .maxReconnects(-1)
                 .userInfo("stephen".toCharArray(), "password".toCharArray())
@@ -228,7 +228,7 @@ public class ReconnectTests {
 
         listener.prepForStatusChange(Events.RESUBSCRIBED);
 
-        try (NatsTestServer ignored = new NatsTestServer(customArgs, port, false)) {
+        try (NatsTestServer ignored = new NatsTestServer(customArgs, port)) {
             listenerConnectionWait(nc, listener);
 
             end = System.nanoTime();
@@ -258,7 +258,7 @@ public class ReconnectTests {
         ListenerForTesting listener = new ListenerForTesting();
         int port = NatsTestServer.nextPort();
 
-        try (NatsTestServer ts = new NatsTestServer(port, false)) {
+        try (NatsTestServer ts = new NatsTestServer(port)) {
             Options options = optionsBuilder(ts)
                 .maxReconnects(1)
                 .connectionListener(listener)
@@ -467,7 +467,7 @@ public class ReconnectTests {
 
             // connect good then bad
             listener.prepForStatusChange(Events.RESUBSCRIBED);
-            try (NatsTestServer ignored = new NatsTestServer(port, false)) {
+            try (NatsTestServer ignored = new NatsTestServer(port)) {
                 listenerConnectionWait(nc, listener);
                 listener.prepForStatusChange(Events.DISCONNECTED);
             }
@@ -525,8 +525,8 @@ public class ReconnectTests {
         };
 
         // Regular tls for first connection, then no ip for second
-        try ( NatsTestServer ts = new NatsTestServer("src/test/resources/tls_noip.conf", tsInserts, tsPort, false);
-              NatsTestServer ts2 = new NatsTestServer("src/test/resources/tls_noip.conf", ts2Inserts, ts2Port, false) ) {
+        try (NatsTestServer ts = new NatsTestServer("tls_noip.conf", tsInserts, tsPort);
+             NatsTestServer ts2 = new NatsTestServer("tls_noip.conf", ts2Inserts, ts2Port) ) {
 
             SslTestingHelper.setKeystoreSystemParameters();
             Options options = optionsBuilder(ts)
@@ -587,7 +587,7 @@ public class ReconnectTests {
         ListenerForTesting listener = new ListenerForTesting();
         int port = NatsTestServer.nextPort();
 
-        try (NatsTestServer ts = new NatsTestServer(port, false)) {
+        try (NatsTestServer ts = new NatsTestServer(port)) {
             Options options = optionsBuilder(ts)
                 .noReconnect()
                 .connectionListener(listener)
@@ -635,7 +635,7 @@ public class ReconnectTests {
 
         int port = NatsTestServer.nextPort();
 
-        try (NatsTestServer ts = new NatsTestServer(port, false)) {
+        try (NatsTestServer ts = new NatsTestServer(port)) {
             Options options = optionsBuilder(ts)
                 .maxReconnects(-1)
                 .connectionTimeout(Duration.ofSeconds(1))
@@ -643,6 +643,7 @@ public class ReconnectTests {
                 .connectionListener(trwh)
                 .build();
 
+            //noinspection unused
             try (Connection nc = Nats.connect(options)) {
                 ts.close();
                 sleep(250);
@@ -684,7 +685,7 @@ public class ReconnectTests {
             assertNull(testConn.get());
 
             // start a server that test conn can connect to
-            try (NatsTestServer ignored = new NatsTestServer(port, false)) {
+            try (NatsTestServer ignored = new NatsTestServer(port)) {
                 //noinspection ResultOfMethodCallIgnored
                 latch.await(2000, TimeUnit.MILLISECONDS);
                 assertSame(Connection.Status.CONNECTED, testConn.get().getStatus());
@@ -741,14 +742,14 @@ public class ReconnectTests {
     public void testForceReconnect() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
         ThreeServerTestOptions tstOpts = makeThreeServerTestOptions(listener, false);
-        runInJsCluster(tstOpts, (nc0, nc1, nc2) -> _testForceReconnect(nc0, listener));
+        runInCluster(tstOpts, (nc0, nc1, nc2) -> _testForceReconnect(nc0, listener));
     }
 
     @Test
     public void testForceReconnectWithAccount() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
         ThreeServerTestOptions tstOpts = makeThreeServerTestOptions(listener, true);
-        runInJsCluster(tstOpts, (nc0, nc1, nc2) -> _testForceReconnect(nc0, listener));
+        runInCluster(tstOpts, (nc0, nc1, nc2) -> _testForceReconnect(nc0, listener));
     }
 
     private static void _testForceReconnect(Connection nc0, ListenerForTesting listener) throws IOException, InterruptedException {
@@ -791,7 +792,7 @@ public class ReconnectTests {
 
     @Test
     public void testForceReconnectQueueBehaviorCheck() throws Exception {
-        runInJsCluster((nc0, nc1, nc2) -> {
+        runInCluster((nc0, nc1, nc2) -> {
             if (atLeast2_9_0(nc0)) {
                 int pubCount = 100_000;
                 int subscribeTime = 5000;
@@ -938,7 +939,7 @@ public class ReconnectTests {
             .errorListener(listener);
 
         AtomicBoolean gotOutputQueueIsFull = new AtomicBoolean();
-        runInServer(nc1 -> runInServer(nc2 -> {
+        runInOwnServer(nc1 -> runInOwnServer(nc2 -> {
             int port1 = nc1.getServerInfo().getPort();
             int port2 = nc2.getServerInfo().getPort();
 

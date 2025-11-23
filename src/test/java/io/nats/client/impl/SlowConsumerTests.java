@@ -32,7 +32,7 @@ public class SlowConsumerTests extends TestBase {
 
     @Test
     public void testDefaultPendingLimits() throws Exception {
-        runInLrServerOwnNc(nc -> {
+        runInSharedOwnNc(nc -> {
             String subject = random();
             Subscription sub = nc.subscribe(subject);
             Dispatcher d = nc.createDispatcher((Message m) -> {});
@@ -48,7 +48,7 @@ public class SlowConsumerTests extends TestBase {
 
     @Test
     public void testSlowSubscriberByMessages() throws Exception {
-        runInLrServerOwnNc(nc -> {
+        runInSharedOwnNc(nc -> {
             String subject = random();
             int expectedPending = subject.length() + 12;
             Subscription sub = nc.subscribe(subject);
@@ -80,7 +80,7 @@ public class SlowConsumerTests extends TestBase {
 
     @Test
     public void testSlowSubscriberByBytes() throws Exception {
-        runInLrServerOwnNc(nc -> {
+        runInSharedOwnNc(nc -> {
             String subject = random();
             int maxBytes = subject.length() + 3;
             int expectedPending = maxBytes + 9;
@@ -111,7 +111,7 @@ public class SlowConsumerTests extends TestBase {
 
     @Test
     public void testSlowSDispatcherByMessages() throws Exception {
-        runInLrServerOwnNc(nc -> {
+        runInSharedOwnNc(nc -> {
             String subject = random();
             int expectedPending = subject.length() + 12;
 
@@ -152,7 +152,7 @@ public class SlowConsumerTests extends TestBase {
 
     @Test
     public void testSlowSDispatcherByBytes() throws Exception {
-        runInLrServerOwnNc(nc -> {
+        runInSharedOwnNc(nc -> {
             String subject = random();
             int maxBytes = subject.length() + 3;
             int expectedPending = maxBytes + 9;
@@ -194,7 +194,7 @@ public class SlowConsumerTests extends TestBase {
     @Test
     public void testSlowSubscriberNotification() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInLrServerOwnNc(listener, nc -> {
+        runInSharedOwnNc(listener, nc -> {
             String subject = random();
             Subscription sub = nc.subscribe(subject);
             sub.setPendingLimits(1, -1);

@@ -39,7 +39,7 @@ public class ConnectionListenerTests extends TestBase {
     @Test
     public void testCloseCount() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInLrServerOwnNc(optionsBuilder().connectionListener(listener), nc -> {
+        runInSharedOwnNc(listener, nc -> {
             standardCloseConnection(nc);
             assertNull(nc.getConnectedUrl());
             assertEquals(1, listener.getEventCount(Events.CLOSED));
@@ -89,7 +89,7 @@ public class ConnectionListenerTests extends TestBase {
         assertTrue(listener.getEventCount(Events.DISCONNECTED) >= 1);
         assertNull(nc.getConnectedUrl());
 
-        try (NatsTestServer ts = new NatsTestServer(port, false)) {
+        try (NatsTestServer ts = new NatsTestServer(port)) {
             standardConnectionWait(nc);
             assertEquals(1, listener.getEventCount(Events.RECONNECTED));
             assertEquals(ts.getLocalhostUri(), nc.getConnectedUrl());
@@ -100,7 +100,7 @@ public class ConnectionListenerTests extends TestBase {
     @Test
     public void testExceptionInConnectionListener() throws Exception {
         BadHandler listener = new BadHandler();
-        runInLrServerOwnNc(optionsBuilder().connectionListener(listener), nc -> {
+        runInSharedOwnNc(listener, nc -> {
             standardCloseConnection(nc);
             assertTrue(((NatsConnection)nc).getStatisticsCollector().getExceptions() > 0);
         });
@@ -108,10 +108,9 @@ public class ConnectionListenerTests extends TestBase {
 
     @Test
     public void testMultipleConnectionListeners() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
         Set<String> capturedEvents = ConcurrentHashMap.newKeySet();
-        runInLrServerOwnNc(optionsBuilder().connectionListener(listener), nc -> {
-
+        ListenerForTesting listener = new ListenerForTesting();
+        runInSharedOwnNc(listener, nc -> {
             //noinspection DataFlowIssue // addConnectionListener parameter is annotated as @NonNull
             assertThrows(NullPointerException.class, () -> nc.addConnectionListener(null));
             //noinspection DataFlowIssue // removeConnectionListener parameter is annotated as @NonNull

@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -60,8 +59,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedConsumerSync() throws Exception {
-        runInJsServer(nc -> {
-            JetStreamTestingContext jstc = new JetStreamTestingContext(nc);
+        runInShared((nc, jstc) -> {
             // Get this in place before any subscriptions are made
             jstc.js._pushOrderedMessageManagerFactory = OrderedTestDropSimulator::new;
 
@@ -77,7 +75,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
         });
     }
 
-    private static void _testOrderedConsumerSync(JetStreamTestingContext jstc, String consumerNamePrefix, PushSubscribeOptions pso) throws IOException, JetStreamApiException, TimeoutException, InterruptedException {
+    private static void _testOrderedConsumerSync(JetStreamTestingContext jstc, String consumerNamePrefix, PushSubscribeOptions pso) throws IOException, JetStreamApiException, InterruptedException {
         JetStreamSubscription sub = jstc.js.subscribe(jstc.subject(), pso);
         String firstConsumerName = validateOrderedConsumerNamePrefix(sub, consumerNamePrefix);
 
@@ -117,21 +115,24 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testOrderedConsumerAsync() throws Exception {
-        runInJsServer(nc -> {
+    public void testOrderedConsumerAsyncNoName() throws Exception {
+        runInShared((nc, jstc) -> {
             // without name (prefix)
-            JetStreamTestingContext jstc = new JetStreamTestingContext(nc);
             _testOrderedConsumerAsync(nc, jstc, null,
                 PushSubscribeOptions.builder().ordered(true).build());
+        });
+    }
 
+    @Test
+    public void testOrderedConsumerAsyncWithName() throws Exception {
+        runInShared((nc, jstc) -> {
             // with name (prefix)
-            jstc = new JetStreamTestingContext(nc);
             _testOrderedConsumerAsync(nc, jstc, jstc.consumerName(),
                 PushSubscribeOptions.builder().name(jstc.consumerName()).ordered(true).build());
         });
     }
 
-    private static void _testOrderedConsumerAsync(Connection nc, JetStreamTestingContext jstc, String consumerNamePrefix, PushSubscribeOptions pso) throws JetStreamApiException, IOException, TimeoutException, InterruptedException {
+    private static void _testOrderedConsumerAsync(Connection nc, JetStreamTestingContext jstc, String consumerNamePrefix, PushSubscribeOptions pso) throws JetStreamApiException, IOException, InterruptedException {
         // Get this in place before any subscriptions are made
         jstc.js._pushOrderedMessageManagerFactory = OrderedTestDropSimulator::new;
 
@@ -254,9 +255,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
     @Test
     public void testHeartbeatError() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInJsServer(listener, nc -> {
-            JetStreamTestingContext jstc = new JetStreamTestingContext(nc);
-
+        runInSharedOwnNc(listener, (nc, jstc) -> {
             Dispatcher d = nc.createDispatcher();
             ConsumerConfiguration cc = ConsumerConfiguration.builder().idleHeartbeat(100).build();
             JetStream js = jstc.js;
@@ -326,8 +325,6 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
 
     private static SimulatorState setupPullFactory(JetStream js) {
         SimulatorState state = new SimulatorState();
-        // the expected latch count is 1 b/c pull is dead once there is a hb error
-        CountDownLatch latch = new CountDownLatch(1);
         ((NatsJetStream)js)._pullMessageManagerFactory =
             (conn, lJs, stream, so, serverCC, qmode, dispatcher) ->
                 new PullHeartbeatErrorSimulator(conn, false, state);
@@ -336,8 +333,8 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
 
     @Test
     public void testMultipleSubjectFilters() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
-            JetStreamTestingContext jstc = new JetStreamTestingContext(nc, 2);
+        runInSharedCustomStream(VersionUtils::atLeast2_10, (nc, jstc) -> {
+            jstc.createStream(2);
             jsPublish(jstc.js, jstc.subject(0), 10);
             jsPublish(jstc.js, jstc.subject(1), 5);
 
@@ -402,7 +399,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
     @Test
     public void testRaiseStatusWarnings1194() throws Exception {
         ListenerForTesting listener = new ListenerForTesting(false, false);
-        runInLrServerOwnNc(listener, (nc, jstc) -> {
+        runInSharedOwnNc(listener, (nc, jstc) -> {
             // Setup
             StreamContext streamContext = nc.getStreamContext(jstc.stream);
 

@@ -31,9 +31,14 @@ public class NatsKeyValueManagement implements KeyValueManagement {
     private final NatsJetStreamManagement jsm;
     private final boolean serverOlderThan272;
 
-    NatsKeyValueManagement(NatsConnection connection, KeyValueOptions kvo) throws IOException {
-        jsm = new NatsJetStreamManagement(connection, kvo == null ? null : kvo.getJetStreamOptions());
-        serverOlderThan272 = jsm.conn.getServerInfo().isOlderThanVersion("2.7.2");
+    NatsKeyValueManagement(NatsConnection connection, KeyValueOptions kvo, NatsJetStreamManagement jsm) throws IOException {
+        if (jsm == null) {
+            this.jsm = new NatsJetStreamManagement(connection, kvo == null ? null : kvo.getJetStreamOptions());
+        }
+        else {
+            this.jsm = jsm;
+        }
+        serverOlderThan272 = this.jsm.conn.getServerInfo().isOlderThanVersion("2.7.2");
     }
 
     /**

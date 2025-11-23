@@ -19,7 +19,7 @@ public class AuthViolationDuringReconnectOnFlushTimeoutTest {
     private static final int NUMBER_OF_SUBS = 1_000_000;
 
     private static void startServer(Context ctx) throws IOException {
-        ctx.server.set(new NatsTestServer(new String[]{"--auth", "1234"}, ctx.port, false));
+        ctx.server.set(new NatsTestServer(new String[]{"--auth", "1234"}, ctx.port));
     }
 
     private static void restartServer(Context ctx) {

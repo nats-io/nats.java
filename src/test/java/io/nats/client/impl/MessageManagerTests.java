@@ -39,7 +39,7 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void testConstruction() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
+        runInShared(nc -> {
             NatsJetStreamSubscription sub = genericPushSub(nc);
             _pushConstruction(nc, true, true, push_hb_fc(), sub);
             _pushConstruction(nc, true, false, push_hb_xfc(), sub);
@@ -72,7 +72,7 @@ public class MessageManagerTests extends JetStreamTestBase {
     @Test
     public void testPushBeforeQueueProcessorAndManage() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInJsServer(listener, nc -> {
+        runInSharedOwnNc(listener, nc -> {
             NatsJetStreamSubscription sub = genericPushSub(nc);
 
             PushMessageManager pushMgr = getPushManager(nc, push_hb_fc(), sub, false, true, false);
@@ -135,7 +135,7 @@ public class MessageManagerTests extends JetStreamTestBase {
     @Test
     public void testPullBeforeQueueProcessorAndManage() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInJsServer(listener, nc -> {
+        runInSharedOwnNc(listener, nc -> {
             NatsJetStreamSubscription sub = genericPullSub(nc);
 
             String pullSubject = random();
@@ -209,7 +209,7 @@ public class MessageManagerTests extends JetStreamTestBase {
     @Test
     public void testPushManagerHeartbeats() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInJsServer(listener, nc -> {
+        runInSharedOwnNc(listener, nc -> {
             PushMessageManager pushMgr = getPushManager(nc, push_xhb_xfc(), null, false, true, false);
             NatsJetStreamSubscription sub = mockSub((NatsConnection)nc, pushMgr);
 
@@ -249,7 +249,7 @@ public class MessageManagerTests extends JetStreamTestBase {
     @Test
     public void testPullManagerHeartbeats() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInJsServer(listener, nc -> {
+        runInSharedOwnNc(listener, nc -> {
             PullMessageManager pullMgr = getPullManager(nc, null, true);
             NatsJetStreamSubscription sub = mockSub((NatsConnection)nc, pullMgr);
             pullMgr.startup(sub);
@@ -389,7 +389,7 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void test_received_time() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             _received_time_yes(push_hb_fc(), jstc.js, jstc.subject());
             _received_time_yes(push_hb_xfc(), jstc.js, jstc.subject());
             _received_time_no(jstc.js, jstc.jsm, jstc.stream, jstc.subject(), jstc.js.subscribe(jstc.subject(), push_xhb_xfc()));
@@ -415,7 +415,7 @@ public class MessageManagerTests extends JetStreamTestBase {
             return (PushMessageManager)mm;
         }
         return null;
-    };
+    }
 
     private void _received_time_no(JetStream js, JetStreamManagement jsm, String stream, String subject, JetStreamSubscription sub) throws IOException, JetStreamApiException, InterruptedException {
         js.publish(subject, dataBytes(0));
@@ -428,7 +428,7 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void test_hb_yes_settings() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
+        runInShared(nc -> {
             NatsJetStreamSubscription sub = genericPushSub(nc);
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder().idleHeartbeat(1000).build();
@@ -461,7 +461,7 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void test_hb_no_settings() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
+        runInShared(nc -> {
             NatsJetStreamSubscription sub = genericPushSub(nc);
             SubscribeOptions so = push_xhb_xfc();
             PushMessageManager manager = getPushManager(nc, so, sub, false);

@@ -114,7 +114,7 @@ public class ValidateIssue1426Test {
         }
 
         public void startServer() throws IOException {
-            server.set(new NatsTestServer(new String[]{"--auth", "1234"}, port, false));
+            server.set(new NatsTestServer(new String[]{"--auth", "1234"}, port));
         }
 
         private void restartServer() {

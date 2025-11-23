@@ -41,6 +41,7 @@ import static io.nats.client.support.Encoding.base64UrlEncodeToString;
 import static io.nats.client.support.NatsConstants.DEFAULT_PORT;
 import static io.nats.client.utils.OptionsUtils.options;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
+import static io.nats.client.utils.ResourceUtils.jwtResource;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class OptionsTests {
@@ -222,12 +223,8 @@ public class OptionsTests {
 
     @Test
     public void testHttpRequestInterceptors() {
-        java.util.function.Consumer<HttpRequest> interceptor1 = req -> {
-            req.getHeaders().add("Test1", "Header");
-        };
-        java.util.function.Consumer<HttpRequest> interceptor2 = req -> {
-            req.getHeaders().add("Test2", "Header");
-        };
+        java.util.function.Consumer<HttpRequest> interceptor1 = req -> req.getHeaders().add("Test1", "Header");
+        java.util.function.Consumer<HttpRequest> interceptor2 = req -> req.getHeaders().add("Test2", "Header");
         Options o = optionsBuilder()
             .httpRequestInterceptor(interceptor1)
             .httpRequestInterceptor(interceptor2)
@@ -398,7 +395,7 @@ public class OptionsTests {
         props.setProperty(Options.PROP_CONNECTION_NAME, "name");
 
         // stringProperty builds an auth handler
-        props.setProperty(Options.PROP_CREDENTIAL_PATH, "src/test/resources/jwt_nkey/test.creds");
+        props.setProperty(Options.PROP_CREDENTIAL_PATH, jwtResource("test.creds"));
 
         // charArrayProperty
         props.setProperty(Options.PROP_USERNAME, "user");
@@ -490,7 +487,7 @@ public class OptionsTests {
     }
 
     @Test
-    public void testPropertiesCoverageOptions() throws Exception {
+    public void testPropertiesCoverageOptions() {
         Properties props = new Properties();
         props.setProperty(Options.PROP_SECURE, "false");
         props.setProperty(Options.PROP_OPENTLS, "false");
@@ -1036,9 +1033,8 @@ public class OptionsTests {
         Options options = optionsBuilder()
                 .callbackThreadFactory(threadFactory)
                 .build();
-        Future<?> callbackFuture = options.getCallbackExecutor().submit(() -> {
-            assertEquals("test", Thread.currentThread().getName());
-        });
+        Future<?> callbackFuture = options.getCallbackExecutor().submit(
+            () -> assertEquals("test", Thread.currentThread().getName()));
         callbackFuture.get(5, TimeUnit.SECONDS);
     }
 
@@ -1048,9 +1044,8 @@ public class OptionsTests {
         Options options = optionsBuilder()
                 .connectThreadFactory(threadFactory)
                 .build();
-        Future<?> connectFuture = options.getConnectExecutor().submit(() -> {
-            assertEquals("test", Thread.currentThread().getName());
-        });
+        Future<?> connectFuture = options.getConnectExecutor().submit(
+            () -> assertEquals("test", Thread.currentThread().getName()));
         connectFuture.get(5, TimeUnit.SECONDS);
     }
 

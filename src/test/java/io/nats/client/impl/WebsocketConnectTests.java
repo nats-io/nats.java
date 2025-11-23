@@ -32,8 +32,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static io.nats.client.ConnectionListener.Events.CONNECTED;
-import static io.nats.client.NatsTestServer.getLocalhostUri;
-import static io.nats.client.NatsTestServer.nextPort;
+import static io.nats.client.NatsTestServer.*;
 import static io.nats.client.utils.ConnectionUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -42,7 +41,7 @@ public class WebsocketConnectTests extends TestBase {
     @Test
     public void testRequestReply() throws Exception {
         //System.setProperty("javax.net.debug", "all");
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/ws.conf", false)) {
+        try (NatsTestServer ts = configFileServer("ws.conf")) {
             standardRequestReply(Options.builder()
                 .server(getLocalhostUri(ts.getPort()))
                 .maxReconnects(0).build());
@@ -55,9 +54,8 @@ public class WebsocketConnectTests extends TestBase {
 
     private static void standardRequestReply(Options options) throws InterruptedException, IOException {
         try (Connection connection = standardConnectionWait(options)) {
-            Dispatcher dispatcher = connection.createDispatcher(msg -> {
-                connection.publish(msg.getReplyTo(), (new String(msg.getData()) + ":REPLY").getBytes());
-            });
+            Dispatcher dispatcher = connection.createDispatcher(
+                msg -> connection.publish(msg.getReplyTo(), (new String(msg.getData()) + ":REPLY").getBytes()));
             try {
                 dispatcher.subscribe("TEST");
                 Message response = connection.request("TEST", "REQUEST".getBytes()).join();
@@ -71,7 +69,7 @@ public class WebsocketConnectTests extends TestBase {
     @Test
     public void testTLSRequestReply() throws Exception {
         //System.setProperty("javax.net.debug", "all");
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/wss.conf", false)) {
+        try (NatsTestServer ts = configFileServer("wss.conf")) {
 
             java.util.function.Consumer<HttpRequest> interceptor = req -> {
                 // Ideally we could validate that this header was sent to NATS server
@@ -96,7 +94,7 @@ public class WebsocketConnectTests extends TestBase {
         RunProxy proxy = new RunProxy(new InetSocketAddress("localhost", 0), null, executor);
         executor.submit(proxy);
 
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/ws.conf", false)) {
+        try (NatsTestServer ts = configFileServer("ws.conf")) {
             Options options = Options.builder()
                 .server(NatsTestServer.getLocalhostUri("ws", ts.getPort("ws")))
                 .maxReconnects(0)
@@ -109,7 +107,7 @@ public class WebsocketConnectTests extends TestBase {
     @Test
     public void testSimpleTLSConnection() throws Exception {
         //System.setProperty("javax.net.debug", "all");
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/wss.conf", false)) {
+        try (NatsTestServer ts = configFileServer("wss.conf")) {
             SSLContext ctx = SslTestingHelper.createTestSSLContext();
             Options options = Options.builder()
                 .server(NatsTestServer.getLocalhostUri("wss", ts.getPort("wss")))
@@ -123,7 +121,7 @@ public class WebsocketConnectTests extends TestBase {
     @Test
     public void testSimpleWSSIPConnection() throws Exception {
         //System.setProperty("javax.net.debug", "all");
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/wss.conf", false)) {
+        try (NatsTestServer ts = configFileServer("wss.conf")) {
             SSLContext ctx = SslTestingHelper.createTestSSLContext();
             Options options = Options.builder().
                                 server("wss://127.0.0.1:" + ts.getPort("wss")).
@@ -136,7 +134,7 @@ public class WebsocketConnectTests extends TestBase {
 
     @Test
     public void testVerifiedTLSConnection() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/wssverify.conf", false)) {
+        try (NatsTestServer ts = configFileServer("wssverify.conf")) {
             SSLContext ctx = SslTestingHelper.createTestSSLContext();
             Options options = Options.builder()
                 .server(NatsTestServer.getLocalhostUri("wss", ts.getPort("wss")))
@@ -149,7 +147,7 @@ public class WebsocketConnectTests extends TestBase {
 
     @Test
     public void testOpenTLSConnection() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/wss.conf", false)) {
+        try (NatsTestServer ts = configFileServer("wss.conf")) {
             Options options = Options.builder()
                 .server(NatsTestServer.getLocalhostUri("wss", ts.getPort("wss")))
                 .maxReconnects(0)
@@ -161,7 +159,7 @@ public class WebsocketConnectTests extends TestBase {
 
     @Test
     public void testURIWSSHostConnection() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/wssverify.conf", false)) {
+        try (NatsTestServer ts = configFileServer("wssverify.conf")) {
             Options options = Options.builder()
                 .server(NatsTestServer.getLocalhostUri("wss", ts.getPort("wss")))
                 .sslContext(SslTestingHelper.createTestSSLContext())// override the custom one
@@ -173,7 +171,7 @@ public class WebsocketConnectTests extends TestBase {
 
     @Test
     public void testURIWSSIPConnection() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/wssverify.conf", false)) {
+        try (NatsTestServer ts = configFileServer("wssverify.conf")) {
             Options options = Options.builder()
                 .server("wss://127.0.0.1:" + ts.getPort("wss"))
                 .sslContext(SslTestingHelper.createTestSSLContext()) // override the custom one
@@ -186,7 +184,7 @@ public class WebsocketConnectTests extends TestBase {
     @Test
     public void testURISchemeWSSConnection() throws Exception {
         SSLContext originalDefault = SSLContext.getDefault();
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/wss.conf", false)) {
+        try (NatsTestServer ts = configFileServer("wss.conf")) {
             SSLContext.setDefault(SslTestingHelper.createTestSSLContext());
             Options options = Options.builder()
                 .server(NatsTestServer.getLocalhostUri("wss", ts.getPort("wss")))
@@ -201,7 +199,7 @@ public class WebsocketConnectTests extends TestBase {
     @Test
     public void testURISchemeWSSConnectionEnsureTlsFirstHasNoEffect() throws Exception {
         SSLContext originalDefault = SSLContext.getDefault();
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/wss.conf", false)) {
+        try (NatsTestServer ts = configFileServer("wss.conf")) {
             SSLContext.setDefault(SslTestingHelper.createTestSSLContext());
             Options options = Options.builder()
                 .server(NatsTestServer.getLocalhostUri("wss", ts.getPort("wss")))
@@ -216,7 +214,7 @@ public class WebsocketConnectTests extends TestBase {
 
     @Test
     public void testTLSMessageFlow() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/wssverify.conf", false)) {
+        try (NatsTestServer ts = configFileServer("wssverify.conf")) {
             SSLContext ctx = SslTestingHelper.createTestSSLContext();
             int msgCount = 100;
             Options options = Options.builder()
@@ -225,9 +223,7 @@ public class WebsocketConnectTests extends TestBase {
                 .sslContext(ctx)
                 .build();
             Connection nc = standardConnectionWait(options);
-            Dispatcher d = nc.createDispatcher(msg -> {
-                nc.publish(msg.getReplyTo(), new byte[16]);
-            });
+            Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), new byte[16]));
             d.subscribe("subject");
 
             for (int i=0;i<msgCount;i++) {
@@ -248,7 +244,7 @@ public class WebsocketConnectTests extends TestBase {
         int port = nextPort();
         int wssPort = nextPort();
 
-        NatsServerRunner.Builder builder = NatsServerRunner.builder().configFilePath("src/test/resources/wssverify.conf")
+        NatsServerRunner.Builder builder = configFileBuilder("wssverify.conf")
             .port(port)
             .port("wss", wssPort);
         SSLContext ctx = SslTestingHelper.createTestSSLContext();
@@ -281,7 +277,7 @@ public class WebsocketConnectTests extends TestBase {
     @Test
     public void testDisconnectOnUpgrade() {
         assertThrows(IOException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer("src/test/resources/wssverify.conf", false)) {
+            try (NatsTestServer ts = configFileServer("wssverify.conf")) {
                 SSLContext ctx = SslTestingHelper.createTestSSLContext();
                 Options options = Options.builder()
                     .server(ts.getLocalhostUri("wss"))
@@ -295,9 +291,9 @@ public class WebsocketConnectTests extends TestBase {
     }
 
     @Test
-    public void testServerSecureClientNotMismatch() throws Exception {
+    public void testServerSecureClientNotMismatch() {
         assertThrows(IOException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer("src/test/resources/wssverify.conf", false)) {
+            try (NatsTestServer ts = configFileServer("wssverify.conf")) {
                 Options options = Options.builder()
                     .server(NatsTestServer.getLocalhostUri("ws", ts.getPort("wss")))
                     .maxReconnects(0)
@@ -325,7 +321,7 @@ public class WebsocketConnectTests extends TestBase {
     @Test
     public void testClientServerCertMismatch() {
         assertThrows(IOException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer("src/test/resources/wssverify.conf", false)) {
+            try (NatsTestServer ts = configFileServer("wssverify.conf")) {
                 SSLContext ctx = SslTestingHelper.createEmptySSLContext();
                 Options options = Options.builder()
                     .server(ts.getLocalhostUri("wss"))

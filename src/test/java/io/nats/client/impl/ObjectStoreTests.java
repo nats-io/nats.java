@@ -37,8 +37,8 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
     @Test
     public void testWorkflow() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
-            ObjectStoreManagement osm = nc.objectStoreManagement();
+        runInOwnJsServer((nc, jsm, js) -> {
+            ObjectStoreManagement osm = jsm.objectStoreManagement();
             nc.objectStoreManagement(ObjectStoreOptions.builder(DEFAULT_JS_OPTIONS).build()); // coverage
 
             Map<String, String> metadata = new HashMap<>();
@@ -249,8 +249,8 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
     @Test
     public void testManageGetBucketNamesStatuses() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
-            ObjectStoreManagement osm = nc.objectStoreManagement();
+        runInOwnJsServer((nc, jsm, js) -> {
+            ObjectStoreManagement osm = jsm.objectStoreManagement();
 
             // create bucket 1
             String bucket1 = random();
@@ -311,8 +311,8 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
     @Test
     public void testObjectLinks() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
-            ObjectStoreManagement osm = nc.objectStoreManagement();
+        runInOwnJsServer((nc, jsm, js) -> {
+            ObjectStoreManagement osm = jsm.objectStoreManagement();
 
             String bucket1 = "b1"; // bucket();
             String bucket2 = "b2"; // bucket();
@@ -432,8 +432,8 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
     @Test
     public void testList() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
-            ObjectStoreManagement osm = nc.objectStoreManagement();
+        runInOwnJsServer((nc, jsm, js) -> {
+            ObjectStoreManagement osm = jsm.objectStoreManagement();
 
             String bucket = random();
             osm.create(ObjectStoreConfiguration.builder(bucket).storageType(StorageType.Memory).build());
@@ -467,9 +467,9 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
     @Test
     public void testSeal() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
+        runInOwnJsServer((nc, jsm, js) -> {
             String bucket = random();
-            ObjectStoreManagement osm = nc.objectStoreManagement();
+            ObjectStoreManagement osm = jsm.objectStoreManagement();
             osm.create(ObjectStoreConfiguration.builder(bucket)
                 .storageType(StorageType.Memory)
                 .build());
@@ -490,9 +490,9 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
     @Test
     public void testCompression() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
+        runInOwnJsServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
             String bucket = random();
-            ObjectStoreManagement osm = nc.objectStoreManagement();
+            ObjectStoreManagement osm = jsm.objectStoreManagement();
             osm.create(ObjectStoreConfiguration.builder(bucket)
                 .storageType(StorageType.Memory)
                 .compression(true)
@@ -555,21 +555,21 @@ public class ObjectStoreTests extends JetStreamTestBase {
         TestObjectStoreWatcher fullAfterWatcher = new TestObjectStoreWatcher("fullAfterWatcher", false);
         TestObjectStoreWatcher delAfterWatcher = new TestObjectStoreWatcher("delAfterWatcher", false, IGNORE_DELETE);
 
-        runInLrServer((nc, jsm, js) -> {
-            _testWatch(nc, fullB4Watcher, new Object[]{"A", "B", null}, os -> os.watch(fullB4Watcher, fullB4Watcher.watchOptions));
-            _testWatch(nc, delB4Watcher, new Object[]{"A", "B"}, os -> os.watch(delB4Watcher, delB4Watcher.watchOptions));
-            _testWatch(nc, fullAfterWatcher, new Object[]{"B", null}, os -> os.watch(fullAfterWatcher, fullAfterWatcher.watchOptions));
-            _testWatch(nc, delAfterWatcher, new Object[]{"B"}, os -> os.watch(delAfterWatcher, delAfterWatcher.watchOptions));
+        runInOwnJsServer((nc, jsm, js) -> {
+            _testWatch(jsm, fullB4Watcher, new Object[]{"A", "B", null}, os -> os.watch(fullB4Watcher, fullB4Watcher.watchOptions));
+            _testWatch(jsm, delB4Watcher, new Object[]{"A", "B"}, os -> os.watch(delB4Watcher, delB4Watcher.watchOptions));
+            _testWatch(jsm, fullAfterWatcher, new Object[]{"B", null}, os -> os.watch(fullAfterWatcher, fullAfterWatcher.watchOptions));
+            _testWatch(jsm, delAfterWatcher, new Object[]{"B"}, os -> os.watch(delAfterWatcher, delAfterWatcher.watchOptions));
         });
     }
 
-    private void _testWatch(Connection nc, TestObjectStoreWatcher watcher, Object[] expecteds, TestWatchSubSupplier supplier) throws Exception {
-        ObjectStoreManagement osm = nc.objectStoreManagement();
+    private void _testWatch(JetStreamManagement jsm, TestObjectStoreWatcher watcher, Object[] expecteds, TestWatchSubSupplier supplier) throws Exception {
+        ObjectStoreManagement osm = jsm.objectStoreManagement();
 
         String bucket = watcher.name + "Bucket";
         osm.create(ObjectStoreConfiguration.builder(bucket).storageType(StorageType.Memory).build());
 
-        ObjectStore os = nc.objectStore(bucket);
+        ObjectStore os = jsm.objectStore(bucket);
 
         NatsObjectStoreWatchSubscription sub = null;
 
@@ -609,6 +609,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
         for (ObjectInfo oi : watcher.entries) {
 
+            assertNotNull(oi.getModified());
             assertTrue(oi.getModified().isAfter(lastMod) || oi.getModified().isEqual(lastMod));
             lastMod = oi.getModified();
 
@@ -619,6 +620,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
                 assertTrue(oi.isDeleted());
             }
             else {
+                assertNotNull(oi.getObjectMeta().getObjectMetaOptions());
                 assertEquals(CHUNK_SIZE, oi.getObjectMeta().getObjectMetaOptions().getChunkSize());
                 assertEquals(CHUNKS, oi.getChunks());
                 assertEquals(SIZE, oi.getSize());

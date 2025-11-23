@@ -15,6 +15,8 @@ package io.nats.client.impl;
 
 import io.nats.client.Connection;
 import io.nats.client.JetStreamApiException;
+import io.nats.client.api.StorageType;
+import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
 import io.nats.client.utils.TestBase;
 
@@ -46,21 +48,71 @@ public class JetStreamTestingContext implements AutoCloseable {
         consumerNameBase = TestBase.random();
         this.consumerNames = new HashMap<>();
 
-        subjectCount = Math.max(subjectCount, 1);
+        if (subjectCount > 0) {
+            this.si = TestBase.createMemoryStream(jsm, stream, getSubjects(subjectCount));
+        }
+        else {
+            this.si = null;
+        }
+    }
+
+    public String[] getSubjects(int subjectCount) {
         String[] subjects = new String[subjectCount];
         for (int x = 0; x < subjectCount; x++) {
             subjects[x] = subject(x);
         }
-        this.si = TestBase.createMemoryStream(jsm, stream, subjects);
+        return subjects;
+    }
+
+    public void createStream() throws JetStreamApiException, IOException {
+        si = TestBase.createMemoryStream(jsm, stream, subject(0));
+    }
+
+    public void createStream(int subjectCount) throws JetStreamApiException, IOException {
+        si = TestBase.createMemoryStream(jsm, stream, getSubjects(subjectCount));
+    }
+
+    public void createStream(String... subjects) throws JetStreamApiException, IOException {
+        si = TestBase.createMemoryStream(jsm, stream, subjects);
+    }
+
+    public StreamConfiguration.Builder scBuilder(int subjectCount) {
+        StreamConfiguration.Builder b = StreamConfiguration.builder()
+            .name(stream)
+            .storageType(StorageType.Memory);
+        if (subjectCount > 0) {
+            b.subjects(getSubjects(subjectCount));
+        }
+        return b;
+    }
+
+    public StreamInfo addStream(StreamConfiguration.Builder builder) throws JetStreamApiException, IOException {
+        si = jsm.addStream(builder.name(stream).storageType(StorageType.Memory).build());
+        return si;
+    }
+
+    public StreamInfo addStream(StreamConfiguration sc) throws JetStreamApiException, IOException {
+        si = jsm.addStream(sc);
+        return si;
+    }
+
+    public void replaceStream(String... newSubjects) throws JetStreamApiException, IOException {
+        jsm.deleteStream(stream);
+        createStream(newSubjects);
+    }
+
+    public StreamInfo replaceStream(StreamConfiguration newSc) throws JetStreamApiException, IOException {
+        jsm.deleteStream(stream);
+        return addStream(newSc);
+    }
+
+    public boolean deleteStream() throws JetStreamApiException, IOException {
+        return jsm.deleteStream(stream);
     }
 
     @Override
     public void close() throws Exception {
-        try {
-            jsm.deleteStream(stream);
-        }
-        catch (Exception ignore) {
-        }
+        try { jsm.deleteStream(stream); } catch (Exception ignore) {}
     }
 
     public String subject() {
@@ -68,7 +120,7 @@ public class JetStreamTestingContext implements AutoCloseable {
     }
 
     public String subject(Object variant) {
-        return subjects.computeIfAbsent(variant, v -> subjectBase + "-" + v);
+        return subjects.computeIfAbsent(variant, v -> subjectBase + "_" + v);
     }
 
     public String consumerName() {

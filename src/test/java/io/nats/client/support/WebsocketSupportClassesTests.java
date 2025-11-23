@@ -28,6 +28,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static io.nats.client.NatsTestServer.configFileServer;
 import static io.nats.client.support.WebsocketFrameHeader.OpCode;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.*;
@@ -321,7 +322,7 @@ public class WebsocketSupportClassesTests {
     @Test
     public void testWebSocketCoverage() throws Exception {
         AtomicReference<String> lastMethod = new AtomicReference<>();
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/ws.conf", false)) {
+        try (NatsTestServer ts = configFileServer("ws.conf")) {
             try (Socket tcpSocket = new Socket("localhost", ts.getPort("ws"))) {
                 WebSocket webSocket = new WebSocket(new Socket() {
                     @Override

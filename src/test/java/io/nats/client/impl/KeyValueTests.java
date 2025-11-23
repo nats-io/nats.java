@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.JetStreamOptions.DEFAULT_JS_OPTIONS;
+import static io.nats.client.NatsTestServer.configFileServer;
 import static io.nats.client.api.KeyValuePurgeOptions.DEFAULT_THRESHOLD_MILLIS;
 import static io.nats.client.api.KeyValueWatchOption.*;
 import static io.nats.client.support.NatsConstants.DOT;
@@ -54,9 +55,9 @@ public class KeyValueTests extends JetStreamTestBase {
         String stringValue1 = "String Value 1";
         String stringValue2 = "String Value 2";
 
-        runInLrServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
+        runInOwnJsServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
             // get the kv management context
-            KeyValueManagement kvm = nc.keyValueManagement();
+            KeyValueManagement kvm = jsm.keyValueManagement();
             nc.keyValueManagement(KeyValueOptions.builder(DEFAULT_JS_OPTIONS).build()); // coverage
 
             Map<String, String> metadata = new HashMap<>();
@@ -366,8 +367,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testGetRevision() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
-            KeyValueManagement kvm = nc.keyValueManagement();
+        runInOwnJsServer((nc, jsm, js) -> {
+            KeyValueManagement kvm = jsm.keyValueManagement();
 
             String bucket = random();
             kvm.create(KeyValueConfiguration.builder()
@@ -404,8 +405,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testKeys() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
-            KeyValueManagement kvm = nc.keyValueManagement();
+        runInOwnJsServer((nc, jsm, js) -> {
+            KeyValueManagement kvm = jsm.keyValueManagement();
 
             // create bucket
             String bucket = random();
@@ -494,8 +495,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testMaxHistoryPerKey() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
-            KeyValueManagement kvm = nc.keyValueManagement();
+        runInOwnJsServer((nc, jsm, js) -> {
+            KeyValueManagement kvm = jsm.keyValueManagement();
 
             String bucket1 = random();
             String bucket2 = random();
@@ -535,8 +536,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testCreateUpdate() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
-            KeyValueManagement kvm = nc.keyValueManagement();
+        runInOwnJsServer((nc, jsm, js) -> {
+            KeyValueManagement kvm = jsm.keyValueManagement();
 
             String bucket = random();
 
@@ -608,8 +609,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testHistoryDeletePurge() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
-            KeyValueManagement kvm = nc.keyValueManagement();
+        runInOwnJsServer((nc, jsm, js) -> {
+            KeyValueManagement kvm = jsm.keyValueManagement();
 
             // create bucket
             String bucket = random();
@@ -639,8 +640,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testAtomicDeleteAtomicPurge() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
-            KeyValueManagement kvm = nc.keyValueManagement();
+        runInOwnJsServer((nc, jsm, js) -> {
+            KeyValueManagement kvm = jsm.keyValueManagement();
 
             // create bucket
             String bucket = random();
@@ -696,8 +697,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testPurgeDeletes() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
-            KeyValueManagement kvm = nc.keyValueManagement();
+        runInOwnJsServer((nc, jsm, js) -> {
+            KeyValueManagement kvm = jsm.keyValueManagement();
 
             // create bucket
             String bucket = random();
@@ -756,8 +757,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testCreateAndUpdate() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
-            KeyValueManagement kvm = nc.keyValueManagement();
+        runInOwnJsServer((nc, jsm, js) -> {
+            KeyValueManagement kvm = jsm.keyValueManagement();
 
             // create bucket
             String bucket = random();
@@ -864,8 +865,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testManageGetBucketNamesStatuses() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
-            KeyValueManagement kvm = nc.keyValueManagement();
+        runInOwnJsServer((nc, jsm, js) -> {
+            KeyValueManagement kvm = jsm.keyValueManagement();
 
             // create bucket 1
             String bucket1 = random();
@@ -1023,42 +1024,42 @@ public class KeyValueTests extends JetStreamTestBase {
 
         List<String> allKeys = Arrays.asList(TEST_WATCH_KEY_1, TEST_WATCH_KEY_2, TEST_WATCH_KEY_NULL);
 
-        runInLrServer((nc, jsm, js) -> {
-            _testWatch(nc, key1FullWatcher, key1AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1FullWatcher, key1FullWatcher.watchOptions));
-            _testWatch(nc, key1MetaWatcher, key1AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1MetaWatcher, key1MetaWatcher.watchOptions));
-            _testWatch(nc, key1StartNewWatcher, key1AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1StartNewWatcher, key1StartNewWatcher.watchOptions));
-            _testWatch(nc, key1StartAllWatcher, key1AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1StartAllWatcher, key1StartAllWatcher.watchOptions));
-            _testWatch(nc, key2FullWatcher, key2AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_2, key2FullWatcher, key2FullWatcher.watchOptions));
-            _testWatch(nc, key2MetaWatcher, key2AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_2, key2MetaWatcher, key2MetaWatcher.watchOptions));
-            _testWatch(nc, allAllFullWatcher, allExpecteds, -1, kv -> kv.watchAll(allAllFullWatcher, allAllFullWatcher.watchOptions));
-            _testWatch(nc, allAllMetaWatcher, allExpecteds, -1, kv -> kv.watchAll(allAllMetaWatcher, allAllMetaWatcher.watchOptions));
-            _testWatch(nc, allIgDelFullWatcher, allPutsExpecteds, -1, kv -> kv.watchAll(allIgDelFullWatcher, allIgDelFullWatcher.watchOptions));
-            _testWatch(nc, allIgDelMetaWatcher, allPutsExpecteds, -1, kv -> kv.watchAll(allIgDelMetaWatcher, allIgDelMetaWatcher.watchOptions));
-            _testWatch(nc, starFullWatcher, allExpecteds, -1, kv -> kv.watch("key.*", starFullWatcher, starFullWatcher.watchOptions));
-            _testWatch(nc, starMetaWatcher, allExpecteds, -1, kv -> kv.watch("key.*", starMetaWatcher, starMetaWatcher.watchOptions));
-            _testWatch(nc, gtFullWatcher, allExpecteds, -1, kv -> kv.watch("key.>", gtFullWatcher, gtFullWatcher.watchOptions));
-            _testWatch(nc, gtMetaWatcher, allExpecteds, -1, kv -> kv.watch("key.>", gtMetaWatcher, gtMetaWatcher.watchOptions));
-            _testWatch(nc, key1AfterWatcher, purgeOnlyExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1AfterWatcher, key1AfterWatcher.watchOptions));
-            _testWatch(nc, key1AfterIgDelWatcher, noExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1AfterIgDelWatcher, key1AfterIgDelWatcher.watchOptions));
-            _testWatch(nc, key1AfterStartNewWatcher, noExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1AfterStartNewWatcher, key1AfterStartNewWatcher.watchOptions));
-            _testWatch(nc, key1AfterStartFirstWatcher, purgeOnlyExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1AfterStartFirstWatcher, key1AfterStartFirstWatcher.watchOptions));
-            _testWatch(nc, key2AfterWatcher, key2AfterExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_2, key2AfterWatcher, key2AfterWatcher.watchOptions));
-            _testWatch(nc, key2AfterStartNewWatcher, noExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_2, key2AfterStartNewWatcher, key2AfterStartNewWatcher.watchOptions));
-            _testWatch(nc, key2AfterStartFirstWatcher, key2AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_2, key2AfterStartFirstWatcher, key2AfterStartFirstWatcher.watchOptions));
-            _testWatch(nc, key1FromRevisionAfterWatcher, key1FromRevisionExpecteds, 2, kv -> kv.watch(TEST_WATCH_KEY_1, key1FromRevisionAfterWatcher, 2, key1FromRevisionAfterWatcher.watchOptions));
-            _testWatch(nc, allFromRevisionAfterWatcher, allFromRevisionExpecteds, 2, kv -> kv.watchAll(allFromRevisionAfterWatcher, 2, allFromRevisionAfterWatcher.watchOptions));
+        runInOwnJsServer((nc, jsm, js) -> {
+            _testWatch(jsm, key1FullWatcher, key1AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1FullWatcher, key1FullWatcher.watchOptions));
+            _testWatch(jsm, key1MetaWatcher, key1AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1MetaWatcher, key1MetaWatcher.watchOptions));
+            _testWatch(jsm, key1StartNewWatcher, key1AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1StartNewWatcher, key1StartNewWatcher.watchOptions));
+            _testWatch(jsm, key1StartAllWatcher, key1AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1StartAllWatcher, key1StartAllWatcher.watchOptions));
+            _testWatch(jsm, key2FullWatcher, key2AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_2, key2FullWatcher, key2FullWatcher.watchOptions));
+            _testWatch(jsm, key2MetaWatcher, key2AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_2, key2MetaWatcher, key2MetaWatcher.watchOptions));
+            _testWatch(jsm, allAllFullWatcher, allExpecteds, -1, kv -> kv.watchAll(allAllFullWatcher, allAllFullWatcher.watchOptions));
+            _testWatch(jsm, allAllMetaWatcher, allExpecteds, -1, kv -> kv.watchAll(allAllMetaWatcher, allAllMetaWatcher.watchOptions));
+            _testWatch(jsm, allIgDelFullWatcher, allPutsExpecteds, -1, kv -> kv.watchAll(allIgDelFullWatcher, allIgDelFullWatcher.watchOptions));
+            _testWatch(jsm, allIgDelMetaWatcher, allPutsExpecteds, -1, kv -> kv.watchAll(allIgDelMetaWatcher, allIgDelMetaWatcher.watchOptions));
+            _testWatch(jsm, starFullWatcher, allExpecteds, -1, kv -> kv.watch("key.*", starFullWatcher, starFullWatcher.watchOptions));
+            _testWatch(jsm, starMetaWatcher, allExpecteds, -1, kv -> kv.watch("key.*", starMetaWatcher, starMetaWatcher.watchOptions));
+            _testWatch(jsm, gtFullWatcher, allExpecteds, -1, kv -> kv.watch("key.>", gtFullWatcher, gtFullWatcher.watchOptions));
+            _testWatch(jsm, gtMetaWatcher, allExpecteds, -1, kv -> kv.watch("key.>", gtMetaWatcher, gtMetaWatcher.watchOptions));
+            _testWatch(jsm, key1AfterWatcher, purgeOnlyExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1AfterWatcher, key1AfterWatcher.watchOptions));
+            _testWatch(jsm, key1AfterIgDelWatcher, noExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1AfterIgDelWatcher, key1AfterIgDelWatcher.watchOptions));
+            _testWatch(jsm, key1AfterStartNewWatcher, noExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1AfterStartNewWatcher, key1AfterStartNewWatcher.watchOptions));
+            _testWatch(jsm, key1AfterStartFirstWatcher, purgeOnlyExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_1, key1AfterStartFirstWatcher, key1AfterStartFirstWatcher.watchOptions));
+            _testWatch(jsm, key2AfterWatcher, key2AfterExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_2, key2AfterWatcher, key2AfterWatcher.watchOptions));
+            _testWatch(jsm, key2AfterStartNewWatcher, noExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_2, key2AfterStartNewWatcher, key2AfterStartNewWatcher.watchOptions));
+            _testWatch(jsm, key2AfterStartFirstWatcher, key2AllExpecteds, -1, kv -> kv.watch(TEST_WATCH_KEY_2, key2AfterStartFirstWatcher, key2AfterStartFirstWatcher.watchOptions));
+            _testWatch(jsm, key1FromRevisionAfterWatcher, key1FromRevisionExpecteds, 2, kv -> kv.watch(TEST_WATCH_KEY_1, key1FromRevisionAfterWatcher, 2, key1FromRevisionAfterWatcher.watchOptions));
+            _testWatch(jsm, allFromRevisionAfterWatcher, allFromRevisionExpecteds, 2, kv -> kv.watchAll(allFromRevisionAfterWatcher, 2, allFromRevisionAfterWatcher.watchOptions));
             List<String> keys = Arrays.asList(TEST_WATCH_KEY_1, TEST_WATCH_KEY_2);
-            _testWatch(nc, key1Key2FromRevisionAfterWatcher, allFromRevisionExpecteds, 2, kv -> kv.watch(keys, key1Key2FromRevisionAfterWatcher, 2, key1Key2FromRevisionAfterWatcher.watchOptions));
+            _testWatch(jsm, key1Key2FromRevisionAfterWatcher, allFromRevisionExpecteds, 2, kv -> kv.watch(keys, key1Key2FromRevisionAfterWatcher, 2, key1Key2FromRevisionAfterWatcher.watchOptions));
 
             if (atLeast2_10()) {
-                _testWatch(nc, multipleFullWatcher, allExpecteds, -1, kv -> kv.watch(allKeys, multipleFullWatcher, multipleFullWatcher.watchOptions));
-                _testWatch(nc, multipleMetaWatcher, allExpecteds, -1, kv -> kv.watch(allKeys, multipleMetaWatcher, multipleMetaWatcher.watchOptions));
+                _testWatch(jsm, multipleFullWatcher, allExpecteds, -1, kv -> kv.watch(allKeys, multipleFullWatcher, multipleFullWatcher.watchOptions));
+                _testWatch(jsm, multipleMetaWatcher, allExpecteds, -1, kv -> kv.watch(allKeys, multipleMetaWatcher, multipleMetaWatcher.watchOptions));
             }
         });
     }
 
-    private void _testWatch(Connection nc, TestKeyValueWatcher watcher, Object[] expectedKves, long fromRevision, TestWatchSubSupplier supplier) throws Exception {
-        KeyValueManagement kvm = nc.keyValueManagement();
+    private void _testWatch(JetStreamManagement jsm, TestKeyValueWatcher watcher, Object[] expectedKves, long fromRevision, TestWatchSubSupplier supplier) throws Exception {
+        KeyValueManagement kvm = jsm.keyValueManagement();
 
         String bucket = random() + watcher.name + "Bucket";
         kvm.create(KeyValueConfiguration.builder()
@@ -1067,7 +1068,7 @@ public class KeyValueTests extends JetStreamTestBase {
             .storageType(StorageType.Memory)
             .build());
 
-        KeyValue kv = nc.keyValue(bucket);
+        KeyValue kv = jsm.keyValue(bucket);
 
         NatsKeyValueWatchSubscription sub = null;
 
@@ -1106,7 +1107,7 @@ public class KeyValueTests extends JetStreamTestBase {
         // only testing this consumer name prefix on not meta only tests
         // this way there is coverage on working with and without a prefix
         if (!watcher.metaOnly) {
-            List<String> names = nc.jetStreamManagement().getConsumerNames("KV_" + bucket);
+            List<String> names = jsm.getConsumerNames("KV_" + bucket);
             assertEquals(1, names.size());
             assertNotNull(watcher.getConsumerNamePrefix());
             assertTrue(names.get(0).startsWith(watcher.getConsumerNamePrefix()));
@@ -1168,7 +1169,7 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testWithAccount() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/kv_account.conf", false)) {
+        try (NatsTestServer ts = configFileServer("kv_account.conf")) {
             Options acctA = optionsBuilder(ts).userInfo("a", "a").build();
             Options acctI = optionsBuilder(ts).userInfo("i", "i").inboxPrefix("ForI").build();
 
@@ -1360,8 +1361,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testKeyValueEntryEqualsImpl() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
-            KeyValueManagement kvm = nc.keyValueManagement();
+        runInOwnJsServer((nc, jsm, js) -> {
+            KeyValueManagement kvm = jsm.keyValueManagement();
 
             // create bucket 1
             String bucket1 = random();
@@ -1484,8 +1485,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testCreateDiscardPolicy() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
-            KeyValueManagement kvm = nc.keyValueManagement();
+        runInOwnJsServer((nc, jsm, js) -> {
+            KeyValueManagement kvm = jsm.keyValueManagement();
 
             // create bucket
             String bucket1 = random();
@@ -1506,8 +1507,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testEntryCoercion() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
-            KeyValueManagement kvm = nc.keyValueManagement();
+        runInOwnJsServer((nc, jsm, js) -> {
+            KeyValueManagement kvm = jsm.keyValueManagement();
 
             // create bucket
             String bucket = random();
@@ -1630,9 +1631,9 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testKeyValueMirrorCrossDomains() throws Exception {
-        runInJsHubLeaf((hub, leaf) -> {
-            KeyValueManagement hubKvm = hub.keyValueManagement();
-            KeyValueManagement leafKvm = leaf.keyValueManagement();
+        runInJsHubLeaf((hubNc, leafNc) -> {
+            KeyValueManagement hubKvm = hubNc.keyValueManagement();
+            KeyValueManagement leafKvm = leafNc.keyValueManagement();
 
             // Create main KV on HUB
             String hubBucket = random();
@@ -1641,7 +1642,7 @@ public class KeyValueTests extends JetStreamTestBase {
                 .storageType(StorageType.Memory)
                 .build());
 
-            KeyValue hubKv = hub.keyValue(hubBucket);
+            KeyValue hubKv = hubNc.keyValue(hubBucket);
             hubKv.put("key1", "aaa0");
             hubKv.put("key2", "bb0");
             hubKv.put("key3", "c0");
@@ -1651,6 +1652,7 @@ public class KeyValueTests extends JetStreamTestBase {
             String leafStream = "KV_" + leafBucket;
             leafKvm.create(KeyValueConfiguration.builder()
                 .name(leafBucket)
+                .storageType(StorageType.Memory)
                 .mirror(Mirror.builder()
                     .sourceName(hubBucket)
                     .domain(null)  // just for coverage!
@@ -1659,19 +1661,23 @@ public class KeyValueTests extends JetStreamTestBase {
                 .build());
 
             sleep(200); // make sure things get a chance to propagate
-            StreamInfo si = leaf.jetStreamManagement().getStreamInfo(leafStream);
-            if (hub.getServerInfo().isSameOrNewerThanVersion("2.9")) {
+            StreamInfo si = leafNc.jetStreamManagement().getStreamInfo(leafStream);
+            if (hubNc.getServerInfo().isSameOrNewerThanVersion("2.9")) {
                 assertTrue(si.getConfiguration().getMirrorDirect());
             }
             assertEquals(3, si.getStreamState().getMsgCount());
 
-            KeyValue leafKv = leaf.keyValue(leafBucket);
+            KeyValue leafKv = leafNc.keyValue(leafBucket);
             _testMirror(hubKv, leafKv, 1);
 
             // Bind through leafnode connection but to origin KV.
             KeyValue hubViaLeafKv =
-                leaf.keyValue(hubBucket, KeyValueOptions.builder().jsDomain(HUB_DOMAIN).build());
+                leafNc.keyValue(hubBucket, KeyValueOptions.builder().jsDomain(HUB_DOMAIN).build());
             _testMirror(hubKv, hubViaLeafKv, 2);
+
+            // just cleanup
+            hubKvm.delete(hubBucket);
+            leafKvm.delete(leafBucket);
         });
     }
 
@@ -1711,8 +1717,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testKeyValueTransform() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_10_3, (nc, jsm, js) -> {
-            KeyValueManagement kvm = nc.keyValueManagement();
+        runInOwnJsServer(VersionUtils::atLeast2_10_3, (nc, jsm, js) -> {
+            KeyValueManagement kvm = jsm.keyValueManagement();
 
             String kvName1 = random();
             String kvName2 = kvName1 + "-mir";
@@ -1769,8 +1775,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testSubjectFiltersAgainst209OptOut() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
-            KeyValueManagement kvm = nc.keyValueManagement();
+        runInOwnJsServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
+            KeyValueManagement kvm = jsm.keyValueManagement();
 
             String bucket = random();
             kvm.create(KeyValueConfiguration.builder()
@@ -1789,8 +1795,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testTtlAndDuplicateWindowRoundTrip() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
-            KeyValueManagement kvm = nc.keyValueManagement();
+        runInOwnJsServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
+            KeyValueManagement kvm = jsm.keyValueManagement();
             String bucket = random();
             KeyValueConfiguration config = KeyValueConfiguration.builder()
                 .name(bucket)
@@ -1828,8 +1834,8 @@ public class KeyValueTests extends JetStreamTestBase {
     @Test
     public void testConsumeKeys() throws Exception {
         int count = 10000;
-        runInLrServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
-            KeyValueManagement kvm = nc.keyValueManagement();
+        runInOwnJsServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
+            KeyValueManagement kvm = jsm.keyValueManagement();
             String bucket = random();
             KeyValueConfiguration config = KeyValueConfiguration.builder()
                 .name(bucket)
@@ -1863,8 +1869,8 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testLimitMarkerCoverage() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_12, (nc, jsm, js) -> {
-            KeyValueManagement kvm = nc.keyValueManagement();
+        runInOwnJsServer(VersionUtils::atLeast2_12, (nc, jsm, js) -> {
+            KeyValueManagement kvm = jsm.keyValueManagement();
             String bucket = random();
             KeyValueConfiguration config = KeyValueConfiguration.builder()
                 .name(bucket)
@@ -1912,13 +1918,13 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testLimitMarkerBehavior() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_12, (nc, jsm, js) -> {
+        runInOwnJsServer(VersionUtils::atLeast2_12, (nc, jsm, js) -> {
             String bucket = random();
             String key1 = random();
             String key2 = random();
             String key3 = random();
 
-            KeyValueManagement kvm = nc.keyValueManagement();
+            KeyValueManagement kvm = jsm.keyValueManagement();
             KeyValueConfiguration config = KeyValueConfiguration.builder()
                 .name(bucket)
                 .storageType(StorageType.Memory)
@@ -2029,12 +2035,12 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testJustLimitMarkerCreatePurge() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_12, (nc, jsm, js) -> {
+        runInOwnJsServer(VersionUtils::atLeast2_12, (nc, jsm, js) -> {
             String bucket = random();
             String rawStream = "KV_" + bucket;
             String key = random();
 
-            KeyValueManagement kvm = nc.keyValueManagement();
+            KeyValueManagement kvm = jsm.keyValueManagement();
             KeyValueConfiguration config = KeyValueConfiguration.builder()
                 .name(bucket)
                 .storageType(StorageType.Memory)
@@ -2138,12 +2144,12 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testJustTtlForDeletePurge() throws Exception {
-        runInLrServer(VersionUtils::atLeast2_12, (nc, jsm, js) -> {
+        runInOwnJsServer(VersionUtils::atLeast2_12, (nc, jsm, js) -> {
             String bucket = random();
             String rawStream = "KV_" + bucket;
             String key = random();
 
-            KeyValueManagement kvm = nc.keyValueManagement();
+            KeyValueManagement kvm = jsm.keyValueManagement();
             KeyValueConfiguration config = KeyValueConfiguration.builder()
                 .name(bucket)
                 .storageType(StorageType.Memory)

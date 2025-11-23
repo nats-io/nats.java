@@ -30,8 +30,13 @@ import static io.nats.client.support.NatsObjectStoreUtil.*;
 public class NatsObjectStoreManagement implements ObjectStoreManagement {
     private final NatsJetStreamManagement jsm;
 
-    NatsObjectStoreManagement(NatsConnection connection, ObjectStoreOptions oso) throws IOException {
-        jsm = new NatsJetStreamManagement(connection, oso == null ? null : oso.getJetStreamOptions());
+    NatsObjectStoreManagement(NatsConnection connection, ObjectStoreOptions oso, NatsJetStreamManagement jsm) throws IOException {
+        if (jsm == null) {
+            this.jsm = new NatsJetStreamManagement(connection, oso == null ? null : oso.getJetStreamOptions());
+        }
+        else {
+            this.jsm = jsm;
+        }
     }
 
     /**

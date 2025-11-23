@@ -20,9 +20,9 @@ import io.nats.NatsServerRunner;
 import java.io.IOException;
 import java.util.logging.Level;
 
-public class NatsTestServer extends NatsServerRunner {
+import static io.nats.client.utils.ResourceUtils.configResource;
 
-    private static final String CONFIG_FILE_BASE = "src/test/resources/";
+public class NatsTestServer extends NatsServerRunner {
 
     static {
         NatsTestServer.quiet();
@@ -39,12 +39,8 @@ public class NatsTestServer extends NatsServerRunner {
         NatsRunnerUtils.setDefaultOutputLevel(Level.ALL);
     }
 
-    public static String configFilePath(String configFilePath) {
-        return configFilePath.startsWith(CONFIG_FILE_BASE) ? configFilePath : CONFIG_FILE_BASE + configFilePath;
-    }
-
     public static Builder configFileBuilder(String configFilePath) {
-        return NatsServerRunner.builder().configFilePath(configFilePath(configFilePath));
+        return NatsServerRunner.builder().configFilePath(configResource(configFilePath));
     }
 
     public static NatsTestServer configFileServer(String configFilePath) throws IOException {
@@ -67,48 +63,28 @@ public class NatsTestServer extends NatsServerRunner {
         this(builder());
     }
 
-    public NatsTestServer(boolean debug) throws IOException {
-        this(builder().debug(debug));
+    public NatsTestServer(int port) throws IOException {
+        this(builder().port(port));
     }
 
-    public NatsTestServer(boolean debug, boolean jetstream) throws IOException {
-        this(builder().debug(debug).jetstream(jetstream));
+    public NatsTestServer(int port, boolean jetstream) throws IOException {
+        this(builder().port(port).jetstream(jetstream));
     }
 
-    public NatsTestServer(int port, boolean debug) throws IOException {
-        this(builder().port(port).debug(debug));
+    public NatsTestServer(String configFilePath, String[] configInserts, int port) throws IOException {
+        this(builder().configFilePath(configResource(configFilePath)).configInserts(configInserts).port(port));
     }
 
-    public NatsTestServer(int port, boolean debug, boolean jetstream) throws IOException {
-        this(builder().port(port).debug(debug).jetstream(jetstream));
+    public NatsTestServer(String[] customArgs) throws IOException {
+        this(builder().customArgs(customArgs));
     }
 
-    public NatsTestServer(String configFilePath, boolean debug) throws IOException {
-        this(builder().configFilePath(configFilePath).debug(debug));
+    public NatsTestServer(String[] customArgs, int port) throws IOException {
+        this(builder().customArgs(customArgs).port(port));
     }
 
-    public NatsTestServer(String configFilePath, boolean debug, boolean jetstream) throws IOException {
-        this(builder().configFilePath(configFilePath).debug(debug).jetstream(jetstream));
-    }
-
-    public NatsTestServer(String configFilePath, String[] configInserts, int port, boolean debug) throws IOException {
-        this(builder().configFilePath(configFilePath).configInserts(configInserts).debug(debug));
-    }
-
-    public NatsTestServer(String configFilePath, int port, boolean debug) throws IOException {
-        this(builder().configFilePath(configFilePath).port(port).debug(debug));
-    }
-
-    public NatsTestServer(String[] customArgs, boolean debug) throws IOException {
-        this(builder().customArgs(customArgs).debug(debug));
-    }
-
-    public NatsTestServer(String[] customArgs, int port, boolean debug) throws IOException {
-        this(builder().customArgs(customArgs).port(port).debug(debug));
-    }
-
-    public NatsTestServer(int port, boolean debug, boolean jetstream, String configFilePath, String[] configInserts, String[] customArgs) throws IOException {
-        this(builder().port(port).debug(debug).jetstream(jetstream).configFilePath(configFilePath).configInserts(configInserts).customArgs(customArgs));
+    public NatsTestServer(int port, boolean jetstream, String configFilePath, String[] configInserts, String[] customArgs) throws IOException {
+        this(builder().port(port).jetstream(jetstream).configFilePath(configResource(configFilePath)).configInserts(configInserts).customArgs(customArgs));
     }
 
     public NatsTestServer(Builder b) throws IOException {

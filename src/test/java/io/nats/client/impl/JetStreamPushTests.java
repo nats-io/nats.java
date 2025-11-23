@@ -46,8 +46,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
     }
 
     private void _testPushEphemeral(String deliverSubject) throws Exception {
-        runInJsServer(nc -> {
-            JetStreamTestingContext jstc = new JetStreamTestingContext(nc);
+        runInShared((nc, jstc) -> {
             // publish some messages
             jsPublish(jstc.js, jstc.subject(), 1, 5);
 
@@ -124,7 +123,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
     }
 
     private void _testPushDurable(boolean useDeliverSubject) throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             // create the stream.
             String stream = random();
             String subjectDotGt = random() + ".>";
@@ -275,7 +274,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
     @Test
     public void testCantPullOnPushSub() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             JetStreamSubscription sub = jstc.js.subscribe(jstc.subject());
             assertSubscription(sub, jstc.stream, null, null, false);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
@@ -308,7 +307,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
     @Test
     public void testHeadersOnly() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             PushSubscribeOptions pso = ConsumerConfiguration.builder().headersOnly(true).buildPushSubscribeOptions();
             JetStreamSubscription sub = jstc.js.subscribe(jstc.subject(), pso);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
@@ -325,7 +324,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
     @Test
     public void testAcks() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             ConsumerConfiguration cc = ConsumerConfiguration.builder().ackWait(Duration.ofMillis(1500)).build();
             PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
             JetStreamSubscription sub = jstc.js.subscribe(jstc.subject(), pso);
@@ -458,30 +457,28 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
     @Test
     public void testDeliveryPolicy() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
-            // create the stream.
-            String stream = random();
-            String subject = random();
+        runInSharedCustomStream((nc, jstc) -> {
+            String subject = jstc.subject();
             String subjectStar = subjectStar(subject);
-            createMemoryStream(jsm, stream, subjectStar);
+            jstc.createStream(subjectStar);
 
             String subjectA = subjectDot(subject, "A");
             String subjectB = subjectDot(subject, "B");
 
-            js.publish(subjectA, dataBytes(1));
-            js.publish(subjectA, dataBytes(2));
+            jstc.js.publish(subjectA, dataBytes(1));
+            jstc.js.publish(subjectA, dataBytes(2));
             sleep(1500);
-            js.publish(subjectA, dataBytes(3));
-            js.publish(subjectB, dataBytes(91));
-            js.publish(subjectB, dataBytes(92));
+            jstc.js.publish(subjectA, dataBytes(3));
+            jstc.js.publish(subjectB, dataBytes(91));
+            jstc.js.publish(subjectB, dataBytes(92));
 
-            jsm.deleteMessage(stream, 4);
+            jstc.jsm.deleteMessage(jstc.stream, 4);
 
             // DeliverPolicy.All
             PushSubscribeOptions pso = PushSubscribeOptions.builder()
                     .configuration(ConsumerConfiguration.builder().deliverPolicy(DeliverPolicy.All).build())
                     .build();
-            JetStreamSubscription sub = js.subscribe(subjectA, pso);
+            JetStreamSubscription sub = jstc.js.subscribe(subjectA, pso);
             Message m1 = sub.nextMessage(Duration.ofSeconds(1));
             assertMessage(m1, 1);
             Message m2 = sub.nextMessage(Duration.ofSeconds(1));
@@ -493,7 +490,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             pso = PushSubscribeOptions.builder()
                     .configuration(ConsumerConfiguration.builder().deliverPolicy(DeliverPolicy.Last).build())
                     .build();
-            sub = js.subscribe(subjectA, pso);
+            sub = jstc.js.subscribe(subjectA, pso);
             Message m = sub.nextMessage(Duration.ofSeconds(1));
             assertMessage(m, 3);
             assertNull(sub.nextMessage(Duration.ofMillis(200)));
@@ -502,12 +499,12 @@ public class JetStreamPushTests extends JetStreamTestBase {
             pso = PushSubscribeOptions.builder()
                     .configuration(ConsumerConfiguration.builder().deliverPolicy(DeliverPolicy.New).build())
                     .build();
-            sub = js.subscribe(subjectA, pso);
+            sub = jstc.js.subscribe(subjectA, pso);
             assertNull(sub.nextMessage(Duration.ofSeconds(1)));
 
             // DeliverPolicy.New - New message between subscribe and next message
-            sub = js.subscribe(subjectA, pso);
-            js.publish(subjectA, dataBytes(4));
+            sub = jstc.js.subscribe(subjectA, pso);
+            jstc.js.publish(subjectA, dataBytes(4));
             m = sub.nextMessage(Duration.ofSeconds(1));
             assertMessage(m, 4);
 
@@ -518,7 +515,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
                             .startSequence(3)
                             .build())
                     .build();
-            sub = js.subscribe(subjectA, pso);
+            sub = jstc.js.subscribe(subjectA, pso);
             m = sub.nextMessage(Duration.ofSeconds(1));
             assertMessage(m, 3);
             m = sub.nextMessage(Duration.ofSeconds(1));
@@ -531,7 +528,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
                             .startTime(m3.metaData().timestamp().minusSeconds(1))
                             .build())
                     .build();
-            sub = js.subscribe(subjectA, pso);
+            sub = jstc.js.subscribe(subjectA, pso);
             m = sub.nextMessage(Duration.ofSeconds(1));
             assertMessage(m, 3);
             m = sub.nextMessage(Duration.ofSeconds(1));
@@ -544,16 +541,16 @@ public class JetStreamPushTests extends JetStreamTestBase {
                             .filterSubject(subjectA)
                             .build())
                     .build();
-            sub = js.subscribe(subjectA, pso);
+            sub = jstc.js.subscribe(subjectA, pso);
             m = sub.nextMessage(Duration.ofSeconds(1));
             assertMessage(m, 4);
 
             // DeliverPolicy.ByStartSequence with a deleted record
-            PublishAck pa4 = js.publish(subjectA, dataBytes(4));
-            PublishAck pa5 = js.publish(subjectA, dataBytes(5));
-            js.publish(subjectA, dataBytes(6));
-            jsm.deleteMessage(stream, pa4.getSeqno());
-            jsm.deleteMessage(stream, pa5.getSeqno());
+            PublishAck pa4 = jstc.js.publish(subjectA, dataBytes(4));
+            PublishAck pa5 = jstc.js.publish(subjectA, dataBytes(5));
+            jstc.js.publish(subjectA, dataBytes(6));
+            jstc.jsm.deleteMessage(jstc.stream, pa4.getSeqno());
+            jstc.jsm.deleteMessage(jstc.stream, pa5.getSeqno());
 
             pso = PushSubscribeOptions.builder()
                 .configuration(ConsumerConfiguration.builder()
@@ -561,7 +558,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
                     .startSequence(pa4.getSeqno())
                     .build())
                 .build();
-            sub = js.subscribe(subjectA, pso);
+            sub = jstc.js.subscribe(subjectA, pso);
             m = sub.nextMessage(Duration.ofSeconds(1));
             assertMessage(m, 6);
         });
@@ -575,8 +572,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
     @Test
     public void testPushSyncFlowControl() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInJsServer(listener, nc -> {
-            JetStreamTestingContext jstc = new JetStreamTestingContext(nc);
+        runInSharedOwnNc(listener, (nc, jstc) -> {
 
             byte[] data = new byte[1024*10];
             int MSG_COUNT = 1000;
@@ -613,7 +609,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
     @Test
     public void testPendingLimits() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             int customMessageLimit = 1000;
             int customByteLimit = 1024 * 1024;
 

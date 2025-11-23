@@ -37,7 +37,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
     @Test
     public void testPublishVarieties() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             PublishAck pa = jstc.js.publish(jstc.subject(), dataBytes(1));
             assertPublishAck(pa, jstc.stream, 1);
 
@@ -118,7 +118,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
     @Test
     public void testPublishAsyncVarieties() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             List<CompletableFuture<PublishAck>> futures = new ArrayList<>();
 
             futures.add(jstc.js.publishAsync(jstc.subject(), dataBytes(1)));
@@ -186,7 +186,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
         //noinspection resource
         final ExecutorService executorService = Executors.newFixedThreadPool(3);
         try {
-            runInLrServer((nc, jstc) -> {
+            runInShared((nc, jstc) -> {
                 final int messagesToPublish = 6;
                 // create a new connection that does not have the inbox dispatcher set
                 try (NatsConnection nc2 = new NatsConnection(nc.getOptions())){
@@ -227,7 +227,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
     @Test
     public void testPublishExpectations() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
+        runInOwnJsServer((nc, jsm, js) -> {
             String stream1 = random();
             String subjectPrefix = random();
             String streamSubject = subjectPrefix + ".>";
@@ -409,7 +409,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
     @Test
     public void testPublishMiscExceptions() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             // stream supplied and matches
             //noinspection deprecation
             PublishOptions po = PublishOptions.builder().stream(jstc.stream).build();
@@ -437,7 +437,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
     @Test
     public void testPublishNoAck() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             JetStreamOptions jso = JetStreamOptions.builder().publishNoAck(true).build();
             JetStream customJs = nc.jetStream(jso);
 
@@ -462,36 +462,27 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
     @Test
     public void testMaxPayloadJs() throws Exception {
-        String streamName = random();
-        String subject1 = random();
-        String subject2 = random();
-
-        runInLrServerOwnNc(optionsBuilder().noReconnect(), (nc, jsm, js) -> {
+        runInSharedCustomStream(optionsBuilder().noReconnect(), (nc, jstc) -> {
             long expectedSeq = 0;
-            jsm.addStream(StreamConfiguration.builder()
-                .name(streamName)
-                .storageType(StorageType.Memory)
-                .subjects(subject1, subject2)
-                .maximumMessageSize(1000)
-                .build()
-            );
+            jstc.addStream(jstc.scBuilder(1).maximumMessageSize(1000));
+            String subject0 = jstc.subject(0);
 
             for (int x = 1; x <= 3; x++) {
                 int size = 1000 + x - 2;
                 if (size > 1000) {
-                    JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> js.publish(subject1, new byte[size]));
+                    JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> jstc.js.publish(subject0, new byte[size]));
                     assertEquals(10054, e.getApiErrorCode());
                 }
                 else
                 {
-                    PublishAck pa = js.publish(subject1, new byte[size]);
+                    PublishAck pa = jstc.js.publish(subject0, new byte[size]);
                     assertEquals(++expectedSeq, pa.getSeqno());
                 }
             }
 
             for (int x = 1; x <= 3; x++) {
                 int size = 1000 + x - 2;
-                CompletableFuture<PublishAck> paFuture = js.publishAsync(subject1, new byte[size]);
+                CompletableFuture<PublishAck> paFuture = jstc.js.publishAsync(subject0, new byte[size]);
                 if (size > 1000)
                 {
                     ExecutionException e = assertThrows(ExecutionException.class, () -> paFuture.get(1000, TimeUnit.MILLISECONDS));
@@ -509,7 +500,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
     @Test
     public void testPublishWithTTL() throws Exception {
-        runInLrServer((nc, jstc) -> {
+        runInShared((nc, jstc) -> {
             String stream = random();
             String subject = random();
             StreamConfiguration sc = StreamConfiguration.builder()
@@ -549,40 +540,36 @@ public class JetStreamPubTests extends JetStreamTestBase {
 
     @Test
     public void testMsgDeleteMarkerMaxAge() throws Exception {
-        runInLrServer((nc, jsm, js) -> {
-            String stream = random();
-            String subject = random();
-            StreamConfiguration sc = StreamConfiguration.builder()
-                .name(stream)
-                .storageType(StorageType.Memory)
+        runInSharedCustomStream((nc, jstc) -> {
+            StreamConfiguration sc = jstc.scBuilder(1)
                 .allowMessageTtl()
                 .subjectDeleteMarkerTtl(Duration.ofSeconds(50))
                 .maxAge(1000)
-                .subjects(subject).build();
-
-            jsm.addStream(sc);
+                .build();
+            jstc.addStream(sc);
+            String subject = jstc.subject();
 
             PublishOptions opts = PublishOptions.builder().messageTtlSeconds(1).build();
-            PublishAck pa = js.publish(subject, null, opts);
+            PublishAck pa = jstc.js.publish(subject, null, opts);
             assertNotNull(pa);
 
             sleep(1200);
 
-            MessageInfo mi = jsm.getLastMessage(stream, subject);
+            MessageInfo mi = jstc.jsm.getLastMessage(jstc.stream, subject);
             Headers h = mi.getHeaders();
             assertNotNull(h);
             assertEquals("MaxAge", h.getFirst(NATS_MARKER_REASON_HDR));
             assertEquals("50s", h.getFirst(MSG_TTL_HDR));
 
             assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder()
-                .name(stream)
+                .name(jstc.stream)
                 .storageType(StorageType.Memory)
                 .allowMessageTtl()
                 .subjectDeleteMarkerTtl(Duration.ofMillis(999))
                 .subjects(subject).build());
 
             assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.builder()
-                .name(stream)
+                .name(jstc.stream)
                 .storageType(StorageType.Memory)
                 .allowMessageTtl()
                 .subjectDeleteMarkerTtl(999)

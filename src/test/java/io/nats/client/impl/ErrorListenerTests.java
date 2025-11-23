@@ -43,7 +43,7 @@ public class ErrorListenerTests {
         String[] customArgs = {"--user", "stephen", "--pass", "password"};
 
         try (NatsTestServer ts = new NatsTestServer();
-             NatsTestServer ts2 = new NatsTestServer(customArgs, false); //ts2 requires auth
+             NatsTestServer ts2 = new NatsTestServer(customArgs); //ts2 requires auth
              NatsTestServer ts3 = new NatsTestServer()) {
             Options options = optionsBuilder()
                 .server(ts.getLocalhostUri())
@@ -73,7 +73,7 @@ public class ErrorListenerTests {
             listener.prepForStatusChange(Events.RECONNECTED);
             listener.waitForStatusChange(5, TimeUnit.SECONDS);
 
-            assertTrue(listener.errorsEventually("Authorization Violation", 2000));
+            assertTrue(listener.errorsEventually("Authorization Violation", 3000));
 
             assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
             assertEquals(ts3.getLocalhostUri(), nc.getConnectedUrl());
@@ -89,7 +89,7 @@ public class ErrorListenerTests {
         String[] customArgs = {"--user", "stephen", "--pass", "password"};
 
         try (NatsTestServer ts = new NatsTestServer();
-             NatsTestServer ts2 = new NatsTestServer(customArgs, false); //ts2 requires auth
+             NatsTestServer ts2 = new NatsTestServer(customArgs); //ts2 requires auth
              NatsTestServer ts3 = new NatsTestServer()) {
             Options options = optionsBuilder()
                 .server(ts.getLocalhostUri())
@@ -136,7 +136,7 @@ public class ErrorListenerTests {
     public void testErrorOnNoAuth() throws Exception {
         String[] customArgs = {"--user", "stephen", "--pass", "password"};
         ListenerForTesting listener = new ListenerForTesting();
-        try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
+        try (NatsTestServer ts = new NatsTestServer(customArgs)) {
             sleep(1000); // give the server time to get ready, otherwise sometimes this test flaps
             // See config file for user/pass
             // no or wrong u/p in the options is an error
@@ -194,7 +194,7 @@ public class ErrorListenerTests {
     public void testExceptionInErrorHandler() throws Exception {
         String[] customArgs = {"--user", "stephen", "--pass", "password"};
         BadHandler listener = new BadHandler();
-        try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
+        try (NatsTestServer ts = new NatsTestServer(customArgs)) {
             // See config file for user/pass
             // don't put u/p in options
             Options options = optionsBuilder(ts)

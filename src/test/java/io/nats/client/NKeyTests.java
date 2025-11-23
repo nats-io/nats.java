@@ -473,7 +473,7 @@ public class NKeyTests {
         byte[] data = Files.readAllBytes(Paths.get("src/test/resources/keystore.jks"));
         byte[] sig = theKey.sign(data);
 
-        assertEquals(sig.length, ED25519_SIGNATURE_SIZE);
+        assertEquals(ED25519_SIGNATURE_SIZE, sig.length);
         assertTrue(theKey.verify(data, sig));
 
         char[] publicKey = theKey.getPublicKey();

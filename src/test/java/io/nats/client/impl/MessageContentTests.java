@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class MessageContentTests extends TestBase {
     @Test
     public void testSimpleString() throws Exception {
-        runInLrServer(nc -> {
+        runInShared(nc -> {
             Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), msg.getData()));
             d.subscribe("subject");
 
@@ -48,7 +48,7 @@ public class MessageContentTests extends TestBase {
 
     @Test
     public void testUTF8String() throws Exception {
-        runInLrServer(nc -> {
+        runInShared(nc -> {
             Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), msg.getData()));
             d.subscribe("subject");
 
@@ -65,7 +65,7 @@ public class MessageContentTests extends TestBase {
 
     @Test
     public void testDifferentSizes() throws Exception {
-        runInLrServer(nc -> {
+        runInShared(nc -> {
             Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), msg.getData()));
             d.subscribe("subject");
 
@@ -87,7 +87,7 @@ public class MessageContentTests extends TestBase {
 
     @Test
     public void testZeros() throws Exception {
-        runInLrServer(nc -> {
+        runInShared(nc -> {
             Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), msg.getData()));
             d.subscribe("subject");
 
