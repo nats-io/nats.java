@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import static io.nats.client.NatsTestServer.configFileServer;
 import static io.nats.client.NatsTestServer.skipConnectValidateServer;
 import static io.nats.client.utils.ConnectionUtils.*;
+import static io.nats.client.utils.OptionsUtils.NOOP_EL;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ResourceUtils.jwtResource;
 import static org.junit.jupiter.api.Assertions.*;
@@ -222,8 +223,8 @@ public class AuthTests extends TestBase {
         try (NatsTestServer ts = new NatsTestServer(customArgs)) {
             port = ts.getPort();
             // See config file for user/pass
-            Options options = optionsBuilder(userPassInUrl("uuu", "ppp", ts.getPort()))
-                    .maxReconnects(-1).connectionListener(listener).build();
+            Options options = new Options.Builder().server(userPassInUrl("uuu", "ppp", ts.getPort()))
+                .maxReconnects(-1).connectionListener(listener).errorListener(NOOP_EL).build();
             nc = standardConnectionWait(options);
 
             sub = nc.subscribe("test");

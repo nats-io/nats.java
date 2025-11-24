@@ -179,11 +179,11 @@ public class TestBase {
     }
 
     public static void runInConfiguredServer(String configFilePath, InServerTest inServerTest) throws Exception {
-        _runInOwnServer(null, null, null, inServerTest, null);
+        _runInOwnServer(null, null, configFilePath, inServerTest, null);
     }
 
     public static void runInConfiguredJsServer(String configFilePath, InJetStreamTest inJetStreamTest) throws Exception {
-        _runInOwnServer(null, null, null, null, inJetStreamTest);
+        _runInOwnServer(null, null, configFilePath, null, inJetStreamTest);
     }
 
     // ----------------------------------------------------------------------------------------------------
