@@ -949,22 +949,22 @@ public class Options {
             booleanProperty(props, PROP_UTF8_SUBJECTS, b -> this.supportUTF8Subjects = b);
             booleanProperty(props, PROP_PEDANTIC, b -> this.pedantic = b);
 
-            intProperty(props, PROP_MAX_RECONNECT, DEFAULT_MAX_RECONNECT, i -> this.maxReconnect = i);
-            durationProperty(props, PROP_RECONNECT_WAIT, DEFAULT_RECONNECT_WAIT, d -> this.reconnectWait = d);
-            durationProperty(props, PROP_RECONNECT_JITTER, DEFAULT_RECONNECT_JITTER, d -> this.reconnectJitter = d);
-            durationProperty(props, PROP_RECONNECT_JITTER_TLS, DEFAULT_RECONNECT_JITTER_TLS, d -> this.reconnectJitterTls = d);
-            longProperty(props, PROP_RECONNECT_BUF_SIZE, DEFAULT_RECONNECT_BUF_SIZE, l -> this.reconnectBufferSize = l);
-            durationProperty(props, PROP_CONNECTION_TIMEOUT, DEFAULT_CONNECTION_TIMEOUT, d -> this.connectionTimeout = d);
-            intProperty(props, PROP_SOCKET_READ_TIMEOUT_MS, -1, i -> this.socketReadTimeoutMillis = i);
-            durationProperty(props, PROP_SOCKET_WRITE_TIMEOUT, DEFAULT_SOCKET_WRITE_TIMEOUT, d -> this.socketWriteTimeout = d);
-            intProperty(props, PROP_SOCKET_SO_LINGER, -1, i -> socketSoLinger = i);
-            intProperty(props, PROP_SOCKET_RECEIVE_BUFFER_SIZE, -1, i -> this.receiveBufferSize = i);
-            intProperty(props, PROP_SOCKET_SEND_BUFFER_SIZE, -1, i -> this.sendBufferSize = i);
+            intProperty(props, PROP_MAX_RECONNECT, i -> this.maxReconnect = i);
+            durationProperty(props, PROP_RECONNECT_WAIT, d -> this.reconnectWait = d);
+            durationProperty(props, PROP_RECONNECT_JITTER, d -> this.reconnectJitter = d);
+            durationProperty(props, PROP_RECONNECT_JITTER_TLS, d -> this.reconnectJitterTls = d);
+            longProperty(props, PROP_RECONNECT_BUF_SIZE, l -> this.reconnectBufferSize = l);
+            durationProperty(props, PROP_CONNECTION_TIMEOUT, d -> this.connectionTimeout = d);
+            intProperty(props, PROP_SOCKET_READ_TIMEOUT_MS, i -> this.socketReadTimeoutMillis = i);
+            durationProperty(props, PROP_SOCKET_WRITE_TIMEOUT, d -> this.socketWriteTimeout = d);
+            intProperty(props, PROP_SOCKET_SO_LINGER, i -> socketSoLinger = i);
+            intProperty(props, PROP_SOCKET_RECEIVE_BUFFER_SIZE, i -> this.receiveBufferSize = i);
+            intProperty(props, PROP_SOCKET_SEND_BUFFER_SIZE, i -> this.sendBufferSize = i);
 
-            intGtEqZeroProperty(props, PROP_MAX_CONTROL_LINE, DEFAULT_MAX_CONTROL_LINE, i -> this.maxControlLine = i);
-            durationProperty(props, PROP_PING_INTERVAL, DEFAULT_PING_INTERVAL, d -> this.pingInterval = d);
-            durationProperty(props, PROP_CLEANUP_INTERVAL, DEFAULT_REQUEST_CLEANUP_INTERVAL, d -> this.requestCleanupInterval = d);
-            intProperty(props, PROP_MAX_PINGS, DEFAULT_MAX_PINGS_OUT, i -> this.maxPingsOut = i);
+            intGtEqZeroProperty(props, PROP_MAX_CONTROL_LINE, i -> this.maxControlLine = i);
+            durationProperty(props, PROP_PING_INTERVAL, d -> this.pingInterval = d);
+            durationProperty(props, PROP_CLEANUP_INTERVAL, d -> this.requestCleanupInterval = d);
+            intProperty(props, PROP_MAX_PINGS, i -> this.maxPingsOut = i);
             booleanProperty(props, PROP_USE_OLD_REQUEST_STYLE, b -> this.useOldRequestStyle = b);
 
             classnameProperty(props, PROP_ERROR_LISTENER, o -> this.errorListener = (ErrorListener) o);
@@ -975,7 +975,7 @@ public class Options {
 
             stringProperty(props, PROP_DATA_PORT_TYPE, s -> this.dataPortType = s);
             stringProperty(props, PROP_INBOX_PREFIX, this::inboxPrefix);
-            intGtEqZeroProperty(props, PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE, DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE, i -> this.maxMessagesInOutgoingQueue = i);
+            intGtEqZeroProperty(props, PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE, i -> this.maxMessagesInOutgoingQueue = i);
             booleanProperty(props, PROP_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL, b -> this.discardMessagesWhenOutgoingQueueFull = b);
 
             booleanProperty(props, PROP_IGNORE_DISCOVERED_SERVERS, b -> this.ignoreDiscoveredServers = b);
@@ -3005,63 +3005,42 @@ public class Options {
         }
     }
 
-    private static void intProperty(Properties props, String key, int defaultValue, java.util.function.Consumer<Integer> consumer) {
+    private static void intProperty(Properties props, String key, java.util.function.Consumer<Integer> consumer) {
         String value = getPropertyValue(props, key);
-        if (value == null) {
-            consumer.accept(defaultValue);
-        }
-        else {
+        if (value != null) {
             consumer.accept(Integer.parseInt(value));
         }
     }
 
-    private static void intGtEqZeroProperty(Properties props, String key, int defaultValue, java.util.function.Consumer<Integer> consumer) {
+    private static void intGtEqZeroProperty(Properties props, String key, java.util.function.Consumer<Integer> consumer) {
         String value = getPropertyValue(props, key);
-        if (value == null) {
-            consumer.accept(defaultValue);
-        }
-        else {
+        if (value != null) {
             int i = Integer.parseInt(value);
-            if (i < 0) {
-                consumer.accept(defaultValue);
-            }
-            else {
+            if (i >= 0) {
                 consumer.accept(i);
             }
         }
     }
 
-    private static void longProperty(Properties props, String key, long defaultValue, java.util.function.Consumer<Long> consumer) {
+    private static void longProperty(Properties props, String key, java.util.function.Consumer<Long> consumer) {
         String value = getPropertyValue(props, key);
-        if (value == null) {
-            consumer.accept(defaultValue);
-        }
-        else {
+        if (value != null) {
             consumer.accept(Long.parseLong(value));
         }
     }
 
-    private static void durationProperty(Properties props, String key, Duration defaultValue, java.util.function.Consumer<Duration> consumer) {
+    private static void durationProperty(Properties props, String key, java.util.function.Consumer<Duration> consumer) {
         String value = getPropertyValue(props, key);
-        if (value == null) {
-            consumer.accept(defaultValue);
-        }
-        else {
+        if (value != null) {
             try {
                 Duration d = Duration.parse(value);
-                if (d.toNanos() < 0) {
-                    consumer.accept(defaultValue);
-                }
-                else {
+                if (d.toNanos() >= 0) {
                     consumer.accept(d);
                 }
             }
             catch (DateTimeParseException pe) {
                 int ms = Integer.parseInt(value);
-                if (ms < 0) {
-                    consumer.accept(defaultValue);
-                }
-                else {
+                if (ms >= 0) {
                     consumer.accept(Duration.ofMillis(ms));
                 }
             }
