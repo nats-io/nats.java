@@ -11,7 +11,7 @@ plugins {
     id("signing")
 }
 
-def jarVersion = "2.24.1"
+def jarVersion = "2.24.2"
 
 def isRelease = System.getenv("BUILD_EVENT") == "release"
 def brn = System.getenv("BRANCH_REF_NAME")
@@ -62,6 +62,9 @@ tasks.register('bundle', Bundle) {
 }
 
 jar {
+    manifest {
+        attributes('Automatic-Module-Name': 'io.nats.jnats')
+    }
     bundle {
         bnd("Bundle-Name": "io.nats.jnats",
                 "Bundle-Vendor": "nats.io",
