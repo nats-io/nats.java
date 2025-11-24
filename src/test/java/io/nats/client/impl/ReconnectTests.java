@@ -17,7 +17,6 @@ import io.nats.NatsServerRunner;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.api.ServerInfo;
-import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 
@@ -42,6 +41,7 @@ import static io.nats.client.utils.OptionsUtils.*;
 import static io.nats.client.utils.TestBase.*;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static io.nats.client.utils.VersionUtils.atLeast2_9_0;
+import static io.nats.client.utils.VersionUtils.initVersionServerInfo;
 import static org.junit.jupiter.api.Assertions.*;
 
 @Isolated
@@ -793,7 +793,8 @@ public class ReconnectTests {
     @Test
     public void testForceReconnectQueueBehaviorCheck() throws Exception {
         runInCluster((nc0, nc1, nc2) -> {
-            if (atLeast2_9_0(nc0)) {
+            initVersionServerInfo(nc0);
+            if (atLeast2_9_0()) {
                 int pubCount = 100_000;
                 int subscribeTime = 5000;
                 int flushWait = 2500;
@@ -801,19 +802,19 @@ public class ReconnectTests {
 
                 ForceReconnectQueueCheckDataPort.DELAY = 75;
 
-                String subject = TestBase.random();
+                String subject = random();
                 ForceReconnectQueueCheckDataPort.setCheck("PUB " + subject);
                 _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, false, 0);
 
-                subject = TestBase.random();
+                subject = random();
                 ForceReconnectQueueCheckDataPort.setCheck("PUB " + subject);
                 _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, false, flushWait);
 
-                subject = TestBase.random();
+                subject = random();
                 ForceReconnectQueueCheckDataPort.setCheck("PUB " + subject);
                 _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, true, 0);
 
-                subject = TestBase.random();
+                subject = random();
                 ForceReconnectQueueCheckDataPort.setCheck("PUB " + subject);
                 _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, true, flushWait);
             }
@@ -939,7 +940,7 @@ public class ReconnectTests {
             .errorListener(listener);
 
         AtomicBoolean gotOutputQueueIsFull = new AtomicBoolean();
-        runInOwnServer(nc1 -> runInOwnServer(nc2 -> {
+        runInServer(nc1 -> runInServer(nc2 -> {
             int port1 = nc1.getServerInfo().getPort();
             int port2 = nc2.getServerInfo().getPort();
 
@@ -948,7 +949,7 @@ public class ReconnectTests {
                 getLocalhostUri(port2)
             };
             Connection nc = standardConnectionWait(builder.servers(servers).build());
-            String subject = TestBase.random();
+            String subject = random();
             int connectedPort = nc.getServerInfo().getPort();
             AtomicInteger pubId = new AtomicInteger();
             while (pubId.get() < 50000) {

@@ -42,70 +42,67 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
         String U3 = random();
         String M1 = random();
 
-        runInSharedCustomStream((nc, jstc) -> {
+        runInSharedCustom((nc, ctx) -> {
             Mirror mirror = Mirror.builder().sourceName(S1).build();
 
             // Create source stream
-            StreamConfiguration sc = jstc.scBuilder(0)
-                    .name(S1)
-                    .subjects(U1, U2, U3)
-                    .build();
-            StreamInfo si = jstc.addStream(sc);
+            StreamConfiguration sc = ctx.scBuilder(U1, U2, U3).name(S1).build();
+            StreamInfo si = ctx.addStream(sc);
             sc = si.getConfiguration();
             assertNotNull(sc);
             assertEquals(S1, sc.getName());
 
             // Now create our mirror stream.
-            sc = jstc.scBuilder(0)
+            sc = ctx.scBuilder()
                     .name(M1)
                     .mirror(mirror)
                     .build();
-            jstc.addStream(sc);
-            assertMirror(jstc.jsm, M1, S1, null, null);
+            ctx.addStream(sc);
+            assertMirror(ctx.jsm, M1, S1, null, null);
 
             // Send 100 messages.
-            jsPublish(jstc.js, U2, 100);
+            jsPublish(ctx.js, U2, 100);
 
             // Check the state
-            assertMirror(jstc.jsm, M1, S1, 100L, null);
+            assertMirror(ctx.jsm, M1, S1, 100L, null);
 
             // Purge the source stream.
-            jstc.jsm.purgeStream(S1);
+            ctx.jsm.purgeStream(S1);
 
-            jsPublish(jstc.js, U2, 50);
+            jsPublish(ctx.js, U2, 50);
 
             // Create second mirror
-            sc = jstc.scBuilder(0)
+            sc = ctx.scBuilder()
                     .name(S2)
                     .mirror(mirror)
                     .build();
-            jstc.addStream(sc);
+            ctx.addStream(sc);
 
             // Check the state
-            assertMirror(jstc.jsm, S2, S1, 50L, 101L);
+            assertMirror(ctx.jsm, S2, S1, 50L, 101L);
 
-            jsPublish(jstc.js, U3, 100);
+            jsPublish(ctx.js, U3, 100);
 
             // third mirror checks start seq
-            sc = jstc.scBuilder(0)
+            sc = ctx.scBuilder()
                     .name(S3)
                     .mirror(Mirror.builder().sourceName(S1).startSeq(150).build())
                     .build();
-            jstc.addStream(sc);
+            ctx.addStream(sc);
 
             // Check the state
-            assertMirror(jstc.jsm, S3, S1, 101L, 150L);
+            assertMirror(ctx.jsm, S3, S1, 101L, 150L);
 
             // third mirror checks start seq
             ZonedDateTime zdt = DateTimeUtils.fromNow(Duration.ofHours(-2));
-            sc = jstc.scBuilder(0)
+            sc = ctx.scBuilder()
                     .name(S4)
                     .mirror(Mirror.builder().sourceName(S1).startTime(zdt).build())
                     .build();
-            jstc.addStream(sc);
+            ctx.addStream(sc);
 
             // Check the state
-            assertMirror(jstc.jsm, S4, S1, 150L, 101L);
+            assertMirror(ctx.jsm, S4, S1, 150L, 101L);
         });
     }
 
@@ -116,13 +113,12 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
         String U2 = random();
         String M1 = random();
 
-        runInSharedCustomStream((nc, jstc) -> {
+        runInSharedCustom((nc, ctx) -> {
             // Create source stream
-            StreamConfiguration sc = jstc.scBuilder(0)
+            StreamConfiguration sc = ctx.scBuilder(U1, U2)
                     .name(S1)
-                    .subjects(U1, U2)
                     .build();
-            StreamInfo si = jstc.addStream(sc);
+            StreamInfo si = ctx.addStream(sc);
             sc = si.getConfiguration();
             assertNotNull(sc);
             assertEquals(S1, sc.getName());
@@ -130,27 +126,27 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
             Mirror mirror = Mirror.builder().sourceName(S1).build();
 
             // Now create our mirror stream.
-            sc = jstc.scBuilder(0)
+            sc = ctx.scBuilder()
                     .name(M1)
                     .mirror(mirror)
                     .build();
-            jstc.addStream(sc);
-            assertMirror(jstc.jsm, M1, S1, null, null);
+            ctx.addStream(sc);
+            assertMirror(ctx.jsm, M1, S1, null, null);
 
             // Send messages.
-            jsPublish(jstc.js, U1, 10);
-            jsPublish(jstc.js, U2, 20);
+            jsPublish(ctx.js, U1, 10);
+            jsPublish(ctx.js, U2, 20);
 
-            assertMirror(jstc.jsm, M1, S1, 30L, null);
+            assertMirror(ctx.jsm, M1, S1, 30L, null);
 
-            JetStreamSubscription sub = jstc.js.subscribe(U1);
+            JetStreamSubscription sub = ctx.js.subscribe(U1);
             List<Message> list = readMessagesAck(sub);
             assertEquals(10, list.size());
             for (Message m : list) {
                 assertEquals(S1, m.metaData().getStream());
             }
 
-            sub = jstc.js.subscribe(U2);
+            sub = ctx.js.subscribe(U2);
             list = readMessagesAck(sub);
             assertEquals(20, list.size());
             for (Message m : list) {
@@ -160,14 +156,14 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
             //noinspection deprecation
             PushSubscribeOptions.bind(M1); // coverage for deprecated
             PushSubscribeOptions pso = PushSubscribeOptions.stream(M1);
-            sub = jstc.js.subscribe(U1, pso);
+            sub = ctx.js.subscribe(U1, pso);
             list = readMessagesAck(sub);
             assertEquals(10, list.size());
             for (Message m : list) {
                 assertEquals(M1, m.metaData().getStream());
             }
 
-            sub = jstc.js.subscribe(U2, pso);
+            sub = ctx.js.subscribe(U2, pso);
             list = readMessagesAck(sub);
             assertEquals(20, list.size());
             for (Message m : list) {
@@ -178,14 +174,14 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
 
     @Test
     public void testMirrorExceptions() throws Exception {
-        runInSharedCustomStream((nc, jstc) -> {
+        runInSharedCustom((nc, ctx) -> {
             Mirror mirror = Mirror.builder().sourceName(random()).build();
             StreamConfiguration scEx = StreamConfiguration.builder()
                     .name(random())
                     .subjects(random())
                     .mirror(mirror)
                     .build();
-            assertThrows(JetStreamApiException.class, () -> jstc.addStream(scEx));
+            assertThrows(JetStreamApiException.class, () -> ctx.addStream(scEx));
         });
     }
 
@@ -201,75 +197,74 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
         String R1 = random();
         String R2 = random();
 
-        runInSharedCustomStream((nc, jstc) -> {
+        runInSharedCustom((nc, ctx) -> {
             // Create streams
-            StreamInfo si = jstc.addStream(jstc.scBuilder(0).name(N1).build());
+            StreamInfo si = ctx.addStream(ctx.scBuilder().name(N1).build());
             StreamConfiguration sc = si.getConfiguration();
             assertNotNull(sc);
             assertEquals(N1, sc.getName());
 
-            si = jstc.addStream(jstc.scBuilder(0).name(N2).build());
+            si = ctx.addStream(ctx.scBuilder().name(N2).build());
             sc = si.getConfiguration();
             assertNotNull(sc);
             assertEquals(N2, sc.getName());
 
-            si = jstc.addStream(jstc.scBuilder(0).name(N3).build());
+            si = ctx.addStream(ctx.scBuilder().name(N3).build());
             sc = si.getConfiguration();
             assertNotNull(sc);
             assertEquals(N3, sc.getName());
 
             // Populate each one.
-            jsPublish(jstc.js, N1, 10);
-            jsPublish(jstc.js, N2, 15);
-            jsPublish(jstc.js, N3, 25);
+            jsPublish(ctx.js, N1, 10);
+            jsPublish(ctx.js, N2, 15);
+            jsPublish(ctx.js, N3, 25);
 
-            sc = jstc.scBuilder(0)
+            sc = ctx.scBuilder()
                 .name(R1)
                 .sources(Source.builder().sourceName(N1).build(),
                     Source.builder().sourceName(N2).build(),
                     Source.builder().sourceName(N3).build())
                     .build();
-            jstc.addStream(sc);
+            ctx.addStream(sc);
 
-            assertSource(jstc.jsm, R1, 50L, null);
+            assertSource(ctx.jsm, R1, 50L, null);
 
-            sc = jstc.scBuilder(0)
+            sc = ctx.scBuilder()
                 .name(R1)
                 .sources(Source.builder().sourceName(N1).build(),
                     Source.builder().sourceName(N2).build(),
                     Source.builder().sourceName(N4).build())
                 .build();
 
-            jstc.jsm.updateStream(sc);
+            ctx.jsm.updateStream(sc);
 
-            sc = jstc.scBuilder(0)
+            sc = ctx.scBuilder(N4, U1)
                 .name(N5)
-                .subjects(N4, U1)
                 .build();
-            jstc.addStream(sc);
+            ctx.addStream(sc);
 
-            jsPublish(jstc.js, N4, 20);
-            jsPublish(jstc.js, U1, 20);
-            jsPublish(jstc.js, N4, 10);
+            jsPublish(ctx.js, N4, 20);
+            jsPublish(ctx.js, U1, 20);
+            jsPublish(ctx.js, N4, 10);
 
-            sc = jstc.scBuilder(0)
+            sc = ctx.scBuilder()
                 .name(R2)
                 .sources(Source.builder().sourceName(N5).startSeq(26).build())
                 .build();
-            jstc.addStream(sc);
-            assertSource(jstc.jsm, R2, 25L, null);
+            ctx.addStream(sc);
+            assertSource(ctx.jsm, R2, 25L, null);
 
-            MessageInfo info = jstc.jsm.getMessage(R2, 1);
+            MessageInfo info = ctx.jsm.getMessage(R2, 1);
             assertStreamSource(info, N5, 26);
 
-            sc = jstc.scBuilder(0)
+            sc = ctx.scBuilder()
                 .name(N6)
                 .sources(Source.builder().sourceName(N5).startSeq(11).filterSubject(N4).build())
                 .build();
-            jstc.addStream(sc);
-            assertSource(jstc.jsm, N6, 20L, null);
+            ctx.addStream(sc);
+            assertSource(ctx.jsm, N6, 20L, null);
 
-            info = jstc.jsm.getMessage(N6, 1);
+            info = ctx.jsm.getMessage(N6, 1);
             assertStreamSource(info, N5, 11);
         });
     }
@@ -277,7 +272,7 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
     @Test
     @Disabled("This used to work.")
     public void testSourceAndTransformsRoundTrips() throws Exception {
-        runInOwnJsServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
+        runInJsServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
             StreamConfiguration scSource = StreamConfigurationTests.getStreamConfigurationFromJson(
                 "StreamConfigurationSourcedSubjectTransform.json");
 
@@ -319,7 +314,7 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
 
     @Test
     public void testMirror() throws Exception {
-        runInOwnJsServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
+        runInJsServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
             StreamConfiguration scMirror = StreamConfigurationTests.getStreamConfigurationFromJson(
                 "StreamConfigurationMirrorSubjectTransform.json");
 

@@ -18,7 +18,6 @@ import io.nats.client.NatsServerProtocolMock.ExitAt;
 import io.nats.client.api.ServerInfo;
 import io.nats.client.impl.ListenerForTesting;
 import io.nats.client.impl.SimulateSocketDataPortException;
-import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 
@@ -638,7 +637,7 @@ public class ConnectTests {
 
     @Test
     void testConnectPendingCountCoverage() throws Exception {
-        runInOwnServer(nc -> {
+        runInServer(nc -> {
             AtomicLong outgoingPendingMessageCount = new AtomicLong();
             AtomicLong outgoingPendingBytes = new AtomicLong();
 
@@ -652,7 +651,7 @@ public class ConnectTests {
             });
             t.start();
 
-            String subject = TestBase.random();
+            String subject = random();
             byte[] data = new byte[8 * 1024];
             for (int x = 0; x < 5000; x++) {
                 nc.publish(subject, data);

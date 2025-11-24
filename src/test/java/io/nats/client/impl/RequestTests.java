@@ -70,7 +70,7 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testRequestVarieties() throws Exception {
-        runInOwnServer(nc -> {
+        runInServer(nc -> {
             Dispatcher d = nc.createDispatcher(msg -> {
                 if (msg.hasHeaders()) {
                     nc.publish(msg.getReplyTo(), msg.getHeaders(), msg.getData());
@@ -183,7 +183,7 @@ public class RequestTests extends TestBase {
     @Test
     public void testMultipleReplies() throws Exception {
         Options.Builder builder = optionsBuilder().turnOnAdvancedStats();
-        runInOwnServer(builder, nc -> {
+        runInServer(builder, nc -> {
             AtomicInteger requests = new AtomicInteger();
             MessageHandler handler = msg -> { requests.incrementAndGet(); nc.publish(msg.getReplyTo(), null); };
             Dispatcher d1 = nc.createDispatcher(handler);

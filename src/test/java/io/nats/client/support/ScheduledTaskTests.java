@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class ScheduledTaskTests {
+public class ScheduledTaskTests extends TestBase {
 
     @Test
     public void testScheduledTask() throws InterruptedException {
@@ -30,7 +30,7 @@ public class ScheduledTaskTests {
 
         AtomicInteger counter100 = new AtomicInteger();
         SttRunnable sttr100 = new SttRunnable(400, counter100);
-        String id = "100-" + TestBase.random();
+        String id = "100-" + random();
         ScheduledTask task100 = new ScheduledTask(id, stpe, 0, 100, TimeUnit.MILLISECONDS, sttr100);
         validateTaskPeriods(task100, 0, 100);
         assertEquals(id, task100.getId());

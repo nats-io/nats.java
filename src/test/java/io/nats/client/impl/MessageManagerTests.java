@@ -389,10 +389,10 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void test_received_time() throws Exception {
-        runInShared((nc, jstc) -> {
-            _received_time_yes(push_hb_fc(), jstc.js, jstc.subject());
-            _received_time_yes(push_hb_xfc(), jstc.js, jstc.subject());
-            _received_time_no(jstc.js, jstc.jsm, jstc.stream, jstc.subject(), jstc.js.subscribe(jstc.subject(), push_xhb_xfc()));
+        runInShared((nc, ctx) -> {
+            _received_time_yes(push_hb_fc(), ctx.js, ctx.subject());
+            _received_time_yes(push_hb_xfc(), ctx.js, ctx.subject());
+            _received_time_no(ctx.js, ctx.jsm, ctx.stream, ctx.subject(), ctx.js.subscribe(ctx.subject(), push_xhb_xfc()));
         });
     }
 
@@ -606,7 +606,7 @@ public class MessageManagerTests extends JetStreamTestBase {
         String id = "-" + ID.incrementAndGet() + "-" + System.currentTimeMillis();
         String stream = random() + id;
         String subject = random() + id;
-        createMemoryStream(nc, stream, subject);
+        createMemoryStream(nc.jetStreamManagement(), stream, subject);
         return subject;
     }
 

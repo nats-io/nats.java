@@ -65,7 +65,7 @@ public class EchoTests extends TestBase {
         runInSharedOwnNc(nc1 -> {
             try (Connection nc2 = longConnectionWait(optionsBuilder(nc1.getConnectedUrl()).build())) {
                 // Echo is on so both sub should get messages from both pub
-                String subject = TestBase.random();
+                String subject = random();
                 Subscription sub1 = nc1.subscribe(subject);
                 nc1.flush(Duration.ofSeconds(1));
                 Subscription sub2 = nc2.subscribe(subject);
@@ -93,7 +93,7 @@ public class EchoTests extends TestBase {
     @Test
     public void testWithNoEcho() throws Exception {
         runInSharedOwnNc(optionsBuilder().noEcho().noReconnect(), nc -> {
-            String subject = TestBase.random();
+            String subject = random();
             // Echo is off so sub should get messages from pub from other connections
             Subscription sub1 = nc.subscribe(subject);
             nc.flush(Duration.ofSeconds(1));

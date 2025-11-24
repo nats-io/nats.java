@@ -54,23 +54,23 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testStreamContextFromConnection() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
-            StreamContext streamContext = nc.getStreamContext(jstc.stream);
-            assertEquals(jstc.stream, streamContext.getStreamName());
-            _testStreamContext(jstc, streamContext);
+        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+            StreamContext streamContext = nc.getStreamContext(ctx.stream);
+            assertEquals(ctx.stream, streamContext.getStreamName());
+            _testStreamContext(ctx, streamContext);
         });
     }
 
     @Test
     public void testStreamContextFromContext() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
-            StreamContext streamContext = jstc.js.getStreamContext(jstc.stream);
-            assertEquals(jstc.stream, streamContext.getStreamName());
-            _testStreamContext(jstc, streamContext);
+        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+            StreamContext streamContext = ctx.js.getStreamContext(ctx.stream);
+            assertEquals(ctx.stream, streamContext.getStreamName());
+            _testStreamContext(ctx, streamContext);
         });
     }
 
-    private void _testStreamContext(JetStreamTestingContext jstc, StreamContext streamContext) throws IOException, JetStreamApiException {
+    private void _testStreamContext(JetStreamTestingContext ctx, StreamContext streamContext) throws IOException, JetStreamApiException {
         String durable = random();
         assertThrows(JetStreamApiException.class, () -> streamContext.getConsumerContext(durable));
         assertThrows(JetStreamApiException.class, () -> streamContext.deleteConsumer(durable));
@@ -78,12 +78,12 @@ public class SimplificationTests extends JetStreamTestBase {
         ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(durable).build();
         ConsumerContext consumerContext = streamContext.createOrUpdateConsumer(cc);
         ConsumerInfo ci = consumerContext.getConsumerInfo();
-        assertEquals(jstc.stream, ci.getStreamName());
+        assertEquals(ctx.stream, ci.getStreamName());
         assertEquals(durable, ci.getName());
 
         ci = streamContext.getConsumerInfo(durable);
         assertNotNull(ci);
-        assertEquals(jstc.stream, ci.getStreamName());
+        assertEquals(ctx.stream, ci.getStreamName());
         assertEquals(durable, ci.getName());
 
         assertEquals(1, streamContext.getConsumerNames().size());
@@ -95,12 +95,12 @@ public class SimplificationTests extends JetStreamTestBase {
 
         ci = consumerContext.getConsumerInfo();
         assertNotNull(ci);
-        assertEquals(jstc.stream, ci.getStreamName());
+        assertEquals(ctx.stream, ci.getStreamName());
         assertEquals(durable, ci.getName());
 
         ci = consumerContext.getCachedConsumerInfo();
         assertNotNull(ci);
-        assertEquals(jstc.stream, ci.getStreamName());
+        assertEquals(ctx.stream, ci.getStreamName());
         assertEquals(durable, ci.getName());
 
         streamContext.deleteConsumer(durable);
@@ -109,12 +109,12 @@ public class SimplificationTests extends JetStreamTestBase {
         assertThrows(JetStreamApiException.class, () -> streamContext.deleteConsumer(durable));
 
         // coverage
-        jstc.js.publish(jstc.subject(), "one".getBytes());
-        jstc.js.publish(jstc.subject(), "two".getBytes());
-        jstc.js.publish(jstc.subject(), "three".getBytes());
-        jstc.js.publish(jstc.subject(), "four".getBytes());
-        jstc.js.publish(jstc.subject(), "five".getBytes());
-        jstc.js.publish(jstc.subject(), "six".getBytes());
+        ctx.js.publish(ctx.subject(), "one".getBytes());
+        ctx.js.publish(ctx.subject(), "two".getBytes());
+        ctx.js.publish(ctx.subject(), "three".getBytes());
+        ctx.js.publish(ctx.subject(), "four".getBytes());
+        ctx.js.publish(ctx.subject(), "five".getBytes());
+        ctx.js.publish(ctx.subject(), "six".getBytes());
 
         assertTrue(streamContext.deleteMessage(3));
         assertTrue(streamContext.deleteMessage(4, true));
@@ -122,13 +122,13 @@ public class SimplificationTests extends JetStreamTestBase {
         MessageInfo mi = streamContext.getMessage(1);
         assertEquals(1, mi.getSeq());
 
-        mi = streamContext.getFirstMessage(jstc.subject());
+        mi = streamContext.getFirstMessage(ctx.subject());
         assertEquals(1, mi.getSeq());
 
-        mi = streamContext.getLastMessage(jstc.subject());
+        mi = streamContext.getLastMessage(ctx.subject());
         assertEquals(6, mi.getSeq());
 
-        mi = streamContext.getNextMessage(3, jstc.subject());
+        mi = streamContext.getNextMessage(3, ctx.subject());
         assertEquals(5, mi.getSeq());
 
         assertNotNull(streamContext.getStreamInfo());
@@ -137,25 +137,25 @@ public class SimplificationTests extends JetStreamTestBase {
         streamContext.purge(PurgeOptions.builder().sequence(5).build());
         assertThrows(JetStreamApiException.class, () -> streamContext.getMessage(1));
 
-        StreamInfo si = jstc.jsm.getStreamInfo(jstc.stream);
+        StreamInfo si = ctx.jsm.getStreamInfo(ctx.stream);
         assertEquals(2, si.getStreamState().getMsgCount());
         assertEquals(5, si.getStreamState().getFirstSequence());
         assertEquals(6, si.getStreamState().getLastSequence());
 
-        jstc.js.publish(jstc.subject(), "aone".getBytes());
-        jstc.js.publish(jstc.subject(), "btwo".getBytes());
-        jstc.js.publish(jstc.subject(), "cthree".getBytes());
-        jstc.js.publish(jstc.subject(), "dfour".getBytes());
-        jstc.js.publish(jstc.subject(), "efive".getBytes());
-        jstc.js.publish(jstc.subject(), "fsix".getBytes());
+        ctx.js.publish(ctx.subject(), "aone".getBytes());
+        ctx.js.publish(ctx.subject(), "btwo".getBytes());
+        ctx.js.publish(ctx.subject(), "cthree".getBytes());
+        ctx.js.publish(ctx.subject(), "dfour".getBytes());
+        ctx.js.publish(ctx.subject(), "efive".getBytes());
+        ctx.js.publish(ctx.subject(), "fsix".getBytes());
 
-        si = jstc.jsm.getStreamInfo(jstc.stream);
+        si = ctx.jsm.getStreamInfo(ctx.stream);
         assertEquals(8, si.getStreamState().getMsgCount());
         assertEquals(12, si.getStreamState().getLastSequence());
 
         streamContext.purge();
 
-        si = jstc.jsm.getStreamInfo(jstc.stream);
+        si = ctx.jsm.getStreamInfo(ctx.stream);
         assertEquals(0, si.getStreamState().getMsgCount());
         assertEquals(12, si.getStreamState().getLastSequence());
     }
@@ -194,52 +194,52 @@ public class SimplificationTests extends JetStreamTestBase {
     static int FETCH_ORDERED = 3;
     @Test
     public void testFetch() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
+        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
             for (int x = 1; x <= 20; x++) {
-                jstc.js.publish(jstc.subject(), ("test-fetch-msg-" + x).getBytes());
+                ctx.js.publish(ctx.subject(), ("test-fetch-msg-" + x).getBytes());
             }
 
             for (int f = FETCH_EPHEMERAL; f <= FETCH_ORDERED; f++) {
                 // 1. Different fetch sizes demonstrate expiration behavior
 
                 // 1A. equal number of messages to the fetch size
-                _testFetch("1A", jstc, 20, 0, 20, f, false);
+                _testFetch("1A", ctx, 20, 0, 20, f, false);
 
                 // 1B. more messages than the fetch size
-                _testFetch("1B", jstc, 10, 0, 10, f, false);
+                _testFetch("1B", ctx, 10, 0, 10, f, false);
 
                 // 1C. fewer messages than the fetch size
-                _testFetch("1C", jstc, 40, 0, 40, f, false);
+                _testFetch("1C", ctx, 40, 0, 40, f, false);
 
                 // 1D. simple-consumer-40msgs was created in 1C and has no messages available
-                _testFetch("1D", jstc, 40, 0, 40, f, false);
+                _testFetch("1D", ctx, 40, 0, 40, f, false);
 
                 // 2. Different max bytes sizes demonstrate expiration behavior
                 //    - each test message is approximately 100 bytes
 
                 // 2A. max bytes are reached before message count
-                _testFetch("2A", jstc, 0, 750, 20, f, false);
+                _testFetch("2A", ctx, 0, 750, 20, f, false);
 
                 // 2B. fetch size is reached before byte count
-                _testFetch("2B", jstc, 10, 1500, 10, f, false);
+                _testFetch("2B", ctx, 10, 1500, 10, f, false);
 
                 if (f == FETCH_DURABLE) {
                     // this is long-running, so don't want to test every time
                     // 2C. fewer bytes than the byte count
-                    _testFetch("2C", jstc, 0, 3000, 40, f, false);
+                    _testFetch("2C", ctx, 0, 3000, 40, f, false);
                 }
                 else if (f == FETCH_ORDERED) {
                     // just to get coverage of testing with a consumer name prefix
-                    _testFetch("1A", jstc, 20, 0, 20, f, true);
-                    _testFetch("2A", jstc, 0, 750, 20, f, true);
+                    _testFetch("1A", ctx, 20, 0, 20, f, true);
+                    _testFetch("2A", ctx, 0, 750, 20, f, true);
                 }
 
             }
         });
     }
 
-    private void _testFetch(String label, JetStreamTestingContext jstc, int maxMessages, int maxBytes, int testAmount, int fetchType, boolean useConsumerPrefix) throws Exception {
-        StreamContext ctx = jstc.js.getStreamContext(jstc.stream);
+    private void _testFetch(String label, JetStreamTestingContext ctx, int maxMessages, int maxBytes, int testAmount, int fetchType, boolean useConsumerPrefix) throws Exception {
+        StreamContext streamCtx = ctx.js.getStreamContext(ctx.stream);
 
         String consumerName = null;
         String consumerNamePrefix = null;
@@ -250,7 +250,7 @@ public class SimplificationTests extends JetStreamTestBase {
                 consumerNamePrefix = random();
                 occ.consumerNamePrefix(consumerNamePrefix);
             }
-            consumerContext = ctx.createOrderedConsumer(occ);
+            consumerContext = streamCtx.createOrderedConsumer(occ);
             assertNull(consumerContext.getConsumerName());
         }
         else {
@@ -266,8 +266,8 @@ public class SimplificationTests extends JetStreamTestBase {
                 consumerName = consumerName + "E";
                 cc = builder.name(consumerName).inactiveThreshold(10_000).build();
             }
-            jstc.jsm.addOrUpdateConsumer(jstc.stream, cc);
-            consumerContext = ctx.getConsumerContext(consumerName);
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, cc);
+            consumerContext = streamCtx.getConsumerContext(consumerName);
             assertEquals(consumerName, consumerContext.getConsumerName());
         }
 
@@ -333,14 +333,14 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testFetchNoWaitPlusExpires() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
-            jstc.jsm.addOrUpdateConsumer(jstc.stream, ConsumerConfiguration.builder()
-                .name(jstc.consumerName())
+        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, ConsumerConfiguration.builder()
+                .name(ctx.consumerName())
                 .inactiveThreshold(100000) // I could have used a durable, but this is long enough for the test
-                .filterSubject(jstc.subject())
+                .filterSubject(ctx.subject())
                 .build());
 
-            ConsumerContext cc = nc.getConsumerContext(jstc.stream, jstc.consumerName());
+            ConsumerContext cc = nc.getConsumerContext(ctx.stream, ctx.consumerName());
             FetchConsumeOptions fco = FetchConsumeOptions.builder().maxMessages(10).noWait().build();
 
             // No Wait, No Messages
@@ -349,14 +349,14 @@ public class SimplificationTests extends JetStreamTestBase {
             assertEquals(0, count); // no messages
 
             // No Wait, One Message
-            jstc.js.publish(jstc.subject(), "DATA-A".getBytes());
+            ctx.js.publish(ctx.subject(), "DATA-A".getBytes());
             fc = cc.fetch(fco);
             count = readMessages(fc);
             assertEquals(1, count); // 1 message
 
             // No Wait, Two Messages
-            jstc.js.publish(jstc.subject(), "DATA-B".getBytes());
-            jstc.js.publish(jstc.subject(), "DATA-C".getBytes());
+            ctx.js.publish(ctx.subject(), "DATA-B".getBytes());
+            ctx.js.publish(ctx.subject(), "DATA-C".getBytes());
             fc = cc.fetch(fco);
             count = readMessages(fc);
             assertEquals(2, count); // 2 messages
@@ -370,9 +370,9 @@ public class SimplificationTests extends JetStreamTestBase {
             // With Expires, One to Three Message
             fco = FetchConsumeOptions.builder().maxMessages(10).noWaitExpiresIn(1000).build();
             fc = cc.fetch(fco);
-            jstc.js.publish(jstc.subject(), "DATA-D".getBytes());
-            jstc.js.publish(jstc.subject(), "DATA-E".getBytes());
-            jstc.js.publish(jstc.subject(), "DATA-F".getBytes());
+            ctx.js.publish(ctx.subject(), "DATA-D".getBytes());
+            ctx.js.publish(ctx.subject(), "DATA-E".getBytes());
+            ctx.js.publish(ctx.subject(), "DATA-F".getBytes());
             count = readMessages(fc);
 
             // With Long (Default) Expires, Leftovers
@@ -397,25 +397,25 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testIterableConsumer() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
+        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
             // Pre define a consumer
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(jstc.consumerName()).build();
-            jstc.jsm.addOrUpdateConsumer(jstc.stream, cc);
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(ctx.consumerName()).build();
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, cc);
 
             // Consumer[Context]
-            ConsumerContext consumerContext = jstc.js.getConsumerContext(jstc.stream, jstc.consumerName());
-            validateConsumerName(consumerContext, null, jstc.consumerName());
+            ConsumerContext consumerContext = ctx.js.getConsumerContext(ctx.stream, ctx.consumerName());
+            validateConsumerName(consumerContext, null, ctx.consumerName());
 
             int stopCount = 500;
             // create the consumer then use it
             try (IterableConsumer consumer = consumerContext.iterate()) {
-                validateConsumerName(consumerContext, consumer, jstc.consumerName());
-                _testIterableBasic(jstc.js, stopCount, consumer, jstc.subject());
+                validateConsumerName(consumerContext, consumer, ctx.consumerName());
+                _testIterableBasic(ctx.js, stopCount, consumer, ctx.subject());
             }
 
             // coverage
             IterableConsumer consumer = consumerContext.iterate(ConsumeOptions.DEFAULT_CONSUME_OPTIONS);
-            validateConsumerName(consumerContext, consumer, jstc.consumerName());
+            validateConsumerName(consumerContext, consumer, ctx.consumerName());
             consumer.close();
             //noinspection DataFlowIssue
             assertThrows(IllegalArgumentException.class, () -> consumerContext.iterate(null));
@@ -424,15 +424,15 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedConsumerDeliverPolices() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
-            jsPublish(jstc.js, jstc.subject(), 101, 3, 100);
-            ZonedDateTime startTime = getStartTimeFirstMessage(jstc);
+        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+            jsPublish(ctx.js, ctx.subject(), 101, 3, 100);
+            ZonedDateTime startTime = getStartTimeFirstMessage(ctx);
 
-            StreamContext sctx = nc.getStreamContext(jstc.stream);
+            StreamContext sctx = nc.getStreamContext(ctx.stream);
 
             // test a start time
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration()
-                .filterSubject(jstc.subject())
+                .filterSubject(ctx.subject())
                 .deliverPolicy(DeliverPolicy.ByStartTime)
                 .startTime(startTime);
             OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
@@ -443,7 +443,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
             // test a start sequence
             occ = new OrderedConsumerConfiguration()
-                .filterSubject(jstc.subject())
+                .filterSubject(ctx.subject())
                 .deliverPolicy(DeliverPolicy.ByStartSequence)
                 .startSequence(2);
             occtx = sctx.createOrderedConsumer(occ);
@@ -479,25 +479,25 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedIterableConsumerBasic() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
-            StreamContext sctx = nc.getStreamContext(jstc.stream);
+        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+            StreamContext sctx = nc.getStreamContext(ctx.stream);
 
             int stopCount = 500;
-            OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(jstc.subject());
+            OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(ctx.subject());
             OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
             assertNull(occtx.getConsumerName());
             try (IterableConsumer consumer = occtx.iterate()) {
                 validateConsumerNameForOrdered(occtx, consumer, null);
-                _testIterableBasic(jstc.js, stopCount, consumer, jstc.subject());
+                _testIterableBasic(ctx.js, stopCount, consumer, ctx.subject());
             }
 
             String consumerNamePrefix = random();
-            occ = new OrderedConsumerConfiguration().filterSubject(jstc.subject()).consumerNamePrefix(consumerNamePrefix);
+            occ = new OrderedConsumerConfiguration().filterSubject(ctx.subject()).consumerNamePrefix(consumerNamePrefix);
             occtx = sctx.createOrderedConsumer(occ);
             assertNull(occtx.getConsumerName());
             try (IterableConsumer consumer = occtx.iterate()) {
                 validateConsumerNameForOrdered(occtx, consumer, consumerNamePrefix);
-                _testIterableBasic(jstc.js, stopCount, consumer, jstc.subject());
+                _testIterableBasic(ctx.js, stopCount, consumer, ctx.subject());
             }
         });
     }
@@ -543,16 +543,16 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testConsumeWithHandler() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
-            jsPublish(jstc.js, jstc.subject(), 2500);
+        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+            jsPublish(ctx.js, ctx.subject(), 2500);
 
             // Pre define a consumer
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(jstc.consumerName()).build();
-            jstc.jsm.addOrUpdateConsumer(jstc.stream, cc);
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(ctx.consumerName()).build();
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, cc);
 
             // Consumer[Context]
-            ConsumerContext consumerContext = jstc.js.getConsumerContext(jstc.stream, jstc.consumerName());
-            validateConsumerName(consumerContext, null, jstc.consumerName());
+            ConsumerContext consumerContext = ctx.js.getConsumerContext(ctx.stream, ctx.consumerName());
+            validateConsumerName(consumerContext, null, ctx.consumerName());
 
             int stopCount = 500;
 
@@ -566,16 +566,16 @@ public class SimplificationTests extends JetStreamTestBase {
             };
 
             try (MessageConsumer mcon = consumerContext.consume(handler)) {
-                validateConsumerName(consumerContext, mcon, jstc.consumerName());
+                validateConsumerName(consumerContext, mcon, ctx.consumerName());
                 latch.await();
                 stopAndWaitForFinished(mcon);
                 assertTrue(atomicCount.get() > 500);
             }
 
-            StreamContext sctx = nc.getStreamContext(jstc.stream);
+            StreamContext sctx = nc.getStreamContext(ctx.stream);
 
             OrderedConsumerContext orderedConsumerContext =
-                sctx.createOrderedConsumer(new OrderedConsumerConfiguration().filterSubject(jstc.subject()));
+                sctx.createOrderedConsumer(new OrderedConsumerConfiguration().filterSubject(ctx.subject()));
             assertNull(orderedConsumerContext.getConsumerName());
 
             CountDownLatch orderedLatch = new CountDownLatch(1);
@@ -596,7 +596,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
             String prefix = random();
             OrderedConsumerContext orderedConsumerContextPrefixed =
-                sctx.createOrderedConsumer(new OrderedConsumerConfiguration().filterSubject(jstc.subject()).consumerNamePrefix(prefix));
+                sctx.createOrderedConsumer(new OrderedConsumerConfiguration().filterSubject(ctx.subject()).consumerNamePrefix(prefix));
             assertNull(orderedConsumerContextPrefixed.getConsumerName());
 
             CountDownLatch orderedLatchPrefixed = new CountDownLatch(1);
@@ -631,17 +631,17 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testNext() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
-            jsPublish(jstc.js, jstc.subject(), 4);
+        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+            jsPublish(ctx.js, ctx.subject(), 4);
 
             String name = random();
 
             // Pre define a consumer
             ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(name).build();
-            jstc.jsm.addOrUpdateConsumer(jstc.stream, cc);
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, cc);
 
             // Consumer[Context]
-            ConsumerContext consumerContext = jstc.js.getConsumerContext(jstc.stream, name);
+            ConsumerContext consumerContext = ctx.js.getConsumerContext(ctx.stream, name);
             validateConsumerName(consumerContext, null, name);
 
             assertThrows(IllegalArgumentException.class, () -> consumerContext.next(1)); // max wait too small
@@ -651,7 +651,7 @@ public class SimplificationTests extends JetStreamTestBase {
             assertNotNull(consumerContext.next());
             assertNull(consumerContext.next(1000));
 
-            StreamContext sctx = jstc.js.getStreamContext(jstc.stream);
+            StreamContext sctx = ctx.js.getStreamContext(ctx.stream);
             OrderedConsumerContext occtx = sctx.createOrderedConsumer(new OrderedConsumerConfiguration());
             assertNull(occtx.getConsumerName());
             assertThrows(IllegalArgumentException.class, () -> occtx.next(1)); // max wait too small
@@ -703,32 +703,32 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testCoverage() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
+        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
             // Pre define a consumer
-            jstc.jsm.addOrUpdateConsumer(jstc.stream, ConsumerConfiguration.builder().durable(jstc.consumerName(1)).build());
-            jstc.jsm.addOrUpdateConsumer(jstc.stream, ConsumerConfiguration.builder().durable(jstc.consumerName(2)).build());
-            jstc.jsm.addOrUpdateConsumer(jstc.stream, ConsumerConfiguration.builder().durable(jstc.consumerName(3)).build());
-            jstc.jsm.addOrUpdateConsumer(jstc.stream, ConsumerConfiguration.builder().durable(jstc.consumerName(4)).build());
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, ConsumerConfiguration.builder().durable(ctx.consumerName(1)).build());
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, ConsumerConfiguration.builder().durable(ctx.consumerName(2)).build());
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, ConsumerConfiguration.builder().durable(ctx.consumerName(3)).build());
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, ConsumerConfiguration.builder().durable(ctx.consumerName(4)).build());
 
             // Stream[Context]
-            StreamContext sctx1 = nc.getStreamContext(jstc.stream);
-            nc.getStreamContext(jstc.stream, JetStreamOptions.DEFAULT_JS_OPTIONS);
-            jstc.js.getStreamContext(jstc.stream);
+            StreamContext sctx1 = nc.getStreamContext(ctx.stream);
+            nc.getStreamContext(ctx.stream, JetStreamOptions.DEFAULT_JS_OPTIONS);
+            ctx.js.getStreamContext(ctx.stream);
 
             // Consumer[Context]
-            ConsumerContext cctx1 = nc.getConsumerContext(jstc.stream, jstc.consumerName(1));
-            ConsumerContext cctx2 = nc.getConsumerContext(jstc.stream, jstc.consumerName(2), JetStreamOptions.DEFAULT_JS_OPTIONS);
-            ConsumerContext cctx3 = jstc.js.getConsumerContext(jstc.stream, jstc.consumerName(3));
-            ConsumerContext cctx4 = sctx1.getConsumerContext(jstc.consumerName(4));
-            ConsumerContext cctx5 = sctx1.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(jstc.consumerName(5)).build());
-            ConsumerContext cctx6 = sctx1.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(jstc.consumerName(6)).build());
+            ConsumerContext cctx1 = nc.getConsumerContext(ctx.stream, ctx.consumerName(1));
+            ConsumerContext cctx2 = nc.getConsumerContext(ctx.stream, ctx.consumerName(2), JetStreamOptions.DEFAULT_JS_OPTIONS);
+            ConsumerContext cctx3 = ctx.js.getConsumerContext(ctx.stream, ctx.consumerName(3));
+            ConsumerContext cctx4 = sctx1.getConsumerContext(ctx.consumerName(4));
+            ConsumerContext cctx5 = sctx1.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(ctx.consumerName(5)).build());
+            ConsumerContext cctx6 = sctx1.createOrUpdateConsumer(ConsumerConfiguration.builder().durable(ctx.consumerName(6)).build());
 
-            after(cctx1.iterate(), jstc.consumerName(1), true);
-            after(cctx2.iterate(ConsumeOptions.DEFAULT_CONSUME_OPTIONS), jstc.consumerName(2), true);
-            after(cctx3.consume(m -> {}), jstc.consumerName(3), true);
-            after(cctx4.consume(ConsumeOptions.DEFAULT_CONSUME_OPTIONS, m -> {}), jstc.consumerName(4), true);
-            after(cctx5.fetchMessages(1), jstc.consumerName(5), false);
-            after(cctx6.fetchBytes(1000), jstc.consumerName(6), false);
+            after(cctx1.iterate(), ctx.consumerName(1), true);
+            after(cctx2.iterate(ConsumeOptions.DEFAULT_CONSUME_OPTIONS), ctx.consumerName(2), true);
+            after(cctx3.consume(m -> {}), ctx.consumerName(3), true);
+            after(cctx4.consume(ConsumeOptions.DEFAULT_CONSUME_OPTIONS, m -> {}), ctx.consumerName(4), true);
+            after(cctx5.fetchMessages(1), ctx.consumerName(5), false);
+            after(cctx6.fetchBytes(1000), ctx.consumerName(6), false);
         });
     }
 
@@ -925,41 +925,41 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedBehaviorNext() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
-            StreamContext sctx = jstc.js.getStreamContext(jstc.stream);
+        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+            StreamContext sctx = ctx.js.getStreamContext(ctx.stream);
 
-            jsPublish(jstc.js, jstc.subject(), 101, 6, 100);
-            ZonedDateTime startTime = getStartTimeFirstMessage(jstc);
+            jsPublish(ctx.js, ctx.subject(), 101, 6, 100);
+            ZonedDateTime startTime = getStartTimeFirstMessage(ctx);
 
             // New pomm factory in place before each subscription is made
             // test with and without a consumer name prefix
 
-            jstc.js._pullOrderedMessageManagerFactory = PullOrderedNextTestDropSimulator::new;
+            ctx.js._pullOrderedMessageManagerFactory = PullOrderedNextTestDropSimulator::new;
             _testOrderedNext(sctx, 1, new OrderedConsumerConfiguration()
-                .filterSubject(jstc.subject()));
+                .filterSubject(ctx.subject()));
             _testOrderedNext(sctx, 1, new OrderedConsumerConfiguration()
                 .consumerNamePrefix(random())
-                .filterSubject(jstc.subject()));
+                .filterSubject(ctx.subject()));
 
-            jstc.js._pullOrderedMessageManagerFactory = PullOrderedNextTestDropSimulator::new;
-            _testOrderedNext(sctx, 2, new OrderedConsumerConfiguration().filterSubject(jstc.subject())
+            ctx.js._pullOrderedMessageManagerFactory = PullOrderedNextTestDropSimulator::new;
+            _testOrderedNext(sctx, 2, new OrderedConsumerConfiguration().filterSubject(ctx.subject())
                 .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
-            _testOrderedNext(sctx, 2, new OrderedConsumerConfiguration().filterSubject(jstc.subject())
+            _testOrderedNext(sctx, 2, new OrderedConsumerConfiguration().filterSubject(ctx.subject())
                 .consumerNamePrefix(random())
                 .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
 
-            jstc.js._pullOrderedMessageManagerFactory = PullOrderedNextTestDropSimulator::new;
-            _testOrderedNext(sctx, 2, new OrderedConsumerConfiguration().filterSubject(jstc.subject())
+            ctx.js._pullOrderedMessageManagerFactory = PullOrderedNextTestDropSimulator::new;
+            _testOrderedNext(sctx, 2, new OrderedConsumerConfiguration().filterSubject(ctx.subject())
                 .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
-            _testOrderedNext(sctx, 2, new OrderedConsumerConfiguration().filterSubject(jstc.subject())
+            _testOrderedNext(sctx, 2, new OrderedConsumerConfiguration().filterSubject(ctx.subject())
                 .consumerNamePrefix(random())
                 .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
         });
     }
 
-    private ZonedDateTime getStartTimeFirstMessage(JetStreamTestingContext jstc) throws IOException, JetStreamApiException, InterruptedException {
+    private ZonedDateTime getStartTimeFirstMessage(JetStreamTestingContext ctx) throws IOException, JetStreamApiException, InterruptedException {
         ZonedDateTime startTime;
-        JetStreamSubscription sub = jstc.js.subscribe(jstc.subject());
+        JetStreamSubscription sub = ctx.js.subscribe(ctx.subject());
         Message mt = sub.nextMessage(1000);
         startTime = mt.metaData().timestamp().plus(30, ChronoUnit.MILLIS);
         sub.unsubscribe();
@@ -1006,33 +1006,33 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedBehaviorFetch() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
-            StreamContext sctx = jstc.js.getStreamContext(jstc.stream);
+        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+            StreamContext sctx = ctx.js.getStreamContext(ctx.stream);
 
-            jsPublish(jstc.js, jstc.subject(), 101, 6, 100);
-            ZonedDateTime startTime = getStartTimeFirstMessage(jstc);
+            jsPublish(ctx.js, ctx.subject(), 101, 6, 100);
+            ZonedDateTime startTime = getStartTimeFirstMessage(ctx);
 
             // New pomm factory in place before subscriptions are made
-            jstc.js._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
+            ctx.js._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
 
             // Set the Consumer Sequence For Stream Sequence 3 statically for ease
             CS_FOR_SS_3 = 3;
-            _testOrderedFetch(sctx, 1, new OrderedConsumerConfiguration().filterSubject(jstc.subject()));
+            _testOrderedFetch(sctx, 1, new OrderedConsumerConfiguration().filterSubject(ctx.subject()));
             _testOrderedFetch(sctx, 1, new OrderedConsumerConfiguration()
                 .consumerNamePrefix(random())
-                .filterSubject(jstc.subject()));
+                .filterSubject(ctx.subject()));
 
             CS_FOR_SS_3 = 2;
-            _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(jstc.subject())
+            _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(ctx.subject())
                 .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
-            _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(jstc.subject())
+            _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(ctx.subject())
                 .consumerNamePrefix(random())
                 .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
 
             CS_FOR_SS_3 = 2;
-            _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(jstc.subject())
+            _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(ctx.subject())
                 .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
-            _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(jstc.subject())
+            _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(ctx.subject())
                 .consumerNamePrefix(random())
                 .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
         });
@@ -1075,34 +1075,34 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedBehaviorIterable() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
-            StreamContext sctx = jstc.js.getStreamContext(jstc.stream);
+        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+            StreamContext sctx = ctx.js.getStreamContext(ctx.stream);
 
-            jsPublish(jstc.js, jstc.subject(), 101, 6, 100);
-            ZonedDateTime startTime = getStartTimeFirstMessage(jstc);
+            jsPublish(ctx.js, ctx.subject(), 101, 6, 100);
+            ZonedDateTime startTime = getStartTimeFirstMessage(ctx);
 
             // New pomm factory in place before each subscription is made
             // Set the Consumer Sequence For Stream Sequence 3 statically for ease
             CS_FOR_SS_3 = 3;
-            jstc.js._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
-            _testOrderedIterate(sctx, 1, new OrderedConsumerConfiguration().filterSubject(jstc.subject()));
+            ctx.js._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
+            _testOrderedIterate(sctx, 1, new OrderedConsumerConfiguration().filterSubject(ctx.subject()));
             _testOrderedIterate(sctx, 1, new OrderedConsumerConfiguration()
                 .consumerNamePrefix(random())
-                .filterSubject(jstc.subject()));
+                .filterSubject(ctx.subject()));
 
             CS_FOR_SS_3 = 2;
-            jstc.js._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
-            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(jstc.subject())
+            ctx.js._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
+            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(ctx.subject())
                 .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
-            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(jstc.subject())
+            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(ctx.subject())
                 .consumerNamePrefix(random())
                 .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
 
             CS_FOR_SS_3 = 2;
-            jstc.js._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
-            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(jstc.subject())
+            ctx.js._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
+            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(ctx.subject())
                 .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
-            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(jstc.subject())
+            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(ctx.subject())
                 .consumerNamePrefix(random())
                 .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
         });
@@ -1158,28 +1158,28 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedConsume() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
+        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration()
-                .filterSubject(jstc.subject());
-            _testOrderedConsume(jstc, occ);
+                .filterSubject(ctx.subject());
+            _testOrderedConsume(ctx, occ);
         });
     }
 
     @Test
     public void testOrderedConsumeWithPrefix() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
+        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration()
                 .consumerNamePrefix(random())
-                .filterSubject(jstc.subject());
-            _testOrderedConsume(jstc, occ);
+                .filterSubject(ctx.subject());
+            _testOrderedConsume(ctx, occ);
         });
     }
 
-    private void _testOrderedConsume(JetStreamTestingContext jstc, OrderedConsumerConfiguration occ) throws Exception {
-        StreamContext sctx = jstc.js.getStreamContext(jstc.stream);
+    private void _testOrderedConsume(JetStreamTestingContext ctx, OrderedConsumerConfiguration occ) throws Exception {
+        StreamContext sctx = ctx.js.getStreamContext(ctx.stream);
 
         // Get this in place before subscriptions are made
-        jstc.js._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
+        ctx.js._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
 
         CountDownLatch msgLatch = new CountDownLatch(6);
         AtomicInteger received = new AtomicInteger();
@@ -1193,7 +1193,7 @@ public class SimplificationTests extends JetStreamTestBase {
         assertNull(occtx.getConsumerName());
         try (MessageConsumer mcon = occtx.consume(handler)) {
             validateConsumerNameForOrdered(occtx, mcon, occ.getConsumerNamePrefix());
-            jsPublish(jstc.js, jstc.subject(), 201, 6);
+            jsPublish(ctx.js, ctx.subject(), 201, 6);
 
             // wait for the messages
             awaitAndAssert(msgLatch);
@@ -1209,14 +1209,14 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedConsumeMultipleSubjects() throws Exception {
-        runInSharedCustomStream(VersionUtils::atLeast2_10, (nc, jstc) -> {
-            jstc.createStream(2);
-            jsPublish(jstc.js, jstc.subject(0), 10);
-            jsPublish(jstc.js, jstc.subject(1), 5);
+        runInSharedCustom(VersionUtils::atLeast2_10, (nc, ctx) -> {
+            ctx.createStream(2);
+            jsPublish(ctx.js, ctx.subject(0), 10);
+            jsPublish(ctx.js, ctx.subject(1), 5);
 
-            StreamContext sctx = jstc.js.getStreamContext(jstc.stream);
+            StreamContext sctx = ctx.js.getStreamContext(ctx.stream);
 
-            OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubjects(jstc.subject(0), jstc.subject(1));
+            OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubjects(ctx.subject(0), ctx.subject(1));
             OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
 
             int count0 = 0;
@@ -1224,7 +1224,7 @@ public class SimplificationTests extends JetStreamTestBase {
             try (FetchConsumer fc = occtx.fetch(FetchConsumeOptions.builder().maxMessages(20).expiresIn(2000).build())) {
                 Message m = fc.nextMessage();
                 while (m != null) {
-                    if (m.getSubject().equals(jstc.subject(0))) {
+                    if (m.getSubject().equals(ctx.subject(0))) {
                         count0++;
                     }
                     else {
@@ -1242,10 +1242,10 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedMultipleWays() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
-            StreamContext sctx = jstc.js.getStreamContext(jstc.stream);
+        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+            StreamContext sctx = ctx.js.getStreamContext(ctx.stream);
 
-            OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(jstc.subject());
+            OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(ctx.subject());
             OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
 
             // can't do others while doing next
@@ -1270,7 +1270,7 @@ public class SimplificationTests extends JetStreamTestBase {
             latch.await(3000, TimeUnit.MILLISECONDS);
 
             for (int x = 0; x < 10_000; x++) {
-                jstc.js.publish(jstc.subject(), ("multiple" + x).getBytes());
+                ctx.js.publish(ctx.subject(), ("multiple" + x).getBytes());
             }
 
             // can do others now
@@ -1458,9 +1458,8 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOverflowFetch() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
-        runInShared(VersionUtils::atLeast2_9_1, (nc, jstc) -> {
-            jsPublish(jstc.js, jstc.subject(), 100);
+        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+            jsPublish(ctx.js, ctx.subject(), 100);
 
             // Testing min ack pending
             String group = random();
@@ -1471,11 +1470,11 @@ public class SimplificationTests extends JetStreamTestBase {
                 .priorityPolicy(PriorityPolicy.Overflow)
                 .priorityGroups(group)
                 .ackWait(10_000)
-                .filterSubjects(jstc.subject()).build();
-            jstc.jsm.addOrUpdateConsumer(jstc.stream, cc);
+                .filterSubjects(ctx.subject()).build();
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, cc);
 
-            ConsumerContext ctxPrime = nc.getConsumerContext(jstc.stream, cname);
-            ConsumerContext ctxOver = nc.getConsumerContext(jstc.stream, cname);
+            ConsumerContext ctxPrime = nc.getConsumerContext(ctx.stream, cname);
+            ConsumerContext ctxOver = nc.getConsumerContext(ctx.stream, cname);
 
             FetchConsumeOptions fcoNoMin = FetchConsumeOptions.builder()
                 .maxMessages(5).expiresIn(1000).group(group)
@@ -1521,8 +1520,8 @@ public class SimplificationTests extends JetStreamTestBase {
     @Test
     public void testOverflowIterate() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInSharedOwnNc(listener, VersionUtils::atLeast2_11, (nc, jstc) -> {
-            jsPublish(jstc.js, jstc.subject(), 100);
+        runInSharedOwnNc(listener, VersionUtils::atLeast2_11, (nc, ctx) -> {
+            jsPublish(ctx.js, ctx.subject(), 100);
 
             // Testing min ack pending
             String group = random();
@@ -1533,11 +1532,11 @@ public class SimplificationTests extends JetStreamTestBase {
                 .priorityPolicy(PriorityPolicy.Overflow)
                 .priorityGroups(group)
                 .ackWait(30_000)
-                .filterSubjects(jstc.subject()).build();
-            jstc.jsm.addOrUpdateConsumer(jstc.stream, cc);
+                .filterSubjects(ctx.subject()).build();
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, cc);
 
-            ConsumerContext ctxPrime = nc.getConsumerContext(jstc.stream, cname);
-            ConsumerContext ctxOver = nc.getConsumerContext(jstc.stream, cname);
+            ConsumerContext ctxPrime = nc.getConsumerContext(ctx.stream, cname);
+            ConsumerContext ctxOver = nc.getConsumerContext(ctx.stream, cname);
             validateConsumerName(ctxPrime, null, cname);
             validateConsumerName(ctxOver, null, cname);
 
@@ -1607,8 +1606,8 @@ public class SimplificationTests extends JetStreamTestBase {
     @Test
     public void testOverflowConsume() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInSharedOwnNc(listener, VersionUtils::atLeast2_11, (nc, jstc) -> {
-            jsPublish(jstc.js, jstc.subject(), 1000);
+        runInSharedOwnNc(listener, VersionUtils::atLeast2_11, (nc, ctx) -> {
+            jsPublish(ctx.js, ctx.subject(), 1000);
 
             // Testing min ack pending
             String group = random();
@@ -1619,11 +1618,11 @@ public class SimplificationTests extends JetStreamTestBase {
                 .priorityPolicy(PriorityPolicy.Overflow)
                 .priorityGroups(group)
                 .ackWait(30_000)
-                .filterSubjects(jstc.subject()).build();
-            jstc.jsm.addOrUpdateConsumer(jstc.stream, cc);
+                .filterSubjects(ctx.subject()).build();
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, cc);
 
-            ConsumerContext ctxPrime = nc.getConsumerContext(jstc.stream, cname);
-            ConsumerContext ctxOver = nc.getConsumerContext(jstc.stream, cname);
+            ConsumerContext ctxPrime = nc.getConsumerContext(ctx.stream, cname);
+            ConsumerContext ctxOver = nc.getConsumerContext(ctx.stream, cname);
             validateConsumerName(ctxPrime, null, cname);
             validateConsumerName(ctxOver, null, cname);
 
@@ -1673,14 +1672,14 @@ public class SimplificationTests extends JetStreamTestBase {
     @Test
     public void testFinishEmptyStream() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInSharedOwnNc(listener, (nc, jstc) -> {
+        runInSharedOwnNc(listener, (nc, ctx) -> {
             String name = random();
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
                 .name(name)
-                .filterSubjects(jstc.subject()).build();
-            jstc.jsm.addOrUpdateConsumer(jstc.stream, cc);
+                .filterSubjects(ctx.subject()).build();
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, cc);
 
-            ConsumerContext cctx = nc.getConsumerContext(jstc.stream, name);
+            ConsumerContext cctx = nc.getConsumerContext(ctx.stream, name);
 
             MessageHandler handler = Message::ack;
 

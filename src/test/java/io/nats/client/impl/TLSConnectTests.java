@@ -263,9 +263,7 @@ public class TLSConnectTests {
         // Use two server ports to avoid port release timing issues
         try (NatsTestServer ts = configFileServer("tlsverify.conf", port)) {
             SSLContext ctx = SslTestingHelper.createTestSSLContext();
-            Options options = optionsBuilder()
-                .server(ts.getLocalhostUri())
-                .server(NatsTestServer.getLocalhostUri(newPort))
+            Options options = optionsBuilder(ts.getLocalhostUri(), NatsTestServer.getLocalhostUri(newPort))
                 .maxReconnects(-1)
                 .sslContext(ctx)
                 .connectionListener(listener)

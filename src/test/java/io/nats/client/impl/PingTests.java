@@ -236,7 +236,7 @@ public class PingTests extends TestBase {
 
     @Test
     public void testRtt() throws Exception {
-        runInOwnServer(nc -> {
+        runInServer(nc -> {
             assertTrue(nc.RTT().toMillis() < 10);
             nc.close();
             assertThrows(IOException.class, nc::RTT);

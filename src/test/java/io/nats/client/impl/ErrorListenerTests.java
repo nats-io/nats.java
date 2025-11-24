@@ -44,10 +44,7 @@ public class ErrorListenerTests {
         try (NatsTestServer ts = new NatsTestServer();
              NatsTestServer ts2 = new NatsTestServer(customArgs); //ts2 requires auth
              NatsTestServer ts3 = new NatsTestServer()) {
-            Options options = optionsBuilder()
-                .server(ts.getLocalhostUri())
-                .server(ts2.getLocalhostUri())
-                .server(ts3.getLocalhostUri())
+            Options options = optionsBuilder(ts.getLocalhostUri(), ts2.getLocalhostUri(), ts3.getLocalhostUri())
                 .noRandomize()
                 .connectionListener(listener)
                 .errorListener(listener)
@@ -88,10 +85,7 @@ public class ErrorListenerTests {
         try (NatsTestServer ts = new NatsTestServer();
              NatsTestServer ts2 = new NatsTestServer(customArgs); //ts2 requires auth
              NatsTestServer ts3 = new NatsTestServer()) {
-            Options options = optionsBuilder()
-                .server(ts.getLocalhostUri())
-                .server(ts2.getLocalhostUri())
-                .server(ts3.getLocalhostUri())
+            Options options = optionsBuilder(ts.getLocalhostUri(), ts2.getLocalhostUri(), ts3.getLocalhostUri())
                 .noRandomize()
                 .connectionListener(listener)
                 .errorListener(listener)

@@ -190,7 +190,7 @@ public class NatsStatisticsTests extends TestBase {
                 sleep(5000);
                 handler.onMessage(msg);
             });
-            String subject = TestBase.random();
+            String subject = random();
             d1.subscribe(subject);
             d2.subscribe(subject);
             d3.subscribe(subject);
@@ -233,7 +233,7 @@ public class NatsStatisticsTests extends TestBase {
                 sleep(5000);
                 handler.onMessage(msg);
             });
-            String subject = TestBase.random();
+            String subject = random();
             d1.subscribe(subject);
             d2.subscribe(subject);
             d3.subscribe(subject);

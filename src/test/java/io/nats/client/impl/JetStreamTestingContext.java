@@ -15,47 +15,56 @@ package io.nats.client.impl;
 
 import io.nats.client.Connection;
 import io.nats.client.JetStreamApiException;
-import io.nats.client.api.StorageType;
-import io.nats.client.api.StreamConfiguration;
-import io.nats.client.api.StreamInfo;
+import io.nats.client.api.*;
 import io.nats.client.utils.TestBase;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class JetStreamTestingContext implements AutoCloseable {
     public final NatsJetStreamManagement jsm;
     public final NatsJetStream js;
-    public final String stream;
-    public StreamInfo si;
+    public final NatsKeyValueManagement kvm;
+    public final NatsObjectStoreManagement osm;
 
     private final String subjectBase;
     private final Map<Object, String> subjects;
     private final String consumerNameBase;
     private final Map<Object, String> consumerNames;
+    public String stream;
+    public StreamInfo si;
 
-    public JetStreamTestingContext(Connection nc) throws JetStreamApiException, IOException {
-        this(nc, 1);
-    }
+    private final List<String> kvBuckets;
+    private final List<String> osBuckets;
 
     public JetStreamTestingContext(Connection nc, int subjectCount) throws JetStreamApiException, IOException {
-        this.jsm = (NatsJetStreamManagement)nc.jetStreamManagement();
-        this.js = (NatsJetStream)nc.jetStream();
+        jsm = (NatsJetStreamManagement)nc.jetStreamManagement();
+        js = (NatsJetStream)jsm.jetStream();
+        kvm = (NatsKeyValueManagement)jsm.keyValueManagement();
+        osm = (NatsObjectStoreManagement)jsm.objectStoreManagement();
+
         stream = TestBase.random();
         subjectBase = TestBase.random();
-        this.subjects = new HashMap<>();
+        subjects = new HashMap<>();
         consumerNameBase = TestBase.random();
-        this.consumerNames = new HashMap<>();
+        consumerNames = new HashMap<>();
 
         if (subjectCount > 0) {
-            this.si = TestBase.createMemoryStream(jsm, stream, getSubjects(subjectCount));
+            si = TestBase.createMemoryStream(jsm, stream, getSubjects(subjectCount));
         }
         else {
-            this.si = null;
+            si = null;
         }
+        kvBuckets = new ArrayList<>();
+        osBuckets = new ArrayList<>();
     }
 
+    // ----------------------------------------------------------------------------------------------------
+    // JetStream
+    // ----------------------------------------------------------------------------------------------------
     public String[] getSubjects(int subjectCount) {
         String[] subjects = new String[subjectCount];
         for (int x = 0; x < subjectCount; x++) {
@@ -86,6 +95,13 @@ public class JetStreamTestingContext implements AutoCloseable {
         return b;
     }
 
+    public StreamConfiguration.Builder scBuilder(String... subjects) {
+        return StreamConfiguration.builder()
+            .name(stream)
+            .storageType(StorageType.Memory)
+            .subjects(subjects);
+    }
+
     public StreamInfo addStream(StreamConfiguration.Builder builder) throws JetStreamApiException, IOException {
         si = jsm.addStream(builder.name(stream).storageType(StorageType.Memory).build());
         return si;
@@ -101,18 +117,13 @@ public class JetStreamTestingContext implements AutoCloseable {
         createStream(newSubjects);
     }
 
-    public StreamInfo replaceStream(StreamConfiguration newSc) throws JetStreamApiException, IOException {
+    public void replaceStream(StreamConfiguration newSc) throws JetStreamApiException, IOException {
         jsm.deleteStream(stream);
-        return addStream(newSc);
+        addStream(newSc);
     }
 
     public boolean deleteStream() throws JetStreamApiException, IOException {
         return jsm.deleteStream(stream);
-    }
-
-    @Override
-    public void close() throws Exception {
-        try { jsm.deleteStream(stream); } catch (Exception ignore) {}
     }
 
     public String subject() {
@@ -129,5 +140,62 @@ public class JetStreamTestingContext implements AutoCloseable {
 
     public String consumerName(Object variant) {
         return consumerNames.computeIfAbsent(variant, v -> consumerNameBase + "-" + v);
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // KeyValue
+    // ----------------------------------------------------------------------------------------------------
+    public KeyValueConfiguration.Builder kvBuilder(String bucketName) {
+        return KeyValueConfiguration.builder()
+            .name(bucketName)
+            .storageType(StorageType.Memory);
+    }
+
+    public KeyValueStatus kvCreate(String bucketName) throws JetStreamApiException, IOException {
+        return kvCreate(kvBuilder(bucketName).build());
+    }
+
+    public KeyValueStatus kvCreate(KeyValueConfiguration.Builder builder) throws JetStreamApiException, IOException {
+        return kvCreate(builder.build());
+    }
+
+    public KeyValueStatus kvCreate(KeyValueConfiguration kvc) throws JetStreamApiException, IOException {
+        kvBuckets.add(kvc.getBucketName());
+        return kvm.create(kvc);
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // ObjectStore
+    // ----------------------------------------------------------------------------------------------------
+    public ObjectStoreConfiguration.Builder osBuilder(String bucketName) {
+        return ObjectStoreConfiguration.builder()
+            .name(bucketName)
+            .storageType(StorageType.Memory);
+    }
+
+    public ObjectStoreStatus osCreate(String bucketName) throws JetStreamApiException, IOException {
+        return osCreate(osBuilder(bucketName).build());
+    }
+
+    public ObjectStoreStatus osCreate(ObjectStoreConfiguration.Builder builder) throws JetStreamApiException, IOException {
+        return osCreate(builder.build());
+    }
+
+    public ObjectStoreStatus osCreate(ObjectStoreConfiguration osc) throws JetStreamApiException, IOException {
+        osBuckets.add(osc.getBucketName());
+        return osm.create(osc);
+    }
+
+    @Override
+    public void close() throws Exception {
+        try { jsm.deleteStream(stream); } catch (Exception ignore) {}
+
+        for (String bucket : kvBuckets) {
+            try { kvm.delete(bucket); } catch (Exception ignore) {}
+        }
+
+        for (String bucket : osBuckets) {
+            try { osm.delete(bucket); } catch (Exception ignore) {}
+        }
     }
 }

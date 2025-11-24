@@ -33,12 +33,12 @@ public abstract class VersionUtils {
         return atLeast2_9_0(VERSION_SERVER_INFO);
     }
 
-    public static boolean atLeast2_9_0(Connection nc) {
-        return atLeast2_9_0(nc.getServerInfo());
-    }
-
     public static boolean atLeast2_9_0(ServerInfo si) {
         return si.isSameOrNewerThanVersion("2.9.0");
+    }
+
+    public static boolean atLeast2_9_6(ServerInfo si) {
+        return si.isSameOrNewerThanVersion("2.9.6");
     }
 
     public static boolean atLeast2_10_26(ServerInfo si) {

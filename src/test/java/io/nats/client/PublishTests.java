@@ -13,9 +13,9 @@
 
 package io.nats.client;
 
-import io.nats.client.api.StorageType;
-import io.nats.client.api.StreamConfiguration;
 import io.nats.client.impl.Headers;
+import io.nats.client.impl.JetStreamTestingContext;
+import io.nats.client.impl.ListenerForTesting;
 import io.nats.client.impl.NatsMessage;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
@@ -32,6 +32,7 @@ import static io.nats.client.support.NatsConstants.*;
 import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class PublishTests extends TestBase {
@@ -227,39 +228,43 @@ public class PublishTests extends TestBase {
 
     @Test
     public void testMaxPayload() throws Exception {
-        runInSharedOwnNc(standardOptionsBuilder().noReconnect(), nc -> {
+        runInSharedOwnNc(optionsBuilder().noReconnect(), nc -> {
             int maxPayload = (int)nc.getServerInfo().getMaxPayload();
-            nc.publish("mptest", new byte[maxPayload-1]);
-            nc.publish("mptest", new byte[maxPayload]);
+            nc.publish(random(), new byte[maxPayload - 1]);
+            assertThrows(IllegalArgumentException.class, () -> nc.publish(random(), new byte[maxPayload + 1]));
         });
+    }
 
-        try {
-            runInSharedOwnNc(standardOptionsBuilder().noReconnect().clientSideLimitChecks(false), nc -> {
-                int maxPayload = (int)nc.getServerInfo().getMaxPayload();
-                for (int x = 1; x < 1000; x++) {
-                    nc.publish("mptest", new byte[maxPayload + x]);
-                }
-            });
-            fail("Expecting IllegalStateException");
-        }
-        catch (IllegalStateException ignore) {}
+    @Test
+    public void testMaxPayloadNoClientSideLimitChecks() throws Exception {
+        ListenerForTesting listener = new ListenerForTesting();
+        Options.Builder builder = optionsBuilder().noReconnect().clientSideLimitChecks(false)
+            .connectionListener(listener);
 
-        try {
-            runInSharedOwnNc(standardOptionsBuilder().noReconnect(), nc -> {
-                int maxPayload = (int)nc.getServerInfo().getMaxPayload();
-                for (int x = 1; x < 1000; x++) {
-                    nc.publish("mptest", new byte[maxPayload + x]);
+        runInSharedOwnNc(builder, nc -> {
+            IllegalStateException check = null;
+            int maxPayload = (int)nc.getServerInfo().getMaxPayload();
+            for (int x = 1; x < 100; x++) {
+                try {
+                    nc.publish(random(), new byte[maxPayload + x]);
                 }
-            });
-            fail("Expecting IllegalArgumentException");
-        }
-        catch (IllegalArgumentException ignore) {}
+                catch (IllegalStateException e) {
+                    check = e;
+                    break;
+                }
+            }
+            if (check == null) {
+                fail("Expecting IllegalStateException");
+            }
+            sleep(100); // make sure events has time to get there
+            assertTrue(listener.getConnectionEvents().contains(ConnectionListener.Events.DISCONNECTED));
+        });
     }
 
     @Test
     public void testUtf8Subjects() throws Exception {
-        String subject = dataAsLines("utf8-test-strings.txt").get(0);
-        String jsSubject = random() + "-" + subject; // just to have a different;
+        String utfSubject = dataAsLines("utf8-test-strings.txt").get(0);
+        String jsSubject = random() + "-" + utfSubject; // just to have a different;
 
         AtomicReference<String> coreReceivedSubjectNotSupported = new AtomicReference<>();
         AtomicReference<String> coreReceivedSubjectWhenSupported = new AtomicReference<>();
@@ -274,50 +279,47 @@ public class PublishTests extends TestBase {
         runInSharedOwnNc(ncNotSupportedOptionsBuilder, ncNotSupported -> {
             Options ncSupportedOptions = optionsBuilder(ncNotSupported.getConnectedUrl()).supportUTF8Subjects().build();
             try (Connection ncSupported = standardConnectionWait(ncSupportedOptions)) {
-                ncNotSupported.jetStreamManagement().addStream(
-                    StreamConfiguration.builder()
-                        .name(random())
-                        .storageType(StorageType.Memory)
-                        .subjects(jsSubject)
-                        .build());
-                JetStream jsNotSupported = ncNotSupported.jetStream();
-                JetStream jsSupported = ncNotSupported.jetStream();
+                try (JetStreamTestingContext ctxNotSupported = new JetStreamTestingContext(ncNotSupported, 0)) {
+                    ctxNotSupported.createStream(jsSubject);
+                    JetStream jsNotSupported = ncNotSupported.jetStream();
+                    JetStream jsSupported = ncNotSupported.jetStream();
 
-                Dispatcher dNotSupported = ncNotSupported.createDispatcher();
-                Dispatcher dSupported = ncSupported.createDispatcher();
+                    Dispatcher dNotSupported = ncNotSupported.createDispatcher();
+                    Dispatcher dSupported = ncSupported.createDispatcher();
 
-                dNotSupported.subscribe(subject, m -> {
-                    coreReceivedSubjectNotSupported.set(m.getSubject());
-                    coreReceivedLatchNotSupported.countDown();
-                });
+                    dNotSupported.subscribe(utfSubject, m -> {
+                        coreReceivedSubjectNotSupported.set(m.getSubject());
+                        coreReceivedLatchNotSupported.countDown();
+                    });
 
-                dSupported.subscribe(subject, m -> {
-                    coreReceivedSubjectWhenSupported.set(m.getSubject());
-                    coreReceivedLatchWhenSupported.countDown();
-                });
+                    dSupported.subscribe(utfSubject, m -> {
+                        coreReceivedSubjectWhenSupported.set(m.getSubject());
+                        coreReceivedLatchWhenSupported.countDown();
+                    });
 
-                jsNotSupported.subscribe(jsSubject, dNotSupported, m -> {
-                    jsReceivedSubjectNotSupported.set(m.getSubject());
-                    jsReceivedLatchNotSupported.countDown();
-                }, false);
+                    jsNotSupported.subscribe(jsSubject, dNotSupported, m -> {
+                        jsReceivedSubjectNotSupported.set(m.getSubject());
+                        jsReceivedLatchNotSupported.countDown();
+                    }, false);
 
-                jsSupported.subscribe(jsSubject, dSupported, m -> {
-                    jsReceivedSubjectWhenSupported.set(m.getSubject());
-                    jsReceivedLatchWhenSupported.countDown();
-                }, false);
+                    jsSupported.subscribe(jsSubject, dSupported, m -> {
+                        jsReceivedSubjectWhenSupported.set(m.getSubject());
+                        jsReceivedLatchWhenSupported.countDown();
+                    }, false);
 
-                ncNotSupported.publish(subject, null); // demonstrates that publishing always does utf8
-                jsSupported.publish(jsSubject, null);
+                    ncNotSupported.publish(utfSubject, null); // demonstrates that publishing always does utf8
+                    jsSupported.publish(jsSubject, null);
 
-                assertTrue(coreReceivedLatchNotSupported.await(1, TimeUnit.SECONDS));
-                assertTrue(coreReceivedLatchWhenSupported.await(1, TimeUnit.SECONDS));
-                assertTrue(jsReceivedLatchNotSupported.await(1, TimeUnit.SECONDS));
-                assertTrue(jsReceivedLatchWhenSupported.await(1, TimeUnit.SECONDS));
+                    assertTrue(coreReceivedLatchNotSupported.await(1, TimeUnit.SECONDS));
+                    assertTrue(coreReceivedLatchWhenSupported.await(1, TimeUnit.SECONDS));
+                    assertTrue(jsReceivedLatchNotSupported.await(1, TimeUnit.SECONDS));
+                    assertTrue(jsReceivedLatchWhenSupported.await(1, TimeUnit.SECONDS));
 
-                assertNotEquals(subject, coreReceivedSubjectNotSupported.get());
-                assertEquals(subject, coreReceivedSubjectWhenSupported.get());
-                assertNotEquals(jsSubject, jsReceivedSubjectNotSupported.get());
-                assertEquals(jsSubject, jsReceivedSubjectWhenSupported.get());
+                    assertNotEquals(utfSubject, coreReceivedSubjectNotSupported.get());
+                    assertEquals(utfSubject, coreReceivedSubjectWhenSupported.get());
+                    assertNotEquals(jsSubject, jsReceivedSubjectNotSupported.get());
+                    assertEquals(jsSubject, jsReceivedSubjectWhenSupported.get());
+                }
             }
         });
     }

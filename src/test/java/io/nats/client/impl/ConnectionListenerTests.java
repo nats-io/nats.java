@@ -102,7 +102,7 @@ public class ConnectionListenerTests extends TestBase {
     public void testExceptionInConnectionListener() throws Exception {
         BadHandler listener = new BadHandler();
         Options.Builder builder = optionsBuilder().connectionListener(listener);
-        runInOwnServer(builder, nc -> {
+        runInServer(builder, nc -> {
             standardCloseConnection(nc);
             assertTrue(((NatsConnection)nc).getStatisticsCollector().getExceptions() > 0);
         });

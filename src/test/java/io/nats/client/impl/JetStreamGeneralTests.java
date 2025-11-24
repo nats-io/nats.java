@@ -42,15 +42,15 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testJetStreamContextCreate() throws Exception {
-        runInShared((nc, jstc) -> {
-            jstc.jsm.getAccountStatistics(); // another management
-            jstc.js.publish(jstc.subject(), dataBytes(1));
+        runInShared((nc, ctx) -> {
+            ctx.jsm.getAccountStatistics(); // another management
+            ctx.js.publish(ctx.subject(), dataBytes(1));
         });
     }
 
     @Test
     public void testJetNotEnabled() throws Exception {
-        runInOwnServer(nc -> {
+        runInServer(nc -> {
             // get normal context, try to do an operation
             JetStream js = nc.jetStream();
             assertThrows(IOException.class, () -> js.subscribe(random()));
@@ -75,8 +75,8 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testJetStreamPublishDefaultOptions() throws Exception {
-        runInShared((nc, jstc) -> {
-            PublishAck ack = jsPublish(jstc.js, jstc.subject());
+        runInShared((nc, ctx) -> {
+            PublishAck ack = jsPublish(ctx.js, ctx.subject());
             assertEquals(1, ack.getSeqno());
         });
     }
@@ -106,82 +106,82 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testJetStreamSubscribe() throws Exception {
-        runInShared((nc, jstc) -> {
-            jsPublish(jstc.js, jstc.subject());
+        runInShared((nc, ctx) -> {
+            jsPublish(ctx.js, ctx.subject());
 
             // default ephemeral subscription.
-            Subscription s = jstc.js.subscribe(jstc.subject());
+            Subscription s = ctx.js.subscribe(ctx.subject());
             Message m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNotNull(m);
             assertEquals(DATA, new String(m.getData()));
-            List<String> names = jstc.jsm.getConsumerNames(jstc.stream);
+            List<String> names = ctx.jsm.getConsumerNames(ctx.stream);
             assertEquals(1, names.size());
 
             // default subscribe options // ephemeral subscription.
-            s = jstc.js.subscribe(jstc.subject(), PushSubscribeOptions.builder().build());
+            s = ctx.js.subscribe(ctx.subject(), PushSubscribeOptions.builder().build());
             m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNotNull(m);
             assertEquals(DATA, new String(m.getData()));
-            names = jstc.jsm.getConsumerNames(jstc.stream);
+            names = ctx.jsm.getConsumerNames(ctx.stream);
             assertEquals(2, names.size());
 
             // set the stream
             String durable = random();
-            PushSubscribeOptions pso = PushSubscribeOptions.builder().stream(jstc.stream).durable(durable).build();
-            s = jstc.js.subscribe(jstc.subject(), pso);
+            PushSubscribeOptions pso = PushSubscribeOptions.builder().stream(ctx.stream).durable(durable).build();
+            s = ctx.js.subscribe(ctx.subject(), pso);
             m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNotNull(m);
             assertEquals(DATA, new String(m.getData()));
-            names = jstc.jsm.getConsumerNames(jstc.stream);
+            names = ctx.jsm.getConsumerNames(ctx.stream);
             assertEquals(3, names.size());
 
             // coverage
             Dispatcher dispatcher = nc.createDispatcher();
-            jstc.js.subscribe(jstc.subject());
-            jstc.js.subscribe(jstc.subject(), (PushSubscribeOptions)null);
-            jstc.js.subscribe(jstc.subject(), random(), null);
-            jstc.js.subscribe(jstc.subject(), dispatcher, mh -> {}, false);
-            jstc.js.subscribe(jstc.subject(), dispatcher, mh -> {}, false, null);
-            jstc.js.subscribe(jstc.subject(), random(), dispatcher, mh -> {}, false, null);
+            ctx.js.subscribe(ctx.subject());
+            ctx.js.subscribe(ctx.subject(), (PushSubscribeOptions)null);
+            ctx.js.subscribe(ctx.subject(), random(), null);
+            ctx.js.subscribe(ctx.subject(), dispatcher, mh -> {}, false);
+            ctx.js.subscribe(ctx.subject(), dispatcher, mh -> {}, false, null);
+            ctx.js.subscribe(ctx.subject(), random(), dispatcher, mh -> {}, false, null);
 
             // bind with w/o subject
             durable = random();
             String deliver = random();
-            jstc.jsm.addOrUpdateConsumer(jstc.stream,
+            ctx.jsm.addOrUpdateConsumer(ctx.stream,
                 builder()
                     .durable(durable)
                     .deliverSubject(deliver)
                     .build());
 
-            PushSubscribeOptions psoBind = PushSubscribeOptions.bind(jstc.stream, durable);
-            unsubscribeEnsureNotBound(jstc.js.subscribe(null, psoBind));
-            unsubscribeEnsureNotBound(jstc.js.subscribe("", psoBind));
-            JetStreamSubscription sub = jstc.js.subscribe(null, dispatcher, mh -> {}, false, psoBind);
+            PushSubscribeOptions psoBind = PushSubscribeOptions.bind(ctx.stream, durable);
+            unsubscribeEnsureNotBound(ctx.js.subscribe(null, psoBind));
+            unsubscribeEnsureNotBound(ctx.js.subscribe("", psoBind));
+            JetStreamSubscription sub = ctx.js.subscribe(null, dispatcher, mh -> {}, false, psoBind);
             unsubscribeEnsureNotBound(dispatcher, sub);
-            jstc.js.subscribe("", dispatcher, mh -> {}, false, psoBind);
+            ctx.js.subscribe("", dispatcher, mh -> {}, false, psoBind);
 
             durable = random();
             deliver = random();
             String queue = random();
-            jstc.jsm.addOrUpdateConsumer(jstc.stream,
+            ctx.jsm.addOrUpdateConsumer(ctx.stream,
                 builder()
                     .durable(durable)
                     .deliverSubject(deliver)
                     .deliverGroup(queue)
                     .build());
 
-            psoBind = PushSubscribeOptions.bind(jstc.stream, durable);
-            unsubscribeEnsureNotBound(jstc.js.subscribe(null, queue, psoBind));
-            unsubscribeEnsureNotBound(jstc.js.subscribe("", queue, psoBind));
-            sub = jstc.js.subscribe(null, queue, dispatcher, mh -> {}, false, psoBind);
+            psoBind = PushSubscribeOptions.bind(ctx.stream, durable);
+            unsubscribeEnsureNotBound(ctx.js.subscribe(null, queue, psoBind));
+            unsubscribeEnsureNotBound(ctx.js.subscribe("", queue, psoBind));
+            sub = ctx.js.subscribe(null, queue, dispatcher, mh -> {}, false, psoBind);
             unsubscribeEnsureNotBound(dispatcher, sub);
-            jstc.js.subscribe("", queue, dispatcher, mh -> {}, false, psoBind);
+            ctx.js.subscribe("", queue, dispatcher, mh -> {}, false, psoBind);
 
-            if (atLeast2_9_0(nc)) {
+            if (atLeast2_9_0()) {
                 String name = random();
                 ConsumerConfiguration cc = builder().name(name).build();
                 pso = PushSubscribeOptions.builder().configuration(cc).build();
-                sub = jstc.js.subscribe(jstc.subject(), pso);
+                sub = ctx.js.subscribe(ctx.subject(), pso);
                 m = sub.nextMessage(DEFAULT_TIMEOUT);
                 assertNotNull(m);
                 assertEquals(DATA, new String(m.getData()));
@@ -193,7 +193,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 durable = random();
                 cc = builder().durable(durable).build();
                 pso = PushSubscribeOptions.builder().configuration(cc).build();
-                sub = jstc.js.subscribe(jstc.subject(), pso);
+                sub = ctx.js.subscribe(ctx.subject(), pso);
                 m = sub.nextMessage(DEFAULT_TIMEOUT);
                 assertNotNull(m);
                 assertEquals(DATA, new String(m.getData()));
@@ -205,7 +205,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 String durName = random();
                 cc = builder().durable(durName).name(durName).build();
                 pso = PushSubscribeOptions.builder().configuration(cc).build();
-                sub = jstc.js.subscribe(jstc.subject(), pso);
+                sub = ctx.js.subscribe(ctx.subject(), pso);
                 m = sub.nextMessage(DEFAULT_TIMEOUT);
                 assertNotNull(m);
                 assertEquals(DATA, new String(m.getData()));
@@ -219,127 +219,127 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 JetStream jsOptOut = nc.jetStream(jso);
                 ConsumerConfiguration ccOptOut = builder().name(random()).build();
                 PushSubscribeOptions psoOptOut = PushSubscribeOptions.builder().configuration(ccOptOut).build();
-                assertClientError(JsConsumerCreate290NotAvailable, () -> jsOptOut.subscribe(jstc.subject(), psoOptOut));
+                assertClientError(JsConsumerCreate290NotAvailable, () -> jsOptOut.subscribe(ctx.subject(), psoOptOut));
             }
         });
     }
 
     @Test
     public void testJetStreamSubscribeLenientSubject() throws Exception {
-        runInShared((nc, jstc) -> {
+        runInShared((nc, ctx) -> {
             Dispatcher d = nc.createDispatcher();
 
-            jstc.js.subscribe(jstc.subject(), (PushSubscribeOptions)null);
-            jstc.js.subscribe(jstc.subject(), null, (PushSubscribeOptions)null); // queue name is not required, just a weird way to call this api
-            jstc.js.subscribe(jstc.subject(), d, m -> {}, false, (PushSubscribeOptions)null);
-            jstc.js.subscribe(jstc.subject(), null, d, m -> {}, false, (PushSubscribeOptions)null); // queue name is not required, just a weird way to call this api
+            ctx.js.subscribe(ctx.subject(), (PushSubscribeOptions)null);
+            ctx.js.subscribe(ctx.subject(), null, (PushSubscribeOptions)null); // queue name is not required, just a weird way to call this api
+            ctx.js.subscribe(ctx.subject(), d, m -> {}, false, (PushSubscribeOptions)null);
+            ctx.js.subscribe(ctx.subject(), null, d, m -> {}, false, (PushSubscribeOptions)null); // queue name is not required, just a weird way to call this api
 
-            PushSubscribeOptions pso = ConsumerConfiguration.builder().filterSubject(jstc.subject()).buildPushSubscribeOptions();
-            jstc.js.subscribe(null, pso);
-            jstc.js.subscribe(null, null, pso);
-            jstc.js.subscribe(null, d, m -> {}, false, pso);
-            jstc.js.subscribe(null, null, d, m -> {}, false, pso);
+            PushSubscribeOptions pso = ConsumerConfiguration.builder().filterSubject(ctx.subject()).buildPushSubscribeOptions();
+            ctx.js.subscribe(null, pso);
+            ctx.js.subscribe(null, null, pso);
+            ctx.js.subscribe(null, d, m -> {}, false, pso);
+            ctx.js.subscribe(null, null, d, m -> {}, false, pso);
 
             PushSubscribeOptions psoF = ConsumerConfiguration.builder().buildPushSubscribeOptions();
 
-            assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(null, psoF));
-            assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(null, psoF));
-            assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(null, null, psoF));
-            assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(null, d, m -> {}, false, psoF));
-            assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(null, null, d, m -> {}, false, psoF));
+            assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(null, psoF));
+            assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(null, psoF));
+            assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(null, null, psoF));
+            assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(null, d, m -> {}, false, psoF));
+            assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(null, null, d, m -> {}, false, psoF));
 
-            assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(null, (PushSubscribeOptions)null));
-            assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(null, (PushSubscribeOptions)null));
+            assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(null, (PushSubscribeOptions)null));
+            assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(null, (PushSubscribeOptions)null));
             //noinspection RedundantCast
-            assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(null, null, (PushSubscribeOptions)null));
+            assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(null, null, (PushSubscribeOptions)null));
             //noinspection RedundantCast
-            assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(null, d, m -> {}, false, (PushSubscribeOptions)null));
+            assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(null, d, m -> {}, false, (PushSubscribeOptions)null));
             //noinspection RedundantCast
-            assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(null, null, d, m -> {}, false, (PushSubscribeOptions)null));
+            assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(null, null, d, m -> {}, false, (PushSubscribeOptions)null));
 
-            PullSubscribeOptions lso = ConsumerConfiguration.builder().filterSubject(jstc.subject()).buildPullSubscribeOptions();
-            jstc.js.subscribe(null, lso);
-            jstc.js.subscribe(null, d, m -> {}, lso);
+            PullSubscribeOptions lso = ConsumerConfiguration.builder().filterSubject(ctx.subject()).buildPullSubscribeOptions();
+            ctx.js.subscribe(null, lso);
+            ctx.js.subscribe(null, d, m -> {}, lso);
 
             PullSubscribeOptions lsoF = ConsumerConfiguration.builder().buildPullSubscribeOptions();
-            assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(null, lsoF));
-            assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(null, d, m -> {}, lsoF));
+            assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(null, lsoF));
+            assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(null, d, m -> {}, lsoF));
 
-            assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(null, (PullSubscribeOptions)null));
+            assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(null, (PullSubscribeOptions)null));
             //noinspection RedundantCast
-            assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(null, d, m -> {}, (PullSubscribeOptions)null));
+            assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(null, d, m -> {}, (PullSubscribeOptions)null));
         });
     }
 
     @Test
     public void testJetStreamSubscribeErrors() throws Exception {
-        runInShared((nc, jstc) -> {
+        runInShared((nc, ctx) -> {
             String stream = random();
             // stream not found
             PushSubscribeOptions psoInvalidStream = PushSubscribeOptions.builder().stream(stream).build();
-            assertThrows(JetStreamApiException.class, () -> jstc.js.subscribe(random(), psoInvalidStream));
+            assertThrows(JetStreamApiException.class, () -> ctx.js.subscribe(random(), psoInvalidStream));
 
             Dispatcher d = nc.createDispatcher();
 
             for (String bad : BAD_SUBJECTS_OR_QUEUES) {
                 if (bad == null || bad.isEmpty()) {
                     // subject
-                    IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(bad));
+                    IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(bad));
                     assertTrue(iae.getMessage().startsWith("Subject"));
-                    assertClientError(JsSubSubjectNeededToLookupStream, () -> jstc.js.subscribe(bad, (PushSubscribeOptions)null));
+                    assertClientError(JsSubSubjectNeededToLookupStream, () -> ctx.js.subscribe(bad, (PushSubscribeOptions)null));
                 }
                 else {
                     // subject
-                    IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(bad));
+                    IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(bad));
                     assertTrue(iae.getMessage().startsWith("Subject"));
-                    iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(bad, (PushSubscribeOptions)null));
+                    iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(bad, (PushSubscribeOptions)null));
                     assertTrue(iae.getMessage().startsWith("Subject"));
 
                     // queue
-                    iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(random(), bad, null));
+                    iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(random(), bad, null));
                     assertTrue(iae.getMessage().startsWith("Queue"));
-                    iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(random(), bad, d, m -> {}, false, null));
+                    iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(random(), bad, d, m -> {}, false, null));
                     assertTrue(iae.getMessage().startsWith("Queue"));
                 }
             }
 
             // dispatcher
-            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(random(), null, null, false));
+            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(random(), null, null, false));
             assertTrue(iae.getMessage().startsWith("Dispatcher"));
-            iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(random(), null, null, false, null));
+            iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(random(), null, null, false, null));
             assertTrue(iae.getMessage().startsWith("Dispatcher"));
-            iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(random(), random(), null, null, false, null));
+            iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(random(), random(), null, null, false, null));
             assertTrue(iae.getMessage().startsWith("Dispatcher"));
 
             // handler
             Dispatcher dispatcher = nc.createDispatcher();
-            iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(random(), dispatcher, null, false));
+            iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(random(), dispatcher, null, false));
             assertTrue(iae.getMessage().startsWith("Handler"));
-            iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(random(), dispatcher, null, false, null));
+            iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(random(), dispatcher, null, false, null));
             assertTrue(iae.getMessage().startsWith("Handler"));
-            iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(random(), random(), dispatcher, null, false, null));
+            iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(random(), random(), dispatcher, null, false, null));
             assertTrue(iae.getMessage().startsWith("Handler"));
         });
     }
 
     @Test
     public void testFilterSubjectEphemeral() throws Exception {
-        runInSharedCustomStream((nc, jstc) -> {
+        runInSharedCustom((nc, ctx) -> {
             String subject = random();
             String subjectWild = subject + ".*";
             String subjectA = subject + ".A";
             String subjectB = subject + ".B";
-            jstc.createStream(subjectWild);
+            ctx.createStream(subjectWild);
 
-            jsPublish(jstc.js, subjectA, 1);
-            jsPublish(jstc.js, subjectB, 1);
-            jsPublish(jstc.js, subjectA, 1);
-            jsPublish(jstc.js, subjectB, 1);
+            jsPublish(ctx.js, subjectA, 1);
+            jsPublish(ctx.js, subjectB, 1);
+            jsPublish(ctx.js, subjectA, 1);
+            jsPublish(ctx.js, subjectB, 1);
 
             // subscribe to the wildcard
             ConsumerConfiguration cc = builder().ackPolicy(AckPolicy.None).build();
             PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
-            JetStreamSubscription sub = jstc.js.subscribe(subjectWild, pso);
+            JetStreamSubscription sub = ctx.js.subscribe(subjectWild, pso);
             nc.flush(Duration.ofSeconds(1));
 
             Message m = sub.nextMessage(Duration.ofSeconds(1));
@@ -358,7 +358,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             // subscribe to A
             cc = builder().filterSubject(subjectA).ackPolicy(AckPolicy.None).build();
             pso = PushSubscribeOptions.builder().configuration(cc).build();
-            sub = jstc.js.subscribe(subjectA, pso);
+            sub = ctx.js.subscribe(subjectA, pso);
             nc.flush(Duration.ofSeconds(1));
 
             m = sub.nextMessage(Duration.ofSeconds(1));
@@ -373,7 +373,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             // subscribe to B
             cc = builder().filterSubject(subjectB).ackPolicy(AckPolicy.None).build();
             pso = PushSubscribeOptions.builder().configuration(cc).build();
-            sub = jstc.js.subscribe(subjectB, pso);
+            sub = ctx.js.subscribe(subjectB, pso);
             nc.flush(Duration.ofSeconds(1));
 
             m = sub.nextMessage(Duration.ofSeconds(1));
@@ -459,61 +459,61 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testBindPush() throws Exception {
-        runInShared((nc, jstc) -> {
-            jsPublish(jstc.js, jstc.subject(), 1, 1);
+        runInShared((nc, ctx) -> {
+            jsPublish(ctx.js, ctx.subject(), 1, 1);
             PushSubscribeOptions pso = PushSubscribeOptions.builder()
-                    .durable(jstc.consumerName())
+                    .durable(ctx.consumerName())
                     .build();
-            JetStreamSubscription s = jstc.js.subscribe(jstc.subject(), pso);
+            JetStreamSubscription s = ctx.js.subscribe(ctx.subject(), pso);
             Message m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNotNull(m);
             assertEquals(data(1), new String(m.getData()));
             m.ack();
             unsubscribeEnsureNotBound(s);
 
-            jsPublish(jstc.js, jstc.subject(), 2, 1);
+            jsPublish(ctx.js, ctx.subject(), 2, 1);
             pso = PushSubscribeOptions.builder()
-                    .stream(jstc.stream)
-                    .durable(jstc.consumerName())
+                    .stream(ctx.stream)
+                    .durable(ctx.consumerName())
                     .bind(true)
                     .build();
-            s = jstc.js.subscribe(jstc.subject(), pso);
+            s = ctx.js.subscribe(ctx.subject(), pso);
             m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNotNull(m);
             assertEquals(data(2), new String(m.getData()));
             m.ack();
             unsubscribeEnsureNotBound(s);
 
-            jsPublish(jstc.js, jstc.subject(), 3, 1);
-            pso = PushSubscribeOptions.bind(jstc.stream, jstc.consumerName());
-            s = jstc.js.subscribe(jstc.subject(), pso);
+            jsPublish(ctx.js, ctx.subject(), 3, 1);
+            pso = PushSubscribeOptions.bind(ctx.stream, ctx.consumerName());
+            s = ctx.js.subscribe(ctx.subject(), pso);
             m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNotNull(m);
             assertEquals(data(3), new String(m.getData()));
 
             assertThrows(IllegalArgumentException.class,
-                    () -> PushSubscribeOptions.builder().stream(jstc.stream).bind(true).build());
+                    () -> PushSubscribeOptions.builder().stream(ctx.stream).bind(true).build());
 
             assertThrows(IllegalArgumentException.class,
-                    () -> PushSubscribeOptions.builder().durable(jstc.consumerName()).bind(true).build());
+                    () -> PushSubscribeOptions.builder().durable(ctx.consumerName()).bind(true).build());
 
             assertThrows(IllegalArgumentException.class,
                     () -> PushSubscribeOptions.builder().stream(EMPTY).bind(true).build());
 
             assertThrows(IllegalArgumentException.class,
-                    () -> PushSubscribeOptions.builder().stream(jstc.stream).durable(EMPTY).bind(true).build());
+                    () -> PushSubscribeOptions.builder().stream(ctx.stream).durable(EMPTY).bind(true).build());
         });
     }
 
     @Test
     public void testBindPull() throws Exception {
-        runInShared((nc, jstc) -> {
-            jsPublish(jstc.js, jstc.subject(), 1, 1);
+        runInShared((nc, ctx) -> {
+            jsPublish(ctx.js, ctx.subject(), 1, 1);
 
             PullSubscribeOptions pso = PullSubscribeOptions.builder()
-                    .durable(jstc.consumerName())
+                    .durable(ctx.consumerName())
                     .build();
-            JetStreamSubscription s = jstc.js.subscribe(jstc.subject(), pso);
+            JetStreamSubscription s = ctx.js.subscribe(ctx.subject(), pso);
             s.pull(1);
             Message m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNotNull(m);
@@ -521,13 +521,13 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             m.ack();
             unsubscribeEnsureNotBound(s);
 
-            jsPublish(jstc.js, jstc.subject(), 2, 1);
+            jsPublish(ctx.js, ctx.subject(), 2, 1);
             pso = PullSubscribeOptions.builder()
-                    .stream(jstc.stream)
-                    .durable(jstc.consumerName())
+                    .stream(ctx.stream)
+                    .durable(ctx.consumerName())
                     .bind(true)
                     .build();
-            s = jstc.js.subscribe(jstc.subject(), pso);
+            s = ctx.js.subscribe(ctx.subject(), pso);
             s.pull(1);
             m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNotNull(m);
@@ -535,9 +535,9 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             m.ack();
             unsubscribeEnsureNotBound(s);
 
-            jsPublish(jstc.js, jstc.subject(), 3, 1);
-            pso = PullSubscribeOptions.bind(jstc.stream, jstc.consumerName());
-            s = jstc.js.subscribe(jstc.subject(), pso);
+            jsPublish(ctx.js, ctx.subject(), 3, 1);
+            pso = PullSubscribeOptions.bind(ctx.stream, ctx.consumerName());
+            s = ctx.js.subscribe(ctx.subject(), pso);
             s.pull(1);
             m = s.nextMessage(DEFAULT_TIMEOUT);
             assertNotNull(m);
@@ -547,25 +547,25 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testBindErrors() throws Exception {
-        runInShared((nc, jstc) -> {
+        runInShared((nc, ctx) -> {
             // bind errors
-            PushSubscribeOptions pushbinderr = PushSubscribeOptions.bind(jstc.stream, "binddur");
-            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(jstc.subject(), pushbinderr));
+            PushSubscribeOptions pushbinderr = PushSubscribeOptions.bind(ctx.stream, "binddur");
+            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(ctx.subject(), pushbinderr));
             assertTrue(iae.getMessage().contains(JsSubConsumerNotFoundRequiredInBind.id()));
 
-            PullSubscribeOptions pullbinderr = PullSubscribeOptions.bind(jstc.stream, "binddur");
-            iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(jstc.subject(), pullbinderr));
+            PullSubscribeOptions pullbinderr = PullSubscribeOptions.bind(ctx.stream, "binddur");
+            iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(ctx.subject(), pullbinderr));
             assertTrue(iae.getMessage().contains(JsSubConsumerNotFoundRequiredInBind.id()));
         });
     }
 
     @Test
     public void testFilterMismatchErrors() throws Exception {
-        runInOwnJsServer((nc, jsm, js) -> {
+        runInJsServer((nc, jsm, js) -> {
             String stream = random();
             String subject = random();
 
-            createMemoryStream(nc, stream, subject);
+            createMemoryStream(jsm, stream, subject);
 
             // will work as SubscribeSubject equals Filter Subject
             filterMatchSubscribeOk(js, jsm, stream, subject, subject);
@@ -646,7 +646,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testBindDurableDeliverSubject() throws Exception {
-        runInShared((nc, jstc) -> {
+        runInShared((nc, ctx) -> {
             // create a durable push subscriber - has a deliver subject
             String dur1 = random();
             String dur2 = random();
@@ -654,49 +654,49 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             ConsumerConfiguration ccDurPush = builder()
                 .durable(dur1)
                 .deliverSubject(deliver)
-                .filterSubject(jstc.subject())
+                .filterSubject(ctx.subject())
                 .build();
-            jstc.jsm.addOrUpdateConsumer(jstc.stream, ccDurPush);
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, ccDurPush);
 
             // create a durable pull subscriber - notice no deliver subject
             ConsumerConfiguration ccDurPull = builder()
                 .durable(dur2)
-                .filterSubject(jstc.subject())
+                .filterSubject(ctx.subject())
                 .build();
-            jstc.jsm.addOrUpdateConsumer(jstc.stream, ccDurPull);
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, ccDurPull);
 
             // try to pull subscribe against a push durable
             IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
-                    () -> jstc.js.subscribe(jstc.subject(), PullSubscribeOptions.builder().durable(dur1).build())
+                    () -> ctx.js.subscribe(ctx.subject(), PullSubscribeOptions.builder().durable(dur1).build())
             );
             assertTrue(iae.getMessage().contains(JsSubConsumerAlreadyConfiguredAsPush.id()));
 
             // try to pull bind against a push durable
             iae = assertThrows(IllegalArgumentException.class,
-                    () -> jstc.js.subscribe(jstc.subject(), PullSubscribeOptions.bind(jstc.stream, dur1))
+                    () -> ctx.js.subscribe(ctx.subject(), PullSubscribeOptions.bind(ctx.stream, dur1))
             );
             assertTrue(iae.getMessage().contains(JsSubConsumerAlreadyConfiguredAsPush.id()));
 
             // try to push subscribe against a pull durable
             iae = assertThrows(IllegalArgumentException.class,
-                    () -> jstc.js.subscribe(jstc.subject(), PushSubscribeOptions.builder().durable(dur2).build())
+                    () -> ctx.js.subscribe(ctx.subject(), PushSubscribeOptions.builder().durable(dur2).build())
             );
             assertTrue(iae.getMessage().contains(JsSubConsumerAlreadyConfiguredAsPull.id()));
 
             // try to push bind against a pull durable
             iae = assertThrows(IllegalArgumentException.class,
-                    () -> jstc.js.subscribe(jstc.subject(), PushSubscribeOptions.bind(jstc.stream, dur2))
+                    () -> ctx.js.subscribe(ctx.subject(), PushSubscribeOptions.bind(ctx.stream, dur2))
             );
             assertTrue(iae.getMessage().contains(JsSubConsumerAlreadyConfiguredAsPull.id()));
 
             // this one is okay
-            jstc.js.subscribe(jstc.subject(), PushSubscribeOptions.builder().durable(dur1).build());
+            ctx.js.subscribe(ctx.subject(), PushSubscribeOptions.builder().durable(dur1).build());
         });
     }
 
     @Test
     public void testConsumerIsNotModified() throws Exception {
-        runInShared((nc, jstc) -> {
+        runInShared((nc, ctx) -> {
             // test with config in issue 105
             String dur = random();
             String q = random();
@@ -712,12 +712,12 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 .maxBatch(10)
                 .maxBytes(11)
                 .replayPolicy(ReplayPolicy.Instant)
-                .filterSubject(jstc.subject())
+                .filterSubject(ctx.subject())
                 .build();
-            jstc.jsm.addOrUpdateConsumer(jstc.stream, cc);
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, cc);
 
-            PushSubscribeOptions pushOpts = PushSubscribeOptions.bind(jstc.stream, dur);
-            jstc.js.subscribe(jstc.subject(), q, pushOpts); // should not throw an error
+            PushSubscribeOptions pushOpts = PushSubscribeOptions.bind(ctx.stream, dur);
+            ctx.js.subscribe(ctx.subject(), q, pushOpts); // should not throw an error
 
             // testing numerics
             dur = random();
@@ -731,23 +731,23 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 .maxBytes(48)
                 .rateLimit(44)
                 .maxAckPending(45)
-                .filterSubject(jstc.subject())
+                .filterSubject(ctx.subject())
                 .build();
-            jstc.jsm.addOrUpdateConsumer(jstc.stream, cc);
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, cc);
 
-            pushOpts = PushSubscribeOptions.bind(jstc.stream, dur);
-            jstc.js.subscribe(jstc.subject(), pushOpts); // should not throw an error
+            pushOpts = PushSubscribeOptions.bind(ctx.stream, dur);
+            ctx.js.subscribe(ctx.subject(), pushOpts); // should not throw an error
 
             dur = random();
             cc = builder()
                 .durable(dur)
                 .maxPullWaiting(46)
-                .filterSubject(jstc.subject())
+                .filterSubject(ctx.subject())
                 .build();
-            jstc.jsm.addOrUpdateConsumer(jstc.stream, cc);
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, cc);
 
-            PullSubscribeOptions pullOpts = PullSubscribeOptions.bind(jstc.stream, dur);
-            jstc.js.subscribe(jstc.subject(), pullOpts); // should not throw an error
+            PullSubscribeOptions pullOpts = PullSubscribeOptions.bind(ctx.stream, dur);
+            ctx.js.subscribe(ctx.subject(), pullOpts); // should not throw an error
 
             // testing DateTime
             dur = random();
@@ -756,12 +756,12 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 .deliverSubject(random())
                 .durable(dur)
                 .startTime(ZonedDateTime.now().plusHours(1))
-                .filterSubject(jstc.subject())
+                .filterSubject(ctx.subject())
                 .build();
-            jstc.jsm.addOrUpdateConsumer(jstc.stream, cc);
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, cc);
 
-            pushOpts = PushSubscribeOptions.bind(jstc.stream, dur);
-            jstc.js.subscribe(jstc.subject(), pushOpts); // should not throw an error
+            pushOpts = PushSubscribeOptions.bind(ctx.stream, dur);
+            ctx.js.subscribe(ctx.subject(), pushOpts); // should not throw an error
 
             // testing boolean and duration
             dur = random();
@@ -772,12 +772,12 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 .headersOnly(true)
                 .maxExpires(30000)
                 .ackWait(2000)
-                .filterSubject(jstc.subject())
+                .filterSubject(ctx.subject())
                 .build();
-            jstc.jsm.addOrUpdateConsumer(jstc.stream, cc);
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, cc);
 
-            pushOpts = PushSubscribeOptions.bind(jstc.stream, dur);
-            jstc.js.subscribe(jstc.subject(), pushOpts); // should not throw an error
+            pushOpts = PushSubscribeOptions.bind(ctx.stream, dur);
+            ctx.js.subscribe(ctx.subject(), pushOpts); // should not throw an error
 
             // testing enums
             dur = random();
@@ -787,83 +787,83 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 .deliverPolicy(DeliverPolicy.Last)
                 .ackPolicy(AckPolicy.None)
                 .replayPolicy(ReplayPolicy.Original)
-                .filterSubject(jstc.subject())
+                .filterSubject(ctx.subject())
                 .build();
-            jstc.jsm.addOrUpdateConsumer(jstc.stream, cc);
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, cc);
 
-            pushOpts = PushSubscribeOptions.bind(jstc.stream, dur);
-            jstc.js.subscribe(jstc.subject(), pushOpts); // should not throw an error
+            pushOpts = PushSubscribeOptions.bind(ctx.stream, dur);
+            ctx.js.subscribe(ctx.subject(), pushOpts); // should not throw an error
         });
     }
 
     @Test
     public void testSubscribeDurableConsumerMustMatch() throws Exception {
-        runInShared((nc, jstc) -> {
-            String stream = jstc.stream;
-            String subject = jstc.subject();
+        runInShared((nc, ctx) -> {
+            String stream = ctx.stream;
+            String subject = ctx.subject();
 
             // push
             String uname = random();
             String deliver = random();
             nc.jetStreamManagement().addOrUpdateConsumer(stream, pushDurableBuilder(subject, uname, deliver).build());
 
-            changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).deliverPolicy(DeliverPolicy.Last), "deliverPolicy");
-            changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).deliverPolicy(DeliverPolicy.New), "deliverPolicy");
-            changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).ackPolicy(AckPolicy.None), "ackPolicy");
-            changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).ackPolicy(AckPolicy.All), "ackPolicy");
-            changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).replayPolicy(ReplayPolicy.Original), "replayPolicy");
+            changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).deliverPolicy(DeliverPolicy.Last), "deliverPolicy");
+            changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).deliverPolicy(DeliverPolicy.New), "deliverPolicy");
+            changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).ackPolicy(AckPolicy.None), "ackPolicy");
+            changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).ackPolicy(AckPolicy.All), "ackPolicy");
+            changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).replayPolicy(ReplayPolicy.Original), "replayPolicy");
 
-            changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).flowControl(10000), "flowControl");
-            changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).headersOnly(true), "headersOnly");
+            changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).flowControl(10000), "flowControl");
+            changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).headersOnly(true), "headersOnly");
 
-            changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).startTime(ZonedDateTime.now()), "startTime");
-            changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).ackWait(Duration.ofMillis(1)), "ackWait");
-            changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).description("x"), "description");
-            changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).sampleFrequency("x"), "sampleFrequency");
-            changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).idleHeartbeat(Duration.ofMillis(1000)), "idleHeartbeat");
-            changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).maxExpires(Duration.ofMillis(1000)), "maxExpires");
-            changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).inactiveThreshold(Duration.ofMillis(1000)), "inactiveThreshold");
+            changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).startTime(ZonedDateTime.now()), "startTime");
+            changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).ackWait(Duration.ofMillis(1)), "ackWait");
+            changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).description("x"), "description");
+            changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).sampleFrequency("x"), "sampleFrequency");
+            changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).idleHeartbeat(Duration.ofMillis(1000)), "idleHeartbeat");
+            changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).maxExpires(Duration.ofMillis(1000)), "maxExpires");
+            changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).inactiveThreshold(Duration.ofMillis(1000)), "inactiveThreshold");
 
             // value
-            changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).maxDeliver(MAX_DELIVER_MIN), "maxDeliver");
-            changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).maxAckPending(0), "maxAckPending");
-            changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).ackWait(0), "ackWait");
+            changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).maxDeliver(MAX_DELIVER_MIN), "maxDeliver");
+            changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).maxAckPending(0), "maxAckPending");
+            changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).ackWait(0), "ackWait");
 
             // value unsigned
-            changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).startSequence(1), "startSequence");
-            changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).rateLimit(1), "rateLimit");
+            changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).startSequence(1), "startSequence");
+            changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).rateLimit(1), "rateLimit");
 
             // unset doesn't fail because the server provides a value equal to the unset
-            changeOkPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).maxDeliver(INTEGER_UNSET));
+            changeOkPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).maxDeliver(INTEGER_UNSET));
 
             // unset doesn't fail because the server does not provide a value
             // negatives are considered the unset
-            changeOkPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).startSequence(ULONG_UNSET));
-            changeOkPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).startSequence(-1));
-            changeOkPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).rateLimit(ULONG_UNSET));
-            changeOkPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).rateLimit(-1));
+            changeOkPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).startSequence(ULONG_UNSET));
+            changeOkPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).startSequence(-1));
+            changeOkPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).rateLimit(ULONG_UNSET));
+            changeOkPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).rateLimit(-1));
 
             // unset fail b/c the server does set a value that is not equal to the unset or the minimum
-            changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).maxAckPending(LONG_UNSET), "maxAckPending");
-            changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).maxAckPending(0), "maxAckPending");
-            changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).ackWait(LONG_UNSET), "ackWait");
-            changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).ackWait(0), "ackWait");
+            changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).maxAckPending(LONG_UNSET), "maxAckPending");
+            changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).maxAckPending(0), "maxAckPending");
+            changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).ackWait(LONG_UNSET), "ackWait");
+            changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).ackWait(0), "ackWait");
 
             // pull
             String lname = random();
             nc.jetStreamManagement().addOrUpdateConsumer(stream, pullDurableBuilder(subject, lname).build());
 
             // value
-            changeExPull(jstc.js, subject, pullDurableBuilder(subject, lname).maxPullWaiting(0), "maxPullWaiting");
-            changeExPull(jstc.js, subject, pullDurableBuilder(subject, lname).maxBatch(0), "maxBatch");
-            changeExPull(jstc.js, subject, pullDurableBuilder(subject, lname).maxBytes(0), "maxBytes");
+            changeExPull(ctx.js, subject, pullDurableBuilder(subject, lname).maxPullWaiting(0), "maxPullWaiting");
+            changeExPull(ctx.js, subject, pullDurableBuilder(subject, lname).maxBatch(0), "maxBatch");
+            changeExPull(ctx.js, subject, pullDurableBuilder(subject, lname).maxBytes(0), "maxBytes");
 
             // unsets fail b/c the server does set a value
-            changeExPull(jstc.js, subject, pullDurableBuilder(subject, lname).maxPullWaiting(-1), "maxPullWaiting");
+            changeExPull(ctx.js, subject, pullDurableBuilder(subject, lname).maxPullWaiting(-1), "maxPullWaiting");
 
             // unset
-            changeOkPull(jstc.js, subject, pullDurableBuilder(subject, lname).maxBatch(-1));
-            changeOkPull(jstc.js, subject, pullDurableBuilder(subject, lname).maxBytes(-1));
+            changeOkPull(ctx.js, subject, pullDurableBuilder(subject, lname).maxBatch(-1));
+            changeOkPull(ctx.js, subject, pullDurableBuilder(subject, lname).maxBytes(-1));
 
             // metadata
             Map<String, String> metadataA = new HashMap<>(); metadataA.put("a", "A");
@@ -872,18 +872,18 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             if (atLeast2_10()) {
                 // metadata server null versus new not null
                 nc.jetStreamManagement().addOrUpdateConsumer(stream, pushDurableBuilder(subject, uname, deliver).build());
-                changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).metadata(metadataA), "metadata");
+                changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).metadata(metadataA), "metadata");
 
                 // metadata server not null versus new null
                 nc.jetStreamManagement().addOrUpdateConsumer(stream, pushDurableBuilder(subject, uname, deliver).metadata(metadataA).build());
-                changeOkPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver));
+                changeOkPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver));
 
                 // metadata server not null versus new not null but different
-                changeExPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).metadata(metadataB), "metadata");
+                changeExPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).metadata(metadataB), "metadata");
 
                 if (before2_11()) {
                     // metadata server not null versus new not null and same
-                    changeOkPush(jstc.js, subject, pushDurableBuilder(subject, uname, deliver).metadata(metadataA));
+                    changeOkPush(ctx.js, subject, pushDurableBuilder(subject, uname, deliver).metadata(metadataA));
                 }
             }
         });
@@ -925,24 +925,24 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testGetConsumerInfoFromSubscription() throws Exception {
-        runInShared((nc, jstc) -> {
-            JetStreamSubscription sub = jstc.js.subscribe(jstc.subject());
+        runInShared((nc, ctx) -> {
+            JetStreamSubscription sub = ctx.js.subscribe(ctx.subject());
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             ConsumerInfo ci = sub.getConsumerInfo();
-            assertEquals(jstc.stream, ci.getStreamName());
+            assertEquals(ctx.stream, ci.getStreamName());
         });
     }
 
     @Test
     public void testInternalLookupConsumerInfoCoverage() throws Exception {
-        runInShared((nc, jstc) -> {
+        runInShared((nc, ctx) -> {
             // - consumer not found
             // - stream does not exist
-            jstc.js.subscribe(jstc.subject());
-            assertNull(jstc.js.lookupConsumerInfo(jstc.stream, random()));
+            ctx.js.subscribe(ctx.subject());
+            assertNull(ctx.js.lookupConsumerInfo(ctx.stream, random()));
             assertThrows(JetStreamApiException.class,
-                    () -> jstc.js.lookupConsumerInfo(random(), random()));
+                    () -> ctx.js.lookupConsumerInfo(random(), random()));
         });
     }
 
@@ -1005,8 +1005,8 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testMoreCreateSubscriptionErrors() throws Exception {
-        runInShared((nc, jstc) -> {
-            IllegalStateException ise = assertThrows(IllegalStateException.class, () -> jstc.js.subscribe(random()));
+        runInShared((nc, ctx) -> {
+            IllegalStateException ise = assertThrows(IllegalStateException.class, () -> ctx.js.subscribe(random()));
             assertTrue(ise.getMessage().contains(JsSubNoMatchingStreamForSubject.id()));
 
             // general pull push validation
@@ -1015,27 +1015,27 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             String dgCantHave = random();
             ConsumerConfiguration ccCantHave = builder().durable(pulldur).deliverGroup(dgCantHave).build();
             PullSubscribeOptions pullCantHaveDlvrGrp = PullSubscribeOptions.builder().configuration(ccCantHave).build();
-            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(jstc.subject(), pullCantHaveDlvrGrp));
+            IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(ctx.subject(), pullCantHaveDlvrGrp));
             assertTrue(iae.getMessage().contains(JsSubPullCantHaveDeliverGroup.id()));
 
             ccCantHave = builder().durable(pulldur).deliverSubject(dgCantHave).build();
             PullSubscribeOptions pullCantHaveDlvrSub = PullSubscribeOptions.builder().configuration(ccCantHave).build();
-            iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(jstc.subject(), pullCantHaveDlvrSub));
+            iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(ctx.subject(), pullCantHaveDlvrSub));
             assertTrue(iae.getMessage().contains(JsSubPullCantHaveDeliverSubject.id()));
 
             ccCantHave = builder().maxPullWaiting(1L).build();
             PushSubscribeOptions pushCantHaveMpw = PushSubscribeOptions.builder().configuration(ccCantHave).build();
-            iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(jstc.subject(), pushCantHaveMpw));
+            iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(ctx.subject(), pushCantHaveMpw));
             assertTrue(iae.getMessage().contains(JsSubPushCantHaveMaxPullWaiting.id()));
 
             ccCantHave = builder().maxBatch(1L).build();
             PushSubscribeOptions pushCantHaveMb = PushSubscribeOptions.builder().configuration(ccCantHave).build();
-            iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(jstc.subject(), pushCantHaveMb));
+            iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(ctx.subject(), pushCantHaveMb));
             assertTrue(iae.getMessage().contains(JsSubPushCantHaveMaxBatch.id()));
 
             ccCantHave = builder().maxBytes(1L).build();
             PushSubscribeOptions pushCantHaveMby = PushSubscribeOptions.builder().configuration(ccCantHave).build();
-            iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(jstc.subject(), pushCantHaveMby));
+            iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(ctx.subject(), pushCantHaveMby));
             assertTrue(iae.getMessage().contains(JsSubPushCantHaveMaxBytes.id()));
 
             // create some consumers
@@ -1043,32 +1043,32 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             String durYesQ = random();
 
             PushSubscribeOptions psoDurNoQ = PushSubscribeOptions.builder().durable(durNoQ).build();
-            jstc.js.subscribe(jstc.subject(), psoDurNoQ);
+            ctx.js.subscribe(ctx.subject(), psoDurNoQ);
 
             PushSubscribeOptions psoDurYesQ = PushSubscribeOptions.builder().durable(durYesQ).build();
-            jstc.js.subscribe(jstc.subject(), "yesQ", psoDurYesQ);
+            ctx.js.subscribe(ctx.subject(), "yesQ", psoDurYesQ);
 
             // already bound
-            iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(jstc.subject(), psoDurNoQ));
+            iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(ctx.subject(), psoDurNoQ));
             assertTrue(iae.getMessage().contains(JsSubConsumerAlreadyBound.id()));
 
             // queue match
             String qmatchdur = random();
             String qmatchq = random();
             PushSubscribeOptions qmatch = PushSubscribeOptions.builder().durable(qmatchdur).deliverGroup(qmatchq).build();
-            iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(jstc.subject(), "qnotmatch", qmatch));
+            iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(ctx.subject(), "qnotmatch", qmatch));
             assertTrue(iae.getMessage().contains(JsSubQueueDeliverGroupMismatch.id()));
 
             // queue vs config
-            iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(jstc.subject(), "notConfigured", psoDurNoQ));
+            iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(ctx.subject(), "notConfigured", psoDurNoQ));
             assertTrue(iae.getMessage().contains(JsSubExistingConsumerNotQueue.id()));
 
             PushSubscribeOptions psoNoVsYes = PushSubscribeOptions.builder().durable(durYesQ).build();
-            iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(jstc.subject(), psoNoVsYes));
+            iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(ctx.subject(), psoNoVsYes));
             assertTrue(iae.getMessage().contains(JsSubExistingConsumerIsQueue.id()));
 
             PushSubscribeOptions psoYesVsNo = PushSubscribeOptions.builder().durable(durYesQ).build();
-            iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(jstc.subject(), "qnotmatch", psoYesVsNo));
+            iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(ctx.subject(), "qnotmatch", psoYesVsNo));
             assertTrue(iae.getMessage().contains(JsSubExistingQueueDoesNotMatchRequestedQueue.id()));
 
             // flow control heartbeat push / pull
@@ -1078,20 +1078,20 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             ConsumerConfiguration ccHb = builder().durable(ccHbDur).idleHeartbeat(1000).build();
 
             PullSubscribeOptions psoPullCcFc = PullSubscribeOptions.builder().configuration(ccFc).build();
-            iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(jstc.subject(), psoPullCcFc));
+            iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(ctx.subject(), psoPullCcFc));
             assertTrue(iae.getMessage().contains(JsSubFcHbNotValidPull.id()));
 
             PullSubscribeOptions psoPullCcHb = PullSubscribeOptions.builder().configuration(ccHb).build();
-            iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(jstc.subject(), psoPullCcHb));
+            iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(ctx.subject(), psoPullCcHb));
             assertTrue(iae.getMessage().contains(JsSubFcHbNotValidPull.id()));
 
             PushSubscribeOptions psoPushCcFc = PushSubscribeOptions.builder().configuration(ccFc).build();
             String cantHaveQ = random();
-            iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(jstc.subject(), cantHaveQ, psoPushCcFc));
+            iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(ctx.subject(), cantHaveQ, psoPushCcFc));
             assertTrue(iae.getMessage().contains(JsSubFcHbNotValidQueue.id()));
 
             PushSubscribeOptions psoPushCcHb = PushSubscribeOptions.builder().configuration(ccHb).build();
-            iae = assertThrows(IllegalArgumentException.class, () -> jstc.js.subscribe(jstc.subject(), cantHaveQ, psoPushCcHb));
+            iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(ctx.subject(), cantHaveQ, psoPushCcHb));
             assertTrue(iae.getMessage().contains(JsSubFcHbNotValidQueue.id()));
         });
     }
@@ -1106,7 +1106,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testRequestNoResponder() throws Exception {
-        runInSharedCustomStream((ncCancel, jstc) -> {
+        runInSharedCustom((ncCancel, ctx) -> {
             Options optReport = optionsBuilder(ncCancel.getConnectedUrl()).reportNoResponders().build();
             try (Connection ncReport = standardConnectionWait(optReport)) {
                 assertThrows(CancellationException.class, () -> ncCancel.request(random(), null).get());
@@ -1115,9 +1115,9 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 assertTrue(ee.getMessage().contains("503 No Responders Available For Request"));
 
                 String subject = random();
-                jstc.jsm.addStream(
+                ctx.jsm.addStream(
                     StreamConfiguration.builder()
-                        .name(jstc.stream).subjects(subject).storageType(StorageType.Memory)
+                        .name(ctx.stream).subjects(subject).storageType(StorageType.Memory)
                         .build());
 
                 JetStream jsCancel = ncCancel.jetStream();

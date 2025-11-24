@@ -32,21 +32,21 @@ public class JetStreamPushQueueTests extends JetStreamTestBase {
 
     @Test
     public void testQueueSubWorkflow() throws Exception {
-        runInShared((nc, jstc) -> {
+        runInShared((nc, ctx) -> {
             // Set up the subscribers
             // - the PushSubscribeOptions can be re-used since all the subscribers are the same
             // - use a concurrent integer to track all the messages received
             // - have a list of subscribers and threads so I can track them
-            PushSubscribeOptions pso = PushSubscribeOptions.builder().durable(jstc.consumerName()).build();
+            PushSubscribeOptions pso = PushSubscribeOptions.builder().durable(ctx.consumerName()).build();
             AtomicInteger allReceived = new AtomicInteger();
             List<JsQueueSubscriber> subscribers = new ArrayList<>();
             String queue = random();
             List<Thread> subThreads = new ArrayList<>();
             for (int id = 1; id <= 3; id++) {
                 // set up the subscription
-                JetStreamSubscription sub = jstc.js.subscribe(jstc.subject(), queue, pso);
+                JetStreamSubscription sub = ctx.js.subscribe(ctx.subject(), queue, pso);
                 // create and track the runnable
-                JsQueueSubscriber qs = new JsQueueSubscriber(100, jstc.js, sub, allReceived);
+                JsQueueSubscriber qs = new JsQueueSubscriber(100, ctx.js, sub, allReceived);
                 subscribers.add(qs);
                 // create, track and start the thread
                 Thread t = new Thread(qs);
@@ -56,7 +56,7 @@ public class JetStreamPushQueueTests extends JetStreamTestBase {
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             // create and start the publishing
-            Thread pubThread = new Thread(new JsPublisher(jstc.js, jstc.subject(), 100));
+            Thread pubThread = new Thread(new JsPublisher(ctx.js, ctx.subject(), 100));
             pubThread.start();
 
             // wait for all threads to finish

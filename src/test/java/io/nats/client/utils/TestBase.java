@@ -21,9 +21,6 @@ import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
 import io.nats.client.impl.*;
 import io.nats.client.support.NatsJetStreamClientError;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.function.Executable;
 
 import java.io.IOException;
@@ -97,7 +94,7 @@ public class TestBase {
     // ----------------------------------------------------------------------------------------------------
     // runners / test interfaces
     // ----------------------------------------------------------------------------------------------------
-    public interface InServerTest {
+    public interface ServerTest {
         void test(Connection nc) throws Exception;
     }
 
@@ -116,23 +113,23 @@ public class TestBase {
         default boolean jetStream() { return false; }
     }
 
-    public interface InJetStreamTest {
+    public interface JetStreamTest {
         void test(Connection nc, JetStreamManagement jsm, JetStream js) throws Exception;
     }
 
-    public interface InJetStreamTestingContextTest {
-        void test(Connection nc, JetStreamTestingContext jstc) throws Exception;
+    public interface JetStreamTestingContextTest {
+        void test(Connection nc, JetStreamTestingContext ctx) throws Exception;
     }
 
     // ----------------------------------------------------------------------------------------------------
     // runners -> own server
     // ----------------------------------------------------------------------------------------------------
-    private static void _runInOwnServer(
+    private static void _runInServer(
         Options.Builder optionsBuilder,
         VersionCheck vc,
         String configFilePath,
-        InServerTest inServerTest,
-        InJetStreamTest jsTest
+        ServerTest serverTest,
+        JetStreamTest jsTest
     ) throws Exception {
         if (vc != null && VERSION_SERVER_INFO != null && !vc.runTest(VERSION_SERVER_INFO)) {
             return; // had vc, already had run server info and fails check
@@ -150,7 +147,7 @@ public class TestBase {
                 initVersionServerInfo(nc);
                 if (vc == null || vc.runTest(VERSION_SERVER_INFO)) {
                     if (jsTest == null) {
-                        inServerTest.test(nc);
+                        serverTest.test(nc);
                     }
                     else {
                         NatsJetStreamManagement jsm = (NatsJetStreamManagement) nc.jetStreamManagement();
@@ -162,113 +159,41 @@ public class TestBase {
         }
     }
 
-    public static void runInOwnServer(InServerTest inServerTest) throws Exception {
-        _runInOwnServer(null, null, null, inServerTest, null);
+    // --------------------------------------------------
+    // Not using JetStream
+    // --------------------------------------------------
+    public static void runInServer(ServerTest serverTest) throws Exception {
+        _runInServer(null, null, null, serverTest, null);
     }
 
-    public static void runInOwnServer(Options.Builder builder, InServerTest inServerTest) throws Exception {
-        _runInOwnServer(builder, null, null, inServerTest, null);
-    }
-
-    public static void runInOwnJsServer(InJetStreamTest inJetStreamTest) throws Exception {
-        _runInOwnServer(null, null, null, null, inJetStreamTest);
-    }
-
-    public static void runInOwnJsServer(VersionCheck vc, InJetStreamTest inJetStreamTest) throws Exception {
-        _runInOwnServer(null, vc, null, null, inJetStreamTest);
-    }
-
-    public static void runInConfiguredServer(String configFilePath, InServerTest inServerTest) throws Exception {
-        _runInOwnServer(null, null, configFilePath, inServerTest, null);
-    }
-
-    public static void runInConfiguredJsServer(String configFilePath, InJetStreamTest inJetStreamTest) throws Exception {
-        _runInOwnServer(null, null, configFilePath, null, inJetStreamTest);
-    }
-
-    // ----------------------------------------------------------------------------------------------------
-    // runners -> long running server
-    // ----------------------------------------------------------------------------------------------------
-    private static String classReusable;
-
-    @BeforeAll
-    public static void beforeAll(TestInfo info) throws Exception {
-        classReusable = info.getDisplayName();
-    }
-
-    @AfterAll
-    public static void afterAll() throws Exception {
-        ReusableServer.shutdownInstance(classReusable);
-    }
-
-    public static void runInShared(InServerTest test) throws Exception {
-        _runInShared(null, null, test, null, -1);
-    }
-
-    public static void runInShared(VersionCheck vc, InServerTest test) throws Exception {
-        _runInShared(null, vc, test, null, -1);
-    }
-
-    public static void runInSharedOwnNc(InServerTest test) throws Exception {
-        _runInShared(optionsBuilder(), null, test, null, -1);
-    }
-
-    public static void runInSharedOwnNc(ErrorListener el, InServerTest test) throws Exception {
-        _runInShared(optionsBuilder(el), null, test, null, -1);
-    }
-
-    public static void runInSharedOwnNc(Options.Builder builder, InServerTest test) throws Exception {
-        _runInShared(builder, null, test, null, -1);
+    public static void runInServer(Options.Builder builder, ServerTest serverTest) throws Exception {
+        _runInServer(builder, null, null, serverTest, null);
     }
 
     // --------------------------------------------------
-    // InJetStreamTestingContextTest custom stream create
+    // JetStream needing isolation
     // --------------------------------------------------
-    public static void runInSharedCustomStream(InJetStreamTestingContextTest customStreamCreateJstcTest) throws Exception {
-        _runInShared(null, null, null, customStreamCreateJstcTest, 0);
+    public static void runInJsServer(JetStreamTest jetStreamTest) throws Exception {
+        _runInServer(null, null, null, null, jetStreamTest);
     }
 
-    public static void runInSharedCustomStream(VersionCheck vc, InJetStreamTestingContextTest customStreamCreateJstcTest) throws Exception {
-        _runInShared(null, vc, null, customStreamCreateJstcTest, 0);
+    public static void runInJsServer(String configFilePath, JetStreamTest jetStreamTest) throws Exception {
+        _runInServer(null, null, configFilePath, null, jetStreamTest);
     }
 
-    public static void runInSharedCustomStream(Options.Builder builder, InJetStreamTestingContextTest customStreamCreateJstcTest) throws Exception {
-        _runInShared(builder, null, null, customStreamCreateJstcTest, -1);
+    public static void runInJsServer(VersionCheck vc, JetStreamTest jetStreamTest) throws Exception {
+        _runInServer(null, vc, null, null, jetStreamTest);
     }
 
-    // ------------------------------------------------
-    // InJetStreamTestingContextTest oneSubjectJstcTest
-    // ------------------------------------------------
-    public static void runInShared(InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
-        _runInShared(null, null, null, oneSubjectJstcTest, 1);
-    }
-
-    public static void runInShared(VersionCheck vc, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
-        _runInShared(null, vc, null, oneSubjectJstcTest, 1);
-    }
-
-    public static void runInSharedOwnNc(ErrorListener el, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
-        _runInShared(optionsBuilder(el), null, null, oneSubjectJstcTest, 1);
-    }
-
-    public static void runInSharedOwnNc(ErrorListener el, VersionCheck vc, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
-        _runInShared(optionsBuilder(el), vc, null, oneSubjectJstcTest, 1);
-    }
-
-    public static void runInSharedOwnNc(Options.Builder builder, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
-        _runInShared(builder, null, null, oneSubjectJstcTest, 1);
-    }
-
-    public static void runInSharedOwnNc(Options.Builder builder, VersionCheck vc, InJetStreamTestingContextTest oneSubjectJstcTest) throws Exception {
-        _runInShared(builder, vc, null, oneSubjectJstcTest, 1);
-    }
-
+    // ----------------------------------------------------------------------------------------------------
+    // runners -> shared
+    // ----------------------------------------------------------------------------------------------------
     private static void _runInShared(
         Options.Builder optionsBuilder,
         VersionCheck vc,
-        InServerTest test,
-        InJetStreamTestingContextTest jstcTest,
-        int jstcTestSubjectCount
+        ServerTest test,
+        int jstcTestSubjectCount,
+        JetStreamTestingContextTest ctxTest
     ) throws Exception {
         if (vc != null && VERSION_SERVER_INFO != null && !vc.runTest(VERSION_SERVER_INFO)) {
             return; // had vc, already had run server info and fails check
@@ -292,9 +217,9 @@ public class TestBase {
         initVersionServerInfo(nc);
         if (vc == null || vc.runTest(VERSION_SERVER_INFO)) {
             try {
-                if (jstcTest != null) {
-                    try (JetStreamTestingContext jstc = new JetStreamTestingContext(nc, jstcTestSubjectCount)) {
-                        jstcTest.test(nc, jstc);
+                if (ctxTest != null) {
+                    try (JetStreamTestingContext ctx = new JetStreamTestingContext(nc, jstcTestSubjectCount)) {
+                        ctxTest.test(nc, ctx);
                     }
                 }
                 else {
@@ -309,29 +234,87 @@ public class TestBase {
         }
     }
 
-    public static void deleteStreams(JetStreamManagement jsm) throws IOException, JetStreamApiException {
-        List<String> streams = jsm.getStreamNames();
-        for (String stream : streams) {
-            try { jsm.deleteStream(stream); } catch (Exception ignore) {}
-        }
+    // --------------------------------------------------
+    // 1. Not using JetStream
+    // -or-
+    // 2. need something very custom ->
+    //    please clean up your streams
+    // -or-
+    // 3. or need to do something special with the
+    //    connection list close it
+    // --------------------------------------------------
+    public static void runInShared(ServerTest test) throws Exception {
+        _runInShared(null, null, test, -1, null);
     }
 
-    public static void deleteStreams(JetStreamManagement jsm, String... streams) throws IOException, JetStreamApiException {
-        for (String stream : streams) {
-            try { jsm.deleteStream(stream); } catch (Exception ignore) {}
-        }
+    public static void runInShared(VersionCheck vc, ServerTest test) throws Exception {
+        _runInShared(null, vc, test, -1, null);
+    }
+
+    public static void runInSharedOwnNc(ServerTest test) throws Exception {
+        _runInShared(optionsBuilder(), null, test, -1, null);
+    }
+
+    public static void runInSharedOwnNc(ErrorListener el, ServerTest test) throws Exception {
+        _runInShared(optionsBuilder(el), null, test, -1, null);
+    }
+
+    public static void runInSharedOwnNc(Options.Builder builder, ServerTest test) throws Exception {
+        _runInShared(builder, null, test, -1, null);
+    }
+
+    // --------------------------------------------------
+    // JetStream: 1 stream 1 subject
+    // --------------------------------------------------
+    public static void runInShared(JetStreamTestingContextTest ctxTest) throws Exception {
+        _runInShared(null, null, null, 1, ctxTest);
+    }
+
+    public static void runInShared(VersionCheck vc, JetStreamTestingContextTest ctxTest) throws Exception {
+        _runInShared(null, vc, null, 1, ctxTest);
+    }
+
+    public static void runInSharedOwnNc(ErrorListener el, JetStreamTestingContextTest ctxTest) throws Exception {
+        _runInShared(optionsBuilder(el), null, null, 1, ctxTest);
+    }
+
+    public static void runInSharedOwnNc(ErrorListener el, VersionCheck vc, JetStreamTestingContextTest ctxTest) throws Exception {
+        _runInShared(optionsBuilder(el), vc, null, 1, ctxTest);
+    }
+
+    public static void runInSharedOwnNc(Options.Builder builder, JetStreamTestingContextTest ctxTest) throws Exception {
+        _runInShared(builder, null, null, 1, ctxTest);
+    }
+
+    public static void runInSharedOwnNc(Options.Builder builder, VersionCheck vc, JetStreamTestingContextTest ctxTest) throws Exception {
+        _runInShared(builder, vc, null, 1, ctxTest);
+    }
+
+    // --------------------------------------------------
+    // JetStream: 1 stream custom subjects, kv or os
+    // --------------------------------------------------
+    public static void runInSharedCustom(JetStreamTestingContextTest ctxTest) throws Exception {
+        _runInShared(null, null, null, 0, ctxTest);
+    }
+
+    public static void runInSharedCustom(VersionCheck vc, JetStreamTestingContextTest ctxTest) throws Exception {
+        _runInShared(null, vc, null, 0, ctxTest);
+    }
+
+    public static void runInSharedCustom(Options.Builder builder, JetStreamTestingContextTest ctxTest) throws Exception {
+        _runInShared(builder, null, null, -1, ctxTest);
     }
 
     // ----------------------------------------------------------------------------------------------------
     // runners / external
     // ----------------------------------------------------------------------------------------------------
-    public static void runInExternalServer(InServerTest inServerTest) throws Exception {
-        runInExternalServer(Options.DEFAULT_URL, inServerTest);
+    public static void runInExternalServer(ServerTest serverTest) throws Exception {
+        runInExternalServer(Options.DEFAULT_URL, serverTest);
     }
 
-    public static void runInExternalServer(String url, InServerTest inServerTest) throws Exception {
+    public static void runInExternalServer(String url, ServerTest serverTest) throws Exception {
         try (Connection nc = Nats.connect(url)) {
-            inServerTest.test(nc);
+            serverTest.test(nc);
         }
     }
 
@@ -648,10 +631,5 @@ public class TestBase {
             .subjects(subjects).build();
 
         return jsm.addStream(sc);
-    }
-
-    public static StreamInfo createMemoryStream(Connection nc, String streamName, String... subjects)
-        throws IOException, JetStreamApiException {
-        return createMemoryStream(nc.jetStreamManagement(), streamName, subjects);
     }
 }

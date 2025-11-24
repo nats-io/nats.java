@@ -54,10 +54,10 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
     @Test
     public void testRoundTrip() throws Exception {
-        runInSharedCustomStream((nc, jstc) -> {
+        runInSharedCustom((nc, ctx) -> {
             CompressionOption compressionOption = atLeast2_10() ? S2 : None;
             StreamConfiguration sc = StreamConfiguration.builder(getTestConfiguration())
-                .name(jstc.stream)
+                .name(ctx.stream)
                 .mirror(null)
                 .sources()
                 .replicas(1)
@@ -70,7 +70,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 .allowMessageCounter(false)
                 .persistMode(null)
                 .build();
-            validateTestStreamConfiguration(jstc.jsm.addStream(sc).getConfiguration(), true, jstc.stream);
+            validateTestStreamConfiguration(ctx.jsm.addStream(sc).getConfiguration(), true, ctx.stream);
         });
     }
 
