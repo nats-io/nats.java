@@ -338,7 +338,11 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
             connection.unsubscribe(defaultHandlerSub, after);
         }
 
-        subWithNonDefaultHandlerBySid.forEach((sid, sub) -> connection.unsubscribe(sub, after));
+        subWithNonDefaultHandlerBySid.forEach((sid, sub) -> {
+            if (subject.equals(sub.getSubject())) {
+                connection.unsubscribe(sub, after);
+            }
+        });
 
         return this;
     }
