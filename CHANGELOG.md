@@ -1,5 +1,14 @@
 # Change Log
 
+## 2.24.1
+
+### Build
+* Fix removed Automatic-Module-Name #1486 @scottf @derklaro
+
+### Core
+* Properly unsubscribe from dispatcher subject #1483 @scottf
+* Internal Options Executor Awareness #1484 @scottf
+
 ## 2.24.0
 
 ### Core
