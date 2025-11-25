@@ -289,6 +289,100 @@ public class OptionsTests {
     }
 
     @Test
+    public void testPropertiesDoNotOverrideWithDefaultIfNotSupplied() {
+        Options o = new Options.Builder().build();
+        _testDefaultNotOverridden(o);
+
+        Properties props = new Properties();
+        o = new Options.Builder(props).build();
+        _testDefaultNotOverridden(o);
+
+        o = new Options.Builder()
+            .properties(setIgnoredValues(props))
+            .build();
+        _testDefaultNotOverridden(o);
+
+        props = new Properties();
+        o = new Options.Builder()
+            .maxReconnects(42)
+            .reconnectBufferSize(43)
+            .socketReadTimeoutMillis(44)
+            .socketSoLinger(45)
+            .receiveBufferSize(46)
+            .sendBufferSize(47)
+            .maxControlLine(48)
+            .maxPingsOut(49)
+            .maxMessagesInOutgoingQueue(50)
+            .reconnectWait(Duration.ofMillis(73))
+            .reconnectJitter(Duration.ofMillis(74))
+            .reconnectJitterTls(Duration.ofMillis(75))
+            .connectionTimeout(Duration.ofMillis(76))
+            .socketWriteTimeout(Duration.ofMillis(77))
+            .pingInterval(Duration.ofMillis(78))
+            .requestCleanupInterval(Duration.ofMillis(79))
+            .properties(props)
+            .build();
+        _testNonDefaultNotOverridden(o);
+
+        o = new Options.Builder(o)
+            .properties(setIgnoredValues(props))
+            .build();
+        _testNonDefaultNotOverridden(o);
+    }
+
+    private static Properties setIgnoredValues(Properties props) {
+        props.setProperty(PROP_MAX_CONTROL_LINE, "-1");
+        props.setProperty(PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE, "-1");
+        props.setProperty(PROP_RECONNECT_WAIT, "-1");
+        props.setProperty(PROP_RECONNECT_JITTER, "-1");
+        props.setProperty(PROP_RECONNECT_JITTER_TLS, "-1");
+        props.setProperty(PROP_CONNECTION_TIMEOUT, "-1");
+        props.setProperty(PROP_SOCKET_WRITE_TIMEOUT, "-1");
+        props.setProperty(PROP_PING_INTERVAL, "-1");
+        props.setProperty(PROP_CLEANUP_INTERVAL, "-1");
+        return props;
+    }
+
+    private static void _testNonDefaultNotOverridden(Options o) {
+        assertEquals(42, o.getMaxReconnect());
+        assertEquals(43, o.getReconnectBufferSize());
+        assertEquals(44, o.getSocketReadTimeoutMillis());
+        assertEquals(45, o.getSocketSoLinger());
+        assertEquals(46, o.getReceiveBufferSize());
+        assertEquals(47, o.getSendBufferSize());
+        assertEquals(48, o.getMaxControlLine());
+        assertEquals(49, o.getMaxPingsOut());
+        assertEquals(50, o.getMaxMessagesInOutgoingQueue());
+        assertEquals(Duration.ofMillis(73), o.getReconnectWait());
+        assertEquals(Duration.ofMillis(74), o.getReconnectJitter());
+        assertEquals(Duration.ofMillis(75), o.getReconnectJitterTls());
+        assertEquals(Duration.ofMillis(76), o.getConnectionTimeout());
+        assertEquals(Duration.ofMillis(77), o.getSocketWriteTimeout());
+        assertEquals(Duration.ofMillis(78), o.getPingInterval());
+        assertEquals(Duration.ofMillis(79), o.getRequestCleanupInterval());
+    }
+
+    private static void _testDefaultNotOverridden(Options o) {
+        assertEquals(DEFAULT_MAX_RECONNECT, o.getMaxReconnect());
+        assertEquals(DEFAULT_RECONNECT_BUF_SIZE, o.getReconnectBufferSize());
+        assertEquals(0, o.getSocketReadTimeoutMillis());
+        assertEquals(-1, o.getSocketSoLinger());
+        assertEquals(-1, o.getReceiveBufferSize());
+        assertEquals(-1, o.getSendBufferSize());
+        assertEquals(DEFAULT_MAX_RECONNECT, o.getMaxReconnect());
+        assertEquals(DEFAULT_MAX_CONTROL_LINE, o.getMaxControlLine());
+        assertEquals(DEFAULT_MAX_PINGS_OUT, o.getMaxPingsOut());
+        assertEquals(DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE, o.getMaxMessagesInOutgoingQueue());
+        assertEquals(DEFAULT_RECONNECT_WAIT, o.getReconnectWait());
+        assertEquals(DEFAULT_RECONNECT_JITTER, o.getReconnectJitter());
+        assertEquals(DEFAULT_RECONNECT_JITTER_TLS, o.getReconnectJitterTls());
+        assertEquals(DEFAULT_CONNECTION_TIMEOUT, o.getConnectionTimeout());
+        assertEquals(DEFAULT_SOCKET_WRITE_TIMEOUT, o.getSocketWriteTimeout());
+        assertEquals(DEFAULT_PING_INTERVAL, o.getPingInterval());
+        assertEquals(DEFAULT_REQUEST_CLEANUP_INTERVAL, o.getRequestCleanupInterval());
+    }
+
+    @Test
     public void testPropertiesBooleanBuilder() {
         Properties props = new Properties();
         props.setProperty(Options.PROP_VERBOSE, "true");
