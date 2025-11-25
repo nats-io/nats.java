@@ -302,7 +302,7 @@ public class OptionsTests {
             .build();
         _testDefaultNotOverridden(o);
 
-        props.clear();
+        props = new Properties();
         o = new Options.Builder()
             .maxReconnects(42)
             .reconnectBufferSize(43)
