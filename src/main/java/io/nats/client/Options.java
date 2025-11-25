@@ -3029,11 +3029,18 @@ public class Options {
         }
     }
 
+    public static boolean XDEBUG = false;
     private static void durationProperty(Properties props, String key, java.util.function.Consumer<Duration> consumer) {
         String value = getPropertyValue(props, key);
         if (value != null) {
+            if (XDEBUG) {
+                System.out.println("X-DUR 1] " + key + " >" + value + "<");
+            }
             try {
                 Duration d = Duration.parse(value);
+                if (XDEBUG) {
+                    System.out.println("X-DUR 2] " + d + ", " + d.toNanos());
+                }
                 if (d.toNanos() >= 0) {
                     consumer.accept(d);
                 }

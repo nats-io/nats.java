@@ -290,6 +290,7 @@ public class OptionsTests {
 
     @Test
     public void testPropertiesDoNotOverrideWithDefaultIfNotSupplied() {
+        Options.XDEBUG = true;
         Options o = new Options.Builder().build();
         _testDefaultNotOverridden(o);
 
@@ -328,6 +329,10 @@ public class OptionsTests {
             .properties(setIgnoredValues(props))
             .build();
         _testNonDefaultNotOverridden(o);
+        Options.XDEBUG = false;
+
+        System.out.println("! " + Duration.ofMillis(1));
+        System.out.println("! " + Duration.ofMillis(-1));
     }
 
     private static Properties setIgnoredValues(Properties props) {
