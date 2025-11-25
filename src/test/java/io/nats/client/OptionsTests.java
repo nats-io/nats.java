@@ -290,7 +290,6 @@ public class OptionsTests {
 
     @Test
     public void testPropertiesDoNotOverrideWithDefaultIfNotSupplied() {
-        Options.XDEBUG = true;
         Options o = new Options.Builder().build();
         _testDefaultNotOverridden(o);
 
@@ -329,22 +328,18 @@ public class OptionsTests {
             .properties(setIgnoredValues(props))
             .build();
         _testNonDefaultNotOverridden(o);
-        Options.XDEBUG = false;
-
-        System.out.println("! " + Duration.ofMillis(1));
-        System.out.println("! " + Duration.ofMillis(-1));
     }
 
     private static Properties setIgnoredValues(Properties props) {
         props.setProperty(PROP_MAX_CONTROL_LINE, "-1");
         props.setProperty(PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE, "-1");
-        props.setProperty(PROP_RECONNECT_WAIT, "PT-0.001S");
-        props.setProperty(PROP_RECONNECT_JITTER, "PT-0.001S");
-        props.setProperty(PROP_RECONNECT_JITTER_TLS, "PT-0.001S");
-        props.setProperty(PROP_CONNECTION_TIMEOUT, "PT-0.001S");
-        props.setProperty(PROP_SOCKET_WRITE_TIMEOUT, "PT-0.001S");
-        props.setProperty(PROP_PING_INTERVAL, "PT-0.001S");
-        props.setProperty(PROP_CLEANUP_INTERVAL, "PT-0.001S");
+        props.setProperty(PROP_RECONNECT_WAIT, "-1");
+        props.setProperty(PROP_RECONNECT_JITTER, "-1");
+        props.setProperty(PROP_RECONNECT_JITTER_TLS, "-1");
+        props.setProperty(PROP_CONNECTION_TIMEOUT, "-1");
+        props.setProperty(PROP_SOCKET_WRITE_TIMEOUT, "-1");
+        props.setProperty(PROP_PING_INTERVAL, "-1");
+        props.setProperty(PROP_CLEANUP_INTERVAL, "-1");
         return props;
     }
 
