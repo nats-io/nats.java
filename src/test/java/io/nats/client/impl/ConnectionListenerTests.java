@@ -22,11 +22,14 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ConnectionListenerTests extends TestBase {
@@ -37,14 +40,15 @@ public class ConnectionListenerTests extends TestBase {
     }
     
     @Test
-    public void testCloseCount() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+    public void testCloseEvent() throws Exception {
+        ListenerByFutures listener = new ListenerByFutures();
+        CompletableFuture<Void> fEvent = listener.prepForEvent(Events.CLOSED);
         Options.Builder builder = optionsBuilder().connectionListener(listener);
         runInSharedOwnNc(builder, nc -> {
             standardCloseConnection(nc);
             assertNull(nc.getConnectedUrl());
-            assertEquals(1, listener.getEventCount(Events.CLOSED));
         });
+        listener.validate(fEvent, 500, Events.CLOSED);
     }
 
     @Test
@@ -100,20 +104,24 @@ public class ConnectionListenerTests extends TestBase {
 
     @Test
     public void testExceptionInConnectionListener() throws Exception {
-        BadHandler listener = new BadHandler();
-        Options.Builder builder = optionsBuilder().connectionListener(listener);
-        runInServer(builder, nc -> {
-            standardCloseConnection(nc);
-            assertTrue(((NatsConnection)nc).getStatisticsCollector().getExceptions() > 0);
-        });
+        BadHandler badHandler = new BadHandler();
+        Options.Builder builder = optionsBuilder().connectionListener(badHandler);
+        AtomicReference<Statistics> stats = new AtomicReference<>();
+        runInSharedOwnNc(builder, nc -> stats.set(nc.getStatistics()));
+        sleep(100); // it needs time here
+        assertTrue(stats.get().getExceptions() > 0);
     }
 
     @Test
     public void testMultipleConnectionListeners() throws Exception {
         Set<String> capturedEvents = ConcurrentHashMap.newKeySet();
-        ListenerForTesting listener = new ListenerForTesting();
+        ListenerByFutures listener = new ListenerByFutures();
+        CompletableFuture<Void> fClosed = listener.prepForEvent(Events.CLOSED);
+        AtomicReference<Statistics> stats = new AtomicReference<>();
         Options.Builder builder = optionsBuilder().connectionListener(listener);
         runInSharedOwnNc(builder, nc -> {
+            stats.set(nc.getStatistics());
+
             //noinspection DataFlowIssue // addConnectionListener parameter is annotated as @NonNull
             assertThrows(NullPointerException.class, () -> nc.addConnectionListener(null));
             //noinspection DataFlowIssue // removeConnectionListener parameter is annotated as @NonNull
@@ -130,9 +138,11 @@ public class ConnectionListenerTests extends TestBase {
 
             standardCloseConnection(nc);
             assertNull(nc.getConnectedUrl());
-            assertEquals(1, listener.getEventCount(Events.CLOSED));
-            assertTrue(((NatsConnection)nc).getStatisticsCollector().getExceptions() > 0);
         });
+
+        sleep(100); // it needs time here
+        assertTrue(stats.get().getExceptions() > 0);
+        listener.validate(fClosed, 500, Events.CLOSED);
 
         Set<String> expectedEvents = new HashSet<>(Arrays.asList(
                 "CL1-CLOSED",

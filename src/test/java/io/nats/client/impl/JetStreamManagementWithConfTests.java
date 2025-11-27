@@ -31,7 +31,7 @@ public class JetStreamManagementWithConfTests extends JetStreamTestBase {
 
     @Test
     public void testGetStreamInfoSubjectPagination() throws Exception {
-        runInJsServer("pagination.conf", (nc, jsm, js) -> {
+        runInOwnJsServer("pagination.conf", (nc, jsm, js) -> {
             String stream1 = random();
             String stream2 = random();
             long rounds = 101;

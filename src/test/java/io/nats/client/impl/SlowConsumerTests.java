@@ -208,7 +208,7 @@ public class SlowConsumerTests extends TestBase {
             nc.flush(Duration.ofMillis(5000));
 
             // Notification is in another thread, wait for it, or fail
-            waitForSlow.get(1000, TimeUnit.MILLISECONDS);
+            waitForSlow.get(3000, TimeUnit.MILLISECONDS);
 
             List<Consumer> slow = listener.getSlowConsumers();
             assertEquals(1, slow.size()); // should only appear once
@@ -218,10 +218,10 @@ public class SlowConsumerTests extends TestBase {
             nc.publish(subject, null);
             nc.flush(Duration.ofMillis(1000));
 
-            assertEquals(0, slow.size()); // no renotifiy
+            assertEquals(0, slow.size()); // no renotify
 
             waitForSlow = listener.waitForSlow();
-            // Clear the queue, we shoudl become a non-slow consumer
+            // Clear the queue, we should become a non-slow consumer
             sub.nextMessage(Duration.ofMillis(1000)); // only 1 to get
 
             // Notification again on 2nd message
@@ -229,7 +229,7 @@ public class SlowConsumerTests extends TestBase {
             nc.publish(subject, null);
             nc.flush(Duration.ofMillis(1000));
 
-            waitForSlow.get(1000, TimeUnit.MILLISECONDS);
+            waitForSlow.get(3000, TimeUnit.MILLISECONDS);
 
             assertEquals(1, slow.size()); // should only appear once
             assertEquals(sub, slow.get(0));

@@ -272,7 +272,7 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
     @Test
     @Disabled("This used to work.")
     public void testSourceAndTransformsRoundTrips() throws Exception {
-        runInJsServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
+        runInOwnJsServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
             StreamConfiguration scSource = StreamConfigurationTests.getStreamConfigurationFromJson(
                 "StreamConfigurationSourcedSubjectTransform.json");
 
@@ -314,7 +314,7 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
 
     @Test
     public void testMirror() throws Exception {
-        runInJsServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
+        runInOwnJsServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
             StreamConfiguration scMirror = StreamConfigurationTests.getStreamConfigurationFromJson(
                 "StreamConfigurationMirrorSubjectTransform.json");
 

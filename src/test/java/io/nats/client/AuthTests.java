@@ -301,7 +301,7 @@ public class AuthTests extends TestBase {
             ts1.close();
             listener.waitForStatusChange(10, TimeUnit.SECONDS);
             assertConnected(nc);
-            assertEquals(nc.getConnectedUrl(), ts2.getNatsLocalhostUri());
+            assertEquals(ts2.getLocalhostUri(), nc.getConnectedUrl());
             standardCloseConnection(nc);
         }
     }
@@ -358,7 +358,7 @@ public class AuthTests extends TestBase {
 
             listener.waitForStatusChange(STANDARD_CONNECTION_WAIT_MS, TimeUnit.MILLISECONDS);
             listenerConnectionWait(nc, listener);
-            assertEquals(nc.getConnectedUrl(), ts2.getNatsLocalhostUri());
+            assertEquals(ts2.getLocalhostUri(), nc.getConnectedUrl());
             standardCloseConnection(nc);
         }
     }

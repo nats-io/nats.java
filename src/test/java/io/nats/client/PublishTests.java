@@ -13,13 +13,15 @@
 
 package io.nats.client;
 
+import io.nats.client.ConnectionListener.Events;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestingContext;
-import io.nats.client.impl.ListenerForTesting;
+import io.nats.client.impl.ListenerByFutures;
 import io.nats.client.impl.NatsMessage;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
@@ -32,7 +34,6 @@ import static io.nats.client.support.NatsConstants.*;
 import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
-import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class PublishTests extends TestBase {
@@ -45,6 +46,9 @@ public class PublishTests extends TestBase {
 
             // flush after close always times out
             assertThrows(TimeoutException.class, () -> nc.flush(null));
+
+            // a normal api call after close
+            assertThrows(IOException.class, nc::RTT);
         });
     }
 
@@ -237,27 +241,20 @@ public class PublishTests extends TestBase {
 
     @Test
     public void testMaxPayloadNoClientSideLimitChecks() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
-        Options.Builder builder = optionsBuilder().noReconnect().clientSideLimitChecks(false)
+        ListenerByFutures listener = new ListenerByFutures();
+        Options.Builder builder = optionsBuilder()
+            .noReconnect()
+            .clientSideLimitChecks(false)
+            .errorListener(listener)
             .connectionListener(listener);
 
         runInSharedOwnNc(builder, nc -> {
-            IllegalStateException check = null;
+            CompletableFuture<Void> fError = listener.prepForError("Maximum Payload Violation");
+            CompletableFuture<Void> fEvent = listener.prepForEvent(Events.DISCONNECTED);
             int maxPayload = (int)nc.getServerInfo().getMaxPayload();
-            for (int x = 1; x < 100; x++) {
-                try {
-                    nc.publish(random(), new byte[maxPayload + x]);
-                }
-                catch (IllegalStateException e) {
-                    check = e;
-                    break;
-                }
-            }
-            if (check == null) {
-                fail("Expecting IllegalStateException");
-            }
-            sleep(100); // make sure events has time to get there
-            assertTrue(listener.getConnectionEvents().contains(ConnectionListener.Events.DISCONNECTED));
+            nc.publish(random(), new byte[maxPayload + 1]);
+            listener.validate(fError, 500, "Maximum Payload Violation");
+            listener.validate(fEvent, 500, Events.DISCONNECTED);
         });
     }
 
@@ -277,7 +274,7 @@ public class PublishTests extends TestBase {
 
         Options.Builder ncNotSupportedOptionsBuilder = optionsBuilder().noReconnect().clientSideLimitChecks(false);
         runInSharedOwnNc(ncNotSupportedOptionsBuilder, ncNotSupported -> {
-            Options ncSupportedOptions = optionsBuilder(ncNotSupported.getConnectedUrl()).supportUTF8Subjects().build();
+            Options ncSupportedOptions = optionsBuilder(ncNotSupported).supportUTF8Subjects().build();
             try (Connection ncSupported = standardConnectionWait(ncSupportedOptions)) {
                 try (JetStreamTestingContext ctxNotSupported = new JetStreamTestingContext(ncNotSupported, 0)) {
                     ctxNotSupported.createStream(jsSubject);

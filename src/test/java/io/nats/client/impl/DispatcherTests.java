@@ -866,7 +866,6 @@ public class DispatcherTests extends TestBase {
 
     @Test
     public void testDispatcherFactoryCoverage() throws Exception {
-        // custom connection since useDispatcherWithExecutor
         runInSharedOwnNc(optionsBuilder().useDispatcherWithExecutor(), nc -> {
             CountDownLatch latch = new CountDownLatch(1);
             Dispatcher d = nc.createDispatcher(msg -> latch.countDown());

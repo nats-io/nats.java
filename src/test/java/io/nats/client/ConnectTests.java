@@ -637,7 +637,7 @@ public class ConnectTests {
 
     @Test
     void testConnectPendingCountCoverage() throws Exception {
-        runInServer(nc -> {
+        runInOwnServer(nc -> {
             AtomicLong outgoingPendingMessageCount = new AtomicLong();
             AtomicLong outgoingPendingBytes = new AtomicLong();
 

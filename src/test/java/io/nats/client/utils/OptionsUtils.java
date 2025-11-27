@@ -13,6 +13,7 @@
 
 package io.nats.client.utils;
 
+import io.nats.client.Connection;
 import io.nats.client.ErrorListener;
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
@@ -54,6 +55,11 @@ public abstract class OptionsUtils {
 
     public static Options.Builder optionsBuilder(String... servers) {
         return optionsBuilder().servers(servers);
+    }
+
+    public static Options.Builder optionsBuilder(Connection nc) {
+        //noinspection DataFlowIssue
+        return optionsBuilder().server(nc.getConnectedUrl());
     }
 
     public static Options options(int port) {

@@ -905,7 +905,7 @@ public class ServiceTests extends JetStreamTestBase {
 
     @Test
     public void testHandlerException() throws Exception {
-        runInServer(nc -> {
+        runInShared(nc -> {
             ServiceEndpoint exServiceEndpoint = ServiceEndpoint.builder()
                 .endpointName("exEndpoint")
                 .endpointSubject("exSubject")
@@ -936,7 +936,7 @@ public class ServiceTests extends JetStreamTestBase {
 
     @Test
     public void testServiceMessage() throws Exception {
-        runInServer(nc -> {
+        runInShared(nc -> {
             AtomicInteger which = new AtomicInteger();
             ServiceEndpoint se = ServiceEndpoint.builder()
                 .endpointName("testServiceMessage")
@@ -1575,7 +1575,7 @@ public class ServiceTests extends JetStreamTestBase {
 
     @Test
     public void testInboxSupplier() throws Exception {
-        runInServer(nc -> {
+        runInShared(nc -> {
             Discovery discovery = new Discovery(nc, 100, 1);
             TestInboxSupplier supplier = new TestInboxSupplier();
             discovery.setInboxSupplier(supplier);

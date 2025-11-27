@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.support.NatsRequestCompletableFuture.CancelAction;
 import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
@@ -33,11 +34,12 @@ import static org.junit.jupiter.api.Assertions.*;
 public class RequestTests extends TestBase {
     @Test
     public void testSimpleRequest() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer();
-                Connection nc = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
+        runInSharedOwnNc(optionsBuilder().maxReconnects(0), nc -> {
             assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-            
+
+            AtomicReference<String> replyTo = new AtomicReference<>();
             Dispatcher d = nc.createDispatcher(msg -> {
+                replyTo.set(msg.getReplyTo());
                 assertTrue(msg.getReplyTo().startsWith(Options.DEFAULT_INBOX_PREFIX));
                 if (msg.hasHeaders()) {
                     nc.publish(msg.getReplyTo(), msg.getHeaders(), null);
@@ -62,15 +64,15 @@ public class RequestTests extends TestBase {
             assertEquals(0, nc.getStatistics().getOutstandingRequests());
             assertNotNull(msg);
             assertEquals(0, msg.getData().length);
-            assertTrue(msg.getSubject().indexOf('.') < msg.getSubject().lastIndexOf('.'));
+            assertEquals(msg.getSubject(), replyTo.get());
             assertTrue(msg.hasHeaders());
             assertEquals("bar", msg.getHeaders().getFirst("foo"));
-        }
+        });
     }
 
     @Test
     public void testRequestVarieties() throws Exception {
-        runInServer(nc -> {
+        runInSharedOwnNc(nc -> {
             Dispatcher d = nc.createDispatcher(msg -> {
                 if (msg.hasHeaders()) {
                     nc.publish(msg.getReplyTo(), msg.getHeaders(), msg.getData());
@@ -182,14 +184,19 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testMultipleReplies() throws Exception {
-        Options.Builder builder = optionsBuilder().turnOnAdvancedStats();
-        runInServer(builder, nc -> {
+        Options.Builder builder = optionsBuilder().turnOnAdvancedStats().requestCleanupInterval(Duration.ofMillis(2500));
+        runInSharedOwnNc(builder, nc -> {
+            CountDownLatch d4CanReply = new CountDownLatch(1);
             AtomicInteger requests = new AtomicInteger();
             MessageHandler handler = msg -> { requests.incrementAndGet(); nc.publish(msg.getReplyTo(), null); };
             Dispatcher d1 = nc.createDispatcher(handler);
             Dispatcher d2 = nc.createDispatcher(handler);
             Dispatcher d3 = nc.createDispatcher(handler);
-            Dispatcher d4 = nc.createDispatcher(msg -> { sleep(5000); handler.onMessage(msg); });
+            Dispatcher d4 = nc.createDispatcher(msg -> {
+                requests.incrementAndGet();
+                d4CanReply.await(5, TimeUnit.SECONDS);
+                nc.publish(msg.getReplyTo(), null);
+            });
 
             String subject = random();
             d1.subscribe(subject);
@@ -199,15 +206,17 @@ public class RequestTests extends TestBase {
 
             Message reply = nc.request(subject, null, Duration.ofSeconds(2));
             assertNotNull(reply);
-            sleep(2000);
-            assertEquals(3, requests.get());
+            sleep(2000); // less than the requestCleanupInterval but enough time
+            assertEquals(4, requests.get());
             NatsStatistics stats = (NatsStatistics)nc.getStatistics();
             assertEquals(1, stats.getRepliesReceived());
             assertEquals(2, stats.getDuplicateRepliesReceived());
             assertEquals(0, stats.getOrphanRepliesReceived());
 
-            sleep(3100);
-            assertEquals(4, requests.get());
+            sleep(1000);            // easily over the requestCleanupInterval
+            d4CanReply.countDown(); // signals d4 to reply
+
+            sleep(1000);            // enough time for d4's reply to get processed
             stats = (NatsStatistics)nc.getStatistics();
             assertEquals(1, stats.getRepliesReceived());
             assertEquals(2, stats.getDuplicateRepliesReceived());
@@ -599,7 +608,11 @@ public class RequestTests extends TestBase {
     public void testOldStyleRequest() throws Exception {
         runInSharedOwnNc(Options.builder().oldRequestStyle(), nc -> {
             String subject = random();
-            Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), null));
+            AtomicReference<String> replyTo = new AtomicReference<>();
+            Dispatcher d = nc.createDispatcher(msg -> {
+                replyTo.set(msg.getReplyTo());
+                nc.publish(msg.getReplyTo(), null);
+            });
             d.subscribe(subject);
 
             Future<Message> incoming = nc.request(subject, null);
@@ -608,7 +621,7 @@ public class RequestTests extends TestBase {
             assertEquals(0, nc.getStatistics().getOutstandingRequests());
             assertNotNull(msg);
             assertEquals(0, msg.getData().length);
-            assertEquals(msg.getSubject().indexOf('.'), msg.getSubject().lastIndexOf('.'));
+            assertEquals(msg.getSubject(), replyTo.get());
         });
     }
 
@@ -727,5 +740,12 @@ public class RequestTests extends TestBase {
             // Future is already cancelled, collecting it shouldn't result in an exception being thrown.
             assertDoesNotThrow(() -> nc.cleanResponses(false));
         }
+    }
+
+    @Test
+    public void testRtt() throws Exception {
+        runInShared(nc -> {
+            assertTrue(nc.RTT().toMillis() < 50);
+        });
     }
 }

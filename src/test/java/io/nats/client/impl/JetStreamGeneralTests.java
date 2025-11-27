@@ -50,7 +50,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testJetNotEnabled() throws Exception {
-        runInServer(nc -> {
+        runInOwnServer(nc -> {
             // get normal context, try to do an operation
             JetStream js = nc.jetStream();
             assertThrows(IOException.class, () -> js.subscribe(random()));
@@ -561,7 +561,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testFilterMismatchErrors() throws Exception {
-        runInJsServer((nc, jsm, js) -> {
+        runInOwnJsServer((nc, jsm, js) -> {
             String stream = random();
             String subject = random();
 
@@ -949,11 +949,11 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     @Test
     public void testGetJetStreamValidatedConnectionCoverage() {
         NatsJetStreamMessage njsm = new NatsJetStreamMessage(null);
-
         IllegalStateException ise = assertThrows(IllegalStateException.class, njsm::getJetStreamValidatedConnection);
         assertTrue(ise.getMessage().contains("subscription"));
 
         // make a dummy connection so we can make a subscription
+        // notice we never nc.connect();
         Options options = Options.builder().build();
         NatsConnection nc = new NatsConnection(options);
         njsm.subscription = new NatsSubscription("sid", "sub", "q", nc, null);
@@ -1107,7 +1107,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     @Test
     public void testRequestNoResponder() throws Exception {
         runInSharedCustom((ncCancel, ctx) -> {
-            Options optReport = optionsBuilder(ncCancel.getConnectedUrl()).reportNoResponders().build();
+            Options optReport = optionsBuilder(ncCancel).reportNoResponders().build();
             try (Connection ncReport = standardConnectionWait(optReport)) {
                 assertThrows(CancellationException.class, () -> ncCancel.request(random(), null).get());
                 ExecutionException ee = assertThrows(ExecutionException.class, () -> ncReport.request(random(), null).get());

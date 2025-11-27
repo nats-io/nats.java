@@ -18,86 +18,92 @@ import io.nats.client.*;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static io.nats.client.utils.OptionsUtils.options;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static io.nats.client.utils.VersionUtils.initVersionServerInfo;
 
-public class ReusableServer {
+public class SharedServer {
 
+    private static final int NUM_REUSABLE_CONNECTIONS = 3;
     private static final int RETRY_DELAY_INCREMENT = 50;
     private static final int CONNECTION_RETRIES = 10;
     private static final long RETRY_DELAY = 100;
-    private static final Thread REUSABLES_SHUTDOWN_HOOK_THREAD;
-    private static final Map<String, ReusableServer> REUSABLES;
+    private static final Thread SHARED_SHUTDOWN_HOOK_THREAD;
+    private static final Map<String, SharedServer> SHARED_BY_NAME;
+    private static final Map<String, SharedServer> SHARED_BY_URL;
     private static final ReentrantLock STATIC_LOCK;
 
     static {
         STATIC_LOCK = new ReentrantLock();
-        REUSABLES = new HashMap<>();
-        REUSABLES_SHUTDOWN_HOOK_THREAD = new Thread("Reusables-Shutdown-Hook") {
+        SHARED_BY_NAME = new HashMap<>();
+        SHARED_BY_URL = new HashMap<>();
+        SHARED_SHUTDOWN_HOOK_THREAD = new Thread("Reusables-Shutdown-Hook") {
             @Override
             public void run() {
-                for (ReusableServer rs : REUSABLES.values()) {
+                for (SharedServer rs : SHARED_BY_URL.values()) {
                     rs.shutdown();
                 }
-                REUSABLES.clear();
+                SHARED_BY_URL.clear();
             }
         };
-        Runtime.getRuntime().addShutdownHook(REUSABLES_SHUTDOWN_HOOK_THREAD);
+        Runtime.getRuntime().addShutdownHook(SHARED_SHUTDOWN_HOOK_THREAD);
     }
 
     private final ReentrantLock instanceLock;
-    private final String internalConnectionName;
+    private final String reusableConnectionPrefix;
     private final Map<String, Connection> connectionMap;
+    private final AtomicInteger currentReusableId;
     private NatsTestServer natsTestServer;
 
-    public final String serverUri;
+    public final String serverUrl;
 
-    public static ReusableServer getInstance(String name) throws IOException {
+    public static SharedServer getInstance(String name) throws IOException {
         STATIC_LOCK.lock();
         try {
-            ReusableServer rs = REUSABLES.get(name);
-            if (rs == null) {
-                rs = new ReusableServer();
-                REUSABLES.put(name, rs);
+            SharedServer shared = SHARED_BY_URL.get(name);
+            if (shared == null) {
+                shared = new SharedServer();
+                SHARED_BY_NAME.put(name, shared);
+                SHARED_BY_URL.put(shared.serverUrl, shared);
             }
-            return rs;
+            return shared;
         }
         finally {
             STATIC_LOCK.unlock();
         }
     }
 
-    public static void shutdownInstance(String name) {
-        STATIC_LOCK.lock();
-        try {
-            ReusableServer rs = REUSABLES.remove(name);
-            if (rs != null) {
-                rs.shutdown();
-            }
-        }
-        finally {
-            STATIC_LOCK.unlock();
-        }
-    }
-
-    private ReusableServer() throws IOException {
+    private SharedServer() throws IOException {
         instanceLock = new ReentrantLock();
-        internalConnectionName = new NUID().next();
+        reusableConnectionPrefix = new NUID().next();
         connectionMap = new HashMap<>();
-
+        currentReusableId = new AtomicInteger(-1);
         natsTestServer = new NatsTestServer(
             NatsTestServer.builder()
                 .jetstream(true)
                 .customName("Reusable")
         );
-        serverUri = natsTestServer.getLocalhostUri();
+        serverUrl = natsTestServer.getLocalhostUri();
     }
 
-    public Connection getReusableNc() {
-        return getConnection(internalConnectionName);
+    public Connection getSharedConnection() {
+        int id = currentReusableId.incrementAndGet();
+        if (id >= NUM_REUSABLE_CONNECTIONS) {
+            currentReusableId.set(0);
+            id = 0;
+        }
+        return getSharedConnection(reusableConnectionPrefix + "-" + id);
+    }
+
+    public static Connection sharedConnectionForSameServer(Connection nc) {
+        SharedServer shared = SHARED_BY_URL.get(nc.getConnectedUrl());
+        if (shared == null) {
+            throw new RuntimeException("No shared server for that connection.");
+        }
+        return shared.getSharedConnection();
     }
 
     private void waitUntilStatus(Connection conn) {
@@ -109,26 +115,12 @@ public class ReusableServer {
         }
     }
 
-    private Connection getConnection(String name) {
+    private Connection getSharedConnection(String name) {
         instanceLock.lock();
         try {
             Connection ncs = connectionMap.get(name);
             if (ncs == null) {
-                long delay = RETRY_DELAY - RETRY_DELAY_INCREMENT;
-                Options options = options(serverUri);
-                for (int x = 0; ncs == null && x < CONNECTION_RETRIES; x++) {
-                    if (x > 0) {
-                        delay += RETRY_DELAY_INCREMENT;
-                        sleep(delay);
-                    }
-                    try {
-                        ncs = Nats.connect(options);
-                    }
-                    catch (IOException ignored) {}
-                    catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                    }
-                }
+                ncs = newConnection(optionsBuilder());
                 if (ncs != null) {
                     connectionMap.put(name, ncs);
                     waitUntilStatus(ncs);
@@ -137,13 +129,32 @@ public class ReusableServer {
             }
             else if (ncs.getStatus() != Connection.Status.CONNECTED) {
                 try { ncs.close(); } catch (Exception ignore) {}
-                return getConnection(name);
+                return getSharedConnection(name);
             }
             return ncs;
         }
         finally {
             instanceLock.unlock();
         }
+    }
+
+    public Connection newConnection(Options.Builder builder) {
+        long delay = RETRY_DELAY - RETRY_DELAY_INCREMENT;
+        Options options = builder.server(serverUrl).build();
+        for (int x = 0; x < CONNECTION_RETRIES; x++) {
+            if (x > 0) {
+                delay += RETRY_DELAY_INCREMENT;
+                sleep(delay);
+            }
+            try {
+                return Nats.connect(options);
+            }
+            catch (IOException ignored) {}
+            catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        return null;
     }
 
     public void shutdown() {

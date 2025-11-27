@@ -70,33 +70,66 @@ public class MessageManagerTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testPushBeforeQueueProcessorAndManage() throws Exception {
+    public void testPushBeforeQueueProcessorAndManageHbFcSync() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
         runInSharedOwnNc(listener, nc -> {
             NatsJetStreamSubscription sub = genericPushSub(nc);
-
             PushMessageManager pushMgr = getPushManager(nc, push_hb_fc(), sub, false, true, false);
             testPushBqpAndManage(sub, listener, pushMgr);
+        });
+    }
 
-            pushMgr = getPushManager(nc, push_hb_xfc(), sub, false, true, false);
+    @Test
+    public void testPushBeforeQueueProcessorAndManageHbXfcSync() throws Exception {
+        ListenerForTesting listener = new ListenerForTesting();
+        runInSharedOwnNc(listener, nc -> {
+            NatsJetStreamSubscription sub = genericPushSub(nc);
+            PushMessageManager pushMgr = getPushManager(nc, push_hb_xfc(), sub, false, true, false);
             testPushBqpAndManage(sub, listener, pushMgr);
+        });
+    }
 
-            pushMgr = getPushManager(nc, push_xhb_xfc(), sub, false, true, false);
+    @Test
+    public void testPushBeforeQueueProcessorAndManageXhbXfcSync() throws Exception {
+        ListenerForTesting listener = new ListenerForTesting();
+        runInSharedOwnNc(listener, nc -> {
+            NatsJetStreamSubscription sub = genericPushSub(nc);
+            PushMessageManager pushMgr = getPushManager(nc, push_xhb_xfc(), sub, false, true, false);
             testPushBqpAndManage(sub, listener, pushMgr);
+        });
+    }
 
-            pushMgr = getPushManager(nc, push_hb_fc(), sub, false, false, false);
+    @Test
+    public void testPushBeforeQueueProcessorAndManageHbFcAsync() throws Exception {
+        ListenerForTesting listener = new ListenerForTesting();
+        runInSharedOwnNc(listener, nc -> {
+            NatsJetStreamSubscription sub = genericPushSub(nc);
+            PushMessageManager pushMgr = getPushManager(nc, push_hb_fc(), sub, false, false, false);
             testPushBqpAndManage(sub, listener, pushMgr);
+        });
+    }
 
-            pushMgr = getPushManager(nc, push_hb_xfc(), sub, false, false, false);
+    @Test
+    public void testPushBeforeQueueProcessorAndManageHbXfcAsync() throws Exception {
+        ListenerForTesting listener = new ListenerForTesting();
+        runInSharedOwnNc(listener, nc -> {
+            NatsJetStreamSubscription sub = genericPushSub(nc);
+            PushMessageManager pushMgr = getPushManager(nc, push_hb_xfc(), sub, false, false, false);
             testPushBqpAndManage(sub, listener, pushMgr);
+        });
+    }
 
-            pushMgr = getPushManager(nc, push_xhb_xfc(), sub, false, false, false);
+    @Test
+    public void testPushBeforeQueueProcessorAndManageXhbXfcAsync() throws Exception {
+        ListenerForTesting listener = new ListenerForTesting();
+        runInSharedOwnNc(listener, nc -> {
+            NatsJetStreamSubscription sub = genericPushSub(nc);
+            PushMessageManager pushMgr = getPushManager(nc, push_xhb_xfc(), sub, false, false, false);
             testPushBqpAndManage(sub, listener, pushMgr);
         });
     }
 
     private void testPushBqpAndManage(NatsJetStreamSubscription sub, ListenerForTesting listener, PushMessageManager manager) {
-        listener.reset();
         String sid = sub.getSID();
 
         assertTrue(manager.beforeQueueProcessorImpl(getTestJsMessage(1, sid)));
@@ -135,7 +168,7 @@ public class MessageManagerTests extends JetStreamTestBase {
     @Test
     public void testPullBeforeQueueProcessorAndManage() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInSharedOwnNc(listener, nc -> {
+        runInOwnJsServer(listener, (nc, jsm, js) -> {
             NatsJetStreamSubscription sub = genericPullSub(nc);
 
             String pullSubject = random();

@@ -312,7 +312,7 @@ public class ReconnectTests {
                     .maxReconnects(-1)
                     .build();
                 nc = (NatsConnection) standardConnectionWait(options);
-                assertEquals(nc.getConnectedUrl(), ts2.getLocalhostUri());
+                assertEquals(ts2.getLocalhostUri(), nc.getConnectedUrl());
                 listener.prepForStatusChange(Events.RECONNECTED);
             }
 
@@ -341,15 +341,14 @@ public class ReconnectTests {
                     .reconnectWait(Duration.ofSeconds(1))
                     .build();
                 nc = (NatsConnection) standardConnectionWait(options);
-                assertEquals(nc.getConnectedUrl(), mockTs2.getMockUri());
+                assertEquals(mockTs2.getMockUri(), nc.getConnectedUrl());
                 listener.prepForStatusChange(Events.RECONNECTED);
             }
 
             flushAndWaitLong(nc, listener);
 
             assertConnected(nc);
-            assertNotNull(nc.getConnectedUrl());
-            assertTrue(ts.getLocalhostUri().endsWith(nc.getConnectedUrl()));
+            assertEquals(ts.getLocalhostUri(), nc.getConnectedUrl());
             standardCloseConnection(nc);
         }
     }
@@ -540,7 +539,7 @@ public class ReconnectTests {
 
             listener.prepForStatusChange(Events.DISCOVERED_SERVERS);
             nc = (NatsConnection) longConnectionWait(options);
-            assertEquals(nc.getConnectedUrl(), ts.getLocalhostUri());
+            assertEquals(ts.getLocalhostUri(), nc.getConnectedUrl());
 
             flushAndWaitLong(nc, listener); // make sure we get the new server via info
 
@@ -940,7 +939,7 @@ public class ReconnectTests {
             .errorListener(listener);
 
         AtomicBoolean gotOutputQueueIsFull = new AtomicBoolean();
-        runInServer(nc1 -> runInServer(nc2 -> {
+        runInOwnServer(nc1 -> runInOwnServer(nc2 -> {
             int port1 = nc1.getServerInfo().getPort();
             int port2 = nc2.getServerInfo().getPort();
 

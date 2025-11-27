@@ -403,7 +403,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testGetStreamInfoOrNamesPaginationFilter() throws Exception {
-        runInJsServer((nc, jsm, js) -> {
+        runInOwnJsServer((nc, jsm, js) -> {
             // getStreams pages at 256
             // getStreamNames pages at 1024
             String prefix = random();
@@ -445,7 +445,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testGetStreamNamesBySubjectFilter() throws Exception {
-        runInJsServer((nc, jsm, js) -> {
+        runInOwnJsServer((nc, jsm, js) -> {
             String stream1 = random();
             String stream2 = random();
             String stream3 = random();
@@ -1227,7 +1227,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testCreateConsumerUpdateConsumer() throws Exception {
-        runInJsServer(VersionUtils::atLeast2_9_0, (nc, jsm, js) -> {
+        runInOwnJsServer(VersionUtils::atLeast2_9_0, (nc, jsm, js) -> {
             String streamPrefix = random();
             JetStreamManagement jsmNew = nc.jetStreamManagement();
             JetStreamManagement jsmPre290 = nc.jetStreamManagement(JetStreamOptions.builder().optOut290ConsumerCreate(true).build());
@@ -1483,7 +1483,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testStreamPersistMode() throws Exception {
-        runInJsServer(VersionUtils::atLeast2_12, (nc, jsm, js) -> {
+        runInOwnJsServer(VersionUtils::atLeast2_12, (nc, jsm, js) -> {
             StreamConfiguration sc = StreamConfiguration.builder()
                 .name(random())
                 .storageType(StorageType.File)

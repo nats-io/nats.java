@@ -94,15 +94,15 @@ public class TestBase {
     // ----------------------------------------------------------------------------------------------------
     // runners / test interfaces
     // ----------------------------------------------------------------------------------------------------
-    public interface ServerTest {
+    public interface OneConnectionTest {
         void test(Connection nc) throws Exception;
     }
 
-    public interface TwoServerTest {
+    public interface TwoConnectionTest {
         void test(Connection nc1, Connection nc2) throws Exception;
     }
 
-    public interface ThreeServerTest {
+    public interface ThreeConnectionTest {
         void test(Connection nc1, Connection nc2, Connection nc3) throws Exception;
     }
 
@@ -124,30 +124,31 @@ public class TestBase {
     // ----------------------------------------------------------------------------------------------------
     // runners -> own server
     // ----------------------------------------------------------------------------------------------------
-    private static void _runInServer(
+    private static void _runInOwnServer(
         Options.Builder optionsBuilder,
         VersionCheck vc,
         String configFilePath,
-        ServerTest serverTest,
+        OneConnectionTest oneNcTest,
         JetStreamTest jsTest
     ) throws Exception {
         if (vc != null && VERSION_SERVER_INFO != null && !vc.runTest(VERSION_SERVER_INFO)) {
             return; // had vc, already had run server info and fails check
         }
 
-        NatsServerRunner.Builder builder = NatsServerRunner.builder().jetstream(jsTest != null);
+        NatsServerRunner.Builder nsrb = NatsServerRunner.builder().jetstream(jsTest != null);
         if (configFilePath != null) {
-            builder.configFilePath(configResource(configFilePath));
+            nsrb.configFilePath(configResource(configFilePath));
         }
-        try (NatsTestServer ts = new NatsTestServer(builder)) {
-            Options options = (optionsBuilder == null ? optionsBuilder() : optionsBuilder)
-                .server(ts.getLocalhostUri())
+        try (NatsTestServer ts = new NatsTestServer(nsrb)) {
+            Options options = (optionsBuilder == null
+                ? optionsBuilder(ts)
+                : optionsBuilder.server(ts.getLocalhostUri()))
                 .build();
             try (Connection nc = standardConnectionWait(options)) {
                 initVersionServerInfo(nc);
                 if (vc == null || vc.runTest(VERSION_SERVER_INFO)) {
                     if (jsTest == null) {
-                        serverTest.test(nc);
+                        oneNcTest.test(nc);
                     }
                     else {
                         NatsJetStreamManagement jsm = (NatsJetStreamManagement) nc.jetStreamManagement();
@@ -162,27 +163,27 @@ public class TestBase {
     // --------------------------------------------------
     // Not using JetStream
     // --------------------------------------------------
-    public static void runInServer(ServerTest serverTest) throws Exception {
-        _runInServer(null, null, null, serverTest, null);
-    }
-
-    public static void runInServer(Options.Builder builder, ServerTest serverTest) throws Exception {
-        _runInServer(builder, null, null, serverTest, null);
+    public static void runInOwnServer(OneConnectionTest oneNcTest) throws Exception {
+        _runInOwnServer(null, null, null, oneNcTest, null);
     }
 
     // --------------------------------------------------
     // JetStream needing isolation
     // --------------------------------------------------
-    public static void runInJsServer(JetStreamTest jetStreamTest) throws Exception {
-        _runInServer(null, null, null, null, jetStreamTest);
+    public static void runInOwnJsServer(JetStreamTest jetStreamTest) throws Exception {
+        _runInOwnServer(null, null, null, null, jetStreamTest);
     }
 
-    public static void runInJsServer(String configFilePath, JetStreamTest jetStreamTest) throws Exception {
-        _runInServer(null, null, configFilePath, null, jetStreamTest);
+    public static void runInOwnJsServer(ErrorListener el, JetStreamTest jetStreamTest) throws Exception {
+        _runInOwnServer(optionsBuilder(el), null, null, null, jetStreamTest);
     }
 
-    public static void runInJsServer(VersionCheck vc, JetStreamTest jetStreamTest) throws Exception {
-        _runInServer(null, vc, null, null, jetStreamTest);
+    public static void runInOwnJsServer(String configFilePath, JetStreamTest jetStreamTest) throws Exception {
+        _runInOwnServer(null, null, configFilePath, null, jetStreamTest);
+    }
+
+    public static void runInOwnJsServer(VersionCheck vc, JetStreamTest jetStreamTest) throws Exception {
+        _runInOwnServer(null, vc, null, null, jetStreamTest);
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -191,7 +192,7 @@ public class TestBase {
     private static void _runInShared(
         Options.Builder optionsBuilder,
         VersionCheck vc,
-        ServerTest test,
+        OneConnectionTest oneNcTest,
         int jstcTestSubjectCount,
         JetStreamTestingContextTest ctxTest
     ) throws Exception {
@@ -199,7 +200,7 @@ public class TestBase {
             return; // had vc, already had run server info and fails check
         }
 
-        ReusableServer reusable = ReusableServer.getInstance("shared");
+        SharedServer shared = SharedServer.getInstance("shared");
 
         // no builder, we can use the long-running connection since it's totally generic
         // with a builder, just make a fresh connection and close it at the end.
@@ -207,11 +208,14 @@ public class TestBase {
         Connection nc;
         if (optionsBuilder == null) {
             closeNcWhenDone = false;
-            nc = reusable.getReusableNc();
+            nc = shared.getSharedConnection();
         }
         else {
             closeNcWhenDone = true;
-            nc = longConnectionWait(optionsBuilder.server(reusable.serverUri).build());
+            nc = shared.newConnection(optionsBuilder);
+            if (nc == null) {
+                throw new RuntimeException("Unable to open a new connection to reusable sever.");
+            }
         }
 
         initVersionServerInfo(nc);
@@ -223,7 +227,7 @@ public class TestBase {
                     }
                 }
                 else {
-                    test.test(nc);
+                    oneNcTest.test(nc);
                 }
             }
             finally {
@@ -243,23 +247,23 @@ public class TestBase {
     // 3. or need to do something special with the
     //    connection list close it
     // --------------------------------------------------
-    public static void runInShared(ServerTest test) throws Exception {
+    public static void runInShared(OneConnectionTest test) throws Exception {
         _runInShared(null, null, test, -1, null);
     }
 
-    public static void runInShared(VersionCheck vc, ServerTest test) throws Exception {
+    public static void runInShared(VersionCheck vc, OneConnectionTest test) throws Exception {
         _runInShared(null, vc, test, -1, null);
     }
 
-    public static void runInSharedOwnNc(ServerTest test) throws Exception {
+    public static void runInSharedOwnNc(OneConnectionTest test) throws Exception {
         _runInShared(optionsBuilder(), null, test, -1, null);
     }
 
-    public static void runInSharedOwnNc(ErrorListener el, ServerTest test) throws Exception {
+    public static void runInSharedOwnNc(ErrorListener el, OneConnectionTest test) throws Exception {
         _runInShared(optionsBuilder(el), null, test, -1, null);
     }
 
-    public static void runInSharedOwnNc(Options.Builder builder, ServerTest test) throws Exception {
+    public static void runInSharedOwnNc(Options.Builder builder, OneConnectionTest test) throws Exception {
         _runInShared(builder, null, test, -1, null);
     }
 
@@ -308,13 +312,13 @@ public class TestBase {
     // ----------------------------------------------------------------------------------------------------
     // runners / external
     // ----------------------------------------------------------------------------------------------------
-    public static void runInExternalServer(ServerTest serverTest) throws Exception {
-        runInExternalServer(Options.DEFAULT_URL, serverTest);
+    public static void runInExternalServer(OneConnectionTest oneNcTest) throws Exception {
+        runInExternalServer(Options.DEFAULT_URL, oneNcTest);
     }
 
-    public static void runInExternalServer(String url, ServerTest serverTest) throws Exception {
+    public static void runInExternalServer(String url, OneConnectionTest oneNcTest) throws Exception {
         try (Connection nc = Nats.connect(url)) {
-            serverTest.test(nc);
+            oneNcTest.test(nc);
         }
     }
 
@@ -325,7 +329,7 @@ public class TestBase {
     public static String HUB_DOMAIN = "HUB";
     public static String LEAF_DOMAIN = "LEAF";
 
-    public static void runInJsHubLeaf(TwoServerTest twoServerTest) throws Exception {
+    public static void runInJsHubLeaf(TwoConnectionTest twoConnectionTest) throws Exception {
         int hubPort = NatsTestServer.nextPort();
         int hubLeafPort = NatsTestServer.nextPort();
         int leafPort = NatsTestServer.nextPort();
@@ -357,15 +361,15 @@ public class TestBase {
              NatsTestServer leaf = new NatsTestServer(leafPort, true, null, leafInserts, null);
              Connection ncleaf = standardConnectionWait(leaf.getLocalhostUri())
         ) {
-            twoServerTest.test(nchub, ncleaf);
+            twoConnectionTest.test(nchub, ncleaf);
         }
     }
 
-    public static void runInCluster(ThreeServerTest threeServerTest) throws Exception {
+    public static void runInCluster(ThreeConnectionTest threeServerTest) throws Exception {
         runInCluster(null, threeServerTest);
     }
 
-    public static void runInCluster(ThreeServerTestOptions tstOpts, ThreeServerTest threeServerTest) throws Exception {
+    public static void runInCluster(ThreeServerTestOptions tstOpts, ThreeConnectionTest threeServerTest) throws Exception {
         if (tstOpts == null) {
             tstOpts = new ThreeServerTestOptions() {};
         }
