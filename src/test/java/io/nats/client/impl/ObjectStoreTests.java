@@ -238,6 +238,7 @@ public class ObjectStoreTests extends JetStreamTestBase {
             if (f.isFile()) {
                 long flen = f.length();
                 if (flen == size) {
+                    foundLen = flen;
                     found = f;
                     break;
                 }
@@ -503,6 +504,42 @@ public class ObjectStoreTests extends JetStreamTestBase {
             ObjectStore os = nc.objectStore(bucket);
             ObjectStoreStatus oss = os.getStatus();
             assertTrue(oss.isCompressed());
+        });
+    }
+
+    @Test
+    public void testOverwrite() throws Exception {
+        jsServer.run(TestBase::atLeast2_10, nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            JetStream js = jsm.jetStream();
+
+            String bucket = bucket();
+            String objName = variant();
+
+            ObjectStoreManagement osm = nc.objectStoreManagement();
+            ObjectStoreStatus oss = osm.create(ObjectStoreConfiguration.builder(bucket)
+                .storageType(StorageType.Memory)
+                .build());
+            String realStreamName = oss.getConfiguration().getBackingConfig().getName();
+
+            ObjectStore os = nc.objectStore(bucket);
+
+            Object[] input = getInput(4096 * 10);
+            File file = (File)input[1];
+
+            try (InputStream in = Files.newInputStream(file.toPath())) {
+                os.put(objName, in);
+            }
+            StreamInfo si = jsm.getStreamInfo(realStreamName, StreamInfoOptions.allSubjects());
+            long byteCount1 = si.getStreamState().getByteCount();
+
+            try (InputStream in = Files.newInputStream(file.toPath())) {
+                os.put(objName, in);
+            }
+            si = jsm.getStreamInfo(realStreamName, StreamInfoOptions.allSubjects());
+            long byteCount2 = si.getStreamState().getByteCount();
+
+            assertEquals(byteCount1, byteCount2);
         });
     }
 
