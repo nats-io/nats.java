@@ -16,7 +16,6 @@ package io.nats.client.impl;
 import io.nats.client.Message;
 import io.nats.client.PullRequestOptions;
 import io.nats.client.SubscribeOptions;
-import io.nats.client.support.Debug;
 import io.nats.client.support.Status;
 
 import static io.nats.client.impl.MessageManager.ManageResult.*;
@@ -159,7 +158,6 @@ class PullMessageManager extends MessageManager {
     }
 
     protected ManageResult manageStatus(Message msg) {
-        Debug.info("MAN", msg);
         Status status = msg.getStatus();
         switch (status.getCode()) {
             case NOT_FOUND_CODE:
