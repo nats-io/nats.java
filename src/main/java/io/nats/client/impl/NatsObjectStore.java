@@ -89,6 +89,9 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
             throw OsLinkNotAllowOnPut.instance();
         }
 
+        ObjectInfo newInfo;
+        ObjectInfo oldInfo = getInfo(meta.getObjectName());
+
         String nuid = NUID.nextGlobal();
         String chunkSubject = rawChunkSubject(nuid);
 
@@ -122,7 +125,7 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
                 red = inputStream.read(buffer);
             }
 
-            return publishMeta(ObjectInfo.builder(bucketName, meta)
+            newInfo = publishMeta(ObjectInfo.builder(bucketName, meta)
                 .size(totalSize)
                 .chunks(chunks)
                 .nuid(nuid)
@@ -135,12 +138,20 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
                 jsm.purgeStream(streamName, PurgeOptions.subject(rawChunkSubject(nuid)));
             }
             catch (Exception ignore) {}
-
             throw e;
         }
         finally {
             try { inputStream.close(); } catch (IOException ignore) {}
         }
+
+        if (oldInfo != null) {
+            try {
+                jsm.purgeStream(streamName, PurgeOptions.builder().subject(rawChunkSubject(oldInfo.getNuid())).build());
+            }
+            catch (IOException | JetStreamApiException ignore) {}
+        }
+
+        return newInfo;
     }
 
     /**
