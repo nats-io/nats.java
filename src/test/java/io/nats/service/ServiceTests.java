@@ -13,7 +13,10 @@
 
 package io.nats.service;
 
-import io.nats.client.*;
+import io.nats.client.Connection;
+import io.nats.client.Dispatcher;
+import io.nats.client.Message;
+import io.nats.client.Options;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.impl.MockNatsConnection;
@@ -22,6 +25,7 @@ import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
+import io.nats.client.utils.SharedServer;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
@@ -45,7 +49,6 @@ import static io.nats.client.support.JsonValueUtils.readInteger;
 import static io.nats.client.support.JsonValueUtils.readString;
 import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsConstants.EMPTY;
-import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
 import static io.nats.client.utils.OptionsUtils.options;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static io.nats.service.Service.SRV_PING;
@@ -70,260 +73,258 @@ public class ServiceTests extends JetStreamTestBase {
 
     @Test
     public void testServiceWorkflow() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer()) {
-            try (Connection serviceNc1 = standardConnectionWait(ts.getLocalhostUri());
-                 Connection serviceNc2 = standardConnectionWait(ts.getLocalhostUri());
-                 Connection clientNc = standardConnectionWait(ts.getLocalhostUri())) {
+        runInShared(clientNc -> {
+            Connection serviceNc1 = SharedServer.sharedConnectionForSameServer(clientNc);
+            Connection serviceNc2 = SharedServer.sharedConnectionForSameServer(clientNc);
 
-                Endpoint endEcho = Endpoint.builder()
-                    .name(ECHO_ENDPOINT_NAME)
-                    .subject(ECHO_ENDPOINT_SUBJECT)
-                    .queueGroup(CUSTOM_QGROUP)
-                    .build();
+            Endpoint endEcho = Endpoint.builder()
+                .name(ECHO_ENDPOINT_NAME)
+                .subject(ECHO_ENDPOINT_SUBJECT)
+                .queueGroup(CUSTOM_QGROUP)
+                .build();
 
-                Endpoint endSortA = Endpoint.builder()
-                    .name(SORT_ENDPOINT_ASCENDING_NAME)
-                    .subject(SORT_ENDPOINT_ASCENDING_SUBJECT)
-                    .build();
+            Endpoint endSortA = Endpoint.builder()
+                .name(SORT_ENDPOINT_ASCENDING_NAME)
+                .subject(SORT_ENDPOINT_ASCENDING_SUBJECT)
+                .build();
 
-                // constructor coverage
-                Endpoint endSortD = new Endpoint(
-                    SORT_ENDPOINT_DESCENDING_NAME,
-                    SORT_ENDPOINT_DESCENDING_SUBJECT);
+            // constructor coverage
+            Endpoint endSortD = new Endpoint(
+                SORT_ENDPOINT_DESCENDING_NAME,
+                SORT_ENDPOINT_DESCENDING_SUBJECT);
 
-                // sort is going to be grouped
-                Group sortGroup = new Group(SORT_GROUP);
+            // sort is going to be grouped
+            Group sortGroup = new Group(SORT_GROUP);
 
-                ServiceEndpoint seEcho1 = ServiceEndpoint.builder()
-                    .endpoint(endEcho)
-                    .handler(new EchoHandler(serviceNc1))
-                    .statsDataSupplier(ServiceTests::supplyData)
-                    .build();
+            ServiceEndpoint seEcho1 = ServiceEndpoint.builder()
+                .endpoint(endEcho)
+                .handler(new EchoHandler(serviceNc1))
+                .statsDataSupplier(ServiceTests::supplyData)
+                .build();
 
-                ServiceEndpoint seSortA1 = ServiceEndpoint.builder()
-                    .group(sortGroup)
-                    .endpoint(endSortA)
-                    .handler(new SortHandlerA(serviceNc1))
-                    .build();
+            ServiceEndpoint seSortA1 = ServiceEndpoint.builder()
+                .group(sortGroup)
+                .endpoint(endSortA)
+                .handler(new SortHandlerA(serviceNc1))
+                .build();
 
-                ServiceEndpoint seSortD1 = ServiceEndpoint.builder()
-                    .group(sortGroup)
-                    .endpoint(endSortD)
-                    .handler(new SortHandlerD(serviceNc1))
-                    .build();
+            ServiceEndpoint seSortD1 = ServiceEndpoint.builder()
+                .group(sortGroup)
+                .endpoint(endSortD)
+                .handler(new SortHandlerD(serviceNc1))
+                .build();
 
-                ServiceEndpoint seEcho2 = ServiceEndpoint.builder()
-                    .endpoint(endEcho)
-                    .handler(new EchoHandler(serviceNc2))
-                    .statsDataSupplier(ServiceTests::supplyData)
-                    .build();
+            ServiceEndpoint seEcho2 = ServiceEndpoint.builder()
+                .endpoint(endEcho)
+                .handler(new EchoHandler(serviceNc2))
+                .statsDataSupplier(ServiceTests::supplyData)
+                .build();
 
-                // build variations
-                ServiceEndpoint seSortA2 = ServiceEndpoint.builder()
-                    .group(sortGroup)
-                    .endpointName(endSortA.getName())
-                    .endpointSubject(endSortA.getSubject())
-                    .handler(new SortHandlerA(serviceNc2))
-                    .build();
+            // build variations
+            ServiceEndpoint seSortA2 = ServiceEndpoint.builder()
+                .group(sortGroup)
+                .endpointName(endSortA.getName())
+                .endpointSubject(endSortA.getSubject())
+                .handler(new SortHandlerA(serviceNc2))
+                .build();
 
-                ServiceEndpoint seSortD2 = ServiceEndpoint.builder()
-                    .group(sortGroup)
-                    .endpointName(endSortD.getName())
-                    .endpointSubject(endSortD.getSubject())
-                    .handler(new SortHandlerD(serviceNc2))
-                    .build();
+            ServiceEndpoint seSortD2 = ServiceEndpoint.builder()
+                .group(sortGroup)
+                .endpointName(endSortD.getName())
+                .endpointSubject(endSortD.getSubject())
+                .handler(new SortHandlerD(serviceNc2))
+                .build();
 
-                Service service1 = new ServiceBuilder()
-                    .name(SERVICE_NAME_1)
-                    .version("1.0.0")
-                    .connection(serviceNc1)
-                    .addServiceEndpoint(seEcho1)
-                    .addServiceEndpoint(seSortA1)
-                    .addServiceEndpoint(seSortD1)
-                    .build();
-                String serviceId1 = service1.getId();
-                CompletableFuture<Boolean> serviceStoppedFuture1 = service1.startService();
+            Service service1 = new ServiceBuilder()
+                .name(SERVICE_NAME_1)
+                .version("1.0.0")
+                .connection(serviceNc1)
+                .addServiceEndpoint(seEcho1)
+                .addServiceEndpoint(seSortA1)
+                .addServiceEndpoint(seSortD1)
+                .build();
+            String serviceId1 = service1.getId();
+            CompletableFuture<Boolean> serviceStoppedFuture1 = service1.startService();
 
-                Service service2 = new ServiceBuilder()
-                    .name(SERVICE_NAME_2)
-                    .version("1.0.0")
-                    .connection(serviceNc2)
-                    .addServiceEndpoint(seEcho2)
-                    .addServiceEndpoint(seSortA2)
-                    .addServiceEndpoint(seSortD2)
-                    .build();
-                String serviceId2 = service2.getId();
-                CompletableFuture<Boolean> serviceStoppedFuture2 = service2.startService();
+            Service service2 = new ServiceBuilder()
+                .name(SERVICE_NAME_2)
+                .version("1.0.0")
+                .connection(serviceNc2)
+                .addServiceEndpoint(seEcho2)
+                .addServiceEndpoint(seSortA2)
+                .addServiceEndpoint(seSortD2)
+                .build();
+            String serviceId2 = service2.getId();
+            CompletableFuture<Boolean> serviceStoppedFuture2 = service2.startService();
 
-                assertNotEquals(serviceId1, serviceId2);
+            assertNotEquals(serviceId1, serviceId2);
 
-                sleep(1000); // just make sure services are all started, for slow CI machines
+            sleep(1000); // just make sure services are all started, for slow CI machines
 
-                // service request execution
-                int requestCount = 10;
-                for (int x = 0; x < requestCount; x++) {
-                    verifyServiceExecution(clientNc, ECHO_ENDPOINT_NAME, ECHO_ENDPOINT_SUBJECT, null);
-                    verifyServiceExecution(clientNc, SORT_ENDPOINT_ASCENDING_NAME, SORT_ENDPOINT_ASCENDING_SUBJECT, sortGroup);
-                    verifyServiceExecution(clientNc, SORT_ENDPOINT_DESCENDING_NAME, SORT_ENDPOINT_DESCENDING_SUBJECT, sortGroup);
-                }
-
-                PingResponse pingResponse1 = service1.getPingResponse();
-                PingResponse pingResponse2 = service2.getPingResponse();
-                InfoResponse infoResponse1 = service1.getInfoResponse();
-                InfoResponse infoResponse2 = service2.getInfoResponse();
-                StatsResponse statsResponse1 = service1.getStatsResponse();
-                StatsResponse statsResponse2 = service2.getStatsResponse();
-                EndpointStats[] endpointStatsArray1 = new EndpointStats[]{
-                    service1.getEndpointStats(ECHO_ENDPOINT_NAME),
-                    service1.getEndpointStats(SORT_ENDPOINT_ASCENDING_NAME),
-                    service1.getEndpointStats(SORT_ENDPOINT_DESCENDING_NAME)
-                };
-                EndpointStats[] endpointStatsArray2 = new EndpointStats[]{
-                    service2.getEndpointStats(ECHO_ENDPOINT_NAME),
-                    service2.getEndpointStats(SORT_ENDPOINT_ASCENDING_NAME),
-                    service2.getEndpointStats(SORT_ENDPOINT_DESCENDING_NAME)
-                };
-                assertNull(service1.getEndpointStats("notAnEndpoint"));
-
-                assertEquals(serviceId1, pingResponse1.getId());
-                assertEquals(serviceId2, pingResponse2.getId());
-                assertEquals(serviceId1, infoResponse1.getId());
-                assertEquals(serviceId2, infoResponse2.getId());
-                assertEquals(serviceId1, statsResponse1.getId());
-                assertEquals(serviceId2, statsResponse2.getId());
-
-                // this relies on the fact that I load the endpoints up in the service
-                // in the same order and the json list comes back ordered
-                // expecting 10 responses across each endpoint between 2 services
-                for (int x = 0; x < 3; x++) {
-                    assertEquals(requestCount,
-                        endpointStatsArray1[x].getNumRequests()
-                            + endpointStatsArray2[x].getNumRequests());
-                    assertEquals(requestCount,
-                        statsResponse1.getEndpointStatsList().get(x).getNumRequests()
-                            + statsResponse2.getEndpointStatsList().get(x).getNumRequests());
-                }
-
-                // discovery - wait at most 500 millis for responses, 5 total responses max
-                Discovery discovery = new Discovery(clientNc, 500, 5);
-
-                // ping discovery
-                Verifier pingVerifier = (expected, response) -> assertInstanceOf(PingResponse.class, response);
-                verifyDiscovery(discovery.ping(), pingVerifier, pingResponse1, pingResponse2);
-                verifyDiscovery(discovery.ping(SERVICE_NAME_1), pingVerifier, pingResponse1);
-                verifyDiscovery(discovery.ping(SERVICE_NAME_2), pingVerifier, pingResponse2);
-                verifyDiscovery(discovery.ping(SERVICE_NAME_1, serviceId1), pingVerifier, pingResponse1);
-                assertNull(discovery.ping(SERVICE_NAME_1, "badId"));
-                assertNull(discovery.ping("bad", "badId"));
-
-                // info discovery
-                Verifier infoVerifier = (expected, response) -> {
-                    assertInstanceOf(InfoResponse.class, response);
-                    InfoResponse exp = (InfoResponse) expected;
-                    InfoResponse r = (InfoResponse) response;
-                    assertEquals(exp.getDescription(), r.getDescription());
-                    assertEquals(exp.getEndpoints(), r.getEndpoints());
-                };
-                verifyDiscovery(discovery.info(), infoVerifier, infoResponse1, infoResponse2);
-                verifyDiscovery(discovery.info(SERVICE_NAME_1), infoVerifier, infoResponse1);
-                verifyDiscovery(discovery.info(SERVICE_NAME_2), infoVerifier, infoResponse2);
-                verifyDiscovery(discovery.info(SERVICE_NAME_1, serviceId1), infoVerifier, infoResponse1);
-                assertNull(discovery.info(SERVICE_NAME_1, "badId"));
-                assertNull(discovery.info("bad", "badId"));
-
-                // stats discovery
-                Verifier statsVerifier = (expected, response) -> {
-                    assertInstanceOf(StatsResponse.class, response);
-                    StatsResponse exp = (StatsResponse) expected;
-                    StatsResponse sr = (StatsResponse) response;
-                    assertEquals(exp.getStarted(), sr.getStarted());
-                    for (int x = 0; x < 3; x++) {
-                        EndpointStats er = exp.getEndpointStatsList().get(x);
-                        if (!er.getName().equals(ECHO_ENDPOINT_NAME)) {
-                            // echo endpoint has data that will vary
-                            assertEquals(er, sr.getEndpointStatsList().get(x));
-                        }
-                    }
-                };
-                discovery = new Discovery(clientNc); // coverage for the simple constructor
-                verifyDiscovery(discovery.stats(), statsVerifier, statsResponse1, statsResponse2);
-                verifyDiscovery(discovery.stats(SERVICE_NAME_1), statsVerifier, statsResponse1);
-                verifyDiscovery(discovery.stats(SERVICE_NAME_2), statsVerifier, statsResponse2);
-                verifyDiscovery(discovery.stats(SERVICE_NAME_1, serviceId1), statsVerifier, statsResponse1);
-                assertNull(discovery.stats(SERVICE_NAME_1, "badId"));
-                assertNull(discovery.stats("bad", "badId"));
-
-                // ---------------------------------------------------------------------------
-                // TEST ADDING AN ENDPOINT TO A RUNNING SERVICE
-                // ---------------------------------------------------------------------------
-                Endpoint endReverse = Endpoint.builder()
-                    .name(REVERSE_ENDPOINT_NAME)
-                    .subject(REVERSE_ENDPOINT_SUBJECT)
-                    .build();
-
-                ServiceEndpoint seRev1 = ServiceEndpoint.builder()
-                    .endpoint(endReverse)
-                    .handler(new ReverseHandler(serviceNc1))
-                    .build();
-
-                service1.addServiceEndpoints(seRev1);
-                sleep(100); // give the service some time to get running. remember it's got to subscribe on the server
-
-                for (int x = 0; x < requestCount; x++) {
-                    verifyServiceExecution(clientNc, REVERSE_ENDPOINT_NAME, REVERSE_ENDPOINT_SUBJECT, null);
-                }
-                infoResponse1 = service1.getInfoResponse();
-                boolean found = false;
-                for (Endpoint e : infoResponse1.getEndpoints()) {
-                    if (e.getName().equals(REVERSE_ENDPOINT_NAME)) {
-                        found = true;
-                        break;
-                    }
-                }
-                assertTrue(found);
-
-                statsResponse1 = service1.getStatsResponse();
-                found = false;
-                for (EndpointStats e : statsResponse1.getEndpointStatsList()) {
-                    if (e.getName().equals(REVERSE_ENDPOINT_NAME)) {
-                        found = true;
-                        break;
-                    }
-                }
-                assertTrue(found);
-
-                // test reset
-                ZonedDateTime zdt = DateTimeUtils.gmtNow();
-                sleep(1);
-                service1.reset();
-                StatsResponse sr = service1.getStatsResponse();
-                assertTrue(zdt.isBefore(sr.getStarted()));
-                for (int x = 0; x < 3; x++) {
-                    EndpointStats er = sr.getEndpointStatsList().get(x);
-                    assertEquals(0, er.getNumRequests());
-                    assertEquals(0, er.getNumErrors());
-                    assertEquals(0, er.getProcessingTime());
-                    assertEquals(0, er.getAverageProcessingTime());
-                    assertNull(er.getLastError());
-                    if (er.getName().equals(ECHO_ENDPOINT_NAME)) {
-                        assertNotNull(er.getData());
-                        assertNotNull(er.getDataAsJson());
-                    }
-                    else {
-                        assertNull(er.getData());
-                        assertNull(er.getDataAsJson());
-                    }
-                    assertTrue(zdt.isBefore(er.getStarted()));
-                }
-
-                // shutdown
-                service1.stop();
-                serviceStoppedFuture1.get();
-                service2.stop(new RuntimeException("Testing stop(Throwable t)"));
-                ExecutionException ee = assertThrows(ExecutionException.class, serviceStoppedFuture2::get);
-                assertTrue(ee.getMessage().contains("Testing stop(Throwable t)"));
+            // service request execution
+            int requestCount = 10;
+            for (int x = 0; x < requestCount; x++) {
+                verifyServiceExecution(clientNc, ECHO_ENDPOINT_NAME, ECHO_ENDPOINT_SUBJECT, null);
+                verifyServiceExecution(clientNc, SORT_ENDPOINT_ASCENDING_NAME, SORT_ENDPOINT_ASCENDING_SUBJECT, sortGroup);
+                verifyServiceExecution(clientNc, SORT_ENDPOINT_DESCENDING_NAME, SORT_ENDPOINT_DESCENDING_SUBJECT, sortGroup);
             }
-        }
+
+            PingResponse pingResponse1 = service1.getPingResponse();
+            PingResponse pingResponse2 = service2.getPingResponse();
+            InfoResponse infoResponse1 = service1.getInfoResponse();
+            InfoResponse infoResponse2 = service2.getInfoResponse();
+            StatsResponse statsResponse1 = service1.getStatsResponse();
+            StatsResponse statsResponse2 = service2.getStatsResponse();
+            EndpointStats[] endpointStatsArray1 = new EndpointStats[]{
+                service1.getEndpointStats(ECHO_ENDPOINT_NAME),
+                service1.getEndpointStats(SORT_ENDPOINT_ASCENDING_NAME),
+                service1.getEndpointStats(SORT_ENDPOINT_DESCENDING_NAME)
+            };
+            EndpointStats[] endpointStatsArray2 = new EndpointStats[]{
+                service2.getEndpointStats(ECHO_ENDPOINT_NAME),
+                service2.getEndpointStats(SORT_ENDPOINT_ASCENDING_NAME),
+                service2.getEndpointStats(SORT_ENDPOINT_DESCENDING_NAME)
+            };
+            assertNull(service1.getEndpointStats("notAnEndpoint"));
+
+            assertEquals(serviceId1, pingResponse1.getId());
+            assertEquals(serviceId2, pingResponse2.getId());
+            assertEquals(serviceId1, infoResponse1.getId());
+            assertEquals(serviceId2, infoResponse2.getId());
+            assertEquals(serviceId1, statsResponse1.getId());
+            assertEquals(serviceId2, statsResponse2.getId());
+
+            // this relies on the fact that I load the endpoints up in the service
+            // in the same order and the json list comes back ordered
+            // expecting 10 responses across each endpoint between 2 services
+            for (int x = 0; x < 3; x++) {
+                assertEquals(requestCount,
+                    endpointStatsArray1[x].getNumRequests()
+                        + endpointStatsArray2[x].getNumRequests());
+                assertEquals(requestCount,
+                    statsResponse1.getEndpointStatsList().get(x).getNumRequests()
+                        + statsResponse2.getEndpointStatsList().get(x).getNumRequests());
+            }
+
+            // discovery - wait at most 500 millis for responses, 5 total responses max
+            Discovery discovery = new Discovery(clientNc, 500, 5);
+
+            // ping discovery
+            Verifier pingVerifier = (expected, response) -> assertInstanceOf(PingResponse.class, response);
+            verifyDiscovery(discovery.ping(), pingVerifier, pingResponse1, pingResponse2);
+            verifyDiscovery(discovery.ping(SERVICE_NAME_1), pingVerifier, pingResponse1);
+            verifyDiscovery(discovery.ping(SERVICE_NAME_2), pingVerifier, pingResponse2);
+            verifyDiscovery(discovery.ping(SERVICE_NAME_1, serviceId1), pingVerifier, pingResponse1);
+            assertNull(discovery.ping(SERVICE_NAME_1, "badId"));
+            assertNull(discovery.ping("bad", "badId"));
+
+            // info discovery
+            Verifier infoVerifier = (expected, response) -> {
+                assertInstanceOf(InfoResponse.class, response);
+                InfoResponse exp = (InfoResponse) expected;
+                InfoResponse r = (InfoResponse) response;
+                assertEquals(exp.getDescription(), r.getDescription());
+                assertEquals(exp.getEndpoints(), r.getEndpoints());
+            };
+            verifyDiscovery(discovery.info(), infoVerifier, infoResponse1, infoResponse2);
+            verifyDiscovery(discovery.info(SERVICE_NAME_1), infoVerifier, infoResponse1);
+            verifyDiscovery(discovery.info(SERVICE_NAME_2), infoVerifier, infoResponse2);
+            verifyDiscovery(discovery.info(SERVICE_NAME_1, serviceId1), infoVerifier, infoResponse1);
+            assertNull(discovery.info(SERVICE_NAME_1, "badId"));
+            assertNull(discovery.info("bad", "badId"));
+
+            // stats discovery
+            Verifier statsVerifier = (expected, response) -> {
+                assertInstanceOf(StatsResponse.class, response);
+                StatsResponse exp = (StatsResponse) expected;
+                StatsResponse sr = (StatsResponse) response;
+                assertEquals(exp.getStarted(), sr.getStarted());
+                for (int x = 0; x < 3; x++) {
+                    EndpointStats er = exp.getEndpointStatsList().get(x);
+                    if (!er.getName().equals(ECHO_ENDPOINT_NAME)) {
+                        // echo endpoint has data that will vary
+                        assertEquals(er, sr.getEndpointStatsList().get(x));
+                    }
+                }
+            };
+            discovery = new Discovery(clientNc); // coverage for the simple constructor
+            verifyDiscovery(discovery.stats(), statsVerifier, statsResponse1, statsResponse2);
+            verifyDiscovery(discovery.stats(SERVICE_NAME_1), statsVerifier, statsResponse1);
+            verifyDiscovery(discovery.stats(SERVICE_NAME_2), statsVerifier, statsResponse2);
+            verifyDiscovery(discovery.stats(SERVICE_NAME_1, serviceId1), statsVerifier, statsResponse1);
+            assertNull(discovery.stats(SERVICE_NAME_1, "badId"));
+            assertNull(discovery.stats("bad", "badId"));
+
+            // ---------------------------------------------------------------------------
+            // TEST ADDING AN ENDPOINT TO A RUNNING SERVICE
+            // ---------------------------------------------------------------------------
+            Endpoint endReverse = Endpoint.builder()
+                .name(REVERSE_ENDPOINT_NAME)
+                .subject(REVERSE_ENDPOINT_SUBJECT)
+                .build();
+
+            ServiceEndpoint seRev1 = ServiceEndpoint.builder()
+                .endpoint(endReverse)
+                .handler(new ReverseHandler(serviceNc1))
+                .build();
+
+            service1.addServiceEndpoints(seRev1);
+            sleep(100); // give the service some time to get running. remember it's got to subscribe on the server
+
+            for (int x = 0; x < requestCount; x++) {
+                verifyServiceExecution(clientNc, REVERSE_ENDPOINT_NAME, REVERSE_ENDPOINT_SUBJECT, null);
+            }
+            infoResponse1 = service1.getInfoResponse();
+            boolean found = false;
+            for (Endpoint e : infoResponse1.getEndpoints()) {
+                if (e.getName().equals(REVERSE_ENDPOINT_NAME)) {
+                    found = true;
+                    break;
+                }
+            }
+            assertTrue(found);
+
+            statsResponse1 = service1.getStatsResponse();
+            found = false;
+            for (EndpointStats e : statsResponse1.getEndpointStatsList()) {
+                if (e.getName().equals(REVERSE_ENDPOINT_NAME)) {
+                    found = true;
+                    break;
+                }
+            }
+            assertTrue(found);
+
+            // test reset
+            ZonedDateTime zdt = DateTimeUtils.gmtNow();
+            sleep(1);
+            service1.reset();
+            StatsResponse sr = service1.getStatsResponse();
+            assertTrue(zdt.isBefore(sr.getStarted()));
+            for (int x = 0; x < 3; x++) {
+                EndpointStats er = sr.getEndpointStatsList().get(x);
+                assertEquals(0, er.getNumRequests());
+                assertEquals(0, er.getNumErrors());
+                assertEquals(0, er.getProcessingTime());
+                assertEquals(0, er.getAverageProcessingTime());
+                assertNull(er.getLastError());
+                if (er.getName().equals(ECHO_ENDPOINT_NAME)) {
+                    assertNotNull(er.getData());
+                    assertNotNull(er.getDataAsJson());
+                }
+                else {
+                    assertNull(er.getData());
+                    assertNull(er.getDataAsJson());
+                }
+                assertTrue(zdt.isBefore(er.getStarted()));
+            }
+
+            // shutdown
+            service1.stop();
+            serviceStoppedFuture1.get();
+            service2.stop(new RuntimeException("Testing stop(Throwable t)"));
+            ExecutionException ee = assertThrows(ExecutionException.class, serviceStoppedFuture2::get);
+            assertTrue(ee.getMessage().contains("Testing stop(Throwable t)"));
+        });
     }
 
     interface Verifier {
@@ -471,300 +472,300 @@ public class ServiceTests extends JetStreamTestBase {
 
     @Test
     public void testQueueGroup() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer()) {
-            try (Connection serviceNc1 = standardConnectionWait(ts.getLocalhostUri());
-                 Connection serviceNc2 = standardConnectionWait(ts.getLocalhostUri());
-                 Connection clientNc = standardConnectionWait(ts.getLocalhostUri())) {
+        runInShared(clientNc -> {
+            Connection serviceNc1 = SharedServer.sharedConnectionForSameServer(clientNc);
+            Connection serviceNc2 = SharedServer.sharedConnectionForSameServer(clientNc);
+            String yesQueueSubject = "subjyes";
+            String noQueueSubject = "subjno";
 
-                String yesQueueSubject = "subjyes";
-                String noQueueSubject = "subjno";
+            Endpoint ep1 = Endpoint.builder()
+                .name("with")
+                .subject(yesQueueSubject)
+                .build();
 
-                Endpoint ep1 = Endpoint.builder()
-                    .name("with")
-                    .subject(yesQueueSubject)
-                    .build();
+            Endpoint ep2 = Endpoint.builder()
+                .name("without")
+                .subject(noQueueSubject)
+                .noQueueGroup()
+                .build();
 
-                Endpoint ep2 = Endpoint.builder()
-                    .name("without")
-                    .subject(noQueueSubject)
-                    .noQueueGroup()
-                    .build();
+            EchoHandler handler1Ep1 = new EchoHandler(serviceNc1);
+            EchoHandler handler1Ep2 = new EchoHandler(serviceNc1);
+            EchoHandler handler2Ep1 = new EchoHandler(serviceNc2);
+            EchoHandler handler2Ep2 = new EchoHandler(serviceNc2);
 
-                EchoHandler handler1Ep1 = new EchoHandler(serviceNc1);
-                EchoHandler handler1Ep2 = new EchoHandler(serviceNc1);
-                EchoHandler handler2Ep1 = new EchoHandler(serviceNc2);
-                EchoHandler handler2Ep2 = new EchoHandler(serviceNc2);
+            ServiceEndpoint service1Ep1 = ServiceEndpoint.builder()
+                .endpoint(ep1)
+                .handler(handler1Ep1)
+                .build();
 
-                ServiceEndpoint service1Ep1 = ServiceEndpoint.builder()
-                    .endpoint(ep1)
-                    .handler(handler1Ep1)
-                    .build();
+            ServiceEndpoint service1Ep2 = ServiceEndpoint.builder()
+                .endpoint(ep2)
+                .handler(handler1Ep2)
+                .build();
 
-                ServiceEndpoint service1Ep2 = ServiceEndpoint.builder()
-                    .endpoint(ep2)
-                    .handler(handler1Ep2)
-                    .build();
+            ServiceEndpoint service2Ep1 = ServiceEndpoint.builder()
+                .endpoint(ep1)
+                .handler(handler2Ep1)
+                .build();
 
-                ServiceEndpoint service2Ep1 = ServiceEndpoint.builder()
-                    .endpoint(ep1)
-                    .handler(handler2Ep1)
-                    .build();
+            ServiceEndpoint service2Ep2 = ServiceEndpoint.builder()
+                .endpoint(ep2)
+                .handler(handler2Ep2)
+                .build();
 
-                ServiceEndpoint service2Ep2 = ServiceEndpoint.builder()
-                    .endpoint(ep2)
-                    .handler(handler2Ep2)
-                    .build();
+            Service service1 = new ServiceBuilder()
+                .name(SERVICE_NAME_1)
+                .version("1.0.0")
+                .connection(serviceNc1)
+                .addServiceEndpoint(service1Ep1)
+                .addServiceEndpoint(service1Ep2)
+                .build();
 
-                Service service1 = new ServiceBuilder()
-                    .name(SERVICE_NAME_1)
-                    .version("1.0.0")
-                    .connection(serviceNc1)
-                    .addServiceEndpoint(service1Ep1)
-                    .addServiceEndpoint(service1Ep2)
-                    .build();
+            Service service2 = new ServiceBuilder()
+                .name(SERVICE_NAME_2)
+                .version("1.0.0")
+                .connection(serviceNc2)
+                .addServiceEndpoint(service2Ep1)
+                .addServiceEndpoint(service2Ep2)
+                .build();
 
-                Service service2 = new ServiceBuilder()
-                    .name(SERVICE_NAME_2)
-                    .version("1.0.0")
-                    .connection(serviceNc2)
-                    .addServiceEndpoint(service2Ep1)
-                    .addServiceEndpoint(service2Ep2)
-                    .build();
+            service1.startService();
+            service2.startService();
 
-                service1.startService();
-                service2.startService();
+            String replyTo = "qreplyto";
+            AtomicInteger y1Count = new AtomicInteger();
+            AtomicInteger y2Count = new AtomicInteger();
+            AtomicInteger n1Count = new AtomicInteger();
+            AtomicInteger n2Count = new AtomicInteger();
+            CountDownLatch latch = new CountDownLatch(6);
+            Dispatcher d = clientNc.createDispatcher(m -> {
+                switch (new String(m.getData())) {
+                    case "Echo y1":
+                        y1Count.incrementAndGet();
+                        break;
+                    case "Echo y2":
+                        y2Count.incrementAndGet();
+                        break;
+                    case "Echo n1":
+                        n1Count.incrementAndGet();
+                        break;
+                    case "Echo n2":
+                        n2Count.incrementAndGet();
+                        break;
+                }
+                latch.countDown();
+            });
+            d.subscribe(replyTo);
 
-                String replyTo = "qreplyto";
-                AtomicInteger y1Count = new AtomicInteger();
-                AtomicInteger y2Count = new AtomicInteger();
-                AtomicInteger n1Count = new AtomicInteger();
-                AtomicInteger n2Count = new AtomicInteger();
-                CountDownLatch latch = new CountDownLatch(6);
-                Dispatcher d = clientNc.createDispatcher(m -> {
-                    switch (new String(m.getData())) {
-                        case "Echo y1": y1Count.incrementAndGet(); break;
-                        case "Echo y2": y2Count.incrementAndGet(); break;
-                        case "Echo n1": n1Count.incrementAndGet(); break;
-                        case "Echo n2": n2Count.incrementAndGet(); break;
-                    }
-                    latch.countDown();
-                });
-                d.subscribe(replyTo);
+            clientNc.publish(yesQueueSubject, replyTo, "y1".getBytes());
+            clientNc.publish(yesQueueSubject, replyTo, "y2".getBytes());
+            clientNc.publish(noQueueSubject, replyTo, "n1".getBytes());
+            clientNc.publish(noQueueSubject, replyTo, "n2".getBytes());
 
-                clientNc.publish(yesQueueSubject, replyTo, "y1".getBytes());
-                clientNc.publish(yesQueueSubject, replyTo, "y2".getBytes());
-                clientNc.publish(noQueueSubject, replyTo, "n1".getBytes());
-                clientNc.publish(noQueueSubject, replyTo, "n2".getBytes());
-
-                assertTrue(latch.await(2, TimeUnit.SECONDS));
-                assertEquals(2, y1Count.get() + y2Count.get());
-                assertEquals(4, n1Count.get() + n2Count.get());
-            }
-        }
+            assertTrue(latch.await(2, TimeUnit.SECONDS));
+            assertEquals(2, y1Count.get() + y2Count.get());
+            assertEquals(4, n1Count.get() + n2Count.get());
+        });
     }
 
     @Test
     public void testResponsesFromAllInstances() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer()) {
-            try (Connection serviceNc1 = standardConnectionWait(ts.getLocalhostUri());
-                 Connection serviceNc2 = standardConnectionWait(ts.getLocalhostUri());
-                 Connection clientNc = standardConnectionWait(ts.getLocalhostUri())) {
+        runInShared(clientNc -> {
+            Connection serviceNc1 = SharedServer.sharedConnectionForSameServer(clientNc);
+            Connection serviceNc2 = SharedServer.sharedConnectionForSameServer(clientNc);
 
-                Endpoint ep = Endpoint.builder()
-                    .name("ep")
-                    .subject("eps")
-                    .build();
+            Endpoint ep = Endpoint.builder()
+                .name("ep")
+                .subject("eps")
+                .build();
 
-                EchoHandler handler1 = new EchoHandler(serviceNc1);
-                EchoHandler handler2 = new EchoHandler(serviceNc2);
+            EchoHandler handler1 = new EchoHandler(serviceNc1);
+            EchoHandler handler2 = new EchoHandler(serviceNc2);
 
-                ServiceEndpoint service1Ep1 = ServiceEndpoint.builder()
-                    .endpoint(ep)
-                    .handler(handler1)
-                    .build();
+            ServiceEndpoint service1Ep1 = ServiceEndpoint.builder()
+                .endpoint(ep)
+                .handler(handler1)
+                .build();
 
-                ServiceEndpoint service2Ep1 = ServiceEndpoint.builder()
-                    .endpoint(ep)
-                    .handler(handler2)
-                    .build();
+            ServiceEndpoint service2Ep1 = ServiceEndpoint.builder()
+                .endpoint(ep)
+                .handler(handler2)
+                .build();
 
-                Service service1 = new ServiceBuilder()
-                    .name(SERVICE_NAME_1)
-                    .version("1.0.0")
-                    .connection(serviceNc1)
-                    .addServiceEndpoint(service1Ep1)
-                    .build();
+            Service service1 = new ServiceBuilder()
+                .name(SERVICE_NAME_1)
+                .version("1.0.0")
+                .connection(serviceNc1)
+                .addServiceEndpoint(service1Ep1)
+                .build();
 
-                Service service2 = new ServiceBuilder()
-                    .name(SERVICE_NAME_2)
-                    .version("1.0.0")
-                    .connection(serviceNc2)
-                    .addServiceEndpoint(service2Ep1)
-                    .build();
+            Service service2 = new ServiceBuilder()
+                .name(SERVICE_NAME_2)
+                .version("1.0.0")
+                .connection(serviceNc2)
+                .addServiceEndpoint(service2Ep1)
+                .build();
 
-                service1.startService();
-                service2.startService();
+            service1.startService();
+            service2.startService();
 
-                assertTrue(service1.isStarted(1, TimeUnit.SECONDS));
-                assertTrue(service2.isStarted(1, TimeUnit.SECONDS));
+            assertTrue(service1.isStarted(1, TimeUnit.SECONDS));
+            assertTrue(service2.isStarted(1, TimeUnit.SECONDS));
 
-                Discovery discovery = new Discovery(clientNc);
+            Discovery discovery = new Discovery(clientNc);
 
-                List<PingResponse> prs = discovery.ping();
-                boolean one = false;
-                boolean two = false;
-                for (PingResponse response : prs) {
-                    if (response.getName().equals(SERVICE_NAME_1)) {
-                        one = true;
-                    }
-                    else if (response.getName().equals(SERVICE_NAME_2)) {
-                        two = true;
-                    }
+            List<PingResponse> prs = discovery.ping();
+            boolean one = false;
+            boolean two = false;
+            for (PingResponse response : prs) {
+                if (response.getName().equals(SERVICE_NAME_1)) {
+                    one = true;
                 }
-                assertTrue(one);
-                assertTrue(two);
-
-                List<InfoResponse> irs = discovery.info();
-                one = false;
-                two = false;
-                for (InfoResponse response : irs) {
-                    if (response.getName().equals(SERVICE_NAME_1)) {
-                        one = true;
-                    }
-                    else if (response.getName().equals(SERVICE_NAME_2)) {
-                        two = true;
-                    }
+                else if (response.getName().equals(SERVICE_NAME_2)) {
+                    two = true;
                 }
-                assertTrue(one);
-                assertTrue(two);
-
-                List<StatsResponse> srs = discovery.stats();
-                one = false;
-                two = false;
-                for (StatsResponse response : srs) {
-                    if (response.getName().equals(SERVICE_NAME_1)) {
-                        one = true;
-                    }
-                    else if (response.getName().equals(SERVICE_NAME_2)) {
-                        two = true;
-                    }
-                }
-                assertTrue(one);
-                assertTrue(two);
             }
-        }
+            assertTrue(one);
+            assertTrue(two);
+
+            List<InfoResponse> irs = discovery.info();
+            one = false;
+            two = false;
+            for (InfoResponse response : irs) {
+                if (response.getName().equals(SERVICE_NAME_1)) {
+                    one = true;
+                }
+                else if (response.getName().equals(SERVICE_NAME_2)) {
+                    two = true;
+                }
+            }
+            assertTrue(one);
+            assertTrue(two);
+
+            List<StatsResponse> srs = discovery.stats();
+            one = false;
+            two = false;
+            for (StatsResponse response : srs) {
+                if (response.getName().equals(SERVICE_NAME_1)) {
+                    one = true;
+                }
+                else if (response.getName().equals(SERVICE_NAME_2)) {
+                    two = true;
+                }
+            }
+            assertTrue(one);
+            assertTrue(two);
+        });
     }
 
     @Test
     public void testDispatchers() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer()) {
-            try (Connection nc = standardConnectionWait(ts.getLocalhostUri())) {
+        runInSharedOwnNc(nc -> {
 
-                Map<String, Dispatcher> dispatchers = getDispatchers(nc);
-                assertEquals(0, dispatchers.size());
+            Map<String, Dispatcher> dispatchers = getDispatchers(nc);
+            assertEquals(0, dispatchers.size());
 
-                Dispatcher dPing = nc.createDispatcher();
-                Dispatcher dInfo = nc.createDispatcher();
-                Dispatcher dStats = nc.createDispatcher();
-                Dispatcher dEnd = nc.createDispatcher();
+            Dispatcher dPing = nc.createDispatcher();
+            Dispatcher dInfo = nc.createDispatcher();
+            Dispatcher dStats = nc.createDispatcher();
+            Dispatcher dEnd = nc.createDispatcher();
 
-                dispatchers = getDispatchers(nc);
-                assertEquals(4, dispatchers.size());
+            dispatchers = getDispatchers(nc);
+            assertEquals(4, dispatchers.size());
 
-                ServiceEndpoint se1 = ServiceEndpoint.builder()
-                    .endpointName("dispatch")
-                    .handler(m -> {
-                    })
-                    .dispatcher(dEnd)
-                    .build();
-                Service service = new ServiceBuilder()
-                    .connection(nc)
-                    .name("testDispatchers")
-                    .version("0.0.1")
-                    .addServiceEndpoint(se1)
-                    .pingDispatcher(dPing)
-                    .infoDispatcher(dInfo)
-                    .statsDispatcher(dStats)
-                    .build();
+            ServiceEndpoint se1 = ServiceEndpoint.builder()
+                .endpointName("dispatch")
+                .handler(m -> {
+                })
+                .dispatcher(dEnd)
+                .build();
+            Service service = new ServiceBuilder()
+                .connection(nc)
+                .name("testDispatchers")
+                .version("0.0.1")
+                .addServiceEndpoint(se1)
+                .pingDispatcher(dPing)
+                .infoDispatcher(dInfo)
+                .statsDispatcher(dStats)
+                .build();
 
-                CompletableFuture<Boolean> done = service.startService();
-                sleep(100); // give the service time to spin up
-                service.stop(false); // no need to drain, plus // Coverage
-                done.get(100, TimeUnit.MILLISECONDS);
+            CompletableFuture<Boolean> done = service.startService();
+            sleep(100); // give the service time to spin up
+            service.stop(false); // no need to drain, plus // Coverage
+            done.get(100, TimeUnit.MILLISECONDS);
 
-                dispatchers = getDispatchers(nc);
-                assertEquals(4, dispatchers.size()); // stop doesn't touch supplied dispatchers
+            dispatchers = getDispatchers(nc);
+            assertEquals(4, dispatchers.size()); // stop doesn't touch supplied dispatchers
 
-                nc.closeDispatcher(dPing);
-                nc.closeDispatcher(dInfo);
-                sleep(100); // no rush
+            nc.closeDispatcher(dPing);
+            nc.closeDispatcher(dInfo);
+            sleep(100); // no rush
 
-                dispatchers = getDispatchers(nc);
-                assertEquals(2, dispatchers.size()); // dEnd and dStats
-                assertTrue(dispatchers.containsValue(dStats));
-                assertTrue(dispatchers.containsValue(dEnd));
+            dispatchers = getDispatchers(nc);
+            assertEquals(2, dispatchers.size()); // dEnd and dStats
+            assertTrue(dispatchers.containsValue(dStats));
+            assertTrue(dispatchers.containsValue(dEnd));
 
-                service = new ServiceBuilder()
-                    .connection(nc)
-                    .name("testDispatchers")
-                    .version("0.0.1")
-                    .addServiceEndpoint(se1)
-                    .statsDispatcher(dStats)
-                    .build();
+            service = new ServiceBuilder()
+                .connection(nc)
+                .name("testDispatchers")
+                .version("0.0.1")
+                .addServiceEndpoint(se1)
+                .statsDispatcher(dStats)
+                .build();
 
-                dispatchers = getDispatchers(nc);
-                assertEquals(3, dispatchers.size()); // endpoint, stats, internal discovery
+            dispatchers = getDispatchers(nc);
+            assertEquals(3, dispatchers.size()); // endpoint, stats, internal discovery
 
-                done = service.startService();
-                sleep(100); // give the service time to spin up
-                service.stop(); // Coverage
-                done.get(100, TimeUnit.MILLISECONDS);
+            done = service.startService();
+            sleep(100); // give the service time to spin up
+            service.stop(); // Coverage
+            done.get(100, TimeUnit.MILLISECONDS);
 
-                dispatchers = getDispatchers(nc);
-                assertEquals(0, dispatchers.size()); // stop() calls drain which closes dispatchers
+            dispatchers = getDispatchers(nc);
+            assertEquals(0, dispatchers.size()); // stop() calls drain which closes dispatchers
 
-                se1 = ServiceEndpoint.builder()
-                    .endpointName("dispatch")
-                    .handler(m -> {
-                    })
-                    .build();
+            se1 = ServiceEndpoint.builder()
+                .endpointName("dispatch")
+                .handler(m -> {
+                })
+                .build();
 
-                ServiceEndpoint se2 = ServiceEndpoint.builder()
-                    .endpointName("another")
-                    .handler(m -> {
-                    })
-                    .build();
+            ServiceEndpoint se2 = ServiceEndpoint.builder()
+                .endpointName("another")
+                .handler(m -> {
+                })
+                .build();
 
-                service = new ServiceBuilder()
-                    .connection(nc)
-                    .name("testDispatchers")
-                    .version("0.0.1")
-                    .addServiceEndpoint(se1)
-                    .addServiceEndpoint(se2)
-                    .build();
+            service = new ServiceBuilder()
+                .connection(nc)
+                .name("testDispatchers")
+                .version("0.0.1")
+                .addServiceEndpoint(se1)
+                .addServiceEndpoint(se2)
+                .build();
 
-                dispatchers = getDispatchers(nc);
-                assertEquals(2, dispatchers.size()); // 1 internal discovery and 1 internal endpoints
+            dispatchers = getDispatchers(nc);
+            assertEquals(2, dispatchers.size()); // 1 internal discovery and 1 internal endpoints
 
-                done = service.startService();
-                sleep(100); // give the service time to spin up
-                service.stop(); // Coverage
-                done.get(100, TimeUnit.MILLISECONDS);
+            done = service.startService();
+            sleep(100); // give the service time to spin up
+            service.stop(); // Coverage
+            done.get(100, TimeUnit.MILLISECONDS);
 
-                dispatchers = getDispatchers(nc);
-                assertEquals(0, dispatchers.size()); // service cleans up internal dispatchers
-            }
-        }
+            dispatchers = getDispatchers(nc);
+            assertEquals(0, dispatchers.size()); // service cleans up internal dispatchers
+        });
     }
 
     @Test
     public void testServiceBuilderConstruction() {
-        Options options = options();
+        Options options = options(); // server not needed, a connection is never made
         Connection conn = new MockNatsConnection(options);
         ServiceEndpoint se = ServiceEndpoint.builder()
             .endpoint(new Endpoint(random()))
-            .handler(m -> {
-            })
+            .handler(m -> {})
             .build();
 
         // minimum valid service
@@ -842,7 +843,7 @@ public class ServiceTests extends JetStreamTestBase {
 
     @Test
     public void testAddingEndpointAfterServiceBuilderConstruction() {
-        Options options = options();
+        Options options = options(); // server not needed, a connection is never made
         Connection conn = new MockNatsConnection(options);
         ServiceEndpoint se = ServiceEndpoint.builder()
                 .endpoint(new Endpoint(random()))

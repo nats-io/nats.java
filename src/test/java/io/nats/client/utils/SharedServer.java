@@ -83,7 +83,7 @@ public class SharedServer {
                 .jetstream(true)
                 .customName("Reusable")
         );
-        serverUrl = natsTestServer.getLocalhostUri();
+        serverUrl = natsTestServer.getServerUri();
     }
 
     public Connection getSharedConnection() {

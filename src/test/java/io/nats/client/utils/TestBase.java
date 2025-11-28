@@ -38,6 +38,7 @@ import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_ARGUMENT;
 import static io.nats.client.support.NatsJetStreamClientError.KIND_ILLEGAL_STATE;
 import static io.nats.client.utils.ConnectionUtils.*;
+import static io.nats.client.utils.OptionsUtils.options;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ResourceUtils.configResource;
 import static io.nats.client.utils.ThreadUtils.sleep;
@@ -141,8 +142,8 @@ public class TestBase {
         }
         try (NatsTestServer ts = new NatsTestServer(nsrb)) {
             Options options = (optionsBuilder == null
-                ? optionsBuilder(ts)
-                : optionsBuilder.server(ts.getLocalhostUri()))
+                ? OptionsUtils.optionsBuilder(ts)
+                : optionsBuilder.server(ts.getServerUri()))
                 .build();
             try (Connection nc = standardConnectionWait(options)) {
                 initVersionServerInfo(nc);
@@ -175,7 +176,7 @@ public class TestBase {
     }
 
     public static void runInOwnJsServer(ErrorListener el, JetStreamTest jetStreamTest) throws Exception {
-        _runInOwnServer(optionsBuilder(el), null, null, null, jetStreamTest);
+        _runInOwnServer(OptionsUtils.optionsBuilder(el), null, null, null, jetStreamTest);
     }
 
     public static void runInOwnJsServer(String configFilePath, JetStreamTest jetStreamTest) throws Exception {
@@ -260,7 +261,7 @@ public class TestBase {
     }
 
     public static void runInSharedOwnNc(ErrorListener el, OneConnectionTest test) throws Exception {
-        _runInShared(optionsBuilder(el), null, test, -1, null);
+        _runInShared(OptionsUtils.optionsBuilder(el), null, test, -1, null);
     }
 
     public static void runInSharedOwnNc(Options.Builder builder, OneConnectionTest test) throws Exception {
@@ -279,11 +280,11 @@ public class TestBase {
     }
 
     public static void runInSharedOwnNc(ErrorListener el, JetStreamTestingContextTest ctxTest) throws Exception {
-        _runInShared(optionsBuilder(el), null, null, 1, ctxTest);
+        _runInShared(OptionsUtils.optionsBuilder(el), null, null, 1, ctxTest);
     }
 
     public static void runInSharedOwnNc(ErrorListener el, VersionCheck vc, JetStreamTestingContextTest ctxTest) throws Exception {
-        _runInShared(optionsBuilder(el), vc, null, 1, ctxTest);
+        _runInShared(OptionsUtils.optionsBuilder(el), vc, null, 1, ctxTest);
     }
 
     public static void runInSharedOwnNc(Options.Builder builder, JetStreamTestingContextTest ctxTest) throws Exception {
@@ -357,9 +358,9 @@ public class TestBase {
         };
 
         try (NatsTestServer hub = new NatsTestServer(hubPort, true, null, hubInserts, null);
-             Connection nchub = standardConnectionWait(hub.getLocalhostUri());
+             Connection nchub = standardConnectionWait(options(hub));
              NatsTestServer leaf = new NatsTestServer(leafPort, true, null, leafInserts, null);
-             Connection ncleaf = standardConnectionWait(leaf.getLocalhostUri())
+             Connection ncleaf = standardConnectionWait(options(leaf))
         ) {
             twoConnectionTest.test(nchub, ncleaf);
         }
@@ -442,12 +443,12 @@ public class TestBase {
             String[] servers = new String[srvs.length];
             for (int i = 0; i < srvs.length; i++) {
                 NatsTestServer nts = srvs[i];
-                servers[i] = nts.getLocalhostUri();
+                servers[i] = nts.getServerUri();
             }
             b.servers(servers);
         }
         else {
-            b.server(srvs[0].getLocalhostUri());
+            b.server(srvs[0].getServerUri());
         }
         if (tstOpts.configureAccount()) {
             b.authHandler(Nats.staticCredentials(null, USER_SEED.toCharArray()));
@@ -511,19 +512,6 @@ public class TestBase {
     // ----------------------------------------------------------------------------------------------------
     // assertions
     // ----------------------------------------------------------------------------------------------------
-
-    public static void assertCanConnectAndPubSub() throws IOException, InterruptedException {
-        Connection conn = standardConnectionWait();
-        assertPubSub(conn);
-        standardCloseConnection(conn);
-    }
-
-    public static void assertCanConnectAndPubSub(String serverURL) throws IOException, InterruptedException {
-        Connection conn = standardConnectionWait(serverURL);
-        assertPubSub(conn);
-        standardCloseConnection(conn);
-    }
-
     public static void assertCanConnectAndPubSub(Options options) throws IOException, InterruptedException {
         Connection conn = standardConnectionWait(options);
         assertPubSub(conn);

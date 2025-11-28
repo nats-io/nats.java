@@ -21,6 +21,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static io.nats.client.utils.ConnectionUtils.standardCloseConnection;
 import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
+import static io.nats.client.utils.OptionsUtils.options;
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -108,7 +109,7 @@ public class SubscriberTests {
         };
 
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(receiveMessageCustomizer);
-             Connection nc = standardConnectionWait(mockTs.getMockUri())) {
+             Connection nc = standardConnectionWait(options(mockTs))) {
 
             String subject = random();
             Subscription sub = nc.subscribe(subject);

@@ -17,11 +17,9 @@ import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-
-import static io.nats.client.utils.ConnectionUtils.*;
+import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
+import static io.nats.client.utils.OptionsUtils.NOOP_EL;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -29,41 +27,32 @@ public class NatsConnectionImplTests {
 
     @Test
     public void testConnectionClosedProperly() throws Exception {
-        try (NatsTestServer server = new NatsTestServer()) {
-            Options options = standardOptions(server.getLocalhostUri());
-            verifyInternalExecutors(options, (NatsConnection) standardConnectionWait(options));
+        try (NatsTestServer ts = new NatsTestServer()) {
+
+            Options options = Options.builder().server(ts.getServerUri()).errorListener(NOOP_EL).build();
+
+            verifyInternalExecutors((NatsConnection) standardConnectionWait(options));
 
             // using the same options to demonstrate the executors came
             // from the internal factory and were not reused
-            verifyInternalExecutors(options, (NatsConnection) standardConnectionWait(options));
+            verifyInternalExecutors((NatsConnection) standardConnectionWait(options));
 
             // using options copied from options to demonstrate the executors
             // came from the internal factory and were not reused
             options = new Options.Builder(options).build();
-            verifyInternalExecutors(options, (NatsConnection) standardConnectionWait(options));
+            verifyInternalExecutors((NatsConnection) standardConnectionWait(options));
 
-            ExecutorService es = Executors.newFixedThreadPool(3);
-            ScheduledExecutorService ses = Executors.newScheduledThreadPool(3);
-            assertFalse(es.isShutdown());
-            assertFalse(ses.isShutdown());
-
-            options = standardOptionsBuilder(server.getLocalhostUri())
-                .executor(es)
-                .scheduledExecutor(ses)
-                .build();
-            verifyExternalExecutors(options, (NatsConnection) standardConnectionWait(options));
+            // the test options builder has all its own executors so none are "internal"
+            options = optionsBuilder(ts).build();
+            verifyExternalExecutors((NatsConnection) standardConnectionWait(options));
 
             // same options just because
-            verifyExternalExecutors(options, (NatsConnection) standardConnectionWait(options));
-
-            es.shutdown();
-            ses.shutdown();
-            assertTrue(es.isShutdown());
-            assertTrue(ses.isShutdown());
+            verifyExternalExecutors((NatsConnection) standardConnectionWait(options));
         }
     }
 
-    private static void verifyInternalExecutors(Options options, NatsConnection nc) throws InterruptedException {
+    private static void verifyInternalExecutors(NatsConnection nc) throws InterruptedException {
+        Options options = nc.getOptions();
         assertTrue(options.executorIsInternal());
         assertTrue(options.scheduledExecutorIsInternal());
 
@@ -73,8 +62,6 @@ public class NatsConnectionImplTests {
         assertFalse(nc.executorIsShutdown());
         assertFalse(nc.scheduledExecutorIsShutdown());
 
-        nc.subscribe("*");
-        Thread.sleep(1000);
         nc.close();
 
         assertTrue(nc.callbackRunnerIsShutdown());
@@ -84,7 +71,8 @@ public class NatsConnectionImplTests {
         assertTrue(nc.scheduledExecutorIsShutdown());
     }
 
-    private static void verifyExternalExecutors(Options options, NatsConnection nc) throws InterruptedException {
+    private static void verifyExternalExecutors(NatsConnection nc) throws InterruptedException {
+        Options options = nc.getOptions();
         assertFalse(options.executorIsInternal());
         assertFalse(options.scheduledExecutorIsInternal());
 
@@ -94,14 +82,11 @@ public class NatsConnectionImplTests {
         assertFalse(nc.executorIsShutdown());
         assertFalse(nc.scheduledExecutorIsShutdown());
 
-        nc.subscribe("*");
-        Thread.sleep(1000);
         nc.close();
-
-        assertTrue(nc.callbackRunnerIsShutdown());
-        assertTrue(nc.connectExecutorIsShutdown());
 
         assertFalse(nc.executorIsShutdown());
         assertFalse(nc.scheduledExecutorIsShutdown());
+        assertFalse(nc.callbackRunnerIsShutdown());
+        assertFalse(nc.connectExecutorIsShutdown());
     }
 }

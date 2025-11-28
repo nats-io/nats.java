@@ -22,8 +22,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static io.nats.client.utils.ConnectionUtils.assertClosed;
+import static io.nats.client.utils.ConnectionUtils.assertConnected;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class InfoHandlerTests {
     @Test
@@ -31,13 +34,13 @@ public class InfoHandlerTests {
         String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\"}";
 
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(null, customInfo)) {
-            Connection nc = Nats.connect(mockTs.getMockUri());
+            Connection nc = Nats.connect(mockTs.getServerUri());
             try {
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertConnected(nc);
                 assertEquals("myid", nc.getServerInfo().getServerId(), "got custom info");
             } finally {
                 nc.close();
-                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
+                assertClosed(nc);
             }
         }
     }
@@ -86,9 +89,9 @@ public class InfoHandlerTests {
         };
 
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(infoCustomizer, customInfo)) {
-            Connection nc = Nats.connect(mockTs.getMockUri());
+            Connection nc = Nats.connect(mockTs.getServerUri());
             try {
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertConnected(nc);
                 assertEquals("myid", nc.getServerInfo().getServerId(), "got custom info");
                 sendInfo.complete(Boolean.TRUE);
 
@@ -96,7 +99,7 @@ public class InfoHandlerTests {
                 assertEquals("replacement", nc.getServerInfo().getServerId(), "got replacement info");
             } finally {
                 nc.close();
-                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
+                assertClosed(nc);
             }
         }
     }
@@ -152,11 +155,11 @@ public class InfoHandlerTests {
                 if (type.equals(ConnectionListener.Events.LAME_DUCK)) connectLDM.complete(type);
             };
 
-            Options options = optionsBuilder().server(mockTs.getMockUri()).connectionListener(cl).build();
+            Options options = optionsBuilder(mockTs).connectionListener(cl).build();
 
             Connection nc = Nats.connect(options);
             try {
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertConnected(nc);
                 assertEquals("myid", nc.getServerInfo().getServerId(), "got custom info");
                 sendInfo.complete(Boolean.TRUE);
 
@@ -164,7 +167,7 @@ public class InfoHandlerTests {
                 assertEquals("replacement", nc.getServerInfo().getServerId(), "got replacement info");
             } finally {
                 nc.close();
-                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
+                assertClosed(nc);
             }
         }
 

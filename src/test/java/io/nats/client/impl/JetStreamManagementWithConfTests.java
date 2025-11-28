@@ -18,13 +18,13 @@ import io.nats.client.JetStreamManagement;
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
 import io.nats.client.api.*;
+import io.nats.client.utils.OptionsUtils;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static io.nats.client.NatsTestServer.configuredJsServer;
 import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
-import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class JetStreamManagementWithConfTests extends JetStreamTestBase {
@@ -117,7 +117,7 @@ public class JetStreamManagementWithConfTests extends JetStreamTestBase {
     @Test
     public void testAuthCreateUpdateStream() throws Exception {
         try (NatsTestServer ts = configuredJsServer("js_authorization.conf")) {
-            Options optionsSrc = optionsBuilder(ts)
+            Options optionsSrc = OptionsUtils.optionsBuilder(ts)
                 .userInfo("serviceup".toCharArray(), "uppass".toCharArray()).build();
 
             try (Connection nc = standardConnectionWait(optionsSrc)) {

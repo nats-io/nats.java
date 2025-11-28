@@ -33,6 +33,9 @@ public class ListenerByFutures implements ErrorListener, ConnectionListener {
 
     private final Map<Events, CompletableFuture<Void>> eventsFutures = new HashMap<>();
     private final Map<String, CompletableFuture<Void>> textFutures = new HashMap<>();
+    private CompletableFuture<Void> statusFuture;
+    private StatusType preppedStatusType;
+    private int preppedStatusCode;
 
     private final boolean printExceptions;
     private final boolean verbose;
@@ -64,7 +67,8 @@ public class ListenerByFutures implements ErrorListener, ConnectionListener {
     public void validate(CompletableFuture<Void> future, long waitInMillis, String failMessage) {
         try {
             future.get(waitInMillis, TimeUnit.MILLISECONDS);
-        } catch (TimeoutException | ExecutionException | InterruptedException e) {
+        }
+        catch (TimeoutException | ExecutionException | InterruptedException e) {
             Assertions.fail("Failed to get '" + failMessage + "' message.", e);
         }
     }
@@ -72,9 +76,46 @@ public class ListenerByFutures implements ErrorListener, ConnectionListener {
     public void validate(CompletableFuture<Void> future, long waitInMillis, Events type) {
         try {
             future.get(waitInMillis, TimeUnit.MILLISECONDS);
-        } catch (TimeoutException | ExecutionException | InterruptedException e) {
-
+        }
+        catch (TimeoutException | ExecutionException | InterruptedException e) {
             Assertions.fail("Failed to get " + type.name() + " event.", e);
+        }
+    }
+
+    public void validateStatus(CompletableFuture<Void> future, long waitInMillis) {
+        try {
+            future.get(waitInMillis, TimeUnit.MILLISECONDS);
+        }
+        catch (TimeoutException | ExecutionException | InterruptedException e) {
+            Assertions.fail("Failed to get correct status.", e);
+        }
+    }
+
+    public enum StatusType {
+        Unhandled, PullWarning, PullError
+    }
+
+    public static class StatusException extends RuntimeException {
+        public final StatusType receivedType;
+        public final Status receivedStatus;
+        public final StatusType preppedStatusType;
+        public final int preppedStatusCode;
+
+        public StatusException(StatusType receivedType, Status receivedStatus, StatusType preppedStatusType, int preppedStatusCode) {
+            this.receivedType = receivedType;
+            this.receivedStatus = receivedStatus;
+            this.preppedStatusType = preppedStatusType;
+            this.preppedStatusCode = preppedStatusCode;
+        }
+
+        @Override
+        public String toString() {
+            return "StatusException{" +
+                "receivedType=" + receivedType +
+                ", receivedStatusCode=" + receivedStatus.getCode() +
+                ", preppedStatusType=" + preppedStatusType +
+                ", preppedStatusCode=" + preppedStatusCode +
+                "} " + super.toString();
         }
     }
 
@@ -85,6 +126,29 @@ public class ListenerByFutures implements ErrorListener, ConnectionListener {
                 report(label, key.toString());
             }
             return map.computeIfAbsent(key, k -> new CompletableFuture<>());
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public CompletableFuture<Void> prepForEvent(Events type) {
+        return prepFor("prepForEvent", eventsFutures, type);
+    }
+
+    public CompletableFuture<Void> prepForError(String errorText) {
+        return prepFor("prepForError", textFutures, errorText);
+    }
+
+    public CompletableFuture<Void> prepForStatus(StatusType type, int statusCode) {
+        lock.lock();
+        try {
+            if (verbose) {
+                report("prepForStatus", type + " " + statusCode);
+            }
+            preppedStatusType = type;
+            preppedStatusCode = statusCode;
+            statusFuture = new CompletableFuture<>();
+            return statusFuture;
         } finally {
             lock.unlock();
         }
@@ -108,14 +172,6 @@ public class ListenerByFutures implements ErrorListener, ConnectionListener {
     @Override
     public void connectionEvent(Connection conn, Events type, Long time, String uriDetails) {
         complete("connectionEvent", eventsFutures, type);
-    }
-
-    public CompletableFuture<Void> prepForEvent(Events type) {
-        return prepFor("prepForEvent", eventsFutures, type);
-    }
-
-    public CompletableFuture<Void> prepForError(String errorText) {
-        return prepFor("prepForError", textFutures, errorText);
     }
 
     @Override
@@ -143,16 +199,30 @@ public class ListenerByFutures implements ErrorListener, ConnectionListener {
     public void heartbeatAlarm(Connection conn, JetStreamSubscription sub, long lastStreamSequence, long lastConsumerSequence) {
     }
 
+    private void statusReceived(StatusType receivedType, Status received) {
+        if (statusFuture != null) {
+            if (preppedStatusType.equals(receivedType) && preppedStatusCode == received.getCode()) {
+                statusFuture.complete(null);
+            }
+            else {
+                statusFuture.completeExceptionally(new StatusException(receivedType, received, preppedStatusType, preppedStatusCode));
+            }
+        }
+    }
+
     @Override
     public void unhandledStatus(Connection conn, JetStreamSubscription sub, Status status) {
+        statusReceived(StatusType.Unhandled, status);
     }
 
     @Override
     public void pullStatusWarning(Connection conn, JetStreamSubscription sub, Status status) {
+        statusReceived(StatusType.PullWarning, status);
     }
 
     @Override
     public void pullStatusError(Connection conn, JetStreamSubscription sub, Status status) {
+        statusReceived(StatusType.PullError, status);
     }
 
     @Override

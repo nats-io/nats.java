@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.Nats;
 import io.nats.client.NatsTestServer;
+import io.nats.client.utils.OptionsUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
@@ -91,7 +92,7 @@ public class ParseTests extends TestBase {
     @Test
     public void testTooShortMaxControlLineToConnect() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            assertThrows(IOException.class, () -> Nats.connect(optionsBuilder(ts).maxControlLine(16).build()));
+            assertThrows(IOException.class, () -> Nats.connect(OptionsUtils.optionsBuilder(ts).maxControlLine(16).build()));
         }
     }
 

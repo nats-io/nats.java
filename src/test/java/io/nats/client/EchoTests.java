@@ -14,6 +14,7 @@
 package io.nats.client;
 
 import io.nats.client.NatsServerProtocolMock.ExitAt;
+import io.nats.client.utils.OptionsUtils;
 import io.nats.client.utils.SharedServer;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.time.Duration;
 
+import static io.nats.client.utils.ConnectionUtils.assertClosed;
 import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.*;
@@ -31,14 +33,14 @@ public class EchoTests extends TestBase {
         assertThrows(IOException.class, () -> {
             Connection nc = null;
             try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-                Options opt = optionsBuilder(mockTs.getMockUri()).noEcho().noReconnect().build();
+                Options opt = OptionsUtils.optionsBuilder(mockTs).noEcho().noReconnect().build();
                 try {
                     nc = Nats.connect(opt); // Should fail
                 }
                 finally {
                     if (nc != null) {
                         nc.close();
-                        assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
+                        assertClosed(nc);
                     }
                 }
             }
@@ -49,13 +51,13 @@ public class EchoTests extends TestBase {
     public void testConnectToOldServerWithEcho() throws Exception {
         Connection nc = null;
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-            Options opt = optionsBuilder(mockTs.getMockUri()).noReconnect().build();
+            Options opt = OptionsUtils.optionsBuilder(mockTs).noReconnect().build();
             try {
                 nc = Nats.connect(opt);
             } finally {
                 if (nc != null) {
                     nc.close();
-                    assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
+                    assertClosed(nc);
                 }
             }
         }
@@ -64,7 +66,7 @@ public class EchoTests extends TestBase {
     @Test
     public void testWithEcho() throws Exception {
         runInShared(nc1 -> {
-            try (Connection nc2 = standardConnectionWait(optionsBuilder(nc1).build())) {
+            try (Connection nc2 = standardConnectionWait(OptionsUtils.optionsBuilder(nc1).build())) {
                 // Echo is on so both sub should get messages from both pub
                 String subject = random();
                 Subscription sub1 = nc1.subscribe(subject);

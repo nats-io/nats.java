@@ -18,6 +18,7 @@ import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestingContext;
 import io.nats.client.impl.ListenerByFutures;
 import io.nats.client.impl.NatsMessage;
+import io.nats.client.utils.OptionsUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -32,6 +33,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.support.NatsConstants.*;
 import static io.nats.client.utils.ConnectionUtils.*;
+import static io.nats.client.utils.OptionsUtils.options;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static org.junit.jupiter.api.Assertions.*;
@@ -63,7 +65,7 @@ public class PublishTests extends TestBase {
     @Test
     public void testThrowsIfTooBig() throws Exception {
         try (NatsTestServer ts = NatsTestServer.configFileServer("max_payload.conf")) {
-            Connection nc = standardConnectionWait(ts.getLocalhostUri());
+            Connection nc = standardConnectionWait(options(ts));
 
             byte[] body = new byte[1024]; // 1024 is > than max_payload.conf max_payload: 1000
             assertThrows(IllegalArgumentException.class, () -> nc.publish(random(), null, null, body));
@@ -87,7 +89,7 @@ public class PublishTests extends TestBase {
                     }
                 }
             };
-            Options options = optionsBuilder(ts)
+            Options options = OptionsUtils.optionsBuilder(ts)
                 .clientSideLimitChecks(false)
                 .errorListener(el)
                 .build();
@@ -109,9 +111,9 @@ public class PublishTests extends TestBase {
             String customInfo = "{\"server_id\":\"test\", \"version\":\"9.9.99\"}";
 
             try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(null, customInfo);
-                 Connection nc = Nats.connect(mockTs.getMockUri()))
+                 Connection nc = Nats.connect(mockTs.getServerUri()))
             {
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertConnected(nc);
 
                 nc.publish(NatsMessage.builder()
                         .subject("testThrowsIfheadersNotSupported")
@@ -188,7 +190,7 @@ public class PublishTests extends TestBase {
         };
 
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(receiveMessageCustomizer);
-             Connection nc = standardConnectionWait(mockTs.getMockUri())) {
+             Connection nc = standardConnectionWait(options(mockTs))) {
 
             byte[] bodyBytes;
             if (bodyString == null || bodyString.isEmpty()) {
@@ -274,7 +276,7 @@ public class PublishTests extends TestBase {
 
         Options.Builder ncNotSupportedOptionsBuilder = optionsBuilder().noReconnect().clientSideLimitChecks(false);
         runInSharedOwnNc(ncNotSupportedOptionsBuilder, ncNotSupported -> {
-            Options ncSupportedOptions = optionsBuilder(ncNotSupported).supportUTF8Subjects().build();
+            Options ncSupportedOptions = OptionsUtils.optionsBuilder(ncNotSupported).supportUTF8Subjects().build();
             try (Connection ncSupported = standardConnectionWait(ncSupportedOptions)) {
                 try (JetStreamTestingContext ctxNotSupported = new JetStreamTestingContext(ncNotSupported, 0)) {
                     ctxNotSupported.createStream(jsSubject);

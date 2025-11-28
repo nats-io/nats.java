@@ -24,6 +24,7 @@ import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.nats.client.utils.ConnectionUtils.*;
+import static io.nats.client.utils.OptionsUtils.options;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -31,7 +32,7 @@ public class AuthAndConnectTests {
     @Test
     public void testIsAuthError() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            Connection nc = standardConnectionWait(ts.getLocalhostUri());
+            Connection nc = standardConnectionWait(options(ts));
             NatsConnection nats = (NatsConnection)nc;
 
             assertTrue(nats.isAuthenticationError("user authentication expired"));
@@ -48,7 +49,7 @@ public class AuthAndConnectTests {
     @Test()
     public void testConnectWhenClosed() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            NatsConnection nc = (NatsConnection) standardConnectionWait(ts.getLocalhostUri());
+            NatsConnection nc = (NatsConnection) standardConnectionWait(options(ts));
             standardCloseConnection(nc);
             nc.connect(false); // should do nothing
             assertClosed(nc);
@@ -73,7 +74,7 @@ public class AuthAndConnectTests {
 
         try (NatsTestServer ts = new NatsTestServer()) {
             Options options = Options.builder()
-                    .server(ts.getLocalhostUri())
+                    .server(ts.getServerUri())
                     .maxReconnects(-1)
                     .reconnectWait(Duration.ZERO)
                     .errorListener(noopErrorListener)

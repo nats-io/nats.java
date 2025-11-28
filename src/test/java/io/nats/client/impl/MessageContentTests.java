@@ -24,6 +24,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import static io.nats.client.utils.ConnectionUtils.assertClosed;
+import static io.nats.client.utils.ConnectionUtils.assertConnected;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -184,15 +186,14 @@ public class MessageContentTests extends TestBase {
         ListenerForTesting listener = new ListenerForTesting();
 
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(badServer, null)) {
-            Options options = optionsBuilder()
-                .server(mockTs.getMockUri())
+            Options options = optionsBuilder(mockTs)
                 .maxReconnects(0)
                 .errorListener(listener)
                 .connectionListener(listener)
                 .build();
             Connection nc = Nats.connect(options);
             try {
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertConnected(nc);
 
                 listener.prepForStatusChange(Events.DISCONNECTED);
                 ready.complete(Boolean.TRUE);
@@ -203,7 +204,7 @@ public class MessageContentTests extends TestBase {
                                                     || Connection.Status.CLOSED == nc.getStatus(), "Disconnected Status");
             } finally {
                 nc.close();
-                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
+                assertClosed(nc);
             }
         }
     }

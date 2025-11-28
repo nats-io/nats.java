@@ -54,7 +54,7 @@ public class ReconnectTests {
 
     @Test
     public void testSimpleReconnect() throws Exception { //Includes test for subscriptions and dispatchers across reconnect
-        _testReconnect(NatsServerRunner.builder(), (ts, optionsBuilder) -> optionsBuilder.server(ts.getLocalhostUri()));
+        _testReconnect(NatsServerRunner.builder(), (ts, optionsBuilder) -> optionsBuilder.server(ts.getServerUri()));
     }
 
     @Test
@@ -269,7 +269,7 @@ public class ReconnectTests {
         }
 
         flushAndWaitLong(nc, listener);
-        assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
+        assertClosed(nc);
         standardCloseConnection(nc);
     }
 
@@ -281,20 +281,20 @@ public class ReconnectTests {
         try (NatsTestServer ts1 = new NatsTestServer()) {
             try (NatsTestServer ts2 = new NatsTestServer()) {
                 // need both in bootstrap b/c these are not clustered
-                Options options = optionsBuilder(ts2.getLocalhostUri(), ts1.getLocalhostUri())
+                Options options = optionsBuilder(ts2.getServerUri(), ts1.getServerUri())
                     .noRandomize()
                     .connectionListener(listener)
                     .maxReconnects(-1)
                     .build();
                 nc = (NatsConnection) standardConnectionWait(options);
-                assertEquals(ts2.getLocalhostUri(), nc.getConnectedUrl());
+                assertEquals(ts2.getServerUri(), nc.getConnectedUrl());
                 listener.prepForStatusChange(Events.RECONNECTED);
             }
 
             flushAndWaitLong(nc, listener);
 
             assertConnected(nc);
-            assertEquals(ts1.getLocalhostUri(), nc.getConnectedUrl());
+            assertEquals(ts1.getServerUri(), nc.getConnectedUrl());
             standardCloseConnection(nc);
         }
     }
@@ -306,20 +306,20 @@ public class ReconnectTests {
 
         try (NatsTestServer ts = new NatsTestServer()) {
             try (NatsTestServer ts2 = new NatsTestServer()) {
-                Options options = optionsBuilder(ts2.getLocalhostUri(), ts.getLocalhostUri())
+                Options options = optionsBuilder(ts2.getServerUri(), ts.getServerUri())
                     .noRandomize()
                     .connectionListener(listener)
                     .maxReconnects(-1)
                     .build();
                 nc = (NatsConnection) standardConnectionWait(options);
-                assertEquals(ts2.getLocalhostUri(), nc.getConnectedUrl());
+                assertEquals(ts2.getServerUri(), nc.getConnectedUrl());
                 listener.prepForStatusChange(Events.RECONNECTED);
             }
 
             flushAndWaitLong(nc, listener);
 
             assertConnected(nc);
-            assertEquals(ts.getLocalhostUri(), nc.getConnectedUrl());
+            assertEquals(ts.getServerUri(), nc.getConnectedUrl());
             standardCloseConnection(nc);
         }
     }
@@ -330,25 +330,24 @@ public class ReconnectTests {
         ListenerForTesting listener = new ListenerForTesting();
 
         try (NatsTestServer ts = new NatsTestServer()) {
-            String striped = ts.getLocalhostUri().substring("nats://".length()); // info doesn't have protocol
+            String striped = ts.getServerUri().substring("nats://".length()); // info doesn't have protocol
             String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\",\"connect_urls\": [\""+striped+"\"]}";
             try (NatsServerProtocolMock mockTs2 = new NatsServerProtocolMock(null, customInfo)) {
-                Options options = optionsBuilder()
-                    .server(mockTs2.getMockUri())
+                Options options = optionsBuilder(mockTs2)
                     .connectionListener(listener)
                     .maxReconnects(-1)
                     .connectionTimeout(Duration.ofSeconds(5))
                     .reconnectWait(Duration.ofSeconds(1))
                     .build();
                 nc = (NatsConnection) standardConnectionWait(options);
-                assertEquals(mockTs2.getMockUri(), nc.getConnectedUrl());
+                assertEquals(mockTs2.getServerUri(), nc.getConnectedUrl());
                 listener.prepForStatusChange(Events.RECONNECTED);
             }
 
             flushAndWaitLong(nc, listener);
 
             assertConnected(nc);
-            assertEquals(ts.getLocalhostUri(), nc.getConnectedUrl());
+            assertEquals(ts.getServerUri(), nc.getConnectedUrl());
             standardCloseConnection(nc);
         }
     }
@@ -443,15 +442,14 @@ public class ReconnectTests {
         };
 
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(receiveMessageCustomizer, port, true)) {
-            Options options = optionsBuilder()
-                .server(mockTs.getMockUri())
+            Options options = optionsBuilder(mockTs)
                 .maxReconnects(-1)
                 .reconnectWait(reconnectWait)
                 .connectionListener(listener)
                 .build();
             port = mockTs.getPort();
             nc = (NatsConnection) Nats.connect(options);
-            assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+            assertConnected(nc);
             nc.subscribe("test");
             subRef.get().get();
             listener.prepForStatusChange(Events.DISCONNECTED);
@@ -539,7 +537,7 @@ public class ReconnectTests {
 
             listener.prepForStatusChange(Events.DISCOVERED_SERVERS);
             nc = (NatsConnection) longConnectionWait(options);
-            assertEquals(ts.getLocalhostUri(), nc.getConnectedUrl());
+            assertEquals(ts.getServerUri(), nc.getConnectedUrl());
 
             flushAndWaitLong(nc, listener); // make sure we get the new server via info
 
@@ -687,7 +685,7 @@ public class ReconnectTests {
             try (NatsTestServer ignored = new NatsTestServer(port)) {
                 //noinspection ResultOfMethodCallIgnored
                 latch.await(2000, TimeUnit.MILLISECONDS);
-                assertSame(Connection.Status.CONNECTED, testConn.get().getStatus());
+                assertConnected(testConn.get());
             }
             catch (Exception e) {
                 throw new RuntimeException(e);

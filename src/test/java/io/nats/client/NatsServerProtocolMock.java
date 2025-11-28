@@ -24,7 +24,7 @@ import static io.nats.client.support.Encoding.base64UrlEncodeToString;
  * Handles the begining of the connect sequence, all hard coded, but
  * is configurable to fail at specific points to allow client testing.
  */
-public class NatsServerProtocolMock implements Closeable {
+public class NatsServerProtocolMock implements Closeable, TestServer {
 
     // Default is to exit after pong
     public enum ExitAt {
@@ -122,11 +122,13 @@ public class NatsServerProtocolMock implements Closeable {
         customInfoIsFullInfo = true;
     }
 
+    @Override
     public int getPort() {
         return port;
     }
 
-    public String getMockUri() {
+    @Override
+    public String getServerUri() {
         return "nats://0.0.0.0:" + port;
     }
 

@@ -264,13 +264,13 @@ public class WebsocketConnectTests extends TestBase {
             nc = Nats.connect(options);
             assertInstanceOf(SocketDataPort.class, ((NatsConnection) nc).getDataPort(), "Correct data port class");
             listener.waitForStatusChange(1, TimeUnit.SECONDS);
-            assertEquals(Connection.Status.CONNECTED, nc.getStatus());
+            assertConnected(nc);
         }
 
         listener.prepForStatusChange(CONNECTED);
         try (NatsTestServer ignored = new NatsTestServer(builder)) {
             listener.waitForStatusChange(1, TimeUnit.SECONDS);
-            assertEquals(Connection.Status.CONNECTED, nc.getStatus());
+            assertConnected(nc);
         }
     }
 

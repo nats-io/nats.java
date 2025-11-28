@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.utils.OptionsUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -55,11 +56,10 @@ public class ConnectionListenerTests extends TestBase {
     public void testDiscoveredServersCountAndListenerInOptions() throws Exception {
 
         try (NatsTestServer ts = new NatsTestServer()) {
-            String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\",\"connect_urls\": [\""+ts.getLocalhostUri()+"\"]}";
+            String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\",\"connect_urls\": [\""+ts.getServerUri()+"\"]}";
             try (NatsServerProtocolMock mockTs2 = new NatsServerProtocolMock(null, customInfo)) {
                 ListenerForTesting listener = new ListenerForTesting();
-                Options options = optionsBuilder()
-                    .server(mockTs2.getMockUri())
+                Options options = optionsBuilder(mockTs2)
                     .maxReconnects(0)
                     .connectionListener(listener)
                     .build();
@@ -77,14 +77,14 @@ public class ConnectionListenerTests extends TestBase {
         Connection nc;
         ListenerForTesting listener = new ListenerForTesting();
         try (NatsTestServer ts = new NatsTestServer()) {
-            Options options = optionsBuilder(ts)
+            Options options = OptionsUtils.optionsBuilder(ts)
                 .reconnectWait(Duration.ofMillis(100))
                 .maxReconnects(-1)
                 .connectionListener(listener)
                 .build();
             port = ts.getPort();
             nc = standardConnectionWait(options);
-            assertEquals(ts.getLocalhostUri(), nc.getConnectedUrl());
+            assertEquals(ts.getServerUri(), nc.getConnectedUrl());
             listener.prepForStatusChange(Events.DISCONNECTED);
         }
 
@@ -97,7 +97,7 @@ public class ConnectionListenerTests extends TestBase {
         try (NatsTestServer ts = new NatsTestServer(port)) {
             standardConnectionWait(nc);
             assertEquals(1, listener.getEventCount(Events.RECONNECTED));
-            assertEquals(ts.getLocalhostUri(), nc.getConnectedUrl());
+            assertEquals(ts.getServerUri(), nc.getConnectedUrl());
             standardCloseConnection(nc);
         }
     }

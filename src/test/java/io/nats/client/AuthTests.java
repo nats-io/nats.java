@@ -19,6 +19,7 @@ import io.nats.client.Connection.Status;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.impl.ListenerForTesting;
 import io.nats.client.support.JwtUtils;
+import io.nats.client.utils.OptionsUtils;
 import io.nats.client.utils.ResourceUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Disabled;
@@ -66,23 +67,23 @@ public class AuthTests extends TestBase {
         String[] customArgs = { "--user", "uuu", "--pass", "ppp" };
         try (NatsTestServer ts = new NatsTestServer(customArgs)) {
             // u/p in url
-            Options inUrl = optionsBuilder(userPassInUrl("uuu", "ppp", ts.getPort())).maxReconnects(0).build();
+            Options inUrl = OptionsUtils.optionsBuilder(userPassInUrl("uuu", "ppp", ts.getPort())).maxReconnects(0).build();
             assertCanConnect(inUrl);
 
             // u/p in options
-            Options inOptions = optionsBuilder(ts).maxReconnects(0)
+            Options inOptions = OptionsUtils.optionsBuilder(ts).maxReconnects(0)
                 .userInfo("uuu".toCharArray(), "ppp".toCharArray()).build();
             assertCanConnect(inOptions);
 
-            Options badUser = optionsBuilder(ts).maxReconnects(0)
+            Options badUser = OptionsUtils.optionsBuilder(ts).maxReconnects(0)
                 .userInfo("zzz".toCharArray(), "ppp".toCharArray()).build();
             assertThrows(AuthenticationException.class, () -> Nats.connect(badUser));
 
-            Options badPass = optionsBuilder(ts).maxReconnects(0)
+            Options badPass = OptionsUtils.optionsBuilder(ts).maxReconnects(0)
                 .userInfo("uuu".toCharArray(), "zzz".toCharArray()).build();
             assertThrows(AuthenticationException.class, () -> Nats.connect(badPass));
 
-            Options missingUserPass = optionsBuilder(ts).maxReconnects(0).build();
+            Options missingUserPass = OptionsUtils.optionsBuilder(ts).maxReconnects(0).build();
             assertThrows(AuthenticationException.class, () -> Nats.connect(missingUserPass));
         }
     }
@@ -121,7 +122,7 @@ public class AuthTests extends TestBase {
 
     private void assertEncoded(String encoded, int port) throws IOException, InterruptedException {
         String url = userPassInUrl("u" + encoded, "p" + encoded, port);
-        Options options = optionsBuilder(url).build();
+        Options options = OptionsUtils.optionsBuilder(url).build();
         Connection c = Nats.connect(options);
         c.getServerInfo();
         c.close();
@@ -147,7 +148,7 @@ public class AuthTests extends TestBase {
         try (NatsTestServer ts = new NatsTestServer(
             NatsServerRunner.builder().customArgs(customArgs))) {
             // See config file for user/pass
-            Options options = optionsBuilder(ts)
+            Options options = OptionsUtils.optionsBuilder(ts)
                 .userInfo(user, pass)
                 .maxReconnects(0).build();
             assertCanConnect(options);
@@ -165,7 +166,7 @@ public class AuthTests extends TestBase {
         try (NatsTestServer ts = new NatsTestServer(customArgs)) {
             port = ts.getPort();
             // See config file for user/pass
-            Options options = optionsBuilder(ts).maxReconnects(-1)
+            Options options = OptionsUtils.optionsBuilder(ts).maxReconnects(-1)
                     .userInfo("uuu".toCharArray(), "ppp".toCharArray()).connectionListener(listener).build();
             nc = standardConnectionWait(options);
 
@@ -206,7 +207,7 @@ public class AuthTests extends TestBase {
                 "$2a$12$UjzncyjtsE6rJG4LSGk.JOweXV3P2umZ38gHuj4OMY0X/nQudiDgG" };
         try (NatsTestServer ts = new NatsTestServer(customArgs)) {
             // See config file for user/pass
-            Options options = optionsBuilder(ts).maxReconnects(0)
+            Options options = OptionsUtils.optionsBuilder(ts).maxReconnects(0)
                     .userInfo("uuu".toCharArray(), "ppp".toCharArray()).build();
             assertCanConnect(options);
         }
@@ -263,7 +264,7 @@ public class AuthTests extends TestBase {
              NatsTestServer ts2 = new NatsTestServer(customArgs2)) {
             String url1 = userPassInUrl("uuu", "ppp", ts1.getPort());
             String url2 = userPassInUrl("uuu2", "ppp2", ts2.getPort());
-            Options options = optionsBuilder(url1, url2)
+            Options options = OptionsUtils.optionsBuilder(url1, url2)
                 .maxReconnects(4)
                 .noRandomize()
                 .connectionListener(listener)
@@ -288,7 +289,7 @@ public class AuthTests extends TestBase {
         try (NatsTestServer ts1 = new NatsTestServer(customArgs1);
              NatsTestServer ts2 = new NatsTestServer(customArgs2)) {
             String url1 = userPassInUrl("uuu", "ppp", ts1.getPort());
-            Options options = optionsBuilder(url1, ts2.getNatsLocalhostUri())
+            Options options = OptionsUtils.optionsBuilder(url1, ts2.getNatsLocalhostUri())
                 .userInfo("uuu2".toCharArray(), "ppp2".toCharArray())
                 .maxReconnects(4)
                 .noRandomize()
@@ -301,7 +302,7 @@ public class AuthTests extends TestBase {
             ts1.close();
             listener.waitForStatusChange(10, TimeUnit.SECONDS);
             assertConnected(nc);
-            assertEquals(ts2.getLocalhostUri(), nc.getConnectedUrl());
+            assertEquals(ts2.getServerUri(), nc.getConnectedUrl());
             standardCloseConnection(nc);
         }
     }
@@ -315,7 +316,7 @@ public class AuthTests extends TestBase {
              NatsTestServer ts2 = new NatsTestServer(customArgs2)) {
             String url1 = tokenInUrl("token_one", ts1.getPort());
             String url2 = tokenInUrl("token_two", ts2.getPort());
-            Options options = optionsBuilder(url1, url2)
+            Options options = OptionsUtils.optionsBuilder(url1, url2)
                 .maxReconnects(4)
                 .noRandomize()
                 .connectionListener(listener)
@@ -343,7 +344,7 @@ public class AuthTests extends TestBase {
         try (NatsTestServer ts1 = new NatsTestServer(customArgs1);
              NatsTestServer ts2 = new NatsTestServer(customArgs2)) {
             String url1 = tokenInUrl("token_one", ts1.getPort());
-            Options options = optionsBuilder(url1, ts2.getNatsLocalhostUri())
+            Options options = OptionsUtils.optionsBuilder(url1, ts2.getNatsLocalhostUri())
                 .token("token_two".toCharArray())
                 .maxReconnects(4)
                 .noRandomize()
@@ -358,7 +359,7 @@ public class AuthTests extends TestBase {
 
             listener.waitForStatusChange(STANDARD_CONNECTION_WAIT_MS, TimeUnit.MILLISECONDS);
             listenerConnectionWait(nc, listener);
-            assertEquals(ts2.getLocalhostUri(), nc.getConnectedUrl());
+            assertEquals(ts2.getServerUri(), nc.getConnectedUrl());
             standardCloseConnection(nc);
         }
     }
@@ -368,26 +369,26 @@ public class AuthTests extends TestBase {
         String[] customArgs = { "--auth", "token" };
         try (NatsTestServer ts = new NatsTestServer(customArgs)) {
             // token in options
-            Options options = optionsBuilder(ts)
+            Options options = OptionsUtils.optionsBuilder(ts)
                 .maxReconnects(0)
                 .token("token".toCharArray())
                 .build();
             assertCanConnect(options);
 
             // token in url
-            options = optionsBuilder(tokenInUrl("token", ts.getPort()))
+            options = OptionsUtils.optionsBuilder(tokenInUrl("token", ts.getPort()))
                 .maxReconnects(0).build();
             assertCanConnect(options);
 
             // incorrect token
-            Options incorrectToken = optionsBuilder(ts)
+            Options incorrectToken = OptionsUtils.optionsBuilder(ts)
                 .maxReconnects(0)
                 .token("incorrectToken".toCharArray())
                 .build();
             assertThrows(AuthenticationException.class, () -> Nats.connect(incorrectToken));
 
             // incorrect token
-            Options missingToken = optionsBuilder(ts)
+            Options missingToken = OptionsUtils.optionsBuilder(ts)
                 .maxReconnects(0)
                 .build();
             assertThrows(AuthenticationException.class, () -> Nats.connect(missingToken));
@@ -426,21 +427,21 @@ public class AuthTests extends TestBase {
         NatsServerRunner.Builder b = NatsServerRunner.builder().configFilePath(configFilePath);
         try (NatsTestServer ts = new NatsTestServer(b)) {
 
-            Options authHandlerOptions = optionsBuilder(ts).maxReconnects(0)
+            Options authHandlerOptions = OptionsUtils.optionsBuilder(ts).maxReconnects(0)
                 .authHandler(new AuthHandlerForTesting(theKey)).build();
             assertCanConnect(authHandlerOptions);
 
-            Options staticOptions = optionsBuilder(ts).maxReconnects(0)
+            Options staticOptions = OptionsUtils.optionsBuilder(ts).maxReconnects(0)
                 .authHandler(Nats.staticCredentials(null, theKey.getSeed())).build();
             assertCanConnect(staticOptions);
 
             // direct through Nats.connect
-            Connection nc = Nats.connect(ts.getLocalhostUri(), Nats.staticCredentials(null, theKey.getSeed()));
+            Connection nc = Nats.connect(ts.getServerUri(), Nats.staticCredentials(null, theKey.getSeed()));
             standardConnectionWait(nc);
             standardCloseConnection(nc);
 
             // fails with no nkey
-            Options noNkey = optionsBuilder(ts).maxReconnects(0)
+            Options noNkey = OptionsUtils.optionsBuilder(ts).maxReconnects(0)
                 .authHandler(new AuthHandlerForTesting(null)).build();
             assertThrows(IOException.class, () -> Nats.connect(noNkey));
         }
@@ -450,18 +451,18 @@ public class AuthTests extends TestBase {
     public void testJWTAuthWithCredsFile() throws Exception {
         // manual auth handler or credential path
         try (NatsTestServer ts = NatsTestServer.configFileServer("operator.conf")) {
-            Options options = optionsBuilder(ts).maxReconnects(0)
+            Options options = OptionsUtils.optionsBuilder(ts).maxReconnects(0)
                 .authHandler(getUserCredsAuthHander())
                 .build();
             assertCanConnect(options);
 
-            options = optionsBuilder(ts).maxReconnects(0)
+            options = OptionsUtils.optionsBuilder(ts).maxReconnects(0)
                 .credentialPath(jwtResource("user.creds"))
                 .build();
             assertCanConnect(options);
 
             //test Nats.connect method
-            Connection nc = Nats.connect(ts.getLocalhostUri(), getUserCredsAuthHander());
+            Connection nc = Nats.connect(ts.getServerUri(), getUserCredsAuthHander());
             standardConnectionWait(nc);
             standardCloseConnection(nc);
         }
@@ -471,7 +472,7 @@ public class AuthTests extends TestBase {
       public void testJWTAuthWithCredsFileAlso() throws Exception {
         //test Nats.connect method
         try (NatsTestServer ts = NatsTestServer.configFileServer("operatorJnatsTest.conf")) {
-            Connection nc = Nats.connect(ts.getLocalhostUri(), Nats.credentials(jwtResource("userJnatsTest.creds")));
+            Connection nc = Nats.connect(ts.getServerUri(), Nats.credentials(jwtResource("userJnatsTest.creds")));
             standardConnectionWait(nc);
             standardCloseConnection(nc);
         }
@@ -482,7 +483,7 @@ public class AuthTests extends TestBase {
         try (NatsTestServer ts = skipConnectValidateServer("ws_operator.conf")) {
             String uri = ts.getLocalhostUri("ws");
             // in options
-            Options options = optionsBuilder(uri).maxReconnects(0)
+            Options options = OptionsUtils.optionsBuilder(uri).maxReconnects(0)
                 .authHandler(getUserCredsAuthHander()).build();
             assertCanConnect(options);
 
@@ -499,7 +500,7 @@ public class AuthTests extends TestBase {
         try (NatsTestServer ts = skipConnectValidateServer("wss_operator.conf"))
         {
             String uri = ts.getLocalhostUri("wss");
-            Options options = optionsBuilder(uri).maxReconnects(0).sslContext(ctx)
+            Options options = OptionsUtils.optionsBuilder(uri).maxReconnects(0).sslContext(ctx)
                 .authHandler(getUserCredsAuthHander()).build();
             assertCanConnect(options);
         }
@@ -512,7 +513,7 @@ public class AuthTests extends TestBase {
         String nkey = "SUAFYHVVQVOIDOOQ4MTOCTLGNZCJ5PZ4HPV5WAPROGTEIOF672D3R7GBY4";
 
         try (NatsTestServer ts = configFileServer("operator.conf")) {
-            Options options = optionsBuilder(ts).maxReconnects(0)
+            Options options = OptionsUtils.optionsBuilder(ts).maxReconnects(0)
                     .authHandler(Nats.staticCredentials(jwt.toCharArray(), nkey.toCharArray())).build();
             assertCanConnect(options);
         }
@@ -523,10 +524,10 @@ public class AuthTests extends TestBase {
         ListenerForTesting listener = new ListenerForTesting();
         // Connect should fail on ts2
         try (NatsTestServer ts = NatsTestServer.configFileServer("operator.conf"); NatsTestServer ts2 = NatsTestServer.configFileServer("operator.conf")) {
-            Options options = optionsBuilder(ts.getLocalhostUri(), ts2.getLocalhostUri())
+            Options options = OptionsUtils.optionsBuilder(ts.getServerUri(), ts2.getServerUri())
                     .noRandomize().maxReconnects(-1).authHandler(getUserCredsAuthHander()).build();
             Connection nc = standardConnectionWait(options);
-            assertEquals(ts.getLocalhostUri(), nc.getConnectedUrl());
+            assertEquals(ts.getServerUri(), nc.getConnectedUrl());
 
             listener.prepForStatusChange(Events.RECONNECTED);
 
@@ -535,7 +536,7 @@ public class AuthTests extends TestBase {
             // Reconnect will fail because ts has the same auth error
             listener.waitForStatusChange(5, TimeUnit.SECONDS);
             assertConnected(nc);
-            assertEquals(ts2.getLocalhostUri(), nc.getConnectedUrl());
+            assertEquals(ts2.getServerUri(), nc.getConnectedUrl());
             standardCloseConnection(nc);
         }
     }
@@ -546,11 +547,11 @@ public class AuthTests extends TestBase {
 
         // Connect should fail on ts1
         try (NatsTestServer ts = NatsTestServer.configFileServer("operator_noacct.conf"); NatsTestServer ts2 = NatsTestServer.configFileServer("operator.conf")) {
-            Options options = optionsBuilder(ts.getLocalhostUri(), ts2.getLocalhostUri())
+            Options options = OptionsUtils.optionsBuilder(ts.getServerUri(), ts2.getServerUri())
                     .maxReconnects(-1).connectionTimeout(Duration.ofSeconds(2)).noRandomize()
                     .authHandler(getUserCredsAuthHander()).build();
             Connection nc = standardConnectionWait(options);
-            assertEquals(ts2.getLocalhostUri(), nc.getConnectedUrl());
+            assertEquals(ts2.getServerUri(), nc.getConnectedUrl());
 
             listener.prepForStatusChange(Events.CLOSED);
 
@@ -568,7 +569,7 @@ public class AuthTests extends TestBase {
         try (NatsTestServer ts1 = NatsTestServer.configFileServer("operator_noacct.conf");
              NatsTestServer ts2 = NatsTestServer.configFileServer("operator.conf")) {
 
-            Options options = optionsBuilder(ts1.getLocalhostUri(), ts2.getLocalhostUri())
+            Options options = OptionsUtils.optionsBuilder(ts1.getServerUri(), ts2.getServerUri())
                 .noRandomize()
                 .maxReconnects(-1)
                 .connectionTimeout(Duration.ofSeconds(5))
@@ -577,9 +578,9 @@ public class AuthTests extends TestBase {
                 .errorListener(new ListenerForTesting())
                 .build();
             Connection nc = standardConnectionWait(options);
-            assertEquals(ts2.getLocalhostUri(), nc.getConnectedUrl());
+            assertEquals(ts2.getServerUri(), nc.getConnectedUrl());
 
-            String tsURI = ts1.getLocalhostUri();
+            String tsURI = ts1.getServerUri();
             int port1 = ts1.getPort();
             int port2 = ts2.getPort();
 
@@ -594,8 +595,8 @@ public class AuthTests extends TestBase {
                 // reconnect should work because we are now running with the good config
                 listenerConnectionWait(nc, listener, VERY_LONG_CONNECTION_WAIT_MS);
 
-                assertEquals(ts3.getLocalhostUri(), nc.getConnectedUrl());
-                assertEquals(tsURI, ts3.getLocalhostUri());
+                assertEquals(ts3.getServerUri(), nc.getConnectedUrl());
+                assertEquals(tsURI, ts3.getServerUri());
 
                 // Close this and go back to the bad config on that port, should be ok 1x
                 listener.prepForStatusChange(Events.RECONNECTED);
@@ -604,7 +605,7 @@ public class AuthTests extends TestBase {
                 try (NatsTestServer ignored = configFileServer("operator_noacct.conf", port1);
                      NatsTestServer ts5 = configFileServer("operator.conf", port2)) {
                     listenerConnectionWait(nc, listener, VERY_LONG_CONNECTION_WAIT_MS);
-                    assertEquals(ts5.getLocalhostUri(), nc.getConnectedUrl());
+                    assertEquals(ts5.getServerUri(), nc.getConnectedUrl());
                 }
             }
             standardCloseConnection(nc);
@@ -647,22 +648,21 @@ public class AuthTests extends TestBase {
         // Connect should fail on ts1
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(timeoutCustomizer, port, true);
              NatsTestServer ts2 = skipConnectValidateServer("operator.conf")) {
-            Options options = optionsBuilder()
-                .servers(new String[]{mockTs.getMockUri(), ts2.getLocalhostUri()})
+            Options options = optionsBuilder(mockTs, ts2)
                 .maxReconnects(-1)
                 .noRandomize()
                 .authHandler(getUserCredsAuthHander())
                 .build();
 
             Connection nc = standardConnectionWait(options);
-            assertEquals(mockTs.getMockUri(), nc.getConnectedUrl());
+            assertEquals(mockTs.getServerUri(), nc.getConnectedUrl());
 
             listener.prepForStatusChange(Events.RECONNECTED);
 
             f.complete(true);
 
             listenerConnectionWait(nc, listener);
-            assertEquals(ts2.getLocalhostUri(), nc.getConnectedUrl());
+            assertEquals(ts2.getServerUri(), nc.getConnectedUrl());
 
             String err = nc.getLastError();
             assertNotNull(err);
@@ -720,7 +720,7 @@ public class AuthTests extends TestBase {
         try (NatsTestServer ts = NatsTestServer.configFileServer("operatorJnatsTest.conf")) {
 
             Options options = Options.builder()
-                .server(ts.getLocalhostUri())
+                .server(ts.getServerUri())
                 .credentialPath(credsFile)
                 .connectionListener(cl)
                 .errorListener(el)

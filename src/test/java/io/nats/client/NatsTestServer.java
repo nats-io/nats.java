@@ -22,7 +22,7 @@ import java.util.logging.Level;
 
 import static io.nats.client.utils.ResourceUtils.configResource;
 
-public class NatsTestServer extends NatsServerRunner {
+public class NatsTestServer extends NatsServerRunner implements TestServer {
 
     static {
         NatsTestServer.quiet();
@@ -99,7 +99,8 @@ public class NatsTestServer extends NatsServerRunner {
         return NatsRunnerUtils.getLocalhostUri(schema, getPort());
     }
 
-    public String getLocalhostUri() {
+    @Override
+    public String getServerUri() {
         return NatsRunnerUtils.getNatsLocalhostUri(getPort());
     }
 

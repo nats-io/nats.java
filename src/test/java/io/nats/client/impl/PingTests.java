@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
+import io.nats.client.utils.OptionsUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -25,7 +26,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
+import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
@@ -59,13 +60,13 @@ public class PingTests extends TestBase {
         };
 
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(pingPongCustomizer)) {
-            Connection  nc = Nats.connect(mockTs.getMockUri());
+            Connection  nc = Nats.connect(mockTs.getServerUri());
             try {
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertConnected(nc);
                 assertTrue(gotPong.get(), "Got pong.");
             } finally {
                 nc.close();
-                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
+                assertClosed(nc);
             }
         }
     }
@@ -85,7 +86,7 @@ public class PingTests extends TestBase {
     @Test
     public void testPingFailsWhenClosed() throws Exception {
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-            Options options = optionsBuilder().server(mockTs.getMockUri()).
+            Options options = optionsBuilder(mockTs).
                                             pingInterval(Duration.ofMillis(10)).
                                             maxPingsOut(5).
                                             maxReconnects(0).
@@ -93,7 +94,7 @@ public class PingTests extends TestBase {
             NatsConnection nc = (NatsConnection) Nats.connect(options);
 
             try {
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertConnected(nc);
             } finally {
                 nc.close();
             }
@@ -107,17 +108,16 @@ public class PingTests extends TestBase {
     @Test
     public void testMaxPingsOut() throws Exception {
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-            Options options = optionsBuilder().
-                                            server(mockTs.getMockUri()).
-                                            pingInterval(Duration.ofSeconds(10)). // Avoid auto pings
-                                            maxPingsOut(2).
-                                            maxReconnects(0).
-                                            build();
+            Options options = optionsBuilder(mockTs)
+                .pingInterval(Duration.ofSeconds(10)) // Avoid auto pings
+                .maxPingsOut(2)
+                .maxReconnects(0)
+                .build();
             NatsConnection nc = (NatsConnection) Nats.connect(options);
 
             //noinspection TryFinallyCanBeTryWithResources
             try {
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertConnected(nc);
                 nc.sendPing();
                 nc.sendPing();
                 assertNull(nc.sendPing(), "No future returned when past max");
@@ -131,15 +131,14 @@ public class PingTests extends TestBase {
     public void testFlushTimeout() {
         assertThrows(TimeoutException.class, () -> {
             try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-                Options options = optionsBuilder().
-                                                server(mockTs.getMockUri()).
-                                                maxReconnects(0).
-                                                build();
+                Options options = optionsBuilder(mockTs)
+                    .maxReconnects(0)
+                    .build();
                 NatsConnection nc = (NatsConnection) Nats.connect(options);
 
                 //noinspection TryFinallyCanBeTryWithResources
                 try {
-                    assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                    assertConnected(nc);
                     // fake server so flush will time out
                     nc.flush(Duration.ofMillis(50));
                 } finally {
@@ -153,10 +152,10 @@ public class PingTests extends TestBase {
     public void testFlushTimeoutDisconnected() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
         try (NatsTestServer ts = new NatsTestServer()) {
-            Options options = optionsBuilder(ts).connectionListener(listener).build();
+            Options options = OptionsUtils.optionsBuilder(ts).connectionListener(listener).build();
             NatsConnection nc = (NatsConnection) Nats.connect(options);
             try {
-                assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+                assertConnected(nc);
                 nc.flush(Duration.ofSeconds(2));
                 listener.prepForStatusChange(Events.DISCONNECTED);
                 ts.close();
@@ -165,7 +164,7 @@ public class PingTests extends TestBase {
             }
             finally {
                 nc.close();
-                assertSame(Connection.Status.CLOSED, nc.getStatus(), "Closed Status");
+                assertClosed(nc);
             }
         }
     }
@@ -175,7 +174,7 @@ public class PingTests extends TestBase {
         ListenerForTesting listener = new ListenerForTesting();
         try (NatsTestServer ts = new NatsTestServer()) {
             try (NatsTestServer ts2 = new NatsTestServer()) {
-                Options options = optionsBuilder(ts.getLocalhostUri(), ts2.getLocalhostUri())
+                Options options = OptionsUtils.optionsBuilder(ts.getServerUri(), ts2.getServerUri())
                     .connectionListener(listener)
                     .pingInterval(Duration.ofMillis(5))
                     .maxPingsOut(10000) // just don't want this to be what fails the test

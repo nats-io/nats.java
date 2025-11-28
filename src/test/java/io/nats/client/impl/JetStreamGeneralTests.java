@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.NatsJetStreamUtil;
+import io.nats.client.utils.OptionsUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -34,7 +35,6 @@ import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.support.NatsJetStreamClientError.*;
 import static io.nats.client.utils.ConnectionUtils.longConnectionWait;
 import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
-import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.VersionUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -64,7 +64,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     @Test
     public void testJetEnabledGoodAccount() throws Exception {
         try (NatsTestServer ts = configuredJsServer("js_authorization.conf")) {
-            Options options = optionsBuilder(ts)
+            Options options = OptionsUtils.optionsBuilder(ts)
                 .userInfo("serviceup".toCharArray(), "uppass".toCharArray()).build();
             try (Connection nc = longConnectionWait(options)) {
                 nc.jetStreamManagement();
@@ -396,10 +396,10 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
         String subjectMadeByTar = "sub-made-by.tar";
 
         try (NatsTestServer ts = configuredJsServer("js_prefix.conf")) {
-            Options optionsSrc = optionsBuilder(ts)
+            Options optionsSrc = OptionsUtils.optionsBuilder(ts)
                     .userInfo("src".toCharArray(), "spass".toCharArray()).build();
 
-            Options optionsTar = optionsBuilder(ts)
+            Options optionsTar = OptionsUtils.optionsBuilder(ts)
                     .userInfo("tar".toCharArray(), "tpass".toCharArray()).build();
 
             try (Connection ncSrc = standardConnectionWait(optionsSrc);
@@ -1107,7 +1107,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     @Test
     public void testRequestNoResponder() throws Exception {
         runInSharedCustom((ncCancel, ctx) -> {
-            Options optReport = optionsBuilder(ncCancel).reportNoResponders().build();
+            Options optReport = OptionsUtils.optionsBuilder(ncCancel).reportNoResponders().build();
             try (Connection ncReport = standardConnectionWait(optReport)) {
                 assertThrows(CancellationException.class, () -> ncCancel.request(random(), null).get());
                 ExecutionException ee = assertThrows(ExecutionException.class, () -> ncReport.request(random(), null).get());

@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 import static io.nats.client.utils.ThreadUtils.sleep;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 public abstract class ConnectionUtils {
@@ -38,32 +37,8 @@ public abstract class ConnectionUtils {
     // ----------------------------------------------------------------------------------------------------
     // connect or wait for a connection
     // ----------------------------------------------------------------------------------------------------
-    public static Options.Builder standardOptionsBuilder() {
-        return Options.builder().reportNoResponders().errorListener(new ListenerForTesting());
-    }
-
-    public static Options.Builder standardOptionsBuilder(String serverURL) {
-        return standardOptionsBuilder().server(serverURL);
-    }
-
-    public static Options standardOptions() {
-        return standardOptionsBuilder().build();
-    }
-
-    public static Options standardOptions(String serverURL) {
-        return standardOptionsBuilder(serverURL).build();
-    }
-
     public static Connection connectionWait(Connection conn, long millis) {
         return waitUntilStatus(conn, millis, Connection.Status.CONNECTED);
-    }
-
-    public static Connection standardConnectionWait() throws IOException, InterruptedException {
-        return standardConnectionWait( Nats.connect(standardOptions()) );
-    }
-
-    public static Connection standardConnectionWait(String serverURL) throws IOException, InterruptedException {
-        return connectionWait(Nats.connect(standardOptions(serverURL)), STANDARD_CONNECTION_WAIT_MS);
     }
 
     public static Connection standardConnectionWait(Options options) throws IOException, InterruptedException {
@@ -74,15 +49,11 @@ public abstract class ConnectionUtils {
         return connectionWait(conn, STANDARD_CONNECTION_WAIT_MS);
     }
 
-    public static Connection longConnectionWait(String serverURL) throws IOException, InterruptedException {
-        return connectionWait(Nats.connect(standardOptions(serverURL)), LONG_CONNECTION_WAIT_MS);
-    }
-
     public static Connection longConnectionWait(Options options) throws IOException, InterruptedException {
         return connectionWait(Nats.connect(options), LONG_CONNECTION_WAIT_MS);
     }
 
-    public static Connection longConnectionWait(Connection conn) throws IOException, InterruptedException {
+    public static Connection longConnectionWait(Connection conn) {
         return connectionWait(conn, LONG_CONNECTION_WAIT_MS);
     }
 
@@ -143,22 +114,9 @@ public abstract class ConnectionUtils {
             () -> expectingMessage(conn, Connection.Status.CONNECTED));
     }
 
-    public static void assertNotConnected(Connection conn) {
-        assertNotSame(Connection.Status.CONNECTED, conn.getStatus(),
-            () -> "Failed not expecting Connection Status " + Connection.Status.CONNECTED.name());
-    }
-
     public static void assertClosed(Connection conn) {
         assertSame(Connection.Status.CLOSED, conn.getStatus(),
             () -> expectingMessage(conn, Connection.Status.CLOSED));
-    }
-
-    public static void assertCanConnect() throws IOException, InterruptedException {
-        standardCloseConnection( standardConnectionWait() );
-    }
-
-    public static void assertCanConnect(String serverURL) throws IOException, InterruptedException {
-        standardCloseConnection( standardConnectionWait(serverURL) );
     }
 
     public static void assertCanConnect(Options options) throws IOException, InterruptedException {
