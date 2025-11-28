@@ -483,15 +483,11 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
     @Test
     public void testOverwrite() throws Exception {
-        jsServer.run(TestBase::atLeast2_10, nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            JetStream js = jsm.jetStream();
+        runInSharedCustom(VersionUtils::atLeast2_10, (nc, ctx) -> {
+            String bucket = random();
+            String objName = random();
 
-            String bucket = bucket();
-            String objName = variant();
-
-            ObjectStoreManagement osm = nc.objectStoreManagement();
-            ObjectStoreStatus oss = osm.create(ObjectStoreConfiguration.builder(bucket)
+            ObjectStoreStatus oss = ctx.osCreate(ObjectStoreConfiguration.builder(bucket)
                 .storageType(StorageType.Memory)
                 .build());
             String realStreamName = oss.getConfiguration().getBackingConfig().getName();
@@ -504,13 +500,13 @@ public class ObjectStoreTests extends JetStreamTestBase {
             try (InputStream in = Files.newInputStream(file.toPath())) {
                 os.put(objName, in);
             }
-            StreamInfo si = jsm.getStreamInfo(realStreamName, StreamInfoOptions.allSubjects());
+            StreamInfo si = ctx.jsm.getStreamInfo(realStreamName, StreamInfoOptions.allSubjects());
             long byteCount1 = si.getStreamState().getByteCount();
 
             try (InputStream in = Files.newInputStream(file.toPath())) {
                 os.put(objName, in);
             }
-            si = jsm.getStreamInfo(realStreamName, StreamInfoOptions.allSubjects());
+            si = ctx.jsm.getStreamInfo(realStreamName, StreamInfoOptions.allSubjects());
             long byteCount2 = si.getStreamState().getByteCount();
 
             assertEquals(byteCount1, byteCount2);

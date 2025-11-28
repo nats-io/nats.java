@@ -112,6 +112,9 @@ test {
     if (compilerIsJava8 || isNotWindows) {
         maxParallelForks = Runtime.runtime.availableProcessors()
     }
+    else {
+        maxParallelForks = 2;
+    }
     systemProperty 'junit.jupiter.execution.timeout.default', '3m'
 }
 
