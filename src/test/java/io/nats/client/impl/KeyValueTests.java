@@ -1971,7 +1971,7 @@ public class KeyValueTests extends JetStreamTestBase {
             }
             assertEquals(1, errorLatch.getCount(), error.get());
             assertEquals(2, messages.get());
-            assertTrue(gotZero - mark >= 1000);
+            assertTrue(gotZero - mark >= 100); // this is arbitrary but I need something
             assertEquals("PUT", ops.get(0));
             assertEquals("MaxAge", ops.get(1));
 

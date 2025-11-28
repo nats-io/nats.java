@@ -32,13 +32,11 @@ public class SharedServer {
     private static final int CONNECTION_RETRIES = 10;
     private static final long RETRY_DELAY = 100;
     private static final Thread SHARED_SHUTDOWN_HOOK_THREAD;
-    private static final Map<String, SharedServer> SHARED_BY_NAME;
     private static final Map<String, SharedServer> SHARED_BY_URL;
     private static final ReentrantLock STATIC_LOCK;
 
     static {
         STATIC_LOCK = new ReentrantLock();
-        SHARED_BY_NAME = new HashMap<>();
         SHARED_BY_URL = new HashMap<>();
         SHARED_SHUTDOWN_HOOK_THREAD = new Thread("Reusables-Shutdown-Hook") {
             @Override
@@ -66,7 +64,6 @@ public class SharedServer {
             SharedServer shared = SHARED_BY_URL.get(name);
             if (shared == null) {
                 shared = new SharedServer();
-                SHARED_BY_NAME.put(name, shared);
                 SHARED_BY_URL.put(shared.serverUrl, shared);
             }
             return shared;

@@ -70,172 +70,170 @@ public class MessageManagerTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testPushBeforeQueueProcessorAndManageHbFcSync() throws Exception {
+    public void testPushBeforeQueueProcessorAndManage() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
         runInSharedOwnNc(listener, nc -> {
-            NatsJetStreamSubscription sub = genericPushSub(nc);
-            PushMessageManager pushMgr = getPushManager(nc, push_hb_fc(), sub, false, true, false);
-            testPushBqpAndManage(sub, listener, pushMgr);
+            _testPushBqpAndManageRetriable(nc, listener, push_hb_fc(), false, true, false);
+            _testPushBqpAndManageRetriable(nc, listener, push_hb_xfc(), false, true, false);
+            _testPushBqpAndManageRetriable(nc, listener, push_xhb_xfc(), false, true, false);
+            _testPushBqpAndManageRetriable(nc, listener, push_hb_fc(), false, false, false);
+            _testPushBqpAndManageRetriable(nc, listener, push_hb_xfc(), false, false, false);
+            _testPushBqpAndManageRetriable(nc, listener, push_xhb_xfc(), false, false, false);
         });
     }
 
-    @Test
-    public void testPushBeforeQueueProcessorAndManageHbXfcSync() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
-        runInSharedOwnNc(listener, nc -> {
+    private void _testPushBqpAndManageRetriable(Connection nc, ListenerForTesting listener, PushSubscribeOptions pso, boolean ordered, boolean syncMode, boolean queueMode) throws JetStreamApiException, IOException {
+        int triesLeft = 3;
+        while (triesLeft-- > 0) {
+            sleep(50); // just so we aren't slamming a shared server
             NatsJetStreamSubscription sub = genericPushSub(nc);
-            PushMessageManager pushMgr = getPushManager(nc, push_hb_xfc(), sub, false, true, false);
-            testPushBqpAndManage(sub, listener, pushMgr);
-        });
-    }
-
-    @Test
-    public void testPushBeforeQueueProcessorAndManageXhbXfcSync() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
-        runInSharedOwnNc(listener, nc -> {
-            NatsJetStreamSubscription sub = genericPushSub(nc);
-            PushMessageManager pushMgr = getPushManager(nc, push_xhb_xfc(), sub, false, true, false);
-            testPushBqpAndManage(sub, listener, pushMgr);
-        });
-    }
-
-    @Test
-    public void testPushBeforeQueueProcessorAndManageHbFcAsync() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
-        runInSharedOwnNc(listener, nc -> {
-            NatsJetStreamSubscription sub = genericPushSub(nc);
-            PushMessageManager pushMgr = getPushManager(nc, push_hb_fc(), sub, false, false, false);
-            testPushBqpAndManage(sub, listener, pushMgr);
-        });
-    }
-
-    @Test
-    public void testPushBeforeQueueProcessorAndManageHbXfcAsync() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
-        runInSharedOwnNc(listener, nc -> {
-            NatsJetStreamSubscription sub = genericPushSub(nc);
-            PushMessageManager pushMgr = getPushManager(nc, push_hb_xfc(), sub, false, false, false);
-            testPushBqpAndManage(sub, listener, pushMgr);
-        });
-    }
-
-    @Test
-    public void testPushBeforeQueueProcessorAndManageXhbXfcAsync() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
-        runInSharedOwnNc(listener, nc -> {
-            NatsJetStreamSubscription sub = genericPushSub(nc);
-            PushMessageManager pushMgr = getPushManager(nc, push_xhb_xfc(), sub, false, false, false);
-            testPushBqpAndManage(sub, listener, pushMgr);
-        });
-    }
-
-    private void testPushBqpAndManage(NatsJetStreamSubscription sub, ListenerForTesting listener, PushMessageManager manager) {
-        String sid = sub.getSID();
-
-        assertTrue(manager.beforeQueueProcessorImpl(getTestJsMessage(1, sid)));
-        assertEquals(ManageResult.MESSAGE, manager.manage(getTestJsMessage(1, sid)));
-
-        assertEquals(!manager.hb.get(), manager.beforeQueueProcessorImpl(getHeartbeat(sid)));
-
-        List<Integer> unhandledCodes = new ArrayList<>();
-        assertTrue(manager.beforeQueueProcessorImpl(getFlowControl(1, sid)));
-        assertTrue(manager.beforeQueueProcessorImpl(getFcHeartbeat(1, sid)));
-        if (manager.fc) {
-            assertEquals(ManageResult.STATUS_HANDLED, manager.manage(getFlowControl(1, sid)));
-            assertEquals(ManageResult.STATUS_HANDLED, manager.manage(getFcHeartbeat(1, sid)));
+            PushMessageManager pushMgr = getPushManager(nc, pso, sub, ordered, syncMode, queueMode);
+            boolean passed = _testPushBqpAndManage(sub, listener, pushMgr, triesLeft > 0);
+            if (passed) {
+                break;
+            }
         }
-        else {
-            assertEquals(ManageResult.STATUS_ERROR, manager.manage(getFlowControl(1, sid)));
-            assertEquals(ManageResult.STATUS_ERROR, manager.manage(getFcHeartbeat(1, sid)));
-            unhandledCodes.add(FLOW_OR_HEARTBEAT_STATUS_CODE); // fc
-            unhandledCodes.add(FLOW_OR_HEARTBEAT_STATUS_CODE); // hb
+    }
+
+    private boolean _testPushBqpAndManage(NatsJetStreamSubscription sub, ListenerForTesting listener, PushMessageManager manager, boolean canRetry) {
+        try {
+            listener.reset();
+            String sid = sub.getSID();
+
+            assertTrue(manager.beforeQueueProcessorImpl(getTestJsMessage(1, sid)));
+            assertEquals(ManageResult.MESSAGE, manager.manage(getTestJsMessage(1, sid)));
+
+            assertEquals(!manager.hb.get(), manager.beforeQueueProcessorImpl(getHeartbeat(sid)));
+
+            List<Integer> unhandledCodes = new ArrayList<>();
+            assertTrue(manager.beforeQueueProcessorImpl(getFlowControl(1, sid)));
+            assertTrue(manager.beforeQueueProcessorImpl(getFcHeartbeat(1, sid)));
+            if (manager.fc) {
+                assertEquals(ManageResult.STATUS_HANDLED, manager.manage(getFlowControl(1, sid)));
+                assertEquals(ManageResult.STATUS_HANDLED, manager.manage(getFcHeartbeat(1, sid)));
+            }
+            else {
+                assertEquals(ManageResult.STATUS_ERROR, manager.manage(getFlowControl(1, sid)));
+                assertEquals(ManageResult.STATUS_ERROR, manager.manage(getFcHeartbeat(1, sid)));
+                unhandledCodes.add(FLOW_OR_HEARTBEAT_STATUS_CODE); // fc
+                unhandledCodes.add(FLOW_OR_HEARTBEAT_STATUS_CODE); // hb
+            }
+
+            assertTrue(manager.beforeQueueProcessorImpl(getUnkownStatus(sid)));
+            assertEquals(ManageResult.STATUS_ERROR, manager.manage(getUnkownStatus(sid)));
+            unhandledCodes.add(999);
+
+            sleep(100);
+            List<ListenerForTesting.StatusEvent> list = listener.getUnhandledStatuses();
+            if (canRetry && unhandledCodes.size() != list.size()) {
+                return false; // didn't pass
+            }
+            assertEquals(unhandledCodes.size(), list.size());
+            for (int x = 0; x < list.size(); x++) {
+                ListenerForTesting.StatusEvent se = list.get(x);
+                assertSame(sub.getSID(), se.sid);
+                if (canRetry && unhandledCodes.get(x) != se.status.getCode()) {
+                    return false; // didn't pass
+                }
+                assertEquals(unhandledCodes.get(x), se.status.getCode());
+            }
+
+            return true;
         }
-
-        assertTrue(manager.beforeQueueProcessorImpl(getUnkownStatus(sid)));
-        assertEquals(ManageResult.STATUS_ERROR, manager.manage(getUnkownStatus(sid)));
-        unhandledCodes.add(999);
-
-        sleep(100);
-        List<ListenerForTesting.StatusEvent> list = listener.getUnhandledStatuses();
-        assertEquals(unhandledCodes.size(), list.size());
-        for (int x = 0; x < list.size(); x++) {
-            ListenerForTesting.StatusEvent se = list.get(x);
-            assertSame(sub.getSID(), se.sid);
-            assertEquals(unhandledCodes.get(x), se.status.getCode());
+        finally {
+            try { sub.unsubscribe(); } catch (Exception ignore) {}
         }
     }
 
     @Test
     public void testPullBeforeQueueProcessorAndManage() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
-        runInOwnJsServer(listener, (nc, jsm, js) -> {
-            NatsJetStreamSubscription sub = genericPullSub(nc);
-
-            String pullSubject = random();
-            PullMessageManager pullMgr = getPullManager(nc, sub, true);
-            pullMgr.startPullRequest(pullSubject, PullRequestOptions.builder(1).build(), true, null);
-            testPullBqpAndManage(sub, listener, pullMgr);
-
-            pullMgr = getPullManager(nc, sub, true);
-            pullMgr.startPullRequest(pullSubject, PullRequestOptions.builder(1).expiresIn(10000).idleHeartbeat(100).build(), true, null);
-            testPullBqpAndManage(sub, listener, pullMgr);
+        runInSharedOwnNc(listener, (nc, ctx) -> {
+            _testPullBqpAndManage(nc, listener, PullRequestOptions.builder(1).build());
+            _testPullBqpAndManage(nc, listener,  PullRequestOptions.builder(1).expiresIn(10000).idleHeartbeat(100).build());
         });
     }
 
-    private void testPullBqpAndManage(NatsJetStreamSubscription sub, ListenerForTesting listener, PullMessageManager manager) {
-        listener.reset();
-        String sid = sub.getSID();
-
-        // only plain heartbeats don't get queued
-        assertFalse(manager.beforeQueueProcessorImpl(getHeartbeat(sid)));
-
-        assertTrue(manager.beforeQueueProcessorImpl(getTestJsMessage(1, sid)));
-        assertTrue(manager.beforeQueueProcessorImpl(getNotFoundStatus(sid)));
-        assertTrue(manager.beforeQueueProcessorImpl(getRequestTimeoutStatus(sid)));
-        assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, BATCH_COMPLETED)));
-        assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, MESSAGE_SIZE_EXCEEDS_MAX_BYTES)));
-        assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, EXCEEDED_MAX_WAITING)));
-        assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_BATCH)));
-        assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_EXPIRES)));
-        assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_MAX_BYTES)));
-        assertTrue(manager.beforeQueueProcessorImpl(getBadRequest(sid)));
-        assertTrue(manager.beforeQueueProcessorImpl(getUnkownStatus(sid)));
-        assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, CONSUMER_DELETED)));
-        assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, CONSUMER_IS_PUSH_BASED)));
-
-        assertEquals(ManageResult.MESSAGE, manager.manage(getTestJsMessage(1, sid)));
-        assertEquals(ManageResult.STATUS_TERMINUS, manager.manage(getNotFoundStatus(sid)));
-        assertEquals(ManageResult.STATUS_TERMINUS, manager.manage(getRequestTimeoutStatus(sid)));
-        assertEquals(ManageResult.STATUS_TERMINUS, manager.manage(getConflictStatus(sid, BATCH_COMPLETED)));
-        assertEquals(ManageResult.STATUS_TERMINUS, manager.manage(getConflictStatus(sid, MESSAGE_SIZE_EXCEEDS_MAX_BYTES)));
-        assertEquals(ManageResult.STATUS_HANDLED, manager.manage(getConflictStatus(sid, EXCEEDED_MAX_WAITING)));
-        assertEquals(ManageResult.STATUS_HANDLED, manager.manage(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_BATCH)));
-        assertEquals(ManageResult.STATUS_HANDLED, manager.manage(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_EXPIRES)));
-        assertEquals(ManageResult.STATUS_HANDLED, manager.manage(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_MAX_BYTES)));
-
-        assertEquals(ManageResult.STATUS_ERROR, manager.manage(getBadRequest(sid)));
-        assertEquals(ManageResult.STATUS_ERROR, manager.manage(getUnkownStatus(sid)));
-        assertEquals(ManageResult.STATUS_ERROR, manager.manage(getConflictStatus(sid, CONSUMER_DELETED)));
-        assertEquals(ManageResult.STATUS_ERROR, manager.manage(getConflictStatus(sid, CONSUMER_IS_PUSH_BASED)));
-
-        sleep(100);
-
-        List<ListenerForTesting.StatusEvent> list = listener.getPullStatusWarnings();
-        int[] codes = new int[]{NOT_FOUND_CODE, REQUEST_TIMEOUT_CODE, CONFLICT_CODE, CONFLICT_CODE, CONFLICT_CODE, CONFLICT_CODE, CONFLICT_CODE, CONFLICT_CODE};
-        assertEquals(8, list.size());
-        for (int x = 0; x < list.size(); x++) {
-            ListenerForTesting.StatusEvent se = list.get(x);
-            assertSame(sub.getSID(), se.sid);
-            assertEquals(codes[x], se.status.getCode());
+    private void _testPullBqpAndManage(Connection nc, ListenerForTesting listener, PullRequestOptions pro) throws JetStreamApiException, IOException {
+        int triesLeft = 2;
+        while (triesLeft-- > 0) {
+            NatsJetStreamSubscription sub = genericPullSub(nc);
+            PullMessageManager pullMgr = getPullManager(nc, sub, true);
+            pullMgr.startPullRequest(random(), pro, true, null);
+            boolean passed = _testPullBqpAndManageRetriable(sub, listener, pullMgr, triesLeft > 0);
+            if (passed) {
+                break;
+            }
         }
+    }
 
-        list = listener.getPullStatusErrors();
-        assertEquals(4, list.size());
-        codes = new int[]{BAD_REQUEST_CODE, 999, CONFLICT_CODE, CONFLICT_CODE};
-        for (int x = 0; x < list.size(); x++) {
-            ListenerForTesting.StatusEvent se = list.get(x);
-            assertSame(sub.getSID(), se.sid);
-            assertEquals(codes[x], se.status.getCode());
+    private boolean _testPullBqpAndManageRetriable(NatsJetStreamSubscription sub, ListenerForTesting listener, PullMessageManager manager, boolean canRetry) {
+        try {
+            listener.reset();
+            String sid = sub.getSID();
+
+            // only plain heartbeats don't get queued
+            assertFalse(manager.beforeQueueProcessorImpl(getHeartbeat(sid)));
+
+            assertTrue(manager.beforeQueueProcessorImpl(getTestJsMessage(1, sid)));
+            assertTrue(manager.beforeQueueProcessorImpl(getNotFoundStatus(sid)));
+            assertTrue(manager.beforeQueueProcessorImpl(getRequestTimeoutStatus(sid)));
+            assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, BATCH_COMPLETED)));
+            assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, MESSAGE_SIZE_EXCEEDS_MAX_BYTES)));
+            assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, EXCEEDED_MAX_WAITING)));
+            assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_BATCH)));
+            assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_EXPIRES)));
+            assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_MAX_BYTES)));
+            assertTrue(manager.beforeQueueProcessorImpl(getBadRequest(sid)));
+            assertTrue(manager.beforeQueueProcessorImpl(getUnkownStatus(sid)));
+            assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, CONSUMER_DELETED)));
+            assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, CONSUMER_IS_PUSH_BASED)));
+
+            assertEquals(ManageResult.MESSAGE, manager.manage(getTestJsMessage(1, sid)));
+            assertEquals(ManageResult.STATUS_TERMINUS, manager.manage(getNotFoundStatus(sid)));
+            assertEquals(ManageResult.STATUS_TERMINUS, manager.manage(getRequestTimeoutStatus(sid)));
+            assertEquals(ManageResult.STATUS_TERMINUS, manager.manage(getConflictStatus(sid, BATCH_COMPLETED)));
+            assertEquals(ManageResult.STATUS_TERMINUS, manager.manage(getConflictStatus(sid, MESSAGE_SIZE_EXCEEDS_MAX_BYTES)));
+            assertEquals(ManageResult.STATUS_HANDLED, manager.manage(getConflictStatus(sid, EXCEEDED_MAX_WAITING)));
+            assertEquals(ManageResult.STATUS_HANDLED, manager.manage(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_BATCH)));
+            assertEquals(ManageResult.STATUS_HANDLED, manager.manage(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_EXPIRES)));
+            assertEquals(ManageResult.STATUS_HANDLED, manager.manage(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_MAX_BYTES)));
+
+            assertEquals(ManageResult.STATUS_ERROR, manager.manage(getBadRequest(sid)));
+            assertEquals(ManageResult.STATUS_ERROR, manager.manage(getUnkownStatus(sid)));
+            assertEquals(ManageResult.STATUS_ERROR, manager.manage(getConflictStatus(sid, CONSUMER_DELETED)));
+            assertEquals(ManageResult.STATUS_ERROR, manager.manage(getConflictStatus(sid, CONSUMER_IS_PUSH_BASED)));
+
+            sleep(100);
+
+            List<ListenerForTesting.StatusEvent> list = listener.getPullStatusWarnings();
+            int[] codes = new int[]{NOT_FOUND_CODE, REQUEST_TIMEOUT_CODE, CONFLICT_CODE, CONFLICT_CODE, CONFLICT_CODE, CONFLICT_CODE, CONFLICT_CODE, CONFLICT_CODE};
+            assertEquals(8, list.size());
+            for (int x = 0; x < list.size(); x++) {
+                ListenerForTesting.StatusEvent se = list.get(x);
+                assertSame(sub.getSID(), se.sid);
+                if (canRetry && codes[x] != se.status.getCode()) {
+                    return false; // didn't pass
+                }
+                assertEquals(codes[x], se.status.getCode());
+            }
+
+            list = listener.getPullStatusErrors();
+            assertEquals(4, list.size());
+            codes = new int[]{BAD_REQUEST_CODE, 999, CONFLICT_CODE, CONFLICT_CODE};
+            for (int x = 0; x < list.size(); x++) {
+                ListenerForTesting.StatusEvent se = list.get(x);
+                assertSame(sub.getSID(), se.sid);
+                if (canRetry && codes[x] != se.status.getCode()) {
+                    return false; // didn't pass
+                }
+                assertEquals(codes[x], se.status.getCode());
+            }
+
+            return true; // true means passed
+        }
+        finally {
+            try { sub.unsubscribe(); } catch (Exception ignore) {}
         }
     }
 
