@@ -1020,7 +1020,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             ctx.stream = randomWide(6); // six letters so I can count
             String subject = randomWide(5); // five letters so I can count
             String durable = randomWide(10); // short keeps under max bytes
-            ctx.createStream(subject);
+            ctx.createOrReplaceStream(subject);
             ctx.jsm.addOrUpdateConsumer(ctx.stream, builder().durable(durable).ackPolicy(AckPolicy.None).filterSubjects(subject).build());
             PullSubscribeOptions so = PullSubscribeOptions.bind(ctx.stream, durable);
             JetStreamSubscription sub = ctx.js.subscribe(subject, so);

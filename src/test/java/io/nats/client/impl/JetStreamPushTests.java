@@ -123,11 +123,11 @@ public class JetStreamPushTests extends JetStreamTestBase {
     }
 
     private void _testPushDurable(boolean useDeliverSubject) throws Exception {
-        runInShared((nc, ctx) -> {
-            // create the stream.
-            String stream = random();
+        runInSharedCustom((nc, ctx) -> {
             String subjectDotGt = random() + ".>";
-            createMemoryStream(ctx.jsm, stream, subjectDotGt);
+            ctx.createOrReplaceStream(subjectDotGt);
+
+            String stream = ctx.stream;
 
             // For async, create a dispatcher without a default handler.
             Dispatcher dispatcher = nc.createDispatcher();
@@ -460,7 +460,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
         runInSharedCustom((nc, ctx) -> {
             String subject = ctx.subject();
             String subjectStar = subjectStar(subject);
-            ctx.createStream(subjectStar);
+            ctx.createOrReplaceStream(subjectStar);
 
             String subjectA = subjectDot(subject, "A");
             String subjectB = subjectDot(subject, "B");

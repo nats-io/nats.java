@@ -15,7 +15,6 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
-import io.nats.client.utils.OptionsUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -23,7 +22,6 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -43,13 +41,13 @@ public class ConnectionListenerTests extends TestBase {
     @Test
     public void testCloseEvent() throws Exception {
         ListenerByFuture listener = new ListenerByFuture();
-        CompletableFuture<Void> fEvent = listener.prepForEvent(Events.CLOSED);
+        ListenerByFuture.ListenerFuture fEvent = listener.prepForEvent(Events.CLOSED);
         Options.Builder builder = optionsBuilder().connectionListener(listener);
         runInSharedOwnNc(builder, nc -> {
             standardCloseConnection(nc);
             assertNull(nc.getConnectedUrl());
         });
-        listener.validate(fEvent, 500, Events.CLOSED);
+        fEvent.validate();
     }
 
     @Test
@@ -77,7 +75,7 @@ public class ConnectionListenerTests extends TestBase {
         Connection nc;
         ListenerForTesting listener = new ListenerForTesting();
         try (NatsTestServer ts = new NatsTestServer()) {
-            Options options = OptionsUtils.optionsBuilder(ts)
+            Options options = optionsBuilder(ts)
                 .reconnectWait(Duration.ofMillis(100))
                 .maxReconnects(-1)
                 .connectionListener(listener)
@@ -116,7 +114,7 @@ public class ConnectionListenerTests extends TestBase {
     public void testMultipleConnectionListeners() throws Exception {
         Set<String> capturedEvents = ConcurrentHashMap.newKeySet();
         ListenerByFuture listener = new ListenerByFuture();
-        CompletableFuture<Void> fClosed = listener.prepForEvent(Events.CLOSED);
+        ListenerByFuture.ListenerFuture fClosed = listener.prepForEvent(Events.CLOSED);
         AtomicReference<Statistics> stats = new AtomicReference<>();
         Options.Builder builder = optionsBuilder().connectionListener(listener);
         runInSharedOwnNc(builder, nc -> {
@@ -141,7 +139,7 @@ public class ConnectionListenerTests extends TestBase {
         });
 
         assertTrue(stats.get().getExceptions() > 0);
-        listener.validate(fClosed, 500, Events.CLOSED);
+        fClosed.validate();
 
         Set<String> expectedEvents = new HashSet<>(Arrays.asList(
                 "CL1-CLOSED",

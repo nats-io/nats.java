@@ -189,7 +189,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
         runInSharedCustom((nc, ctx) -> {
             String subject = ctx.subject();
-            ctx.createStream(subject, subjectStar(mockAckReply));
+            ctx.createOrReplaceStream(subject, subjectStar(mockAckReply));
 
             int pubCount = 5;
 
@@ -304,7 +304,6 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
     @Test
     public void testMemoryStorageServerBugPR2719() throws Exception {
-        String stream = random();
         String subBase = random();
         String sub = subjectGt(subBase);
         String key1 = subjectDot(subBase, "key1");
@@ -322,7 +321,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
                 .denyDelete(true)
                 .build();
 
-            ctx.jsm.addStream(sc);
+            ctx.createOrReplaceStream(sc);
 
             MemStorBugHandler fullHandler = new MemStorBugHandler();
             MemStorBugHandler onlyHandler = new MemStorBugHandler();

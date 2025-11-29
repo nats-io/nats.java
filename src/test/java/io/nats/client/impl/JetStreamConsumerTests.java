@@ -334,7 +334,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
     @Test
     public void testMultipleSubjectFilters() throws Exception {
         runInSharedCustom(VersionUtils::atLeast2_10, (nc, ctx) -> {
-            ctx.createStream(2);
+            ctx.createOrReplaceStream(2);
             jsPublish(ctx.js, ctx.subject(0), 10);
             jsPublish(ctx.js, ctx.subject(1), 5);
 

@@ -15,7 +15,6 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.support.NatsRequestCompletableFuture;
-import io.nats.client.utils.OptionsUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -124,7 +123,7 @@ public class RequestTests extends TestBase {
     @Test
     public void testSimpleResponseMessageHasConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-                Connection nc = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build())) {
+                Connection nc = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertConnected(nc);
             
             Dispatcher d = nc.createDispatcher(msg -> {
@@ -147,7 +146,7 @@ public class RequestTests extends TestBase {
     @Test
     public void testSafeRequest() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-                Connection nc = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build())) {
+                Connection nc = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertConnected(nc);
             
             Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), null));
@@ -165,7 +164,7 @@ public class RequestTests extends TestBase {
     @Test
     public void testMultipleRequest() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-                Connection nc = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build())) {
+                Connection nc = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertConnected(nc);
             
             Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), new byte[7]));
@@ -264,7 +263,7 @@ public class RequestTests extends TestBase {
     @Test
     public void testRequestWithCustomInboxPrefix() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-                Connection nc = Nats.connect(OptionsUtils.optionsBuilder(ts).inboxPrefix("myinbox").maxReconnects(0).build())) {
+                Connection nc = Nats.connect(optionsBuilder(ts).inboxPrefix("myinbox").maxReconnects(0).build())) {
             assertConnected(nc);
             
             Dispatcher d = nc.createDispatcher(msg -> {
@@ -286,7 +285,7 @@ public class RequestTests extends TestBase {
     @Test
     public void testRequireCleanupOnTimeoutNoNoResponders() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            Options options = OptionsUtils.optionsBuilder(ts)
+            Options options = optionsBuilder(ts)
                     .requestCleanupInterval(Duration.ofHours(1))
                     .noNoResponders().build();
 
@@ -311,7 +310,7 @@ public class RequestTests extends TestBase {
 
             long cleanupInterval = 100;
 
-            Options options = OptionsUtils.optionsBuilder(ts)
+            Options options = optionsBuilder(ts)
                     .requestCleanupInterval(Duration.ofMillis(cleanupInterval))
                     .noNoResponders().build();
 
@@ -338,7 +337,7 @@ public class RequestTests extends TestBase {
 
         try (NatsTestServer ts = new NatsTestServer())
         {
-            Options options = OptionsUtils.optionsBuilder(ts).requestCleanupInterval(Duration.ofHours(1)).build();
+            Options options = optionsBuilder(ts).requestCleanupInterval(Duration.ofHours(1)).build();
             Connection nc = Nats.connect(options);
 
             try {
@@ -388,7 +387,7 @@ public class RequestTests extends TestBase {
     public void testSimpleRequestWithTimeoutSlowProducer() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
             long cleanupInterval = 10;
-            Options options = OptionsUtils.optionsBuilder(ts).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
+            Options options = optionsBuilder(ts).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
             NatsConnection nc = (NatsConnection) Nats.connect(options);
 
             try {
@@ -420,7 +419,7 @@ public class RequestTests extends TestBase {
     @Test
     public void testRequireCleanupOnCancelFromNoResponders() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            Options options = OptionsUtils.optionsBuilder(ts)
+            Options options = optionsBuilder(ts)
                     .requestCleanupInterval(Duration.ofHours(1)).build();
 
             Connection nc = Nats.connect(options);
@@ -440,7 +439,7 @@ public class RequestTests extends TestBase {
     @Test
     public void testRequireCleanupWithTimeoutNoResponders() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            Options options = OptionsUtils.optionsBuilder(ts)
+            Options options = optionsBuilder(ts)
                     .requestCleanupInterval(Duration.ofHours(1)).build();
 
             Connection nc = Nats.connect(options);
@@ -459,7 +458,7 @@ public class RequestTests extends TestBase {
     @Test
     public void testRequireCleanupWithTimeoutNoNoResponders() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            Options options = OptionsUtils.optionsBuilder(ts)
+            Options options = optionsBuilder(ts)
                     .requestCleanupInterval(Duration.ofHours(1))
                     .noNoResponders().build();
 
@@ -481,7 +480,7 @@ public class RequestTests extends TestBase {
     @Test
     public void testRequireCleanupOnCancel() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            Options options = OptionsUtils.optionsBuilder(ts).requestCleanupInterval(Duration.ofHours(1)).build();
+            Options options = optionsBuilder(ts).requestCleanupInterval(Duration.ofHours(1)).build();
             Connection nc = Nats.connect(options);
             try {
                 assertConnected(nc);
@@ -503,7 +502,7 @@ public class RequestTests extends TestBase {
     public void testCleanupTimerWorks() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
             long cleanupInterval = 50;
-            Options options = OptionsUtils.optionsBuilder(ts).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
+            Options options = optionsBuilder(ts).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
             Connection nc = Nats.connect(options);
             try {
                 assertConnected(nc);
@@ -543,7 +542,7 @@ public class RequestTests extends TestBase {
         try (NatsTestServer ts = new NatsTestServer()) {
             long cleanupInterval = 50;
             int msgCount = 100;
-            Options options = OptionsUtils.optionsBuilder(ts).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
+            Options options = optionsBuilder(ts).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
             Connection nc = Nats.connect(options);
             try {
                 assertConnected(nc);
@@ -631,7 +630,7 @@ public class RequestTests extends TestBase {
         try (NatsTestServer ts = new NatsTestServer()) {
             int initialSize = 128;
             int messageSize = 1024;
-            Options options = OptionsUtils.optionsBuilder(ts).bufferSize(initialSize).connectionTimeout(Duration.ofSeconds(10)).build();
+            Options options = optionsBuilder(ts).bufferSize(initialSize).connectionTimeout(Duration.ofSeconds(10)).build();
             try (Connection nc = standardConnectionWait(options)) {
                 Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), msg.getData()));
                 d.subscribe("subject");

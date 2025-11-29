@@ -18,7 +18,6 @@ import io.nats.client.*;
 import io.nats.client.api.ServerInfo;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
-import io.nats.client.api.StreamInfo;
 import io.nats.client.impl.*;
 import io.nats.client.support.NatsJetStreamClientError;
 import org.junit.jupiter.api.function.Executable;
@@ -142,7 +141,7 @@ public class TestBase {
         }
         try (NatsTestServer ts = new NatsTestServer(nsrb)) {
             Options options = (optionsBuilder == null
-                ? OptionsUtils.optionsBuilder(ts)
+                ? optionsBuilder(ts)
                 : optionsBuilder.server(ts.getServerUri()))
                 .build();
             try (Connection nc = standardConnectionWait(options)) {
@@ -176,7 +175,7 @@ public class TestBase {
     }
 
     public static void runInOwnJsServer(ErrorListener el, JetStreamTest jetStreamTest) throws Exception {
-        _runInOwnServer(OptionsUtils.optionsBuilder(el), null, null, null, jetStreamTest);
+        _runInOwnServer(optionsBuilder(el), null, null, null, jetStreamTest);
     }
 
     public static void runInOwnJsServer(String configFilePath, JetStreamTest jetStreamTest) throws Exception {
@@ -261,7 +260,7 @@ public class TestBase {
     }
 
     public static void runInSharedOwnNc(ErrorListener el, OneConnectionTest test) throws Exception {
-        _runInShared(OptionsUtils.optionsBuilder(el), null, test, -1, null);
+        _runInShared(optionsBuilder(el), null, test, -1, null);
     }
 
     public static void runInSharedOwnNc(Options.Builder builder, OneConnectionTest test) throws Exception {
@@ -280,11 +279,11 @@ public class TestBase {
     }
 
     public static void runInSharedOwnNc(ErrorListener el, JetStreamTestingContextTest ctxTest) throws Exception {
-        _runInShared(OptionsUtils.optionsBuilder(el), null, null, 1, ctxTest);
+        _runInShared(optionsBuilder(el), null, null, 1, ctxTest);
     }
 
     public static void runInSharedOwnNc(ErrorListener el, VersionCheck vc, JetStreamTestingContextTest ctxTest) throws Exception {
-        _runInShared(OptionsUtils.optionsBuilder(el), vc, null, 1, ctxTest);
+        _runInShared(optionsBuilder(el), vc, null, 1, ctxTest);
     }
 
     public static void runInSharedOwnNc(Options.Builder builder, JetStreamTestingContextTest ctxTest) throws Exception {
@@ -608,7 +607,7 @@ public class TestBase {
     // ----------------------------------------------------------------------------------------------------
     // JetStream JetStream JetStream JetStream JetStream JetStream JetStream JetStream JetStream JetStream
     // ----------------------------------------------------------------------------------------------------
-    public static StreamInfo createMemoryStream(JetStreamManagement jsm, String streamName, String... subjects) throws IOException, JetStreamApiException {
+    public static void createMemoryStream(JetStreamManagement jsm, String streamName, String... subjects) throws IOException, JetStreamApiException {
         if (streamName == null) {
             streamName = random();
         }
@@ -622,6 +621,6 @@ public class TestBase {
             .storageType(StorageType.Memory)
             .subjects(subjects).build();
 
-        return jsm.addStream(sc);
+        jsm.addStream(sc);
     }
 }

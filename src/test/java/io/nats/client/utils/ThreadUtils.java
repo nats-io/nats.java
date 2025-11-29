@@ -13,15 +13,8 @@
 
 package io.nats.client.utils;
 
-import java.time.Duration;
-import java.util.concurrent.locks.LockSupport;
-
 public abstract class ThreadUtils {
     public static void sleep(long ms) {
         try { Thread.sleep(ms); } catch (InterruptedException ignored) { /* ignored */ }
-    }
-
-    public static void park(Duration d) {
-        try { LockSupport.parkNanos(d.toNanos()); } catch (Exception ignored) { /* ignored */ }
     }
 }

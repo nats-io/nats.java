@@ -70,7 +70,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 .allowMessageCounter(false)
                 .persistMode(null)
                 .build();
-            validateTestStreamConfiguration(ctx.jsm.addStream(sc).getConfiguration(), true, ctx.stream);
+            validateTestStreamConfiguration(ctx.createOrReplaceStream(sc).getConfiguration(), true, ctx.stream);
         });
     }
 

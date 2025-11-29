@@ -110,7 +110,7 @@ test {
         maxRetries = 4
     }
     if (compilerIsJava8 || isNotWindows) {
-        maxParallelForks = Runtime.runtime.availableProcessors()
+        maxParallelForks = Math.min(6, Runtime.runtime.availableProcessors())
     }
     else {
         maxParallelForks = 2;

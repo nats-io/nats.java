@@ -15,7 +15,6 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.NatsKeyValueUtil;
-import io.nats.client.utils.OptionsUtils;
 import io.nats.client.utils.VersionUtils;
 import org.junit.jupiter.api.Test;
 
@@ -36,6 +35,7 @@ import static io.nats.client.api.KeyValuePurgeOptions.DEFAULT_THRESHOLD_MILLIS;
 import static io.nats.client.api.KeyValueWatchOption.*;
 import static io.nats.client.support.NatsConstants.DOT;
 import static io.nats.client.support.NatsJetStreamConstants.SERVER_DEFAULT_DUPLICATE_WINDOW_MS;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -1090,8 +1090,8 @@ public class KeyValueTests extends JetStreamTestBase {
     @Test
     public void testWithAccount() throws Exception {
         try (NatsTestServer ts = configFileServer("kv_account.conf")) {
-            Options acctA = OptionsUtils.optionsBuilder(ts).userInfo("a", "a").build();
-            Options acctI = OptionsUtils.optionsBuilder(ts).userInfo("i", "i").inboxPrefix("ForI").build();
+            Options acctA = optionsBuilder(ts).userInfo("a", "a").build();
+            Options acctI = optionsBuilder(ts).userInfo("i", "i").inboxPrefix("ForI").build();
 
             try (Connection connUserA = Nats.connect(acctA);
                  Connection connUserI = Nats.connect(acctI))

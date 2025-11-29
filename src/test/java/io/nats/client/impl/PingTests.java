@@ -16,7 +16,6 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
-import io.nats.client.utils.OptionsUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -152,7 +151,7 @@ public class PingTests extends TestBase {
     public void testFlushTimeoutDisconnected() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
         try (NatsTestServer ts = new NatsTestServer()) {
-            Options options = OptionsUtils.optionsBuilder(ts).connectionListener(listener).build();
+            Options options = optionsBuilder(ts).connectionListener(listener).build();
             NatsConnection nc = (NatsConnection) Nats.connect(options);
             try {
                 assertConnected(nc);
@@ -174,7 +173,7 @@ public class PingTests extends TestBase {
         ListenerForTesting listener = new ListenerForTesting();
         try (NatsTestServer ts = new NatsTestServer()) {
             try (NatsTestServer ts2 = new NatsTestServer()) {
-                Options options = OptionsUtils.optionsBuilder(ts.getServerUri(), ts2.getServerUri())
+                Options options = optionsBuilder(ts.getServerUri(), ts2.getServerUri())
                     .connectionListener(listener)
                     .pingInterval(Duration.ofMillis(5))
                     .maxPingsOut(10000) // just don't want this to be what fails the test

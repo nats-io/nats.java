@@ -30,8 +30,6 @@ public abstract class OptionsUtils {
 
     private static ExecutorService EX;
     private static ScheduledThreadPoolExecutor SC;
-    private static ExecutorService CB;
-    private static ExecutorService CN;
 
     public static ErrorListener NOOP_EL = new ErrorListener() {};
 
@@ -88,35 +86,23 @@ public abstract class OptionsUtils {
 
     public static Options.Builder optionsBuilder() {
         if (EX == null) {
-            EX = new ThreadPoolExecutor(4, Integer.MAX_VALUE, 30, TimeUnit.SECONDS,
+            EX = new ThreadPoolExecutor(8, Integer.MAX_VALUE, 30, TimeUnit.SECONDS,
                 new SynchronousQueue<>(),
                 new TestThreadFactory("ex"));
         }
 
         if (SC == null) {
-            SC = new ScheduledThreadPoolExecutor(3, new TestThreadFactory("sc"));
+            SC = new ScheduledThreadPoolExecutor(4, new TestThreadFactory("sc"));
             SC.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
             SC.setRemoveOnCancelPolicy(true);
-        }
-
-        if (CB == null) {
-            CB = new ThreadPoolExecutor(2, Integer.MAX_VALUE, 30, TimeUnit.SECONDS,
-                new SynchronousQueue<>(),
-                new TestThreadFactory("cb"));
-        }
-
-        if (CN == null) {
-            CN = new ThreadPoolExecutor(4, Integer.MAX_VALUE, 30, TimeUnit.SECONDS,
-                new SynchronousQueue<>(),
-                new TestThreadFactory("cn"));
         }
 
         return Options.builder()
             .connectionTimeout(Duration.ofSeconds(4))
             .executor(EX)
             .scheduledExecutor(SC)
-            .callbackExecutor(CB)
-            .connectExecutor(CN)
+            .callbackExecutor(Executors.newSingleThreadExecutor(new TestThreadFactory("cb")))
+            .connectExecutor(Executors.newSingleThreadExecutor(new TestThreadFactory("cn")))
             .errorListener(NOOP_EL);
     }
 

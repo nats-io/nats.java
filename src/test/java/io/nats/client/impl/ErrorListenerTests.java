@@ -16,7 +16,6 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.support.Status;
-import io.nats.client.utils.OptionsUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 
@@ -29,6 +28,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.nats.client.utils.ConnectionUtils.*;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -44,7 +44,7 @@ public class ErrorListenerTests {
         try (NatsTestServer ts = new NatsTestServer();
              NatsTestServer ts2 = new NatsTestServer(customArgs); //ts2 requires auth
              NatsTestServer ts3 = new NatsTestServer()) {
-            Options options = OptionsUtils.optionsBuilder(ts.getServerUri(), ts2.getServerUri(), ts3.getServerUri())
+            Options options = optionsBuilder(ts.getServerUri(), ts2.getServerUri(), ts3.getServerUri())
                 .noRandomize()
                 .connectionListener(listener)
                 .errorListener(listener)
@@ -85,7 +85,7 @@ public class ErrorListenerTests {
         try (NatsTestServer ts = new NatsTestServer();
              NatsTestServer ts2 = new NatsTestServer(customArgs); //ts2 requires auth
              NatsTestServer ts3 = new NatsTestServer()) {
-            Options options = OptionsUtils.optionsBuilder(ts.getServerUri(), ts2.getServerUri(), ts3.getServerUri())
+            Options options = optionsBuilder(ts.getServerUri(), ts2.getServerUri(), ts3.getServerUri())
                 .noRandomize()
                 .connectionListener(listener)
                 .errorListener(listener)
@@ -131,7 +131,7 @@ public class ErrorListenerTests {
             sleep(1000); // give the server time to get ready, otherwise sometimes this test flaps
             // See config file for user/pass
             // no or wrong u/p in the options is an error
-            Options options = OptionsUtils.optionsBuilder(ts)
+            Options options = optionsBuilder(ts)
                 .maxReconnects(0)
                 .errorListener(listener)
                 .build();
@@ -153,7 +153,7 @@ public class ErrorListenerTests {
     public void testExceptionOnBadDispatcher() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
         try (NatsTestServer ts = new NatsTestServer()) {
-            Options options = OptionsUtils.optionsBuilder(ts)
+            Options options = optionsBuilder(ts)
                 .maxReconnects(0)
                 .errorListener(listener)
                 .build();
@@ -188,7 +188,7 @@ public class ErrorListenerTests {
         try (NatsTestServer ts = new NatsTestServer(customArgs)) {
             // See config file for user/pass
             // don't put u/p in options
-            Options options = OptionsUtils.optionsBuilder(ts)
+            Options options = optionsBuilder(ts)
                 .maxReconnects(0)
                 .errorListener(listener)
                 .build();
@@ -200,7 +200,7 @@ public class ErrorListenerTests {
     public void testExceptionInSlowConsumerHandler() throws Exception {
         BadHandler listener = new BadHandler();
         try (NatsTestServer ts = new NatsTestServer();
-             Connection nc = Nats.connect(OptionsUtils.optionsBuilder(ts).errorListener(listener).build())) {
+             Connection nc = Nats.connect(optionsBuilder(ts).errorListener(listener).build())) {
 
             Subscription sub = nc.subscribe("subject");
             sub.setPendingLimits(1, -1);
@@ -224,7 +224,7 @@ public class ErrorListenerTests {
     public void testExceptionInExceptionHandler() throws Exception {
         BadHandler listener = new BadHandler();
         try (NatsTestServer ts = new NatsTestServer()) {
-            Options options = OptionsUtils.optionsBuilder(ts).maxReconnects(0).errorListener(listener).build();
+            Options options = optionsBuilder(ts).maxReconnects(0).errorListener(listener).build();
             Connection nc = Nats.connect(options);
             try {
                 Dispatcher d = nc.createDispatcher(msg -> {
@@ -254,7 +254,7 @@ public class ErrorListenerTests {
         int maxMessages = 10;
         ListenerForTesting listener = new ListenerForTesting();
         try (NatsTestServer ts = new NatsTestServer()) {
-            Options options = OptionsUtils.optionsBuilder(ts)
+            Options options = optionsBuilder(ts)
                 .maxMessagesInOutgoingQueue(maxMessages)
                 .discardMessagesWhenOutgoingQueueFull()
                 .errorListener(listener)
@@ -289,7 +289,7 @@ public class ErrorListenerTests {
         int maxMessages = 10;
         ListenerForTesting listener = new ListenerForTesting();
         try (NatsTestServer ts = new NatsTestServer()) {
-            Options options = OptionsUtils.optionsBuilder(ts)
+            Options options = optionsBuilder(ts)
                 .maxMessagesInOutgoingQueue(maxMessages)
                 .discardMessagesWhenOutgoingQueueFull()
                 .errorListener(listener)

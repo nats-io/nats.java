@@ -14,7 +14,6 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
-import io.nats.client.utils.OptionsUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -26,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -51,7 +51,7 @@ public class ValidateIssue1426Test {
                 }
             };
 
-            Options options = OptionsUtils.optionsBuilder(port)
+            Options options = optionsBuilder(port)
                 .token(new char[]{'1', '2', '3', '4'})
                 .maxMessagesInOutgoingQueue(NUMBER_OF_SUBS )
                 .reconnectBufferSize(NUMBER_OF_SUBS * 100)

@@ -15,7 +15,6 @@ package io.nats.client.impl;
 
 import io.nats.client.Options;
 import io.nats.client.support.NatsUri;
-import io.nats.client.utils.OptionsUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -43,7 +42,7 @@ public class ServerPoolTests extends TestBase {
         NatsUri lastConnectedServer = new NatsUri(BOOT_ONE);
 
         // testing that the expected show up in the pool
-        Options o = OptionsUtils.optionsBuilder(bootstrap).build();
+        Options o = optionsBuilder(bootstrap).build();
         NatsServerPool nsp = newNatsServerPool(o, null, discoveredServers);
         validateNslp(nsp, null, false, combined);
 
@@ -52,7 +51,7 @@ public class ServerPoolTests extends TestBase {
         validateNslp(nsp, lastConnectedServer, false, combined);
 
         // testing that noRandomize maintains order
-        o = OptionsUtils.optionsBuilder(bootstrap).noRandomize().build();
+        o = optionsBuilder(bootstrap).noRandomize().build();
         nsp = newNatsServerPool(o, null, discoveredServers);
         validateNslp(nsp, null, true, combined);
 
@@ -61,19 +60,19 @@ public class ServerPoolTests extends TestBase {
         validateNslp(nsp, lastConnectedServer, true, combined);
 
         // testing that ignoreDiscoveredServers ignores discovered servers
-        o = OptionsUtils.optionsBuilder(bootstrap).ignoreDiscoveredServers().build();
+        o = optionsBuilder(bootstrap).ignoreDiscoveredServers().build();
         nsp = newNatsServerPool(o, null, discoveredServers);
         validateNslp(nsp, null, false, BOOT_ONE, BOOT_TWO);
 
         // testing that duplicates don't get added
         String[] secureAndNotSecure = new String[]{BOOT_ONE, BOOT_ONE_SECURE};
         String[] secureBootstrap = new String[]{BOOT_ONE_SECURE};
-        o = OptionsUtils.optionsBuilder(secureAndNotSecure).build();
+        o = optionsBuilder(secureAndNotSecure).build();
         nsp = newNatsServerPool(o, null, null);
         validateNslp(nsp, null, false, secureBootstrap);
 
         secureAndNotSecure = new String[]{BOOT_ONE_SECURE, BOOT_ONE};
-        o = OptionsUtils.optionsBuilder(secureAndNotSecure).build();
+        o = optionsBuilder(secureAndNotSecure).build();
         nsp = newNatsServerPool(o, null, null);
         validateNslp(nsp, null, false, secureBootstrap);
     }
@@ -83,7 +82,7 @@ public class ServerPoolTests extends TestBase {
         NatsUri failed = new NatsUri(BOOT_ONE);
 
         // testing that servers that fail max times and is removed
-        Options o = OptionsUtils.optionsBuilder(BOOT_ONE).maxReconnects(3).build();
+        Options o = optionsBuilder(BOOT_ONE).maxReconnects(3).build();
         NatsServerPool nsp = newNatsServerPool(o, null, null);
         for (int x = 0; x < 4; x++) {
             nsp.nextServer();
@@ -97,7 +96,7 @@ public class ServerPoolTests extends TestBase {
         validateNslp(nsp, null, false, BOOT_ONE);
 
         // testing that servers that fail max times and is removed
-        o = OptionsUtils.optionsBuilder(BOOT_ONE).maxReconnects(0).build();
+        o = optionsBuilder(BOOT_ONE).maxReconnects(0).build();
         nsp = newNatsServerPool(o, null, null);
         nsp.nextServer();
         validateNslp(nsp, null, false, BOOT_ONE);
@@ -112,7 +111,7 @@ public class ServerPoolTests extends TestBase {
     @Test
     public void testPruning() throws URISyntaxException {
         // making sure that pruning happens. get baseline
-        Options o = OptionsUtils.optionsBuilder(bootstrap).maxReconnects(0).build();
+        Options o = optionsBuilder(bootstrap).maxReconnects(0).build();
         NatsServerPool nsp = newNatsServerPool(o, null, discoveredServers);
         validateNslp(nsp, null, false, combined);
 

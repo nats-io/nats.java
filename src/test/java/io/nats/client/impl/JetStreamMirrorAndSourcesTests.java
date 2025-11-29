@@ -54,9 +54,10 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
 
             // Now create our mirror stream.
             sc = ctx.scBuilder()
-                    .name(M1)
-                    .mirror(mirror)
-                    .build();
+                .name(M1)
+                .subjects() // scBuilder added subjects
+                .mirror(mirror)
+                .build();
             ctx.addStream(sc);
             assertMirror(ctx.jsm, M1, S1, null, null);
 
@@ -73,10 +74,11 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
 
             // Create second mirror
             sc = ctx.scBuilder()
-                    .name(S2)
-                    .mirror(mirror)
-                    .build();
-            ctx.addStream(sc);
+                .name(S2)
+                .subjects() // scBuilder added subjects
+                .mirror(mirror)
+                .build();
+            ctx.createOrReplaceStream(sc);
 
             // Check the state
             assertMirror(ctx.jsm, S2, S1, 50L, 101L);
@@ -85,10 +87,11 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
 
             // third mirror checks start seq
             sc = ctx.scBuilder()
-                    .name(S3)
-                    .mirror(Mirror.builder().sourceName(S1).startSeq(150).build())
-                    .build();
-            ctx.addStream(sc);
+                .name(S3)
+                .subjects() // scBuilder added subjects
+                .mirror(Mirror.builder().sourceName(S1).startSeq(150).build())
+                .build();
+            ctx.createOrReplaceStream(sc);
 
             // Check the state
             assertMirror(ctx.jsm, S3, S1, 101L, 150L);
@@ -96,10 +99,11 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
             // third mirror checks start seq
             ZonedDateTime zdt = DateTimeUtils.fromNow(Duration.ofHours(-2));
             sc = ctx.scBuilder()
-                    .name(S4)
-                    .mirror(Mirror.builder().sourceName(S1).startTime(zdt).build())
-                    .build();
-            ctx.addStream(sc);
+                .name(S4)
+                .subjects() // scBuilder added subjects
+                .mirror(Mirror.builder().sourceName(S1).startTime(zdt).build())
+                .build();
+            ctx.createOrReplaceStream(sc);
 
             // Check the state
             assertMirror(ctx.jsm, S4, S1, 150L, 101L);
@@ -118,7 +122,7 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
             StreamConfiguration sc = ctx.scBuilder(U1, U2)
                     .name(S1)
                     .build();
-            StreamInfo si = ctx.addStream(sc);
+            StreamInfo si = ctx.createOrReplaceStream(sc);
             sc = si.getConfiguration();
             assertNotNull(sc);
             assertEquals(S1, sc.getName());
@@ -127,9 +131,10 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
 
             // Now create our mirror stream.
             sc = ctx.scBuilder()
-                    .name(M1)
-                    .mirror(mirror)
-                    .build();
+                .name(M1)
+                .subjects() // scBuilder added subjects
+                .mirror(mirror)
+                .build();
             ctx.addStream(sc);
             assertMirror(ctx.jsm, M1, S1, null, null);
 
@@ -181,91 +186,101 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
                     .subjects(random())
                     .mirror(mirror)
                     .build();
-            assertThrows(JetStreamApiException.class, () -> ctx.addStream(scEx));
+            assertThrows(JetStreamApiException.class, () -> ctx.createOrReplaceStream(scEx));
         });
     }
 
     @Test
     public void testSourceBasics() throws Exception {
-        String N1 = random();
-        String N2 = random();
-        String N3 = random();
-        String N4 = random();
-        String N5 = random();
-        String N6 = random();
-        String U1 = random();
+        String S1 = random();
+        String S2 = random();
+        String S3 = random();
+        String S4 = random();
+        String S5 = random();
+        String S99 = random();
         String R1 = random();
         String R2 = random();
 
         runInSharedCustom((nc, ctx) -> {
             // Create streams
-            StreamInfo si = ctx.addStream(ctx.scBuilder().name(N1).build());
+            StreamInfo si = ctx.addStream(StreamConfiguration.builder()
+                    .name(S1).storageType(StorageType.Memory).build());
             StreamConfiguration sc = si.getConfiguration();
             assertNotNull(sc);
-            assertEquals(N1, sc.getName());
+            assertEquals(S1, sc.getName());
 
-            si = ctx.addStream(ctx.scBuilder().name(N2).build());
+            si = ctx.addStream(StreamConfiguration.builder()
+                    .name(S2).storageType(StorageType.Memory).build());
             sc = si.getConfiguration();
             assertNotNull(sc);
-            assertEquals(N2, sc.getName());
+            assertEquals(S2, sc.getName());
 
-            si = ctx.addStream(ctx.scBuilder().name(N3).build());
+            si = ctx.addStream(StreamConfiguration.builder()
+                    .name(S3).storageType(StorageType.Memory).build());
             sc = si.getConfiguration();
             assertNotNull(sc);
-            assertEquals(N3, sc.getName());
+            assertEquals(S3, sc.getName());
 
             // Populate each one.
-            jsPublish(ctx.js, N1, 10);
-            jsPublish(ctx.js, N2, 15);
-            jsPublish(ctx.js, N3, 25);
+            jsPublish(ctx.js, S1, 10);
+            jsPublish(ctx.js, S2, 15);
+            jsPublish(ctx.js, S3, 25);
 
-            sc = ctx.scBuilder()
-                .name(R1)
-                .sources(Source.builder().sourceName(N1).build(),
-                    Source.builder().sourceName(N2).build(),
-                    Source.builder().sourceName(N3).build())
+            sc = StreamConfiguration.builder()
+                    .name(R1)
+                    .storageType(StorageType.Memory)
+                    .sources(Source.builder().sourceName(S1).build(),
+                            Source.builder().sourceName(S2).build(),
+                            Source.builder().sourceName(S3).build())
                     .build();
+
             ctx.addStream(sc);
 
             assertSource(ctx.jsm, R1, 50L, null);
 
-            sc = ctx.scBuilder()
-                .name(R1)
-                .sources(Source.builder().sourceName(N1).build(),
-                    Source.builder().sourceName(N2).build(),
-                    Source.builder().sourceName(N4).build())
-                .build();
+            sc = StreamConfiguration.builder()
+                    .name(R1)
+                    .storageType(StorageType.Memory)
+                    .sources(Source.builder().sourceName(S1).build(),
+                            Source.builder().sourceName(S2).build(),
+                            Source.builder().sourceName(S4).build())
+                    .build();
 
             ctx.jsm.updateStream(sc);
 
-            sc = ctx.scBuilder(N4, U1)
-                .name(N5)
-                .build();
+            sc = StreamConfiguration.builder()
+                    .name(S99)
+                    .storageType(StorageType.Memory)
+                    .subjects(S4, S5)
+                    .build();
             ctx.addStream(sc);
 
-            jsPublish(ctx.js, N4, 20);
-            jsPublish(ctx.js, U1, 20);
-            jsPublish(ctx.js, N4, 10);
+            jsPublish(ctx.js, S4, 20);
+            jsPublish(ctx.js, S5, 20);
+            jsPublish(ctx.js, S4, 10);
 
-            sc = ctx.scBuilder()
-                .name(R2)
-                .sources(Source.builder().sourceName(N5).startSeq(26).build())
-                .build();
+            sc = StreamConfiguration.builder()
+                    .name(R2)
+                    .storageType(StorageType.Memory)
+                    .sources(Source.builder().sourceName(S99).startSeq(26).build())
+                    .build();
             ctx.addStream(sc);
             assertSource(ctx.jsm, R2, 25L, null);
 
             MessageInfo info = ctx.jsm.getMessage(R2, 1);
-            assertStreamSource(info, N5, 26);
+            assertStreamSource(info, S99, 26);
 
-            sc = ctx.scBuilder()
-                .name(N6)
-                .sources(Source.builder().sourceName(N5).startSeq(11).filterSubject(N4).build())
-                .build();
+            String source3 = random();
+            sc = StreamConfiguration.builder()
+                    .name(source3)
+                    .storageType(StorageType.Memory)
+                    .sources(Source.builder().sourceName(S99).startSeq(11).filterSubject(S4).build())
+                    .build();
             ctx.addStream(sc);
-            assertSource(ctx.jsm, N6, 20L, null);
+            assertSource(ctx.jsm, source3, 20L, null);
 
-            info = ctx.jsm.getMessage(N6, 1);
-            assertStreamSource(info, N5, 11);
+            info = ctx.jsm.getMessage(source3, 1);
+            assertStreamSource(info, S99, 11);
         });
     }
 

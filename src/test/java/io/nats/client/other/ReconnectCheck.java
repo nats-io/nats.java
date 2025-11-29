@@ -1,10 +1,10 @@
 package io.nats.client.other;
 
 import io.nats.client.*;
-import io.nats.client.utils.OptionsUtils;
 
 import java.time.Duration;
 
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ThreadUtils.sleep;
 
 /* Program to reproduce #231 */
@@ -48,7 +48,7 @@ public class ReconnectCheck {
     }
 
     private static Options buildOptions(String name, NatsTestServer ts) {
-        return OptionsUtils.optionsBuilder(ts)
+        return optionsBuilder(ts)
             .connectionName(name)
             .reconnectWait(Duration.ofSeconds(1))
             .connectionTimeout(Duration.ofSeconds(5))

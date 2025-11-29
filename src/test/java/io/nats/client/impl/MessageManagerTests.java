@@ -21,7 +21,6 @@ import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
@@ -99,25 +98,25 @@ public class MessageManagerTests extends JetStreamTestBase {
         assertTrue(manager.beforeQueueProcessorImpl(getFlowControl(1, sid)));
         assertTrue(manager.beforeQueueProcessorImpl(getFcHeartbeat(1, sid)));
         if (manager.fc) {
-            CompletableFuture<Void> f = listener.prepForFlowControl(getFcSubject(1), ErrorListener.FlowControlSource.FLOW_CONTROL);
+            ListenerByFuture.ListenerFuture f = listener.prepForFlowControl(getFcSubject(1), ErrorListener.FlowControlSource.FLOW_CONTROL);
             assertEquals(STATUS_HANDLED, manager.manage(getFlowControl(1, sid)));
             assertEquals(STATUS_HANDLED, manager.manage(getFcHeartbeat(1, sid)));
-            listener.validate(f, 500, getFcSubject(1), ErrorListener.FlowControlSource.FLOW_CONTROL);
+            f.validate();
         }
         else {
-            CompletableFuture<Void> f = listener.prepForStatus(ListenerByFuture.StatusType.Unhandled, FLOW_OR_HEARTBEAT_STATUS_CODE);
+            ListenerByFuture.ListenerFuture f = listener.prepForStatus(ListenerByFuture.StatusType.Unhandled, FLOW_OR_HEARTBEAT_STATUS_CODE);
             assertEquals(STATUS_ERROR, manager.manage(getFlowControl(1, sid)));
-            listener.validate(f, 500, FLOW_OR_HEARTBEAT_STATUS_CODE, FLOW_CONTROL_TEXT);
+            f.validate();
 
             f = listener.prepForStatus(ListenerByFuture.StatusType.Unhandled, FLOW_OR_HEARTBEAT_STATUS_CODE);
             assertEquals(STATUS_ERROR, manager.manage(getFcHeartbeat(1, sid)));
-            listener.validate(f, 500, FLOW_OR_HEARTBEAT_STATUS_CODE, HEARTBEAT_TEXT);
+            f.validate();
         }
 
         assertTrue(manager.beforeQueueProcessorImpl(getUnkownStatus(sid)));
-        CompletableFuture<Void> f = listener.prepForStatus(ListenerByFuture.StatusType.Unhandled, 999);
+        ListenerByFuture.ListenerFuture f = listener.prepForStatus(ListenerByFuture.StatusType.Unhandled, 999);
         assertEquals(STATUS_ERROR, manager.manage(getUnkownStatus(sid)));
-        listener.validate(f, 500, 999, "unknown");
+        f.validate();
     }
 
     @Test
@@ -171,9 +170,9 @@ public class MessageManagerTests extends JetStreamTestBase {
     }
 
     private static void assertManageResult(ListenerByFuture listener, ListenerByFuture.StatusType expectedType, int expectedStatusCode, ManageResult expecteManageResult, PullMessageManager manager, NatsMessage message) {
-        CompletableFuture<Void> f = listener.prepForStatus(expectedType, expectedStatusCode);
+        ListenerByFuture.ListenerFuture f = listener.prepForStatus(expectedType, expectedStatusCode);
         assertEquals(expecteManageResult, manager.manage(message));
-        listener.validate(f, 500, expectedType, expectedStatusCode);
+        f.validate();
     }
 
     @Test

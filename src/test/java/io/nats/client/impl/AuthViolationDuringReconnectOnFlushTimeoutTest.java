@@ -1,7 +1,6 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
-import io.nats.client.utils.OptionsUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 
@@ -11,6 +10,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -43,7 +43,7 @@ public class AuthViolationDuringReconnectOnFlushTimeoutTest {
             ctx.port = NatsTestServer.nextPort();
             startServer(ctx);
 
-            Options options = OptionsUtils.optionsBuilder(ctx.port)
+            Options options = optionsBuilder(ctx.port)
                     .noRandomize()
                     .token(new char[]{'1', '2', '3', '4'})
                     .maxMessagesInOutgoingQueue(NUMBER_OF_SUBS )

@@ -238,7 +238,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
                 String sub1 = subjectPrefix + ".foo.1";
                 String sub2 = subjectPrefix + ".foo.2";
                 String sub3 = subjectPrefix + ".bar.3";
-                jstc1.createStream(streamSubject);
+                jstc1.createOrReplaceStream(streamSubject);
 
                 String mid = random();
                 PublishOptions po = PublishOptions.builder()
@@ -463,7 +463,8 @@ public class JetStreamPubTests extends JetStreamTestBase {
     public void testMaxPayloadJs() throws Exception {
         runInSharedCustom(optionsBuilder().noReconnect(), (nc, ctx) -> {
             long expectedSeq = 0;
-            ctx.addStream(ctx.scBuilder(1).maximumMessageSize(1000));
+            StreamConfiguration.Builder builder = ctx.scBuilder().maximumMessageSize(1000);
+            ctx.createOrReplaceStream(builder);
             String subject0 = ctx.subject(0);
 
             for (int x = 1; x <= 3; x++) {
@@ -500,15 +501,11 @@ public class JetStreamPubTests extends JetStreamTestBase {
     @Test
     public void testPublishWithTTL() throws Exception {
         runInShared((nc, ctx) -> {
-            String stream = random();
-            String subject = random();
-            StreamConfiguration sc = StreamConfiguration.builder()
-                .name(stream)
-                .storageType(StorageType.Memory)
-                .allowMessageTtl()
-                .subjects(subject).build();
+            StreamConfiguration.Builder builder = ctx.scBuilder().allowMessageTtl();
+            ctx.createOrReplaceStream(builder);
 
-            ctx.jsm.addStream(sc);
+            String stream = ctx.stream;
+            String subject = ctx.subject();
 
             PublishOptions opts = PublishOptions.builder().messageTtlSeconds(1).build();
             PublishAck pa1 = ctx.js.publish(subject, null, opts);
@@ -545,7 +542,7 @@ public class JetStreamPubTests extends JetStreamTestBase {
                 .subjectDeleteMarkerTtl(Duration.ofSeconds(50))
                 .maxAge(1000)
                 .build();
-            ctx.addStream(sc);
+            ctx.createOrReplaceStream(sc);
             String subject = ctx.subject();
 
             PublishOptions opts = PublishOptions.builder().messageTtlSeconds(1).build();

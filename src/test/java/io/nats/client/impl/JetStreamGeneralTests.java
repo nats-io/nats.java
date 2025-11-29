@@ -16,7 +16,6 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.NatsJetStreamUtil;
-import io.nats.client.utils.OptionsUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -35,6 +34,7 @@ import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.support.NatsJetStreamClientError.*;
 import static io.nats.client.utils.ConnectionUtils.longConnectionWait;
 import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.VersionUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -64,7 +64,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     @Test
     public void testJetEnabledGoodAccount() throws Exception {
         try (NatsTestServer ts = configuredJsServer("js_authorization.conf")) {
-            Options options = OptionsUtils.optionsBuilder(ts)
+            Options options = optionsBuilder(ts)
                 .userInfo("serviceup".toCharArray(), "uppass".toCharArray()).build();
             try (Connection nc = longConnectionWait(options)) {
                 nc.jetStreamManagement();
@@ -329,7 +329,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             String subjectWild = subject + ".*";
             String subjectA = subject + ".A";
             String subjectB = subject + ".B";
-            ctx.createStream(subjectWild);
+            ctx.createOrReplaceStream(subjectWild);
 
             jsPublish(ctx.js, subjectA, 1);
             jsPublish(ctx.js, subjectB, 1);
@@ -396,10 +396,10 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
         String subjectMadeByTar = "sub-made-by.tar";
 
         try (NatsTestServer ts = configuredJsServer("js_prefix.conf")) {
-            Options optionsSrc = OptionsUtils.optionsBuilder(ts)
+            Options optionsSrc = optionsBuilder(ts)
                     .userInfo("src".toCharArray(), "spass".toCharArray()).build();
 
-            Options optionsTar = OptionsUtils.optionsBuilder(ts)
+            Options optionsTar = optionsBuilder(ts)
                     .userInfo("tar".toCharArray(), "tpass".toCharArray()).build();
 
             try (Connection ncSrc = standardConnectionWait(optionsSrc);
@@ -1107,18 +1107,12 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     @Test
     public void testRequestNoResponder() throws Exception {
         runInSharedCustom((ncCancel, ctx) -> {
-            Options optReport = OptionsUtils.optionsBuilder(ncCancel).reportNoResponders().build();
+            Options optReport = optionsBuilder(ncCancel).reportNoResponders().build();
             try (Connection ncReport = standardConnectionWait(optReport)) {
                 assertThrows(CancellationException.class, () -> ncCancel.request(random(), null).get());
                 ExecutionException ee = assertThrows(ExecutionException.class, () -> ncReport.request(random(), null).get());
                 assertInstanceOf(JetStreamStatusException.class, ee.getCause());
                 assertTrue(ee.getMessage().contains("503 No Responders Available For Request"));
-
-                String subject = random();
-                ctx.jsm.addStream(
-                    StreamConfiguration.builder()
-                        .name(ctx.stream).subjects(subject).storageType(StorageType.Memory)
-                        .build());
 
                 JetStream jsCancel = ncCancel.jetStream();
                 JetStream jsReport = ncReport.jetStream();

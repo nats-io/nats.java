@@ -16,7 +16,6 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
 import io.nats.client.support.IncomingHeadersProcessor;
-import io.nats.client.utils.OptionsUtils;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -26,6 +25,7 @@ import java.util.List;
 import static io.nats.client.support.NatsConstants.OP_PING;
 import static io.nats.client.support.NatsConstants.OP_PING_BYTES;
 import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -123,7 +123,7 @@ public class NatsMessageTests extends JetStreamTestBase {
             }
 
             try (NatsTestServer ts = new NatsTestServer()) {
-                Options options = OptionsUtils.optionsBuilder(ts).maxReconnects(0).maxControlLine(maxControlLine).build();
+                Options options = optionsBuilder(ts).maxReconnects(0).maxControlLine(maxControlLine).build();
                 Connection nc = Nats.connect(options);
                 standardConnectionWait(nc);
                 nc.request(subject, body);

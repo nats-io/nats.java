@@ -15,7 +15,6 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
-import io.nats.client.utils.OptionsUtils;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -27,8 +26,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.utils.ConnectionUtils.*;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.TestBase.flushConnection;
-import static io.nats.client.utils.ThreadUtils.park;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -38,7 +37,7 @@ public class DrainTests {
     @Test
     public void testCloseOnDrainFailure() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            final Connection nc = standardConnectionWait(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build());
+            final Connection nc = standardConnectionWait(optionsBuilder(ts).maxReconnects(0).build());
 
             nc.subscribe("draintest");
             nc.flush(Duration.ofSeconds(1)); // Get the sub to the server, so drain has things to do
@@ -52,8 +51,8 @@ public class DrainTests {
     @Test
     public void testSimpleSubDrain() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-             Connection subCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build());
-             Connection pubCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build())) {
+             Connection subCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build());
+             Connection pubCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertConnected(subCon);
             assertConnected(pubCon);
 
@@ -82,8 +81,8 @@ public class DrainTests {
     @Test
     public void testSimpleDispatchDrain() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-             Connection subCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build());
-             Connection pubCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build())) {
+             Connection subCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build());
+             Connection pubCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertConnected(subCon);
             assertConnected(pubCon);
 
@@ -115,8 +114,8 @@ public class DrainTests {
     @Test
     public void testSimpleConnectionDrain() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-             Connection subCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build());
-             Connection pubCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build())) {
+             Connection subCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build());
+             Connection pubCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertConnected(subCon);
             assertConnected(pubCon);
 
@@ -154,8 +153,8 @@ public class DrainTests {
     @Test
     public void testConnectionDrainWithZeroTimeout() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-             Connection subCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build());
-             Connection pubCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build())) {
+             Connection subCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build());
+             Connection pubCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertConnected(subCon);
             assertConnected(pubCon);
 
@@ -193,8 +192,8 @@ public class DrainTests {
     @Test
     public void testDrainWithZeroTimeout() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-             Connection subCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build());
-             Connection pubCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build())) {
+             Connection subCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build());
+             Connection pubCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertConnected(subCon);
             assertConnected(pubCon);
 
@@ -223,8 +222,8 @@ public class DrainTests {
     public void testSubDuringDrainThrows() {
         assertThrows(IllegalStateException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer();
-                 Connection subCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build());
-                 Connection pubCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build())) {
+                 Connection subCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build());
+                 Connection pubCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
                 assertConnected(subCon);
                 assertConnected(pubCon);
 
@@ -250,8 +249,8 @@ public class DrainTests {
     public void testCreateDispatcherDuringDrainThrows() {
         assertThrows(IllegalStateException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer();
-                 Connection subCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build());
-                 Connection pubCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build())) {
+                 Connection subCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build());
+                 Connection pubCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
                 assertConnected(subCon);
                 assertConnected(pubCon);
 
@@ -276,8 +275,8 @@ public class DrainTests {
     @Test
     public void testUnsubDuringDrainIsNoop() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-             Connection subCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build());
-             Connection pubCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build())) {
+             Connection subCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build());
+             Connection pubCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertConnected(subCon);
             assertConnected(pubCon);
 
@@ -319,8 +318,8 @@ public class DrainTests {
     @Test
     public void testDrainInMessageHandler() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-             Connection subCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build());
-             Connection pubCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build())) {
+             Connection subCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build());
+             Connection pubCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertConnected(subCon);
             assertConnected(pubCon);
 
@@ -352,8 +351,8 @@ public class DrainTests {
     @Test
     public void testDrainFutureMatches() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-             Connection subCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build());
-             Connection pubCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build())) {
+             Connection subCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build());
+             Connection pubCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertConnected(subCon);
             assertConnected(pubCon);
 
@@ -398,8 +397,8 @@ public class DrainTests {
     public void testFirstTimeRequestReplyDuringDrain() {
         assertThrows(IllegalStateException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer();
-                 Connection subCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build());
-                 Connection pubCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build())) {
+                 Connection subCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build());
+                 Connection pubCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
                 assertConnected(subCon);
                 assertConnected(pubCon);
 
@@ -436,8 +435,8 @@ public class DrainTests {
     public void testRequestReplyDuringDrain() {
         assertThrows(IllegalStateException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer();
-                 Connection subCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build());
-                 Connection pubCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build())) {
+                 Connection subCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build());
+                 Connection pubCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
                 assertConnected(subCon);
                 assertConnected(pubCon);
 
@@ -477,13 +476,13 @@ public class DrainTests {
     @Test
     public void testQueueHandoffWithDrain() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-                Connection pubCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build())) {
+                Connection pubCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertConnected(pubCon);
 
             final int total = 5_000;
-            final Duration sleepBetweenDrains = Duration.ofMillis(250);
-            final Duration sleepBetweenMessages = Duration.ofMillis(1);
-            final Duration testTimeout = Duration.ofMillis(5 * total * (sleepBetweenDrains.toMillis() + sleepBetweenMessages.toMillis()));
+            final long sleepBetweenDrains = 250;
+            final long sleepBetweenMessages = 5;
+            final Duration testTimeout = Duration.ofMillis(5 * total * (sleepBetweenDrains + sleepBetweenMessages));
             final Duration waitTimeout = testTimeout.plusSeconds(1);
             AtomicInteger count = new AtomicInteger();
             Instant start = Instant.now();
@@ -492,7 +491,7 @@ public class DrainTests {
             NatsDispatcher workingD;
             NatsDispatcher drainingD;
 
-            Connection draining = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build());
+            Connection draining = Nats.connect(optionsBuilder(ts).maxReconnects(0).build());
             assertConnected(draining);
 
             drainingD = (NatsDispatcher) draining.createDispatcher(msg -> count.incrementAndGet()).subscribe("draintest", "queue");
@@ -501,7 +500,7 @@ public class DrainTests {
             Thread pubThread = new Thread(() -> {
                 for (int i = 0; i < total; i++) {
                     pubCon.publish("draintest", null);
-                    park(sleepBetweenMessages);
+                    sleep(sleepBetweenMessages);
                 }
                 flushConnection(pubCon, Duration.ofSeconds(5));
             });
@@ -510,12 +509,12 @@ public class DrainTests {
 
             while (count.get() < total && Duration.between(start, now).compareTo(testTimeout) < 0) {
 
-                working = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build());
+                working = Nats.connect(optionsBuilder(ts).maxReconnects(0).build());
                 assertConnected(working);
                 workingD = (NatsDispatcher) working.createDispatcher(msg -> count.incrementAndGet()).subscribe("draintest", "queue");
                 working.flush(Duration.ofSeconds(5));
 
-                park(sleepBetweenDrains);
+                sleep(sleepBetweenDrains);
 
                 CompletableFuture<Boolean> tracker = draining.drain(testTimeout);
 
@@ -539,8 +538,8 @@ public class DrainTests {
     @Test
     public void testDrainWithLotsOfMessages() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-             Connection subCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build());
-             Connection pubCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build())) {
+             Connection subCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build());
+             Connection pubCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertConnected(subCon);
             assertConnected(pubCon);
 
@@ -579,8 +578,8 @@ public class DrainTests {
     @Test
     public void testSlowAsyncDuringDrainCanFinishIfTime() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-             Connection subCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build());
-             Connection pubCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build())) {
+             Connection subCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build());
+             Connection pubCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertConnected(subCon);
             assertConnected(pubCon);
 
@@ -619,8 +618,8 @@ public class DrainTests {
     public void testSlowAsyncDuringDrainCanBeInterrupted() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
         try (NatsTestServer ts = new NatsTestServer();
-             Connection subCon = Nats.connect(OptionsUtils.optionsBuilder(ts).errorListener(listener).maxReconnects(0).build());
-             Connection pubCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build())) {
+             Connection subCon = Nats.connect(optionsBuilder(ts).errorListener(listener).maxReconnects(0).build());
+             Connection pubCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertConnected(subCon);
             assertConnected(pubCon);
 
@@ -661,7 +660,7 @@ public class DrainTests {
         assertThrows(TimeoutException.class, () -> {
             ListenerForTesting listener = new ListenerForTesting();
             try (NatsTestServer ts = new NatsTestServer();
-                 Connection subCon = standardConnectionWait(OptionsUtils.optionsBuilder(ts).connectionListener(listener).build()))
+                 Connection subCon = standardConnectionWait(optionsBuilder(ts).connectionListener(listener).build()))
             {
                 subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
@@ -677,7 +676,7 @@ public class DrainTests {
     public void testThrowIfClosing() {
         assertThrows(IllegalStateException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer();
-                    Connection subCon = Nats.connect(OptionsUtils.optionsBuilder(ts).maxReconnects(0).build())) {
+                    Connection subCon = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
                 assertConnected(subCon);
 
                 subCon.close();

@@ -17,8 +17,8 @@ import io.nats.client.ConnectionListener.Events;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestingContext;
 import io.nats.client.impl.ListenerByFuture;
+import io.nats.client.impl.ListenerByFuture.ListenerFuture;
 import io.nats.client.impl.NatsMessage;
-import io.nats.client.utils.OptionsUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -72,36 +72,20 @@ public class PublishTests extends TestBase {
             nc.close();
             Thread.sleep(1000);
 
-            CountDownLatch mpvLatch = new CountDownLatch(1);
-            CountDownLatch seLatch = new CountDownLatch(1);
-            ErrorListener el = new ErrorListener() {
-                @Override
-                public void errorOccurred(Connection conn, String error) {
-                    if (error.contains("Maximum Payload Violation")) {
-                        mpvLatch.countDown();
-                    }
-                }
-
-                @Override
-                public void exceptionOccurred(Connection conn, Exception exp) {
-                    if (exp instanceof SocketException) {
-                        seLatch.countDown();
-                    }
-                }
-            };
-            Options options = OptionsUtils.optionsBuilder(ts)
+            ListenerByFuture listener = new ListenerByFuture();
+            Options options = optionsBuilder(ts)
                 .clientSideLimitChecks(false)
-                .errorListener(el)
+                .errorListener(listener)
                 .build();
-            Connection nc2 = longConnectionWait(options);
+            Connection nc2 = standardConnectionWait(options);
+
+            ListenerFuture fError = listener.prepForError("Maximum Payload Violation");
+            ListenerFuture fException = listener.prepForException(SocketException.class);
+
             nc2.publish(random(), null, null, body);
 
-            if (!mpvLatch.await(10, TimeUnit.SECONDS)) {
-                fail();
-            }
-            if (!seLatch.await(10, TimeUnit.SECONDS)) {
-                fail();
-            }
+            // sometimes the exception comes in before the error and the error never comes.
+            fError.validate(fException);
         }
     }
 
@@ -251,12 +235,12 @@ public class PublishTests extends TestBase {
             .connectionListener(listener);
 
         runInSharedOwnNc(builder, nc -> {
-            CompletableFuture<Void> fError = listener.prepForError("Maximum Payload Violation");
-            CompletableFuture<Void> fEvent = listener.prepForEvent(Events.DISCONNECTED);
+            ListenerFuture fError = listener.prepForError("Maximum Payload Violation");
+            ListenerFuture fEvent = listener.prepForEvent(Events.DISCONNECTED);
             int maxPayload = (int)nc.getServerInfo().getMaxPayload();
             nc.publish(random(), new byte[maxPayload + 1]);
-            listener.validate(fError, 500, "Maximum Payload Violation");
-            listener.validate(fEvent, 500, Events.DISCONNECTED);
+            fError.validate();
+            fEvent.validate();
         });
     }
 
@@ -276,10 +260,10 @@ public class PublishTests extends TestBase {
 
         Options.Builder ncNotSupportedOptionsBuilder = optionsBuilder().noReconnect().clientSideLimitChecks(false);
         runInSharedOwnNc(ncNotSupportedOptionsBuilder, ncNotSupported -> {
-            Options ncSupportedOptions = OptionsUtils.optionsBuilder(ncNotSupported).supportUTF8Subjects().build();
+            Options ncSupportedOptions = optionsBuilder(ncNotSupported).supportUTF8Subjects().build();
             try (Connection ncSupported = standardConnectionWait(ncSupportedOptions)) {
                 try (JetStreamTestingContext ctxNotSupported = new JetStreamTestingContext(ncNotSupported, 0)) {
-                    ctxNotSupported.createStream(jsSubject);
+                    ctxNotSupported.createOrReplaceStream(jsSubject);
                     JetStream jsNotSupported = ncNotSupported.jetStream();
                     JetStream jsSupported = ncNotSupported.jetStream();
 
