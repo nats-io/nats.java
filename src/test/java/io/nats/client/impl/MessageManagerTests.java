@@ -21,14 +21,12 @@ import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
-import static io.nats.client.impl.ListenerByFutures.StatusType.PullError;
-import static io.nats.client.impl.ListenerByFutures.StatusType.PullWarning;
+import static io.nats.client.impl.ListenerByFuture.StatusType.PullError;
+import static io.nats.client.impl.ListenerByFuture.StatusType.PullWarning;
 import static io.nats.client.impl.MessageManager.ManageResult;
 import static io.nats.client.impl.MessageManager.ManageResult.*;
 import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
@@ -75,7 +73,7 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void testPushBeforeQueueProcessorAndManage() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        ListenerByFuture listener = new ListenerByFuture();
         runInSharedOwnNc(listener, nc -> {
             _testPushBqpAndManageRetriable(nc, listener, push_hb_fc(), false, true, false);
             _testPushBqpAndManageRetriable(nc, listener, push_hb_xfc(), false, true, false);
@@ -86,79 +84,52 @@ public class MessageManagerTests extends JetStreamTestBase {
         });
     }
 
-    private void _testPushBqpAndManageRetriable(Connection nc, ListenerForTesting listener, PushSubscribeOptions pso, boolean ordered, boolean syncMode, boolean queueMode) throws JetStreamApiException, IOException {
-        int triesLeft = 3;
-        while (triesLeft-- > 0) {
-            sleep(50); // just so we aren't slamming a shared server
-            NatsJetStreamSubscription sub = genericPushSub(nc);
-            PushMessageManager pushMgr = getPushManager(nc, pso, sub, ordered, syncMode, queueMode);
-            boolean passed = _testPushBqpAndManage(sub, listener, pushMgr, triesLeft > 0);
-            if (passed) {
-                break;
-            }
+    private void _testPushBqpAndManageRetriable(Connection nc, ListenerByFuture listener, PushSubscribeOptions pso, boolean ordered, boolean syncMode, boolean queueMode) throws JetStreamApiException, IOException {
+        listener.reset();
+
+        NatsJetStreamSubscription sub = genericPushSub(nc);
+        String sid = sub.getSID();
+        PushMessageManager manager = getPushManager(nc, pso, sub, ordered, syncMode, queueMode);
+
+        assertTrue(manager.beforeQueueProcessorImpl(getTestJsMessage(1, sid)));
+        assertEquals(ManageResult.MESSAGE, manager.manage(getTestJsMessage(1, sid)));
+
+        assertEquals(!manager.hb.get(), manager.beforeQueueProcessorImpl(getHeartbeat(sid)));
+
+        assertTrue(manager.beforeQueueProcessorImpl(getFlowControl(1, sid)));
+        assertTrue(manager.beforeQueueProcessorImpl(getFcHeartbeat(1, sid)));
+        if (manager.fc) {
+            CompletableFuture<Void> f = listener.prepForFlowControl(getFcSubject(1), ErrorListener.FlowControlSource.FLOW_CONTROL);
+            assertEquals(STATUS_HANDLED, manager.manage(getFlowControl(1, sid)));
+            assertEquals(STATUS_HANDLED, manager.manage(getFcHeartbeat(1, sid)));
+            listener.validate(f, 500, getFcSubject(1), ErrorListener.FlowControlSource.FLOW_CONTROL);
         }
-    }
+        else {
+            CompletableFuture<Void> f = listener.prepForStatus(ListenerByFuture.StatusType.Unhandled, FLOW_OR_HEARTBEAT_STATUS_CODE);
+            assertEquals(STATUS_ERROR, manager.manage(getFlowControl(1, sid)));
+            listener.validate(f, 500, FLOW_OR_HEARTBEAT_STATUS_CODE, FLOW_CONTROL_TEXT);
 
-    private boolean _testPushBqpAndManage(NatsJetStreamSubscription sub, ListenerForTesting listener, PushMessageManager manager, boolean canRetry) {
-        try {
-            listener.reset();
-            String sid = sub.getSID();
-
-            assertTrue(manager.beforeQueueProcessorImpl(getTestJsMessage(1, sid)));
-            assertEquals(ManageResult.MESSAGE, manager.manage(getTestJsMessage(1, sid)));
-
-            assertEquals(!manager.hb.get(), manager.beforeQueueProcessorImpl(getHeartbeat(sid)));
-
-            List<Integer> unhandledCodes = new ArrayList<>();
-            assertTrue(manager.beforeQueueProcessorImpl(getFlowControl(1, sid)));
-            assertTrue(manager.beforeQueueProcessorImpl(getFcHeartbeat(1, sid)));
-            if (manager.fc) {
-                assertEquals(STATUS_HANDLED, manager.manage(getFlowControl(1, sid)));
-                assertEquals(STATUS_HANDLED, manager.manage(getFcHeartbeat(1, sid)));
-            }
-            else {
-                assertEquals(STATUS_ERROR, manager.manage(getFlowControl(1, sid)));
-                assertEquals(STATUS_ERROR, manager.manage(getFcHeartbeat(1, sid)));
-                unhandledCodes.add(FLOW_OR_HEARTBEAT_STATUS_CODE); // fc
-                unhandledCodes.add(FLOW_OR_HEARTBEAT_STATUS_CODE); // hb
-            }
-
-            assertTrue(manager.beforeQueueProcessorImpl(getUnkownStatus(sid)));
-            assertEquals(STATUS_ERROR, manager.manage(getUnkownStatus(sid)));
-            unhandledCodes.add(999);
-
-            sleep(100);
-            List<ListenerForTesting.StatusEvent> list = listener.getUnhandledStatuses();
-            if (canRetry && unhandledCodes.size() != list.size()) {
-                return false; // didn't pass
-            }
-            assertEquals(unhandledCodes.size(), list.size());
-            for (int x = 0; x < list.size(); x++) {
-                ListenerForTesting.StatusEvent se = list.get(x);
-                assertSame(sub.getSID(), se.sid);
-                if (canRetry && unhandledCodes.get(x) != se.status.getCode()) {
-                    return false; // didn't pass
-                }
-                assertEquals(unhandledCodes.get(x), se.status.getCode());
-            }
-
-            return true;
+            f = listener.prepForStatus(ListenerByFuture.StatusType.Unhandled, FLOW_OR_HEARTBEAT_STATUS_CODE);
+            assertEquals(STATUS_ERROR, manager.manage(getFcHeartbeat(1, sid)));
+            listener.validate(f, 500, FLOW_OR_HEARTBEAT_STATUS_CODE, HEARTBEAT_TEXT);
         }
-        finally {
-            try { sub.unsubscribe(); } catch (Exception ignore) {}
-        }
+
+        assertTrue(manager.beforeQueueProcessorImpl(getUnkownStatus(sid)));
+        CompletableFuture<Void> f = listener.prepForStatus(ListenerByFuture.StatusType.Unhandled, 999);
+        assertEquals(STATUS_ERROR, manager.manage(getUnkownStatus(sid)));
+        listener.validate(f, 500, 999, "unknown");
     }
 
     @Test
     public void testPullBeforeQueueProcessorAndManage() throws Exception {
-        ListenerByFutures listener = new ListenerByFutures();
+        ListenerByFuture listener = new ListenerByFuture();
         runInSharedOwnNc(listener, (nc, ctx) -> {
             _testPullBqpAndManage(nc, listener, PullRequestOptions.builder(1).build());
             _testPullBqpAndManage(nc, listener,  PullRequestOptions.builder(1).expiresIn(10000).idleHeartbeat(100).build());
         });
     }
 
-    private void _testPullBqpAndManage(Connection nc, ListenerByFutures listener, PullRequestOptions pro) throws JetStreamApiException, IOException {
+    private void _testPullBqpAndManage(Connection nc, ListenerByFuture listener, PullRequestOptions pro) throws JetStreamApiException, IOException {
         NatsJetStreamSubscription sub = genericPullSub(nc);
         PullMessageManager manager = getPullManager(nc, sub, true);
         manager.startPullRequest(random(), pro, true, null);
@@ -199,10 +170,10 @@ public class MessageManagerTests extends JetStreamTestBase {
         assertManageResult(listener, PullError, CONFLICT_CODE, STATUS_ERROR, manager, getConflictStatus(sid, CONSUMER_IS_PUSH_BASED));
     }
 
-    private static void assertManageResult(ListenerByFutures listener, ListenerByFutures.StatusType expectedType, int expectedStatusCode, ManageResult expecteManageResult, PullMessageManager manager, NatsMessage message) {
+    private static void assertManageResult(ListenerByFuture listener, ListenerByFuture.StatusType expectedType, int expectedStatusCode, ManageResult expecteManageResult, PullMessageManager manager, NatsMessage message) {
         CompletableFuture<Void> f = listener.prepForStatus(expectedType, expectedStatusCode);
         assertEquals(expecteManageResult, manager.manage(message));
-        listener.validateStatus(f, 500);
+        listener.validate(f, 500, expectedType, expectedStatusCode);
     }
 
     @Test

@@ -16,7 +16,7 @@ package io.nats.client;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestingContext;
-import io.nats.client.impl.ListenerByFutures;
+import io.nats.client.impl.ListenerByFuture;
 import io.nats.client.impl.NatsMessage;
 import io.nats.client.utils.OptionsUtils;
 import io.nats.client.utils.TestBase;
@@ -243,7 +243,7 @@ public class PublishTests extends TestBase {
 
     @Test
     public void testMaxPayloadNoClientSideLimitChecks() throws Exception {
-        ListenerByFutures listener = new ListenerByFutures();
+        ListenerByFuture listener = new ListenerByFuture();
         Options.Builder builder = optionsBuilder()
             .noReconnect()
             .clientSideLimitChecks(false)

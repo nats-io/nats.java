@@ -42,7 +42,7 @@ public class ConnectionListenerTests extends TestBase {
     
     @Test
     public void testCloseEvent() throws Exception {
-        ListenerByFutures listener = new ListenerByFutures();
+        ListenerByFuture listener = new ListenerByFuture();
         CompletableFuture<Void> fEvent = listener.prepForEvent(Events.CLOSED);
         Options.Builder builder = optionsBuilder().connectionListener(listener);
         runInSharedOwnNc(builder, nc -> {
@@ -115,7 +115,7 @@ public class ConnectionListenerTests extends TestBase {
     @Test
     public void testMultipleConnectionListeners() throws Exception {
         Set<String> capturedEvents = ConcurrentHashMap.newKeySet();
-        ListenerByFutures listener = new ListenerByFutures();
+        ListenerByFuture listener = new ListenerByFuture();
         CompletableFuture<Void> fClosed = listener.prepForEvent(Events.CLOSED);
         AtomicReference<Statistics> stats = new AtomicReference<>();
         Options.Builder builder = optionsBuilder().connectionListener(listener);
@@ -140,7 +140,6 @@ public class ConnectionListenerTests extends TestBase {
             assertNull(nc.getConnectedUrl());
         });
 
-        sleep(100); // it needs time here
         assertTrue(stats.get().getExceptions() > 0);
         listener.validate(fClosed, 500, Events.CLOSED);
 
