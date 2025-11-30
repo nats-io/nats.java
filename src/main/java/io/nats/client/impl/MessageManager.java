@@ -17,7 +17,6 @@ import io.nats.client.Message;
 import io.nats.client.NatsSystemClock;
 import io.nats.client.PullRequestOptions;
 import io.nats.client.SubscribeOptions;
-import io.nats.client.support.Debug;
 import io.nats.client.support.NatsConstants;
 import io.nats.client.support.ScheduledTask;
 
@@ -156,7 +155,6 @@ abstract class MessageManager {
                 new ScheduledTask(conn.getScheduledExecutor(), alarmPeriodSettingNanos.get(), TimeUnit.NANOSECONDS,
                     () -> {
                         long sinceLast = NatsSystemClock.nanoTime() - lastMsgReceivedNanoTime.get();
-                        Debug.info("HB?", sinceLast, alarmPeriodSettingNanos.get());
                         if (sinceLast > alarmPeriodSettingNanos.get()) {
                             handleHeartbeatError();
                         }
