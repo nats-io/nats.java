@@ -33,6 +33,7 @@ import static io.nats.client.NatsTestServer.skipConnectValidateServer;
 import static io.nats.client.Options.PROP_SSL_CONTEXT_FACTORY_CLASS;
 import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
+import static io.nats.client.utils.OptionsUtils.optionsNoReconnect;
 import static io.nats.client.utils.TestBase.*;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static io.nats.client.utils.VersionUtils.atLeast2_10_3;
@@ -303,7 +304,7 @@ public class TLSConnectTests {
     public void testServerSecureClientNotMismatch() {
         assertThrows(IOException.class, () -> {
             try (NatsTestServer ts = NatsTestServer.configFileServer("tlsverify.conf")) {
-                Options options = optionsBuilder(ts).maxReconnects(0).build();
+                Options options = optionsNoReconnect(ts);
                 Nats.connect(options);
             }
         });

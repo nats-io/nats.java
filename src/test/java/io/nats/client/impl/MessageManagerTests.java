@@ -24,8 +24,8 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
-import static io.nats.client.impl.ListenerByFuture.StatusType.PullError;
-import static io.nats.client.impl.ListenerByFuture.StatusType.PullWarning;
+import static io.nats.client.impl.ListenerByFutureStatusType.PullError;
+import static io.nats.client.impl.ListenerByFutureStatusType.PullWarning;
 import static io.nats.client.impl.MessageManager.ManageResult;
 import static io.nats.client.impl.MessageManager.ManageResult.*;
 import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
@@ -98,25 +98,25 @@ public class MessageManagerTests extends JetStreamTestBase {
         assertTrue(manager.beforeQueueProcessorImpl(getFlowControl(1, sid)));
         assertTrue(manager.beforeQueueProcessorImpl(getFcHeartbeat(1, sid)));
         if (manager.fc) {
-            ListenerByFuture.ListenerFuture f = listener.prepForFlowControl(getFcSubject(1), ErrorListener.FlowControlSource.FLOW_CONTROL);
+            ListenerFuture f = listener.prepForFlowControl(getFcSubject(1), ErrorListener.FlowControlSource.FLOW_CONTROL);
             assertEquals(STATUS_HANDLED, manager.manage(getFlowControl(1, sid)));
             assertEquals(STATUS_HANDLED, manager.manage(getFcHeartbeat(1, sid)));
-            f.validate();
+            listener.validateReceived(f);
         }
         else {
-            ListenerByFuture.ListenerFuture f = listener.prepForStatus(ListenerByFuture.StatusType.Unhandled, FLOW_OR_HEARTBEAT_STATUS_CODE);
+            ListenerFuture f = listener.prepForStatus(ListenerByFutureStatusType.Unhandled, FLOW_OR_HEARTBEAT_STATUS_CODE);
             assertEquals(STATUS_ERROR, manager.manage(getFlowControl(1, sid)));
-            f.validate();
+            listener.validateReceived(f);
 
-            f = listener.prepForStatus(ListenerByFuture.StatusType.Unhandled, FLOW_OR_HEARTBEAT_STATUS_CODE);
+            f = listener.prepForStatus(ListenerByFutureStatusType.Unhandled, FLOW_OR_HEARTBEAT_STATUS_CODE);
             assertEquals(STATUS_ERROR, manager.manage(getFcHeartbeat(1, sid)));
-            f.validate();
+            listener.validateReceived(f);
         }
 
         assertTrue(manager.beforeQueueProcessorImpl(getUnkownStatus(sid)));
-        ListenerByFuture.ListenerFuture f = listener.prepForStatus(ListenerByFuture.StatusType.Unhandled, 999);
+        ListenerFuture f = listener.prepForStatus(ListenerByFutureStatusType.Unhandled, 999);
         assertEquals(STATUS_ERROR, manager.manage(getUnkownStatus(sid)));
-        f.validate();
+        listener.validateReceived(f);
     }
 
     @Test
@@ -169,10 +169,10 @@ public class MessageManagerTests extends JetStreamTestBase {
         assertManageResult(listener, PullError, CONFLICT_CODE, STATUS_ERROR, manager, getConflictStatus(sid, CONSUMER_IS_PUSH_BASED));
     }
 
-    private static void assertManageResult(ListenerByFuture listener, ListenerByFuture.StatusType expectedType, int expectedStatusCode, ManageResult expecteManageResult, PullMessageManager manager, NatsMessage message) {
-        ListenerByFuture.ListenerFuture f = listener.prepForStatus(expectedType, expectedStatusCode);
+    private static void assertManageResult(ListenerByFuture listener, ListenerByFutureStatusType expectedType, int expectedStatusCode, ManageResult expecteManageResult, PullMessageManager manager, NatsMessage message) {
+        ListenerFuture f = listener.prepForStatus(expectedType, expectedStatusCode);
         assertEquals(expecteManageResult, manager.manage(message));
-        f.validate();
+        listener.validateReceived(f);
     }
 
     @Test

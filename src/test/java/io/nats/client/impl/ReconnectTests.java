@@ -47,7 +47,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @Isolated
 public class ReconnectTests {
 
-    void checkReconnectingStatus(Connection nc) {
+    void checkNotConnected(Connection nc) {
         Connection.Status status = nc.getStatus();
         assertTrue(Connection.Status.RECONNECTING == status || Connection.Status.DISCONNECTED == status, "Reconnecting status");
     }
@@ -104,7 +104,7 @@ public class ReconnectTests {
         }
 
         flushAndWaitLong(nc, listener);
-        checkReconnectingStatus(nc);
+        checkNotConnected(nc);
 
         listener.prepForStatusChange(Events.RESUBSCRIBED);
 
@@ -150,7 +150,7 @@ public class ReconnectTests {
         }
 
         flushAndWaitLong(nc, listener);
-        checkReconnectingStatus(nc);
+        checkNotConnected(nc);
 
         sub = nc.subscribe("subsubject");
 
@@ -218,7 +218,7 @@ public class ReconnectTests {
         }
 
         flushAndWaitLong(nc, listener);
-        checkReconnectingStatus(nc);
+        checkNotConnected(nc);
 
         // Send a message to the dispatcher and one to the subscriber
         // These should be sent on reconnect
@@ -353,29 +353,28 @@ public class ReconnectTests {
     }
 
     @Test
-    public void testOverflowReconnectBuffer() {
+    public void testOverflowReconnectBuffer() throws Exception {
+        ListenerByFuture listener = new ListenerByFuture();
+        ListenerFuture f = listener.prepForConnectionEvent(Events.DISCONNECTED);
+        Connection nc;
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = optionsBuilder(ts)
+                .connectionListener(listener)
+                .reconnectBufferSize(4*512)
+                .reconnectWait(Duration.ofSeconds(480))
+                .build();
+            nc = standardConnectionWait(options);
+        }
+
+        listener.validateReceived(f);
+
         assertThrows(IllegalStateException.class, () -> {
-            Connection nc;
-            ListenerForTesting listener = new ListenerForTesting();
-
-            try (NatsTestServer ts = new NatsTestServer()) {
-                Options options = optionsBuilder(ts)
-                    .maxReconnects(-1)
-                    .connectionListener(listener)
-                    .reconnectBufferSize(4*512)
-                    .reconnectWait(Duration.ofSeconds(480))
-                    .build();
-                nc = standardConnectionWait(options);
-                listener.prepForStatusChange(Events.DISCONNECTED);
-            }
-
-            flushAndWaitLong(nc, listener);
-            checkReconnectingStatus(nc);
-
-            for (int i=0;i<20;i++) {
-                nc.publish("test", new byte[512]);// Should blow up by the 5th message
+            for (int i = 0; i < 20; i++) {
+                nc.publish("test", new byte[512]);// Should be full by the 5th message
             }
         });
+
+        nc.close();
     }
 
     @Test
@@ -394,7 +393,7 @@ public class ReconnectTests {
         }
 
         flushAndWaitLong(nc, listener);
-        checkReconnectingStatus(nc);
+        checkNotConnected(nc);
 
         byte[] payload = new byte[1024];
         for (int i=0;i<1_000;i++) {
@@ -460,7 +459,7 @@ public class ReconnectTests {
         // Thrash in and out of connect status
         // server starts thrashCount times, so we should succeed thrashCount x
         for (int i=0;i<thrashCount;i++) {
-            checkReconnectingStatus(nc);
+            checkNotConnected(nc);
 
             // connect good then bad
             listener.prepForStatusChange(Events.RESUBSCRIBED);
@@ -470,7 +469,7 @@ public class ReconnectTests {
             }
 
             flushAndWaitLong(nc, listener); // nats won't close until we tell it, so put this outside the curly
-            checkReconnectingStatus(nc);
+            checkNotConnected(nc);
 
             gotSub = new CompletableFuture<>();
             subRef.set(gotSub);

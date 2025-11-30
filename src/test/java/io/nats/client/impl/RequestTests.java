@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static io.nats.client.support.NatsRequestCompletableFuture.CancelAction;
 import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
+import static io.nats.client.utils.OptionsUtils.optionsNoReconnect;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -123,7 +124,7 @@ public class RequestTests extends TestBase {
     @Test
     public void testSimpleResponseMessageHasConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-                Connection nc = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
+                Connection nc = Nats.connect(optionsNoReconnect(ts))) {
             assertConnected(nc);
             
             Dispatcher d = nc.createDispatcher(msg -> {
@@ -146,7 +147,7 @@ public class RequestTests extends TestBase {
     @Test
     public void testSafeRequest() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-                Connection nc = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
+                Connection nc = Nats.connect(optionsNoReconnect(ts))) {
             assertConnected(nc);
             
             Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), null));
@@ -164,7 +165,7 @@ public class RequestTests extends TestBase {
     @Test
     public void testMultipleRequest() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-                Connection nc = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
+                Connection nc = Nats.connect(optionsNoReconnect(ts))) {
             assertConnected(nc);
             
             Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), new byte[7]));

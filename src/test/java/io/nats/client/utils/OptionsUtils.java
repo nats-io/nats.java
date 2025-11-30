@@ -37,6 +37,10 @@ public abstract class OptionsUtils {
         return optionsBuilder().errorListener(el);
     }
 
+    public static Options.Builder optionsBuilderNoReconnect() {
+        return optionsBuilder().maxReconnects(0);
+    }
+
     public static Options.Builder optionsBuilder(TestServer... tses) {
         if (tses.length == 1) {
             return optionsBuilder().server(tses[0].getServerUri());
@@ -74,6 +78,10 @@ public abstract class OptionsUtils {
 
     public static Options options(NatsTestServer... tses) {
         return optionsBuilder(tses).build();
+    }
+
+    public static Options optionsNoReconnect(NatsTestServer ts) {
+        return optionsBuilder(ts).maxReconnects(0).build();
     }
 
     public static Options options(NatsServerProtocolMock... mockTses) {

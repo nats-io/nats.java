@@ -60,7 +60,6 @@ public class JetStreamTestingContext implements AutoCloseable {
         if (subjectCount > 0) {
             createOrReplaceStream(subjectCount);
         }
-
     }
 
     // ----------------------------------------------------------------------------------------------------

@@ -20,7 +20,6 @@ import io.nats.client.PushSubscribeOptions;
 import io.nats.client.api.*;
 import io.nats.client.support.DateTimeUtils;
 import io.nats.client.utils.VersionUtils;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -285,7 +284,6 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
     }
 
     @Test
-    @Disabled("This used to work.")
     public void testSourceAndTransformsRoundTrips() throws Exception {
         runInOwnJsServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
             StreamConfiguration scSource = StreamConfigurationTests.getStreamConfigurationFromJson(

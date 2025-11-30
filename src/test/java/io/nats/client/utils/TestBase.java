@@ -125,7 +125,7 @@ public class TestBase {
     // runners -> own server
     // ----------------------------------------------------------------------------------------------------
     private static void _runInOwnServer(
-        Options.Builder optionsBuilder,
+        @SuppressWarnings("SameParameterValue") Options.Builder optionsBuilder,
         VersionCheck vc,
         String configFilePath,
         OneConnectionTest oneNcTest,
@@ -174,10 +174,6 @@ public class TestBase {
         _runInOwnServer(null, null, null, null, jetStreamTest);
     }
 
-    public static void runInOwnJsServer(ErrorListener el, JetStreamTest jetStreamTest) throws Exception {
-        _runInOwnServer(optionsBuilder(el), null, null, null, jetStreamTest);
-    }
-
     public static void runInOwnJsServer(String configFilePath, JetStreamTest jetStreamTest) throws Exception {
         _runInOwnServer(null, null, configFilePath, null, jetStreamTest);
     }
@@ -193,6 +189,7 @@ public class TestBase {
         Options.Builder optionsBuilder,
         VersionCheck vc,
         OneConnectionTest oneNcTest,
+        TwoConnectionTest twoNcTest,
         int jstcTestSubjectCount,
         JetStreamTestingContextTest ctxTest
     ) throws Exception {
@@ -206,15 +203,26 @@ public class TestBase {
         // with a builder, just make a fresh connection and close it at the end.
         boolean closeNcWhenDone;
         Connection nc;
+        Connection nc2 = null;
+
         if (optionsBuilder == null) {
             closeNcWhenDone = false;
             nc = shared.getSharedConnection();
+            if (twoNcTest != null) {
+                nc2 = shared.getSharedConnection();
+            }
         }
         else {
             closeNcWhenDone = true;
             nc = shared.newConnection(optionsBuilder);
             if (nc == null) {
                 throw new RuntimeException("Unable to open a new connection to reusable sever.");
+            }
+            if (twoNcTest != null) {
+                nc2 = shared.newConnection(optionsBuilder);
+                if (nc2 == null) {
+                    throw new RuntimeException("Unable to open a new connection to reusable sever.");
+                }
             }
         }
 
@@ -226,13 +234,20 @@ public class TestBase {
                         ctxTest.test(nc, ctx);
                     }
                 }
-                else {
+                else if (oneNcTest != null) {
                     oneNcTest.test(nc);
+
+                }
+                else if (twoNcTest != null) {
+                    twoNcTest.test(nc, nc2);
                 }
             }
             finally {
                 if (closeNcWhenDone) {
                     try { nc.close(); } catch (Exception ignore) {}
+                    if (nc2 != null) {
+                        try { nc2.close(); } catch (Exception ignore) {}
+                    }
                 }
             }
         }
@@ -248,65 +263,73 @@ public class TestBase {
     //    connection list close it
     // --------------------------------------------------
     public static void runInShared(OneConnectionTest test) throws Exception {
-        _runInShared(null, null, test, -1, null);
+        _runInShared(null, null, test, null, -1, null);
     }
 
-    public static void runInShared(VersionCheck vc, OneConnectionTest test) throws Exception {
-        _runInShared(null, vc, test, -1, null);
+    public static void runInShared(VersionCheck vc, OneConnectionTest onNcTest) throws Exception {
+        _runInShared(null, vc, onNcTest, null, -1, null);
     }
 
-    public static void runInSharedOwnNc(OneConnectionTest test) throws Exception {
-        _runInShared(optionsBuilder(), null, test, -1, null);
+    public static void runInSharedOwnNc(OneConnectionTest onNcTest) throws Exception {
+        _runInShared(optionsBuilder(), null, onNcTest, null, -1, null);
     }
 
-    public static void runInSharedOwnNc(ErrorListener el, OneConnectionTest test) throws Exception {
-        _runInShared(optionsBuilder(el), null, test, -1, null);
+    public static void runInSharedOwnNc(ErrorListener el, OneConnectionTest onNcTest) throws Exception {
+        _runInShared(optionsBuilder(el), null, onNcTest, null, -1, null);
     }
 
-    public static void runInSharedOwnNc(Options.Builder builder, OneConnectionTest test) throws Exception {
-        _runInShared(builder, null, test, -1, null);
+    public static void runInSharedOwnNc(Options.Builder builder, OneConnectionTest onNcTest) throws Exception {
+        _runInShared(builder, null, onNcTest, null, -1, null);
+    }
+
+    public static void runInSharedOwnNcs(TwoConnectionTest test) throws Exception {
+        _runInShared(optionsBuilder(), null, null, test, -1, null);
+    }
+
+    public static void runInSharedOwnNcs(Options.Builder builder, TwoConnectionTest twoNcTest) throws Exception {
+        _runInShared(builder, null, null, twoNcTest, -1, null);
     }
 
     // --------------------------------------------------
     // JetStream: 1 stream 1 subject
     // --------------------------------------------------
     public static void runInShared(JetStreamTestingContextTest ctxTest) throws Exception {
-        _runInShared(null, null, null, 1, ctxTest);
+        _runInShared(null, null, null, null, 1, ctxTest);
     }
 
     public static void runInShared(VersionCheck vc, JetStreamTestingContextTest ctxTest) throws Exception {
-        _runInShared(null, vc, null, 1, ctxTest);
+        _runInShared(null, vc, null, null, 1, ctxTest);
     }
 
     public static void runInSharedOwnNc(ErrorListener el, JetStreamTestingContextTest ctxTest) throws Exception {
-        _runInShared(optionsBuilder(el), null, null, 1, ctxTest);
+        _runInShared(optionsBuilder(el), null, null, null, 1, ctxTest);
     }
 
     public static void runInSharedOwnNc(ErrorListener el, VersionCheck vc, JetStreamTestingContextTest ctxTest) throws Exception {
-        _runInShared(optionsBuilder(el), vc, null, 1, ctxTest);
+        _runInShared(optionsBuilder(el), vc, null, null, 1, ctxTest);
     }
 
     public static void runInSharedOwnNc(Options.Builder builder, JetStreamTestingContextTest ctxTest) throws Exception {
-        _runInShared(builder, null, null, 1, ctxTest);
+        _runInShared(builder, null, null, null, 1, ctxTest);
     }
 
     public static void runInSharedOwnNc(Options.Builder builder, VersionCheck vc, JetStreamTestingContextTest ctxTest) throws Exception {
-        _runInShared(builder, vc, null, 1, ctxTest);
+        _runInShared(builder, vc, null, null, 1, ctxTest);
     }
 
     // --------------------------------------------------
     // JetStream: 1 stream custom subjects, kv or os
     // --------------------------------------------------
     public static void runInSharedCustom(JetStreamTestingContextTest ctxTest) throws Exception {
-        _runInShared(null, null, null, 0, ctxTest);
+        _runInShared(null, null, null, null, 0, ctxTest);
     }
 
     public static void runInSharedCustom(VersionCheck vc, JetStreamTestingContextTest ctxTest) throws Exception {
-        _runInShared(null, vc, null, 0, ctxTest);
+        _runInShared(null, vc, null, null, 0, ctxTest);
     }
 
     public static void runInSharedCustom(Options.Builder builder, JetStreamTestingContextTest ctxTest) throws Exception {
-        _runInShared(builder, null, null, -1, ctxTest);
+        _runInShared(builder, null, null, null, 0, ctxTest);
     }
 
     // ----------------------------------------------------------------------------------------------------

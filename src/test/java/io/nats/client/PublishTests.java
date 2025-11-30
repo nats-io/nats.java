@@ -14,11 +14,7 @@
 package io.nats.client;
 
 import io.nats.client.ConnectionListener.Events;
-import io.nats.client.impl.Headers;
-import io.nats.client.impl.JetStreamTestingContext;
-import io.nats.client.impl.ListenerByFuture;
-import io.nats.client.impl.ListenerByFuture.ListenerFuture;
-import io.nats.client.impl.NatsMessage;
+import io.nats.client.impl.*;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -84,28 +80,25 @@ public class PublishTests extends TestBase {
 
             nc2.publish(random(), null, null, body);
 
-            // sometimes the exception comes in before the error and the error never comes.
-            fError.validate(fException);
+            // sometimes the exception comes in before the error and the error never comes, so validate for either.
+            listener.validateReceived(fError, fException);
         }
     }
 
     @Test
-    public void testThrowsIfHeadersNotSupported() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            String customInfo = "{\"server_id\":\"test\", \"version\":\"9.9.99\"}";
+    public void testThrowsIfHeadersNotSupported() throws Exception {
+        String customInfo = "{\"server_id\":\"test\", \"version\":\"9.9.99\"}";
 
-            try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(null, customInfo);
-                 Connection nc = Nats.connect(mockTs.getServerUri()))
-            {
-                assertConnected(nc);
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(null, customInfo);
+             Connection nc = Nats.connect(mockTs.getServerUri())) {
+            assertConnected(nc);
 
-                nc.publish(NatsMessage.builder()
-                        .subject("testThrowsIfheadersNotSupported")
-                        .headers(new Headers().add("key", "value"))
-                        .build());
-                fail();
-            }
-        });
+            assertThrows(IllegalArgumentException.class,
+                () -> nc.publish(NatsMessage.builder()
+                    .subject("testThrowsIfheadersNotSupported")
+                    .headers(new Headers().add("key", "value"))
+                    .build()));
+        }
     }
 
     @Test
@@ -145,7 +138,7 @@ public class PublishTests extends TestBase {
             StringBuilder headerLine;
             String bodyLine;
             
-            System.out.println("*** Mock Server @" + ts.getPort() + " waiting for " + proto + " ...");
+            // System.out.println("*** Mock Server @" + ts.getPort() + " waiting for " + proto + " ...");
             try {
                 pubLine = r.readLine();
                 if (hPub) {
@@ -165,7 +158,7 @@ public class PublishTests extends TestBase {
             }
 
             if (pubLine.startsWith(proto)) {
-                System.out.println("*** Mock Server @" + ts.getPort() + " got " + proto + " ...");
+                // System.out.println("*** Mock Server @" + ts.getPort() + " got " + proto + " ...");
                 protocol.set(pubLine);
                 hdrProto.set(headerLine.toString());
                 body.set(bodyLine);
@@ -236,11 +229,11 @@ public class PublishTests extends TestBase {
 
         runInSharedOwnNc(builder, nc -> {
             ListenerFuture fError = listener.prepForError("Maximum Payload Violation");
-            ListenerFuture fEvent = listener.prepForEvent(Events.DISCONNECTED);
+            ListenerFuture fEvent = listener.prepForConnectionEvent(Events.DISCONNECTED);
             int maxPayload = (int)nc.getServerInfo().getMaxPayload();
             nc.publish(random(), new byte[maxPayload + 1]);
-            fError.validate();
-            fEvent.validate();
+            listener.validateReceived(fError);
+            listener.validateReceived(fEvent);
         });
     }
 

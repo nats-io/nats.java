@@ -41,13 +41,13 @@ public class ConnectionListenerTests extends TestBase {
     @Test
     public void testCloseEvent() throws Exception {
         ListenerByFuture listener = new ListenerByFuture();
-        ListenerByFuture.ListenerFuture fEvent = listener.prepForEvent(Events.CLOSED);
+        ListenerFuture fEvent = listener.prepForConnectionEvent(Events.CLOSED);
         Options.Builder builder = optionsBuilder().connectionListener(listener);
         runInSharedOwnNc(builder, nc -> {
             standardCloseConnection(nc);
             assertNull(nc.getConnectedUrl());
         });
-        fEvent.validate();
+        listener.validateReceived(fEvent);
     }
 
     @Test
@@ -114,7 +114,7 @@ public class ConnectionListenerTests extends TestBase {
     public void testMultipleConnectionListeners() throws Exception {
         Set<String> capturedEvents = ConcurrentHashMap.newKeySet();
         ListenerByFuture listener = new ListenerByFuture();
-        ListenerByFuture.ListenerFuture fClosed = listener.prepForEvent(Events.CLOSED);
+        ListenerFuture fClosed = listener.prepForConnectionEvent(Events.CLOSED);
         AtomicReference<Statistics> stats = new AtomicReference<>();
         Options.Builder builder = optionsBuilder().connectionListener(listener);
         runInSharedOwnNc(builder, nc -> {
@@ -139,7 +139,7 @@ public class ConnectionListenerTests extends TestBase {
         });
 
         assertTrue(stats.get().getExceptions() > 0);
-        fClosed.validate();
+        listener.validateReceived(fClosed);
 
         Set<String> expectedEvents = new HashSet<>(Arrays.asList(
                 "CL1-CLOSED",

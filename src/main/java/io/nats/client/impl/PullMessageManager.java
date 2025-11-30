@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.Message;
 import io.nats.client.PullRequestOptions;
 import io.nats.client.SubscribeOptions;
+import io.nats.client.support.Debug;
 import io.nats.client.support.Status;
 
 import static io.nats.client.impl.MessageManager.ManageResult.*;
@@ -66,6 +67,7 @@ class PullMessageManager extends MessageManager {
 
     @Override
     protected void handleHeartbeatError() {
+        Debug.info("HHB");
         super.handleHeartbeatError();
         resetTracking();
         if (pullManagerObserver != null) {

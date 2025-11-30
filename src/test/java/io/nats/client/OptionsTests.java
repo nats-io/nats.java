@@ -531,7 +531,6 @@ public class OptionsTests {
         _testProperties(o);
 
         String propertiesFilePath = createTempPropertiesFile(props);
-        System.out.println(propertiesFilePath);
         o = new Options.Builder(propertiesFilePath).build();
         _testProperties(o);
 
@@ -1063,20 +1062,16 @@ public class OptionsTests {
 
     @Test
     public void testBadClassInPropertyConnectionListeners() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            Properties props = new Properties();
-            props.setProperty(Options.PROP_CONNECTION_CB, "foo");
-            new Options.Builder(props);
-        });
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_CONNECTION_CB, "foo");
+        assertThrows(IllegalArgumentException.class, () -> new Options.Builder(props));
     }
 
     @Test
     public void testBadClassInPropertyStatisticsCollector() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            Properties props = new Properties();
-            props.setProperty(Options.PROP_STATISTICS_COLLECTOR, "foo");
-            new Options.Builder(props);
-        });
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_STATISTICS_COLLECTOR, "foo");
+        assertThrows(IllegalArgumentException.class, () -> new Options.Builder(props));
     }
 
     @Test
@@ -1093,10 +1088,8 @@ public class OptionsTests {
 
     @Test
     public void testThrowOnBadServersURI() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            String[] serverUrls = {URL_PROTO_HOST_PORT_8080, "foo:/bar\\:blammer"};
-            new Options.Builder().servers(serverUrls).build();
-        });
+        String[] serverUrls = {URL_PROTO_HOST_PORT_8080, "foo:/bar\\:blammer"};
+        assertThrows(IllegalArgumentException.class, () -> new Builder().servers(serverUrls).build());
     }
 
     @Test

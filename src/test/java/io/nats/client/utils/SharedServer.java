@@ -13,7 +13,10 @@
 
 package io.nats.client.utils;
 
-import io.nats.client.*;
+import io.nats.client.Connection;
+import io.nats.client.NUID;
+import io.nats.client.NatsTestServer;
+import io.nats.client.Options;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -28,9 +31,6 @@ import static io.nats.client.utils.VersionUtils.initVersionServerInfo;
 public class SharedServer {
 
     private static final int NUM_REUSABLE_CONNECTIONS = 3;
-    private static final int RETRY_DELAY_INCREMENT = 50;
-    private static final int CONNECTION_RETRIES = 10;
-    private static final long RETRY_DELAY = 100;
     private static final Thread SHARED_SHUTDOWN_HOOK_THREAD;
     private static final Map<String, SharedServer> SHARED_BY_URL;
     private static final ReentrantLock STATIC_LOCK;
@@ -103,6 +103,14 @@ public class SharedServer {
         return shared.getSharedConnection();
     }
 
+    public static Connection connectionForSameServer(Connection nc, Options.Builder builder) {
+        SharedServer shared = SHARED_BY_URL.get(nc.getConnectedUrl());
+        if (shared == null) {
+            throw new RuntimeException("No shared server for that connection.");
+        }
+        return shared.newConnection(builder);
+    }
+
     private void waitUntilStatus(Connection conn) {
         for (long x = 0; x < 100; x++) {
             sleep(100);
@@ -136,22 +144,7 @@ public class SharedServer {
     }
 
     public Connection newConnection(Options.Builder builder) {
-        long delay = RETRY_DELAY - RETRY_DELAY_INCREMENT;
-        Options options = builder.server(serverUrl).build();
-        for (int x = 0; x < CONNECTION_RETRIES; x++) {
-            if (x > 0) {
-                delay += RETRY_DELAY_INCREMENT;
-                sleep(delay);
-            }
-            try {
-                return Nats.connect(options);
-            }
-            catch (IOException ignored) {}
-            catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-            }
-        }
-        return null;
+        return ConnectionUtils.newConnection(builder.server(serverUrl).build());
     }
 
     public void shutdown() {

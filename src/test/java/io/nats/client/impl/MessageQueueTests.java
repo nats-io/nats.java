@@ -43,11 +43,9 @@ public class MessageQueueTests {
 
     @Test
     public void testAccumulateThrowsOnNonSingleReader() {
-        assertThrows(IllegalStateException.class, () -> {
-            MessageQueue q = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
-            q.push(new ProtocolMessage(PING));
-            q.accumulate(100,1,null);
-        });
+        MessageQueue q = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
+        q.push(new ProtocolMessage(PING));
+        assertThrows(IllegalStateException.class, () -> q.accumulate(100, 1, null));
     }
 
     @Test
@@ -629,11 +627,8 @@ public class MessageQueueTests {
 
     @Test
     public void testThrowOnFilterIfRunning() {
-        assertThrows(IllegalStateException.class, () -> {
-            MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
-            q.filter(msg -> true);
-            fail();
-        });
+        MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
+        assertThrows(IllegalStateException.class, () -> q.filter(msg -> true));
     }
 
     @Test

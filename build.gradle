@@ -109,11 +109,12 @@ test {
         maxFailures = 4
         maxRetries = 4
     }
+    int mpf = Math.max(1, (int)(Runtime.runtime.availableProcessors() * 3 / 4))
     if (compilerIsJava8 || isNotWindows) {
-        maxParallelForks = Math.min(6, Runtime.runtime.availableProcessors())
+        maxParallelForks = Math.min(6, mpf)
     }
     else {
-        maxParallelForks = 2;
+        maxParallelForks = Math.min(3, mpf);
     }
     systemProperty 'junit.jupiter.execution.timeout.default', '3m'
 }

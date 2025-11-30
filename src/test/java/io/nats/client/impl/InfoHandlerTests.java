@@ -62,15 +62,15 @@ public class InfoHandlerTests {
                 return;
             }
 
-            System.out.println("*** Mock Server @" + ts.getPort() + " sending INFO ...");
+            // System.out.println("*** Mock Server @" + ts.getPort() + " sending INFO ...");
             w.write("INFO {\"server_id\":\"replacement\", \"version\":\"9.9.99\"}\r\n");
             w.flush();
 
-            System.out.println("*** Mock Server @" + ts.getPort() + " sending PING ...");
+            // System.out.println("*** Mock Server @" + ts.getPort() + " sending PING ...");
             w.write("PING\r\n");
             w.flush();
 
-            System.out.println("*** Mock Server @" + ts.getPort() + " waiting for PONG ...");
+            // System.out.println("*** Mock Server @" + ts.getPort() + " waiting for PONG ...");
             String pong;
             try {
                 pong = r.readLine();
@@ -80,10 +80,10 @@ public class InfoHandlerTests {
             }
 
             if (pong != null && pong.startsWith("PONG")) {
-                System.out.println("*** Mock Server @" + ts.getPort() + " got PONG ...");
+                // System.out.println("*** Mock Server @" + ts.getPort() + " got PONG ...");
                 gotPong.complete(Boolean.TRUE);
             } else {
-                System.out.println("*** Mock Server @" + ts.getPort() + " got something else... " + pong);
+                // System.out.println("*** Mock Server @" + ts.getPort() + " got something else... " + pong);
                 gotPong.complete(Boolean.FALSE);
             }
         };
@@ -123,15 +123,15 @@ public class InfoHandlerTests {
                 return;
             }
 
-            System.out.println("*** Mock Server @" + ts.getPort() + " sending INFO ...");
+            // System.out.println("*** Mock Server @" + ts.getPort() + " sending INFO ...");
             w.write("INFO {\"server_id\":\"replacement\"}\r\n");
             w.flush();
 
-            System.out.println("*** Mock Server @" + ts.getPort() + " sending PING ...");
+            // System.out.println("*** Mock Server @" + ts.getPort() + " sending PING ...");
             w.write("PING\r\n");
             w.flush();
 
-            System.out.println("*** Mock Server @" + ts.getPort() + " waiting for PONG ...");
+            // System.out.println("*** Mock Server @" + ts.getPort() + " waiting for PONG ...");
             String pong;
             try {
                 pong = r.readLine();
@@ -141,10 +141,10 @@ public class InfoHandlerTests {
             }
 
             if (pong != null && pong.startsWith("PONG")) {
-                System.out.println("*** Mock Server @" + ts.getPort() + " got PONG ...");
+                // System.out.println("*** Mock Server @" + ts.getPort() + " got PONG ...");
                 gotPong.complete(Boolean.TRUE);
             } else {
-                System.out.println("*** Mock Server @" + ts.getPort() + " got something else... " + pong);
+                // System.out.println("*** Mock Server @" + ts.getPort() + " got something else... " + pong);
                 gotPong.complete(Boolean.FALSE);
             }
         };
@@ -173,6 +173,6 @@ public class InfoHandlerTests {
 
         ConnectionListener.Events event = connectLDM.get(5, TimeUnit.SECONDS);
         assertEquals(ConnectionListener.Events.LAME_DUCK, event);
-        System.out.println(event);
+        // System.out.println(event);
     }
 }

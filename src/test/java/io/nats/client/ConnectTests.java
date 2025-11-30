@@ -275,14 +275,13 @@ public class ConnectTests {
     }
 
     @Test
-    public void testThrowOnAsyncWithoutListener() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer()) {
-                Options options = optionsBuilder(ts).build();
-                Nats.connectAsynchronously(options, false);
-            }
-        });
+    public void testThrowOnAsyncWithoutListener() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = optionsBuilder(ts).build();
+            assertThrows(IllegalArgumentException.class, () -> Nats.connectAsynchronously(options, false));
+        }
     }
+
 
     @Test
     public void testErrorOnAsync() throws Exception {

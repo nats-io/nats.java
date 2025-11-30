@@ -483,7 +483,6 @@ public final class JsonUtilsTests {
         addField(sb, "foo64", base64);
         addField(sb, "zdt", zdt);
         endJson(sb);
-        System.out.println(sb);
 
         bytes = readBase64(sb.toString(), string_pattern("foo64"));
         assertArrayEquals(byte64, bytes);

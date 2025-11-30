@@ -126,4 +126,28 @@ public abstract class ConnectionUtils {
     private static String expectingMessage(Connection conn, Connection.Status expecting) {
         return "Failed expecting Connection Status " + expecting.name() + " but was " + conn.getStatus();
     }
+
+    // ----------------------------------------------------------------------------------------------------
+    // new connection better for java 21
+    // ----------------------------------------------------------------------------------------------------
+    private static final int RETRY_DELAY_INCREMENT = 50;
+    private static final int CONNECTION_RETRIES = 10;
+    private static final long RETRY_DELAY = 100;
+    public static Connection newConnection(Options options) {
+        long delay = RETRY_DELAY - RETRY_DELAY_INCREMENT;
+        for (int x = 0; x < CONNECTION_RETRIES; x++) {
+            if (x > 0) {
+                delay += RETRY_DELAY_INCREMENT;
+                sleep(delay);
+            }
+            try {
+                return Nats.connect(options);
+            }
+            catch (IOException ignored) {}
+            catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        return null;
+    }
 }

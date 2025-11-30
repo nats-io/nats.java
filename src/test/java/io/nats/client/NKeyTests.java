@@ -125,26 +125,21 @@ public class NKeyTests {
     }
 
     @Test
-    public void testDecodeWrongType() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            byte[] bytes = new byte[32];
-            SecureRandom random = new SecureRandom();
-            random.nextBytes(bytes);
+    public void testDecodeWrongType() throws IOException {
+        byte[] bytes = new byte[32];
+        SecureRandom random = new SecureRandom();
+        random.nextBytes(bytes);
 
-            char[] encoded = NKey.encode(NKey.Type.ACCOUNT, bytes);
-            NKey.decode(NKey.Type.USER, encoded, false);
-        });
+        char[] encoded = NKey.encode(NKey.Type.ACCOUNT, bytes);
+        assertThrows(IllegalArgumentException.class, () -> NKey.decode(NKey.Type.USER, encoded, false));
     }
 
     @Test
     public void testEncodeSeedSize() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            byte[] bytes = new byte[48];
-            SecureRandom random = new SecureRandom();
-            random.nextBytes(bytes);
-
-            NKey.encodeSeed(NKey.Type.ACCOUNT, bytes);
-        });
+        byte[] bytes = new byte[48];
+        SecureRandom random = new SecureRandom();
+        random.nextBytes(bytes);
+        assertThrows(IllegalArgumentException.class, () -> NKey.encodeSeed(NKey.Type.ACCOUNT, bytes));
     }
 
     @Test
@@ -385,48 +380,38 @@ public class NKeyTests {
     }
 
     @Test
-    public void testPublicOnlyCantSign() {
-        assertThrows(IllegalStateException.class, () -> {
-            NKey theKey = NKey.createUser(null);
-            NKey pubOnly = NKey.fromPublicKey(theKey.getPublicKey());
+    public void testPublicOnlyCantSign() throws Exception {
+        NKey theKey = NKey.createUser(null);
+        NKey pubOnly = NKey.fromPublicKey(theKey.getPublicKey());
 
-            byte[] data = "Public and Private".getBytes(StandardCharsets.UTF_8);
-            pubOnly.sign(data);
-        });
+        byte[] data = "Public and Private".getBytes(StandardCharsets.UTF_8);
+        assertThrows(IllegalStateException.class, () -> pubOnly.sign(data));
     }
 
     @Test
-    public void testPublicOnlyCantProvideSeed() {
-        assertThrows(IllegalStateException.class, () -> {
-            NKey theKey = NKey.createUser(null);
-            NKey pubOnly = NKey.fromPublicKey(theKey.getPublicKey());
-            pubOnly.getSeed();
-        });
+    public void testPublicOnlyCantProvideSeed() throws Exception {
+        NKey theKey = NKey.createUser(null);
+        NKey pubOnly = NKey.fromPublicKey(theKey.getPublicKey());
+        assertThrows(IllegalStateException.class, pubOnly::getSeed);
     }
 
     @Test
-    public void testPublicOnlyCantProvidePrivate() {
-        assertThrows(IllegalStateException.class, () -> {
-            NKey theKey = NKey.createUser(null);
-            NKey pubOnly = NKey.fromPublicKey(theKey.getPublicKey());
-            pubOnly.getPrivateKey();
-        });
+    public void testPublicOnlyCantProvidePrivate() throws Exception {
+        NKey theKey = NKey.createUser(null);
+        NKey pubOnly = NKey.fromPublicKey(theKey.getPublicKey());
+        assertThrows(IllegalStateException.class, pubOnly::getPrivateKey);
     }
 
     @Test
-    public void testPublicFromSeedShouldFail() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            NKey theKey = NKey.createUser(null);
-            NKey.fromPublicKey(theKey.getSeed());
-        });
+    public void testPublicFromSeedShouldFail() throws Exception {
+        NKey theKey = NKey.createUser(null);
+        assertThrows(IllegalArgumentException.class, () -> NKey.fromPublicKey(theKey.getSeed()));
     }
 
     @Test
-    public void testSeedFromPublicShouldFail() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            NKey theKey = NKey.createUser(null);
-            NKey.fromSeed(theKey.getPublicKey());
-        });
+    public void testSeedFromPublicShouldFail() throws Exception {
+        NKey theKey = NKey.createUser(null);
+        assertThrows(IllegalArgumentException.class, () -> NKey.fromSeed(theKey.getPublicKey()));
     }
 
     @Test
@@ -562,7 +547,7 @@ public class NKeyTests {
         assertEquals(NKey.Type.OPERATOR, NKey.Type.fromPrefix(NKey.PREFIX_BYTE_OPERATOR));
         assertEquals(NKey.Type.CLUSTER, NKey.Type.fromPrefix(NKey.PREFIX_BYTE_CLUSTER));
         assertEquals(NKey.Type.ACCOUNT, NKey.Type.fromPrefix(NKey.PREFIX_BYTE_PRIVATE));
-        assertThrows(IllegalArgumentException.class, () -> { NKey.Type ignored = NKey.Type.fromPrefix(9999); });
+        assertThrows(IllegalArgumentException.class, () -> NKey.Type.fromPrefix(9999));
     }
 
     @Test
@@ -589,13 +574,10 @@ public class NKeyTests {
     }
 
     @Test
-    public void testClear() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            NKey key = NKey.createServer(null);
-            key.clear();
-            key.getPrivateKey();
-
-        }, "Invalid encoding");
+    public void testClear() throws Exception {
+        NKey key = NKey.createServer(null);
+        key.clear();
+        assertThrows(IllegalArgumentException.class, key::getPrivateKey);
     }
 
     @Test
