@@ -24,8 +24,8 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
-import static io.nats.client.impl.ListenerByFutureStatusType.PullError;
-import static io.nats.client.impl.ListenerByFutureStatusType.PullWarning;
+import static io.nats.client.impl.ListenerStatusType.PullError;
+import static io.nats.client.impl.ListenerStatusType.PullWarning;
 import static io.nats.client.impl.MessageManager.ManageResult;
 import static io.nats.client.impl.MessageManager.ManageResult.*;
 import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
@@ -72,7 +72,7 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void testPushBeforeQueueProcessorAndManage() throws Exception {
-        ListenerByFuture listener = new ListenerByFuture();
+        Listener listener = new Listener();
         runInSharedOwnNc(listener, nc -> {
             _testPushBqpAndManageRetriable(nc, listener, push_hb_fc(), false, true, false);
             _testPushBqpAndManageRetriable(nc, listener, push_hb_xfc(), false, true, false);
@@ -83,7 +83,7 @@ public class MessageManagerTests extends JetStreamTestBase {
         });
     }
 
-    private void _testPushBqpAndManageRetriable(Connection nc, ListenerByFuture listener, PushSubscribeOptions pso, boolean ordered, boolean syncMode, boolean queueMode) throws JetStreamApiException, IOException {
+    private void _testPushBqpAndManageRetriable(Connection nc, Listener listener, PushSubscribeOptions pso, boolean ordered, boolean syncMode, boolean queueMode) throws JetStreamApiException, IOException {
         listener.reset();
 
         NatsJetStreamSubscription sub = genericPushSub(nc);
@@ -104,31 +104,31 @@ public class MessageManagerTests extends JetStreamTestBase {
             listener.validateReceived(f);
         }
         else {
-            ListenerFuture f = listener.prepForStatus(ListenerByFutureStatusType.Unhandled, FLOW_OR_HEARTBEAT_STATUS_CODE);
+            ListenerFuture f = listener.prepForStatus(ListenerStatusType.Unhandled, FLOW_OR_HEARTBEAT_STATUS_CODE);
             assertEquals(STATUS_ERROR, manager.manage(getFlowControl(1, sid)));
             listener.validateReceived(f);
 
-            f = listener.prepForStatus(ListenerByFutureStatusType.Unhandled, FLOW_OR_HEARTBEAT_STATUS_CODE);
+            f = listener.prepForStatus(ListenerStatusType.Unhandled, FLOW_OR_HEARTBEAT_STATUS_CODE);
             assertEquals(STATUS_ERROR, manager.manage(getFcHeartbeat(1, sid)));
             listener.validateReceived(f);
         }
 
         assertTrue(manager.beforeQueueProcessorImpl(getUnkownStatus(sid)));
-        ListenerFuture f = listener.prepForStatus(ListenerByFutureStatusType.Unhandled, 999);
+        ListenerFuture f = listener.prepForStatus(ListenerStatusType.Unhandled, 999);
         assertEquals(STATUS_ERROR, manager.manage(getUnkownStatus(sid)));
         listener.validateReceived(f);
     }
 
     @Test
     public void testPullBeforeQueueProcessorAndManage() throws Exception {
-        ListenerByFuture listener = new ListenerByFuture();
+        Listener listener = new Listener();
         runInSharedOwnNc(listener, (nc, ctx) -> {
             _testPullBqpAndManage(nc, listener, PullRequestOptions.builder(1).build());
             _testPullBqpAndManage(nc, listener,  PullRequestOptions.builder(1).expiresIn(10000).idleHeartbeat(100).build());
         });
     }
 
-    private void _testPullBqpAndManage(Connection nc, ListenerByFuture listener, PullRequestOptions pro) throws JetStreamApiException, IOException {
+    private void _testPullBqpAndManage(Connection nc, Listener listener, PullRequestOptions pro) throws JetStreamApiException, IOException {
         NatsJetStreamSubscription sub = genericPullSub(nc);
         PullMessageManager manager = getPullManager(nc, sub, true);
         manager.startPullRequest(random(), pro, true, null);
@@ -169,7 +169,7 @@ public class MessageManagerTests extends JetStreamTestBase {
         assertManageResult(listener, PullError, CONFLICT_CODE, STATUS_ERROR, manager, getConflictStatus(sid, CONSUMER_IS_PUSH_BASED));
     }
 
-    private static void assertManageResult(ListenerByFuture listener, ListenerByFutureStatusType expectedType, int expectedStatusCode, ManageResult expecteManageResult, PullMessageManager manager, NatsMessage message) {
+    private static void assertManageResult(Listener listener, ListenerStatusType expectedType, int expectedStatusCode, ManageResult expecteManageResult, PullMessageManager manager, NatsMessage message) {
         ListenerFuture f = listener.prepForStatus(expectedType, expectedStatusCode);
         assertEquals(expecteManageResult, manager.manage(message));
         listener.validateReceived(f);

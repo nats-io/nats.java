@@ -68,7 +68,7 @@ public class PublishTests extends TestBase {
             nc.close();
             Thread.sleep(1000);
 
-            ListenerByFuture listener = new ListenerByFuture();
+            Listener listener = new Listener();
             Options options = optionsBuilder(ts)
                 .clientSideLimitChecks(false)
                 .errorListener(listener)
@@ -220,7 +220,7 @@ public class PublishTests extends TestBase {
 
     @Test
     public void testMaxPayloadNoClientSideLimitChecks() throws Exception {
-        ListenerByFuture listener = new ListenerByFuture();
+        Listener listener = new Listener();
         Options.Builder builder = optionsBuilder()
             .noReconnect()
             .clientSideLimitChecks(false)

@@ -55,10 +55,6 @@ public class NatsTestServer extends NatsServerRunner implements TestServer {
         return new NatsTestServer(configFileBuilder(configFilePath).jetstream());
     }
 
-    public static NatsTestServer skipConnectValidateServer(String configFilePath) throws IOException {
-        return new NatsTestServer(configFileBuilder(configFilePath).skipConnectValidate());
-    }
-
     public NatsTestServer() throws IOException {
         this(builder());
     }

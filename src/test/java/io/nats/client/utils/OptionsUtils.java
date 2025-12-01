@@ -14,7 +14,6 @@
 package io.nats.client.utils;
 
 import io.nats.client.*;
-import io.nats.client.impl.ListenerForTesting;
 import org.jspecify.annotations.NonNull;
 
 import java.time.Duration;
@@ -134,25 +133,5 @@ public abstract class OptionsUtils {
             }
             return t;
         }
-    }
-
-    private static Options.Builder _plainOptionsBuilder() {
-        return Options.builder().reportNoResponders().errorListener(new ListenerForTesting());
-    }
-
-    public static Options.Builder plainOptionsBuilder(String serverURL) {
-        return _plainOptionsBuilder().server(serverURL);
-    }
-
-    public static Options.Builder plainOptionsBuilder(NatsTestServer ts) {
-        return _plainOptionsBuilder().server(ts.getServerUri());
-    }
-
-    public static Options plainOptions(String serverURL) {
-        return plainOptionsBuilder(serverURL).build();
-    }
-
-    public static Options plainOptions(NatsTestServer ts) {
-        return plainOptionsBuilder(ts).build();
     }
 }

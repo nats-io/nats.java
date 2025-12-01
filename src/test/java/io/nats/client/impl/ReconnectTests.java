@@ -34,7 +34,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
 import static io.nats.client.AuthTests.getUserCredsAuthHander;
-import static io.nats.client.NatsTestServer.*;
+import static io.nats.client.NatsTestServer.configFileBuilder;
+import static io.nats.client.NatsTestServer.getLocalhostUri;
 import static io.nats.client.support.NatsConstants.OUTPUT_QUEUE_IS_FULL;
 import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.*;
@@ -354,7 +355,7 @@ public class ReconnectTests {
 
     @Test
     public void testOverflowReconnectBuffer() throws Exception {
-        ListenerByFuture listener = new ListenerByFuture();
+        Listener listener = new Listener();
         ListenerFuture f = listener.prepForConnectionEvent(Events.DISCONNECTED);
         Connection nc;
         try (NatsTestServer ts = new NatsTestServer()) {
@@ -492,7 +493,7 @@ public class ReconnectTests {
     }
 
     @Test
-    public void testReconnectNoIPTLSConnection() throws Exception {
+    public void testTlsNoIpConnection() throws Exception {
         NatsConnection nc;
         ListenerForTesting listener = new ListenerForTesting();
 
@@ -520,12 +521,27 @@ public class ReconnectTests {
                 "}"
         };
 
+        SslTestingHelper.setKeystoreSystemParameters();
+
         // Regular tls for first connection, then no ip for second
         try (NatsTestServer ts = new NatsTestServer("tls_noip.conf", tsInserts, tsPort);
              NatsTestServer ts2 = new NatsTestServer("tls_noip.conf", ts2Inserts, ts2Port) ) {
 
-            SslTestingHelper.setKeystoreSystemParameters();
-            Options options = optionsBuilder(ts)
+            // Test 1. tls Scheme
+            Options options = optionsBuilder(ts, "tls")
+                .connectionTimeout(Duration.ofSeconds(5))
+                .maxReconnects(0)
+                .build();
+            assertCanConnect(options);
+
+            // Test 2. opentls Scheme
+            options = optionsBuilder(ts, "opentls")
+                .maxReconnects(0)
+                .build();
+            assertCanConnect(options);
+
+            // Test 3. Reconnect
+            options = optionsBuilder(ts)
                 .secure()
                 .connectionListener(listener)
                 .maxReconnects(20)
@@ -549,31 +565,6 @@ public class ReconnectTests {
             URI uri = options.createURIForServer(nc.getConnectedUrl());
             assertEquals(ts2.getPort(), uri.getPort()); // full uri will have some ip address, just check port
             standardCloseConnection(nc);
-        }
-    }
-
-    @Test
-    public void testURISchemeNoIPTLSConnection() throws Exception {
-        //System.setProperty("javax.net.debug", "all");
-        SslTestingHelper.setKeystoreSystemParameters();
-        try (NatsTestServer ts = configFileServer("tls_noip.conf")) {
-            Options options = optionsBuilder(ts, "tls")
-                .connectionTimeout(Duration.ofSeconds(5))
-                .maxReconnects(0)
-                .build();
-            assertCanConnect(options);
-        }
-    }
-
-    @Test
-    public void testURISchemeNoIPOpenTLSConnection() throws Exception {
-        //System.setProperty("javax.net.debug", "all");
-        SslTestingHelper.setKeystoreSystemParameters();
-        try (NatsTestServer ts = configFileServer("tls_noip.conf")) {
-            Options options = optionsBuilder(ts, "opentls")
-                .maxReconnects(0)
-                .build();
-            assertCanConnect(options);
         }
     }
 

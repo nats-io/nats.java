@@ -13,6 +13,6 @@
 
 package io.nats.client.impl;
 
-public enum ListenerByFutureStatusType {
+public enum ListenerStatusType {
     Unhandled, PullWarning, PullError, None
 }

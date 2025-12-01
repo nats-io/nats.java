@@ -39,8 +39,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.api.ConsumerConfiguration.builder;
-import static io.nats.client.impl.ListenerByFutureStatusType.PullError;
-import static io.nats.client.impl.ListenerByFutureStatusType.PullWarning;
+import static io.nats.client.impl.ListenerStatusType.PullError;
+import static io.nats.client.impl.ListenerStatusType.PullWarning;
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.NatsJetStreamConstants.NATS_PIN_ID_HDR;
 import static io.nats.client.support.Status.*;
@@ -51,7 +51,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class JetStreamPullTests extends JetStreamTestBase {
 
     static Connection tcsNc;
-    static ListenerByFuture tcsListener;
+    static Listener tcsListener;
 
     @AfterAll
     public static void afterAll() {
@@ -725,7 +725,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     }
 
     interface ConflictSetup {
-        JetStreamSubscription setup(Connection nc, JetStreamTestingContext ctx, ListenerByFuture listener) throws Exception;
+        JetStreamSubscription setup(Connection nc, JetStreamTestingContext ctx, Listener listener) throws Exception;
     }
 
     interface BuilderCustomizer {
@@ -738,10 +738,10 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     static final long NEXT_MESSAGE_TIMEOUT = 2000;
     static final long INACTIVE_THRESHOLD = 30_000;
-    private void _testConflictStatuses(int statusCode, String statusText, ListenerByFutureStatusType statusType, VersionCheck vc, ConflictSetup setup) throws Exception {
+    private void _testConflictStatuses(int statusCode, String statusText, ListenerStatusType statusType, VersionCheck vc, ConflictSetup setup) throws Exception {
         runInSharedCustom(vc, (ignoredNc, ctx) -> {
             if (tcsNc == null) {
-                tcsListener = new ListenerByFuture();
+                tcsListener = new Listener();
                 Options.Builder builder = optionsBuilder(tcsListener);
                 tcsNc = SharedServer.connectionForSameServer(ignoredNc, builder);
             }
@@ -1028,7 +1028,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testExceedsMaxRequestBytesNthMessageSyncSub() throws Exception {
-        ListenerByFuture listener = new ListenerByFuture();
+        Listener listener = new Listener();
         runInSharedOwnNc(listener, VersionUtils::atLeast2_9_1, (nc, ctx) -> {
             ListenerFuture f = listener.prepForStatus(PullWarning, CONFLICT_CODE);
             String dur = random();
@@ -1054,7 +1054,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testDoesNotExceedMaxRequestBytesExactBytes() throws Exception {
-        ListenerByFuture listener = new ListenerByFuture();
+        Listener listener = new Listener();
         runInSharedOwnNc(listener, VersionUtils::atLeast2_9_1, (nc, ctx) -> {
             ListenerFuture f = listener.prepForStatus(PullWarning, CONFLICT_CODE);
             ctx.stream = randomWide(6); // six letters so I can count

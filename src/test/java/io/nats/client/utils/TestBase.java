@@ -20,15 +20,14 @@ import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.impl.*;
 import io.nats.client.support.NatsJetStreamClientError;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.function.Executable;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
@@ -45,6 +44,16 @@ import static io.nats.client.utils.VersionUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestBase {
+    public static final String TLS_CONF = "tls.conf";
+    public static final String TLSVERIFY_CONF = "tlsverify.conf";
+    public static final String TLS_FIRST_CONF = "tls_first.conf";
+
+    public static final String WS = "ws";
+    public static final String WSS = "wss";
+    public static final String WS_CONF = "ws.conf";
+    public static final String WSS_CONF = "wss.conf";
+    public static final String WSSVERIFY_CONF = "wssverify.conf";
+
     public static final String STAR_SEGMENT        = "*.star.*.segment.*";
     public static final String GT_NOT_LAST_SEGMENT = "gt.>.notlast";
     public static final String GT_LAST_SEGMENT     = "gt.last.>";
@@ -89,6 +98,29 @@ public class TestBase {
             runInShared(VersionUtils::initVersionServerInfo);
         }
         return VERSION_SERVER_INFO;
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // shared config server helpers
+    // ----------------------------------------------------------------------------------------------------
+    static Set<String> SharedConfigServers = new HashSet<String>();
+
+    @AfterAll
+    public static void afterAll() {
+        if (SharedConfigServers.size() > 0) {
+            SharedServer.shutdown(SharedConfigServers.toArray(new String[0]));
+        }
+    }
+
+    public static NatsTestServer sharedConfigServer(String nameAndConfFile) throws IOException {
+        SharedConfigServers.add(nameAndConfFile);
+        return SharedServer.getInstance(nameAndConfFile, nameAndConfFile).getServer();
+    }
+
+    public static NatsTestServer sharedConfigServer(String confFile, int version) throws IOException {
+        String name = confFile + "-" + version;
+        SharedConfigServers.add(name);
+        return SharedServer.getInstance(name, confFile).getServer();
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -197,7 +229,7 @@ public class TestBase {
             return; // had vc, already had run server info and fails check
         }
 
-        SharedServer shared = SharedServer.getInstance("shared");
+        SharedServer shared = SharedServer.getInstance("SHARED");
 
         // no builder, we can use the long-running connection since it's totally generic
         // with a builder, just make a fresh connection and close it at the end.

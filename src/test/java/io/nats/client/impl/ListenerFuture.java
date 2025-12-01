@@ -27,10 +27,12 @@ public class ListenerFuture extends CompletableFuture<Void> {
     public ConnectionListener.Events eventType;
     public String error;
     public Class<?> exceptionClass;
-    public ListenerByFutureStatusType lbfStatusType;
+    public ListenerStatusType lbfStatusType;
     public int statusCode = -1;
     public String fcSubject;
     public ErrorListener.FlowControlSource fcSource;
+
+    public Throwable receivedException;
 
     public ListenerFuture(ConnectionListener.Events type) {
         this.eventType = type;
@@ -44,7 +46,7 @@ public class ListenerFuture extends CompletableFuture<Void> {
         error = errorText;
     }
 
-    public ListenerFuture(ListenerByFutureStatusType type, int statusCode) {
+    public ListenerFuture(ListenerStatusType type, int statusCode) {
         lbfStatusType = type;
         this.statusCode = statusCode;
     }

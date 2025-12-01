@@ -27,7 +27,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 
 @SuppressWarnings({"CallToPrintStackTrace", "RedundantMethodOverride"})
-public class ListenerByFuture implements ErrorListener, ConnectionListener {
+public class Listener implements ErrorListener, ConnectionListener {
     private static final int VALIDATE_TIMEOUT = 5000;
 
     private final boolean printExceptions;
@@ -35,15 +35,15 @@ public class ListenerByFuture implements ErrorListener, ConnectionListener {
 
     private final List<ListenerFuture> futures;
 
-    public ListenerByFuture() {
+    public Listener() {
         this(false, false);
     }
 
-    public ListenerByFuture(boolean verbose) {
+    public Listener(boolean verbose) {
         this(false, verbose);
     }
 
-    public ListenerByFuture(boolean printExceptions, boolean verbose) {
+    public Listener(boolean printExceptions, boolean verbose) {
         this.printExceptions = printExceptions;
         this.verbose = verbose;
         futures = new ArrayList<>();
@@ -115,7 +115,7 @@ public class ListenerByFuture implements ErrorListener, ConnectionListener {
         return prepFor("Error", new ListenerFuture(errorText));
     }
 
-    public ListenerFuture prepForStatus(ListenerByFutureStatusType type, int statusCode) {
+    public ListenerFuture prepForStatus(ListenerStatusType type, int statusCode) {
         return prepFor("Status", new ListenerFuture(type, statusCode));
     }
 
@@ -175,6 +175,7 @@ public class ListenerByFuture implements ErrorListener, ConnectionListener {
             while (t != null) {
                 if (t.getClass().equals(f.exceptionClass)) {
                     f.complete(null);
+                    f.receivedException = exp;
                     return true;
                 }
                 t = t.getCause();
@@ -198,7 +199,7 @@ public class ListenerByFuture implements ErrorListener, ConnectionListener {
         }
     }
 
-    private void statusReceived(ListenerByFutureStatusType type, Status status) {
+    private void statusReceived(ListenerStatusType type, Status status) {
         if (verbose) {
             report("Status Received " + type.name(), status);
         }
@@ -207,17 +208,17 @@ public class ListenerByFuture implements ErrorListener, ConnectionListener {
 
     @Override
     public void unhandledStatus(Connection conn, JetStreamSubscription sub, Status status) {
-        statusReceived(ListenerByFutureStatusType.Unhandled, status);
+        statusReceived(ListenerStatusType.Unhandled, status);
     }
 
     @Override
     public void pullStatusWarning(Connection conn, JetStreamSubscription sub, Status status) {
-        statusReceived(ListenerByFutureStatusType.PullWarning, status);
+        statusReceived(ListenerStatusType.PullWarning, status);
     }
 
     @Override
     public void pullStatusError(Connection conn, JetStreamSubscription sub, Status status) {
-        statusReceived(ListenerByFutureStatusType.PullError, status);
+        statusReceived(ListenerStatusType.PullError, status);
     }
 
     @Override

@@ -17,6 +17,7 @@ import io.nats.client.Connection;
 import io.nats.client.Nats;
 import io.nats.client.Options;
 import io.nats.client.impl.ListenerForTesting;
+import io.nats.client.support.Debug;
 import org.opentest4j.AssertionFailedError;
 
 import java.io.IOException;
@@ -145,6 +146,7 @@ public abstract class ConnectionUtils {
                 return Nats.connect(options);
             }
             catch (IOException ioe) {
+                Debug.info("newConnection", ioe.getMessage());
                 last = ioe;
             }
             catch (InterruptedException ie) {

@@ -571,7 +571,7 @@ public class DrainTests {
 
     @Test
     public void testThrowIfCantFlush() throws Exception {
-        ListenerByFuture listener = new ListenerByFuture();
+        Listener listener = new Listener();
         try (NatsTestServer ts = new NatsTestServer();
              Connection subCon = standardConnectionWait(optionsBuilder(ts).connectionListener(listener).build())) {
             subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
