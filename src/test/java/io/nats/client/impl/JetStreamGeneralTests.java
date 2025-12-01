@@ -32,8 +32,7 @@ import static io.nats.client.NatsTestServer.configuredJsServer;
 import static io.nats.client.api.ConsumerConfiguration.*;
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.support.NatsJetStreamClientError.*;
-import static io.nats.client.utils.ConnectionUtils.longConnectionWait;
-import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
+import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.VersionUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -1108,7 +1107,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     public void testRequestNoResponder() throws Exception {
         runInSharedCustom((ncCancel, ctx) -> {
             Options optReport = optionsBuilder(ncCancel).reportNoResponders().build();
-            try (Connection ncReport = standardConnectionWait(optReport)) {
+            try (Connection ncReport = newConnection(optReport)) {
                 assertThrows(CancellationException.class, () -> ncCancel.request(random(), null).get());
                 ExecutionException ee = assertThrows(ExecutionException.class, () -> ncReport.request(random(), null).get());
                 assertInstanceOf(JetStreamStatusException.class, ee.getCause());

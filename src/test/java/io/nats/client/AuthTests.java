@@ -703,12 +703,14 @@ public class AuthTests extends TestBase {
                 .credentialPath(credsFile)
                 .connectionListener(listener)
                 .errorListener(listener)
-                .maxReconnects(2)
+                .maxReconnects(5)
                 .build();
-            try (Connection nc = newConnection(options)) {
+            try (Connection ignored = newConnection(options)) {
                 listener.validateReceived(fExpired);
             }
+            catch (RuntimeException e) {
+                assertTrue(e.getMessage().contains("Authorization Violation"));
+            }
         }
-        catch (Exception ignore) {}
     }
 }

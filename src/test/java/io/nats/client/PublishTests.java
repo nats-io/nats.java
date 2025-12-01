@@ -254,7 +254,7 @@ public class PublishTests extends TestBase {
         Options.Builder ncNotSupportedOptionsBuilder = optionsBuilder().noReconnect().clientSideLimitChecks(false);
         runInSharedOwnNc(ncNotSupportedOptionsBuilder, ncNotSupported -> {
             Options ncSupportedOptions = optionsBuilder(ncNotSupported).supportUTF8Subjects().build();
-            try (Connection ncSupported = standardConnectionWait(ncSupportedOptions)) {
+            try (Connection ncSupported = newConnection(ncSupportedOptions)) {
                 try (JetStreamTestingContext ctxNotSupported = new JetStreamTestingContext(ncNotSupported, 0)) {
                     ctxNotSupported.createOrReplaceStream(jsSubject);
                     JetStream jsNotSupported = ncNotSupported.jetStream();

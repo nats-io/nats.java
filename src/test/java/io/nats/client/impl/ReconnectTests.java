@@ -944,7 +944,7 @@ public class ReconnectTests {
                 getLocalhostUri(port1),
                 getLocalhostUri(port2)
             };
-            Connection nc = standardConnectionWait(builder.servers(servers).build());
+            Connection nc = newConnection(builder.servers(servers).build());
             String subject = random();
             int connectedPort = nc.getServerInfo().getPort();
             AtomicInteger pubId = new AtomicInteger();

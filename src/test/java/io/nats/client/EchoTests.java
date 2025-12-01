@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.time.Duration;
 
 import static io.nats.client.utils.ConnectionUtils.assertClosed;
-import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
+import static io.nats.client.utils.ConnectionUtils.newConnection;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -65,7 +65,7 @@ public class EchoTests extends TestBase {
     @Test
     public void testWithEcho() throws Exception {
         runInShared(nc1 -> {
-            try (Connection nc2 = standardConnectionWait(optionsBuilder(nc1).build())) {
+            try (Connection nc2 = newConnection(optionsBuilder(nc1).build())) {
                 // Echo is on so both sub should get messages from both pub
                 String subject = random();
                 Subscription sub1 = nc1.subscribe(subject);

@@ -17,6 +17,7 @@ import io.nats.client.Connection;
 import io.nats.client.ErrorListener;
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 
@@ -28,34 +29,29 @@ import static io.nats.client.utils.OptionsUtils.options;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class AuthAndConnectTests {
+public class AuthAndConnectTests extends TestBase {
     @Test
     public void testIsAuthError() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer()) {
-            Connection nc = standardConnectionWait(options(ts));
-            NatsConnection nats = (NatsConnection)nc;
-
-            assertTrue(nats.isAuthenticationError("user authentication expired"));
-            assertTrue(nats.isAuthenticationError("authorization violation"));
-            assertTrue(nats.isAuthenticationError("Authorization Violation"));
-            assertFalse(nats.isAuthenticationError("test"));
-            assertFalse(nats.isAuthenticationError(""));
-            assertFalse(nats.isAuthenticationError(null));
-
-            standardCloseConnection(nc);
-        }
+        //noinspection resource
+        NatsConnection nats = new NatsConnection(options());
+        assertTrue(nats.isAuthenticationError("user authentication expired"));
+        assertTrue(nats.isAuthenticationError("authorization violation"));
+        assertTrue(nats.isAuthenticationError("Authorization Violation"));
+        assertFalse(nats.isAuthenticationError("test"));
+        assertFalse(nats.isAuthenticationError(""));
+        assertFalse(nats.isAuthenticationError(null));
     }
 
     @Test()
     public void testConnectWhenClosed() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer()) {
-            NatsConnection nc = (NatsConnection) standardConnectionWait(options(ts));
+        runInSharedOwnNc(c -> {
+            NatsConnection nc = (NatsConnection)c;
             standardCloseConnection(nc);
             nc.connect(false); // should do nothing
             assertClosed(nc);
             nc.reconnect(); // should do nothing
             assertClosed(nc);
-        }
+        });
     }
 
     /**
@@ -80,7 +76,7 @@ public class AuthAndConnectTests {
                     .errorListener(noopErrorListener)
                     .build();
 
-            try (NatsConnection nc = (NatsConnection) standardConnectionWait(options)) {
+            try (NatsConnection nc = (NatsConnection) newConnection(options)) {
 
                 // After we've connected, shut down, so we can attempt reconnecting.
                 ts.shutdown(true);

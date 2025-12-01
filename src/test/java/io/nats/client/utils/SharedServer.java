@@ -126,11 +126,9 @@ public class SharedServer {
             Connection ncs = connectionMap.get(name);
             if (ncs == null) {
                 ncs = newConnection(optionsBuilder());
-                if (ncs != null) {
-                    connectionMap.put(name, ncs);
-                    waitUntilStatus(ncs);
-                    initVersionServerInfo(ncs);
-                }
+                connectionMap.put(name, ncs);
+                waitUntilStatus(ncs);
+                initVersionServerInfo(ncs);
             }
             else if (ncs.getStatus() != Connection.Status.CONNECTED) {
                 try { ncs.close(); } catch (Exception ignore) {}

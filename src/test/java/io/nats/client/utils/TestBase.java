@@ -215,14 +215,8 @@ public class TestBase {
         else {
             closeNcWhenDone = true;
             nc = shared.newConnection(optionsBuilder);
-            if (nc == null) {
-                throw new RuntimeException("Unable to open a new connection to reusable sever.");
-            }
             if (twoNcTest != null) {
                 nc2 = shared.newConnection(optionsBuilder);
-                if (nc2 == null) {
-                    throw new RuntimeException("Unable to open a new connection to reusable sever.");
-                }
             }
         }
 
@@ -535,7 +529,7 @@ public class TestBase {
     // assertions
     // ----------------------------------------------------------------------------------------------------
     public static void assertCanConnectAndPubSub(Options options) throws IOException, InterruptedException {
-        Connection conn = standardConnectionWait(options);
+        Connection conn = newConnection(options);
         assertPubSub(conn);
         standardCloseConnection(conn);
     }

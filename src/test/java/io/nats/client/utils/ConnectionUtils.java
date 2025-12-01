@@ -134,20 +134,24 @@ public abstract class ConnectionUtils {
     private static final int CONNECTION_RETRIES = 10;
     private static final long RETRY_DELAY = 100;
     public static Connection newConnection(Options options) {
+        IOException last = null;
         long delay = RETRY_DELAY - RETRY_DELAY_INCREMENT;
-        for (int x = 0; x < CONNECTION_RETRIES; x++) {
-            if (x > 0) {
+        for (int x = 1; x <= CONNECTION_RETRIES; x++) {
+            if (x > 1) {
                 delay += RETRY_DELAY_INCREMENT;
                 sleep(delay);
             }
             try {
                 return Nats.connect(options);
             }
-            catch (IOException ignored) {}
+            catch (IOException ioe) {
+                last = ioe;
+            }
             catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
+                throw new RuntimeException("Unable to open a new connection to reusable sever.", ie);
             }
         }
-        return null;
+        throw new RuntimeException("Unable to open a new connection to reusable sever.", last);
     }
 }
