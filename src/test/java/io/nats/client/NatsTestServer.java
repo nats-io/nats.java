@@ -43,18 +43,6 @@ public class NatsTestServer extends NatsServerRunner implements TestServer {
         return NatsServerRunner.builder().configFilePath(configResource(configFilePath));
     }
 
-    public static NatsTestServer configFileServer(String configFilePath) throws IOException {
-        return new NatsTestServer(configFileBuilder(configFilePath));
-    }
-
-    public static NatsTestServer configFileServer(String configFilePath, int port) throws IOException {
-        return new NatsTestServer(configFileBuilder(configFilePath).port(port));
-    }
-
-    public static NatsTestServer configuredJsServer(String configFilePath) throws IOException {
-        return new NatsTestServer(configFileBuilder(configFilePath).jetstream());
-    }
-
     public NatsTestServer() throws IOException {
         this(builder());
     }

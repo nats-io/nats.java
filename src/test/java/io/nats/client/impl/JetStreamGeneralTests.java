@@ -28,11 +28,10 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
-import static io.nats.client.NatsTestServer.configuredJsServer;
 import static io.nats.client.api.ConsumerConfiguration.*;
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.support.NatsJetStreamClientError.*;
-import static io.nats.client.utils.ConnectionUtils.*;
+import static io.nats.client.utils.ConnectionUtils.standardConnect;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.VersionUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -58,18 +57,6 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             JetStreamManagement jsm = nc.jetStreamManagement();
             assertThrows(IOException.class, jsm::getAccountStatistics);
         });
-    }
-
-    @Test
-    public void testJetEnabledGoodAccount() throws Exception {
-        try (NatsTestServer ts = configuredJsServer("js_authorization.conf")) {
-            Options options = optionsBuilder(ts)
-                .userInfo("serviceup".toCharArray(), "uppass".toCharArray()).build();
-            try (Connection nc = longConnectionWait(options)) {
-                nc.jetStreamManagement();
-                nc.jetStream();
-            }
-        }
     }
 
     @Test
@@ -393,16 +380,15 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
         String streamMadeByTar = "stream-made-by-tar";
         String subjectMadeBySrc = "sub-made-by.src";
         String subjectMadeByTar = "sub-made-by.tar";
-
-        try (NatsTestServer ts = configuredJsServer("js_prefix.conf")) {
+        runInConfiguredServer("js_prefix.conf", ts -> {
             Options optionsSrc = optionsBuilder(ts)
-                    .userInfo("src".toCharArray(), "spass".toCharArray()).build();
+                .userInfo("src".toCharArray(), "spass".toCharArray()).build();
 
             Options optionsTar = optionsBuilder(ts)
-                    .userInfo("tar".toCharArray(), "tpass".toCharArray()).build();
+                .userInfo("tar".toCharArray(), "tpass".toCharArray()).build();
 
-            try (Connection ncSrc = standardConnectionWait(optionsSrc);
-                 Connection ncTar = standardConnectionWait(optionsTar)
+            try (Connection ncSrc = standardConnect(optionsSrc);
+                 Connection ncTar = standardConnect(optionsTar)
             ) {
                 // Setup JetStreamOptions. SOURCE does not need prefix
                 JetStreamOptions jsoSrc = JetStreamOptions.builder().build();
@@ -414,17 +400,17 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
                 // add streams with both account
                 StreamConfiguration scSrc = StreamConfiguration.builder()
-                        .name(streamMadeBySrc)
-                        .storageType(StorageType.Memory)
-                        .subjects(subjectMadeBySrc)
-                        .build();
+                    .name(streamMadeBySrc)
+                    .storageType(StorageType.Memory)
+                    .subjects(subjectMadeBySrc)
+                    .build();
                 jsmSrc.addStream(scSrc);
 
                 StreamConfiguration scTar = StreamConfiguration.builder()
-                        .name(streamMadeByTar)
-                        .storageType(StorageType.Memory)
-                        .subjects(subjectMadeByTar)
-                        .build();
+                    .name(streamMadeByTar)
+                    .storageType(StorageType.Memory)
+                    .subjects(subjectMadeByTar)
+                    .build();
                 jsmTar.addStream(scTar);
 
                 JetStream jsSrc = ncSrc.jetStream(jsoSrc);
@@ -441,7 +427,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
                 readPrefixMessages(ncTar, jsTar, subjectMadeBySrc, "src");
                 readPrefixMessages(ncTar, jsTar, subjectMadeByTar, "tar");
             }
-        }
+        });
     }
 
     private void readPrefixMessages(Connection nc, JetStream js, String subject, String dest) throws InterruptedException, IOException, JetStreamApiException, TimeoutException {
@@ -1107,7 +1093,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     public void testRequestNoResponder() throws Exception {
         runInSharedCustom((ncCancel, ctx) -> {
             Options optReport = optionsBuilder(ncCancel).reportNoResponders().build();
-            try (Connection ncReport = newConnection(optReport)) {
+            try (Connection ncReport = standardConnect(optReport)) {
                 assertThrows(CancellationException.class, () -> ncCancel.request(random(), null).get());
                 ExecutionException ee = assertThrows(ExecutionException.class, () -> ncReport.request(random(), null).get());
                 assertInstanceOf(JetStreamStatusException.class, ee.getCause());

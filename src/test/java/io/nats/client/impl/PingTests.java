@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
+import io.nats.client.support.Listener;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -90,16 +91,9 @@ public class PingTests extends TestBase {
                                             maxPingsOut(5).
                                             maxReconnects(0).
                                             build();
-            NatsConnection nc = (NatsConnection) Nats.connect(options);
-
-            try {
-                assertConnected(nc);
-            } finally {
-                nc.close();
-            }
-
+            NatsConnection nc = (NatsConnection) standardConnect(options);
+            standardCloseConnection(nc);
             Future<Boolean> pong = nc.sendPing();
-
             assertFalse(pong.get(10,TimeUnit.MILLISECONDS));
         }
     }
@@ -112,39 +106,28 @@ public class PingTests extends TestBase {
                 .maxPingsOut(2)
                 .maxReconnects(0)
                 .build();
-            NatsConnection nc = (NatsConnection) Nats.connect(options);
-
-            //noinspection TryFinallyCanBeTryWithResources
-            try {
-                assertConnected(nc);
+            try (NatsConnection nc = (NatsConnection) standardConnect(options)) {
                 nc.sendPing();
                 nc.sendPing();
                 assertNull(nc.sendPing(), "No future returned when past max");
-            } finally {
-                nc.close();
             }
         }
     }
 
     @Test
-    public void testFlushTimeout() {
-        assertThrows(TimeoutException.class, () -> {
-            try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-                Options options = optionsBuilder(mockTs)
-                    .maxReconnects(0)
-                    .build();
-                NatsConnection nc = (NatsConnection) Nats.connect(options);
-
-                //noinspection TryFinallyCanBeTryWithResources
-                try {
-                    assertConnected(nc);
-                    // fake server so flush will time out
-                    nc.flush(Duration.ofMillis(50));
-                } finally {
-                    nc.close();
-                }
+    public void testFlushTimeout() throws Exception {
+        Listener listener = new Listener(true);
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
+            Options options = optionsBuilder(mockTs)
+                .maxReconnects(0)
+                .connectionListener(listener)
+                .errorListener(listener)
+                .build();
+            try (Connection nc = standardConnect(options)) {
+                // fake server so flush will time out
+                assertThrows(TimeoutException.class, () -> nc.flush(Duration.ofMillis(50)));
             }
-        });
+        }
     }
 
     @Test
@@ -152,18 +135,12 @@ public class PingTests extends TestBase {
         ListenerForTesting listener = new ListenerForTesting();
         try (NatsTestServer ts = new NatsTestServer()) {
             Options options = optionsBuilder(ts).connectionListener(listener).build();
-            NatsConnection nc = (NatsConnection) Nats.connect(options);
-            try {
-                assertConnected(nc);
+            try (Connection nc = standardConnect(options)) {
                 nc.flush(Duration.ofSeconds(2));
                 listener.prepForStatusChange(Events.DISCONNECTED);
                 ts.close();
                 listener.waitForStatusChange(2, TimeUnit.SECONDS);
                 assertThrows(TimeoutException.class, () -> nc.flush(Duration.ofSeconds(2)));
-            }
-            finally {
-                nc.close();
-                assertClosed(nc);
             }
         }
     }
@@ -178,8 +155,8 @@ public class PingTests extends TestBase {
                     .pingInterval(Duration.ofMillis(5))
                     .maxPingsOut(10000) // just don't want this to be what fails the test
                     .build();
-                try (NatsConnection nc = (NatsConnection) standardConnectionWait(options)) {
-                    StatisticsCollector stats = nc.getStatisticsCollector();
+                try (Connection nc = standardConnect(options)) {
+                    Statistics stats = nc.getStatistics();
                     sleep(200);
                     long pings = stats.getPings();
                     assertTrue(pings > 10, "got pings");

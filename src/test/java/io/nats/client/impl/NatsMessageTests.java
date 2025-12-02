@@ -24,7 +24,8 @@ import java.util.List;
 
 import static io.nats.client.support.NatsConstants.OP_PING;
 import static io.nats.client.support.NatsConstants.OP_PING_BYTES;
-import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
+import static io.nats.client.utils.ConnectionUtils.standardConnect;
+import static io.nats.client.utils.OptionsUtils.options;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static org.junit.jupiter.api.Assertions.*;
@@ -121,44 +122,29 @@ public class NatsMessageTests extends JetStreamTestBase {
             subject.append(subject);
         }
 
-        try (NatsTestServer ts = new NatsTestServer()) {
-            Options options = optionsBuilder(ts).maxReconnects(0).maxControlLine(maxControlLine).build();
-            Connection nc = Nats.connect(options);
-            standardConnectionWait(nc);
+        runInSharedOwnNc(optionsBuilder().maxReconnects(0).maxControlLine(maxControlLine), nc -> {
             assertThrows(IllegalArgumentException.class, () -> nc.request(subject.toString(), body));
-        }
+        });
     }
 
     @Test
-    public void testBigProtocolLineWithoutBody() throws Exception {
+    public void testBigProtocolLine() throws Exception {
         StringBuilder subject = new StringBuilder(random());
         while (subject.length() <= Options.DEFAULT_MAX_CONTROL_LINE) {
             subject.append(subject);
         }
-        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT);
-             NatsConnection nc = (NatsConnection) Nats.connect(mockTs.getServerUri())) {
-            standardConnectionWait(nc);
-            assertThrows(IllegalArgumentException.class, () -> nc.subscribe(subject.toString()));
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
+            try (Connection nc = standardConnect(options(mockTs))) {
+                // Without Body
+                assertThrows(IllegalArgumentException.class, () -> nc.subscribe(subject.toString()));
+
+                // With Body
+                byte[] body = new byte[10];
+                String replyTo = "reply";
+                assertThrows(IllegalArgumentException.class, () -> nc.publish(subject.toString(), replyTo, body));
+            }
         }
     }
-
-    @Test
-    public void testBigProtocolLineWithBody() throws Exception {
-        byte[] body = new byte[10];
-        String replyTo = "reply";
-
-        StringBuilder subject = new StringBuilder(random());
-        while (subject.length() <= Options.DEFAULT_MAX_CONTROL_LINE) {
-            subject.append(subject);
-        }
-
-        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT);
-             NatsConnection nc = (NatsConnection) Nats.connect(mockTs.getServerUri())) {
-            standardConnectionWait(nc);
-            assertThrows(IllegalArgumentException.class, () -> nc.publish(subject.toString(), replyTo, body));
-        }
-    }
-
 
     @Test
     public void notJetStream() throws Exception {

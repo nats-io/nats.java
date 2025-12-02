@@ -76,7 +76,7 @@ public class AuthAndConnectTests extends TestBase {
                     .errorListener(noopErrorListener)
                     .build();
 
-            try (NatsConnection nc = (NatsConnection) newConnection(options)) {
+            try (NatsConnection nc = (NatsConnection) standardConnect(options)) {
 
                 // After we've connected, shut down, so we can attempt reconnecting.
                 ts.shutdown(true);

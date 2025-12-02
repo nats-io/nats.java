@@ -11,11 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client.impl;
+package io.nats.client.support;
 
 import io.nats.client.*;
-import io.nats.client.support.DateTimeUtils;
-import io.nats.client.support.Status;
 import org.junit.jupiter.api.Assertions;
 
 import java.time.format.DateTimeFormatter;
@@ -34,6 +32,7 @@ public class Listener implements ErrorListener, ConnectionListener {
     private final boolean verbose;
 
     private final List<ListenerFuture> futures;
+    private int exceptionCount;
 
     public Listener() {
         this(false, false);
@@ -53,7 +52,19 @@ public class Listener implements ErrorListener, ConnectionListener {
         futures.clear();
     }
 
-    public void validateReceived(ListenerFuture... futuresToTry) {
+    public void validateReceived(ListenerFuture f) {
+        try {
+            f.get(VALIDATE_TIMEOUT, TimeUnit.MILLISECONDS);
+            // future was completed, it and all the rest can be cancelled and removed from tracking
+            futures.remove(f);
+        }
+        catch (TimeoutException | ExecutionException | InterruptedException e) {
+            futures.remove(f); // removed from tracking
+            f.cancel(true);
+        }
+    }
+
+    public void validateAnyReceived(ListenerFuture... futuresToTry) {
         int len = futuresToTry.length;
         int lastIx = len - 1;
         for (int ix = 0; ix < len; ix++) {
@@ -123,6 +134,10 @@ public class Listener implements ErrorListener, ConnectionListener {
         return prepFor("FlowControl", new ListenerFuture(fcSubject, fcSource));
     }
 
+    public int getExceptionCount() {
+        return exceptionCount;
+    }
+
     // ----------------------------------------------------------------------------------------------------
     // Connection Listener
     // ----------------------------------------------------------------------------------------------------
@@ -163,6 +178,7 @@ public class Listener implements ErrorListener, ConnectionListener {
 
     @Override
     public void exceptionOccurred(Connection conn, Exception exp) {
+        exceptionCount++;
         if (printExceptions) {
             System.err.print("exceptionOccurred:");
             exp.printStackTrace();

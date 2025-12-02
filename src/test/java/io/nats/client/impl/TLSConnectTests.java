@@ -15,6 +15,8 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.support.Listener;
+import io.nats.client.support.ListenerFuture;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
 import org.junit.jupiter.api.Test;
 
@@ -26,8 +28,8 @@ import java.time.Duration;
 import java.util.Properties;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
-import static io.nats.client.NatsTestServer.configFileServer;
 import static io.nats.client.Options.PROP_SSL_CONTEXT_FACTORY_CLASS;
 import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
@@ -74,7 +76,7 @@ public class TLSConnectTests {
 
     @Test
     public void testSimpleTLSConnection() throws Exception {
-        NatsTestServer ts = sharedConfigServer(TLS_CONF, 1);
+        NatsTestServer ts = sharedConfigServer( "tls.conf", 1);
         String servers = ts.getServerUri();
         assertCanConnectAndPubSub(createTestOptionsManually(servers));
         assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
@@ -84,8 +86,8 @@ public class TLSConnectTests {
 
     @Test
     public void testMultipleUrlTLSConnectionSetContext() throws Exception {
-        NatsTestServer server1 = sharedConfigServer(TLS_CONF, 1);
-        NatsTestServer server2 = sharedConfigServer(TLS_CONF, 2);
+        NatsTestServer server1 = sharedConfigServer( "tls.conf", 1);
+        NatsTestServer server2 = sharedConfigServer( "tls.conf", 2);
         String[] servers = NatsTestServer.getLocalhostUris("tls", server1, server2);
         assertCanConnectAndPubSub(createTestOptionsManually(servers));
         assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
@@ -95,7 +97,7 @@ public class TLSConnectTests {
 
     @Test
     public void testSimpleIPTLSConnection() throws Exception {
-        NatsTestServer ts = sharedConfigServer(TLS_CONF, 1);
+        NatsTestServer ts = sharedConfigServer( "tls.conf", 1);
         String servers = "127.0.0.1:" + ts.getPort();
         assertCanConnectAndPubSub(createTestOptionsManually(servers));
         assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
@@ -105,7 +107,7 @@ public class TLSConnectTests {
 
     @Test
     public void testURISchemeOpenTLSConnection() throws Exception {
-        NatsTestServer ts = sharedConfigServer(TLS_CONF, 1);
+        NatsTestServer ts = sharedConfigServer( "tls.conf", 1);
         String[] servers = NatsTestServer.getLocalhostUris("opentls", ts);
         Options options = optionsBuilder(servers)
             .maxReconnects(0)
@@ -122,8 +124,8 @@ public class TLSConnectTests {
 
     @Test
     public void testMultipleUrlOpenTLSConnection() throws Exception {
-        NatsTestServer server1 = sharedConfigServer(TLS_CONF, 1);
-        NatsTestServer server2 = sharedConfigServer(TLS_CONF, 2);
+        NatsTestServer server1 = sharedConfigServer( "tls.conf", 1);
+        NatsTestServer server2 = sharedConfigServer( "tls.conf", 2);
         String[] servers = NatsTestServer.getLocalhostUris("opentls", server1, server2);
         Options options = optionsBuilder(servers)
             .maxReconnects(0)
@@ -140,7 +142,7 @@ public class TLSConnectTests {
 
     @Test
     public void testProxyNotTlsFirst() throws Exception {
-        NatsTestServer ts = sharedConfigServer(TLS_CONF, 1);
+        NatsTestServer ts = sharedConfigServer( "tls.conf", 1);
         // 1. client regular secure | secure proxy | server insecure -> mismatch exception
         ListenerForTesting listener = new ListenerForTesting();
         ProxyConnection connRI = new ProxyConnection(ts.getServerUri(), false, listener, SERVER_INSECURE);
@@ -152,17 +154,17 @@ public class TLSConnectTests {
         // 2. client regular secure | secure proxy | server tls required  -> connects
         ProxyConnection connRR = new ProxyConnection(ts.getServerUri(), false, null, SERVER_TLS_REQUIRED);
         connRR.connect(false);
-        closeConnection(standardConnectionWait(connRR), 1000);
+        closeConnection(waitUntilConnected(connRR), 1000);
 
         // 3. client regular secure | secure proxy | server tls available -> connects
         ProxyConnection connRA = new ProxyConnection(ts.getServerUri(), false, null, SERVER_TLS_AVAILABLE);
         connRA.connect(false);
-        closeConnection(standardConnectionWait(connRA), 1000);
+        closeConnection(waitUntilConnected(connRA), 1000);
     }
 
     @Test
     public void testOpenTLSConnection() throws Exception {
-        NatsTestServer ts = sharedConfigServer(TLS_CONF, 1);
+        NatsTestServer ts = sharedConfigServer( "tls.conf", 1);
         String servers = ts.getServerUri();
         Options options = optionsBuilder()
             .server(servers)
@@ -181,7 +183,7 @@ public class TLSConnectTests {
     @Test
     public void testSimpleTlsFirstConnection() throws Exception {
         if (atLeast2_10_3(ensureVersionServerInfo())) {
-            NatsTestServer ts = sharedConfigServer(TLS_FIRST_CONF);
+            NatsTestServer ts = sharedConfigServer( "tls_first.conf");
             Options options = optionsBuilder(ts)
                 .maxReconnects(0)
                 .tlsFirst()
@@ -193,7 +195,7 @@ public class TLSConnectTests {
 
     @Test
     public void testVerifiedTLSConnection() throws Exception {
-        NatsTestServer ts = sharedConfigServer(TLSVERIFY_CONF);
+        NatsTestServer ts = sharedConfigServer( "tlsverify.conf");
         String servers = ts.getServerUri();
         assertCanConnectAndPubSub(createTestOptionsManually(servers));
         assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
@@ -203,7 +205,7 @@ public class TLSConnectTests {
 
     @Test
     public void testURISchemeTLSConnection() throws Exception {
-        NatsTestServer ts = sharedConfigServer(TLSVERIFY_CONF);
+        NatsTestServer ts = sharedConfigServer( "tlsverify.conf");
         String servers = "tls://localhost:" + ts.getPort();
         assertCanConnectAndPubSub(createTestOptionsManually(servers));
         assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
@@ -213,7 +215,7 @@ public class TLSConnectTests {
 
     @Test
     public void testURISchemeIPTLSConnection() throws Exception {
-        NatsTestServer ts = sharedConfigServer(TLSVERIFY_CONF);
+        NatsTestServer ts = sharedConfigServer( "tlsverify.conf");
         String servers = "tls://127.0.0.1:" + ts.getPort();
         assertCanConnectAndPubSub(createTestOptionsManually(servers));
         assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
@@ -223,37 +225,39 @@ public class TLSConnectTests {
 
     @Test
     public void testTLSMessageFlow() throws Exception {
-        NatsTestServer ts = sharedConfigServer(TLSVERIFY_CONF);
+        NatsTestServer ts = sharedConfigServer( "tlsverify.conf");
         SSLContext ctx = SslTestingHelper.createTestSSLContext();
         int msgCount = 100;
         Options options = optionsBuilder(ts)
             .maxReconnects(0)
             .sslContext(ctx)
             .build();
-        Connection nc = standardConnectionWait(options);
-        Dispatcher d = nc.createDispatcher(
-            msg -> nc.publish(msg.getReplyTo(), new byte[16]));
-        d.subscribe("subject");
+        try (Connection nc = standardConnect(options)) {
+            Dispatcher d = nc.createDispatcher(
+                msg -> nc.publish(msg.getReplyTo(), new byte[16]));
+            String subject = random();
+            d.subscribe(subject);
 
-        for (int i = 0; i < msgCount; i++) {
-            Future<Message> incoming = nc.request("subject", null);
-            Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
-            assertNotNull(msg);
-            assertEquals(16, msg.getData().length);
+            for (int i = 0; i < msgCount; i++) {
+                Future<Message> incoming = nc.request(subject, null);
+                Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
+                assertNotNull(msg);
+                assertEquals(16, msg.getData().length);
+            }
         }
-
-        standardCloseConnection(nc);
     }
 
     @Test
     public void testTLSOnReconnect() throws Exception {
-        Connection nc;
-        ListenerForTesting listener = new ListenerForTesting();
+        AtomicReference<NatsConnection> ncRef = new AtomicReference<>();
+        Listener listener = new Listener(true);
+
+        // Use two server ports to avoid port release timing issues
         int port = NatsTestServer.nextPort();
         int newPort = NatsTestServer.nextPort();
 
-        // Use two server ports to avoid port release timing issues
-        try (NatsTestServer ts = configFileServer(TLSVERIFY_CONF, port)) {
+        AtomicReference<ListenerFuture> fRef = new AtomicReference<>();
+        runInConfiguredServer( "tlsverify.conf", port, ts -> {
             SSLContext ctx = SslTestingHelper.createTestSSLContext();
             Options options = optionsBuilder(ts.getServerUri(), NatsTestServer.getLocalhostUri(newPort))
                 .maxReconnects(-1)
@@ -261,24 +265,26 @@ public class TLSConnectTests {
                 .connectionListener(listener)
                 .reconnectWait(Duration.ofMillis(10))
                 .build();
-            nc = standardConnectionWait(options);
-            assertInstanceOf(SocketDataPort.class, ((NatsConnection) nc).getDataPort(), "Correct data port class");
-            listener.prepForStatusChange(Events.DISCONNECTED);
-        }
+            ncRef.set((NatsConnection)standardConnect(options));
+            assertInstanceOf(SocketDataPort.class, ncRef.get().getDataPort(), "Correct data port class");
+            fRef.set(listener.prepForConnectionEvent(Events.DISCONNECTED));
+        });
 
-        flushAndWaitLong(nc, listener);
-        listener.prepForStatusChange(Events.RESUBSCRIBED);
+        NatsConnection nc = ncRef.get();
+        flushConnection(nc);
+        listener.validateReceived(fRef.get());
 
-        try (NatsTestServer ignored = configFileServer(TLSVERIFY_CONF, newPort)) {
-            listenerConnectionWait(nc, listener, VERY_LONG_CONNECTION_WAIT_MS);
-        }
+        ListenerFuture fRe = listener.prepForConnectionEvent(Events.RESUBSCRIBED);
+        runInConfiguredServer( "tlsverify.conf", newPort, ts -> {
+            listener.validateReceived(fRe);
+        });
 
         standardCloseConnection(nc);
     }
 
     @Test
     public void testDisconnectOnUpgrade() throws Exception {
-        NatsTestServer ts = sharedConfigServer(TLSVERIFY_CONF);
+        NatsTestServer ts = sharedConfigServer( "tlsverify.conf");
         SSLContext ctx = SslTestingHelper.createTestSSLContext();
         Options options = optionsBuilder(ts)
             .maxReconnects(0)
@@ -290,7 +296,7 @@ public class TLSConnectTests {
 
     @Test
     public void testServerSecureClientNotMismatch() throws Exception {
-        NatsTestServer ts = sharedConfigServer(TLSVERIFY_CONF);
+        NatsTestServer ts = sharedConfigServer( "tlsverify.conf");
         Options options = optionsNoReconnect(ts);
         assertThrows(IOException.class, () -> Nats.connect(options));
     }
@@ -308,7 +314,7 @@ public class TLSConnectTests {
     public void testClientServerCertMismatch() throws Exception {
         Listener listener = new Listener();
         ListenerFuture f = listener.prepForException(CertificateException.class);
-        NatsTestServer ts = sharedConfigServer(TLSVERIFY_CONF);
+        NatsTestServer ts = sharedConfigServer( "tlsverify.conf");
         SSLContext ctx = SslTestingHelper.createEmptySSLContext();
         Options options = optionsBuilder(ts)
             .maxReconnects(0)
@@ -394,22 +400,22 @@ public class TLSConnectTests {
     public void testProxyTlsFirst() throws Exception {
         if (atLeast2_10_3(ensureVersionServerInfo())) {
             // cannot check connect b/c tls first
-            NatsTestServer ts = sharedConfigServer(TLS_FIRST_CONF);
+            NatsTestServer ts = sharedConfigServer( "tls_first.conf");
 
             // 1. client tls first | secure proxy | server insecure -> connects
             ProxyConnection connTI = new ProxyConnection(ts.getServerUri(), true, null, SERVER_INSECURE);
             connTI.connect(false);
-            closeConnection(standardConnectionWait(connTI), 1000);
+            closeConnection(waitUntilConnected(connTI), 1000);
 
             // 2. client tls first | secure proxy | server tls required -> connects
             ProxyConnection connTR = new ProxyConnection(ts.getServerUri(), true, null, SERVER_TLS_REQUIRED);
             connTR.connect(false);
-            closeConnection(standardConnectionWait(connTR), 1000);
+            closeConnection(waitUntilConnected(connTR), 1000);
 
             // 3. client tls first | secure proxy | server tls available -> connects
             ProxyConnection connTA = new ProxyConnection(ts.getServerUri(), true, null, SERVER_TLS_AVAILABLE);
             connTA.connect(false);
-            closeConnection(standardConnectionWait(connTA), 1000);
+            closeConnection(waitUntilConnected(connTA), 1000);
         }
     }
 }

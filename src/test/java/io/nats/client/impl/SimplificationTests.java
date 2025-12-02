@@ -19,7 +19,6 @@ import io.nats.client.support.*;
 import io.nats.client.utils.VersionUtils;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.parallel.Isolated;
 
 import java.io.*;
 import java.time.Duration;
@@ -35,12 +34,12 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static io.nats.client.BaseConsumeOptions.*;
 import static io.nats.client.support.NatsConstants.GREATER_THAN;
-import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
+import static io.nats.client.utils.ConnectionUtils.standardConnect;
+import static io.nats.client.utils.ConnectionUtils.waitUntilConnected;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
-@Isolated
 public class SimplificationTests extends JetStreamTestBase {
 
     @Test
@@ -1720,7 +1719,6 @@ public class SimplificationTests extends JetStreamTestBase {
             AtomicLong nextExpectedSequence = new AtomicLong(0);
 
             MessageHandler handler = msg -> {
-//            Debug.info("H", msg);
                 if (msg.metaData().streamSequence() != nextExpectedSequence.incrementAndGet()) {
                     allInOrder.set(false);
                 }
@@ -1737,7 +1735,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
             //noinspection unused
             try (NatsTestServer ts = new NatsTestServer(port, true)) {
-                nc = (NatsConnection) standardConnectionWait(options);
+                nc = (NatsConnection) standardConnect(options);
                 StreamConfiguration sc = StreamConfiguration.builder()
                     .name(stream)
                     .storageType(StorageType.File) // file since we are killing the server and bringing it back up.
@@ -1757,7 +1755,6 @@ public class SimplificationTests extends JetStreamTestBase {
                 assertNull(orderedConsumerContext.getConsumerName());
                 mcon = orderedConsumerContext.consume(consumeOptions, handler);
                 firstConsumerName = validateConsumerNameForOrdered(orderedConsumerContext, mcon, null);
-//                Debug.info("FCN", firstConsumerName);
 
                 sleep(500); // time enough to get some messages
             }
@@ -1769,11 +1766,10 @@ public class SimplificationTests extends JetStreamTestBase {
 
             // reconnect and get some more messages
             try (NatsTestServer ignored = new NatsTestServer(port, true)) {
-                standardConnectionWait(nc);
+                waitUntilConnected(nc); // wait for reconnect
                 sleep(10000); // long enough to get messages and for the hb alarm to have tripped
             }
 
-//            Debug.info("XCN", orderedConsumerContext.getConsumerName());
             assertNotEquals(firstConsumerName, orderedConsumerContext.getConsumerName());
 
             assertTrue(allInOrder.get());
@@ -1783,7 +1779,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
             sleep(6000); // enough delay before reconnect to trip hb alarm again
             try (NatsTestServer ignored = new NatsTestServer(port, true)) {
-                standardConnectionWait(nc);
+                waitUntilConnected(nc); // wait for reconnect
                 sleep(6000); // long enough to get messages and for the hb alarm to have tripped
 
                 try {

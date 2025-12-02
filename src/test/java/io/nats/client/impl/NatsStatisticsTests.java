@@ -17,6 +17,7 @@ import io.nats.client.Dispatcher;
 import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 import io.nats.client.Statistics;
+import io.nats.client.support.DebugReadListener;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -36,10 +37,11 @@ public class NatsStatisticsTests extends TestBase {
             Dispatcher d = nc.createDispatcher(msg -> {
                 nc.publish(msg.getReplyTo(), new byte[16]);
             });
-            d.subscribe("subject");
+            String subject = random();
+            d.subscribe(subject);
 
             nc.flush(Duration.ofMillis(500));
-            Future<Message> incoming = nc.request("subject", new byte[8]);
+            Future<Message> incoming = nc.request(subject, new byte[8]);
             nc.flush(Duration.ofMillis(500));
             Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
@@ -54,26 +56,29 @@ public class NatsStatisticsTests extends TestBase {
 
     @Test
     public void testInOutOKRequestStats() throws Exception {
-        runInSharedOwnNc(optionsBuilder().verbose(), nc -> {
+        runInSharedOwnNc(optionsBuilder().verbose()
+                .readListener(new DebugReadListener())
+            , nc -> {
             Dispatcher d = nc.createDispatcher(msg -> {
                 Message m = NatsMessage.builder()
                     .subject(msg.getReplyTo())
-                    .data(new byte[16])
+                    .data("replyreplyreply!") // 16 bytes
                     .headers(new Headers().put("header", "reply"))
                     .build();
                 nc.publish(m);
             });
-            d.subscribe("subject");
+            String subject = random();
+            d.subscribe(subject);
 
             Message m = NatsMessage.builder()
-                .subject("subject")
-                .data(new byte[8])
+                .subject(subject)
+                .data("request!") // 8 bytes
                 .headers(new Headers().put("header", "request"))
                 .build();
-            Future<Message> incoming = nc.request(m);
-            Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
-
+            Future<Message> fRequest = nc.request(m);
+            Message msg = fRequest.get(500, TimeUnit.MILLISECONDS);
             assertNotNull(msg);
+
             Statistics stats = nc.getStatistics();
             assertEquals(0, stats.getOutstandingRequests(), "outstanding");
             assertTrue(stats.getInBytes() > 200, "bytes in");
@@ -95,10 +100,11 @@ public class NatsStatisticsTests extends TestBase {
                     .build();
                 nc.publish(m);
             });
-            d.subscribe("subject");
+            String subject = random();
+            d.subscribe(subject);
 
             Message m = NatsMessage.builder()
-                .subject("subject")
+                .subject(subject)
                 .data(new byte[8])
                 .headers(new Headers().put("header", "request"))
                 .build();
@@ -133,10 +139,11 @@ public class NatsStatisticsTests extends TestBase {
                     .build();
                 nc.publish(m);
             });
-            d.subscribe("subject");
+            String subject = random();
+            d.subscribe(subject);
 
             Message m = NatsMessage.builder()
-                .subject("subject")
+                .subject(subject)
                 .data(new byte[8])
                 .headers(new Headers().put("header", "request"))
                 .build();

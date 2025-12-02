@@ -35,11 +35,12 @@ public class MessageContentTests extends TestBase {
     public void testSimpleString() throws Exception {
         runInShared(nc -> {
             Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), msg.getData()));
-            d.subscribe("subject");
+            String subject = random();
+            d.subscribe(subject);
 
             String body = "hello world";
             byte[] bodyBytes = body.getBytes(StandardCharsets.UTF_8);
-            Future<Message> incoming = nc.request("subject", bodyBytes);
+            Future<Message> incoming = nc.request(subject, bodyBytes);
             Message msg = incoming.get(50000, TimeUnit.MILLISECONDS);
 
             assertNotNull(msg);
@@ -52,11 +53,12 @@ public class MessageContentTests extends TestBase {
     public void testUTF8String() throws Exception {
         runInShared(nc -> {
             Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), msg.getData()));
-            d.subscribe("subject");
+            String subject = random();
+            d.subscribe(subject);
 
             String body = "??????";
             byte[] bodyBytes = body.getBytes(StandardCharsets.UTF_8);
-            Future<Message> incoming = nc.request("subject", bodyBytes);
+            Future<Message> incoming = nc.request(subject, bodyBytes);
             Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
             assertNotNull(msg);
@@ -69,13 +71,14 @@ public class MessageContentTests extends TestBase {
     public void testDifferentSizes() throws Exception {
         runInShared(nc -> {
             Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), msg.getData()));
-            d.subscribe("subject");
+            String subject = random();
+            d.subscribe(subject);
 
             String body = "hello world";
             for (int i=0;i<10;i++) {
 
                 byte[] bodyBytes = body.getBytes(StandardCharsets.UTF_8);
-                Future<Message> incoming = nc.request("subject", bodyBytes);
+                Future<Message> incoming = nc.request(subject, bodyBytes);
                 Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
                 assertNotNull(msg);
@@ -91,10 +94,11 @@ public class MessageContentTests extends TestBase {
     public void testZeros() throws Exception {
         runInShared(nc -> {
             Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), msg.getData()));
-            d.subscribe("subject");
+            String subject = random();
+            d.subscribe(subject);
 
             byte[] data = new byte[17];
-            Future<Message> incoming = nc.request("subject", data);
+            Future<Message> incoming = nc.request(subject, data);
             Message msg = incoming.get(500, TimeUnit.MILLISECONDS);
 
             assertNotNull(msg);

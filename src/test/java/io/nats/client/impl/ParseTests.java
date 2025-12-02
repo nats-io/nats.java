@@ -17,7 +17,6 @@ import io.nats.client.Nats;
 import io.nats.client.NatsTestServer;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.parallel.Isolated;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -27,7 +26,6 @@ import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-@Isolated
 public class ParseTests extends TestBase {
 
     @Test

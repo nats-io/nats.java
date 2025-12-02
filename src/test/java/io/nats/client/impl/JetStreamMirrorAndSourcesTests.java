@@ -286,42 +286,41 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
     @Test
     public void testSourceAndTransformsRoundTrips() throws Exception {
         runInOwnJsServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
-            StreamConfiguration scSource = StreamConfigurationTests.getStreamConfigurationFromJson(
+            StreamConfiguration sc = StreamConfigurationTests.getStreamConfigurationFromJson(
                 "StreamConfigurationSourcedSubjectTransform.json");
 
-            StreamInfo si = jsm.addStream(scSource);
-            assertNull(scSource.getMirror());
+            assertNotNull(sc.getSources());
+            assertNull(sc.getMirror());
+
+            Source sourceFoo = sc.getSources().get(0);
+            Source sourceBar = sc.getSources().get(1);
+
+            StreamInfo si = jsm.addStream(sc);
+            assertNotNull(si.getSourceInfos());
             assertNull(si.getMirrorInfo());
 
-            assertNotNull(scSource.getSources());
-            assertNotNull(si.getSourceInfos());
-            Source source = scSource.getSources().get(0);
-            SourceInfo info = si.getSourceInfos().get(0);
-            assertNotNull(info);
-            assertNotNull(info.getSubjectTransforms());
-            assertEquals(1, info.getSubjectTransforms().size());
+            for (SourceInfo info : si.getSourceInfos()) {
+                assertNotNull(info);
+                assertNotNull(info.getSubjectTransforms());
+                assertEquals(1, info.getSubjectTransforms().size());
 
-            assertEquals(source.getName(), info.getName());
-            assertNotNull(source.getSubjectTransforms());
-            assertEquals(1, source.getSubjectTransforms().size());
+                String which = info.getName().substring(7); // sourcedfoo --> foo sourcebar --> bar
+                Source source;
+                if (which.equals("foo")) {
+                    source = sourceFoo;
+                }
+                else {
+                    source = sourceBar;
+                }
+                assertEquals(source.getName(), info.getName());
+                assertNotNull(source.getSubjectTransforms());
+                assertEquals(1, source.getSubjectTransforms().size());
 
-            SubjectTransform st = source.getSubjectTransforms().get(0);
-            SubjectTransform infoSt = info.getSubjectTransforms().get(0);
-            assertEquals(st.getSource(), infoSt.getSource());
-            assertEquals(st.getDestination(), infoSt.getDestination());
-
-            source = scSource.getSources().get(1);
-            info = si.getSourceInfos().get(1);
-            assertNotNull(scSource.getSources());
-            assertNotNull(si.getSourceInfos());
-            assertEquals(source.getName(), info.getName());
-            assertNotNull(info.getSubjectTransforms());
-            assertEquals(1, info.getSubjectTransforms().size());
-            assertNotNull(source.getSubjectTransforms());
-            st = source.getSubjectTransforms().get(0);
-            infoSt = info.getSubjectTransforms().get(0);
-            assertEquals(st.getSource(), infoSt.getSource());
-            assertEquals(st.getDestination(), infoSt.getDestination());
+                SubjectTransform st = source.getSubjectTransforms().get(0);
+                SubjectTransform infoSt = info.getSubjectTransforms().get(0);
+                assertEquals(st.getSource(), infoSt.getSource());
+                assertEquals(st.getDestination(), infoSt.getDestination());
+            }
         });
     }
 

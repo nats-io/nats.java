@@ -22,28 +22,18 @@ import java.io.IOException;
 import java.time.Duration;
 
 import static io.nats.client.utils.ConnectionUtils.assertClosed;
-import static io.nats.client.utils.ConnectionUtils.newConnection;
+import static io.nats.client.utils.ConnectionUtils.standardConnect;
+import static io.nats.client.utils.OptionsUtils.options;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class EchoTests extends TestBase {
     @Test
-    public void testFailWithBadServerProtocol() {
-        assertThrows(IOException.class, () -> {
-            Connection nc = null;
-            try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-                Options opt = optionsBuilder(mockTs).noEcho().noReconnect().build();
-                try {
-                    nc = Nats.connect(opt); // Should fail
-                }
-                finally {
-                    if (nc != null) {
-                        nc.close();
-                        assertClosed(nc);
-                    }
-                }
-            }
-        });
+    public void testFailWithBadServerProtocol() throws Exception {
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
+            Options opt = optionsBuilder(mockTs).noEcho().noReconnect().build();
+            assertThrows(IOException.class, () -> Nats.connect(opt));
+        }
     }
 
     @Test
@@ -65,7 +55,7 @@ public class EchoTests extends TestBase {
     @Test
     public void testWithEcho() throws Exception {
         runInShared(nc1 -> {
-            try (Connection nc2 = newConnection(optionsBuilder(nc1).build())) {
+            try (Connection nc2 = standardConnect(options(nc1))) {
                 // Echo is on so both sub should get messages from both pub
                 String subject = random();
                 Subscription sub1 = nc1.subscribe(subject);

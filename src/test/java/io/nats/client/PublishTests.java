@@ -14,7 +14,11 @@
 package io.nats.client;
 
 import io.nats.client.ConnectionListener.Events;
-import io.nats.client.impl.*;
+import io.nats.client.impl.Headers;
+import io.nats.client.impl.JetStreamTestingContext;
+import io.nats.client.impl.NatsMessage;
+import io.nats.client.support.Listener;
+import io.nats.client.support.ListenerFuture;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -40,7 +44,7 @@ public class PublishTests extends TestBase {
         runInSharedOwnNc(nc -> {
             nc.close();
             // can't publish after close
-            assertThrows(IllegalStateException.class, () -> nc.publish("subject", "replyto", null));
+            assertThrows(IllegalStateException.class, () -> nc.publish(random(), random(), null));
 
             // flush after close always times out
             assertThrows(TimeoutException.class, () -> nc.flush(null));
@@ -60,29 +64,27 @@ public class PublishTests extends TestBase {
 
     @Test
     public void testThrowsIfTooBig() throws Exception {
-        try (NatsTestServer ts = NatsTestServer.configFileServer("max_payload.conf")) {
-            Connection nc = standardConnectionWait(options(ts));
-
-            byte[] body = new byte[1024]; // 1024 is > than max_payload.conf max_payload: 1000
-            assertThrows(IllegalArgumentException.class, () -> nc.publish(random(), null, null, body));
-            nc.close();
-            Thread.sleep(1000);
+        byte[] body = new byte[1024]; // 1024 is > than max_payload.conf max_payload: 1000
+        runInConfiguredServer("max_payload.conf", ts -> {
+            try (Connection nc = standardConnect(options(ts))) {
+                assertThrows(IllegalArgumentException.class, () -> nc.publish(random(), null, null, body));
+            }
 
             Listener listener = new Listener();
             Options options = optionsBuilder(ts)
                 .clientSideLimitChecks(false)
                 .errorListener(listener)
                 .build();
-            Connection nc2 = standardConnectionWait(options);
+            try (Connection nc = standardConnect(options)) {
+                ListenerFuture fError = listener.prepForError("Maximum Payload Violation");
+                ListenerFuture fException = listener.prepForException(SocketException.class);
 
-            ListenerFuture fError = listener.prepForError("Maximum Payload Violation");
-            ListenerFuture fException = listener.prepForException(SocketException.class);
+                nc.publish(random(), null, null, body);
 
-            nc2.publish(random(), null, null, body);
-
-            // sometimes the exception comes in before the error and the error never comes, so validate for either.
-            listener.validateReceived(fError, fException);
-        }
+                // sometimes the exception comes in before the error and the error never comes, so validate for either.
+                listener.validateAnyReceived(fError, fException);
+            }
+        });
     }
 
     @Test
@@ -166,45 +168,47 @@ public class PublishTests extends TestBase {
             }
         };
 
-        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(receiveMessageCustomizer);
-             Connection nc = standardConnectionWait(options(mockTs))) {
-
-            byte[] bodyBytes;
-            if (bodyString == null || bodyString.isEmpty()) {
-                bodyBytes = EMPTY_BODY;
-                bodyString = "";
-            }
-            else {
-                bodyBytes = bodyString.getBytes(StandardCharsets.UTF_8);
-            }
-
-            nc.publish(NatsMessage.builder().subject(subject).replyTo(replyTo).headers(headers).data(bodyBytes).build());
-
-            assertTrue(gotPub.get(), "Got " + proto + "."); //wait for receipt to close up
-            standardCloseConnection(nc);
-
-            if (proto.equals(OP_PUB)) {
-                String expectedProtocol;
-                if (replyTo == null) {
-                    expectedProtocol = proto + " " + subject + " " + bodyBytes.length;
-                } else {
-                    expectedProtocol = proto + " " + subject + " " + replyTo + " " + bodyBytes.length;
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(receiveMessageCustomizer)) {
+            try (Connection nc = standardConnect(options(mockTs))) {
+                byte[] bodyBytes;
+                if (bodyString == null || bodyString.isEmpty()) {
+                    bodyBytes = EMPTY_BODY;
+                    bodyString = "";
                 }
-                assertEquals(expectedProtocol, protocol.get(), "Protocol matches");
-                assertEquals(bodyString, body.get(), "Body matches");
-            }
-            else {
-                String expectedProtocol;
-                int hdrLen = headers.serializedLength();
-                int totLen = hdrLen + bodyBytes.length;
-                if (replyTo == null) {
-                    expectedProtocol = proto + " " + subject + " " + hdrLen + " " + totLen;
-                } else {
-                    expectedProtocol = proto + " " + subject + " " + replyTo + " " + hdrLen + " " + totLen;
+                else {
+                    bodyBytes = bodyString.getBytes(StandardCharsets.UTF_8);
                 }
-                assertEquals(expectedProtocol, protocol.get(), "Protocol matches");
-                assertEquals(bodyString, body.get(), "Body matches");
-                assertEquals(new String(headers.getSerialized()), hdrProto.get());
+
+                nc.publish(NatsMessage.builder().subject(subject).replyTo(replyTo).headers(headers).data(bodyBytes).build());
+
+                assertTrue(gotPub.get(), "Got " + proto + "."); //wait for receipt to close up
+                standardCloseConnection(nc);
+
+                if (proto.equals(OP_PUB)) {
+                    String expectedProtocol;
+                    if (replyTo == null) {
+                        expectedProtocol = proto + " " + subject + " " + bodyBytes.length;
+                    }
+                    else {
+                        expectedProtocol = proto + " " + subject + " " + replyTo + " " + bodyBytes.length;
+                    }
+                    assertEquals(expectedProtocol, protocol.get(), "Protocol matches");
+                    assertEquals(bodyString, body.get(), "Body matches");
+                }
+                else {
+                    String expectedProtocol;
+                    int hdrLen = headers.serializedLength();
+                    int totLen = hdrLen + bodyBytes.length;
+                    if (replyTo == null) {
+                        expectedProtocol = proto + " " + subject + " " + hdrLen + " " + totLen;
+                    }
+                    else {
+                        expectedProtocol = proto + " " + subject + " " + replyTo + " " + hdrLen + " " + totLen;
+                    }
+                    assertEquals(expectedProtocol, protocol.get(), "Protocol matches");
+                    assertEquals(bodyString, body.get(), "Body matches");
+                    assertEquals(new String(headers.getSerialized()), hdrProto.get());
+                }
             }
         }
     }
@@ -254,7 +258,7 @@ public class PublishTests extends TestBase {
         Options.Builder ncNotSupportedOptionsBuilder = optionsBuilder().noReconnect().clientSideLimitChecks(false);
         runInSharedOwnNc(ncNotSupportedOptionsBuilder, ncNotSupported -> {
             Options ncSupportedOptions = optionsBuilder(ncNotSupported).supportUTF8Subjects().build();
-            try (Connection ncSupported = newConnection(ncSupportedOptions)) {
+            try (Connection ncSupported = standardConnect(ncSupportedOptions)) {
                 try (JetStreamTestingContext ctxNotSupported = new JetStreamTestingContext(ncNotSupported, 0)) {
                     ctxNotSupported.createOrReplaceStream(jsSubject);
                     JetStream jsNotSupported = ncNotSupported.jetStream();

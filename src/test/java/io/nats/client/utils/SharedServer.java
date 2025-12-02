@@ -174,7 +174,7 @@ public class SharedServer {
     }
 
     public Connection newConnection(Options.Builder builder) {
-        return ConnectionUtils.newConnection(builder.server(serverUrl).build());
+        return ConnectionUtils.standardConnect(builder.server(serverUrl).build());
     }
 
     public void shutdown() {

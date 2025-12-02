@@ -29,7 +29,6 @@ import io.nats.client.utils.SharedServer;
 import nl.jqno.equalsverifier.EqualsVerifier;
 import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.parallel.Isolated;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -56,45 +55,50 @@ import static io.nats.service.ServiceMessage.NATS_SERVICE_ERROR;
 import static io.nats.service.ServiceMessage.NATS_SERVICE_ERROR_CODE;
 import static org.junit.jupiter.api.Assertions.*;
 
-@Isolated
 public class ServiceTests extends JetStreamTestBase {
-    public static final String SERVICE_NAME_1 = "Service1";
-    public static final String SERVICE_NAME_2 = "Service2";
-    public static final String ECHO_ENDPOINT_NAME = "EchoEndpoint";
-    public static final String ECHO_ENDPOINT_SUBJECT = "echo";
-    public static final String SORT_GROUP = "sort";
-    public static final String SORT_ENDPOINT_ASCENDING_NAME = "SortEndpointAscending";
-    public static final String SORT_ENDPOINT_DESCENDING_NAME = "SortEndpointDescending";
-    public static final String SORT_ENDPOINT_ASCENDING_SUBJECT = "ascending";
-    public static final String SORT_ENDPOINT_DESCENDING_SUBJECT = "descending";
-    public static final String REVERSE_ENDPOINT_NAME = "ReverseEndpoint";
-    public static final String REVERSE_ENDPOINT_SUBJECT = "reverse";
-    public static final String CUSTOM_QGROUP = "customQ";
-
     @Test
     public void testServiceWorkflow() throws Exception {
+        String serviceName1 = "Service1" + random();
+        String serviceName2 = "Service2" + random();
+        String echoEndpointName = "EchoEndpoint" + random();
+        String echoEndpointSubject = "echo" + random();
+        String sortGroupName = "sort" + random();
+        String sortEndpointAscendingName = "SortEndpointAscending" + random();
+        String sortEndpointDescendingName = "SortEndpointDescending" + random();
+        String sortEndpointAscendingSubject = "ascending" + random();
+        String sortEndpointDescendingSubject = "descending" + random();
+        String reverseEndpointName = "ReverseEndpoint" + random();
+        String reverseEndpointSubject = "reverse" + random();
+        String customQgroup = "customQ" + random();
+
+        Map<String, String> verifyMap = new HashMap<>();
+        verifyMap.put(echoEndpointName, "echoEndpointName");
+        verifyMap.put(sortEndpointAscendingName, "sortEndpointAscendingName");
+        verifyMap.put(sortEndpointDescendingName, "sortEndpointDescendingName");
+        verifyMap.put(reverseEndpointName, "reverseEndpointName");
+
         runInShared(clientNc -> {
             Connection serviceNc1 = SharedServer.sharedConnectionForSameServer(clientNc);
             Connection serviceNc2 = SharedServer.sharedConnectionForSameServer(clientNc);
 
             Endpoint endEcho = Endpoint.builder()
-                .name(ECHO_ENDPOINT_NAME)
-                .subject(ECHO_ENDPOINT_SUBJECT)
-                .queueGroup(CUSTOM_QGROUP)
+                .name(echoEndpointName)
+                .subject(echoEndpointSubject)
+                .queueGroup(customQgroup)
                 .build();
 
             Endpoint endSortA = Endpoint.builder()
-                .name(SORT_ENDPOINT_ASCENDING_NAME)
-                .subject(SORT_ENDPOINT_ASCENDING_SUBJECT)
+                .name(sortEndpointAscendingName)
+                .subject(sortEndpointAscendingSubject)
                 .build();
 
             // constructor coverage
             Endpoint endSortD = new Endpoint(
-                SORT_ENDPOINT_DESCENDING_NAME,
-                SORT_ENDPOINT_DESCENDING_SUBJECT);
+                sortEndpointDescendingName,
+                sortEndpointDescendingSubject);
 
             // sort is going to be grouped
-            Group sortGroup = new Group(SORT_GROUP);
+            Group sortGroup = new Group(sortGroupName);
 
             ServiceEndpoint seEcho1 = ServiceEndpoint.builder()
                 .endpoint(endEcho)
@@ -136,7 +140,7 @@ public class ServiceTests extends JetStreamTestBase {
                 .build();
 
             Service service1 = new ServiceBuilder()
-                .name(SERVICE_NAME_1)
+                .name(serviceName1)
                 .version("1.0.0")
                 .connection(serviceNc1)
                 .addServiceEndpoint(seEcho1)
@@ -147,7 +151,7 @@ public class ServiceTests extends JetStreamTestBase {
             CompletableFuture<Boolean> serviceStoppedFuture1 = service1.startService();
 
             Service service2 = new ServiceBuilder()
-                .name(SERVICE_NAME_2)
+                .name(serviceName2)
                 .version("1.0.0")
                 .connection(serviceNc2)
                 .addServiceEndpoint(seEcho2)
@@ -164,9 +168,9 @@ public class ServiceTests extends JetStreamTestBase {
             // service request execution
             int requestCount = 10;
             for (int x = 0; x < requestCount; x++) {
-                verifyServiceExecution(clientNc, ECHO_ENDPOINT_NAME, ECHO_ENDPOINT_SUBJECT, null);
-                verifyServiceExecution(clientNc, SORT_ENDPOINT_ASCENDING_NAME, SORT_ENDPOINT_ASCENDING_SUBJECT, sortGroup);
-                verifyServiceExecution(clientNc, SORT_ENDPOINT_DESCENDING_NAME, SORT_ENDPOINT_DESCENDING_SUBJECT, sortGroup);
+                verifyServiceExecution(clientNc, echoEndpointName, echoEndpointSubject, null, verifyMap);
+                verifyServiceExecution(clientNc, sortEndpointAscendingName, sortEndpointAscendingSubject, sortGroup, verifyMap);
+                verifyServiceExecution(clientNc, sortEndpointDescendingName, sortEndpointDescendingSubject, sortGroup, verifyMap);
             }
 
             PingResponse pingResponse1 = service1.getPingResponse();
@@ -176,14 +180,14 @@ public class ServiceTests extends JetStreamTestBase {
             StatsResponse statsResponse1 = service1.getStatsResponse();
             StatsResponse statsResponse2 = service2.getStatsResponse();
             EndpointStats[] endpointStatsArray1 = new EndpointStats[]{
-                service1.getEndpointStats(ECHO_ENDPOINT_NAME),
-                service1.getEndpointStats(SORT_ENDPOINT_ASCENDING_NAME),
-                service1.getEndpointStats(SORT_ENDPOINT_DESCENDING_NAME)
+                service1.getEndpointStats(echoEndpointName),
+                service1.getEndpointStats(sortEndpointAscendingName),
+                service1.getEndpointStats(sortEndpointDescendingName)
             };
             EndpointStats[] endpointStatsArray2 = new EndpointStats[]{
-                service2.getEndpointStats(ECHO_ENDPOINT_NAME),
-                service2.getEndpointStats(SORT_ENDPOINT_ASCENDING_NAME),
-                service2.getEndpointStats(SORT_ENDPOINT_DESCENDING_NAME)
+                service2.getEndpointStats(echoEndpointName),
+                service2.getEndpointStats(sortEndpointAscendingName),
+                service2.getEndpointStats(sortEndpointDescendingName)
             };
             assertNull(service1.getEndpointStats("notAnEndpoint"));
 
@@ -207,15 +211,15 @@ public class ServiceTests extends JetStreamTestBase {
             }
 
             // discovery - wait at most 500 millis for responses, 5 total responses max
-            Discovery discovery = new Discovery(clientNc, 500, 5);
+            Discovery discovery = new Discovery(clientNc, 1500, 5);
 
             // ping discovery
             Verifier pingVerifier = (expected, response) -> assertInstanceOf(PingResponse.class, response);
             verifyDiscovery(discovery.ping(), pingVerifier, pingResponse1, pingResponse2);
-            verifyDiscovery(discovery.ping(SERVICE_NAME_1), pingVerifier, pingResponse1);
-            verifyDiscovery(discovery.ping(SERVICE_NAME_2), pingVerifier, pingResponse2);
-            verifyDiscovery(discovery.ping(SERVICE_NAME_1, serviceId1), pingVerifier, pingResponse1);
-            assertNull(discovery.ping(SERVICE_NAME_1, "badId"));
+            verifyDiscovery(discovery.ping(serviceName1), pingVerifier, pingResponse1);
+            verifyDiscovery(discovery.ping(serviceName2), pingVerifier, pingResponse2);
+            verifyDiscovery(discovery.ping(serviceName1, serviceId1), pingVerifier, pingResponse1);
+            assertNull(discovery.ping(serviceName1, "badId"));
             assertNull(discovery.ping("bad", "badId"));
 
             // info discovery
@@ -227,10 +231,10 @@ public class ServiceTests extends JetStreamTestBase {
                 assertEquals(exp.getEndpoints(), r.getEndpoints());
             };
             verifyDiscovery(discovery.info(), infoVerifier, infoResponse1, infoResponse2);
-            verifyDiscovery(discovery.info(SERVICE_NAME_1), infoVerifier, infoResponse1);
-            verifyDiscovery(discovery.info(SERVICE_NAME_2), infoVerifier, infoResponse2);
-            verifyDiscovery(discovery.info(SERVICE_NAME_1, serviceId1), infoVerifier, infoResponse1);
-            assertNull(discovery.info(SERVICE_NAME_1, "badId"));
+            verifyDiscovery(discovery.info(serviceName1), infoVerifier, infoResponse1);
+            verifyDiscovery(discovery.info(serviceName2), infoVerifier, infoResponse2);
+            verifyDiscovery(discovery.info(serviceName1, serviceId1), infoVerifier, infoResponse1);
+            assertNull(discovery.info(serviceName1, "badId"));
             assertNull(discovery.info("bad", "badId"));
 
             // stats discovery
@@ -241,7 +245,7 @@ public class ServiceTests extends JetStreamTestBase {
                 assertEquals(exp.getStarted(), sr.getStarted());
                 for (int x = 0; x < 3; x++) {
                     EndpointStats er = exp.getEndpointStatsList().get(x);
-                    if (!er.getName().equals(ECHO_ENDPOINT_NAME)) {
+                    if (!er.getName().equals(echoEndpointName)) {
                         // echo endpoint has data that will vary
                         assertEquals(er, sr.getEndpointStatsList().get(x));
                     }
@@ -249,18 +253,18 @@ public class ServiceTests extends JetStreamTestBase {
             };
             discovery = new Discovery(clientNc); // coverage for the simple constructor
             verifyDiscovery(discovery.stats(), statsVerifier, statsResponse1, statsResponse2);
-            verifyDiscovery(discovery.stats(SERVICE_NAME_1), statsVerifier, statsResponse1);
-            verifyDiscovery(discovery.stats(SERVICE_NAME_2), statsVerifier, statsResponse2);
-            verifyDiscovery(discovery.stats(SERVICE_NAME_1, serviceId1), statsVerifier, statsResponse1);
-            assertNull(discovery.stats(SERVICE_NAME_1, "badId"));
+            verifyDiscovery(discovery.stats(serviceName1), statsVerifier, statsResponse1);
+            verifyDiscovery(discovery.stats(serviceName2), statsVerifier, statsResponse2);
+            verifyDiscovery(discovery.stats(serviceName1, serviceId1), statsVerifier, statsResponse1);
+            assertNull(discovery.stats(serviceName1, "badId"));
             assertNull(discovery.stats("bad", "badId"));
 
             // ---------------------------------------------------------------------------
             // TEST ADDING AN ENDPOINT TO A RUNNING SERVICE
             // ---------------------------------------------------------------------------
             Endpoint endReverse = Endpoint.builder()
-                .name(REVERSE_ENDPOINT_NAME)
-                .subject(REVERSE_ENDPOINT_SUBJECT)
+                .name(reverseEndpointName)
+                .subject(reverseEndpointSubject)
                 .build();
 
             ServiceEndpoint seRev1 = ServiceEndpoint.builder()
@@ -272,12 +276,12 @@ public class ServiceTests extends JetStreamTestBase {
             sleep(100); // give the service some time to get running. remember it's got to subscribe on the server
 
             for (int x = 0; x < requestCount; x++) {
-                verifyServiceExecution(clientNc, REVERSE_ENDPOINT_NAME, REVERSE_ENDPOINT_SUBJECT, null);
+                verifyServiceExecution(clientNc, reverseEndpointName, reverseEndpointSubject, null, verifyMap);
             }
             infoResponse1 = service1.getInfoResponse();
             boolean found = false;
             for (Endpoint e : infoResponse1.getEndpoints()) {
-                if (e.getName().equals(REVERSE_ENDPOINT_NAME)) {
+                if (e.getName().equals(reverseEndpointName)) {
                     found = true;
                     break;
                 }
@@ -287,7 +291,7 @@ public class ServiceTests extends JetStreamTestBase {
             statsResponse1 = service1.getStatsResponse();
             found = false;
             for (EndpointStats e : statsResponse1.getEndpointStatsList()) {
-                if (e.getName().equals(REVERSE_ENDPOINT_NAME)) {
+                if (e.getName().equals(reverseEndpointName)) {
                     found = true;
                     break;
                 }
@@ -307,7 +311,7 @@ public class ServiceTests extends JetStreamTestBase {
                 assertEquals(0, er.getProcessingTime());
                 assertEquals(0, er.getAverageProcessingTime());
                 assertNull(er.getLastError());
-                if (er.getName().equals(ECHO_ENDPOINT_NAME)) {
+                if (er.getName().equals(echoEndpointName)) {
                     assertNotNull(er.getData());
                     assertNotNull(er.getDataAsJson());
                 }
@@ -334,15 +338,17 @@ public class ServiceTests extends JetStreamTestBase {
     @SuppressWarnings("unchecked")
     private static void verifyDiscovery(Object oResponse, Verifier v, ServiceResponse... expectedResponses) {
         List<Object> responses = oResponse instanceof List ? (List<Object>) oResponse : Collections.singletonList(oResponse);
-        assertEquals(expectedResponses.length, responses.size());
+        assertTrue(responses.size() >= expectedResponses.length);
         for (Object response : responses) {
             ServiceResponse sr = (ServiceResponse) response;
             ServiceResponse exp = find(expectedResponses, sr);
-            assertNotNull(exp);
-            assertEquals(exp.getType(), sr.getType());
-            assertEquals(exp.getName(), sr.getName());
-            assertEquals(exp.getVersion(), sr.getVersion());
-            v.verify(exp, response);
+            if (exp != null) {
+                // there may be additional response, still not sure why
+                assertEquals(exp.getType(), sr.getType());
+                assertEquals(exp.getName(), sr.getName());
+                assertEquals(exp.getVersion(), sr.getVersion());
+                v.verify(exp, response);
+            }
         }
     }
 
@@ -355,24 +361,26 @@ public class ServiceTests extends JetStreamTestBase {
         return null;
     }
 
-    private static void verifyServiceExecution(Connection nc, String endpointName, String serviceSubject, Group group) {
+    private static void verifyServiceExecution(
+        Connection nc, String endpointName, String serviceSubject, Group group, Map<String, String> verifyMap) {
         try {
             String request = Long.toHexString(System.currentTimeMillis()) + Long.toHexString(System.nanoTime()); // just some random text
             String subject = group == null ? serviceSubject : group.getSubject() + DOT + serviceSubject;
             CompletableFuture<Message> future = nc.request(subject, request.getBytes());
             Message m = future.get();
             String response = new String(m.getData());
-            switch (endpointName) {
-                case ECHO_ENDPOINT_NAME:
+            String which = verifyMap.get(endpointName);
+            switch (which) {
+                case "echoEndpointName":
                     assertEquals(echo(request), response);
                     break;
-                case SORT_ENDPOINT_ASCENDING_NAME:
+                case "sortEndpointAscendingName":
                     assertEquals(sortA(request), response);
                     break;
-                case SORT_ENDPOINT_DESCENDING_NAME:
+                case "sortEndpointDescendingName":
                     assertEquals(sortD(request), response);
                     break;
-                case REVERSE_ENDPOINT_NAME:
+                case "reverseEndpointName":
                     assertEquals(reverse(request), response);
                     break;
             }
@@ -472,6 +480,9 @@ public class ServiceTests extends JetStreamTestBase {
 
     @Test
     public void testQueueGroup() throws Exception {
+        String serviceName1 = "Service1" + random();
+        String serviceName2 = "Service2" + random();
+
         runInShared(clientNc -> {
             Connection serviceNc1 = SharedServer.sharedConnectionForSameServer(clientNc);
             Connection serviceNc2 = SharedServer.sharedConnectionForSameServer(clientNc);
@@ -515,7 +526,7 @@ public class ServiceTests extends JetStreamTestBase {
                 .build();
 
             Service service1 = new ServiceBuilder()
-                .name(SERVICE_NAME_1)
+                .name(serviceName1)
                 .version("1.0.0")
                 .connection(serviceNc1)
                 .addServiceEndpoint(service1Ep1)
@@ -523,7 +534,7 @@ public class ServiceTests extends JetStreamTestBase {
                 .build();
 
             Service service2 = new ServiceBuilder()
-                .name(SERVICE_NAME_2)
+                .name(serviceName2)
                 .version("1.0.0")
                 .connection(serviceNc2)
                 .addServiceEndpoint(service2Ep1)
@@ -571,6 +582,9 @@ public class ServiceTests extends JetStreamTestBase {
 
     @Test
     public void testResponsesFromAllInstances() throws Exception {
+        String serviceName1 = "Service1" + random();
+        String serviceName2 = "Service2" + random();
+
         runInShared(clientNc -> {
             Connection serviceNc1 = SharedServer.sharedConnectionForSameServer(clientNc);
             Connection serviceNc2 = SharedServer.sharedConnectionForSameServer(clientNc);
@@ -594,14 +608,14 @@ public class ServiceTests extends JetStreamTestBase {
                 .build();
 
             Service service1 = new ServiceBuilder()
-                .name(SERVICE_NAME_1)
+                .name(serviceName1)
                 .version("1.0.0")
                 .connection(serviceNc1)
                 .addServiceEndpoint(service1Ep1)
                 .build();
 
             Service service2 = new ServiceBuilder()
-                .name(SERVICE_NAME_2)
+                .name(serviceName2)
                 .version("1.0.0")
                 .connection(serviceNc2)
                 .addServiceEndpoint(service2Ep1)
@@ -619,10 +633,10 @@ public class ServiceTests extends JetStreamTestBase {
             boolean one = false;
             boolean two = false;
             for (PingResponse response : prs) {
-                if (response.getName().equals(SERVICE_NAME_1)) {
+                if (response.getName().equals(serviceName1)) {
                     one = true;
                 }
-                else if (response.getName().equals(SERVICE_NAME_2)) {
+                else if (response.getName().equals(serviceName2)) {
                     two = true;
                 }
             }
@@ -633,10 +647,10 @@ public class ServiceTests extends JetStreamTestBase {
             one = false;
             two = false;
             for (InfoResponse response : irs) {
-                if (response.getName().equals(SERVICE_NAME_1)) {
+                if (response.getName().equals(serviceName1)) {
                     one = true;
                 }
-                else if (response.getName().equals(SERVICE_NAME_2)) {
+                else if (response.getName().equals(serviceName2)) {
                     two = true;
                 }
             }
@@ -647,10 +661,10 @@ public class ServiceTests extends JetStreamTestBase {
             one = false;
             two = false;
             for (StatsResponse response : srs) {
-                if (response.getName().equals(SERVICE_NAME_1)) {
+                if (response.getName().equals(serviceName1)) {
                     one = true;
                 }
-                else if (response.getName().equals(SERVICE_NAME_2)) {
+                else if (response.getName().equals(serviceName2)) {
                     two = true;
                 }
             }

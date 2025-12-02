@@ -15,6 +15,8 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.support.Listener;
+import io.nats.client.support.ListenerFuture;
 import io.nats.client.utils.SharedServer;
 import org.junit.jupiter.api.Test;
 
@@ -37,8 +39,7 @@ public class DrainTests {
     @Test
     public void testCloseOnDrainFailure() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            //noinspection resource
-            final Connection nc = standardConnectionWait(optionsNoReconnect(ts));
+            final Connection nc = standardConnect(optionsNoReconnect(ts));
 
             nc.subscribe(random());
             nc.flush(Duration.ofSeconds(1)); // Get the sub to the server, so drain has things to do
@@ -46,6 +47,8 @@ public class DrainTests {
             ts.shutdown(); // shut down the server to fail drain and subsequent close
 
             assertThrows(Exception.class, () -> nc.drain(Duration.ofSeconds(1)));
+
+            standardCloseConnection(nc);
         }
     }
 
@@ -572,15 +575,17 @@ public class DrainTests {
     @Test
     public void testThrowIfCantFlush() throws Exception {
         Listener listener = new Listener();
-        try (NatsTestServer ts = new NatsTestServer();
-             Connection subCon = standardConnectionWait(optionsBuilder(ts).connectionListener(listener).build())) {
-            subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = optionsBuilder(ts).connectionListener(listener).build();
+            try (Connection subCon = standardConnect(options)) {
+                subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-            ListenerFuture f = listener.prepForConnectionEvent(Events.DISCONNECTED);
-            ts.close(); // make the drain flush fail
-            listener.validateReceived(f);
+                ListenerFuture f = listener.prepForConnectionEvent(Events.DISCONNECTED);
+                ts.close(); // make the drain flush fail
+                listener.validateReceived(f);
 
-            assertThrows(TimeoutException.class, () -> subCon.drain(Duration.ofSeconds(1)));
+                assertThrows(TimeoutException.class, () -> subCon.drain(Duration.ofSeconds(1)));
+            }
         }
     }
 

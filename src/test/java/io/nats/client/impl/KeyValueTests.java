@@ -30,7 +30,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.JetStreamOptions.DEFAULT_JS_OPTIONS;
-import static io.nats.client.NatsTestServer.configFileServer;
 import static io.nats.client.api.KeyValuePurgeOptions.DEFAULT_THRESHOLD_MILLIS;
 import static io.nats.client.api.KeyValueWatchOption.*;
 import static io.nats.client.support.NatsConstants.DOT;
@@ -1089,13 +1088,12 @@ public class KeyValueTests extends JetStreamTestBase {
 
     @Test
     public void testWithAccount() throws Exception {
-        try (NatsTestServer ts = configFileServer("kv_account.conf")) {
+        runInConfiguredServer("kv_account.conf", ts -> {
             Options acctA = optionsBuilder(ts).userInfo("a", "a").build();
             Options acctI = optionsBuilder(ts).userInfo("i", "i").inboxPrefix("ForI").build();
 
             try (Connection connUserA = Nats.connect(acctA);
-                 Connection connUserI = Nats.connect(acctI))
-            {
+                 Connection connUserI = Nats.connect(acctI)) {
                 // some prep
                 KeyValueOptions jsOpt_UserI_BucketA_WithPrefix =
                     KeyValueOptions.builder().jsPrefix("FromA").build();
@@ -1185,7 +1183,7 @@ public class KeyValueTests extends JetStreamTestBase {
                 validateWatcher(expecteds, watcher_connI_BucketA);
                 validateWatcher(expecteds, watcher_connI_BucketI);
             }
-        }
+        });
     }
 
     private void assertKvAccountBucketNames(List<String> bnames, String bucketA, String bucketI) {
@@ -1247,7 +1245,7 @@ public class KeyValueTests extends JetStreamTestBase {
         assertEquals(KeyValueOperation.PUT, kveUserA.getOperation());
     }
 
-    @SuppressWarnings({"SimplifiableAssertion", "ConstantConditions", "EqualsWithItself"})
+    @SuppressWarnings({"SimplifiableAssertion", "ConstantConditions"})
     @Test
     public void testCoverBucketAndKey() {
         String bucket = random();
@@ -1304,7 +1302,6 @@ public class KeyValueTests extends JetStreamTestBase {
             KeyValueEntry kve1_2 = kv1.get(key2);
             KeyValueEntry kve2_1 = kv2.get(key1);
 
-            //noinspection EqualsWithItself
             assertEquals(kve1_1, kve1_1);
             assertEquals(kve1_1, kv1.get(key1));
             assertNotEquals(kve1_1, kve1_2);
@@ -1418,7 +1415,7 @@ public class KeyValueTests extends JetStreamTestBase {
         runInShared((nc, ctx) -> {
             // create bucket
             String bucket = random();
-            KeyValueStatus status = ctx.kvCreate(bucket);
+            ctx.kvCreate(bucket);
 
             KeyValue kv = nc.keyValue(bucket);
             kv.put("a", "a");

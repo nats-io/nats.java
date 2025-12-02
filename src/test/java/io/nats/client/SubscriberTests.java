@@ -19,8 +19,7 @@ import java.time.Duration;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 
-import static io.nats.client.utils.ConnectionUtils.standardCloseConnection;
-import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
+import static io.nats.client.utils.ConnectionUtils.standardConnect;
 import static io.nats.client.utils.OptionsUtils.options;
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -108,25 +107,23 @@ public class SubscriberTests {
             w.flush();
         };
 
-        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(receiveMessageCustomizer);
-             Connection nc = standardConnectionWait(options(mockTs))) {
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(receiveMessageCustomizer)) {
+            try (Connection nc = standardConnect(options(mockTs))) {
+                String subject = random();
+                Subscription sub = nc.subscribe(subject);
 
-            String subject = random();
-            Subscription sub = nc.subscribe(subject);
+                gotSub.get();
+                sendMsg.complete(Boolean.TRUE);
 
-            gotSub.get();
-            sendMsg.complete(Boolean.TRUE);
+                Message msg = sub.nextMessage(Duration.ZERO);//Duration.ofMillis(1000));
 
-            Message msg = sub.nextMessage(Duration.ZERO);//Duration.ofMillis(1000));
-
-            assertTrue(sub.isActive());
-            assertNotNull(msg);
-            assertEquals(subject, msg.getSubject());
-            assertEquals(sub, msg.getSubscription());
-            assertNull(msg.getReplyTo());
-            assertEquals(0, msg.getData().length);
-
-            standardCloseConnection(nc);
+                assertTrue(sub.isActive());
+                assertNotNull(msg);
+                assertEquals(subject, msg.getSubject());
+                assertEquals(sub, msg.getSubscription());
+                assertNull(msg.getReplyTo());
+                assertEquals(0, msg.getData().length);
+            }
         }
     }
 

@@ -15,6 +15,8 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.support.Listener;
+import io.nats.client.support.ListenerFuture;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -62,8 +64,7 @@ public class ConnectionListenerTests extends TestBase {
                     .connectionListener(listener)
                     .build();
                                     
-                listener.prepForStatusChange(Events.CONNECTED);
-                standardCloseConnection( listenerConnectionWait(options, listener) );
+                standardCloseConnection( standardConnect(options) );
                 assertEquals(1, listener.getEventCount(Events.DISCOVERED_SERVERS));
             }
         }
@@ -81,7 +82,7 @@ public class ConnectionListenerTests extends TestBase {
                 .connectionListener(listener)
                 .build();
             port = ts.getPort();
-            nc = standardConnectionWait(options);
+            nc = standardConnect(options);
             assertEquals(ts.getServerUri(), nc.getConnectedUrl());
             listener.prepForStatusChange(Events.DISCONNECTED);
         }
@@ -93,7 +94,7 @@ public class ConnectionListenerTests extends TestBase {
         assertNull(nc.getConnectedUrl());
 
         try (NatsTestServer ts = new NatsTestServer(port)) {
-            standardConnectionWait(nc);
+            waitUntilConnected(nc); // wait for reconnect
             assertEquals(1, listener.getEventCount(Events.RECONNECTED));
             assertEquals(ts.getServerUri(), nc.getConnectedUrl());
             standardCloseConnection(nc);

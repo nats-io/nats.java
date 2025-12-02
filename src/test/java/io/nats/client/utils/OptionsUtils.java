@@ -71,6 +71,10 @@ public abstract class OptionsUtils {
         return optionsBuilder().build();
     }
 
+    public static Options options(Connection nc) {
+        return optionsBuilder(nc).build();
+    }
+
     public static Options options(int port) {
         return optionsBuilder(port).build();
     }

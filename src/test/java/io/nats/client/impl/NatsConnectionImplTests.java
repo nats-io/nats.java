@@ -17,7 +17,7 @@ import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
 import org.junit.jupiter.api.Test;
 
-import static io.nats.client.utils.ConnectionUtils.standardConnectionWait;
+import static io.nats.client.utils.ConnectionUtils.standardConnect;
 import static io.nats.client.utils.OptionsUtils.NOOP_EL;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -31,23 +31,23 @@ public class NatsConnectionImplTests {
 
             Options options = Options.builder().server(ts.getServerUri()).errorListener(NOOP_EL).build();
 
-            verifyInternalExecutors((NatsConnection) standardConnectionWait(options));
+            verifyInternalExecutors((NatsConnection) standardConnect(options));
 
             // using the same options to demonstrate the executors came
             // from the internal factory and were not reused
-            verifyInternalExecutors((NatsConnection) standardConnectionWait(options));
+            verifyInternalExecutors((NatsConnection) standardConnect(options));
 
             // using options copied from options to demonstrate the executors
             // came from the internal factory and were not reused
             options = new Options.Builder(options).build();
-            verifyInternalExecutors((NatsConnection) standardConnectionWait(options));
+            verifyInternalExecutors((NatsConnection) standardConnect(options));
 
             // the test options builder has all its own executors so none are "internal"
             options = optionsBuilder(ts).build();
-            verifyExternalExecutors((NatsConnection) standardConnectionWait(options));
+            verifyExternalExecutors((NatsConnection) standardConnect(options));
 
             // same options just because
-            verifyExternalExecutors((NatsConnection) standardConnectionWait(options));
+            verifyExternalExecutors((NatsConnection) standardConnect(options));
         }
     }
 

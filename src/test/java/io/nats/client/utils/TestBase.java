@@ -44,15 +44,8 @@ import static io.nats.client.utils.VersionUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TestBase {
-    public static final String TLS_CONF = "tls.conf";
-    public static final String TLSVERIFY_CONF = "tlsverify.conf";
-    public static final String TLS_FIRST_CONF = "tls_first.conf";
-
     public static final String WS = "ws";
     public static final String WSS = "wss";
-    public static final String WS_CONF = "ws.conf";
-    public static final String WSS_CONF = "wss.conf";
-    public static final String WSSVERIFY_CONF = "wssverify.conf";
 
     public static final String STAR_SEGMENT        = "*.star.*.segment.*";
     public static final String GT_NOT_LAST_SEGMENT = "gt.>.notlast";
@@ -88,6 +81,7 @@ public class TestBase {
 
     public static final String META_KEY   = "meta-test-key";
     public static final String META_VALUE = "meta-test-value";
+    public static final String OPERATOR_NOACCT_CONF = "operator_noacct.conf";
 
     public static String[] BAD_SUBJECTS_OR_QUEUES = new String[] {
         HAS_SPACE, HAS_CR, HAS_LF, HAS_TAB, STARTS_SPACE, ENDS_SPACE, null, EMPTY
@@ -126,6 +120,10 @@ public class TestBase {
     // ----------------------------------------------------------------------------------------------------
     // runners / test interfaces
     // ----------------------------------------------------------------------------------------------------
+    public interface InServerTest {
+        void test(NatsTestServer ts) throws Exception;
+    }
+
     public interface OneConnectionTest {
         void test(Connection nc) throws Exception;
     }
@@ -153,13 +151,38 @@ public class TestBase {
         void test(Connection nc, JetStreamTestingContext ctx) throws Exception;
     }
 
+    // --------------------------------------------------
+    // Configured Server
+    // --------------------------------------------------
+    private static void _runConfiguredServer(
+        String configFilePath,
+        int customPort,
+        InServerTest inServerTest
+    ) throws Exception {
+        NatsServerRunner.Builder nsrb = NatsServerRunner.builder()
+            .configFilePath(configResource(configFilePath));
+        if (customPort > 0) {
+            nsrb.port(customPort);
+        }
+        try (NatsTestServer ts = new NatsTestServer(nsrb)) {
+            inServerTest.test(ts);
+        }
+    }
+
+    public static void runInConfiguredServer(String configFilePath, InServerTest inServerTest) throws Exception {
+        _runConfiguredServer(configFilePath, -1, inServerTest);
+    }
+
+    public static void runInConfiguredServer(String configFilePath, int customPort, InServerTest inServerTest) throws Exception {
+        _runConfiguredServer(configFilePath, customPort, inServerTest);
+    }
+
     // ----------------------------------------------------------------------------------------------------
     // runners -> own server
     // ----------------------------------------------------------------------------------------------------
     private static void _runInOwnServer(
         @SuppressWarnings("SameParameterValue") Options.Builder optionsBuilder,
         VersionCheck vc,
-        String configFilePath,
         OneConnectionTest oneNcTest,
         JetStreamTest jsTest
     ) throws Exception {
@@ -168,15 +191,12 @@ public class TestBase {
         }
 
         NatsServerRunner.Builder nsrb = NatsServerRunner.builder().jetstream(jsTest != null);
-        if (configFilePath != null) {
-            nsrb.configFilePath(configResource(configFilePath));
-        }
         try (NatsTestServer ts = new NatsTestServer(nsrb)) {
             Options options = (optionsBuilder == null
                 ? optionsBuilder(ts)
                 : optionsBuilder.server(ts.getServerUri()))
                 .build();
-            try (Connection nc = standardConnectionWait(options)) {
+            try (Connection nc = standardConnect(options)) {
                 initVersionServerInfo(nc);
                 if (vc == null || vc.runTest(VERSION_SERVER_INFO)) {
                     if (jsTest == null) {
@@ -196,22 +216,18 @@ public class TestBase {
     // Not using JetStream
     // --------------------------------------------------
     public static void runInOwnServer(OneConnectionTest oneNcTest) throws Exception {
-        _runInOwnServer(null, null, null, oneNcTest, null);
+        _runInOwnServer(null, null, oneNcTest, null);
     }
 
     // --------------------------------------------------
     // JetStream needing isolation
     // --------------------------------------------------
     public static void runInOwnJsServer(JetStreamTest jetStreamTest) throws Exception {
-        _runInOwnServer(null, null, null, null, jetStreamTest);
-    }
-
-    public static void runInOwnJsServer(String configFilePath, JetStreamTest jetStreamTest) throws Exception {
-        _runInOwnServer(null, null, configFilePath, null, jetStreamTest);
+        _runInOwnServer(null, null, null, jetStreamTest);
     }
 
     public static void runInOwnJsServer(VersionCheck vc, JetStreamTest jetStreamTest) throws Exception {
-        _runInOwnServer(null, vc, null, null, jetStreamTest);
+        _runInOwnServer(null, vc, null, jetStreamTest);
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -406,9 +422,9 @@ public class TestBase {
         };
 
         try (NatsTestServer hub = new NatsTestServer(hubPort, true, null, hubInserts, null);
-             Connection nchub = standardConnectionWait(options(hub));
+             Connection nchub = standardConnect(options(hub));
              NatsTestServer leaf = new NatsTestServer(leafPort, true, null, leafInserts, null);
-             Connection ncleaf = standardConnectionWait(options(leaf))
+             Connection ncleaf = standardConnect(options(leaf))
         ) {
             twoConnectionTest.test(nchub, ncleaf);
         }
@@ -444,9 +460,9 @@ public class TestBase {
         try (NatsTestServer srv1 = new NatsTestServer(port1, tstOpts.jetStream(), null, server1Inserts, null);
              NatsTestServer srv2 = new NatsTestServer(port2, tstOpts.jetStream(), null, server2Inserts, null);
              NatsTestServer srv3 = new NatsTestServer(port3, tstOpts.jetStream(), null, server3Inserts, null);
-             Connection nc1 = standardConnectionWait(makeOptions(0, tstOpts, srv1, srv2, srv3));
-             Connection nc2 = standardConnectionWait(makeOptions(1, tstOpts, srv2, srv1, srv3));
-             Connection nc3 = standardConnectionWait(makeOptions(2, tstOpts, srv3, srv1, srv2))
+             Connection nc1 = standardConnect(makeOptions(0, tstOpts, srv1, srv2, srv3));
+             Connection nc2 = standardConnect(makeOptions(1, tstOpts, srv2, srv1, srv3));
+             Connection nc3 = standardConnect(makeOptions(2, tstOpts, srv3, srv1, srv2))
         ) {
             threeServerTest.test(nc1, nc2, nc3);
         }
@@ -561,7 +577,7 @@ public class TestBase {
     // assertions
     // ----------------------------------------------------------------------------------------------------
     public static void assertCanConnectAndPubSub(Options options) throws IOException, InterruptedException {
-        Connection conn = newConnection(options);
+        Connection conn = standardConnect(options);
         assertPubSub(conn);
         standardCloseConnection(conn);
     }

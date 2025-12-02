@@ -16,8 +16,8 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.support.Status;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.parallel.Isolated;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -32,8 +32,7 @@ import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
-@Isolated
-public class ErrorListenerTests {
+public class ErrorListenerTests extends TestBase {
 
     @Test
     public void testLastError() throws Exception {
@@ -71,7 +70,7 @@ public class ErrorListenerTests {
 
             assertTrue(listener.errorsEventually("Authorization Violation", 3000));
 
-            longConnectionWait(nc);
+            waitUntilConnected(nc); // wait for reconnect
             assertEquals(ts3.getServerUri(), nc.getConnectedUrl());
         }
     }
@@ -162,8 +161,9 @@ public class ErrorListenerTests {
                 Dispatcher d = nc.createDispatcher(msg -> {
                     throw new ArithmeticException();
                 });
-                d.subscribe("subject");
-                Future<Message> incoming = nc.request("subject", null);
+                String subject = random();
+                d.subscribe(subject);
+                Future<Message> incoming = nc.request(subject, null);
 
                 Message msg;
 
@@ -202,13 +202,14 @@ public class ErrorListenerTests {
         try (NatsTestServer ts = new NatsTestServer();
              Connection nc = Nats.connect(optionsBuilder(ts).errorListener(listener).build())) {
 
-            Subscription sub = nc.subscribe("subject");
+            String subject = random();
+            Subscription sub = nc.subscribe(subject);
             sub.setPendingLimits(1, -1);
 
-            nc.publish("subject", null);
-            nc.publish("subject", null);
-            nc.publish("subject", null);
-            nc.publish("subject", null);
+            nc.publish(subject, null);
+            nc.publish(subject, null);
+            nc.publish(subject, null);
+            nc.publish(subject, null);
 
             nc.flush(Duration.ofMillis(5000));
 
@@ -230,8 +231,9 @@ public class ErrorListenerTests {
                 Dispatcher d = nc.createDispatcher(msg -> {
                     throw new ArithmeticException();
                 });
-                d.subscribe("subject");
-                Future<Message> incoming = nc.request("subject", null);
+                String subject = random();
+                d.subscribe(subject);
+                Future<Message> incoming = nc.request(subject, null);
 
                 Message msg;
 
@@ -251,6 +253,7 @@ public class ErrorListenerTests {
 
     @Test
     public void testDiscardedMessageFastProducer() throws Exception {
+        String subject = random();
         int maxMessages = 10;
         ListenerForTesting listener = new ListenerForTesting();
         try (NatsTestServer ts = new NatsTestServer()) {
@@ -264,10 +267,9 @@ public class ErrorListenerTests {
 
             try {
                 nc.flush(Duration.ofSeconds(2));
-
                 nc.getWriter().stop().get(2, TimeUnit.SECONDS);
                 for (int i = 0; i < maxMessages + 1; i++) {
-                    nc.publish("subject" + i, ("message" + i).getBytes());
+                    nc.publish(subject + i, ("message" + i).getBytes());
                 }
                 nc.getWriter().start(nc.getDataPortFuture());
 
@@ -280,12 +282,13 @@ public class ErrorListenerTests {
         List<Message> discardedMessages = listener.getDiscardedMessages();
         assertFalse(discardedMessages.isEmpty(), "expected discardedMessages > 0, got " + discardedMessages.size());
         int offset = maxMessages + 1 - discardedMessages.size();
-        assertEquals("subject" + offset, discardedMessages.get(0).getSubject());
+        assertEquals(subject + offset, discardedMessages.get(0).getSubject());
         assertEquals("message" + offset, new String(discardedMessages.get(0).getData()));
     }
 
     @Test
     public void testDiscardedMessageServerClosed() throws Exception {
+        String subject = random();
         int maxMessages = 10;
         ListenerForTesting listener = new ListenerForTesting();
         try (NatsTestServer ts = new NatsTestServer()) {
@@ -295,9 +298,7 @@ public class ErrorListenerTests {
                 .errorListener(listener)
                 .pingInterval(Duration.ofSeconds(100)) // make this long so we don't ping during test
                 .build();
-            Connection nc = standardConnectionWait(options);
-
-            try {
+            try (Connection nc = standardConnect(options)) {
                 nc.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
                 listener.prepForStatusChange(Events.DISCONNECTED);
@@ -305,16 +306,14 @@ public class ErrorListenerTests {
                 listener.waitForStatusChange(2, TimeUnit.SECONDS); // make sure the connection is down
 
                 for (int i = 0; i < maxMessages + 1; i++) {
-                    nc.publish("subject" + i, ("message" + i).getBytes());
+                    nc.publish(subject + i, ("message" + i).getBytes());
                 }
-            } finally {
-                standardCloseConnection(nc);
             }
         }
 
         List<Message> discardedMessages = listener.getDiscardedMessages();
         assertFalse(discardedMessages.isEmpty(), "At least one message discarded");
-        assertTrue(discardedMessages.get(0).getSubject().startsWith("subject"), "Message subject");
+        assertTrue(discardedMessages.get(0).getSubject().startsWith(subject), "Message subject");
         assertTrue(new String(discardedMessages.get(0).getData()).startsWith("message"), "Message data");
     }
 
