@@ -96,10 +96,12 @@ class NatsConnection implements Connection {
     private final AtomicBoolean blockPublishForDrain;
     private final AtomicBoolean tryingToConnect;
 
-    private final ExecutorService callbackRunner;
-    private final ExecutorService executor;
-    private final ExecutorService connectExecutor;
-    private final ScheduledExecutorService scheduledExecutor;
+    // these are not final so they can be nullified on close
+    private ExecutorService callbackExecutor;
+    private ExecutorService executor;
+    private ExecutorService connectExecutor;
+    private ScheduledExecutorService scheduledExecutor;
+
     private final boolean advancedTracking;
 
     private final ServerPool serverPool;
@@ -158,7 +160,7 @@ class NatsConnection implements Connection {
 
         timeTraceLogger.trace("creating executors");
         this.executor = options.getExecutor();
-        this.callbackRunner = options.getCallbackExecutor();
+        this.callbackExecutor = options.getCallbackExecutor();
         this.connectExecutor = options.getConnectExecutor();
         this.scheduledExecutor = options.getScheduledExecutor();
 
@@ -875,37 +877,11 @@ class NatsConnection implements Connection {
             statusLock.unlock();
         }
 
-        if (options.callbackExecutorIsInternal()) {
-            // Stop the error handling and connect executors
-            callbackRunner.shutdown();
-            try {
-                // At this point in the flow, the connection is shutting down.
-                // There is really no use in giving this information to the developer,
-                // It's fair to say that an exception here anyway will practically never happen
-                // and if it did, the app is probably already frozen.
-                //noinspection ResultOfMethodCallIgnored
-                callbackRunner.awaitTermination(this.options.getConnectionTimeout().toNanos(), TimeUnit.NANOSECONDS);
-            }
-            finally {
-                callbackRunner.shutdownNow();
-            }
-        }
-
-        if (options.connectExecutorIsInternal()) {
-            // There's no need to wait for running tasks since we're told to close
-            connectExecutor.shutdownNow();
-        }
-
-        // The callbackRunner and connectExecutor always come from a factory,
-        // so we always shut them down.
-        // The executor and scheduledExecutor come from a factory only if
-        // the user does NOT supply them, so we shut them down in that case.
-        if (options.executorIsInternal()) {
-            executor.shutdownNow();
-        }
-        if (options.scheduledExecutorIsInternal()) {
-            scheduledExecutor.shutdownNow();
-        }
+        callbackExecutor = null;
+        executor = null;
+        connectExecutor = null;
+        scheduledExecutor = null;
+        options.shutdownInternalExecutors();
 
         statusLock.lock();
         try {
@@ -918,7 +894,7 @@ class NatsConnection implements Connection {
     }
 
     boolean callbackRunnerIsShutdown() {
-        return callbackRunner == null || callbackRunner.isShutdown();
+        return callbackExecutor == null || callbackExecutor.isShutdown();
     }
 
     boolean executorIsShutdown() {
@@ -1881,9 +1857,9 @@ class NatsConnection implements Connection {
     }
 
     void processSlowConsumer(Consumer consumer) {
-        if (!this.callbackRunner.isShutdown()) {
+        if (!this.callbackExecutor.isShutdown()) {
             try {
-                this.callbackRunner.execute(() -> {
+                this.callbackExecutor.execute(() -> {
                     try {
                         options.getErrorListener().slowConsumerDetected(this, consumer);
                     }
@@ -1901,9 +1877,9 @@ class NatsConnection implements Connection {
     void processException(Exception exp) {
         this.statistics.incrementExceptionCount();
 
-        if (!this.callbackRunner.isShutdown()) {
+        if (!this.callbackExecutor.isShutdown()) {
             try {
-                this.callbackRunner.execute(() -> {
+                this.callbackExecutor.execute(() -> {
                     try {
                         options.getErrorListener().exceptionOccurred(this, exp);
                     }
@@ -1929,9 +1905,9 @@ class NatsConnection implements Connection {
             this.serverAuthErrors.put(currentServer, errorText);
         }
 
-        if (!this.callbackRunner.isShutdown()) {
+        if (!this.callbackExecutor.isShutdown()) {
             try {
-                this.callbackRunner.execute(() -> {
+                this.callbackExecutor.execute(() -> {
                     try {
                         options.getErrorListener().errorOccurred(this, errorText);
                     }
@@ -1951,9 +1927,9 @@ class NatsConnection implements Connection {
     }
 
     void executeCallback(ErrorListenerCaller elc) {
-        if (!this.callbackRunner.isShutdown()) {
+        if (!this.callbackExecutor.isShutdown()) {
             try {
-                this.callbackRunner.execute(() -> elc.call(this, options.getErrorListener()));
+                this.callbackExecutor.execute(() -> elc.call(this, options.getErrorListener()));
             }
             catch (RejectedExecutionException re) {
                 // Timing with shutdown, let it go
@@ -1976,11 +1952,11 @@ class NatsConnection implements Connection {
     }
 
     void processConnectionEvent(Events type, String uriDetails) {
-        if (!this.callbackRunner.isShutdown()) {
+        if (!this.callbackExecutor.isShutdown()) {
             try {
                 long time = System.currentTimeMillis();
                 for (ConnectionListener listener : connectionListeners) {
-                    this.callbackRunner.execute(() -> {
+                    this.callbackExecutor.execute(() -> {
                         try {
                             listener.connectionEvent(this, type, time, uriDetails);
                         } catch (Exception ex) {

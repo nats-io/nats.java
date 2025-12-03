@@ -36,6 +36,7 @@ import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
 import static io.nats.client.support.Encoding.*;
@@ -2211,10 +2212,16 @@ public class Options {
      * @return the executor, see {@link Builder#executor(ExecutorService) executor()} in the builder doc
      */
     public ExecutorService getExecutor() {
-        if (resolvedExecutor == null || resolvedExecutor.isShutdown()) {
-            resolvedExecutor = configuredExecutor == null ? _getInternalExecutor() : configuredExecutor;
+        executorsLock.lock();
+        try {
+            if (resolvedExecutor == null || resolvedExecutor.isShutdown()) {
+                resolvedExecutor = configuredExecutor == null ? _getInternalExecutor() : configuredExecutor;
+            }
+            return resolvedExecutor;
         }
-        return resolvedExecutor;
+        finally {
+            executorsLock.unlock();
+        }
     }
 
     private ExecutorService _getInternalExecutor() {
@@ -2230,10 +2237,16 @@ public class Options {
      * @return the ScheduledExecutorService, see {@link Builder#scheduledExecutor(ScheduledExecutorService) scheduledExecutor()} in the builder doc
      */
     public ScheduledExecutorService getScheduledExecutor() {
-        if (resolvedScheduledExecutor == null || resolvedScheduledExecutor.isShutdown()) {
-            resolvedScheduledExecutor = configuredScheduledExecutor == null ? _getInternalScheduledExecutor() : configuredScheduledExecutor;
+        executorsLock.lock();
+        try {
+            if (resolvedScheduledExecutor == null || resolvedScheduledExecutor.isShutdown()) {
+                resolvedScheduledExecutor = configuredScheduledExecutor == null ? _getInternalScheduledExecutor() : configuredScheduledExecutor;
+            }
+            return resolvedScheduledExecutor;
         }
-        return resolvedScheduledExecutor;
+        finally {
+            executorsLock.unlock();
+        }
     }
 
     private ScheduledExecutorService _getInternalScheduledExecutor() {
@@ -2252,11 +2265,17 @@ public class Options {
      * @return the executor
      */
     public ExecutorService getCallbackExecutor() {
-        if (resolvedCallbackExecutor == null || resolvedCallbackExecutor.isShutdown()) {
-            resolvedCallbackExecutor = callbackThreadFactory == null ?
-                DEFAULT_SINGLE_THREAD_EXECUTOR.get() : Executors.newSingleThreadExecutor(callbackThreadFactory);
+        executorsLock.lock();
+        try {
+            if (resolvedCallbackExecutor == null || resolvedCallbackExecutor.isShutdown()) {
+                resolvedCallbackExecutor = callbackThreadFactory == null ?
+                    DEFAULT_SINGLE_THREAD_EXECUTOR.get() : Executors.newSingleThreadExecutor(callbackThreadFactory);
+            }
+            return resolvedCallbackExecutor;
         }
-        return resolvedCallbackExecutor;
+        finally {
+            executorsLock.unlock();
+        }
     }
 
     /**
@@ -2264,11 +2283,17 @@ public class Options {
      * @return the executor
      */
     public ExecutorService getConnectExecutor() {
-        if (resolvedConnectExecutor == null || resolvedConnectExecutor.isShutdown()) {
-            resolvedConnectExecutor = connectThreadFactory == null ?
-                DEFAULT_SINGLE_THREAD_EXECUTOR.get() : Executors.newSingleThreadExecutor(connectThreadFactory);
+        executorsLock.lock();
+        try {
+            if (resolvedConnectExecutor == null || resolvedConnectExecutor.isShutdown()) {
+                resolvedConnectExecutor = connectThreadFactory == null ?
+                    DEFAULT_SINGLE_THREAD_EXECUTOR.get() : Executors.newSingleThreadExecutor(connectThreadFactory);
+            }
+            return resolvedConnectExecutor;
         }
-        return resolvedConnectExecutor;
+        finally {
+            executorsLock.unlock();
+        }
     }
 
     /**
@@ -2301,6 +2326,50 @@ public class Options {
      */
     public boolean connectExecutorIsInternal() {
         return this.connectThreadFactory == null;
+    }
+
+    private final ReentrantLock executorsLock = new ReentrantLock();
+
+    public void shutdownInternalExecutors() throws InterruptedException {
+        executorsLock.lock();
+        try {
+            if (resolvedCallbackExecutor != null && callbackExecutorIsInternal()) {
+                // we don't just shut it down now to give any callbacks a chance to finish
+                ExecutorService es = resolvedCallbackExecutor;
+                resolvedCallbackExecutor = null;
+                es.shutdown();
+                try {
+                    //noinspection ResultOfMethodCallIgnored
+                    es.awaitTermination(getConnectionTimeout().toNanos(), TimeUnit.NANOSECONDS);
+                }
+                finally {
+                    es.shutdownNow();
+                }
+            }
+
+            if (resolvedConnectExecutor != null && connectExecutorIsInternal()) {
+                // There's no need to wait for running tasks since we're told to close
+                ExecutorService es = resolvedConnectExecutor;
+                resolvedConnectExecutor = null;
+                es.shutdownNow();
+            }
+
+            if (resolvedExecutor != null && executorIsInternal()) {
+                ExecutorService es = resolvedExecutor;
+                resolvedExecutor = null;
+                es.shutdownNow();
+            }
+
+            if (resolvedScheduledExecutor != null && scheduledExecutorIsInternal()) {
+                ScheduledExecutorService ses = resolvedScheduledExecutor;
+                resolvedScheduledExecutor = null;
+                ses.shutdownNow();
+            }
+
+        }
+        finally {
+            executorsLock.unlock();
+        }
     }
 
     /**
