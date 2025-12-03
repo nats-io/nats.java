@@ -147,7 +147,7 @@ public class TLSConnectTests {
     public void testProxyNotTlsFirst() throws Exception {
         runInSharedConfiguredServer("tls.conf", 1, ts1 -> {
             // 1. client regular secure | secure proxy | server insecure -> mismatch exception
-            Listener listener = new Listener(true);
+            Listener listener = new Listener();
             ProxyConnection connRI = new ProxyConnection(ts1.getServerUri(), false, listener, SERVER_INSECURE);
             listener.queueException(IOException.class, "SSL connection wanted by client");
             assertThrows(Exception.class, () -> connRI.connect(false));
@@ -258,7 +258,7 @@ public class TLSConnectTests {
     @Test
     public void testTLSOnReconnect() throws Exception {
         AtomicReference<NatsConnection> ncRef = new AtomicReference<>();
-        Listener listener = new Listener(true);
+        Listener listener = new Listener();
 
         // Use two server ports to avoid port release timing issues
         int port = NatsTestServer.nextPort();

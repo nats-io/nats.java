@@ -1701,7 +1701,7 @@ public class SimplificationTests extends JetStreamTestBase {
             //    to make sure the consumer continues after that condition
             // ------------------------------------------------------------
             int port = NatsTestServer.nextPort();
-            Listener listener = new Listener(true);
+            Listener listener = new Listener();
             Options options = optionsBuilder()
                 .connectionListener(listener)
                 .errorListener(listener)

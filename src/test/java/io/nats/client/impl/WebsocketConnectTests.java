@@ -263,7 +263,7 @@ public class WebsocketConnectTests extends TestBase {
     @Test
     public void testTLSOnReconnect() throws Exception {
         Connection nc;
-        Listener listener = new Listener(true);
+        Listener listener = new Listener();
         int port = nextPort();
         int wssPort = nextPort();
 
