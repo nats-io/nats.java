@@ -704,10 +704,17 @@ public class Options {
     private final boolean trackAdvancedStats;
     private final boolean traceConnection;
 
-    private final ExecutorService executor;
-    private final ScheduledExecutorService scheduledExecutor;
+    private final ExecutorService configuredExecutor;
+    private final ScheduledExecutorService configuredScheduledExecutor;
     private final ThreadFactory connectThreadFactory;
     private final ThreadFactory callbackThreadFactory;
+
+    // these are not final b/c they are lazy initialized
+    private ExecutorService resolvedExecutor;
+    private ScheduledExecutorService resolvedScheduledExecutor;
+    private ExecutorService resolvedConnectExecutor;
+    private ExecutorService resolvedCallbackExecutor;
+
     private final ServerPool serverPool;
     private final DispatcherFactory dispatcherFactory;
 
@@ -2106,8 +2113,8 @@ public class Options {
             this.statisticsCollector = o.statisticsCollector;
             this.dataPortType = o.dataPortType;
             this.trackAdvancedStats = o.trackAdvancedStats;
-            this.executor = o.executor;
-            this.scheduledExecutor = o.scheduledExecutor;
+            this.executor = o.configuredExecutor;
+            this.scheduledExecutor = o.configuredScheduledExecutor;
             this.callbackThreadFactory = o.callbackThreadFactory;
             this.connectThreadFactory = o.connectThreadFactory;
             this.httpRequestInterceptors = o.httpRequestInterceptors;
@@ -2178,8 +2185,8 @@ public class Options {
         this.statisticsCollector = b.statisticsCollector;
         this.dataPortType = b.dataPortType;
         this.trackAdvancedStats = b.trackAdvancedStats;
-        this.executor = b.executor;
-        this.scheduledExecutor = b.scheduledExecutor;
+        this.configuredExecutor = b.executor;
+        this.configuredScheduledExecutor = b.scheduledExecutor;
         this.callbackThreadFactory = b.callbackThreadFactory;
         this.connectThreadFactory = b.connectThreadFactory;
         this.httpRequestInterceptors = b.httpRequestInterceptors;
@@ -2204,7 +2211,10 @@ public class Options {
      * @return the executor, see {@link Builder#executor(ExecutorService) executor()} in the builder doc
      */
     public ExecutorService getExecutor() {
-        return this.executor == null ? _getInternalExecutor() : this.executor;
+        if (resolvedExecutor == null) {
+            resolvedExecutor = configuredExecutor == null ? _getInternalExecutor() : configuredExecutor;
+        }
+        return resolvedExecutor;
     }
 
     private ExecutorService _getInternalExecutor() {
@@ -2220,7 +2230,10 @@ public class Options {
      * @return the ScheduledExecutorService, see {@link Builder#scheduledExecutor(ScheduledExecutorService) scheduledExecutor()} in the builder doc
      */
     public ScheduledExecutorService getScheduledExecutor() {
-        return this.scheduledExecutor == null ? _getInternalScheduledExecutor() : this.scheduledExecutor;
+        if (resolvedScheduledExecutor == null) {
+            resolvedScheduledExecutor = configuredScheduledExecutor == null ? _getInternalScheduledExecutor() : configuredScheduledExecutor;
+        }
+        return resolvedScheduledExecutor;
     }
 
     private ScheduledExecutorService _getInternalScheduledExecutor() {
@@ -2239,8 +2252,11 @@ public class Options {
      * @return the executor
      */
     public ExecutorService getCallbackExecutor() {
-        return this.callbackThreadFactory == null ?
-                DEFAULT_SINGLE_THREAD_EXECUTOR.get() : Executors.newSingleThreadExecutor(this.callbackThreadFactory);
+        if (resolvedCallbackExecutor == null) {
+            resolvedCallbackExecutor = callbackThreadFactory == null ?
+                DEFAULT_SINGLE_THREAD_EXECUTOR.get() : Executors.newSingleThreadExecutor(callbackThreadFactory);
+        }
+        return resolvedCallbackExecutor;
     }
 
     /**
@@ -2248,8 +2264,11 @@ public class Options {
      * @return the executor
      */
     public ExecutorService getConnectExecutor() {
-        return this.connectThreadFactory == null ?
-                DEFAULT_SINGLE_THREAD_EXECUTOR.get() : Executors.newSingleThreadExecutor(this.connectThreadFactory);
+        if (resolvedConnectExecutor == null) {
+            resolvedConnectExecutor = connectThreadFactory == null ?
+                DEFAULT_SINGLE_THREAD_EXECUTOR.get() : Executors.newSingleThreadExecutor(connectThreadFactory);
+        }
+        return resolvedConnectExecutor;
     }
 
     /**
@@ -2257,7 +2276,7 @@ public class Options {
      * @return true if the executor is internal
      */
     public boolean executorIsInternal() {
-        return this.executor == null;
+        return this.configuredExecutor == null;
     }
 
     /**
@@ -2265,7 +2284,7 @@ public class Options {
      * @return true if the executor is internal
      */
     public boolean scheduledExecutorIsInternal() {
-        return this.scheduledExecutor == null;
+        return this.configuredScheduledExecutor == null;
     }
 
     /**
