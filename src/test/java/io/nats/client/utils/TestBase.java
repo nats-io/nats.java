@@ -88,12 +88,12 @@ public class TestBase {
         HAS_SPACE, HAS_CR, HAS_LF, HAS_TAB, STARTS_SPACE, ENDS_SPACE, null, EMPTY
     };
 
-    static Set<String> SharedConfigServers = new HashSet<>();
+    public static Set<String> SharedNamedServers = new HashSet<>();
 
     @AfterAll
-    public static void afterAll() {
-        if (SharedConfigServers.size() > 0) {
-            SharedServer.shutdown(SharedConfigServers.toArray(new String[0]));
+    public static void testBaseAfterAll() {
+        if (SharedNamedServers.size() > 0) {
+            SharedServer.shutdown(SharedNamedServers.toArray(new String[0]));
         }
     }
 
@@ -160,31 +160,40 @@ public class TestBase {
     // --------------------------------------------------
     // Shared Configured Server
     // --------------------------------------------------
-    private static void _runInSharedConfiguredServer(
+    private static void _runInSharedNamedServer(
+        String name,
         String nameAndConfFile,
         String confFile,
         int version,
         InServerTest inServerTest
     ) throws Exception {
         NatsTestServer ts;
-        if (nameAndConfFile == null) {
-            String name = confFile + "-" + version;
-            SharedConfigServers.add(name);
-            ts = SharedServer.getInstance(name, confFile).getServer();
+        if (name != null) {
+            SharedNamedServers.add(name);
+            ts = SharedServer.getInstance(name).getServer();
+        }
+        else if (nameAndConfFile != null) {
+            SharedNamedServers.add(nameAndConfFile);
+            ts = SharedServer.getInstance(nameAndConfFile, nameAndConfFile).getServer();
         }
         else {
-            SharedConfigServers.add(nameAndConfFile);
-            ts = SharedServer.getInstance(nameAndConfFile, nameAndConfFile).getServer();
+            name = confFile + "-" + version;
+            SharedNamedServers.add(name);
+            ts = SharedServer.getInstance(name, confFile).getServer();
         }
         inServerTest.test(ts);
     }
 
+    public static void runInSharedNamed(String name, InServerTest inServerTest) throws Exception {
+        _runInSharedNamedServer(name, null, null, -1, inServerTest);
+    }
+
     public static void runInSharedConfiguredServer(String nameAndConfFile, InServerTest inServerTest) throws Exception {
-        _runInSharedConfiguredServer(nameAndConfFile, null, -1, inServerTest);
+        _runInSharedNamedServer(null, nameAndConfFile, null, -1, inServerTest);
     }
 
     public static void runInSharedConfiguredServer(String confFile, int version, InServerTest inServerTest) throws Exception {
-        _runInSharedConfiguredServer(null, confFile, version, inServerTest);
+        _runInSharedNamedServer(null, null, confFile, version, inServerTest);
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -235,6 +244,8 @@ public class TestBase {
     // ----------------------------------------------------------------------------------------------------
     // runners -> shared
     // ----------------------------------------------------------------------------------------------------
+    static final String SHARED_NAME = "SHARED";
+
     private static void _runInShared(
         Options.Builder optionsBuilder,
         VersionCheck vc,
@@ -247,7 +258,7 @@ public class TestBase {
             return; // had vc, already had run server info and fails check
         }
 
-        SharedServer shared = SharedServer.getInstance("SHARED");
+        SharedServer shared = SharedServer.getInstance(SHARED_NAME);
 
         // no builder, we can use the long-running connection since it's totally generic
         // with a builder, just make a fresh connection and close it at the end.

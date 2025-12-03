@@ -56,6 +56,9 @@ import static io.nats.service.ServiceMessage.NATS_SERVICE_ERROR_CODE;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ServiceTests extends JetStreamTestBase {
+
+    public static final String SERVICE_TESTS_SHARED_NAME = "ServiceTests";
+
     @Test
     public void testServiceWorkflow() throws Exception {
         String serviceName1 = "Service1" + random();
@@ -77,9 +80,10 @@ public class ServiceTests extends JetStreamTestBase {
         verifyMap.put(sortEndpointDescendingName, "sortEndpointDescendingName");
         verifyMap.put(reverseEndpointName, "reverseEndpointName");
 
-        runInShared(clientNc -> {
-            Connection serviceNc1 = SharedServer.sharedConnectionForSameServer(clientNc);
-            Connection serviceNc2 = SharedServer.sharedConnectionForSameServer(clientNc);
+        runInSharedNamed(SERVICE_TESTS_SHARED_NAME, ts -> {
+            Connection clientNc = SharedServer.sharedConnectionForServer(ts);
+            Connection serviceNc1 = SharedServer.sharedConnectionForServer(ts);
+            Connection serviceNc2 = SharedServer.sharedConnectionForServer(ts);
 
             Endpoint endEcho = Endpoint.builder()
                 .name(echoEndpointName)
@@ -483,9 +487,11 @@ public class ServiceTests extends JetStreamTestBase {
         String serviceName1 = "Service1" + random();
         String serviceName2 = "Service2" + random();
 
-        runInShared(clientNc -> {
-            Connection serviceNc1 = SharedServer.sharedConnectionForSameServer(clientNc);
-            Connection serviceNc2 = SharedServer.sharedConnectionForSameServer(clientNc);
+        runInSharedNamed(SERVICE_TESTS_SHARED_NAME, ts -> {
+            Connection clientNc = SharedServer.sharedConnectionForServer(ts);
+            Connection serviceNc1 = SharedServer.sharedConnectionForServer(ts);
+            Connection serviceNc2 = SharedServer.sharedConnectionForServer(ts);
+
             String yesQueueSubject = "subjyes";
             String noQueueSubject = "subjno";
 
@@ -585,9 +591,10 @@ public class ServiceTests extends JetStreamTestBase {
         String serviceName1 = "Service1" + random();
         String serviceName2 = "Service2" + random();
 
-        runInShared(clientNc -> {
-            Connection serviceNc1 = SharedServer.sharedConnectionForSameServer(clientNc);
-            Connection serviceNc2 = SharedServer.sharedConnectionForSameServer(clientNc);
+        runInSharedNamed(SERVICE_TESTS_SHARED_NAME, ts -> {
+            Connection clientNc = SharedServer.sharedConnectionForServer(ts);
+            Connection serviceNc1 = SharedServer.sharedConnectionForServer(ts);
+            Connection serviceNc2 = SharedServer.sharedConnectionForServer(ts);
 
             Endpoint ep = Endpoint.builder()
                 .name("ep")
@@ -675,8 +682,7 @@ public class ServiceTests extends JetStreamTestBase {
 
     @Test
     public void testDispatchers() throws Exception {
-        runInSharedOwnNc(nc -> {
-
+        runInOwnServer(nc -> {
             Map<String, Dispatcher> dispatchers = getDispatchers(nc);
             assertEquals(0, dispatchers.size());
 
@@ -920,7 +926,8 @@ public class ServiceTests extends JetStreamTestBase {
 
     @Test
     public void testHandlerException() throws Exception {
-        runInShared(nc -> {
+        runInSharedNamed(SERVICE_TESTS_SHARED_NAME, ts -> {
+            Connection nc = SharedServer.sharedConnectionForServer(ts);
             ServiceEndpoint exServiceEndpoint = ServiceEndpoint.builder()
                 .endpointName("exEndpoint")
                 .endpointSubject("exSubject")
@@ -951,7 +958,8 @@ public class ServiceTests extends JetStreamTestBase {
 
     @Test
     public void testServiceMessage() throws Exception {
-        runInShared(nc -> {
+        runInSharedNamed(SERVICE_TESTS_SHARED_NAME, ts -> {
+            Connection nc = SharedServer.sharedConnectionForServer(ts);
             AtomicInteger which = new AtomicInteger();
             ServiceEndpoint se = ServiceEndpoint.builder()
                 .endpointName("testServiceMessage")
@@ -1590,7 +1598,8 @@ public class ServiceTests extends JetStreamTestBase {
 
     @Test
     public void testInboxSupplier() throws Exception {
-        runInShared(nc -> {
+        runInSharedNamed(SERVICE_TESTS_SHARED_NAME, ts -> {
+            Connection nc = SharedServer.sharedConnectionForServer(ts);
             Discovery discovery = new Discovery(nc, 100, 1);
             TestInboxSupplier supplier = new TestInboxSupplier();
             discovery.setInboxSupplier(supplier);

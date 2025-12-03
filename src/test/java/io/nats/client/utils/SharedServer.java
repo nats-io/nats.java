@@ -127,6 +127,16 @@ public class SharedServer {
         return getSharedConnection(reusableConnectionPrefix + "-" + id);
     }
 
+    public static Connection sharedConnectionForServer(NatsTestServer ts) {
+        for (Map.Entry<String, SharedServer> entry : SHARED_BY_NAME.entrySet()) {
+            SharedServer shared = entry.getValue();
+            if (shared.natsTestServer == ts) {
+                return shared.getSharedConnection();
+            }
+        }
+        throw new RuntimeException("No shared matching server.");
+    }
+
     public static Connection sharedConnectionForSameServer(Connection nc) {
         SharedServer shared = SHARED_BY_URL.get(nc.getConnectedUrl());
         if (shared == null) {

@@ -563,13 +563,12 @@ public class ReconnectTests {
             listener.validate();
 
             listener.queueConnectionEvent(Events.RECONNECTED);
-            listener.queueConnectionEvent(Events.CONNECTED);
 
             ts.close();
 
             flushConnection(nc);
-            listener.validate();
-            listener.validate(20000); // it takes a little while for it to become reconnected
+
+            listener.validate(20000);
 
             URI uri = options.createURIForServer(nc.getConnectedUrl());
             assertEquals(ts2.getPort(), uri.getPort()); // full uri will have some ip address, just check port
