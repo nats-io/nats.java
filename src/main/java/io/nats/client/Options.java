@@ -2211,7 +2211,7 @@ public class Options {
      * @return the executor, see {@link Builder#executor(ExecutorService) executor()} in the builder doc
      */
     public ExecutorService getExecutor() {
-        if (resolvedExecutor == null) {
+        if (resolvedExecutor == null || resolvedExecutor.isShutdown()) {
             resolvedExecutor = configuredExecutor == null ? _getInternalExecutor() : configuredExecutor;
         }
         return resolvedExecutor;
@@ -2230,7 +2230,7 @@ public class Options {
      * @return the ScheduledExecutorService, see {@link Builder#scheduledExecutor(ScheduledExecutorService) scheduledExecutor()} in the builder doc
      */
     public ScheduledExecutorService getScheduledExecutor() {
-        if (resolvedScheduledExecutor == null) {
+        if (resolvedScheduledExecutor == null || resolvedScheduledExecutor.isShutdown()) {
             resolvedScheduledExecutor = configuredScheduledExecutor == null ? _getInternalScheduledExecutor() : configuredScheduledExecutor;
         }
         return resolvedScheduledExecutor;
@@ -2252,7 +2252,7 @@ public class Options {
      * @return the executor
      */
     public ExecutorService getCallbackExecutor() {
-        if (resolvedCallbackExecutor == null) {
+        if (resolvedCallbackExecutor == null || resolvedCallbackExecutor.isShutdown()) {
             resolvedCallbackExecutor = callbackThreadFactory == null ?
                 DEFAULT_SINGLE_THREAD_EXECUTOR.get() : Executors.newSingleThreadExecutor(callbackThreadFactory);
         }
@@ -2264,7 +2264,7 @@ public class Options {
      * @return the executor
      */
     public ExecutorService getConnectExecutor() {
-        if (resolvedConnectExecutor == null) {
+        if (resolvedConnectExecutor == null || resolvedConnectExecutor.isShutdown()) {
             resolvedConnectExecutor = connectThreadFactory == null ?
                 DEFAULT_SINGLE_THREAD_EXECUTOR.get() : Executors.newSingleThreadExecutor(connectThreadFactory);
         }
