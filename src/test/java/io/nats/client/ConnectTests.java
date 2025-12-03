@@ -19,7 +19,6 @@ import io.nats.client.api.ServerInfo;
 import io.nats.client.impl.ListenerForTesting;
 import io.nats.client.impl.SimulateSocketDataPortException;
 import io.nats.client.support.Listener;
-import io.nats.client.support.ListenerFuture;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -257,9 +256,9 @@ public class ConnectTests {
             .errorListener(listener)
             .noReconnect()
             .build();
-        ListenerFuture fClosed = listener.prepForConnectionEvent(Events.CLOSED);
+        listener.queueConnectionEvent(Events.CLOSED);
         Nats.connectAsynchronously(options, false);
-        listener.validateReceived(fClosed);
+        listener.validate();
         assertTrue(listener.getExceptionCount() > 0);
     }
 

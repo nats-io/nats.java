@@ -27,6 +27,7 @@ public class ListenerFuture extends CompletableFuture<Void> {
     public ConnectionListener.Events eventType;
     public String error;
     public Class<?> exceptionClass;
+    public String exContains;
     public ListenerStatusType lbfStatusType;
     public int statusCode = -1;
     public String fcSubject;
@@ -40,6 +41,11 @@ public class ListenerFuture extends CompletableFuture<Void> {
 
     public ListenerFuture(Class<?> exceptionClass) {
         this.exceptionClass = exceptionClass;
+    }
+
+    public ListenerFuture(Class<?> exceptionClass, String contains) {
+        this.exceptionClass = exceptionClass;
+        this.exContains = contains;
     }
 
     public ListenerFuture(String errorText) {

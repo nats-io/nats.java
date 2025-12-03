@@ -116,7 +116,7 @@ public class PingTests extends TestBase {
 
     @Test
     public void testFlushTimeout() throws Exception {
-        Listener listener = new Listener(true);
+        Listener listener = new Listener();
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
             Options options = optionsBuilder(mockTs)
                 .maxReconnects(0)
@@ -132,14 +132,14 @@ public class PingTests extends TestBase {
 
     @Test
     public void testFlushTimeoutDisconnected() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         try (NatsTestServer ts = new NatsTestServer()) {
             Options options = optionsBuilder(ts).connectionListener(listener).build();
             try (Connection nc = standardConnect(options)) {
                 nc.flush(Duration.ofSeconds(2));
-                listener.prepForStatusChange(Events.DISCONNECTED);
+                listener.queueConnectionEvent(Events.DISCONNECTED);
                 ts.close();
-                listener.waitForStatusChange(2, TimeUnit.SECONDS);
+                listener.validate();
                 assertThrows(TimeoutException.class, () -> nc.flush(Duration.ofSeconds(2)));
             }
         }
@@ -147,7 +147,7 @@ public class PingTests extends TestBase {
 
     @Test
     public void testPingTimerThroughReconnect() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         try (NatsTestServer ts = new NatsTestServer()) {
             try (NatsTestServer ts2 = new NatsTestServer()) {
                 Options options = optionsBuilder(ts.getServerUri(), ts2.getServerUri())
@@ -160,9 +160,9 @@ public class PingTests extends TestBase {
                     sleep(200);
                     long pings = stats.getPings();
                     assertTrue(pings > 10, "got pings");
-                    listener.prepForStatusChange(Events.RECONNECTED);
+                    listener.queueConnectionEvent(Events.RECONNECTED);
                     ts.close();
-                    listener.waitForStatusChange(5, TimeUnit.SECONDS);
+                    listener.validate();
                     pings = stats.getPings();
                     sleep(250); // should get more pings
                     assertTrue(stats.getPings() > pings, "more pings");

@@ -18,7 +18,6 @@ import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.api.ServerInfo;
 import io.nats.client.support.Listener;
-import io.nats.client.support.ListenerFuture;
 import io.nats.client.utils.ConnectionUtils;
 import org.junit.jupiter.api.Test;
 
@@ -61,17 +60,14 @@ public class ReconnectTests {
 
     @Test
     public void testWsReconnect() throws Exception { //Includes test for subscriptions and dispatchers across reconnect
-        _testReconnect(configFileBuilder( "ws_operator.conf"),
-            (ts, optionsBuilder) ->
-                optionsBuilder
-                    .server(ts.getLocalhostUri(WS))
-                    .authHandler(getUserCredsAuthHander()));
+        _testReconnect(configFileBuilder("ws_operator.conf"),
+            (ts, optionsBuilder) -> optionsBuilder.server(ts.getLocalhostUri(WS)).authHandler(getUserCredsAuthHander()));
     }
 
     private void _testReconnect(NatsServerRunner.Builder nsrb, BiConsumer<NatsTestServer, Options.Builder> optSetter) throws Exception {
         int port = NatsTestServer.nextPort();
         nsrb.port(port); // set the port into the builder
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         NatsConnection nc;
         Subscription sub;
         long start;
@@ -103,17 +99,18 @@ public class ReconnectTests {
             msg = sub.nextMessage(Duration.ofMillis(100));
             assertNotNull(msg);
 
-            listener.prepForStatusChange(Events.DISCONNECTED);
+            listener.queueConnectionEvent(Events.DISCONNECTED);
             start = System.nanoTime();
         }
 
-        flushAndWaitLong(nc, listener);
-        checkNotConnected(nc);
+        flushConnection(nc);
+        listener.validate();
 
-        listener.prepForStatusChange(Events.RESUBSCRIBED);
+        listener.queueConnectionEvent(Events.RESUBSCRIBED);
 
         try (NatsTestServer ignored = new NatsTestServer(nsrb.port(port))) {
             waitUntilConnected(nc); // wait for reconnect
+            listener.validate();
 
             end = System.nanoTime();
 
@@ -138,7 +135,7 @@ public class ReconnectTests {
     @Test
     public void testSubscribeDuringReconnect() throws Exception {
         NatsConnection nc;
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         int port;
         Subscription sub;
 
@@ -150,11 +147,11 @@ public class ReconnectTests {
                 .build();
             port = ts.getPort();
             nc = (NatsConnection) standardConnect(options);
-            listener.prepForStatusChange(Events.DISCONNECTED);
+            listener.queueConnectionEvent(Events.DISCONNECTED);
         }
 
-        flushAndWaitLong(nc, listener);
-        checkNotConnected(nc);
+        flushConnection(nc);
+        listener.validate();
 
         String subsubject = random();
         String dispatchSubject = random();
@@ -164,10 +161,11 @@ public class ReconnectTests {
         Dispatcher d = nc.createDispatcher(msg -> nnc.publish(msg.getReplyTo(), msg.getData()));
         d.subscribe(dispatchSubject);
 
-        listener.prepForStatusChange(Events.RECONNECTED);
+        listener.queueConnectionEvent(Events.RECONNECTED);
 
         try (NatsTestServer ignored = new NatsTestServer(port)) {
             waitUntilConnected(nc); // wait for reconnect
+            listener.validate();
 
             // Make sure the dispatcher and subscription are still there
             Future<Message> inc = nc.request(dispatchSubject, "test".getBytes(StandardCharsets.UTF_8));
@@ -188,7 +186,7 @@ public class ReconnectTests {
     @Test
     public void testReconnectBuffer() throws Exception {
         NatsConnection nc;
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         int port = NatsTestServer.nextPort();
         Subscription sub;
         long start;
@@ -221,12 +219,12 @@ public class ReconnectTests {
             msg = sub.nextMessage(Duration.ofMillis(100));
             assertNotNull(msg);
 
-            listener.prepForStatusChange(Events.DISCONNECTED);
+            listener.queueConnectionEvent(Events.DISCONNECTED);
             start = System.nanoTime();
         }
 
-        flushAndWaitLong(nc, listener);
-        checkNotConnected(nc);
+        flushConnection(nc);
+        listener.validate();
 
         // Send a message to the dispatcher and one to the subscriber
         // These should be sent on reconnect
@@ -234,10 +232,11 @@ public class ReconnectTests {
         nc.publish(subsubject, null);
         nc.publish(subsubject, null);
 
-        listener.prepForStatusChange(Events.RESUBSCRIBED);
+        listener.queueConnectionEvent(Events.RESUBSCRIBED);
 
         try (NatsTestServer ignored = new NatsTestServer(customArgs, port)) {
             waitUntilConnected(nc); // wait for reconnect
+            listener.validate();
 
             end = System.nanoTime();
 
@@ -263,7 +262,7 @@ public class ReconnectTests {
     @Test
     public void testMaxReconnects() throws Exception {
         Connection nc;
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         int port = NatsTestServer.nextPort();
 
         try (NatsTestServer ts = new NatsTestServer(port)) {
@@ -273,19 +272,16 @@ public class ReconnectTests {
                 .reconnectWait(Duration.ofMillis(10))
                 .build();
             nc = standardConnect(options);
-            listener.prepForStatusChange(Events.CLOSED);
+            listener.queueConnectionEvent(Events.CLOSED);
         }
-
-        flushAndWaitLong(nc, listener);
-        assertClosed(nc);
-        standardCloseConnection(nc);
+        flushConnection(nc);
+        listener.validate();
     }
 
     @Test
     public void testReconnectToSecondServerInBootstrap() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
         NatsConnection nc;
-
+        Listener listener = new Listener();
         try (NatsTestServer ts1 = new NatsTestServer()) {
             try (NatsTestServer ts2 = new NatsTestServer()) {
                 // need both in bootstrap b/c these are not clustered
@@ -296,11 +292,11 @@ public class ReconnectTests {
                     .build();
                 nc = (NatsConnection) standardConnect(options);
                 assertEquals(ts2.getServerUri(), nc.getConnectedUrl());
-                listener.prepForStatusChange(Events.RECONNECTED);
+                listener.queueConnectionEvent(Events.RECONNECTED);
             }
 
-            flushAndWaitLong(nc, listener);
-
+            flushConnection(nc);
+            listener.validate();
             assertConnected(nc);
             assertEquals(ts1.getServerUri(), nc.getConnectedUrl());
             standardCloseConnection(nc);
@@ -310,8 +306,7 @@ public class ReconnectTests {
     @Test
     public void testNoRandomizeReconnectToSecondServer() throws Exception {
         NatsConnection nc;
-        ListenerForTesting listener = new ListenerForTesting();
-
+        Listener listener = new Listener();
         try (NatsTestServer ts = new NatsTestServer()) {
             try (NatsTestServer ts2 = new NatsTestServer()) {
                 Options options = optionsBuilder(ts2.getServerUri(), ts.getServerUri())
@@ -321,11 +316,11 @@ public class ReconnectTests {
                     .build();
                 nc = (NatsConnection) standardConnect(options);
                 assertEquals(ts2.getServerUri(), nc.getConnectedUrl());
-                listener.prepForStatusChange(Events.RECONNECTED);
+                listener.queueConnectionEvent(Events.RECONNECTED);
             }
 
-            flushAndWaitLong(nc, listener);
-
+            flushConnection(nc);
+            listener.validate();
             assertConnected(nc);
             assertEquals(ts.getServerUri(), nc.getConnectedUrl());
             standardCloseConnection(nc);
@@ -335,8 +330,7 @@ public class ReconnectTests {
     @Test
     public void testReconnectToSecondServerFromInfo() throws Exception {
         NatsConnection nc;
-        ListenerForTesting listener = new ListenerForTesting();
-
+        Listener listener = new Listener();
         try (NatsTestServer ts = new NatsTestServer()) {
             String striped = ts.getServerUri().substring("nats://".length()); // info doesn't have protocol
             String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\",\"connect_urls\": [\""+striped+"\"]}";
@@ -349,11 +343,11 @@ public class ReconnectTests {
                     .build();
                 nc = (NatsConnection) standardConnect(options);
                 assertEquals(mockTs2.getServerUri(), nc.getConnectedUrl());
-                listener.prepForStatusChange(Events.RECONNECTED);
+                listener.queueConnectionEvent(Events.RECONNECTED);
             }
 
-            flushAndWaitLong(nc, listener);
-
+            flushConnection(nc);
+            listener.validate();
             assertConnected(nc);
             assertEquals(ts.getServerUri(), nc.getConnectedUrl());
             standardCloseConnection(nc);
@@ -362,9 +356,9 @@ public class ReconnectTests {
 
     @Test
     public void testOverflowReconnectBuffer() throws Exception {
-        Listener listener = new Listener();
-        ListenerFuture f = listener.prepForConnectionEvent(Events.DISCONNECTED);
         Connection nc;
+        Listener listener = new Listener();
+        listener.queueConnectionEvent(Events.DISCONNECTED);
         try (NatsTestServer ts = new NatsTestServer()) {
             Options options = optionsBuilder(ts)
                 .connectionListener(listener)
@@ -374,7 +368,7 @@ public class ReconnectTests {
             nc = standardConnect(options);
         }
 
-        listener.validateReceived(f);
+        listener.validate();
 
         assertThrows(IllegalStateException.class, () -> {
             for (int i = 0; i < 20; i++) {
@@ -388,7 +382,7 @@ public class ReconnectTests {
     @Test
     public void testInfiniteReconnectBuffer() throws Exception {
         Connection nc;
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         try (NatsTestServer ts = new NatsTestServer()) {
             Options options = optionsBuilder(ts)
                 .maxReconnects(5)
@@ -397,24 +391,25 @@ public class ReconnectTests {
                 .reconnectWait(Duration.ofSeconds(30))
                 .build();
             nc = standardConnect(options);
-            listener.prepForStatusChange(Events.DISCONNECTED);
+            listener.queueConnectionEvent(Events.DISCONNECTED);
         }
 
-        flushAndWaitLong(nc, listener);
-        checkNotConnected(nc);
+        flushConnection(nc);
+        listener.validate();
 
         byte[] payload = new byte[1024];
         for (int i=0;i<1_000;i++) {
             nc.publish("test", payload);
         }
 
+        checkNotConnected(nc);
         standardCloseConnection(nc);
     }
 
     @Test
     public void testReconnectDropOnLineFeed() throws Exception {
         NatsConnection nc;
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         int port = NatsTestServer.nextPort();
         Duration reconnectWait = Duration.ofMillis(100); // thrash
         int thrashCount = 5;
@@ -459,9 +454,10 @@ public class ReconnectTests {
             assertConnected(nc);
             nc.subscribe("test");
             subRef.get().get();
-            listener.prepForStatusChange(Events.DISCONNECTED);
+            listener.queueConnectionEvent(Events.DISCONNECTED);
             sendRef.get().complete(true);
-            flushAndWaitLong(nc, listener); // mock server will close so we do this inside the curly
+            flushConnection(nc); // mock server will close so we do this inside the curly
+            listener.validate();
         }
 
         // Thrash in and out of connect status
@@ -470,30 +466,32 @@ public class ReconnectTests {
             checkNotConnected(nc);
 
             // connect good then bad
-            listener.prepForStatusChange(Events.RESUBSCRIBED);
+            listener.queueConnectionEvent(Events.RESUBSCRIBED);
             try (NatsTestServer ignored = new NatsTestServer(port)) {
                 waitUntilConnected(nc); // wait for reconnect
-                listener.prepForStatusChange(Events.DISCONNECTED); // do it here because we are about to disconnect
+                listener.validate();
+                listener.queueConnectionEvent(Events.DISCONNECTED); // do it here because we are about to disconnect
             }
 
-            flushAndWaitLong(nc, listener); // nats won't close until we tell it, so put this outside the curly
-            checkNotConnected(nc);
+            flushConnection(nc); // client won't close until we tell it, so put this outside the curly
+            listener.validate();
 
             gotSub = new CompletableFuture<>();
             subRef.set(gotSub);
             sendMsg = new CompletableFuture<>();
             sendRef.set(sendMsg);
 
-            listener.prepForStatusChange(Events.RESUBSCRIBED);
+            listener.queueConnectionEvent(Events.RESUBSCRIBED);
             try (NatsServerProtocolMock ignored = new NatsServerProtocolMock(receiveMessageCustomizer, port, true)) {
                 waitUntilConnected(nc); // wait for reconnect
+                listener.validate();
                 subRef.get().get();
-                listener.prepForStatusChange(Events.DISCONNECTED);
+                listener.queueConnectionEvent(Events.DISCONNECTED);
                 sendRef.get().complete(true);
-                flushAndWaitLong(nc, listener); // mock server will close so we do this inside the curly
+                flushConnection(nc); // mock server will close so we do this inside the curly
+                listener.validate();
             }
         }
-
 
         assertEquals(2 * thrashCount, nc.getStatisticsCollector().getReconnects(), "reconnect count");
         standardCloseConnection(nc);
@@ -502,7 +500,7 @@ public class ReconnectTests {
     @Test
     public void testTlsNoIpConnection() throws Exception {
         NatsConnection nc;
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
 
         int tsPort = NatsTestServer.nextPort();
         int ts2Port = NatsTestServer.nextPort();
@@ -557,17 +555,21 @@ public class ReconnectTests {
                 .noRandomize()
                 .build();
 
-            listener.prepForStatusChange(Events.DISCOVERED_SERVERS);
+            listener.queueConnectionEvent(Events.DISCOVERED_SERVERS);
             nc = (NatsConnection) ConnectionUtils.standardConnect(options);
             assertEquals(ts.getServerUri(), nc.getConnectedUrl());
 
-            flushAndWaitLong(nc, listener); // make sure we get the new server via info
+            flushConnection(nc); // make sure we get the new server via info
+            listener.validate();
 
-            listener.prepForStatusChange(Events.RECONNECTED);
+            listener.queueConnectionEvent(Events.RECONNECTED);
+            listener.queueConnectionEvent(Events.CONNECTED);
 
             ts.close();
-            flushAndWaitLong(nc, listener);
-            assertConnected(nc);
+
+            flushConnection(nc);
+            listener.validate();
+            listener.validate(20000); // it takes a little while for it to become reconnected
 
             URI uri = options.createURIForServer(nc.getConnectedUrl());
             assertEquals(ts2.getPort(), uri.getPort()); // full uri will have some ip address, just check port

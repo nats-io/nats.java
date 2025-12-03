@@ -1518,8 +1518,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOverflowIterate() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
-        runInSharedOwnNc(listener, VersionUtils::atLeast2_11, (nc, ctx) -> {
+        runInShared(VersionUtils::atLeast2_11, (nc, ctx) -> {
             jsPublish(ctx.js, ctx.subject(), 100);
 
             // Testing min ack pending
@@ -1604,8 +1603,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOverflowConsume() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
-        runInSharedOwnNc(listener, VersionUtils::atLeast2_11, (nc, ctx) -> {
+        runInShared(VersionUtils::atLeast2_11, (nc, ctx) -> {
             jsPublish(ctx.js, ctx.subject(), 1000);
 
             // Testing min ack pending
@@ -1670,8 +1668,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testFinishEmptyStream() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
-        runInSharedOwnNc(listener, (nc, ctx) -> {
+        runInShared((nc, ctx) -> {
             String name = random();
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
                 .name(name)
@@ -1704,10 +1701,10 @@ public class SimplificationTests extends JetStreamTestBase {
             //    to make sure the consumer continues after that condition
             // ------------------------------------------------------------
             int port = NatsTestServer.nextPort();
-            ListenerForTesting lft = new ListenerForTesting(true);
+            Listener listener = new Listener(true);
             Options options = optionsBuilder()
-                .connectionListener(lft)
-                .errorListener(lft)
+                .connectionListener(listener)
+                .errorListener(listener)
                 .server(NatsTestServer.getLocalhostUri(port)).build();
             NatsConnection nc;
 

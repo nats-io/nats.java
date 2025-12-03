@@ -33,6 +33,9 @@ public class Listener implements ErrorListener, ConnectionListener {
 
     private final List<ListenerFuture> futures;
     private int exceptionCount;
+    private int heartbeatAlarmCount;
+    private int flowControlCount;
+    private int pullStatusWarningsCount;
 
     public Listener() {
         this(false, false);
@@ -49,31 +52,55 @@ public class Listener implements ErrorListener, ConnectionListener {
     }
 
     public void reset() {
+        for (ListenerFuture f : futures) {
+            f.cancel(true);
+        }
         futures.clear();
+        exceptionCount = 0;
+        heartbeatAlarmCount = 0;
+        flowControlCount = 0;
+        pullStatusWarningsCount = 0;
     }
 
-    public void validateReceived(ListenerFuture f) {
+    public void validate() {
+        _validate(futures.get(0), VALIDATE_TIMEOUT);
+    }
+
+    public void validate(long customTimeout) {
+        _validate(futures.get(0), customTimeout);
+    }
+
+    public void validateAll() {
+        List<ListenerFuture> copy = new ArrayList<>(futures);
+        for (ListenerFuture future : copy) {
+            _validate(future, VALIDATE_TIMEOUT);
+        }
+    }
+
+    private void _validate(ListenerFuture f, long timeout) {
         try {
-            f.get(VALIDATE_TIMEOUT, TimeUnit.MILLISECONDS);
+            f.get(timeout, TimeUnit.MILLISECONDS);
             // future was completed, it and all the rest can be cancelled and removed from tracking
             futures.remove(f);
         }
         catch (TimeoutException | ExecutionException | InterruptedException e) {
             futures.remove(f); // removed from tracking
             f.cancel(true);
+            Assertions.fail("'Validate Received' Failed " + f.getDetails(), e);
         }
     }
 
-    public void validateAnyReceived(ListenerFuture... futuresToTry) {
-        int len = futuresToTry.length;
+    public void validateForAny() {
+        List<ListenerFuture> futuresToTry = new ArrayList<>(futures);
+        int len = futuresToTry.size();
         int lastIx = len - 1;
         for (int ix = 0; ix < len; ix++) {
-            ListenerFuture f = futuresToTry[ix];
+            ListenerFuture f = futuresToTry.get(ix);
             try {
                 f.get(VALIDATE_TIMEOUT, TimeUnit.MILLISECONDS);
                 // future was completed, it and all the rest can be cancelled and removed from tracking
                 while (ix < len) {
-                    f = futuresToTry[ix++];
+                    f = futuresToTry.get(ix++);
                     futures.remove(f);
                     f.cancel(true);
                 }
@@ -89,7 +116,8 @@ public class Listener implements ErrorListener, ConnectionListener {
         }
     }
 
-    public void validateNotReceived(ListenerFuture f) {
+    public void validateNotReceived() {
+        ListenerFuture f = futures.get(0);
         futures.remove(f); // removed from tracking
         try {
             f.get(VALIDATE_TIMEOUT, TimeUnit.MILLISECONDS);
@@ -106,36 +134,60 @@ public class Listener implements ErrorListener, ConnectionListener {
         }
     }
 
-    private ListenerFuture prepFor(String label, ListenerFuture f) {
+    private void queue(String label, ListenerFuture f) {
         if (verbose) {
-            report("Future For " + label, f.getDetails());
+            report("Queue For " + label, f.getDetails());
         }
         futures.add(f);
-        return f;
     }
 
-    public ListenerFuture prepForConnectionEvent(Events type) {
-        return prepFor("Event", new ListenerFuture(type));
+    public void queueConnectionEvent(Events type) {
+        queue("Event", new ListenerFuture(type));
     }
 
-    public ListenerFuture prepForException(Class<?> exceptionClass) {
-        return prepFor("Exception", new ListenerFuture(exceptionClass));
+    public void queueException(Class<?> exceptionClass) {
+        queue("Exception", new ListenerFuture(exceptionClass));
     }
 
-    public ListenerFuture prepForError(String errorText) {
-        return prepFor("Error", new ListenerFuture(errorText));
+    public void queueException(Class<?> exceptionClass, String contains) {
+        queue("Exception", new ListenerFuture(exceptionClass, contains));
     }
 
-    public ListenerFuture prepForStatus(ListenerStatusType type, int statusCode) {
-        return prepFor("Status", new ListenerFuture(type, statusCode));
+    public void queueError(String errorText) {
+        queue("Error", new ListenerFuture(errorText));
     }
 
-    public ListenerFuture prepForFlowControl(String fcSubject, FlowControlSource fcSource) {
-        return prepFor("FlowControl", new ListenerFuture(fcSubject, fcSource));
+    public void queueStatus(ListenerStatusType type, int statusCode) {
+        queue("Status", new ListenerFuture(type, statusCode));
+    }
+
+    public void queueFlowControl(String fcSubject, FlowControlSource fcSource) {
+        queue("FlowControl", new ListenerFuture(fcSubject, fcSource));
     }
 
     public int getExceptionCount() {
         return exceptionCount;
+    }
+
+    public int getHeartbeatAlarmCount() {
+        return heartbeatAlarmCount;
+    }
+
+    public int getFlowControlCount() {
+        return flowControlCount;
+    }
+
+    public int getPullStatusWarningsCount() {
+        return pullStatusWarningsCount;
+    }
+
+    private void tryToComplete(List<ListenerFuture> futures, Predicate<ListenerFuture> predicate) {
+        for (ListenerFuture f : futures) {
+            if (predicate.test(f)) {
+                f.complete(null);
+                return;
+            }
+        }
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -143,18 +195,7 @@ public class Listener implements ErrorListener, ConnectionListener {
     // ----------------------------------------------------------------------------------------------------
     @Override
     public void connectionEvent(Connection conn, Events type) {
-        // deprecated
-    }
-
-    private void tryToComplete(List<ListenerFuture> futures, Predicate<ListenerFuture> predicate) {
-        for (int i = 0; i < futures.size(); i++) {
-            ListenerFuture f = futures.get(i);
-            if (predicate.test(f)) {
-                f.complete(null);
-                futures.remove(i);
-                return;
-            }
-        }
+        connectionEvent(conn, type, 0L, null);
     }
 
     @Override
@@ -190,9 +231,11 @@ public class Listener implements ErrorListener, ConnectionListener {
             Throwable t = exp;
             while (t != null) {
                 if (t.getClass().equals(f.exceptionClass)) {
-                    f.complete(null);
-                    f.receivedException = exp;
-                    return true;
+                    if (f.exContains == null || exp.getMessage().contains(f.exContains)) {
+                        f.complete(null);
+                        f.receivedException = exp;
+                        return true;
+                    }
                 }
                 t = t.getCause();
             }
@@ -202,6 +245,7 @@ public class Listener implements ErrorListener, ConnectionListener {
 
     @Override
     public void slowConsumerDetected(Connection conn, Consumer consumer) {
+        // see SlowConsumerTests.SlowConsumerListener
     }
 
     @Override
@@ -213,6 +257,7 @@ public class Listener implements ErrorListener, ConnectionListener {
         if (verbose) {
             report("Heartbeat Alarm", lastStreamSequence + " " + lastConsumerSequence);
         }
+        heartbeatAlarmCount++;
     }
 
     private void statusReceived(ListenerStatusType type, Status status) {
@@ -230,6 +275,7 @@ public class Listener implements ErrorListener, ConnectionListener {
     @Override
     public void pullStatusWarning(Connection conn, JetStreamSubscription sub, Status status) {
         statusReceived(ListenerStatusType.PullWarning, status);
+        pullStatusWarningsCount++;
     }
 
     @Override
@@ -242,6 +288,7 @@ public class Listener implements ErrorListener, ConnectionListener {
         if (verbose) {
             report("flowControlProcessed", subject + " " + source);
         }
+        flowControlCount++;
         tryToComplete(futures, f -> subject.equals(f.fcSubject) && f.fcSource == source);
     }
 

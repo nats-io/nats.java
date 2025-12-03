@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.support.Listener;
 import io.nats.client.utils.VersionUtils;
 import org.junit.jupiter.api.Test;
 
@@ -254,7 +255,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
 
     @Test
     public void testHeartbeatError() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         runInSharedOwnNc(listener, (nc, ctx) -> {
             Dispatcher d = nc.createDispatcher();
             ConsumerConfiguration cc = ConsumerConfiguration.builder().idleHeartbeat(100).build();
@@ -284,7 +285,9 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
         });
     }
 
-    private static void validate(JetStreamSubscription sub, ListenerForTesting listener, SimulatorState state, Dispatcher d) throws InterruptedException {
+    private static void validate(JetStreamSubscription sub, Listener listener, SimulatorState state, Dispatcher d) throws InterruptedException {
+        listener.reset();
+
         //noinspection ResultOfMethodCallIgnored
         state.latch.await(2, TimeUnit.SECONDS);
         if (d == null) {
@@ -297,14 +300,13 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
         assertTrue(state.hbCounter.get() > 0);
         boolean gotHbAlarm = false;
         for (int x = 0; x < 50; x++) {
-            gotHbAlarm = !listener.getHeartbeatAlarms().isEmpty();
+            gotHbAlarm = listener.getHeartbeatAlarmCount() > 0;
             if (gotHbAlarm) {
                 break;
             }
             sleep(10);
         }
         assertTrue(gotHbAlarm);
-        listener.reset();
     }
 
     private static SimulatorState setupFactory(JetStream js) {
@@ -398,7 +400,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
 
     @Test
     public void testRaiseStatusWarnings1194() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting(false, false);
+        Listener listener = new Listener(false, false);
         runInSharedOwnNc(listener, (nc, ctx) -> {
             // Setup
             StreamContext streamContext = nc.getStreamContext(ctx.stream);
@@ -423,7 +425,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
                 }
             }
             assertEquals(0, count);
-            assertEquals(0, listener.getPullStatusWarnings().size());
+            assertEquals(0, listener.getPullStatusWarningsCount());
 
             fco = FetchConsumeOptions.builder()
                 .maxMessages(100)
@@ -438,7 +440,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
                 }
             }
             assertEquals(0, count);
-            assertEquals(1, listener.getPullStatusWarnings().size());
+            assertEquals(1, listener.getPullStatusWarningsCount());
         });
     }
 }

@@ -15,11 +15,14 @@ package io.nats.client.utils;
 
 import io.nats.NatsServerRunner;
 import io.nats.client.*;
-import io.nats.client.api.ServerInfo;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
-import io.nats.client.impl.*;
+import io.nats.client.impl.JetStreamTestingContext;
+import io.nats.client.impl.NatsJetStream;
+import io.nats.client.impl.NatsJetStreamManagement;
+import io.nats.client.impl.NatsMessage;
 import io.nats.client.support.NatsJetStreamClientError;
+import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.function.Executable;
 
@@ -28,7 +31,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import static io.nats.client.support.NatsConstants.DOT;
@@ -81,40 +83,18 @@ public class TestBase {
 
     public static final String META_KEY   = "meta-test-key";
     public static final String META_VALUE = "meta-test-value";
-    public static final String OPERATOR_NOACCT_CONF = "operator_noacct.conf";
 
     public static String[] BAD_SUBJECTS_OR_QUEUES = new String[] {
         HAS_SPACE, HAS_CR, HAS_LF, HAS_TAB, STARTS_SPACE, ENDS_SPACE, null, EMPTY
     };
 
-    public static ServerInfo ensureVersionServerInfo() throws Exception {
-        if (VERSION_SERVER_INFO == null) {
-            runInShared(VersionUtils::initVersionServerInfo);
-        }
-        return VERSION_SERVER_INFO;
-    }
-
-    // ----------------------------------------------------------------------------------------------------
-    // shared config server helpers
-    // ----------------------------------------------------------------------------------------------------
-    static Set<String> SharedConfigServers = new HashSet<String>();
+    static Set<String> SharedConfigServers = new HashSet<>();
 
     @AfterAll
     public static void afterAll() {
         if (SharedConfigServers.size() > 0) {
             SharedServer.shutdown(SharedConfigServers.toArray(new String[0]));
         }
-    }
-
-    public static NatsTestServer sharedConfigServer(String nameAndConfFile) throws IOException {
-        SharedConfigServers.add(nameAndConfFile);
-        return SharedServer.getInstance(nameAndConfFile, nameAndConfFile).getServer();
-    }
-
-    public static NatsTestServer sharedConfigServer(String confFile, int version) throws IOException {
-        String name = confFile + "-" + version;
-        SharedConfigServers.add(name);
-        return SharedServer.getInstance(name, confFile).getServer();
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -154,7 +134,7 @@ public class TestBase {
     // --------------------------------------------------
     // Configured Server
     // --------------------------------------------------
-    private static void _runConfiguredServer(
+    private static void _runInConfiguredServer(
         String configFilePath,
         int customPort,
         InServerTest inServerTest
@@ -170,64 +150,86 @@ public class TestBase {
     }
 
     public static void runInConfiguredServer(String configFilePath, InServerTest inServerTest) throws Exception {
-        _runConfiguredServer(configFilePath, -1, inServerTest);
+        _runInConfiguredServer(configFilePath, -1, inServerTest);
     }
 
     public static void runInConfiguredServer(String configFilePath, int customPort, InServerTest inServerTest) throws Exception {
-        _runConfiguredServer(configFilePath, customPort, inServerTest);
+        _runInConfiguredServer(configFilePath, customPort, inServerTest);
+    }
+
+    // --------------------------------------------------
+    // Shared Configured Server
+    // --------------------------------------------------
+    private static void _runInSharedConfiguredServer(
+        String nameAndConfFile,
+        String confFile,
+        int version,
+        InServerTest inServerTest
+    ) throws Exception {
+        NatsTestServer ts;
+        if (nameAndConfFile == null) {
+            String name = confFile + "-" + version;
+            SharedConfigServers.add(name);
+            ts = SharedServer.getInstance(name, confFile).getServer();
+        }
+        else {
+            SharedConfigServers.add(nameAndConfFile);
+            ts = SharedServer.getInstance(nameAndConfFile, nameAndConfFile).getServer();
+        }
+        inServerTest.test(ts);
+    }
+
+    public static void runInSharedConfiguredServer(String nameAndConfFile, InServerTest inServerTest) throws Exception {
+        _runInSharedConfiguredServer(nameAndConfFile, null, -1, inServerTest);
+    }
+
+    public static void runInSharedConfiguredServer(String confFile, int version, InServerTest inServerTest) throws Exception {
+        _runInSharedConfiguredServer(null, confFile, version, inServerTest);
     }
 
     // ----------------------------------------------------------------------------------------------------
-    // runners -> own server
+    // runners -> own server, not jetstream
     // ----------------------------------------------------------------------------------------------------
-    private static void _runInOwnServer(
-        @SuppressWarnings("SameParameterValue") Options.Builder optionsBuilder,
-        VersionCheck vc,
-        OneConnectionTest oneNcTest,
-        JetStreamTest jsTest
-    ) throws Exception {
+    private static void _runInOwnServer(@NonNull OneConnectionTest oneNcTest) throws Exception {
+        try (NatsTestServer ts = new NatsTestServer()) {
+            try (Connection nc = standardConnect(options(ts))) {
+                initVersionServerInfo(nc);
+                oneNcTest.test(nc);
+            }
+        }
+    }
+
+    public static void runInOwnServer(OneConnectionTest oneNcTest) throws Exception {
+        _runInOwnServer(oneNcTest);
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // runners -> own server, yes jetstream
+    // ----------------------------------------------------------------------------------------------------
+    private static void _runInOwnJsServer(VersionCheck vc, @NonNull JetStreamTest jsTest) throws Exception {
         if (vc != null && VERSION_SERVER_INFO != null && !vc.runTest(VERSION_SERVER_INFO)) {
             return; // had vc, already had run server info and fails check
         }
 
-        NatsServerRunner.Builder nsrb = NatsServerRunner.builder().jetstream(jsTest != null);
+        NatsServerRunner.Builder nsrb = NatsServerRunner.builder().jetstream(true);
         try (NatsTestServer ts = new NatsTestServer(nsrb)) {
-            Options options = (optionsBuilder == null
-                ? optionsBuilder(ts)
-                : optionsBuilder.server(ts.getServerUri()))
-                .build();
-            try (Connection nc = standardConnect(options)) {
+            try (Connection nc = standardConnect(options(ts))) {
                 initVersionServerInfo(nc);
                 if (vc == null || vc.runTest(VERSION_SERVER_INFO)) {
-                    if (jsTest == null) {
-                        oneNcTest.test(nc);
-                    }
-                    else {
-                        NatsJetStreamManagement jsm = (NatsJetStreamManagement) nc.jetStreamManagement();
-                        NatsJetStream js = (NatsJetStream) nc.jetStream();
-                        jsTest.test(nc, jsm, js);
-                    }
+                    NatsJetStreamManagement jsm = (NatsJetStreamManagement) nc.jetStreamManagement();
+                    NatsJetStream js = (NatsJetStream) nc.jetStream();
+                    jsTest.test(nc, jsm, js);
                 }
             }
         }
     }
 
-    // --------------------------------------------------
-    // Not using JetStream
-    // --------------------------------------------------
-    public static void runInOwnServer(OneConnectionTest oneNcTest) throws Exception {
-        _runInOwnServer(null, null, oneNcTest, null);
-    }
-
-    // --------------------------------------------------
-    // JetStream needing isolation
-    // --------------------------------------------------
     public static void runInOwnJsServer(JetStreamTest jetStreamTest) throws Exception {
-        _runInOwnServer(null, null, null, jetStreamTest);
+        _runInOwnJsServer(null, jetStreamTest);
     }
 
     public static void runInOwnJsServer(VersionCheck vc, JetStreamTest jetStreamTest) throws Exception {
-        _runInOwnServer(null, vc, null, jetStreamTest);
+        _runInOwnJsServer(vc, jetStreamTest);
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -617,15 +619,6 @@ public class TestBase {
 
     public static void flushConnection(Connection conn, Duration timeout) {
         try { conn.flush(timeout); } catch (Exception exp) { /* ignored */ }
-    }
-
-    public static void flushAndWait(Connection conn, ListenerForTesting listener, long flushTimeoutMillis, long waitForStatusMillis) {
-        flushConnection(conn, flushTimeoutMillis);
-        listener.waitForStatusChange(waitForStatusMillis, TimeUnit.MILLISECONDS);
-    }
-
-    public static void flushAndWaitLong(Connection conn, ListenerForTesting listener) {
-        flushAndWait(conn, listener, STANDARD_FLUSH_TIMEOUT_MS, LONG_TIMEOUT_MS);
     }
 
     public static void assertTrueByTimeout(long millis, Supplier<Boolean> test) {

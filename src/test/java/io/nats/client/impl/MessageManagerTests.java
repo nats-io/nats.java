@@ -17,7 +17,6 @@ import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.support.IncomingHeadersProcessor;
 import io.nats.client.support.Listener;
-import io.nats.client.support.ListenerFuture;
 import io.nats.client.support.ListenerStatusType;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -101,25 +100,25 @@ public class MessageManagerTests extends JetStreamTestBase {
         assertTrue(manager.beforeQueueProcessorImpl(getFlowControl(1, sid)));
         assertTrue(manager.beforeQueueProcessorImpl(getFcHeartbeat(1, sid)));
         if (manager.fc) {
-            ListenerFuture f = listener.prepForFlowControl(getFcSubject(1), ErrorListener.FlowControlSource.FLOW_CONTROL);
+            listener.queueFlowControl(getFcSubject(1), ErrorListener.FlowControlSource.FLOW_CONTROL);
             assertEquals(STATUS_HANDLED, manager.manage(getFlowControl(1, sid)));
             assertEquals(STATUS_HANDLED, manager.manage(getFcHeartbeat(1, sid)));
-            listener.validateReceived(f);
+            listener.validate();
         }
         else {
-            ListenerFuture f = listener.prepForStatus(ListenerStatusType.Unhandled, FLOW_OR_HEARTBEAT_STATUS_CODE);
+            listener.queueStatus(ListenerStatusType.Unhandled, FLOW_OR_HEARTBEAT_STATUS_CODE);
             assertEquals(STATUS_ERROR, manager.manage(getFlowControl(1, sid)));
-            listener.validateReceived(f);
+            listener.validate();
 
-            f = listener.prepForStatus(ListenerStatusType.Unhandled, FLOW_OR_HEARTBEAT_STATUS_CODE);
+            listener.queueStatus(ListenerStatusType.Unhandled, FLOW_OR_HEARTBEAT_STATUS_CODE);
             assertEquals(STATUS_ERROR, manager.manage(getFcHeartbeat(1, sid)));
-            listener.validateReceived(f);
+            listener.validate();
         }
 
         assertTrue(manager.beforeQueueProcessorImpl(getUnkownStatus(sid)));
-        ListenerFuture f = listener.prepForStatus(ListenerStatusType.Unhandled, 999);
+        listener.queueStatus(ListenerStatusType.Unhandled, 999);
         assertEquals(STATUS_ERROR, manager.manage(getUnkownStatus(sid)));
-        listener.validateReceived(f);
+        listener.validate();
     }
 
     @Test
@@ -173,9 +172,9 @@ public class MessageManagerTests extends JetStreamTestBase {
     }
 
     private static void assertManageResult(Listener listener, ListenerStatusType expectedType, int expectedStatusCode, ManageResult expecteManageResult, PullMessageManager manager, NatsMessage message) {
-        ListenerFuture f = listener.prepForStatus(expectedType, expectedStatusCode);
+        listener.queueStatus(expectedType, expectedStatusCode);
         assertEquals(expecteManageResult, manager.manage(message));
-        listener.validateReceived(f);
+        listener.validate();
     }
 
     @Test

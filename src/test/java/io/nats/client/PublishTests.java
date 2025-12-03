@@ -18,7 +18,6 @@ import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestingContext;
 import io.nats.client.impl.NatsMessage;
 import io.nats.client.support.Listener;
-import io.nats.client.support.ListenerFuture;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -76,13 +75,10 @@ public class PublishTests extends TestBase {
                 .errorListener(listener)
                 .build();
             try (Connection nc = standardConnect(options)) {
-                ListenerFuture fError = listener.prepForError("Maximum Payload Violation");
-                ListenerFuture fException = listener.prepForException(SocketException.class);
-
+                listener.queueError("Maximum Payload Violation");
+                listener.queueException(SocketException.class);
                 nc.publish(random(), null, null, body);
-
-                // sometimes the exception comes in before the error and the error never comes, so validate for either.
-                listener.validateAnyReceived(fError, fException);
+                listener.validateForAny(); // sometimes the exception comes in before the error and the error never comes, so validate for either.
             }
         });
     }
@@ -232,12 +228,11 @@ public class PublishTests extends TestBase {
             .connectionListener(listener);
 
         runInSharedOwnNc(builder, nc -> {
-            ListenerFuture fError = listener.prepForError("Maximum Payload Violation");
-            ListenerFuture fEvent = listener.prepForConnectionEvent(Events.DISCONNECTED);
+            listener.queueError("Maximum Payload Violation");
+            listener.queueConnectionEvent(Events.DISCONNECTED);
             int maxPayload = (int)nc.getServerInfo().getMaxPayload();
             nc.publish(random(), new byte[maxPayload + 1]);
-            listener.validateReceived(fError);
-            listener.validateReceived(fEvent);
+            listener.validateAll();
         });
     }
 

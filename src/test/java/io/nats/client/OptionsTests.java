@@ -16,6 +16,7 @@ package io.nats.client;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.impl.*;
 import io.nats.client.support.HttpRequest;
+import io.nats.client.support.Listener;
 import io.nats.client.support.NatsUri;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
 import io.nats.client.utils.CoverageServerPool;
@@ -685,31 +686,38 @@ public class OptionsTests {
     @Test
     public void testPropertyErrorListener() {
         Properties props = new Properties();
-        props.setProperty(Options.PROP_ERROR_LISTENER, ListenerForTesting.class.getCanonicalName());
+        props.setProperty(Options.PROP_ERROR_LISTENER, Listener.class.getCanonicalName());
 
         Options o = new Options.Builder(props).build();
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertNotNull(o.getErrorListener(), "property error listener");
 
         o.getErrorListener().errorOccurred(null, "bad subject");
-        assertEquals(1, ((ListenerForTesting) o.getErrorListener()).getCount(), "property error listener class");
+        assertEquals(0, ((Listener) o.getErrorListener()).getExceptionCount(), "property error listener class");
     }
 
     @SuppressWarnings("deprecation")
     @Test
     public void testPropertyConnectionListeners() {
         Properties props = new Properties();
-        props.setProperty(Options.PROP_CONNECTION_CB, ListenerForTesting.class.getCanonicalName());
+        props.setProperty(Options.PROP_CONNECTION_CB, Listener.class.getCanonicalName());
 
         Options o = new Options.Builder(props).build();
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertNotNull(o.getConnectionListener(), "property connection listener");
 
+        Listener listener = ((Listener) o.getConnectionListener());
+        listener.queueConnectionEvent(Events.DISCONNECTED);
         o.getConnectionListener().connectionEvent(null, Events.DISCONNECTED);
-        o.getConnectionListener().connectionEvent(null, Events.RECONNECTED);
-        o.getConnectionListener().connectionEvent(null, Events.CLOSED);
+        listener.validate();
 
-        assertEquals(3, ((ListenerForTesting) o.getConnectionListener()).getCount(), "property connect listener class");
+        listener.queueConnectionEvent(Events.RECONNECTED);
+        o.getConnectionListener().connectionEvent(null, Events.RECONNECTED);
+        listener.validate();
+
+        listener.queueConnectionEvent(Events.CLOSED);
+        o.getConnectionListener().connectionEvent(null, Events.CLOSED);
+        listener.validate();
     }
 
     @Test

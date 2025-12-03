@@ -19,7 +19,6 @@ import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.PriorityPolicy;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.Listener;
-import io.nats.client.support.ListenerFuture;
 import io.nats.client.support.ListenerStatusType;
 import io.nats.client.utils.SharedServer;
 import io.nats.client.utils.VersionUtils;
@@ -753,7 +752,9 @@ public class JetStreamPullTests extends JetStreamTestBase {
             }
             try (JetStreamTestingContext tcsCtx = new JetStreamTestingContext(tcsNc, 1)) {
                 JetStreamSubscription sub = setup.setup(tcsNc, tcsCtx, tcsListener);
-                ListenerFuture f = statusType == null ? null : tcsListener.prepForStatus(statusType, statusCode);
+                if (statusType != null) {
+                    tcsListener.queueStatus(statusType, statusCode);
+                }
                 if (sub.getDispatcher() == null) {
                     if (statusType == PullError) {
                         JetStreamStatusException jsse = assertThrows(JetStreamStatusException.class, () -> sub.nextMessage(NEXT_MESSAGE_TIMEOUT));
@@ -766,8 +767,8 @@ public class JetStreamPullTests extends JetStreamTestBase {
                         sub.nextMessage(NEXT_MESSAGE_TIMEOUT);
                     }
                 }
-                if (f != null) {
-                    tcsListener.validateReceived(f);
+                if (statusType != null) {
+                    tcsListener.validate();
                 }
             }
         });
@@ -1033,7 +1034,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     public void testExceedsMaxRequestBytesNthMessageSyncSub() throws Exception {
         Listener listener = new Listener();
         runInSharedOwnNc(listener, VersionUtils::atLeast2_9_1, (nc, ctx) -> {
-            ListenerFuture f = listener.prepForStatus(PullWarning, CONFLICT_CODE);
+            listener.queueStatus(PullWarning, CONFLICT_CODE);
             String dur = random();
             ctx.jsm.addOrUpdateConsumer(ctx.stream, builder().durable(dur).ackPolicy(AckPolicy.None).filterSubjects(ctx.subject()).build());
             PullSubscribeOptions so = PullSubscribeOptions.bind(ctx.stream, dur);
@@ -1051,7 +1052,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertNotNull(sub.nextMessage(500));
             assertNotNull(sub.nextMessage(500));
             assertNull(sub.nextMessage(500));
-            listener.validateReceived(f);
+            listener.validate();
         });
     }
 
@@ -1059,7 +1060,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     public void testDoesNotExceedMaxRequestBytesExactBytes() throws Exception {
         Listener listener = new Listener();
         runInSharedOwnNc(listener, VersionUtils::atLeast2_9_1, (nc, ctx) -> {
-            ListenerFuture f = listener.prepForStatus(PullWarning, CONFLICT_CODE);
+            listener.queueStatus(PullWarning, CONFLICT_CODE);
             ctx.stream = randomWide(6); // six letters so I can count
             String subject = randomWide(5); // five letters so I can count
             String durable = randomWide(10); // short keeps under max bytes
@@ -1081,7 +1082,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             assertNotNull(sub.nextMessage(500));
             assertNotNull(sub.nextMessage(500));
             assertNull(sub.nextMessage(500)); // there are no more messages
-            listener.validateNotReceived(f);
+            listener.validateNotReceived();
         });
     }
 

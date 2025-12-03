@@ -16,7 +16,6 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.support.Listener;
-import io.nats.client.support.ListenerFuture;
 import io.nats.client.utils.SharedServer;
 import org.junit.jupiter.api.Test;
 
@@ -536,7 +535,7 @@ public class DrainTests {
 
     @Test
     public void testSlowAsyncDuringDrainCanBeInterrupted() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         runInSharedOwnNc(optionsBuilder().errorListener(listener).maxReconnects(0), subCon -> {
             Connection pubCon = SharedServer.sharedConnectionForSameServer(subCon);
             AtomicInteger count = new AtomicInteger();
@@ -580,9 +579,9 @@ public class DrainTests {
             try (Connection subCon = standardConnect(options)) {
                 subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-                ListenerFuture f = listener.prepForConnectionEvent(Events.DISCONNECTED);
+                listener.queueConnectionEvent(Events.DISCONNECTED);
                 ts.close(); // make the drain flush fail
-                listener.validateReceived(f);
+                listener.validate();
 
                 assertThrows(TimeoutException.class, () -> subCon.drain(Duration.ofSeconds(1)));
             }

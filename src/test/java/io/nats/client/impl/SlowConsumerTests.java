@@ -13,17 +13,14 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.Consumer;
-import io.nats.client.Dispatcher;
-import io.nats.client.Message;
-import io.nats.client.Subscription;
+import io.nats.client.*;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -191,15 +188,32 @@ public class SlowConsumerTests extends TestBase {
         });
     }
 
+    static class SlowConsumerListener implements ErrorListener {
+        public CompletableFuture<Boolean> future;
+        public final List<Consumer> consumers = new ArrayList<>();
+
+        public void waitForSlow() {
+            future = new CompletableFuture<>();
+        }
+
+        @Override
+        public void slowConsumerDetected(Connection conn, Consumer consumer) {
+            consumers.add(consumer);
+            if (future != null) {
+                future.complete(true);
+            }
+        }
+    }
+
     @Test
     public void testSlowSubscriberNotification() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        SlowConsumerListener listener = new SlowConsumerListener();
         runInSharedOwnNc(listener, nc -> {
             String subject = random();
-            Subscription sub = nc.subscribe(subject);
+            NatsSubscription sub = (NatsSubscription)nc.subscribe(subject);
             sub.setPendingLimits(1, -1);
 
-            Future<Boolean> waitForSlow = listener.waitForSlow();
+            listener.waitForSlow();
 
             nc.publish(subject, null);
             nc.publish(subject, null);
@@ -208,19 +222,18 @@ public class SlowConsumerTests extends TestBase {
             nc.flush(Duration.ofMillis(5000));
 
             // Notification is in another thread, wait for it, or fail
-            waitForSlow.get(3000, TimeUnit.MILLISECONDS);
+            listener.future.get(3000, TimeUnit.MILLISECONDS);
 
-            List<Consumer> slow = listener.getSlowConsumers();
-            assertEquals(1, slow.size()); // should only appear once
-            assertEquals(sub, slow.get(0));
-            slow.clear();
+            assertEquals(1, listener.consumers.size()); // should only appear once
+            assertEquals(sub, listener.consumers.get(0));
+            listener.consumers.clear();
             
             nc.publish(subject, null);
             nc.flush(Duration.ofMillis(1000));
 
-            assertEquals(0, slow.size()); // no renotify
+            assertEquals(0, listener.consumers.size()); // no renotify
 
-            waitForSlow = listener.waitForSlow();
+            listener.waitForSlow();
             // Clear the queue, we should become a non-slow consumer
             sub.nextMessage(Duration.ofMillis(1000)); // only 1 to get
 
@@ -229,10 +242,10 @@ public class SlowConsumerTests extends TestBase {
             nc.publish(subject, null);
             nc.flush(Duration.ofMillis(1000));
 
-            waitForSlow.get(3000, TimeUnit.MILLISECONDS);
+            listener.future.get(3000, TimeUnit.MILLISECONDS);
 
-            assertEquals(1, slow.size()); // should only appear once
-            assertEquals(sub, slow.get(0));
+            assertEquals(1, listener.consumers.size()); // should only appear once
+            assertEquals(sub, listener.consumers.get(0));
         });
     }
 }

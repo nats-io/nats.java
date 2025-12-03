@@ -17,6 +17,7 @@ import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
 import io.nats.client.api.PublishAck;
+import io.nats.client.support.Listener;
 import io.nats.client.support.NatsJetStreamConstants;
 import org.junit.jupiter.api.Test;
 
@@ -571,9 +572,8 @@ public class JetStreamPushTests extends JetStreamTestBase {
 
     @Test
     public void testPushSyncFlowControl() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         runInSharedOwnNc(listener, (nc, ctx) -> {
-
             byte[] data = new byte[1024*10];
             int MSG_COUNT = 1000;
 
@@ -598,7 +598,7 @@ public class JetStreamPushTests extends JetStreamTestBase {
             }
 
             assertEquals(MSG_COUNT, set.size());
-            assertFalse(listener.getFlowControlProcessedEvents().isEmpty());
+            assertTrue(listener.getFlowControlCount() > 0);
 
             // coverage for subscribe options heartbeat directly
             cc = ConsumerConfiguration.builder().idleHeartbeat(100).build();

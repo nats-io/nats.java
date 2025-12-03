@@ -17,7 +17,6 @@ import io.nats.client.Dispatcher;
 import io.nats.client.Message;
 import io.nats.client.MessageHandler;
 import io.nats.client.Statistics;
-import io.nats.client.support.DebugReadListener;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -56,9 +55,7 @@ public class NatsStatisticsTests extends TestBase {
 
     @Test
     public void testInOutOKRequestStats() throws Exception {
-        runInSharedOwnNc(optionsBuilder().verbose()
-                .readListener(new DebugReadListener())
-            , nc -> {
+        runInSharedOwnNc(optionsBuilder().verbose(), nc -> {
             Dispatcher d = nc.createDispatcher(msg -> {
                 Message m = NatsMessage.builder()
                     .subject(msg.getReplyTo())

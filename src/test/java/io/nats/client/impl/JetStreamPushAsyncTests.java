@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
+import io.nats.client.support.Listener;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -139,7 +140,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
 
     @Test
     public void testPushAsyncFlowControl() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         runInSharedOwnNc(listener, (nc, ctx) -> {
             byte[] data = new byte[8192];
 
@@ -179,7 +180,7 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             awaitAndAssert(msgLatch);
 
             assertEquals(MSG_COUNT, count.get());
-            assertFalse(listener.getFlowControlProcessedEvents().isEmpty());
+            assertTrue(listener.getFlowControlCount() > 0);
         });
     }
 
