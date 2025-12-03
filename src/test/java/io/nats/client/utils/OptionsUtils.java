@@ -79,16 +79,16 @@ public abstract class OptionsUtils {
         return optionsBuilder(port).build();
     }
 
-    public static Options options(NatsTestServer... tses) {
-        return optionsBuilder(tses).build();
+    public static Options options(NatsTestServer... testServers) {
+        return optionsBuilder(testServers).build();
     }
 
-    public static Options optionsNoReconnect(NatsTestServer ts) {
-        return optionsBuilder(ts).maxReconnects(0).build();
+    public static Options optionsNoReconnect(NatsTestServer testServer) {
+        return optionsBuilder(testServer).maxReconnects(0).build();
     }
 
-    public static Options options(NatsServerProtocolMock... mockTses) {
-        return optionsBuilder(mockTses).build();
+    public static Options options(NatsServerProtocolMock... testServers) {
+        return optionsBuilder(testServers).build();
     }
 
     public static Options options(String... servers) {
@@ -97,13 +97,13 @@ public abstract class OptionsUtils {
 
     public static Options.Builder optionsBuilder() {
         if (EX == null) {
-            EX = new ThreadPoolExecutor(8, Integer.MAX_VALUE, 30, TimeUnit.SECONDS,
+            EX = new ThreadPoolExecutor(6, Integer.MAX_VALUE, 30, TimeUnit.SECONDS,
                 new SynchronousQueue<>(),
-                new TestThreadFactory("ex"));
+                new TestThreadFactory("EX"));
         }
 
         if (SC == null) {
-            SC = new ScheduledThreadPoolExecutor(4, new TestThreadFactory("sc"));
+            SC = new ScheduledThreadPoolExecutor(3, new TestThreadFactory("SC"));
             SC.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
             SC.setRemoveOnCancelPolicy(true);
         }
@@ -112,9 +112,14 @@ public abstract class OptionsUtils {
             .connectionTimeout(Duration.ofSeconds(4))
             .executor(EX)
             .scheduledExecutor(SC)
-            .callbackExecutor(Executors.newSingleThreadExecutor(new TestThreadFactory("cb")))
-            .connectExecutor(Executors.newSingleThreadExecutor(new TestThreadFactory("cn")))
-            .errorListener(NOOP_EL);
+            .callbackExecutor(Executors.newSingleThreadExecutor(new TestThreadFactory("CB")))
+            .connectExecutor(Executors.newSingleThreadExecutor(new TestThreadFactory("CN")))
+            .errorListener(NOOP_EL)
+
+            // This forces to use the plain SocketDataPort instead of
+            // SocketDataPortWithWriteTimeout, we just don't need it for testing.
+            // This saves running the scheduled task in the SocketDataPortWithWriteTimeout
+            .socketWriteTimeout(null);
     }
 
     static class TestThreadFactory implements ThreadFactory {
@@ -127,7 +132,7 @@ public abstract class OptionsUtils {
         }
 
         public Thread newThread(@NonNull Runnable r) {
-            String threadName = "test." + name + "." + threadNumber.incrementAndGet();
+            String threadName = "TST." + name + "." + threadNumber.incrementAndGet();
             Thread t = new Thread(r, threadName);
             if (t.isDaemon()) {
                 t.setDaemon(false);

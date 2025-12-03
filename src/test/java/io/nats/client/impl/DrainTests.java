@@ -16,7 +16,6 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.support.Listener;
-import io.nats.client.utils.SharedServer;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;

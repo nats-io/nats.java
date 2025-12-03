@@ -11,12 +11,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client.utils;
+package io.nats.client.impl;
 
 import io.nats.client.Connection;
 import io.nats.client.NUID;
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
+import io.nats.client.utils.ConnectionUtils;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -31,6 +32,10 @@ import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static io.nats.client.utils.VersionUtils.initVersionServerInfo;
 
+/**
+ * This class is in the impl package instead of the support package
+ * so it can access the package scope class NatsConnection
+ */
 public class SharedServer {
 
     private static final int NUM_REUSABLE_CONNECTIONS = 3;
@@ -190,14 +195,25 @@ public class SharedServer {
     public void shutdown() {
         instanceLock.lock();
         try {
+            for (Connection nc : connectionMap.values()) {
+                try {
+                    ((NatsConnection)nc).close(false, true);
+                }
+                catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
             if (natsTestServer != null) {
-                natsTestServer.shutdown(false);
+                try {
+                    natsTestServer.shutdown(false);
+                }
+                catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
             }
         }
-        catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
         finally {
+            connectionMap.clear();
             natsTestServer = null;
             instanceLock.unlock();
         }

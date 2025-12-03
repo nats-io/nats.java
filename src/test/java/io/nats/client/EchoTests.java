@@ -14,7 +14,7 @@
 package io.nats.client;
 
 import io.nats.client.NatsServerProtocolMock.ExitAt;
-import io.nats.client.utils.SharedServer;
+import io.nats.client.impl.SharedServer;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
