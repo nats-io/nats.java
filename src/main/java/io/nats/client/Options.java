@@ -2334,7 +2334,7 @@ public class Options {
         executorsLock.lock();
         try {
             if (resolvedCallbackExecutor != null && callbackExecutorIsInternal()) {
-                // we don't just shut it down now to give any callbacks a chance to finish
+                // we don't just shutdownNow to give any callbacks a chance to finish
                 ExecutorService es = resolvedCallbackExecutor;
                 resolvedCallbackExecutor = null;
                 es.shutdown();
@@ -2348,22 +2348,21 @@ public class Options {
             }
 
             if (resolvedConnectExecutor != null && connectExecutorIsInternal()) {
-                // There's no need to wait for running tasks since we're told to close
                 ExecutorService es = resolvedConnectExecutor;
                 resolvedConnectExecutor = null;
-                es.shutdownNow();
+                es.shutdownNow(); // There's no need to wait...
             }
 
             if (resolvedExecutor != null && executorIsInternal()) {
                 ExecutorService es = resolvedExecutor;
                 resolvedExecutor = null;
-                es.shutdownNow();
+                es.shutdownNow(); // There's no need to wait...
             }
 
             if (resolvedScheduledExecutor != null && scheduledExecutorIsInternal()) {
                 ScheduledExecutorService ses = resolvedScheduledExecutor;
                 resolvedScheduledExecutor = null;
-                ses.shutdownNow();
+                ses.shutdownNow(); // There's no need to wait...
             }
 
         }
