@@ -116,7 +116,7 @@ class PushMessageManager extends MessageManager {
             }
         }
 
-        conn.executeCallback((c, el) -> el.unhandledStatus(c, sub, status));
+        conn.notifyErrorListener((c, el) -> el.unhandledStatus(c, sub, status));
         return STATUS_ERROR;
     }
 
@@ -126,7 +126,7 @@ class PushMessageManager extends MessageManager {
         if (fcSubject != null && !fcSubject.equals(lastFcSubject)) {
             conn.publishInternal(fcSubject, null, null, null, false, false);
             lastFcSubject = fcSubject; // set after publish in case the pub fails
-            conn.executeCallback((c, el) -> el.flowControlProcessed(c, sub, fcSubject, source));
+            conn.notifyErrorListener((c, el) -> el.flowControlProcessed(c, sub, fcSubject, source));
         }
     }
 }

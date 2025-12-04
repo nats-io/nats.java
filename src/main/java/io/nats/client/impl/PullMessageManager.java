@@ -164,7 +164,7 @@ class PullMessageManager extends MessageManager {
             case REQUEST_TIMEOUT_CODE:
             case NO_RESPONDERS_CODE:
                 if (raiseStatusWarnings) {
-                    conn.executeCallback((c, el) -> el.pullStatusWarning(c, sub, status));
+                    conn.notifyErrorListener((c, el) -> el.pullStatusWarning(c, sub, status));
                 }
                 return STATUS_TERMINUS;
 
@@ -174,7 +174,7 @@ class PullMessageManager extends MessageManager {
                 if (statMsg.startsWith(EXCEEDED_MAX_PREFIX) || statMsg.equals(SERVER_SHUTDOWN))
                 {
                     if (raiseStatusWarnings) {
-                        conn.executeCallback((c, el) -> el.pullStatusWarning(c, sub, status));
+                        conn.notifyErrorListener((c, el) -> el.pullStatusWarning(c, sub, status));
                     }
                     return STATUS_HANDLED;
                 }
@@ -184,7 +184,7 @@ class PullMessageManager extends MessageManager {
                     || statMsg.equals(MESSAGE_SIZE_EXCEEDS_MAX_BYTES))
                 {
                     if (raiseStatusWarnings) {
-                        conn.executeCallback((c, el) -> el.pullStatusWarning(c, sub, status));
+                        conn.notifyErrorListener((c, el) -> el.pullStatusWarning(c, sub, status));
                     }
                     return STATUS_TERMINUS;
                 }
@@ -197,7 +197,7 @@ class PullMessageManager extends MessageManager {
 
         // All unknown 409s are errors, since that basically means the client is not aware of them.
         // These known ones are also errors: "Consumer Deleted" and "Consumer is push based"
-        conn.executeCallback((c, el) -> el.pullStatusError(c, sub, status));
+        conn.notifyErrorListener((c, el) -> el.pullStatusError(c, sub, status));
         return STATUS_ERROR;
     }
 

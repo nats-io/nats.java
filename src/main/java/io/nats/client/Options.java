@@ -36,6 +36,7 @@ import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
 import static io.nats.client.support.Encoding.*;
@@ -704,10 +705,20 @@ public class Options {
     private final boolean trackAdvancedStats;
     private final boolean traceConnection;
 
-    private final ExecutorService executor;
-    private final ScheduledExecutorService scheduledExecutor;
-    private final ThreadFactory connectThreadFactory;
-    private final ThreadFactory callbackThreadFactory;
+    private final ReentrantLock executorsLock;
+
+    private final ExecutorService userExecutor;
+    private final ScheduledExecutorService userScheduledExecutor;
+    private final ThreadFactory userConnectThreadFactory;
+    private final ThreadFactory userCallbackThreadFactory;
+
+    // these are not final b/c they are lazy initialized
+    // and nulled during shutdownInternalExecutors
+    private ExecutorService resolvedExecutor;
+    private ScheduledExecutorService resolvedScheduledExecutor;
+    private ExecutorService resolvedConnectExecutor;
+    private ExecutorService resolvedCallbackExecutor;
+
     private final ServerPool serverPool;
     private final DispatcherFactory dispatcherFactory;
 
@@ -849,10 +860,10 @@ public class Options {
         private ReadListener readListener = null;
         private StatisticsCollector statisticsCollector = null;
         private String dataPortType = DEFAULT_DATA_PORT_TYPE;
-        private ExecutorService executor;
-        private ScheduledExecutorService scheduledExecutor;
-        private ThreadFactory connectThreadFactory;
-        private ThreadFactory callbackThreadFactory;
+        private ExecutorService userExecutor;
+        private ScheduledExecutorService userScheduledExecutor;
+        private ThreadFactory userConnectThreadFactory;
+        private ThreadFactory userCallbackThreadFactory;
         private List<java.util.function.Consumer<HttpRequest>> httpRequestInterceptors;
         private Proxy proxy;
 
@@ -987,10 +998,10 @@ public class Options {
 
             classnameProperty(props, PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, o -> this.serverPool = (ServerPool) o);
             classnameProperty(props, PROP_DISPATCHER_FACTORY_CLASS, o -> this.dispatcherFactory = (DispatcherFactory) o);
-            classnameProperty(props, PROP_EXECUTOR_SERVICE_CLASS, o -> this.executor = (ExecutorService) o);
-            classnameProperty(props, PROP_SCHEDULED_EXECUTOR_SERVICE_CLASS, o -> this.scheduledExecutor = (ScheduledExecutorService) o);
-            classnameProperty(props, PROP_CONNECT_THREAD_FACTORY_CLASS, o -> this.connectThreadFactory = (ThreadFactory) o);
-            classnameProperty(props, PROP_CALLBACK_THREAD_FACTORY_CLASS, o -> this.callbackThreadFactory = (ThreadFactory) o);
+            classnameProperty(props, PROP_EXECUTOR_SERVICE_CLASS, o -> this.userExecutor = (ExecutorService) o);
+            classnameProperty(props, PROP_SCHEDULED_EXECUTOR_SERVICE_CLASS, o -> this.userScheduledExecutor = (ScheduledExecutorService) o);
+            classnameProperty(props, PROP_CONNECT_THREAD_FACTORY_CLASS, o -> this.userConnectThreadFactory = (ThreadFactory) o);
+            classnameProperty(props, PROP_CALLBACK_THREAD_FACTORY_CLASS, o -> this.userCallbackThreadFactory = (ThreadFactory) o);
             return this;
         }
 
@@ -1704,7 +1715,7 @@ public class Options {
          * @return the Builder for chaining
          */
         public Builder executor(ExecutorService executor) {
-            this.executor = executor;
+            this.userExecutor = executor;
             return this;
         }
 
@@ -1717,7 +1728,7 @@ public class Options {
          * @return the Builder for chaining
          */
         public Builder scheduledExecutor(ScheduledExecutorService scheduledExecutor) {
-            this.scheduledExecutor = scheduledExecutor;
+            this.userScheduledExecutor = scheduledExecutor;
             return this;
         }
 
@@ -1728,7 +1739,7 @@ public class Options {
          * @return the Builder for chaining
          */
         public Builder connectThreadFactory(ThreadFactory threadFactory) {
-            this.connectThreadFactory = threadFactory;
+            this.userConnectThreadFactory = threadFactory;
             return this;
         }
 
@@ -1739,7 +1750,7 @@ public class Options {
          * @return the Builder for chaining
          */
         public Builder callbackThreadFactory(ThreadFactory threadFactory) {
-            this.callbackThreadFactory = threadFactory;
+            this.userCallbackThreadFactory = threadFactory;
             return this;
         }
 
@@ -2106,10 +2117,10 @@ public class Options {
             this.statisticsCollector = o.statisticsCollector;
             this.dataPortType = o.dataPortType;
             this.trackAdvancedStats = o.trackAdvancedStats;
-            this.executor = o.executor;
-            this.scheduledExecutor = o.scheduledExecutor;
-            this.callbackThreadFactory = o.callbackThreadFactory;
-            this.connectThreadFactory = o.connectThreadFactory;
+            this.userExecutor = o.userExecutor;
+            this.userScheduledExecutor = o.userScheduledExecutor;
+            this.userCallbackThreadFactory = o.userCallbackThreadFactory;
+            this.userConnectThreadFactory = o.userConnectThreadFactory;
             this.httpRequestInterceptors = o.httpRequestInterceptors;
             this.proxy = o.proxy;
 
@@ -2178,10 +2189,13 @@ public class Options {
         this.statisticsCollector = b.statisticsCollector;
         this.dataPortType = b.dataPortType;
         this.trackAdvancedStats = b.trackAdvancedStats;
-        this.executor = b.executor;
-        this.scheduledExecutor = b.scheduledExecutor;
-        this.callbackThreadFactory = b.callbackThreadFactory;
-        this.connectThreadFactory = b.connectThreadFactory;
+
+        executorsLock = new ReentrantLock();
+        this.userExecutor = b.userExecutor;
+        this.userScheduledExecutor = b.userScheduledExecutor;
+        this.userCallbackThreadFactory = b.userCallbackThreadFactory;
+        this.userConnectThreadFactory = b.userConnectThreadFactory;
+
         this.httpRequestInterceptors = b.httpRequestInterceptors;
         this.proxy = b.proxy;
 
@@ -2204,7 +2218,16 @@ public class Options {
      * @return the executor, see {@link Builder#executor(ExecutorService) executor()} in the builder doc
      */
     public ExecutorService getExecutor() {
-        return this.executor == null ? _getInternalExecutor() : this.executor;
+        executorsLock.lock();
+        try {
+            if (resolvedExecutor == null || resolvedExecutor.isShutdown()) {
+                resolvedExecutor = userExecutor == null ? _getInternalExecutor() : userExecutor;
+            }
+            return resolvedExecutor;
+        }
+        finally {
+            executorsLock.unlock();
+        }
     }
 
     private ExecutorService _getInternalExecutor() {
@@ -2220,7 +2243,16 @@ public class Options {
      * @return the ScheduledExecutorService, see {@link Builder#scheduledExecutor(ScheduledExecutorService) scheduledExecutor()} in the builder doc
      */
     public ScheduledExecutorService getScheduledExecutor() {
-        return this.scheduledExecutor == null ? _getInternalScheduledExecutor() : this.scheduledExecutor;
+        executorsLock.lock();
+        try {
+            if (resolvedScheduledExecutor == null || resolvedScheduledExecutor.isShutdown()) {
+                resolvedScheduledExecutor = userScheduledExecutor == null ? _getInternalScheduledExecutor() : userScheduledExecutor;
+            }
+            return resolvedScheduledExecutor;
+        }
+        finally {
+            executorsLock.unlock();
+        }
     }
 
     private ScheduledExecutorService _getInternalScheduledExecutor() {
@@ -2239,8 +2271,17 @@ public class Options {
      * @return the executor
      */
     public ExecutorService getCallbackExecutor() {
-        return this.callbackThreadFactory == null ?
-                DEFAULT_SINGLE_THREAD_EXECUTOR.get() : Executors.newSingleThreadExecutor(this.callbackThreadFactory);
+        executorsLock.lock();
+        try {
+            if (resolvedCallbackExecutor == null || resolvedCallbackExecutor.isShutdown()) {
+                resolvedCallbackExecutor = userCallbackThreadFactory == null ?
+                    DEFAULT_SINGLE_THREAD_EXECUTOR.get() : Executors.newSingleThreadExecutor(userCallbackThreadFactory);
+            }
+            return resolvedCallbackExecutor;
+        }
+        finally {
+            executorsLock.unlock();
+        }
     }
 
     /**
@@ -2248,8 +2289,17 @@ public class Options {
      * @return the executor
      */
     public ExecutorService getConnectExecutor() {
-        return this.connectThreadFactory == null ?
-                DEFAULT_SINGLE_THREAD_EXECUTOR.get() : Executors.newSingleThreadExecutor(this.connectThreadFactory);
+        executorsLock.lock();
+        try {
+            if (resolvedConnectExecutor == null || resolvedConnectExecutor.isShutdown()) {
+                resolvedConnectExecutor = userConnectThreadFactory == null ?
+                    DEFAULT_SINGLE_THREAD_EXECUTOR.get() : Executors.newSingleThreadExecutor(userConnectThreadFactory);
+            }
+            return resolvedConnectExecutor;
+        }
+        finally {
+            executorsLock.unlock();
+        }
     }
 
     /**
@@ -2257,7 +2307,7 @@ public class Options {
      * @return true if the executor is internal
      */
     public boolean executorIsInternal() {
-        return this.executor == null;
+        return this.userExecutor == null;
     }
 
     /**
@@ -2265,7 +2315,7 @@ public class Options {
      * @return true if the executor is internal
      */
     public boolean scheduledExecutorIsInternal() {
-        return this.scheduledExecutor == null;
+        return this.userScheduledExecutor == null;
     }
 
     /**
@@ -2273,7 +2323,7 @@ public class Options {
      * @return true if the executor is internal
      */
     public boolean callbackExecutorIsInternal() {
-        return this.callbackThreadFactory == null;
+        return this.userCallbackThreadFactory == null;
     }
 
     /**
@@ -2281,7 +2331,48 @@ public class Options {
      * @return true if the executor is internal
      */
     public boolean connectExecutorIsInternal() {
-        return this.connectThreadFactory == null;
+        return this.userConnectThreadFactory == null;
+    }
+
+    public void shutdownExecutors() throws InterruptedException {
+        executorsLock.lock();
+        try {
+            if (resolvedCallbackExecutor != null && callbackExecutorIsInternal()) {
+                // we don't just shutdownNow to give any callbacks a chance to finish
+                ExecutorService es = resolvedCallbackExecutor;
+                resolvedCallbackExecutor = null;
+                es.shutdown();
+                try {
+                    //noinspection ResultOfMethodCallIgnored
+                    es.awaitTermination(getConnectionTimeout().toNanos(), TimeUnit.NANOSECONDS);
+                }
+                finally {
+                    es.shutdownNow();
+                }
+            }
+
+            if (resolvedConnectExecutor != null && connectExecutorIsInternal()) {
+                ExecutorService es = resolvedConnectExecutor;
+                resolvedConnectExecutor = null;
+                es.shutdownNow(); // There's no need to wait...
+            }
+
+            if (resolvedExecutor != null && executorIsInternal()) {
+                ExecutorService es = resolvedExecutor;
+                resolvedExecutor = null;
+                es.shutdownNow(); // There's no need to wait...
+            }
+
+            if (resolvedScheduledExecutor != null && scheduledExecutorIsInternal()) {
+                ScheduledExecutorService ses = resolvedScheduledExecutor;
+                resolvedScheduledExecutor = null;
+                ses.shutdownNow(); // There's no need to wait...
+            }
+
+        }
+        finally {
+            executorsLock.unlock();
+        }
     }
 
     /**

@@ -67,41 +67,41 @@ public class NatsConnectionImplTests {
         assertTrue(options.executorIsInternal());
         assertTrue(options.scheduledExecutorIsInternal());
 
-        assertFalse(nc.callbackRunnerIsShutdown());
-        assertFalse(nc.connectExecutorIsShutdown());
+        assertFalse(nc.callbackExecutorIsClosed());
+        assertFalse(nc.connectExecutorIsClosed());
 
-        assertFalse(nc.executorIsShutdown());
-        assertFalse(nc.scheduledExecutorIsShutdown());
+        assertFalse(nc.executorIsClosed());
+        assertFalse(nc.scheduledExecutorIsClosed());
 
         nc.subscribe("*");
         Thread.sleep(1000);
         nc.close();
 
-        assertTrue(nc.callbackRunnerIsShutdown());
-        assertTrue(nc.connectExecutorIsShutdown());
+        assertTrue(nc.callbackExecutorIsClosed());
+        assertTrue(nc.connectExecutorIsClosed());
 
-        assertTrue(nc.executorIsShutdown());
-        assertTrue(nc.scheduledExecutorIsShutdown());
+        assertTrue(nc.executorIsClosed());
+        assertTrue(nc.scheduledExecutorIsClosed());
     }
 
     private static void verifyExternalExecutors(Options options, NatsConnection nc) throws InterruptedException {
         assertFalse(options.executorIsInternal());
         assertFalse(options.scheduledExecutorIsInternal());
 
-        assertFalse(nc.callbackRunnerIsShutdown());
-        assertFalse(nc.connectExecutorIsShutdown());
+        assertFalse(nc.callbackExecutorIsClosed());
+        assertFalse(nc.connectExecutorIsClosed());
 
-        assertFalse(nc.executorIsShutdown());
-        assertFalse(nc.scheduledExecutorIsShutdown());
+        assertFalse(nc.executorIsClosed());
+        assertFalse(nc.scheduledExecutorIsClosed());
 
         nc.subscribe("*");
         Thread.sleep(1000);
         nc.close();
 
-        assertTrue(nc.callbackRunnerIsShutdown());
-        assertTrue(nc.connectExecutorIsShutdown());
+        assertTrue(nc.callbackExecutorIsClosed());
+        assertTrue(nc.connectExecutorIsClosed());
 
-        assertFalse(nc.executorIsShutdown());
-        assertFalse(nc.scheduledExecutorIsShutdown());
+        assertTrue(nc.executorIsClosed());
+        assertTrue(nc.scheduledExecutorIsClosed());
     }
 }
