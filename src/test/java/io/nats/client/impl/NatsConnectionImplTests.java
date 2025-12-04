@@ -67,8 +67,8 @@ public class NatsConnectionImplTests {
         assertTrue(options.executorIsInternal());
         assertTrue(options.scheduledExecutorIsInternal());
 
-        assertFalse(nc.callbackRunnerClosed());
-        assertFalse(nc.connectExecutorClosed());
+        assertFalse(nc.callbackExecutorIsClosed());
+        assertFalse(nc.connectExecutorIsClosed());
 
         assertFalse(nc.executorIsClosed());
         assertFalse(nc.scheduledExecutorIsClosed());
@@ -77,8 +77,8 @@ public class NatsConnectionImplTests {
         Thread.sleep(1000);
         nc.close();
 
-        assertTrue(nc.callbackRunnerClosed());
-        assertTrue(nc.connectExecutorClosed());
+        assertTrue(nc.callbackExecutorIsClosed());
+        assertTrue(nc.connectExecutorIsClosed());
 
         assertTrue(nc.executorIsClosed());
         assertTrue(nc.scheduledExecutorIsClosed());
@@ -88,8 +88,8 @@ public class NatsConnectionImplTests {
         assertFalse(options.executorIsInternal());
         assertFalse(options.scheduledExecutorIsInternal());
 
-        assertFalse(nc.callbackRunnerClosed());
-        assertFalse(nc.connectExecutorClosed());
+        assertFalse(nc.callbackExecutorIsClosed());
+        assertFalse(nc.connectExecutorIsClosed());
 
         assertFalse(nc.executorIsClosed());
         assertFalse(nc.scheduledExecutorIsClosed());
@@ -98,8 +98,8 @@ public class NatsConnectionImplTests {
         Thread.sleep(1000);
         nc.close();
 
-        assertTrue(nc.callbackRunnerClosed());
-        assertTrue(nc.connectExecutorClosed());
+        assertTrue(nc.callbackExecutorIsClosed());
+        assertTrue(nc.connectExecutorIsClosed());
 
         assertTrue(nc.executorIsClosed());
         assertTrue(nc.scheduledExecutorIsClosed());

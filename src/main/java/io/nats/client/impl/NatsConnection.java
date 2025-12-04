@@ -893,21 +893,11 @@ class NatsConnection implements Connection {
         }
     }
 
-    boolean callbackRunnerClosed() {
-        return callbackExecutor == null;
-    }
-
-    boolean executorIsClosed() {
-        return executor == null;
-    }
-
-    boolean connectExecutorClosed() {
-        return connectExecutor == null;
-    }
-
-    boolean scheduledExecutorIsClosed() {
-        return scheduledExecutor == null;
-    }
+    // these four *ExecutorIsClosed() are only used for tests
+    boolean callbackExecutorIsClosed() { return callbackExecutor == null; }
+    boolean executorIsClosed() { return executor == null; }
+    boolean connectExecutorIsClosed() { return connectExecutor == null; }
+    boolean scheduledExecutorIsClosed() { return scheduledExecutor == null; }
 
     // Should only be called from closeSocket or close
     void closeSocketImpl(boolean forceClose) {
