@@ -129,7 +129,7 @@ public abstract class ConnectionUtils {
             () -> expectingMessage(conn, Connection.Status.CLOSED));
     }
 
-    public static void assertCanConnect(Options options) throws IOException, InterruptedException {
+    public static void assertCanConnect(Options options) {
         standardCloseConnection(standardConnect(options));
     }
 

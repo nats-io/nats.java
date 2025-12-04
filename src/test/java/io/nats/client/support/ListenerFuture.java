@@ -32,34 +32,50 @@ public class ListenerFuture extends CompletableFuture<Void> {
     public int statusCode = -1;
     public String fcSubject;
     public ErrorListener.FlowControlSource fcSource;
+    public boolean forHeartbeat;
+    public boolean forSocketWriteTimeout;
 
     public Throwable receivedException;
 
-    public ListenerFuture(ConnectionListener.Events type) {
+    public int validateTimeout;
+
+    ListenerFuture(ConnectionListener.Events type, int validateTimeout) {
         this.eventType = type;
+        this.validateTimeout = validateTimeout;
     }
 
-    public ListenerFuture(Class<?> exceptionClass) {
+    ListenerFuture(Class<?> exceptionClass, int validateTimeout) {
         this.exceptionClass = exceptionClass;
+        this.validateTimeout = validateTimeout;
     }
 
-    public ListenerFuture(Class<?> exceptionClass, String contains) {
+    ListenerFuture(Class<?> exceptionClass, String contains, int validateTimeout) {
         this.exceptionClass = exceptionClass;
         this.exContains = contains;
+        this.validateTimeout = validateTimeout;
     }
 
-    public ListenerFuture(String errorText) {
+    ListenerFuture(String errorText, int validateTimeout) {
         error = errorText;
+        this.validateTimeout = validateTimeout;
     }
 
-    public ListenerFuture(ListenerStatusType type, int statusCode) {
+    ListenerFuture(ListenerStatusType type, int statusCode, int validateTimeout) {
         lbfStatusType = type;
         this.statusCode = statusCode;
+        this.validateTimeout = validateTimeout;
     }
 
-    public ListenerFuture(String fcSubject, ErrorListener.FlowControlSource fcSource) {
+    ListenerFuture(String fcSubject, ErrorListener.FlowControlSource fcSource, int validateTimeout) {
         this.fcSubject = fcSubject;
         this.fcSource = fcSource;
+        this.validateTimeout = validateTimeout;
+    }
+
+    public ListenerFuture(boolean forHeartbeat, boolean forSocketWriteTimeout, int validateTimeout) {
+        this.forHeartbeat = forHeartbeat;
+        this.forSocketWriteTimeout = forSocketWriteTimeout;
+        this.validateTimeout = validateTimeout;
     }
 
     @Override

@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.Listener;
 import io.nats.client.utils.VersionUtils;
 import org.junit.jupiter.api.Test;
 
@@ -1352,7 +1353,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testNoRespondersWhenConsumerDeleted() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         runInSharedOwnNc(listener, VersionUtils::atLeast2_10_26, (nc, ctx) -> {
             String subject = ctx.subject();
             for (int x = 0; x < 5; x++) {
@@ -1406,13 +1407,18 @@ public class JetStreamManagementTests extends JetStreamTestBase {
         });
     }
 
-    private static void validate1026(Message m, ListenerForTesting listener, boolean empty) {
+    private static void validate1026(Message m, Listener listener, boolean empty) {
         assertNull(m);
         sleep(250); // give time for the message to get there
-        assertEquals(empty, listener.getPullStatusWarnings().isEmpty());
+        if (empty) {
+            assertEquals(0, listener.getPullStatusWarningsCount());
+        }
+        else {
+            assertTrue(listener.getPullStatusWarningsCount() > 0);
+        }
     }
 
-    private static ConsumerContext setupFor1026Simplification(Connection nc, JetStreamManagement jsm, ListenerForTesting listener, String stream, String subject) throws IOException, JetStreamApiException {
+    private static ConsumerContext setupFor1026Simplification(Connection nc, JetStreamManagement jsm, Listener listener, String stream, String subject) throws IOException, JetStreamApiException {
         listener.reset();
         String consumer = create1026Consumer(jsm, stream, subject);
         ConsumerContext cCtx = nc.getConsumerContext(stream, consumer);

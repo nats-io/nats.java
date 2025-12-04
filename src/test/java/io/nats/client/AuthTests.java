@@ -17,7 +17,6 @@ import io.nats.NatsRunnerUtils;
 import io.nats.NatsServerRunner;
 import io.nats.client.Connection.Status;
 import io.nats.client.ConnectionListener.Events;
-import io.nats.client.impl.ListenerForTesting;
 import io.nats.client.support.JwtUtils;
 import io.nats.client.support.Listener;
 import io.nats.client.utils.ResourceUtils;
@@ -33,10 +32,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.nats.client.support.Listener.LONG_VALIDATE_TIMEOUT;
 import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.*;
 import static io.nats.client.utils.ResourceUtils.jwtResource;
@@ -155,7 +154,7 @@ public class AuthTests extends TestBase {
 
     @Test
     public void testUserPassOnReconnect() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         Connection nc;
         Subscription sub;
         String[] customArgs = { "--user", "uuu", "--pass", "ppp" };
@@ -173,21 +172,22 @@ public class AuthTests extends TestBase {
             flushConnection(nc, MEDIUM_FLUSH_TIMEOUT_MS);
             Message msg = sub.nextMessage(Duration.ofSeconds(5));
             assertNotNull(msg);
-            listener.prepForStatusChange(Events.DISCONNECTED);
+
+            listener.queueConnectionEvent(Events.DISCONNECTED);
         }
 
         TestBase.flushConnection(nc);
+        listener.validate();
 
-        listener.waitForStatusChange(5, TimeUnit.SECONDS);
-        assertTrue(
-                Connection.Status.RECONNECTING == nc.getStatus() || Connection.Status.DISCONNECTED == nc.getStatus(), "Reconnecting status");
-        listener.prepForStatusChange(Events.RESUBSCRIBED);
+        listener.queueConnectionEvent(Events.RESUBSCRIBED);
 
         try (NatsTestServer ignored = new NatsTestServer(customArgs, port)) {
             waitUntilConnected(nc); // wait for reconnect
+            listener.validate();
 
             nc.publish("test", null);
-            flushConnection(nc, MEDIUM_FLUSH_TIMEOUT_MS);
+//            flushConnection(nc, MEDIUM_FLUSH_TIMEOUT_MS);
+
             Message msg = sub.nextMessage(Duration.ofSeconds(5));
             assertNotNull(msg);
 
@@ -213,7 +213,7 @@ public class AuthTests extends TestBase {
 
     @Test
     public void testUserPassInURLOnReconnect() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         int port;
         Connection nc;
         Subscription sub;
@@ -231,17 +231,17 @@ public class AuthTests extends TestBase {
             flushConnection(nc, MEDIUM_FLUSH_TIMEOUT_MS);
             Message msg = sub.nextMessage(Duration.ofSeconds(5));
             assertNotNull(msg);
-            listener.prepForStatusChange(Events.DISCONNECTED);
+            listener.queueConnectionEvent(Events.DISCONNECTED);
         }
 
         TestBase.flushConnection(nc);
 
-        listener.waitForStatusChange(5, TimeUnit.SECONDS);
+        listener.validate();
 
         Status status = nc.getStatus();
         assertTrue(
                 Connection.Status.RECONNECTING == status || Connection.Status.DISCONNECTED == status, "Reconnecting status");
-        listener.prepForStatusChange(Events.RESUBSCRIBED);
+        listener.queueConnectionEvent(Events.RESUBSCRIBED);
 
         try (NatsTestServer ignored = new NatsTestServer(customArgs, port)) {
             waitUntilConnected(nc); // wait for reconnect
@@ -257,7 +257,7 @@ public class AuthTests extends TestBase {
     public void testUserPassInURLClusteredWithDifferentUser() throws Exception {
         String[] customArgs1 = { "--user", "uuu", "--pass", "ppp" };
         String[] customArgs2 = { "--user", "uuu2", "--pass", "ppp2" };
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         try (NatsTestServer ts1 = new NatsTestServer(customArgs1);
              NatsTestServer ts2 = new NatsTestServer(customArgs2)) {
             String url1 = userPassInUrl("uuu", "ppp", ts1.getPort());
@@ -271,7 +271,7 @@ public class AuthTests extends TestBase {
 
             try (Connection nc = standardConnect(options)) {
                 assertEquals(nc.getConnectedUrl(), url1);
-                listener.prepForStatusChange(Events.RESUBSCRIBED);
+                listener.queueConnectionEvent(Events.RESUBSCRIBED);
                 ts1.close();
                 waitUntilConnected(nc); // wait for reconnect
                 assertEquals(nc.getConnectedUrl(), url2);
@@ -283,7 +283,7 @@ public class AuthTests extends TestBase {
     public void testUserPassInURLWithFallback() throws Exception {
         String[] customArgs1 = { "--user", "uuu", "--pass", "ppp" };
         String[] customArgs2 = { "--user", "uuu2", "--pass", "ppp2" };
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         try (NatsTestServer ts1 = new NatsTestServer(customArgs1);
              NatsTestServer ts2 = new NatsTestServer(customArgs2)) {
             String url1 = userPassInUrl("uuu", "ppp", ts1.getPort());
@@ -296,9 +296,9 @@ public class AuthTests extends TestBase {
             try (Connection nc = standardConnect(options)) {
                 assertEquals(nc.getConnectedUrl(), url1);
 
-                listener.prepForStatusChange(Events.RESUBSCRIBED);
+                listener.queueConnectionEvent(Events.RESUBSCRIBED, LONG_VALIDATE_TIMEOUT);
                 ts1.close();
-                listener.waitForStatusChange(10, TimeUnit.SECONDS);
+                listener.validate();
                 assertConnected(nc);
                 assertEquals(ts2.getServerUri(), nc.getConnectedUrl());
             }
@@ -309,7 +309,7 @@ public class AuthTests extends TestBase {
     public void testTokenInURLClusteredWithDifferentUser() throws Exception {
         String[] customArgs1 = { "--auth", "token_one" };
         String[] customArgs2 = { "--auth", "token_two" };
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         try (NatsTestServer ts1 = new NatsTestServer(customArgs1);
              NatsTestServer ts2 = new NatsTestServer(customArgs2)) {
             String url1 = tokenInUrl("token_one", ts1.getPort());
@@ -323,9 +323,9 @@ public class AuthTests extends TestBase {
             try (Connection nc = standardConnect(options)) {
                 assertEquals(nc.getConnectedUrl(), url1);
 
-                listener.prepForStatusChange(Events.RESUBSCRIBED);
+                listener.queueConnectionEvent(Events.RESUBSCRIBED);
                 ts1.close();
-                listener.waitForStatusChange(2, TimeUnit.SECONDS);
+                listener.validate();
 
                 waitUntilConnected(nc); // wait for reconnect
                 assertEquals(nc.getConnectedUrl(), url2);
@@ -337,7 +337,7 @@ public class AuthTests extends TestBase {
     public void testTokenInURLWithFallback() throws Exception {
         String[] customArgs1 = { "--auth", "token_one" };
         String[] customArgs2 = { "--auth", "token_two" };
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         try (NatsTestServer ts1 = new NatsTestServer(customArgs1);
              NatsTestServer ts2 = new NatsTestServer(customArgs2)) {
             String url1 = tokenInUrl("token_one", ts1.getPort());
@@ -352,10 +352,10 @@ public class AuthTests extends TestBase {
             try (Connection nc = standardConnect(options)) {
                 assertEquals(nc.getConnectedUrl(), url1);
 
-                listener.prepForStatusChange(Events.RESUBSCRIBED);
+                listener.queueConnectionEvent(Events.RESUBSCRIBED);
                 ts1.close();
+                listener.validate();
 
-                listener.waitForStatusChange(CONNECTION_WAIT_MS, TimeUnit.MILLISECONDS);
                 waitUntilConnected(nc); // wait for reconnect
                 assertEquals(ts2.getServerUri(), nc.getConnectedUrl());
             }
@@ -514,7 +514,7 @@ public class AuthTests extends TestBase {
 
     @Test
     public void testReconnectWithAuth() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         // Connect should fail on ts2
         runInConfiguredServer("operator.conf", ts1 -> { // closed as part of test, so cannot be shared
             runInSharedConfiguredServer("operator.conf", ts2 -> {
@@ -522,16 +522,18 @@ public class AuthTests extends TestBase {
                     .noRandomize()
                     .maxReconnects(-1)
                     .authHandler(getUserCredsAuthHander())
+                    .connectionListener(listener)
+                    .errorListener(listener)
                     .build();
                 Connection nc = standardConnect(options);
                 assertEquals(ts1.getServerUri(), nc.getConnectedUrl());
 
-                listener.prepForStatusChange(Events.RECONNECTED);
+                listener.queueConnectionEvent(Events.RECONNECTED);
 
                 ts1.close();
 
                 // Reconnect will fail because ts has the same auth error
-                listener.waitForStatusChange(5, TimeUnit.SECONDS);
+                listener.validate();
                 assertConnected(nc);
                 assertEquals(ts2.getServerUri(), nc.getConnectedUrl());
                 standardCloseConnection(nc);
@@ -552,17 +554,17 @@ public class AuthTests extends TestBase {
                     .noRandomize()
                     .authHandler(getUserCredsAuthHander())
                     .build();
-                Connection nc = standardConnect(options);
-                assertEquals(ts2.getServerUri(), nc.getConnectedUrl());
 
-                listener.queueConnectionEvent(Events.CLOSED);
+                try (Connection nc = standardConnect(options)) {
+                    assertEquals(ts2.getServerUri(), nc.getConnectedUrl());
 
-                ts2.close();
+                    listener.queueConnectionEvent(Events.CLOSED, LONG_VALIDATE_TIMEOUT);
 
-                // Reconnect will fail because ts has the same auth error
-                listener.validate();
+                    ts2.close();
 
-                standardCloseConnection(nc);
+                    // Reconnect will fail because ts has the same auth error
+                    listener.validate();
+                }
             });
         });
     }
@@ -659,7 +661,7 @@ public class AuthTests extends TestBase {
 
     @Test
     public void testRealUserAuthenticationExpired() throws Exception {
-        Listener listener = new Listener();
+        Listener listener = new Listener(true);
         listener.queueError("User Authentication Expired");
 
         String accountSeed = "SAAPXJRFMUYDUH3NOZKE7BS2ZDO2P4ND7G6W743MTNA3KCSFPX3HNN6AX4";

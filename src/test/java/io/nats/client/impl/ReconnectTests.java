@@ -37,6 +37,7 @@ import java.util.function.BiConsumer;
 import static io.nats.client.AuthTests.getUserCredsAuthHander;
 import static io.nats.client.NatsTestServer.configFileBuilder;
 import static io.nats.client.NatsTestServer.getLocalhostUri;
+import static io.nats.client.support.Listener.VERY_LONG_VALIDATE_TIMEOUT;
 import static io.nats.client.support.NatsConstants.OUTPUT_QUEUE_IS_FULL;
 import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.*;
@@ -562,13 +563,13 @@ public class ReconnectTests {
             flushConnection(nc); // make sure we get the new server via info
             listener.validate();
 
-            listener.queueConnectionEvent(Events.RECONNECTED);
+            listener.queueConnectionEvent(Events.RECONNECTED, VERY_LONG_VALIDATE_TIMEOUT);
 
             ts.close();
 
             flushConnection(nc);
 
-            listener.validate(20000);
+            listener.validate();
 
             URI uri = options.createURIForServer(nc.getConnectedUrl());
             assertEquals(ts2.getPort(), uri.getPort()); // full uri will have some ip address, just check port
@@ -579,7 +580,7 @@ public class ReconnectTests {
     @Test
     public void testWriterFilterTiming() throws Exception {
         NatsConnection nc;
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         int port = NatsTestServer.nextPort();
 
         try (NatsTestServer ts = new NatsTestServer(port)) {
@@ -735,32 +736,33 @@ public class ReconnectTests {
 
     @Test
     public void testForceReconnect() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         ThreeServerTestOptions tstOpts = makeThreeServerTestOptions(listener, false);
         runInCluster(tstOpts, (nc0, nc1, nc2) -> _testForceReconnect(nc0, listener));
     }
 
     @Test
     public void testForceReconnectWithAccount() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         ThreeServerTestOptions tstOpts = makeThreeServerTestOptions(listener, true);
         runInCluster(tstOpts, (nc0, nc1, nc2) -> _testForceReconnect(nc0, listener));
     }
 
-    private static void _testForceReconnect(Connection nc0, ListenerForTesting listener) throws IOException, InterruptedException {
+    private static void _testForceReconnect(Connection nc0, Listener listener) throws IOException, InterruptedException {
         ServerInfo si = nc0.getServerInfo();
         String connectedServer = si.getServerId();
 
+        listener.queueConnectionEvent(Events.DISCONNECTED);
+        listener.queueConnectionEvent(Events.RECONNECTED);
         nc0.forceReconnect();
         waitUntilConnected(nc0); // wait for reconnect
 
         si = nc0.getServerInfo();
         assertNotEquals(connectedServer, si.getServerId());
-        assertTrue(listener.getConnectionEvents().contains(Events.DISCONNECTED));
-        assertTrue(listener.getConnectionEvents().contains(Events.RECONNECTED));
+        listener.validateAll();
     }
 
-    private static ThreeServerTestOptions makeThreeServerTestOptions(ListenerForTesting listener, final boolean configureAccount) {
+    private static ThreeServerTestOptions makeThreeServerTestOptions(Listener listener, final boolean configureAccount) {
         return new ThreeServerTestOptions() {
             @Override
             public void append(int index, Options.Builder builder) {
@@ -925,7 +927,7 @@ public class ReconnectTests {
 
     @Test
     public void testSocketDataPortTimeout() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         Options.Builder builder = optionsBuilder()
             .socketWriteTimeout(5000)
             .pingInterval(Duration.ofSeconds(1))
@@ -933,6 +935,10 @@ public class ReconnectTests {
             .dataPortType(SocketDataPortBlockSimulator.class.getCanonicalName())
             .connectionListener(listener)
             .errorListener(listener);
+
+        listener.queueConnectionEvent(Events.DISCONNECTED);
+        listener.queueConnectionEvent(Events.RECONNECTED);
+        listener.queueSocketWriteTimeout();
 
         AtomicBoolean gotOutputQueueIsFull = new AtomicBoolean();
         runInOwnServer(nc1 -> runInOwnServer(nc2 -> {
@@ -965,8 +971,6 @@ public class ReconnectTests {
         }));
 
         assertTrue(gotOutputQueueIsFull.get());
-        assertTrue(listener.getSocketWriteTimeoutCount() > 0);
-        assertTrue(listener.getConnectionEvents().contains(Events.DISCONNECTED));
-        assertTrue(listener.getConnectionEvents().contains(Events.RECONNECTED));
+        listener.validateAll();
     }
 }

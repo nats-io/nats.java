@@ -16,6 +16,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.support.Listener;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -24,8 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import static io.nats.client.utils.ConnectionUtils.assertClosed;
-import static io.nats.client.utils.ConnectionUtils.assertConnected;
+import static io.nats.client.utils.ConnectionUtils.standardConnect;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -187,7 +187,7 @@ public class MessageContentTests extends TestBase {
     }
 
     void runBadContentTest(NatsServerProtocolMock.Customizer badServer, CompletableFuture<Boolean> ready) throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
 
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(badServer, null)) {
             Options options = optionsBuilder(mockTs)
@@ -195,20 +195,10 @@ public class MessageContentTests extends TestBase {
                 .errorListener(listener)
                 .connectionListener(listener)
                 .build();
-            Connection nc = Nats.connect(options);
-            try {
-                assertConnected(nc);
-
-                listener.prepForStatusChange(Events.DISCONNECTED);
+            try (Connection nc = standardConnect(options)) {
+                listener.queueConnectionEvent(Events.DISCONNECTED);
                 ready.complete(Boolean.TRUE);
-                listener.waitForStatusChange(200, TimeUnit.MILLISECONDS);
-
-                assertTrue(listener.getExceptionCount() > 0);
-                assertTrue(Connection.Status.DISCONNECTED == nc.getStatus()
-                                                    || Connection.Status.CLOSED == nc.getStatus(), "Disconnected Status");
-            } finally {
-                nc.close();
-                assertClosed(nc);
+                listener.validate();
             }
         }
     }

@@ -26,16 +26,22 @@ import java.util.function.Predicate;
 
 @SuppressWarnings({"CallToPrintStackTrace", "RedundantMethodOverride"})
 public class Listener implements ErrorListener, ConnectionListener {
-    private static final int VALIDATE_TIMEOUT = 5000;
+    public static final int SHORT_VALIDATE_TIMEOUT = 10000;
+    public static final int DEFAULT_VALIDATE_TIMEOUT = 5000;
+    public static final int LONG_VALIDATE_TIMEOUT = 10000;
+    public static final int VERY_LONG_VALIDATE_TIMEOUT = 20000;
 
     private final boolean printExceptions;
     private final boolean verbose;
 
     private final List<ListenerFuture> futures;
+    private final List<Message> discardedMessages;
+    private Connection lastConnectionEventConnection;
     private int exceptionCount;
     private int heartbeatAlarmCount;
     private int flowControlCount;
     private int pullStatusWarningsCount;
+    private int socketWriteTimeoutCount;
 
     public Listener() {
         this(false, false);
@@ -49,6 +55,7 @@ public class Listener implements ErrorListener, ConnectionListener {
         this.printExceptions = printExceptions;
         this.verbose = verbose;
         futures = new ArrayList<>();
+        discardedMessages = new ArrayList<>();
     }
 
     public void reset() {
@@ -56,30 +63,32 @@ public class Listener implements ErrorListener, ConnectionListener {
             f.cancel(true);
         }
         futures.clear();
+        discardedMessages.clear();
+        lastConnectionEventConnection = null;
         exceptionCount = 0;
         heartbeatAlarmCount = 0;
         flowControlCount = 0;
         pullStatusWarningsCount = 0;
+        socketWriteTimeoutCount = 0;
     }
 
+    // ----------------------------------------------------------------------------------------------------
+    // Valdiate
+    // ----------------------------------------------------------------------------------------------------
     public void validate() {
-        _validate(futures.get(0), VALIDATE_TIMEOUT);
-    }
-
-    public void validate(long customTimeout) {
-        _validate(futures.get(0), customTimeout);
+        _validate(futures.get(0));
     }
 
     public void validateAll() {
         List<ListenerFuture> copy = new ArrayList<>(futures);
         for (ListenerFuture future : copy) {
-            _validate(future, VALIDATE_TIMEOUT);
+            _validate(future);
         }
     }
 
-    private void _validate(ListenerFuture f, long timeout) {
+    private void _validate(ListenerFuture f) {
         try {
-            f.get(timeout, TimeUnit.MILLISECONDS);
+            f.get(f.validateTimeout, TimeUnit.MILLISECONDS);
             // future was completed, it and all the rest can be cancelled and removed from tracking
             futures.remove(f);
         }
@@ -97,7 +106,7 @@ public class Listener implements ErrorListener, ConnectionListener {
         for (int ix = 0; ix < len; ix++) {
             ListenerFuture f = futuresToTry.get(ix);
             try {
-                f.get(VALIDATE_TIMEOUT, TimeUnit.MILLISECONDS);
+                f.get(f.validateTimeout, TimeUnit.MILLISECONDS);
                 // future was completed, it and all the rest can be cancelled and removed from tracking
                 while (ix < len) {
                     f = futuresToTry.get(ix++);
@@ -120,7 +129,7 @@ public class Listener implements ErrorListener, ConnectionListener {
         ListenerFuture f = futures.get(0);
         futures.remove(f); // removed from tracking
         try {
-            f.get(VALIDATE_TIMEOUT, TimeUnit.MILLISECONDS);
+            f.get(f.validateTimeout, TimeUnit.MILLISECONDS);
             Assertions.fail("'Validate Not Received' Failed " + f.getDetails());
         }
         catch (TimeoutException ignore) {
@@ -134,6 +143,9 @@ public class Listener implements ErrorListener, ConnectionListener {
         }
     }
 
+    // ----------------------------------------------------------------------------------------------------
+    // Queue
+    // ----------------------------------------------------------------------------------------------------
     private void queue(String label, ListenerFuture f) {
         if (verbose) {
             report("Queue For " + label, f.getDetails());
@@ -142,27 +154,78 @@ public class Listener implements ErrorListener, ConnectionListener {
     }
 
     public void queueConnectionEvent(Events type) {
-        queue("Event", new ListenerFuture(type));
+        queue("Event", new ListenerFuture(type, DEFAULT_VALIDATE_TIMEOUT));
+    }
+
+    public void queueConnectionEvent(Events type, int validateTimeout) {
+        queue("Event", new ListenerFuture(type, validateTimeout));
     }
 
     public void queueException(Class<?> exceptionClass) {
-        queue("Exception", new ListenerFuture(exceptionClass));
+        queue("Exception", new ListenerFuture(exceptionClass, DEFAULT_VALIDATE_TIMEOUT));
+    }
+
+    public void queueException(Class<?> exceptionClass, int validateTimeout) {
+        queue("Exception", new ListenerFuture(exceptionClass, validateTimeout));
     }
 
     public void queueException(Class<?> exceptionClass, String contains) {
-        queue("Exception", new ListenerFuture(exceptionClass, contains));
+        queue("Exception", new ListenerFuture(exceptionClass, contains, DEFAULT_VALIDATE_TIMEOUT));
+    }
+
+    public void queueException(Class<?> exceptionClass, String contains, int validateTimeout) {
+        queue("Exception", new ListenerFuture(exceptionClass, contains, validateTimeout));
     }
 
     public void queueError(String errorText) {
-        queue("Error", new ListenerFuture(errorText));
+        queue("Error", new ListenerFuture(errorText, DEFAULT_VALIDATE_TIMEOUT));
+    }
+
+    public void queueError(String errorText, int validateTimeout) {
+        queue("Error", new ListenerFuture(errorText, validateTimeout));
     }
 
     public void queueStatus(ListenerStatusType type, int statusCode) {
-        queue("Status", new ListenerFuture(type, statusCode));
+        queue("Status", new ListenerFuture(type, statusCode, DEFAULT_VALIDATE_TIMEOUT));
+    }
+
+    public void queueStatus(ListenerStatusType type, int statusCode, int validateTimeout) {
+        queue("Status", new ListenerFuture(type, statusCode, validateTimeout));
     }
 
     public void queueFlowControl(String fcSubject, FlowControlSource fcSource) {
-        queue("FlowControl", new ListenerFuture(fcSubject, fcSource));
+        queue("FlowControl", new ListenerFuture(fcSubject, fcSource, DEFAULT_VALIDATE_TIMEOUT));
+    }
+
+    public void queueFlowControl(String fcSubject, FlowControlSource fcSource, int validateTimeout) {
+        queue("FlowControl", new ListenerFuture(fcSubject, fcSource, validateTimeout));
+    }
+
+    public void queueHeartbeat() {
+        queue("Heartbeat", new ListenerFuture(true, false, DEFAULT_VALIDATE_TIMEOUT));
+    }
+
+    public void queueHeartbeat(int validateTimeout) {
+        queue("Heartbeat", new ListenerFuture(true, false, validateTimeout));
+    }
+
+    public void queueSocketWriteTimeout() {
+        queue("SocketWriteTimeout", new ListenerFuture(false, true, DEFAULT_VALIDATE_TIMEOUT));
+    }
+
+    public void queueSocketWriteTimeout(int validateTimeout) {
+        queue("SocketWriteTimeout", new ListenerFuture(false, true, validateTimeout));
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // Getters
+    // ----------------------------------------------------------------------------------------------------
+    public List<Message> getDiscardedMessages() {
+        return discardedMessages;
+    }
+
+    public Connection getLastConnectionEventConnection() {
+        return lastConnectionEventConnection;
     }
 
     public int getExceptionCount() {
@@ -181,14 +244,7 @@ public class Listener implements ErrorListener, ConnectionListener {
         return pullStatusWarningsCount;
     }
 
-    private void tryToComplete(List<ListenerFuture> futures, Predicate<ListenerFuture> predicate) {
-        for (ListenerFuture f : futures) {
-            if (predicate.test(f)) {
-                f.complete(null);
-                return;
-            }
-        }
-    }
+    public int getSocketWriteTimeoutCount() { return socketWriteTimeoutCount; }
 
     // ----------------------------------------------------------------------------------------------------
     // Connection Listener
@@ -203,6 +259,7 @@ public class Listener implements ErrorListener, ConnectionListener {
         if (verbose) {
             report("connectionEvent", type);
         }
+        lastConnectionEventConnection = conn;
         tryToComplete(futures, f -> type.equals(f.eventType));
     }
 
@@ -250,6 +307,7 @@ public class Listener implements ErrorListener, ConnectionListener {
 
     @Override
     public void messageDiscarded(Connection conn, Message msg) {
+        discardedMessages.add(msg);
     }
 
     @Override
@@ -258,6 +316,7 @@ public class Listener implements ErrorListener, ConnectionListener {
             report("Heartbeat Alarm", lastStreamSequence + " " + lastConsumerSequence);
         }
         heartbeatAlarmCount++;
+        tryToComplete(futures, f -> f.forHeartbeat);
     }
 
     private void statusReceived(ListenerStatusType type, Status status) {
@@ -294,15 +353,33 @@ public class Listener implements ErrorListener, ConnectionListener {
 
     @Override
     public void socketWriteTimeout(Connection conn) {
+        if (verbose) {
+            report("Socket Write Timeout");
+        }
+        socketWriteTimeoutCount++;
+        tryToComplete(futures, f -> f.forSocketWriteTimeout);
     }
 
     // ----------------------------------------------------------------------------------------------------
     // Helpers
     // ----------------------------------------------------------------------------------------------------
+    private void tryToComplete(List<ListenerFuture> futures, Predicate<ListenerFuture> predicate) {
+        for (ListenerFuture f : futures) {
+            if (predicate.test(f)) {
+                f.complete(null);
+                return;
+            }
+        }
+    }
     public static final DateTimeFormatter SIMPLE_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
 
     public static String simpleTime() {
         return SIMPLE_TIME_FORMATTER.format(DateTimeUtils.gmtNow());
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private void report(String func) {
+        System.out.println("[" + simpleTime() + " " + func + "]");
     }
 
     private void report(String func, Object message) {

@@ -28,6 +28,7 @@ import java.util.function.Consumer;
 
 import static io.nats.client.impl.MessageManager.ManageResult;
 import static io.nats.client.impl.MessageManager.ManageResult.*;
+import static io.nats.client.support.Listener.SHORT_VALIDATE_TIMEOUT;
 import static io.nats.client.support.ListenerStatusType.PullError;
 import static io.nats.client.support.ListenerStatusType.PullWarning;
 import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
@@ -179,71 +180,64 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void testPushManagerHeartbeats() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         runInSharedOwnNc(listener, nc -> {
             PushMessageManager pushMgr = getPushManager(nc, push_xhb_xfc(), null, false, true, false);
             NatsJetStreamSubscription sub = mockSub((NatsConnection)nc, pushMgr);
 
-            listener.reset();
-            listener.prepForHeartbeatAlarm();
+            listener.queueHeartbeat(SHORT_VALIDATE_TIMEOUT);
             pushMgr.startup(sub);
-            ListenerForTesting.HeartbeatAlarmEvent event = listener.waitForHeartbeatAlarm(1000);
-            assertNull(event);
+            listener.validateNotReceived();
 
             listener.reset();
-            listener.prepForHeartbeatAlarm();
+            listener.queueHeartbeat(SHORT_VALIDATE_TIMEOUT);
             pushMgr = getPushManager(nc, push_xhb_xfc(), null, false, false, false);
             sub = mockSub((NatsConnection)nc, pushMgr);
             pushMgr.startup(sub);
-            event = listener.waitForHeartbeatAlarm(1000);
-            assertNull(event);
+            listener.validateNotReceived();
 
             listener.reset();
-            listener.prepForHeartbeatAlarm();
+            listener.queueHeartbeat(SHORT_VALIDATE_TIMEOUT);
             PushSubscribeOptions pso = ConsumerConfiguration.builder().idleHeartbeat(100).buildPushSubscribeOptions();
             pushMgr = getPushManager(nc, pso, null, false, true, false);
             sub = mockSub((NatsConnection)nc, pushMgr);
             pushMgr.startup(sub);
-            event = listener.waitForHeartbeatAlarm(1000);
-            assertNotNull(event);
+            listener.validate();
 
             listener.reset();
-            listener.prepForHeartbeatAlarm();
+            listener.queueHeartbeat(SHORT_VALIDATE_TIMEOUT);
             pushMgr = getPushManager(nc, pso, null, false, false, false);
             sub = mockSub((NatsConnection)nc, pushMgr);
             pushMgr.startup(sub);
-            event = listener.waitForHeartbeatAlarm(1000);
-            assertNotNull(event);
+            pushMgr.startup(sub);
         });
     }
 
     @Test
     public void testPullManagerHeartbeats() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         runInSharedOwnNc(listener, nc -> {
+            listener.queueHeartbeat(SHORT_VALIDATE_TIMEOUT);
             PullMessageManager pullMgr = getPullManager(nc, null, true);
             NatsJetStreamSubscription sub = mockSub((NatsConnection)nc, pullMgr);
             pullMgr.startup(sub);
             pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).build(), false, null);
-            assertEquals(0, listener.getHeartbeatAlarms().size());
+            listener.validateNotReceived();
 
             listener.reset();
-            listener.prepForHeartbeatAlarm();
+            listener.queueHeartbeat(SHORT_VALIDATE_TIMEOUT);
             pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).expiresIn(10000).idleHeartbeat(100).build(), false, null);
-            ListenerForTesting.HeartbeatAlarmEvent event = listener.waitForHeartbeatAlarm(1000);
-            assertNotNull(event);
+            listener.validate();
 
             listener.reset();
-            listener.prepForHeartbeatAlarm();
+            listener.queueHeartbeat(SHORT_VALIDATE_TIMEOUT);
             pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).expiresIn(10000).idleHeartbeat(100).build(), false, null);
-            event = listener.waitForHeartbeatAlarm(1000);
-            assertNotNull(event);
+            listener.validate();
 
             listener.reset();
-            listener.prepForHeartbeatAlarm();
+            listener.queueHeartbeat(SHORT_VALIDATE_TIMEOUT);
             pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).build(), false, null);
-            event = listener.waitForHeartbeatAlarm(1000);
-            assertNull(event);
+            listener.validateNotReceived();
         });
     }
 

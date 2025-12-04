@@ -16,7 +16,6 @@ package io.nats.client;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
 import io.nats.client.api.ServerInfo;
-import io.nats.client.impl.ListenerForTesting;
 import io.nats.client.impl.SimulateSocketDataPortException;
 import io.nats.client.support.Listener;
 import org.junit.jupiter.api.Test;
@@ -206,16 +205,14 @@ public class ConnectTests {
 
     @Test
     public void testAsyncConnection() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         try (NatsTestServer ts = new NatsTestServer()) {
             Options options = optionsBuilder(ts).connectionListener(listener).build();
-            listener.prepForStatusChange(Events.CONNECTED);
-
+            listener.queueConnectionEvent(Events.CONNECTED);
             Nats.connectAsynchronously(options, false);
+            listener.validate();
 
-            listener.waitForStatusChange(1, TimeUnit.SECONDS);
-
-            Connection nc = listener.getLastEventConnection();
+            Connection nc = listener.getLastConnectionEventConnection();
             assertNotNull(nc);
             assertConnected(nc);
             standardCloseConnection(nc);
@@ -224,7 +221,7 @@ public class ConnectTests {
 
     @Test
     public void testAsyncConnectionWithReconnect() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         int port = NatsTestServer.nextPort();
         Options options = optionsBuilder(port).maxReconnects(-1)
                 .reconnectWait(Duration.ofMillis(100)).connectionListener(listener).build();
@@ -233,10 +230,10 @@ public class ConnectTests {
 
         sleep(5000); // No server at this point, let it fail and try to start over
 
-        Connection nc = listener.getLastEventConnection(); // will be disconnected, but should be there
+        Connection nc = listener.getLastConnectionEventConnection(); // will be disconnected, but should be there
         assertNotNull(nc);
 
-        listener.prepForStatusChange(Events.RECONNECTED);
+        listener.queueConnectionEvent(Events.RECONNECTED);
         try (NatsTestServer ignored = new NatsTestServer(port)) {
             standardCloseConnection(waitUntilConnected(nc));
         }
@@ -450,7 +447,7 @@ public class ConnectTests {
         int port = NatsTestServer.nextPort();
 
         AtomicBoolean simExReceived = new AtomicBoolean();
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         ErrorListener el = new ErrorListener() {
             @Override
             public void exceptionOccurred(Connection conn, Exception exp) {
@@ -488,38 +485,33 @@ public class ConnectTests {
         try (NatsTestServer ts = new NatsTestServer(port)) {
             try {
                 SimulateSocketDataPortException.THROW_ON_CONNECT.set(true);
-                listener.prepForStatusChange(Events.RECONNECTED);
+                listener.queueConnectionEvent(Events.RECONNECTED);
                 connection = Nats.connectReconnectOnConnect(options);
-                assertTrue(listener.waitForStatusChange(5, TimeUnit.SECONDS));
-                listener.prepForStatusChange(Events.DISCONNECTED);
+                listener.validate();
+                listener.queueConnectionEvent(Events.DISCONNECTED);
             }
             catch (Exception e) {
                 fail("should have connected " + e);
             }
         }
-        assertTrue(listener.waitForStatusChange(5, TimeUnit.SECONDS));
+        listener.validate();
         assertTrue(simExReceived.get());
         simExReceived.set(false);
 
         // 2. NORMAL RECONNECT
-        listener.prepForStatusChange(Events.RECONNECTED);
+        listener.queueConnectionEvent(Events.RECONNECTED);
         try (NatsTestServer ts = new NatsTestServer(port)) {
             SimulateSocketDataPortException.THROW_ON_CONNECT.set(true);
-            try {
-                assertTrue(listener.waitForStatusChange(5, TimeUnit.SECONDS));
-            }
-            catch (Exception e) {
-                fail("should have reconnected " + e);
-            }
+            listener.validate();
         }
     }
 
     @Test
     public void testRunInJsCluster() throws Exception {
-        ListenerForTesting[] listeners = new ListenerForTesting[3];
-        listeners[0] = new ListenerForTesting();
-        listeners[1] = new ListenerForTesting();
-        listeners[2] = new ListenerForTesting();
+        Listener[] listeners = new Listener[3];
+        listeners[0] = new Listener();
+        listeners[1] = new Listener();
+        listeners[2] = new Listener();
 
         ThreeServerTestOptions tstOpts = new ThreeServerTestOptions() {
             @Override
@@ -540,9 +532,9 @@ public class ConnectTests {
 
         runInCluster(ConnectTests::validateRunInJsCluster);
 
-        listeners[0] = new ListenerForTesting();
-        listeners[1] = new ListenerForTesting();
-        listeners[2] = new ListenerForTesting();
+        listeners[0] = new Listener();
+        listeners[1] = new Listener();
+        listeners[2] = new Listener();
 
         runInCluster(tstOpts, ConnectTests::validateRunInJsCluster);
     }

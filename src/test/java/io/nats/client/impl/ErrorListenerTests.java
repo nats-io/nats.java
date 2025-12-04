@@ -15,6 +15,8 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.support.Debug;
+import io.nats.client.support.Listener;
 import io.nats.client.support.Status;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
@@ -27,9 +29,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static io.nats.client.support.Listener.LONG_VALIDATE_TIMEOUT;
 import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
-import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ErrorListenerTests extends TestBase {
@@ -37,7 +39,7 @@ public class ErrorListenerTests extends TestBase {
     @Test
     public void testLastError() throws Exception {
         NatsConnection nc;
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         String[] customArgs = {"--user", "stephen", "--pass", "password"};
 
         try (NatsTestServer ts = new NatsTestServer();
@@ -52,7 +54,9 @@ public class ErrorListenerTests extends TestBase {
             nc = (NatsConnection) Nats.connect(options);
             assertConnected(nc);
             assertEquals(ts.getServerUri(), nc.getConnectedUrl());
-            listener.prepForStatusChange(Events.DISCONNECTED);
+            listener.queueConnectionEvent(Events.DISCONNECTED);
+            listener.queueConnectionEvent(Events.RECONNECTED);
+            listener.queueError("Authorization Violation");
 
             ts.close();
 
@@ -63,12 +67,7 @@ public class ErrorListenerTests extends TestBase {
                 // this usually fails
             }
 
-            listener.waitForStatusChange(5, TimeUnit.SECONDS);
-
-            listener.prepForStatusChange(Events.RECONNECTED);
-            listener.waitForStatusChange(5, TimeUnit.SECONDS);
-
-            assertTrue(listener.errorsEventually("Authorization Violation", 3000));
+            listener.validateAll();
 
             waitUntilConnected(nc); // wait for reconnect
             assertEquals(ts3.getServerUri(), nc.getConnectedUrl());
@@ -78,7 +77,7 @@ public class ErrorListenerTests extends TestBase {
     @Test
     public void testClearLastError() throws Exception {
         NatsConnection nc = null;
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         String[] customArgs = {"--user", "stephen", "--pass", "password"};
 
         try (NatsTestServer ts = new NatsTestServer();
@@ -93,7 +92,10 @@ public class ErrorListenerTests extends TestBase {
             nc = (NatsConnection) Nats.connect(options);
             assertConnected(nc);
             assertEquals(ts.getServerUri(), nc.getConnectedUrl());
-            listener.prepForStatusChange(Events.DISCONNECTED);
+
+            listener.queueConnectionEvent(Events.DISCONNECTED);
+            listener.queueConnectionEvent(Events.RECONNECTED);
+            listener.queueError("Authorization Violation", LONG_VALIDATE_TIMEOUT);
 
             ts.close();
 
@@ -104,12 +106,7 @@ public class ErrorListenerTests extends TestBase {
                 // this usually fails
             }
 
-            listener.waitForStatusChange(5, TimeUnit.SECONDS);
-
-            listener.prepForStatusChange(Events.RECONNECTED);
-            listener.waitForStatusChange(5, TimeUnit.SECONDS);
-
-            assertTrue(listener.errorsEventually("Authorization Violation", 2000));
+            listener.validateAll();
 
             assertConnected(nc);
             assertEquals(ts3.getServerUri(), nc.getConnectedUrl());
@@ -125,9 +122,8 @@ public class ErrorListenerTests extends TestBase {
     @Test
     public void testErrorOnNoAuth() throws Exception {
         String[] customArgs = {"--user", "stephen", "--pass", "password"};
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         try (NatsTestServer ts = new NatsTestServer(customArgs)) {
-            sleep(1000); // give the server time to get ready, otherwise sometimes this test flaps
             // See config file for user/pass
             // no or wrong u/p in the options is an error
             Options options = optionsBuilder(ts)
@@ -144,20 +140,18 @@ public class ErrorListenerTests extends TestBase {
                 }
                 fail();
             }
-            assertTrue(listener.errorsEventually("Authorization Violation", 10000));
         }
     }
 
     @Test
     public void testExceptionOnBadDispatcher() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         try (NatsTestServer ts = new NatsTestServer()) {
             Options options = optionsBuilder(ts)
                 .maxReconnects(0)
                 .errorListener(listener)
                 .build();
-            Connection nc = Nats.connect(options);
-            try {
+            try (Connection nc = Nats.connect(options)) {
                 Dispatcher d = nc.createDispatcher(msg -> {
                     throw new ArithmeticException();
                 });
@@ -169,14 +163,12 @@ public class ErrorListenerTests extends TestBase {
 
                 try {
                     msg = incoming.get(200, TimeUnit.MILLISECONDS);
-                } catch (TimeoutException te) {
-                    msg = null;
+                    fail();
                 }
-
-                assertNull(msg);
-                assertEquals(1, listener.getCount());
-            } finally {
-                standardCloseConnection(nc);
+                catch (TimeoutException te) {
+                    // expected
+                }
+                assertEquals(1, listener.getExceptionCount());
             }
         }
     }
@@ -255,7 +247,7 @@ public class ErrorListenerTests extends TestBase {
     public void testDiscardedMessageFastProducer() throws Exception {
         String subject = random();
         int maxMessages = 10;
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         try (NatsTestServer ts = new NatsTestServer()) {
             Options options = optionsBuilder(ts)
                 .maxMessagesInOutgoingQueue(maxMessages)
@@ -290,20 +282,23 @@ public class ErrorListenerTests extends TestBase {
     public void testDiscardedMessageServerClosed() throws Exception {
         String subject = random();
         int maxMessages = 10;
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         try (NatsTestServer ts = new NatsTestServer()) {
             Options options = optionsBuilder(ts)
                 .maxMessagesInOutgoingQueue(maxMessages)
                 .discardMessagesWhenOutgoingQueueFull()
+                .connectionListener(listener)
                 .errorListener(listener)
                 .pingInterval(Duration.ofSeconds(100)) // make this long so we don't ping during test
                 .build();
+            Debug.info("O", options.getServers());
+            listener.queueConnectionEvent(Events.CONNECTED, LONG_VALIDATE_TIMEOUT);
+            listener.queueConnectionEvent(Events.DISCONNECTED, LONG_VALIDATE_TIMEOUT);
             try (Connection nc = standardConnect(options)) {
-                nc.flush(Duration.ofSeconds(1)); // Get the sub to the server
-
-                listener.prepForStatusChange(Events.DISCONNECTED);
+                nc.flush(Duration.ofSeconds(1));
+                listener.validate();
                 ts.close();
-                listener.waitForStatusChange(2, TimeUnit.SECONDS); // make sure the connection is down
+                listener.validate();
 
                 for (int i = 0; i < maxMessages + 1; i++) {
                     nc.publish(subject + i, ("message" + i).getBytes());
