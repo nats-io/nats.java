@@ -107,7 +107,7 @@ abstract class MessageManager {
     protected void subTrackJsMessage(Message msg) {}
 
     protected void handleHeartbeatError() {
-        conn.executeCallback((c, el) -> el.heartbeatAlarm(c, sub, lastStreamSeq, lastConsumerSeq));
+        conn.notifyErrorListener((c, el) -> el.heartbeatAlarm(c, sub, lastStreamSeq, lastConsumerSeq));
     }
 
     protected void configureIdleHeartbeat(Duration configIdleHeartbeat, long configMessageAlarmTime) {

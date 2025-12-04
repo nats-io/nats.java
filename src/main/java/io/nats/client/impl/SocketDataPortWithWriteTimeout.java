@@ -56,7 +56,7 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
                 //  if now is after when it was supposed to be done by
                 if (NatsSystemClock.nanoTime() > writeMustBeDoneBy.get()) {
                     writeWatchTask.shutdown(); // we don't need to repeat this, the connection is going to be closed
-                    connection.executeCallback((c, el) -> el.socketWriteTimeout(c));
+                    connection.notifyErrorListener((c, el) -> el.socketWriteTimeout(c));
                     try {
                         connection.forceReconnect(ForceReconnectOptions.FORCE_CLOSE_INSTANCE);
                     }
