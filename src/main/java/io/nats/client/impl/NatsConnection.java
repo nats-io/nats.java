@@ -574,7 +574,7 @@ class NatsConnection implements Connection {
             };
 
             timeoutNanos = timeCheck(end, "reading info, version and upgrading to secure if necessary");
-            Future<Object> future = this.connectExecutor.submit(connectTask);
+            Future<Object> future = connectExecutor.submit(connectTask);
             try {
                 future.get(timeoutNanos, TimeUnit.NANOSECONDS);
             }
@@ -1856,12 +1856,12 @@ class NatsConnection implements Connection {
         this.statistics.incrementOkCount();
     }
 
-    void processSlowConsumer(Consumer consumer) {
-        if (!this.callbackExecutor.isShutdown()) {
+    void makeCallback(Runnable r) {
+        if (callbackExecutor != null) {
             try {
                 this.callbackExecutor.execute(() -> {
                     try {
-                        options.getErrorListener().slowConsumerDetected(this, consumer);
+                        r.run();
                     }
                     catch (Exception ex) {
                         this.statistics.incrementExceptionCount();
@@ -1869,29 +1869,18 @@ class NatsConnection implements Connection {
                 });
             }
             catch (RejectedExecutionException re) {
-                // Timing with shutdown, let it go
+                // Timing with shutdown probably, let it go
             }
         }
     }
 
+    void processSlowConsumer(Consumer consumer) {
+        makeCallback(() -> options.getErrorListener().slowConsumerDetected(this, consumer));
+    }
+
     void processException(Exception exp) {
         this.statistics.incrementExceptionCount();
-
-        if (!this.callbackExecutor.isShutdown()) {
-            try {
-                this.callbackExecutor.execute(() -> {
-                    try {
-                        options.getErrorListener().exceptionOccurred(this, exp);
-                    }
-                    catch (Exception ex) {
-                        this.statistics.incrementExceptionCount();
-                    }
-                });
-            }
-            catch (RejectedExecutionException re) {
-                // Timing with shutdown, let it go
-            }
-        }
+        makeCallback(() -> options.getErrorListener().exceptionOccurred(this, exp));
     }
 
     void processError(String errorText) {
@@ -1905,36 +1894,15 @@ class NatsConnection implements Connection {
             this.serverAuthErrors.put(currentServer, errorText);
         }
 
-        if (!this.callbackExecutor.isShutdown()) {
-            try {
-                this.callbackExecutor.execute(() -> {
-                    try {
-                        options.getErrorListener().errorOccurred(this, errorText);
-                    }
-                    catch (Exception ex) {
-                        this.statistics.incrementExceptionCount();
-                    }
-                });
-            }
-            catch (RejectedExecutionException re) {
-                // Timing with shutdown, let it go
-            }
-        }
+        makeCallback(() -> options.getErrorListener().errorOccurred(this, errorText));
     }
 
     interface ErrorListenerCaller {
         void call(Connection conn, ErrorListener el);
     }
 
-    void executeCallback(ErrorListenerCaller elc) {
-        if (!this.callbackExecutor.isShutdown()) {
-            try {
-                this.callbackExecutor.execute(() -> elc.call(this, options.getErrorListener()));
-            }
-            catch (RejectedExecutionException re) {
-                // Timing with shutdown, let it go
-            }
-        }
+    void notifyErrorListener(ErrorListenerCaller elc) {
+        makeCallback(() -> elc.call(this, options.getErrorListener()));
     }
 
     String uriDetail(NatsUri uri) {
@@ -1952,7 +1920,7 @@ class NatsConnection implements Connection {
     }
 
     void processConnectionEvent(Events type, String uriDetails) {
-        if (!this.callbackExecutor.isShutdown()) {
+        if (callbackExecutor != null) {
             try {
                 long time = System.currentTimeMillis();
                 for (ConnectionListener listener : connectionListeners) {
