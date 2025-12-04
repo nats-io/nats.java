@@ -881,7 +881,7 @@ class NatsConnection implements Connection {
         executor = null;
         connectExecutor = null;
         scheduledExecutor = null;
-        options.shutdownInternalExecutors();
+        options.shutdownExecutors();
 
         statusLock.lock();
         try {
@@ -1846,15 +1846,15 @@ class NatsConnection implements Connection {
         this.statistics.incrementOkCount();
     }
 
-    void makeCallback(Runnable r) {
+    void makeCallback(Runnable callback) {
         if (callbackExecutor != null) {
             try {
-                this.callbackExecutor.execute(() -> {
+                callbackExecutor.execute(() -> {
                     try {
-                        r.run();
+                        callback.run();
                     }
                     catch (Exception ex) {
-                        this.statistics.incrementExceptionCount();
+                        statistics.incrementExceptionCount();
                     }
                 });
             }
@@ -1910,21 +1910,9 @@ class NatsConnection implements Connection {
     }
 
     void processConnectionEvent(Events type, String uriDetails) {
-        if (callbackExecutor != null) {
-            try {
-                long time = System.currentTimeMillis();
-                for (ConnectionListener listener : connectionListeners) {
-                    this.callbackExecutor.execute(() -> {
-                        try {
-                            listener.connectionEvent(this, type, time, uriDetails);
-                        } catch (Exception ex) {
-                            this.statistics.incrementExceptionCount();
-                        }
-                    });
-                }
-            } catch (RejectedExecutionException re) {
-                // Timing with shutdown, let it go
-            }
+        long time = System.currentTimeMillis();
+        for (ConnectionListener listener : connectionListeners) {
+            makeCallback(() -> listener.connectionEvent(this, type, time, uriDetails));
         }
     }
 
