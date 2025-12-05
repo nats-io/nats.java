@@ -11,14 +11,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client.impl;
+package io.nats.client.other;
+
+/*
+import io.nats.client.impl.NatsMessage;
+import io.nats.client.impl.ProtocolMessage;
 
 import java.text.NumberFormat;
 
 import static io.nats.client.support.NatsConstants.EMPTY_BODY;
+*/
 
+// This class is kept only for history. It can only run if it is moved to the
+// io.nats.client.impl package since ProtocolMessage is package scoped
 public class MessageProtocolCreationBenchmark {
-    public static void main(String args[]) throws InterruptedException {
+/*
+    public static void main(String[] args) throws InterruptedException {
         int warmup = 1_000_000;
         int msgCount = 50_000_000;
 
@@ -64,4 +72,5 @@ public class MessageProtocolCreationBenchmark {
                 ((double) (end - start)) / ((double) (msgCount)),
                 NumberFormat.getInstance().format(((double)(1_000_000_000L * msgCount))/((double) (end - start))));
     }
+*/
 }

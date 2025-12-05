@@ -2481,7 +2481,7 @@ class NatsConnection implements Connection {
     public KeyValue keyValue(@NonNull String bucketName, @Nullable KeyValueOptions options) throws IOException {
         Validator.validateBucketName(bucketName, true);
         ensureNotClosing();
-        return new NatsKeyValue(this, bucketName, options);
+        return new NatsKeyValue(bucketName, this, options, null);
     }
 
     /**
@@ -2500,7 +2500,7 @@ class NatsConnection implements Connection {
     @NonNull
     public KeyValueManagement keyValueManagement(@Nullable KeyValueOptions options) throws IOException {
         ensureNotClosing();
-        return new NatsKeyValueManagement(this, options);
+        return new NatsKeyValueManagement(this, options, null);
     }
 
     /**
@@ -2520,7 +2520,7 @@ class NatsConnection implements Connection {
     public ObjectStore objectStore(@NonNull String bucketName, @Nullable ObjectStoreOptions options) throws IOException {
         Validator.validateBucketName(bucketName, true);
         ensureNotClosing();
-        return new NatsObjectStore(this, bucketName, options);
+        return new NatsObjectStore(bucketName, this, options, null);
     }
 
     /**
@@ -2530,7 +2530,7 @@ class NatsConnection implements Connection {
     @NonNull
     public ObjectStoreManagement objectStoreManagement() throws IOException {
         ensureNotClosing();
-        return new NatsObjectStoreManagement(this, null);
+        return new NatsObjectStoreManagement(this, null, null);
     }
 
     /**
@@ -2540,7 +2540,7 @@ class NatsConnection implements Connection {
     @NonNull
     public ObjectStoreManagement objectStoreManagement(@Nullable ObjectStoreOptions options) throws IOException {
         ensureNotClosing();
-        return new NatsObjectStoreManagement(this, options);
+        return new NatsObjectStoreManagement(this, options, null);
     }
 
     private void ensureNotClosing() throws IOException {

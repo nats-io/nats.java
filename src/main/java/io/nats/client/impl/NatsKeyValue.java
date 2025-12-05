@@ -40,13 +40,13 @@ public class NatsKeyValue extends NatsFeatureBase implements KeyValue {
     private final String readPrefix;
     private final String writePrefix;
 
-    NatsKeyValue(NatsConnection connection, String bucketName, KeyValueOptions kvo) throws IOException {
-        super(connection, kvo);
+    NatsKeyValue(String bucketName, NatsConnection connection, KeyValueOptions kvo, NatsJetStreamManagement jsm) throws IOException {
+        super(connection, kvo, jsm);
         this.bucketName = Validator.validateBucketName(bucketName, true);
         streamName = toStreamName(bucketName);
         StreamInfo si;
         try {
-             si = jsm.getStreamInfo(streamName);
+             si = this.jsm.getStreamInfo(streamName);
         } catch (JetStreamApiException e) {
             // can't throw directly, that would be a breaking change
             throw new IOException(e);

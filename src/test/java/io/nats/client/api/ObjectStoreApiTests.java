@@ -94,7 +94,7 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
     }
 
     private void validateObjectInfo(ObjectInfo oi, ZonedDateTime modified) {
-        assertEquals(BUCKET, oi.getBucket());
+        assertEquals("bucket", oi.getBucket());
         assertEquals("object-name", oi.getObjectName());
         assertEquals("object-desc", oi.getDescription());
         assertEquals(344000, oi.getSize());
@@ -107,11 +107,11 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
         assertEquals(8196, oi.getObjectMeta().getObjectMetaOptions().getChunkSize());
         assertNotNull(oi.getHeaders());
         assertEquals(2, oi.getHeaders().size());
-        List<String> list = oi.getHeaders().get(key(1));
+        List<String> list = oi.getHeaders().get("key-1");
         assertNotNull(list);
         assertEquals(1, list.size());
-        assertEquals(data(1), oi.getHeaders().getFirst(key(1)));
-        list = oi.getHeaders().get(key(2));
+        assertEquals(data(1), oi.getHeaders().getFirst("key-1"));
+        list = oi.getHeaders().get("key-2");
         assertNotNull(list);
         assertEquals(2, list.size());
         assertTrue(list.contains(data(21)));
@@ -126,11 +126,12 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
 
     @Test
     public void testObjectInfoCoverage() {
-        ObjectLink link1a = ObjectLink.object(BUCKET, "name");
-        ObjectLink link1b = ObjectLink.object(BUCKET, "name");
-        ObjectLink link2 = ObjectLink.object(BUCKET, "name2");
-        ObjectLink blink1a = ObjectLink.bucket(BUCKET);
-        ObjectLink blink1b = ObjectLink.bucket(BUCKET);
+        String bucket = random();
+        ObjectLink link1a = ObjectLink.object(bucket, "name");
+        ObjectLink link1b = ObjectLink.object(bucket, "name");
+        ObjectLink link2 = ObjectLink.object(bucket, "name2");
+        ObjectLink blink1a = ObjectLink.bucket(bucket);
+        ObjectLink blink1b = ObjectLink.bucket(bucket);
         ObjectLink blink2 = ObjectLink.bucket("bucket2");
 
         ObjectMetaOptions metaOptions = ObjectMetaOptions.builder().link(link1a).chunkSize(1024).build();

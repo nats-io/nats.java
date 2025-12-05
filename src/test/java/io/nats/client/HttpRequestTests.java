@@ -57,14 +57,8 @@ public class HttpRequestTests {
     @Test
     public void testNulls() {
         HttpRequest request = new HttpRequest();
-        assertThrows(IllegalArgumentException.class, () -> {
-            request.method(null);
-        });
-        assertThrows(IllegalArgumentException.class, () -> {
-            request.uri(null);
-        });
-        assertThrows(IllegalArgumentException.class, () -> {
-            request.version(null);
-        });
+        assertThrows(IllegalArgumentException.class, () -> request.method(null));
+        assertThrows(IllegalArgumentException.class, () -> request.uri(null));
+        assertThrows(IllegalArgumentException.class, () -> request.version(null));
     }
 }

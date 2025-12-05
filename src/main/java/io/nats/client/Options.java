@@ -543,7 +543,8 @@ public class Options {
      * Property used to set class name for the Callback Executor Service (executor) class
      * {@link Builder#callbackExecutor(ExecutorService) callbackExecutor}.
      */
-    public static final String PROP_CALLBACK_EXECUTOR_SERVICE_CLASS = "callback.executor.service.class";    /**
+    public static final String PROP_CALLBACK_EXECUTOR_SERVICE_CLASS = "callback.executor.service.class";
+    /**
      * Property used to set class name for the Connect Thread Factory
      * {@link Builder#connectThreadFactory(ThreadFactory) connectThreadFactory}.
      */

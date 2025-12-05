@@ -114,7 +114,7 @@ To run with the completely unverified client:
 java -cp build/libs/jnats-{major.minor.patch}-SNAPSHOT.jar:build/libs/jnats-{major.minor.patch}-SNAPSHOT-examples.jar io.nats.examples.NatsSub opentls://localhost:4443 test 3
 ```
 
-There are a set tls configuration for the server in the test files that can be used to run the NATS server.
+There are a set of tls configuration files for the server in the test files that can be used to run the NATS server.
 
 ```bash
 nats-server --config src/test/resources/tls.conf

@@ -16,6 +16,8 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.api.Error;
+import io.nats.client.support.Validator;
+import org.jspecify.annotations.NonNull;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -385,5 +387,27 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
             js = new NatsJetStream(this);
         }
         return js;
+    }
+
+    @Override
+    public @NonNull KeyValue keyValue(@NonNull String bucketName) throws IOException {
+        Validator.validateBucketName(bucketName, true);
+        return new NatsKeyValue(bucketName, null, null, this);
+    }
+
+    @Override
+    public @NonNull KeyValueManagement keyValueManagement() throws IOException {
+        return new NatsKeyValueManagement(null, null, this);
+    }
+
+    @Override
+    public @NonNull ObjectStore objectStore(@NonNull String bucketName) throws IOException {
+        Validator.validateBucketName(bucketName, true);
+        return new NatsObjectStore(bucketName, null, null, this);
+    }
+
+    @Override
+    public @NonNull ObjectStoreManagement objectStoreManagement() throws IOException {
+        return new NatsObjectStoreManagement(null, null, this);
     }
 }
