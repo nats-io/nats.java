@@ -535,6 +535,15 @@ public class Options {
      */
     public static final String PROP_SCHEDULED_EXECUTOR_SERVICE_CLASS = "scheduled.executor.service.class";
     /**
+     * Property used to set class name for the Connect Executor Service (executor) class
+     * {@link Builder#connectExecutor(ExecutorService) connectExecutor}.
+     */
+    public static final String PROP_CONNECT_EXECUTOR_SERVICE_CLASS = "connect.executor.service.class";
+    /**
+     * Property used to set class name for the Callback Executor Service (executor) class
+     * {@link Builder#callbackExecutor(ExecutorService) callbackExecutor}.
+     */
+    public static final String PROP_CALLBACK_EXECUTOR_SERVICE_CLASS = "callback.executor.service.class";    /**
      * Property used to set class name for the Connect Thread Factory
      * {@link Builder#connectThreadFactory(ThreadFactory) connectThreadFactory}.
      */
@@ -711,6 +720,8 @@ public class Options {
     private final ScheduledExecutorService userScheduledExecutor;
     private final ThreadFactory userConnectThreadFactory;
     private final ThreadFactory userCallbackThreadFactory;
+    private final ExecutorService userConnectExecutor;
+    private final ExecutorService userCallbackExecutor;
 
     // these are not final b/c they are lazy initialized
     // and nulled during shutdownInternalExecutors
@@ -728,16 +739,16 @@ public class Options {
 
     static class DefaultThreadFactory implements ThreadFactory {
         final String name;
-        final AtomicInteger threadNo;
+        final AtomicInteger threadNumber;
 
         public DefaultThreadFactory (String name){
             this.name = name;
-            threadNo = new AtomicInteger(0);
+            threadNumber = new AtomicInteger(0);
         }
 
         public Thread newThread(@NonNull Runnable r) {
-            String threadName = name+":"+threadNo.incrementAndGet();
-            Thread t = new Thread(r,threadName);
+            String threadName = name + ":" + threadNumber.incrementAndGet();
+            Thread t = new Thread(r, threadName);
             if (t.isDaemon()) {
                 t.setDaemon(false);
             }
@@ -862,6 +873,8 @@ public class Options {
         private String dataPortType = DEFAULT_DATA_PORT_TYPE;
         private ExecutorService userExecutor;
         private ScheduledExecutorService userScheduledExecutor;
+        private ExecutorService userConnectExecutor;
+        private ExecutorService userCallbackExecutor;
         private ThreadFactory userConnectThreadFactory;
         private ThreadFactory userCallbackThreadFactory;
         private List<java.util.function.Consumer<HttpRequest>> httpRequestInterceptors;
@@ -999,6 +1012,8 @@ public class Options {
             classnameProperty(props, PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, o -> this.serverPool = (ServerPool) o);
             classnameProperty(props, PROP_DISPATCHER_FACTORY_CLASS, o -> this.dispatcherFactory = (DispatcherFactory) o);
             classnameProperty(props, PROP_EXECUTOR_SERVICE_CLASS, o -> this.userExecutor = (ExecutorService) o);
+            classnameProperty(props, PROP_CONNECT_EXECUTOR_SERVICE_CLASS, o -> this.userConnectExecutor = (ExecutorService) o);
+            classnameProperty(props, PROP_CALLBACK_EXECUTOR_SERVICE_CLASS, o -> this.userCallbackExecutor = (ExecutorService) o);
             classnameProperty(props, PROP_SCHEDULED_EXECUTOR_SERVICE_CLASS, o -> this.userScheduledExecutor = (ScheduledExecutorService) o);
             classnameProperty(props, PROP_CONNECT_THREAD_FACTORY_CLASS, o -> this.userConnectThreadFactory = (ThreadFactory) o);
             classnameProperty(props, PROP_CALLBACK_THREAD_FACTORY_CLASS, o -> this.userCallbackThreadFactory = (ThreadFactory) o);
@@ -1703,7 +1718,7 @@ public class Options {
         }
 
         /**
-         * Set the {@link ExecutorService ExecutorService} used to run threaded tasks. The default is a
+         * Set the {@link ExecutorService} used to run threaded tasks. The default is a
          * cached thread pool that names threads after the connection name (or a default). This executor
          * is used for reading and writing the underlying sockets as well as for each Dispatcher.
          * The default executor uses a short keepalive time, 500ms, to insure quick shutdowns. This is reasonable
@@ -1720,7 +1735,7 @@ public class Options {
         }
 
         /**
-         * Set the {@link ScheduledExecutorService ScheduledExecutorService} used to run scheduled task like
+         * Set the {@link ScheduledExecutorService} used to run scheduled task like
          * heartbeat timers
          * The default is a ScheduledThreadPoolExecutor that does not
          *  execute delayed tasks after shutdown and removes tasks on cancel;
@@ -1733,8 +1748,30 @@ public class Options {
         }
 
         /**
-         * Sets custom thread factory for the executor service
-         *
+         * Set the {@link ExecutorService} used to make connections.
+         * The default is a Single Thread Executor
+         * @param connectExecutor The ExecutorService to make connections with.
+         * @return the Builder for chaining
+         */
+        public Builder connectExecutor(ExecutorService connectExecutor) {
+            this.userConnectExecutor = connectExecutor;
+            return this;
+        }
+
+        /**
+         * Set the {@link ExecutorService} used to make event callbacks with.
+         * The default is a Single Thread Executor
+         * @param callbackExecutor The ExecutorService to make event callbacks with.
+         * @return the Builder for chaining
+         */
+        public Builder callbackExecutor(ExecutorService callbackExecutor) {
+            this.userCallbackExecutor = callbackExecutor;
+            return this;
+        }
+
+        /**
+         * Sets custom thread factory for the connect executor service to use when making threads
+         * If both connectThreadFactory and callbackExecutor are set, only callbackExecutor is used.
          * @param threadFactory the thread factory to use for the executor service
          * @return the Builder for chaining
          */
@@ -1744,8 +1781,8 @@ public class Options {
         }
 
         /**
-         * Sets custom thread factory for the executor service
-         *
+         * Sets custom thread factory for the callback executor service to use when making threads
+         * If both callbackThreadFactory and callbackExecutor are set, only callbackExecutor is used.
          * @param threadFactory the thread factory to use for the executor service
          * @return the Builder for chaining
          */
@@ -2117,10 +2154,14 @@ public class Options {
             this.statisticsCollector = o.statisticsCollector;
             this.dataPortType = o.dataPortType;
             this.trackAdvancedStats = o.trackAdvancedStats;
+
             this.userExecutor = o.userExecutor;
             this.userScheduledExecutor = o.userScheduledExecutor;
+            this.userConnectExecutor = o.userConnectExecutor;
+            this.userCallbackExecutor = o.userCallbackExecutor;
             this.userCallbackThreadFactory = o.userCallbackThreadFactory;
             this.userConnectThreadFactory = o.userConnectThreadFactory;
+
             this.httpRequestInterceptors = o.httpRequestInterceptors;
             this.proxy = o.proxy;
 
@@ -2193,6 +2234,8 @@ public class Options {
         executorsLock = new ReentrantLock();
         this.userExecutor = b.userExecutor;
         this.userScheduledExecutor = b.userScheduledExecutor;
+        this.userConnectExecutor = b.userConnectExecutor;
+        this.userCallbackExecutor = b.userCallbackExecutor;
         this.userCallbackThreadFactory = b.userCallbackThreadFactory;
         this.userConnectThreadFactory = b.userConnectThreadFactory;
 
@@ -2267,15 +2310,23 @@ public class Options {
     }
 
     /**
-     * the callback executor, see {@link Builder#callbackThreadFactory(ThreadFactory) callbackThreadFactory()} in the builder doc
+     * the callback executor, see {@link Builder#callbackExecutor(ExecutorService) callbackExecutor()}
+     * and {@link Builder#callbackThreadFactory(ThreadFactory) callbackThreadFactory()} in the builder doc
      * @return the executor
      */
     public ExecutorService getCallbackExecutor() {
         executorsLock.lock();
         try {
             if (resolvedCallbackExecutor == null || resolvedCallbackExecutor.isShutdown()) {
-                resolvedCallbackExecutor = userCallbackThreadFactory == null ?
-                    DEFAULT_SINGLE_THREAD_EXECUTOR.get() : Executors.newSingleThreadExecutor(userCallbackThreadFactory);
+                if (userCallbackExecutor != null) {
+                    resolvedCallbackExecutor = userCallbackExecutor;
+                }
+                else if (userCallbackThreadFactory != null) {
+                    resolvedCallbackExecutor = Executors.newSingleThreadExecutor(userCallbackThreadFactory);
+                }
+                else {
+                    resolvedCallbackExecutor = DEFAULT_SINGLE_THREAD_EXECUTOR.get();
+                }
             }
             return resolvedCallbackExecutor;
         }
@@ -2285,15 +2336,23 @@ public class Options {
     }
 
     /**
-     * the connect executor, see {@link Builder#connectThreadFactory(ThreadFactory) connectThreadFactory()} in the builder doc
+     * the connect executor, see {@link Builder#connectExecutor(ExecutorService) connectExecutor()}
+     * and {@link Builder#connectThreadFactory(ThreadFactory) connectThreadFactory()} in the builder doc
      * @return the executor
      */
     public ExecutorService getConnectExecutor() {
         executorsLock.lock();
         try {
             if (resolvedConnectExecutor == null || resolvedConnectExecutor.isShutdown()) {
-                resolvedConnectExecutor = userConnectThreadFactory == null ?
-                    DEFAULT_SINGLE_THREAD_EXECUTOR.get() : Executors.newSingleThreadExecutor(userConnectThreadFactory);
+                if (userConnectExecutor != null) {
+                    resolvedConnectExecutor = userConnectExecutor;
+                }
+                else if (userConnectThreadFactory != null) {
+                    resolvedConnectExecutor = Executors.newSingleThreadExecutor(userConnectThreadFactory);
+                }
+                else {
+                    resolvedConnectExecutor = DEFAULT_SINGLE_THREAD_EXECUTOR.get();
+                }
             }
             return resolvedConnectExecutor;
         }
@@ -2323,7 +2382,7 @@ public class Options {
      * @return true if the executor is internal
      */
     public boolean callbackExecutorIsInternal() {
-        return this.userCallbackThreadFactory == null;
+        return userCallbackExecutor == null && userCallbackThreadFactory == null;
     }
 
     /**
@@ -2331,7 +2390,7 @@ public class Options {
      * @return true if the executor is internal
      */
     public boolean connectExecutorIsInternal() {
-        return this.userConnectThreadFactory == null;
+        return userConnectExecutor == null && userConnectThreadFactory == null;
     }
 
     public void shutdownExecutors() throws InterruptedException {
