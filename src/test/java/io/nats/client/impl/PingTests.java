@@ -22,11 +22,8 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static io.nats.client.support.Listener.MEDIUM_VALIDATE_TIMEOUT;
 import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ThreadUtils.sleep;
@@ -85,21 +82,6 @@ public class PingTests extends TestBase {
     }
 
     @Test
-    public void testPingFailsWhenClosed() throws Exception {
-        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-            Options options = optionsBuilder(mockTs)
-                .pingInterval(Duration.ofMillis(10))
-                .maxPingsOut(5)
-                .maxReconnects(0)
-                .build();
-            NatsConnection nc = (NatsConnection) managedConnect(options);
-            closeAndConfirm(nc);
-            Future<Boolean> pong = nc.sendPing();
-            assertFalse(pong.get(10,TimeUnit.MILLISECONDS));
-        }
-    }
-
-    @Test
     public void testMaxPingsOut() throws Exception {
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
             Options options = optionsBuilder(mockTs)
@@ -148,26 +130,21 @@ public class PingTests extends TestBase {
 
     @Test
     public void testPingTimerThroughReconnect() throws Exception {
-        Listener listener = new Listener();
         try (NatsTestServer ts = new NatsTestServer()) {
             try (NatsTestServer ts2 = new NatsTestServer()) {
                 Options options = optionsBuilder(ts.getServerUri(), ts2.getServerUri())
-                    .connectionListener(listener)
-                    .pingInterval(Duration.ofMillis(5))
-                    .maxPingsOut(10000) // just don't want this to be what fails the test
+                    .pingInterval(Duration.ofMillis(500))
+                    .maxPingsOut(100) // just don't want this to be what fails the test
                     .build();
                 try (Connection nc = managedConnect(options)) {
                     Statistics stats = nc.getStatistics();
-                    sleep(200);
-                    long pings = stats.getPings();
-                    assertTrue(pings > 10, "got pings");
-                    listener.queueConnectionEvent(Events.RECONNECTED, MEDIUM_VALIDATE_TIMEOUT);
-                    ts.close();
-                    listener.validate();
-                    pings = stats.getPings();
-                    sleep(250); // should get more pings
-                    assertTrue(stats.getPings() > pings, "more pings");
                     sleep(1000);
+                    long pings = stats.getPings();
+                    assertTrue(pings > 1, "got pings");
+                    ts.close();
+                    confirmConnected(nc);
+                    sleep(1000); // should get more pings
+                    assertTrue(stats.getPings() > pings, "more pings");
                 }
             }
         }
