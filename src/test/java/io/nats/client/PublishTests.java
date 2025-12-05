@@ -65,7 +65,7 @@ public class PublishTests extends TestBase {
     public void testThrowsIfTooBig() throws Exception {
         byte[] body = new byte[1024]; // 1024 is > than max_payload.conf max_payload: 1000
         runInConfiguredServer("max_payload.conf", ts -> {
-            try (Connection nc = standardConnect(options(ts))) {
+            try (Connection nc = managedConnect(options(ts))) {
                 assertThrows(IllegalArgumentException.class, () -> nc.publish(random(), null, null, body));
             }
 
@@ -74,7 +74,7 @@ public class PublishTests extends TestBase {
                 .clientSideLimitChecks(false)
                 .errorListener(listener)
                 .build();
-            try (Connection nc = standardConnect(options)) {
+            try (Connection nc = managedConnect(options)) {
                 listener.queueError("Maximum Payload Violation");
                 listener.queueException(SocketException.class);
                 nc.publish(random(), null, null, body);
@@ -165,7 +165,7 @@ public class PublishTests extends TestBase {
         };
 
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(receiveMessageCustomizer)) {
-            try (Connection nc = standardConnect(options(mockTs))) {
+            try (Connection nc = managedConnect(options(mockTs))) {
                 byte[] bodyBytes;
                 if (bodyString == null || bodyString.isEmpty()) {
                     bodyBytes = EMPTY_BODY;
@@ -178,7 +178,7 @@ public class PublishTests extends TestBase {
                 nc.publish(NatsMessage.builder().subject(subject).replyTo(replyTo).headers(headers).data(bodyBytes).build());
 
                 assertTrue(gotPub.get(), "Got " + proto + "."); //wait for receipt to close up
-                standardCloseConnection(nc);
+                closeAndConfirm(nc);
 
                 if (proto.equals(OP_PUB)) {
                     String expectedProtocol;
@@ -253,7 +253,7 @@ public class PublishTests extends TestBase {
         Options.Builder ncNotSupportedOptionsBuilder = optionsBuilder().noReconnect().clientSideLimitChecks(false);
         runInSharedOwnNc(ncNotSupportedOptionsBuilder, ncNotSupported -> {
             Options ncSupportedOptions = optionsBuilder(ncNotSupported).supportUTF8Subjects().build();
-            try (Connection ncSupported = standardConnect(ncSupportedOptions)) {
+            try (Connection ncSupported = managedConnect(ncSupportedOptions)) {
                 try (JetStreamTestingContext ctxNotSupported = new JetStreamTestingContext(ncNotSupported, 0)) {
                     ctxNotSupported.createOrReplaceStream(jsSubject);
                     JetStream jsNotSupported = ncNotSupported.jetStream();

@@ -198,7 +198,7 @@ public class TestBase {
     // ----------------------------------------------------------------------------------------------------
     private static void _runInOwnServer(@NonNull OneConnectionTest oneNcTest) throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            try (Connection nc = standardConnect(options(ts))) {
+            try (Connection nc = managedConnect(options(ts))) {
                 initVersionServerInfo(nc);
                 oneNcTest.test(nc);
             }
@@ -219,7 +219,7 @@ public class TestBase {
 
         NatsServerRunner.Builder nsrb = NatsServerRunner.builder().jetstream(true);
         try (NatsTestServer ts = new NatsTestServer(nsrb)) {
-            try (Connection nc = standardConnect(options(ts))) {
+            try (Connection nc = managedConnect(options(ts))) {
                 initVersionServerInfo(nc);
                 if (vc == null || vc.runTest(VERSION_SERVER_INFO)) {
                     NatsJetStreamManagement jsm = (NatsJetStreamManagement) nc.jetStreamManagement();
@@ -432,9 +432,9 @@ public class TestBase {
         };
 
         try (NatsTestServer hub = new NatsTestServer(hubPort, true, null, hubInserts, null);
-             Connection nchub = standardConnect(options(hub));
+             Connection nchub = managedConnect(options(hub));
              NatsTestServer leaf = new NatsTestServer(leafPort, true, null, leafInserts, null);
-             Connection ncleaf = standardConnect(options(leaf))
+             Connection ncleaf = managedConnect(options(leaf))
         ) {
             twoConnectionTest.test(nchub, ncleaf);
         }
@@ -470,9 +470,9 @@ public class TestBase {
         try (NatsTestServer srv1 = new NatsTestServer(port1, tstOpts.jetStream(), null, server1Inserts, null);
              NatsTestServer srv2 = new NatsTestServer(port2, tstOpts.jetStream(), null, server2Inserts, null);
              NatsTestServer srv3 = new NatsTestServer(port3, tstOpts.jetStream(), null, server3Inserts, null);
-             Connection nc1 = standardConnect(makeOptions(0, tstOpts, srv1, srv2, srv3));
-             Connection nc2 = standardConnect(makeOptions(1, tstOpts, srv2, srv1, srv3));
-             Connection nc3 = standardConnect(makeOptions(2, tstOpts, srv3, srv1, srv2))
+             Connection nc1 = managedConnect(makeOptions(0, tstOpts, srv1, srv2, srv3));
+             Connection nc2 = managedConnect(makeOptions(1, tstOpts, srv2, srv1, srv3));
+             Connection nc3 = managedConnect(makeOptions(2, tstOpts, srv3, srv1, srv2))
         ) {
             threeServerTest.test(nc1, nc2, nc3);
         }
@@ -587,9 +587,9 @@ public class TestBase {
     // assertions
     // ----------------------------------------------------------------------------------------------------
     public static void assertCanConnectAndPubSub(Options options) throws IOException, InterruptedException {
-        Connection conn = standardConnect(options);
+        Connection conn = managedConnect(options);
         assertPubSub(conn);
-        standardCloseConnection(conn);
+        closeAndConfirm(conn);
     }
 
     public static void assertByteArraysEqual(byte[] data1, byte[] data2) {

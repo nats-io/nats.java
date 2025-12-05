@@ -32,7 +32,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import static io.nats.client.Options.PROP_SSL_CONTEXT_FACTORY_CLASS;
 import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
-import static io.nats.client.utils.OptionsUtils.optionsNoReconnect;
 import static io.nats.client.utils.TestBase.*;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
@@ -157,12 +156,12 @@ public class TLSConnectTests {
             // 2. client regular secure | secure proxy | server tls required  -> connects
             ProxyConnection connRR = new ProxyConnection(ts1.getServerUri(), false, null, SERVER_TLS_REQUIRED);
             connRR.connect(false);
-            closeConnection(waitUntilConnected(connRR), 1000);
+            confirmConnectedThenClosed(connRR);
 
             // 3. client regular secure | secure proxy | server tls available -> connects
             ProxyConnection connRA = new ProxyConnection(ts1.getServerUri(), false, null, SERVER_TLS_AVAILABLE);
             connRA.connect(false);
-            closeConnection(waitUntilConnected(connRA), 1000);
+            confirmConnectedThenClosed(connRA);
         });
     }
 
@@ -239,7 +238,7 @@ public class TLSConnectTests {
                 .maxReconnects(0)
                 .sslContext(ctx)
                 .build();
-            try (Connection nc = standardConnect(options)) {
+            try (Connection nc = managedConnect(options)) {
                 Dispatcher d = nc.createDispatcher(
                     msg -> nc.publish(msg.getReplyTo(), new byte[16]));
                 String subject = random();
@@ -272,7 +271,7 @@ public class TLSConnectTests {
                 .connectionListener(listener)
                 .reconnectWait(Duration.ofMillis(10))
                 .build();
-            ncRef.set((NatsConnection)standardConnect(options));
+            ncRef.set((NatsConnection) managedConnect(options));
             assertInstanceOf(SocketDataPort.class, ncRef.get().getDataPort(), "Correct data port class");
             listener.queueConnectionEvent(Events.DISCONNECTED);
         });
@@ -283,7 +282,7 @@ public class TLSConnectTests {
 
         listener.queueConnectionEvent(Events.RESUBSCRIBED);
         runInConfiguredServer("tlsverify.conf", newPort, ts -> listener.validate());
-        standardCloseConnection(nc);
+        closeAndConfirm(nc);
     }
 
     @Test
@@ -302,7 +301,7 @@ public class TLSConnectTests {
     @Test
     public void testServerSecureClientNotMismatch() throws Exception {
         runInSharedConfiguredServer("tlsverify.conf", ts -> {
-            Options options = optionsNoReconnect(ts);
+            Options options = optionsBuilder(ts).maxReconnects(0).build();
             assertThrows(IOException.class, () -> Nats.connect(options));
         });
     }
@@ -410,17 +409,17 @@ public class TLSConnectTests {
             // 1. client tls first | secure proxy | server insecure -> connects
             ProxyConnection connTI = new ProxyConnection(ts.getServerUri(), true, null, SERVER_INSECURE);
             connTI.connect(false);
-            closeConnection(waitUntilConnected(connTI), 1000);
+            confirmConnectedThenClosed(connTI);
 
             // 2. client tls first | secure proxy | server tls required -> connects
             ProxyConnection connTR = new ProxyConnection(ts.getServerUri(), true, null, SERVER_TLS_REQUIRED);
             connTR.connect(false);
-            closeConnection(waitUntilConnected(connTR), 1000);
+            confirmConnectedThenClosed(connTR);
 
             // 3. client tls first | secure proxy | server tls available -> connects
             ProxyConnection connTA = new ProxyConnection(ts.getServerUri(), true, null, SERVER_TLS_AVAILABLE);
             connTA.connect(false);
-            closeConnection(waitUntilConnected(connTA), 1000);
+            confirmConnectedThenClosed(connTA);
         });
     }
 }

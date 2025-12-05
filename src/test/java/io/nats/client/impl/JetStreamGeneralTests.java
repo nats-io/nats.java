@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.NatsJetStreamUtil;
+import io.nats.client.utils.ConnectionUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -31,7 +32,6 @@ import java.util.concurrent.TimeoutException;
 import static io.nats.client.api.ConsumerConfiguration.*;
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.support.NatsJetStreamClientError.*;
-import static io.nats.client.utils.ConnectionUtils.standardConnect;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.VersionUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -387,8 +387,8 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             Options optionsTar = optionsBuilder(ts)
                 .userInfo("tar".toCharArray(), "tpass".toCharArray()).build();
 
-            try (Connection ncSrc = standardConnect(optionsSrc);
-                 Connection ncTar = standardConnect(optionsTar)
+            try (Connection ncSrc = ConnectionUtils.managedConnect(optionsSrc);
+                 Connection ncTar = ConnectionUtils.managedConnect(optionsTar)
             ) {
                 // Setup JetStreamOptions. SOURCE does not need prefix
                 JetStreamOptions jsoSrc = JetStreamOptions.builder().build();
@@ -1093,7 +1093,7 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
     public void testRequestNoResponder() throws Exception {
         runInSharedCustom((ncCancel, ctx) -> {
             Options optReport = optionsBuilder(ncCancel).reportNoResponders().build();
-            try (Connection ncReport = standardConnect(optReport)) {
+            try (Connection ncReport = ConnectionUtils.managedConnect(optReport)) {
                 assertThrows(CancellationException.class, () -> ncCancel.request(random(), null).get());
                 ExecutionException ee = assertThrows(ExecutionException.class, () -> ncReport.request(random(), null).get());
                 assertInstanceOf(JetStreamStatusException.class, ee.getCause());

@@ -17,6 +17,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.support.Listener;
+import io.nats.client.utils.ConnectionUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -25,7 +26,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import static io.nats.client.utils.ConnectionUtils.standardConnect;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -195,7 +195,7 @@ public class MessageContentTests extends TestBase {
                 .errorListener(listener)
                 .connectionListener(listener)
                 .build();
-            try (Connection nc = standardConnect(options)) {
+            try (Connection nc = ConnectionUtils.managedConnect(options)) {
                 listener.queueConnectionEvent(Events.DISCONNECTED);
                 ready.complete(Boolean.TRUE);
                 listener.validate();

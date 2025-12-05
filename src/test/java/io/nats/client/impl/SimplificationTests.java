@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.*;
+import io.nats.client.utils.ConnectionUtils;
 import io.nats.client.utils.VersionUtils;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -34,8 +35,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import static io.nats.client.BaseConsumeOptions.*;
 import static io.nats.client.support.NatsConstants.GREATER_THAN;
-import static io.nats.client.utils.ConnectionUtils.standardConnect;
-import static io.nats.client.utils.ConnectionUtils.waitUntilConnected;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
@@ -1732,7 +1731,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
             //noinspection unused
             try (NatsTestServer ts = new NatsTestServer(port, true)) {
-                nc = (NatsConnection) standardConnect(options);
+                nc = (NatsConnection) ConnectionUtils.managedConnect(options);
                 StreamConfiguration sc = StreamConfiguration.builder()
                     .name(stream)
                     .storageType(StorageType.File) // file since we are killing the server and bringing it back up.
@@ -1763,7 +1762,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
             // reconnect and get some more messages
             try (NatsTestServer ignored = new NatsTestServer(port, true)) {
-                waitUntilConnected(nc); // wait for reconnect
+                ConnectionUtils.confirmConnected(nc); // wait for reconnect
                 sleep(10000); // long enough to get messages and for the hb alarm to have tripped
             }
 
@@ -1776,7 +1775,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
             sleep(6000); // enough delay before reconnect to trip hb alarm again
             try (NatsTestServer ignored = new NatsTestServer(port, true)) {
-                waitUntilConnected(nc); // wait for reconnect
+                ConnectionUtils.confirmConnected(nc); // wait for reconnect
                 sleep(6000); // long enough to get messages and for the hb alarm to have tripped
 
                 try {

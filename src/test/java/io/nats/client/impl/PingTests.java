@@ -26,6 +26,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static io.nats.client.support.Listener.MEDIUM_VALIDATE_TIMEOUT;
 import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ThreadUtils.sleep;
@@ -86,13 +87,13 @@ public class PingTests extends TestBase {
     @Test
     public void testPingFailsWhenClosed() throws Exception {
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-            Options options = optionsBuilder(mockTs).
-                                            pingInterval(Duration.ofMillis(10)).
-                                            maxPingsOut(5).
-                                            maxReconnects(0).
-                                            build();
-            NatsConnection nc = (NatsConnection) standardConnect(options);
-            standardCloseConnection(nc);
+            Options options = optionsBuilder(mockTs)
+                .pingInterval(Duration.ofMillis(10))
+                .maxPingsOut(5)
+                .maxReconnects(0)
+                .build();
+            NatsConnection nc = (NatsConnection) managedConnect(options);
+            closeAndConfirm(nc);
             Future<Boolean> pong = nc.sendPing();
             assertFalse(pong.get(10,TimeUnit.MILLISECONDS));
         }
@@ -106,7 +107,7 @@ public class PingTests extends TestBase {
                 .maxPingsOut(2)
                 .maxReconnects(0)
                 .build();
-            try (NatsConnection nc = (NatsConnection) standardConnect(options)) {
+            try (NatsConnection nc = (NatsConnection) managedConnect(options)) {
                 nc.sendPing();
                 nc.sendPing();
                 assertNull(nc.sendPing(), "No future returned when past max");
@@ -123,7 +124,7 @@ public class PingTests extends TestBase {
                 .connectionListener(listener)
                 .errorListener(listener)
                 .build();
-            try (Connection nc = standardConnect(options)) {
+            try (Connection nc = managedConnect(options)) {
                 // fake server so flush will time out
                 assertThrows(TimeoutException.class, () -> nc.flush(Duration.ofMillis(50)));
             }
@@ -135,7 +136,7 @@ public class PingTests extends TestBase {
         Listener listener = new Listener();
         try (NatsTestServer ts = new NatsTestServer()) {
             Options options = optionsBuilder(ts).connectionListener(listener).build();
-            try (Connection nc = standardConnect(options)) {
+            try (Connection nc = managedConnect(options)) {
                 nc.flush(Duration.ofSeconds(2));
                 listener.queueConnectionEvent(Events.DISCONNECTED);
                 ts.close();
@@ -155,12 +156,12 @@ public class PingTests extends TestBase {
                     .pingInterval(Duration.ofMillis(5))
                     .maxPingsOut(10000) // just don't want this to be what fails the test
                     .build();
-                try (Connection nc = standardConnect(options)) {
+                try (Connection nc = managedConnect(options)) {
                     Statistics stats = nc.getStatistics();
                     sleep(200);
                     long pings = stats.getPings();
                     assertTrue(pings > 10, "got pings");
-                    listener.queueConnectionEvent(Events.RECONNECTED);
+                    listener.queueConnectionEvent(Events.RECONNECTED, MEDIUM_VALIDATE_TIMEOUT);
                     ts.close();
                     listener.validate();
                     pings = stats.getPings();

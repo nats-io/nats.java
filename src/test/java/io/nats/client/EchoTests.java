@@ -15,6 +15,7 @@ package io.nats.client;
 
 import io.nats.client.NatsServerProtocolMock.ExitAt;
 import io.nats.client.impl.SharedServer;
+import io.nats.client.utils.ConnectionUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -22,7 +23,6 @@ import java.io.IOException;
 import java.time.Duration;
 
 import static io.nats.client.utils.ConnectionUtils.assertClosed;
-import static io.nats.client.utils.ConnectionUtils.standardConnect;
 import static io.nats.client.utils.OptionsUtils.options;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.*;
@@ -55,7 +55,7 @@ public class EchoTests extends TestBase {
     @Test
     public void testWithEcho() throws Exception {
         runInShared(nc1 -> {
-            try (Connection nc2 = standardConnect(options(nc1))) {
+            try (Connection nc2 = ConnectionUtils.managedConnect(options(nc1))) {
                 // Echo is on so both sub should get messages from both pub
                 String subject = random();
                 Subscription sub1 = nc1.subscribe(subject);

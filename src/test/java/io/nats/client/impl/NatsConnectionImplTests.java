@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
+import io.nats.client.utils.ConnectionUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -23,7 +24,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 
-import static io.nats.client.utils.ConnectionUtils.standardConnect;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class NatsConnectionImplTests {
@@ -79,7 +79,7 @@ public class NatsConnectionImplTests {
     }
 
     private static void verifyInternalExecutors(Options options) throws InterruptedException {
-        try (NatsConnection nc = (NatsConnection)standardConnect(options)) {
+        try (NatsConnection nc = (NatsConnection) ConnectionUtils.managedConnect(options)) {
             ExecutorService es = options.getExecutor();
             ScheduledExecutorService ses = options.getScheduledExecutor();
             ExecutorService callbackEs = options.getCallbackExecutor();
@@ -120,7 +120,7 @@ public class NatsConnectionImplTests {
                                                 ExecutorService userEs, ScheduledExecutorService userSes,
                                                 ExecutorService userCallbackEs, ExecutorService userConnectEs
     ) throws InterruptedException, IOException {
-        try (NatsConnection nc = (NatsConnection)standardConnect(options)) {
+        try (NatsConnection nc = (NatsConnection) ConnectionUtils.managedConnect(options)) {
             ExecutorService es = options.getExecutor();
             ScheduledExecutorService ses = options.getScheduledExecutor();
             ExecutorService callbackEs = options.getCallbackExecutor();

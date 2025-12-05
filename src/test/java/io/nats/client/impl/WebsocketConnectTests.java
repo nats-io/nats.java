@@ -56,7 +56,7 @@ public class WebsocketConnectTests extends TestBase {
     }
 
     private static void standardRequestReply(Options options) throws InterruptedException, IOException {
-        try (Connection connection = standardConnect(options)) {
+        try (Connection connection = managedConnect(options)) {
             Dispatcher dispatcher = connection.createDispatcher(
                 msg -> connection.publish(msg.getReplyTo(), (new String(msg.getData()) + ":REPLY").getBytes()));
             try {
@@ -245,7 +245,7 @@ public class WebsocketConnectTests extends TestBase {
                 .maxReconnects(0)
                 .sslContext(ctx)
                 .build();
-            try (Connection nc = standardConnect(options)) {
+            try (Connection nc = managedConnect(options)) {
                 Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), new byte[16]));
                 String subject = random();
                 d.subscribe(subject);

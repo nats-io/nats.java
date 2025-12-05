@@ -20,6 +20,7 @@ import io.nats.client.api.PriorityPolicy;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.Listener;
 import io.nats.client.support.ListenerStatusType;
+import io.nats.client.utils.ConnectionUtils;
 import io.nats.client.utils.VersionUtils;
 import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.AfterAll;
@@ -40,11 +41,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.api.ConsumerConfiguration.builder;
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.Listener.MEDIUM_VALIDATE_TIMEOUT;
 import static io.nats.client.support.ListenerStatusType.PullError;
 import static io.nats.client.support.ListenerStatusType.PullWarning;
 import static io.nats.client.support.NatsJetStreamConstants.NATS_PIN_ID_HDR;
 import static io.nats.client.support.Status.*;
-import static io.nats.client.utils.ConnectionUtils.standardConnect;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
@@ -744,7 +745,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
         runInSharedNamed("conflict", ts -> {
             if (conflictNc == null) {
                 conflictListener = new Listener();
-                conflictNc = standardConnect(
+                conflictNc = ConnectionUtils.managedConnect(
                     optionsBuilder(ts).errorListener(conflictListener).connectionListener(conflictListener).build());
             }
             else {
@@ -753,7 +754,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             try (JetStreamTestingContext tcsCtx = new JetStreamTestingContext(conflictNc, 1)) {
                 JetStreamSubscription sub = setup.setup(conflictNc, tcsCtx, conflictListener);
                 if (statusType != null) {
-                    conflictListener.queueStatus(statusType, statusCode);
+                    conflictListener.queueStatus(statusType, statusCode, MEDIUM_VALIDATE_TIMEOUT);
                 }
                 if (sub.getDispatcher() == null) {
                     if (statusType == PullError) {

@@ -85,7 +85,7 @@ public class ReconnectTests {
             optSetter.accept(ts, builder);
             Options options = builder.build();
 
-            nc = (NatsConnection) standardConnect(options);
+            nc = (NatsConnection) managedConnect(options);
 
             sub = nc.subscribe(subsubject);
 
@@ -112,7 +112,7 @@ public class ReconnectTests {
         listener.queueConnectionEvent(Events.RESUBSCRIBED);
 
         try (NatsTestServer ignored = new NatsTestServer(nsrb.port(port))) {
-            waitUntilConnected(nc); // wait for reconnect
+            confirmConnected(nc); // wait for reconnect
             listener.validate();
 
             end = System.nanoTime();
@@ -132,7 +132,7 @@ public class ReconnectTests {
 
         assertEquals(1, nc.getStatisticsCollector().getReconnects(), "reconnect count");
         assertTrue(nc.getStatisticsCollector().getExceptions() > 0, "exception count");
-        standardCloseConnection(nc);
+        closeAndConfirm(nc);
     }
 
     @Test
@@ -149,7 +149,7 @@ public class ReconnectTests {
                 .connectionListener(listener)
                 .build();
             port = ts.getPort();
-            nc = (NatsConnection) standardConnect(options);
+            nc = (NatsConnection) managedConnect(options);
             listener.queueConnectionEvent(Events.DISCONNECTED);
         }
 
@@ -167,7 +167,7 @@ public class ReconnectTests {
         listener.queueConnectionEvent(Events.RECONNECTED);
 
         try (NatsTestServer ignored = new NatsTestServer(port)) {
-            waitUntilConnected(nc); // wait for reconnect
+            confirmConnected(nc); // wait for reconnect
             listener.validate();
 
             // Make sure the dispatcher and subscription are still there
@@ -183,7 +183,7 @@ public class ReconnectTests {
 
         assertEquals(1, nc.getStatisticsCollector().getReconnects(), "reconnect count");
         assertTrue(nc.getStatisticsCollector().getExceptions() > 0, "exception count");
-        standardCloseConnection(nc);
+        closeAndConfirm(nc);
     }
 
     @Test
@@ -205,7 +205,7 @@ public class ReconnectTests {
                 .reconnectWait(Duration.ofMillis(1000))
                 .connectionListener(listener)
                 .build();
-            nc = (NatsConnection) standardConnect(options);
+            nc = (NatsConnection) managedConnect(options);
 
             sub = nc.subscribe(subsubject);
 
@@ -238,7 +238,7 @@ public class ReconnectTests {
         listener.queueConnectionEvent(Events.RESUBSCRIBED);
 
         try (NatsTestServer ignored = new NatsTestServer(customArgs, port)) {
-            waitUntilConnected(nc); // wait for reconnect
+            confirmConnected(nc); // wait for reconnect
             listener.validate();
 
             end = System.nanoTime();
@@ -259,7 +259,7 @@ public class ReconnectTests {
 
         assertEquals(1, nc.getStatisticsCollector().getReconnects(), "reconnect count");
         assertTrue(nc.getStatisticsCollector().getExceptions() > 0, "exception count");
-        standardCloseConnection(nc);
+        closeAndConfirm(nc);
     }
 
     @Test
@@ -274,7 +274,7 @@ public class ReconnectTests {
                 .connectionListener(listener)
                 .reconnectWait(Duration.ofMillis(10))
                 .build();
-            nc = standardConnect(options);
+            nc = managedConnect(options);
             listener.queueConnectionEvent(Events.CLOSED);
         }
         flushConnection(nc);
@@ -293,7 +293,7 @@ public class ReconnectTests {
                     .connectionListener(listener)
                     .maxReconnects(-1)
                     .build();
-                nc = (NatsConnection) standardConnect(options);
+                nc = (NatsConnection) managedConnect(options);
                 assertEquals(ts2.getServerUri(), nc.getConnectedUrl());
                 listener.queueConnectionEvent(Events.RECONNECTED);
             }
@@ -302,7 +302,7 @@ public class ReconnectTests {
             listener.validate();
             assertConnected(nc);
             assertEquals(ts1.getServerUri(), nc.getConnectedUrl());
-            standardCloseConnection(nc);
+            closeAndConfirm(nc);
         }
     }
 
@@ -317,7 +317,7 @@ public class ReconnectTests {
                     .connectionListener(listener)
                     .maxReconnects(-1)
                     .build();
-                nc = (NatsConnection) standardConnect(options);
+                nc = (NatsConnection) managedConnect(options);
                 assertEquals(ts2.getServerUri(), nc.getConnectedUrl());
                 listener.queueConnectionEvent(Events.RECONNECTED);
             }
@@ -326,7 +326,7 @@ public class ReconnectTests {
             listener.validate();
             assertConnected(nc);
             assertEquals(ts.getServerUri(), nc.getConnectedUrl());
-            standardCloseConnection(nc);
+            closeAndConfirm(nc);
         }
     }
 
@@ -344,7 +344,7 @@ public class ReconnectTests {
                     .connectionTimeout(Duration.ofSeconds(5))
                     .reconnectWait(Duration.ofSeconds(1))
                     .build();
-                nc = (NatsConnection) standardConnect(options);
+                nc = (NatsConnection) managedConnect(options);
                 assertEquals(mockTs2.getServerUri(), nc.getConnectedUrl());
                 listener.queueConnectionEvent(Events.RECONNECTED);
             }
@@ -353,7 +353,7 @@ public class ReconnectTests {
             listener.validate();
             assertConnected(nc);
             assertEquals(ts.getServerUri(), nc.getConnectedUrl());
-            standardCloseConnection(nc);
+            closeAndConfirm(nc);
         }
     }
 
@@ -368,7 +368,7 @@ public class ReconnectTests {
                 .reconnectBufferSize(4*512)
                 .reconnectWait(Duration.ofSeconds(480))
                 .build();
-            nc = standardConnect(options);
+            nc = managedConnect(options);
         }
 
         listener.validate();
@@ -379,7 +379,7 @@ public class ReconnectTests {
             }
         });
 
-        standardCloseConnection(nc);
+        closeAndConfirm(nc);
     }
 
     @Test
@@ -393,7 +393,7 @@ public class ReconnectTests {
                 .reconnectBufferSize(-1)
                 .reconnectWait(Duration.ofSeconds(30))
                 .build();
-            nc = standardConnect(options);
+            nc = managedConnect(options);
             listener.queueConnectionEvent(Events.DISCONNECTED);
         }
 
@@ -406,7 +406,7 @@ public class ReconnectTests {
         }
 
         checkNotConnected(nc);
-        standardCloseConnection(nc);
+        closeAndConfirm(nc);
     }
 
     @Test
@@ -471,7 +471,7 @@ public class ReconnectTests {
             // connect good then bad
             listener.queueConnectionEvent(Events.RESUBSCRIBED);
             try (NatsTestServer ignored = new NatsTestServer(port)) {
-                waitUntilConnected(nc); // wait for reconnect
+                confirmConnected(nc); // wait for reconnect
                 listener.validate();
                 listener.queueConnectionEvent(Events.DISCONNECTED); // do it here because we are about to disconnect
             }
@@ -486,7 +486,7 @@ public class ReconnectTests {
 
             listener.queueConnectionEvent(Events.RESUBSCRIBED);
             try (NatsServerProtocolMock ignored = new NatsServerProtocolMock(receiveMessageCustomizer, port, true)) {
-                waitUntilConnected(nc); // wait for reconnect
+                confirmConnected(nc); // wait for reconnect
                 listener.validate();
                 subRef.get().get();
                 listener.queueConnectionEvent(Events.DISCONNECTED);
@@ -497,7 +497,7 @@ public class ReconnectTests {
         }
 
         assertEquals(2 * thrashCount, nc.getStatisticsCollector().getReconnects(), "reconnect count");
-        standardCloseConnection(nc);
+        closeAndConfirm(nc);
     }
 
     @Test
@@ -559,7 +559,7 @@ public class ReconnectTests {
                 .build();
 
             listener.queueConnectionEvent(Events.DISCOVERED_SERVERS);
-            nc = (NatsConnection) ConnectionUtils.standardConnect(options);
+            nc = (NatsConnection) ConnectionUtils.managedConnect(options);
             assertEquals(ts.getServerUri(), nc.getConnectedUrl());
 
             flushConnection(nc); // make sure we get the new server via info
@@ -575,7 +575,7 @@ public class ReconnectTests {
 
             URI uri = options.createURIForServer(nc.getConnectedUrl());
             assertEquals(ts2.getPort(), uri.getPort()); // full uri will have some ip address, just check port
-            standardCloseConnection(nc);
+            closeAndConfirm(nc);
         }
     }
 
@@ -603,7 +603,7 @@ public class ReconnectTests {
             nc.getWriter().stop();
             sleep(1000);
             // Should have thrown an exception if #203 isn't fixed
-            standardCloseConnection(nc);
+            closeAndConfirm(nc);
         }
     }
 
@@ -757,7 +757,7 @@ public class ReconnectTests {
         listener.queueConnectionEvent(Events.DISCONNECTED);
         listener.queueConnectionEvent(Events.RECONNECTED);
         nc0.forceReconnect();
-        waitUntilConnected(nc0); // wait for reconnect
+        confirmConnected(nc0); // wait for reconnect
 
         si = nc0.getServerInfo();
         assertNotEquals(connectedServer, si.getServerId());
@@ -951,7 +951,7 @@ public class ReconnectTests {
                 getLocalhostUri(port1),
                 getLocalhostUri(port2)
             };
-            Connection nc = standardConnect(builder.servers(servers).build());
+            Connection nc = managedConnect(builder.servers(servers).build());
             String subject = random();
             int connectedPort = nc.getServerInfo().getPort();
             AtomicInteger pubId = new AtomicInteger();

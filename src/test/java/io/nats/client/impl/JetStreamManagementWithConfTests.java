@@ -17,11 +17,11 @@ import io.nats.client.Connection;
 import io.nats.client.JetStream;
 import io.nats.client.JetStreamManagement;
 import io.nats.client.api.*;
+import io.nats.client.utils.ConnectionUtils;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static io.nats.client.utils.ConnectionUtils.standardConnect;
 import static io.nats.client.utils.OptionsUtils.options;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -31,7 +31,7 @@ public class JetStreamManagementWithConfTests extends JetStreamTestBase {
     @Test
     public void testGetStreamInfoSubjectPagination() throws Exception {
         runInConfiguredServer("pagination.conf", ts -> {
-            try (Connection nc = standardConnect(options(ts))) {
+            try (Connection nc = ConnectionUtils.managedConnect(options(ts))) {
                 JetStreamManagement jsm = nc.jetStreamManagement();
                 JetStream js = jsm.jetStream();
 
@@ -121,7 +121,7 @@ public class JetStreamManagementWithConfTests extends JetStreamTestBase {
     @Test
     public void testJsStuffOnGoodAuthAccount() throws Exception {
         runInConfiguredServer("js_authorization.conf", ts -> {
-            try (Connection nc = standardConnect(optionsBuilder(ts).userInfo("serviceup", "uppass").build())) {
+            try (Connection nc = ConnectionUtils.managedConnect(optionsBuilder(ts).userInfo("serviceup", "uppass").build())) {
                 JetStreamManagement jsm = nc.jetStreamManagement();
                 JetStream js = jsm.jetStream();
                 // add streams with both account

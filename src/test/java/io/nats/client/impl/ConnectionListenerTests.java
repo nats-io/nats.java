@@ -44,7 +44,7 @@ public class ConnectionListenerTests extends TestBase {
         listener.queueConnectionEvent(Events.CLOSED);
         Options.Builder builder = optionsBuilder().connectionListener(listener);
         runInSharedOwnNc(builder, nc -> {
-            standardCloseConnection(nc);
+            closeAndConfirm(nc);
             assertNull(nc.getConnectedUrl());
         });
         listener.validate();
@@ -61,8 +61,9 @@ public class ConnectionListenerTests extends TestBase {
                     .connectionListener(listener)
                     .build();
                 listener.queueConnectionEvent(Events.DISCOVERED_SERVERS);
-                standardCloseConnection( standardConnect(options) );
-                listener.validate();
+                try (Connection ignore = managedConnect(options)) {
+                    listener.validate();
+                }
             }
         }
     }
@@ -79,7 +80,7 @@ public class ConnectionListenerTests extends TestBase {
                 .connectionListener(listener)
                 .build();
             port = ts.getPort();
-            nc = standardConnect(options);
+            nc = managedConnect(options);
             assertEquals(ts.getServerUri(), nc.getConnectedUrl());
             listener.queueConnectionEvent(Events.DISCONNECTED);
         }
@@ -91,10 +92,10 @@ public class ConnectionListenerTests extends TestBase {
 
         listener.queueConnectionEvent(Events.RECONNECTED);
         try (NatsTestServer ts = new NatsTestServer(port)) {
-            waitUntilConnected(nc); // wait for reconnect
+            confirmConnected(nc); // wait for reconnect
             listener.validate();
             assertEquals(ts.getServerUri(), nc.getConnectedUrl());
-            standardCloseConnection(nc);
+            closeAndConfirm(nc);
         }
     }
 
@@ -132,7 +133,7 @@ public class ConnectionListenerTests extends TestBase {
             nc.addConnectionListener((conn, event) -> capturedEvents.add("CL4-" + event.name()));
             nc.removeConnectionListener(removedConnectionListener);
 
-            standardCloseConnection(nc);
+            closeAndConfirm(nc);
             assertNull(nc.getConnectedUrl());
         });
 

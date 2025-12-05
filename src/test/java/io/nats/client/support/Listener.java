@@ -26,9 +26,10 @@ import java.util.function.Predicate;
 
 @SuppressWarnings({"CallToPrintStackTrace", "RedundantMethodOverride"})
 public class Listener implements ErrorListener, ConnectionListener {
-    public static final int SHORT_VALIDATE_TIMEOUT = 10000;
-    public static final int DEFAULT_VALIDATE_TIMEOUT = 5000;
-    public static final int LONG_VALIDATE_TIMEOUT = 10000;
+    public static final int SHORT_VALIDATE_TIMEOUT     =  2000;
+    public static final int DEFAULT_VALIDATE_TIMEOUT   =  5000;
+    public static final int MEDIUM_VALIDATE_TIMEOUT    =  7500;
+    public static final int LONG_VALIDATE_TIMEOUT      = 12500;
     public static final int VERY_LONG_VALIDATE_TIMEOUT = 20000;
 
     private final boolean printExceptions;

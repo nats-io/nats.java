@@ -16,7 +16,6 @@ package io.nats.client.utils;
 import io.nats.client.Connection;
 import io.nats.client.Nats;
 import io.nats.client.Options;
-import org.jspecify.annotations.Nullable;
 import org.opentest4j.AssertionFailedError;
 
 import java.io.IOException;
@@ -26,10 +25,13 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 public abstract class ConnectionUtils {
 
-    public static final long CONNECTION_WAIT_MS = 10000;
+    public static final int DEFAULT_WAIT   =  5000;
+    public static final int MEDIUM_WAIT    =  8000;
+    public static final int LONG_WAIT      = 12000;
+    public static final int VERY_LONG_WAIT = 20000;
+
     public static final long STANDARD_FLUSH_TIMEOUT_MS = 2000;
     public static final long MEDIUM_FLUSH_TIMEOUT_MS = 5000;
-    public static final long LONG_TIMEOUT_MS = 15000;
 
     // ----------------------------------------------------------------------------------------------------
     // standardConnect
@@ -38,16 +40,16 @@ public abstract class ConnectionUtils {
     private static final int CONNECTION_RETRIES = 10;
     private static final long RETRY_DELAY = 100;
 
-    public static Connection standardConnect(Options options) {
+    public static Connection managedConnect(Options options) {
         try {
-            return standardConnect(options, null);
+            return managedConnect(options, DEFAULT_WAIT);
         }
         catch (Exception e) {
             throw new RuntimeException("Unable to make a connection.", e);
         }
     }
 
-    public static Connection standardConnect(Options options, @Nullable Class<?> throwImmediately) throws IOException, InterruptedException {
+    public static Connection managedConnect(Options options, long waitTime) throws IOException, InterruptedException {
         IOException last = null;
         long delay = RETRY_DELAY - RETRY_DELAY_INCREMENT;
         for (int x = 1; x <= CONNECTION_RETRIES; x++) {
@@ -56,12 +58,9 @@ public abstract class ConnectionUtils {
                 sleep(delay);
             }
             try {
-                return waitUntilConnected(Nats.connect(options));
+                return waitUntilStatus(Nats.connect(options), waitTime, Connection.Status.CONNECTED);
             }
             catch (IOException ioe) {
-                if (throwImmediately != null && throwImmediately.isAssignableFrom(ioe.getClass())) {
-                    throw ioe;
-                }
                 last = ioe;
             }
             catch (InterruptedException ie) {
@@ -75,18 +74,37 @@ public abstract class ConnectionUtils {
     // ----------------------------------------------------------------------------------------------------
     // connect or wait for a connection
     // ----------------------------------------------------------------------------------------------------
-    public static Connection waitUntilConnected(Connection conn) {
-        return waitUntilStatus(conn, CONNECTION_WAIT_MS, Connection.Status.CONNECTED);
+    public static Connection confirmConnected(Connection conn) {
+        return waitUntilStatus(conn, DEFAULT_WAIT, Connection.Status.CONNECTED);
+    }
+
+    public static Connection confirmConnected(Connection conn, long waitTime) {
+        return waitUntilStatus(conn, waitTime, Connection.Status.CONNECTED);
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // connect or wait for a connection
+    // ----------------------------------------------------------------------------------------------------
+    public static void confirmConnectedThenClosed(Connection conn) {
+        closeAndConfirm(confirmConnected(conn, DEFAULT_WAIT), DEFAULT_WAIT);
+    }
+
+    public static void confirmConnectedThenClosed(Connection conn, long waitTime) {
+        closeAndConfirm(confirmConnected(conn, waitTime), DEFAULT_WAIT);
+    }
+
+    public static void confirmConnectedThenClosed(Connection conn, long waitTime, long closeTime) {
+        closeAndConfirm(confirmConnected(conn, waitTime), closeTime);
     }
 
     // ----------------------------------------------------------------------------------------------------
     // close
     // ----------------------------------------------------------------------------------------------------
-    public static void standardCloseConnection(Connection conn) {
-        closeConnection(conn, CONNECTION_WAIT_MS);
+    public static void closeAndConfirm(Connection conn) {
+        closeAndConfirm(conn, DEFAULT_WAIT);
     }
 
-    public static void closeConnection(Connection conn, long millis) {
+    public static void closeAndConfirm(Connection conn, long millis) {
         if (conn != null) {
             close(conn);
             waitUntilStatus(conn, millis, Connection.Status.CLOSED);
@@ -130,7 +148,7 @@ public abstract class ConnectionUtils {
     }
 
     public static void assertCanConnect(Options options) {
-        standardCloseConnection(standardConnect(options));
+        closeAndConfirm(managedConnect(options));
     }
 
     private static String expectingMessage(Connection conn, Connection.Status expecting) {

@@ -27,7 +27,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.support.NatsRequestCompletableFuture.CancelAction;
 import static io.nats.client.utils.ConnectionUtils.*;
-import static io.nats.client.utils.OptionsUtils.*;
+import static io.nats.client.utils.OptionsUtils.options;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -124,7 +125,7 @@ public class RequestTests extends TestBase {
     @Test
     public void testSimpleResponseMessageHasConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-                Connection nc = Nats.connect(optionsNoReconnect(ts))) {
+                Connection nc = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertConnected(nc);
             
             Dispatcher d = nc.createDispatcher(msg -> {
@@ -148,7 +149,7 @@ public class RequestTests extends TestBase {
     @Test
     public void testSafeRequest() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-                Connection nc = Nats.connect(optionsNoReconnect(ts))) {
+                Connection nc = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertConnected(nc);
             
             Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), null));
@@ -167,7 +168,7 @@ public class RequestTests extends TestBase {
     @Test
     public void testMultipleRequest() throws Exception {
         try (NatsTestServer ts = new NatsTestServer();
-                Connection nc = Nats.connect(optionsNoReconnect(ts))) {
+                Connection nc = Nats.connect(optionsBuilder(ts).maxReconnects(0).build())) {
             assertConnected(nc);
             
             Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), new byte[7]));
@@ -549,7 +550,7 @@ public class RequestTests extends TestBase {
             long cleanupInterval = 50;
             int msgCount = 100;
             Options options = optionsBuilder(ts).requestCleanupInterval(Duration.ofMillis(cleanupInterval)).build();
-            try (Connection nc = standardConnect(options)) {
+            try (Connection nc = managedConnect(options)) {
                 Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), null));
                 String subject = random();
                 d.subscribe(subject);
@@ -578,7 +579,7 @@ public class RequestTests extends TestBase {
             try (NatsTestServer ts = new NatsTestServer()) {
                 int msgCount = 100;
                 ArrayList<Future<Message>> messages = new ArrayList<>();
-                try (Connection nc = standardConnect(options(ts))) {
+                try (Connection nc = managedConnect(options(ts))) {
                     String subject = random();
                     Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), new byte[1]));
                     d.subscribe(subject);
@@ -627,7 +628,7 @@ public class RequestTests extends TestBase {
             int initialSize = 128;
             int messageSize = 1024;
             Options options = optionsBuilder(ts).bufferSize(initialSize).connectionTimeout(Duration.ofSeconds(10)).build();
-            try (Connection nc = standardConnect(options)) {
+            try (Connection nc = managedConnect(options)) {
                 Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), msg.getData()));
                 String subject = random();
                 d.subscribe(subject);

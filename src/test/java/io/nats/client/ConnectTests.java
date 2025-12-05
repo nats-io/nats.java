@@ -52,7 +52,7 @@ public class ConnectTests {
             try (NatsTestServer ts2 = new NatsTestServer()) {
                 // commas in one server url
                 Options options = optionsBuilder().server(ts1.getServerUri() + "," + ts2.getServerUri()).build();
-                try (Connection nc = standardConnect(options)) {
+                try (Connection nc = managedConnect(options)) {
                     // coverage for getClientAddress
                     InetAddress inetAddress = nc.getClientInetAddress();
                     assertNotNull(inetAddress);
@@ -66,7 +66,7 @@ public class ConnectTests {
                 int tries = 20;
                 options = options(ts1, ts2);
                 while (tries-- > 0 && (needOne || needTwo)) {
-                    try (Connection nc = standardConnect(options)) {
+                    try (Connection nc = managedConnect(options)) {
                         Collection<String> servers = nc.getServers();
                         assertTrue(servers.contains(ts1.getServerUri()));
                         assertTrue(servers.contains(ts2.getServerUri()));
@@ -89,7 +89,7 @@ public class ConnectTests {
                 // should never get a two
                 options = optionsBuilder(ts1.getServerUri(), ts2.getServerUri()).noRandomize().build();
                 for (int i = 0; i < tries; i++) {
-                    try (Connection nc = standardConnect(options)) {
+                    try (Connection nc = managedConnect(options)) {
                         Collection<String> servers = nc.getServers();
                         assertTrue(servers.contains(ts1.getServerUri()));
                         assertTrue(servers.contains(ts2.getServerUri()));
@@ -216,7 +216,7 @@ public class ConnectTests {
             Connection nc = listener.getLastConnectionEventConnection();
             assertNotNull(nc);
             assertConnected(nc);
-            standardCloseConnection(nc);
+            closeAndConfirm(nc);
         }
     }
 
@@ -236,7 +236,7 @@ public class ConnectTests {
 
         listener.queueConnectionEvent(Events.RECONNECTED);
         try (NatsTestServer ignored = new NatsTestServer(port)) {
-            standardCloseConnection(waitUntilConnected(nc));
+            confirmConnectedThenClosed(nc);
         }
     }
 
@@ -334,7 +334,7 @@ public class ConnectTests {
                     .connectionTimeout(Duration.ofSeconds(2))
                     .build();
 
-            try (Connection nc = standardConnect(options)) {
+            try (Connection nc = managedConnect(options)) {
                 assertConnected(nc);
                 ts.close();
                 Thread.sleep(3000);
@@ -358,7 +358,7 @@ public class ConnectTests {
     @Test
     public void testFlushBuffer() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            Connection nc = standardConnect(options(ts));
+            Connection nc = managedConnect(options(ts));
 
             // test connected
             nc.flushBuffer();
@@ -370,7 +370,7 @@ public class ConnectTests {
 
             // test while reconnecting
             assertThrows(IllegalStateException.class, nc::flushBuffer);
-            standardCloseConnection(nc);
+            closeAndConfirm(nc);
 
             // test when closed.
             assertThrows(IllegalStateException.class, nc::flushBuffer);
@@ -380,7 +380,7 @@ public class ConnectTests {
     @Test
     public void testFlushBufferThreadSafety() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            Connection nc = standardConnect(options(ts));
+            Connection nc = managedConnect(options(ts));
 
             // use two latches to sync the threads as close as
             // possible.
@@ -438,7 +438,7 @@ public class ConnectTests {
             // make sure the publisher actually completed.
             assertTrue(completedLatch.await(10, TimeUnit.SECONDS));
 
-            standardCloseConnection(nc);
+            closeAndConfirm(nc);
         }
     }
 

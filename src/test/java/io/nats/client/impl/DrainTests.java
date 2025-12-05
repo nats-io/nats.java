@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.utils.ConnectionUtils.*;
-import static io.nats.client.utils.OptionsUtils.*;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.TestBase.*;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
@@ -37,7 +37,7 @@ public class DrainTests {
     @Test
     public void testCloseOnDrainFailure() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
-            final Connection nc = standardConnect(optionsNoReconnect(ts));
+            final Connection nc = managedConnect(optionsBuilder(ts).maxReconnects(0).build());
 
             nc.subscribe(random());
             nc.flush(Duration.ofSeconds(1)); // Get the sub to the server, so drain has things to do
@@ -46,13 +46,13 @@ public class DrainTests {
 
             assertThrows(Exception.class, () -> nc.drain(Duration.ofSeconds(1)));
 
-            standardCloseConnection(nc);
+            closeAndConfirm(nc);
         }
     }
 
     @Test
     public void testSimpleSubDrain() throws Exception {
-        runInSharedOwnNcs(optionsBuilderNoReconnect(), (subCon, pubCon) -> {
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
             String subject = random();
             Subscription sub = subCon.subscribe(subject);
             subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
@@ -78,7 +78,7 @@ public class DrainTests {
 
     @Test
     public void testSimpleDispatchDrain() throws Exception {
-        runInSharedOwnNcs(optionsBuilderNoReconnect(), (subCon, pubCon) -> {
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
             AtomicInteger count = new AtomicInteger();
             Dispatcher d = subCon.createDispatcher(msg -> {
                 count.incrementAndGet();
@@ -108,7 +108,7 @@ public class DrainTests {
 
     @Test
     public void testSimpleConnectionDrain() throws Exception {
-        runInSharedOwnNcs(optionsBuilderNoReconnect(), (subCon, pubCon) -> {
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
             AtomicInteger count = new AtomicInteger();
             Dispatcher d = subCon.createDispatcher(msg -> {
                 count.incrementAndGet();
@@ -143,7 +143,7 @@ public class DrainTests {
 
     @Test
     public void testConnectionDrainWithZeroTimeout() throws Exception {
-        runInSharedOwnNcs(optionsBuilderNoReconnect(), (subCon, pubCon) -> {
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
             AtomicInteger count = new AtomicInteger();
             Dispatcher d = subCon.createDispatcher(msg -> {
                 count.incrementAndGet();
@@ -178,7 +178,7 @@ public class DrainTests {
 
     @Test
     public void testDrainWithZeroTimeout() throws Exception {
-        runInSharedOwnNcs(optionsBuilderNoReconnect(), (subCon, pubCon) -> {
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
             String subject = random();
             Subscription sub = subCon.subscribe(subject);
             subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
@@ -203,7 +203,7 @@ public class DrainTests {
 
     @Test
     public void testSubDuringDrainThrows() throws Exception {
-        runInSharedOwnNcs(optionsBuilderNoReconnect(), (subCon, pubCon) -> {
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
             String subject = random();
             subCon.subscribe(subject);
             subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
@@ -222,7 +222,7 @@ public class DrainTests {
 
     @Test
     public void testCreateDispatcherDuringDrainThrows() throws Exception {
-        runInSharedOwnNcs(optionsBuilderNoReconnect(), (subCon, pubCon) -> {
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
             String subject = random();
             subCon.subscribe(subject);
             subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
@@ -241,7 +241,7 @@ public class DrainTests {
 
     @Test
     public void testUnsubDuringDrainIsNoop() throws Exception {
-        runInSharedOwnNcs(optionsBuilderNoReconnect(), (subCon, pubCon) -> {
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
             AtomicInteger count = new AtomicInteger();
             Dispatcher d = subCon.createDispatcher(msg -> {
                 count.incrementAndGet();
@@ -280,7 +280,7 @@ public class DrainTests {
 
     @Test
     public void testDrainInMessageHandler() throws Exception {
-        runInSharedOwnNcs(optionsBuilderNoReconnect(), (subCon, pubCon) -> {
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
             AtomicInteger count = new AtomicInteger();
             AtomicReference<Dispatcher> dispatcher = new AtomicReference<>();
             AtomicReference<CompletableFuture<Boolean>> tracker = new AtomicReference<>();
@@ -309,7 +309,7 @@ public class DrainTests {
 
     @Test
     public void testDrainFutureMatches() throws Exception {
-        runInSharedOwnNcs(optionsBuilderNoReconnect(), (subCon, pubCon) -> {
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
             AtomicInteger count = new AtomicInteger();
             Dispatcher d = subCon.createDispatcher(msg -> {
                 count.incrementAndGet();
@@ -350,7 +350,7 @@ public class DrainTests {
 
     @Test
     public void testFirstTimeRequestReplyDuringDrain() throws Exception {
-        runInSharedOwnNcs(optionsBuilderNoReconnect(), (subCon, pubCon) -> {
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
             String subject = random();
             Subscription sub = subCon.subscribe(subject);
             subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
@@ -375,7 +375,7 @@ public class DrainTests {
 
     @Test
     public void testRequestReplyDuringDrain() throws Exception {
-        runInSharedOwnNcs(optionsBuilderNoReconnect(), (subCon, pubCon) -> {
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
             String subject = random();
             Subscription sub = subCon.subscribe(subject);
             subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
@@ -404,7 +404,7 @@ public class DrainTests {
 
     @Test
     public void testQueueHandoffWithDrain() throws Exception {
-        runInSharedOwnNc(optionsBuilderNoReconnect(), pubCon -> {
+        runInSharedOwnNc(optionsBuilder().maxReconnects(0), pubCon -> {
             final int total = 5_000;
             final long sleepBetweenDrains = 250;
             final long sleepBetweenMessages = 5;
@@ -417,7 +417,7 @@ public class DrainTests {
             NatsDispatcher workingD;
             NatsDispatcher drainingD;
 
-            Connection draining = SharedServer.connectionForSameServer(pubCon, optionsBuilderNoReconnect());
+            Connection draining = SharedServer.connectionForSameServer(pubCon, optionsBuilder().maxReconnects(0));
 
             String subject = random();
             String queue = random();
@@ -435,7 +435,7 @@ public class DrainTests {
             pubThread.start();
 
             while (count.get() < total && Duration.between(start, now).compareTo(testTimeout) < 0) {
-                working = SharedServer.connectionForSameServer(pubCon, optionsBuilderNoReconnect());
+                working = SharedServer.connectionForSameServer(pubCon, optionsBuilder().maxReconnects(0));
                 assertConnected(working);
                 workingD = (NatsDispatcher) working.createDispatcher(msg -> count.incrementAndGet()).subscribe(subject, queue);
                 working.flush(Duration.ofSeconds(5));
@@ -463,7 +463,7 @@ public class DrainTests {
 
     @Test
     public void testDrainWithLotsOfMessages() throws Exception {
-        runInSharedOwnNcs(optionsBuilderNoReconnect(), (subCon, pubCon) -> {
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
             int total = 1000;
             String subject = random();
             Subscription sub = subCon.subscribe(subject);
@@ -499,7 +499,7 @@ public class DrainTests {
 
     @Test
     public void testSlowAsyncDuringDrainCanFinishIfTime() throws Exception {
-        runInSharedOwnNcs(optionsBuilderNoReconnect(), (subCon, pubCon) -> {
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
             AtomicInteger count = new AtomicInteger();
             Dispatcher d = subCon.createDispatcher(msg -> {
                 try {
@@ -575,7 +575,7 @@ public class DrainTests {
         Listener listener = new Listener();
         try (NatsTestServer ts = new NatsTestServer()) {
             Options options = optionsBuilder(ts).connectionListener(listener).build();
-            try (Connection subCon = standardConnect(options)) {
+            try (Connection subCon = managedConnect(options)) {
                 subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
                 listener.queueConnectionEvent(Events.DISCONNECTED);
@@ -589,7 +589,7 @@ public class DrainTests {
 
     @Test
     public void testThrowIfClosing() throws Exception {
-        runInSharedOwnNc(optionsBuilderNoReconnect(), subCon -> {
+        runInSharedOwnNc(optionsBuilder().maxReconnects(0), subCon -> {
             subCon.close();
             assertThrows(IllegalStateException.class, () -> subCon.drain(Duration.ofSeconds(1)));
         });

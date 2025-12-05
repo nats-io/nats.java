@@ -68,7 +68,7 @@ public class ErrorListenerTests extends TestBase {
 
             listener.validateAll();
 
-            waitUntilConnected(nc); // wait for reconnect
+            confirmConnected(nc); // wait for reconnect
             assertEquals(ts3.getServerUri(), nc.getConnectedUrl());
         }
     }
@@ -114,7 +114,7 @@ public class ErrorListenerTests extends TestBase {
             assertNull(nc.getLastError());
         }
         finally {
-            standardCloseConnection(nc);
+            closeAndConfirm(nc);
         }
     }
 
@@ -237,7 +237,7 @@ public class ErrorListenerTests extends TestBase {
                 assertNull(msg);
                 assertEquals(2, nc.getStatistics().getExceptions()); // 1 for the dispatcher, 1 for the handlers
             } finally {
-                standardCloseConnection(nc);
+                closeAndConfirm(nc);
             }
         }
     }
@@ -266,7 +266,7 @@ public class ErrorListenerTests extends TestBase {
 
                 nc.flush(Duration.ofSeconds(2));
             } finally {
-                standardCloseConnection(nc);
+                closeAndConfirm(nc);
             }
         }
 
@@ -292,7 +292,7 @@ public class ErrorListenerTests extends TestBase {
                 .build();
             listener.queueConnectionEvent(Events.CONNECTED, LONG_VALIDATE_TIMEOUT);
             listener.queueConnectionEvent(Events.DISCONNECTED, LONG_VALIDATE_TIMEOUT);
-            try (Connection nc = standardConnect(options)) {
+            try (Connection nc = managedConnect(options)) {
                 nc.flush(Duration.ofSeconds(1));
                 listener.validate();
                 ts.close();
