@@ -15,7 +15,6 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
-import io.nats.client.support.Debug;
 import io.nats.client.support.Listener;
 import io.nats.client.support.Status;
 import io.nats.client.utils.TestBase;
@@ -291,7 +290,6 @@ public class ErrorListenerTests extends TestBase {
                 .errorListener(listener)
                 .pingInterval(Duration.ofSeconds(100)) // make this long so we don't ping during test
                 .build();
-            Debug.info("O", options.getServers());
             listener.queueConnectionEvent(Events.CONNECTED, LONG_VALIDATE_TIMEOUT);
             listener.queueConnectionEvent(Events.DISCONNECTED, LONG_VALIDATE_TIMEOUT);
             try (Connection nc = standardConnect(options)) {
