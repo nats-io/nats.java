@@ -31,7 +31,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static io.nats.client.support.BuilderBase.bufferAllocSize;
-import static io.nats.client.support.NatsConstants.*;
+import static io.nats.client.support.NatsConstants.CR;
+import static io.nats.client.support.NatsConstants.LF;
 
 class NatsConnectionWriter implements Runnable {
     enum Mode {
@@ -114,7 +115,7 @@ class NatsConnectionWriter implements Runnable {
             try {
                 this.normalOutgoing.pause();
                 this.reconnectOutgoing.pause();
-                this.normalOutgoing.filter(NatsMessage::isProtocolFilterOnStop);
+                this.normalOutgoing.filterOnStop();
             }
             finally {
                 this.startStopLock.unlock();
@@ -127,7 +128,7 @@ class NatsConnectionWriter implements Runnable {
         return running.get();
     }
 
-    private static final NatsMessage END_RECONNECT = new NatsMessage("_end", null, EMPTY_BODY);
+    private static final MessageQueue.MarkerMessage END_RECONNECT = new MessageQueue.MarkerMessage("_end_reconnect");
 
     void sendMessageBatch(NatsMessage msg, DataPort dataPort, StatisticsCollector stats) throws IOException {
         writerLock.lock();
