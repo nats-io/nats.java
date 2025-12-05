@@ -17,18 +17,21 @@ import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
+
 import static io.nats.client.utils.ConnectionUtils.standardConnect;
-import static io.nats.client.utils.OptionsUtils.NOOP_EL;
-import static io.nats.client.utils.OptionsUtils.optionsBuilder;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class NatsConnectionImplTests {
 
     @Test
     public void testConnectionClosedProperly() throws Exception {
-        try (NatsTestServer server = new NatsTestServer(true)) {
-            Options options = standardOptions(server.getNatsLocalhostUri());
+        try (NatsTestServer server = new NatsTestServer()) {
+            Options options = Options.builder().server(server.getNatsLocalhostUri()).build();
             verifyInternalExecutors(options);
 
             // using options copied from options to demonstrate the executors
@@ -43,7 +46,7 @@ public class NatsConnectionImplTests {
             assertFalse(es.isShutdown());
             assertFalse(ses.isShutdown());
 
-            options = standardOptionsBuilder(server.getNatsLocalhostUri())
+            options = Options.builder().server(server.getNatsLocalhostUri())
                 .executor(es)
                 .scheduledExecutor(ses)
                 .callbackExecutor(callbackEs)
@@ -56,7 +59,7 @@ public class NatsConnectionImplTests {
 
             ThreadFactory callbackThreadFactory = r -> new Thread(r, "callback");
             ThreadFactory connectThreadFactory = r -> new Thread(r, "connect");
-            options = standardOptionsBuilder(server.getNatsLocalhostUri())
+            options = Options.builder().server(server.getNatsLocalhostUri())
                 .executor(es)
                 .scheduledExecutor(ses)
                 .callbackThreadFactory(callbackThreadFactory)
@@ -75,8 +78,8 @@ public class NatsConnectionImplTests {
         }
     }
 
-    private static void verifyInternalExecutors(Options options) throws InterruptedException, IOException {
-        try (NatsConnection nc = (NatsConnection)standardConnection(options)) {
+    private static void verifyInternalExecutors(Options options) throws InterruptedException {
+        try (NatsConnection nc = (NatsConnection)standardConnect(options)) {
             ExecutorService es = options.getExecutor();
             ScheduledExecutorService ses = options.getScheduledExecutor();
             ExecutorService callbackEs = options.getCallbackExecutor();
@@ -117,7 +120,7 @@ public class NatsConnectionImplTests {
                                                 ExecutorService userEs, ScheduledExecutorService userSes,
                                                 ExecutorService userCallbackEs, ExecutorService userConnectEs
     ) throws InterruptedException, IOException {
-        try (NatsConnection nc = (NatsConnection)standardConnection(options)) {
+        try (NatsConnection nc = (NatsConnection)standardConnect(options)) {
             ExecutorService es = options.getExecutor();
             ScheduledExecutorService ses = options.getScheduledExecutor();
             ExecutorService callbackEs = options.getCallbackExecutor();
