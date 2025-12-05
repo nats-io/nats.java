@@ -17,91 +17,170 @@ import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 
 import static io.nats.client.utils.TestBase.*;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class NatsConnectionImplTests {
 
     @Test
     public void testConnectionClosedProperly() throws Exception {
-        try (NatsTestServer server = new NatsTestServer()) {
+        try (NatsTestServer server = new NatsTestServer(true)) {
             Options options = standardOptions(server.getNatsLocalhostUri());
-            verifyInternalExecutors(options, (NatsConnection)standardConnection(options));
-
-            // using the same options to demonstrate the executors came
-            // from the internal factory and were not reused
-            verifyInternalExecutors(options, (NatsConnection)standardConnection(options));
+            verifyInternalExecutors(options);
 
             // using options copied from options to demonstrate the executors
             // came from the internal factory and were not reused
             options = new Options.Builder(options).build();
-            verifyInternalExecutors(options, (NatsConnection)standardConnection(options));
+            verifyInternalExecutors(options);
 
             ExecutorService es = Executors.newFixedThreadPool(3);
             ScheduledExecutorService ses = Executors.newScheduledThreadPool(3);
+            ExecutorService callbackEs = Executors.newSingleThreadExecutor();
+            ExecutorService connectEs = Executors.newSingleThreadExecutor();
             assertFalse(es.isShutdown());
             assertFalse(ses.isShutdown());
 
             options = standardOptionsBuilder(server.getNatsLocalhostUri())
                 .executor(es)
                 .scheduledExecutor(ses)
+                .callbackExecutor(callbackEs)
+                .connectExecutor(connectEs)
                 .build();
-            verifyExternalExecutors(options, (NatsConnection)standardConnection(options));
+            verifyExternalExecutors(options, es, ses, callbackEs, connectEs);
 
-            // same options just because
-            verifyExternalExecutors(options, (NatsConnection)standardConnection(options));
+            // also shows the executors where not shutdown
+            verifyExternalExecutors(options, es, ses, callbackEs, connectEs);
 
-            es.shutdown();
-            ses.shutdown();
+            ThreadFactory callbackThreadFactory = r -> new Thread(r, "callback");
+            ThreadFactory connectThreadFactory = r -> new Thread(r, "connect");
+            options = standardOptionsBuilder(server.getNatsLocalhostUri())
+                .executor(es)
+                .scheduledExecutor(ses)
+                .callbackThreadFactory(callbackThreadFactory)
+                .connectThreadFactory(connectThreadFactory)
+                .build();
+            verifyExternalExecutors(options, es, ses, null, null);
+
+            es.shutdownNow();
+            ses.shutdownNow();
+            callbackEs.shutdownNow();
+            connectEs.shutdownNow();
             assertTrue(es.isShutdown());
             assertTrue(ses.isShutdown());
+            assertTrue(callbackEs.isShutdown());
+            assertTrue(connectEs.isShutdown());
         }
     }
 
-    private static void verifyInternalExecutors(Options options, NatsConnection nc) throws InterruptedException {
-        assertTrue(options.executorIsInternal());
-        assertTrue(options.scheduledExecutorIsInternal());
+    private static void verifyInternalExecutors(Options options) throws InterruptedException, IOException {
+        try (NatsConnection nc = (NatsConnection)standardConnection(options)) {
+            ExecutorService es = options.getExecutor();
+            ScheduledExecutorService ses = options.getScheduledExecutor();
+            ExecutorService callbackEs = options.getCallbackExecutor();
+            ExecutorService connectEs = options.getConnectExecutor();
 
-        assertFalse(nc.callbackExecutorIsClosed());
-        assertFalse(nc.connectExecutorIsClosed());
+            assertTrue(options.executorIsInternal());
+            assertTrue(options.scheduledExecutorIsInternal());
+            assertTrue(options.callbackExecutorIsInternal());
+            assertTrue(options.connectExecutorIsInternal());
 
-        assertFalse(nc.executorIsClosed());
-        assertFalse(nc.scheduledExecutorIsClosed());
+            assertFalse(nc.executorIsClosed());
+            assertFalse(nc.scheduledExecutorIsClosed());
+            assertFalse(nc.callbackExecutorIsClosed());
+            assertFalse(nc.connectExecutorIsClosed());
 
-        nc.subscribe("*");
-        Thread.sleep(1000);
-        nc.close();
+            assertFalse(es.isShutdown());
+            assertFalse(ses.isShutdown());
+            assertFalse(callbackEs.isShutdown());
+            assertFalse(connectEs.isShutdown());
 
-        assertTrue(nc.callbackExecutorIsClosed());
-        assertTrue(nc.connectExecutorIsClosed());
+            nc.subscribe("*");
+            Thread.sleep(1000);
+            nc.close();
 
-        assertTrue(nc.executorIsClosed());
-        assertTrue(nc.scheduledExecutorIsClosed());
+            assertTrue(nc.callbackExecutorIsClosed());
+            assertTrue(nc.connectExecutorIsClosed());
+            assertTrue(nc.executorIsClosed());
+            assertTrue(nc.scheduledExecutorIsClosed());
+
+            assertTrue(es.isShutdown());
+            assertTrue(ses.isShutdown());
+            assertTrue(callbackEs.isShutdown());
+            assertTrue(connectEs.isShutdown());
+        }
     }
 
-    private static void verifyExternalExecutors(Options options, NatsConnection nc) throws InterruptedException {
-        assertFalse(options.executorIsInternal());
-        assertFalse(options.scheduledExecutorIsInternal());
+    private static void verifyExternalExecutors(Options options,
+                                                ExecutorService userEs, ScheduledExecutorService userSes,
+                                                ExecutorService userCallbackEs, ExecutorService userConnectEs
+    ) throws InterruptedException, IOException {
+        try (NatsConnection nc = (NatsConnection)standardConnection(options)) {
+            ExecutorService es = options.getExecutor();
+            ScheduledExecutorService ses = options.getScheduledExecutor();
+            ExecutorService callbackEs = options.getCallbackExecutor();
+            ExecutorService connectEs = options.getConnectExecutor();
 
-        assertFalse(nc.callbackExecutorIsClosed());
-        assertFalse(nc.connectExecutorIsClosed());
+            assertEquals(es, userEs);
+            assertEquals(ses, userSes);
+            if (userCallbackEs != null) {
+                assertEquals(callbackEs, userCallbackEs);
+            }
+            if (userConnectEs != null) {
+                assertEquals(connectEs, userConnectEs);
+            }
 
-        assertFalse(nc.executorIsClosed());
-        assertFalse(nc.scheduledExecutorIsClosed());
+            assertFalse(options.executorIsInternal());
+            assertFalse(options.scheduledExecutorIsInternal());
+            assertFalse(options.callbackExecutorIsInternal());
+            assertFalse(options.connectExecutorIsInternal());
 
-        nc.subscribe("*");
-        Thread.sleep(1000);
-        nc.close();
+            assertFalse(nc.executorIsClosed());
+            assertFalse(nc.scheduledExecutorIsClosed());
+            assertFalse(nc.callbackExecutorIsClosed());
+            assertFalse(nc.connectExecutorIsClosed());
 
-        assertTrue(nc.callbackExecutorIsClosed());
-        assertTrue(nc.connectExecutorIsClosed());
+            assertFalse(es.isShutdown());
+            assertFalse(ses.isShutdown());
+            assertFalse(callbackEs.isShutdown());
+            assertFalse(connectEs.isShutdown());
 
-        assertTrue(nc.executorIsClosed());
-        assertTrue(nc.scheduledExecutorIsClosed());
+            assertFalse(userEs.isShutdown());
+            assertFalse(userSes.isShutdown());
+            if (userCallbackEs != null) {
+                assertFalse(userCallbackEs.isShutdown());
+            }
+            if (userConnectEs != null) {
+                assertFalse(userConnectEs.isShutdown());
+            }
+
+            nc.subscribe("*");
+            Thread.sleep(1000);
+            nc.close();
+
+            assertTrue(nc.executorIsClosed());
+            assertTrue(nc.scheduledExecutorIsClosed());
+            assertTrue(nc.callbackExecutorIsClosed());
+            assertTrue(nc.connectExecutorIsClosed());
+
+            assertFalse(es.isShutdown());
+            assertFalse(ses.isShutdown());
+            assertFalse(callbackEs.isShutdown());
+            assertFalse(connectEs.isShutdown());
+
+            assertFalse(userEs.isShutdown());
+            assertFalse(userSes.isShutdown());
+            if (userCallbackEs != null) {
+                assertFalse(userCallbackEs.isShutdown());
+            }
+            if (userConnectEs != null) {
+                assertFalse(userConnectEs.isShutdown());
+            }
+        }
     }
 }
