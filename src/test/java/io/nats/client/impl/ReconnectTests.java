@@ -20,6 +20,7 @@ import io.nats.client.api.ServerInfo;
 import io.nats.client.support.Listener;
 import io.nats.client.utils.ConnectionUtils;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Isolated;
 
 import java.io.IOException;
 import java.net.URI;
@@ -47,6 +48,7 @@ import static io.nats.client.utils.VersionUtils.atLeast2_9_0;
 import static io.nats.client.utils.VersionUtils.initVersionServerInfo;
 import static org.junit.jupiter.api.Assertions.*;
 
+@Isolated
 public class ReconnectTests {
 
     void checkNotConnected(Connection nc) {

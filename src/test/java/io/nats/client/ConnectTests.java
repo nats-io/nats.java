@@ -19,6 +19,7 @@ import io.nats.client.api.ServerInfo;
 import io.nats.client.impl.SimulateSocketDataPortException;
 import io.nats.client.support.Listener;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Isolated;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -38,8 +39,8 @@ import static io.nats.client.utils.TestBase.*;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
+@Isolated
 public class ConnectTests {
-
     @Test
     public void testConnectWithConfig() throws Exception {
         runInConfiguredServer("simple.conf", ts -> assertCanConnect(optionsBuilder(ts).build()));

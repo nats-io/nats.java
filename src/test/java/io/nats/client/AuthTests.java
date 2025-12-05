@@ -23,6 +23,7 @@ import io.nats.client.utils.ResourceUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.parallel.Isolated;
 
 import javax.net.ssl.SSLContext;
 import java.io.BufferedWriter;
@@ -42,6 +43,7 @@ import static io.nats.client.utils.ResourceUtils.jwtResource;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.condition.OS.WINDOWS;
 
+@Isolated
 public class AuthTests extends TestBase {
 
     private String userPassInUrl(String user, String pass, int port) {

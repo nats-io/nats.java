@@ -57,7 +57,7 @@ public class SocketDataPortBlockSimulator extends SocketDataPort {
                 //  if now is after when it was supposed to be done by
                 if (NatsSystemClock.nanoTime() > writeMustBeDoneBy.get()) {
                     writeWatchTask.shutdown(); // we don't need to repeat this, the connection is going to be closed
-                    connection.executeCallback((c, el) -> el.socketWriteTimeout(c));
+                    connection.notifyErrorListener((c, el) -> el.socketWriteTimeout(c));
                     blocking.set(0);
                     SIMULATE_SOCKET_BLOCK.set(0);
                     try {

@@ -56,19 +56,19 @@ public class NatsConnectionImplTests {
         assertTrue(options.executorIsInternal());
         assertTrue(options.scheduledExecutorIsInternal());
 
-        assertFalse(nc.callbackRunnerIsShutdown());
-        assertFalse(nc.connectExecutorIsShutdown());
+        assertFalse(nc.callbackExecutorIsClosed());
+        assertFalse(nc.connectExecutorIsClosed());
 
-        assertFalse(nc.executorIsShutdown());
-        assertFalse(nc.scheduledExecutorIsShutdown());
+        assertFalse(nc.executorIsClosed());
+        assertFalse(nc.scheduledExecutorIsClosed());
 
         nc.close();
 
-        assertTrue(nc.callbackRunnerIsShutdown());
-        assertTrue(nc.connectExecutorIsShutdown());
+        assertTrue(nc.callbackExecutorIsClosed());
+        assertTrue(nc.connectExecutorIsClosed());
 
-        assertTrue(nc.executorIsShutdown());
-        assertTrue(nc.scheduledExecutorIsShutdown());
+        assertTrue(nc.executorIsClosed());
+        assertTrue(nc.scheduledExecutorIsClosed());
     }
 
     private static void verifyExternalExecutors(NatsConnection nc) throws InterruptedException {
@@ -76,17 +76,18 @@ public class NatsConnectionImplTests {
         assertFalse(options.executorIsInternal());
         assertFalse(options.scheduledExecutorIsInternal());
 
-        assertFalse(nc.callbackRunnerIsShutdown());
-        assertFalse(nc.connectExecutorIsShutdown());
+        assertFalse(nc.callbackExecutorIsClosed());
+        assertFalse(nc.connectExecutorIsClosed());
 
-        assertFalse(nc.executorIsShutdown());
-        assertFalse(nc.scheduledExecutorIsShutdown());
+        assertFalse(nc.executorIsClosed());
+        assertFalse(nc.scheduledExecutorIsClosed());
 
         nc.close();
 
-        assertFalse(nc.executorIsShutdown());
-        assertFalse(nc.scheduledExecutorIsShutdown());
-        assertFalse(nc.callbackRunnerIsShutdown());
-        assertFalse(nc.connectExecutorIsShutdown());
+        assertTrue(nc.callbackExecutorIsClosed());
+        assertTrue(nc.connectExecutorIsClosed());
+
+        assertTrue(nc.executorIsClosed());
+        assertTrue(nc.scheduledExecutorIsClosed());
     }
 }
