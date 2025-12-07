@@ -380,6 +380,10 @@ public class TestBase {
         _runInShared(null, vc, null, null, 0, ctxTest);
     }
 
+    public static void runInSharedCustom(ErrorListener el, JetStreamTestingContextTest ctxTest) throws Exception {
+        _runInShared(optionsBuilder(el), null, null, null, 0, ctxTest);
+    }
+
     public static void runInSharedCustom(Options.Builder builder, JetStreamTestingContextTest ctxTest) throws Exception {
         _runInShared(builder, null, null, null, 0, ctxTest);
     }
@@ -411,8 +415,7 @@ public class TestBase {
 
         String[] hubInserts = new String[] {
             "server_name: " + HUB_DOMAIN,
-            "jetstream {",
-            "    store_dir: " + tempJsStoreDir(),
+            "jetstream {", // store_dir: will be added by the runner
             "    domain: " + HUB_DOMAIN,
             "}",
             "leafnodes {",
@@ -423,7 +426,6 @@ public class TestBase {
         String[] leafInserts = new String[] {
             "server_name: " + LEAF_DOMAIN,
             "jetstream {",
-            "    store_dir: " + tempJsStoreDir(),
             "    domain: " + LEAF_DOMAIN,
             "}",
             "leafnodes {",
@@ -455,17 +457,15 @@ public class TestBase {
         int listen1 = NatsTestServer.nextPort();
         int listen2 = NatsTestServer.nextPort();
         int listen3 = NatsTestServer.nextPort();
-        String dir1 = tstOpts.jetStream() ? tempJsStoreDir() : null;
-        String dir2 = tstOpts.jetStream() ? tempJsStoreDir() : null;
-        String dir3 = tstOpts.jetStream() ? tempJsStoreDir() : null;
+        boolean js = tstOpts.jetStream();
         String cluster = "cluster_" + random();
         String serverPrefix = "server_" + random() + "_";
 
         boolean configureAccount = tstOpts.configureAccount();
 
-        String[] server1Inserts = makeInsert(cluster, serverPrefix + 1, dir1, listen1, listen2, listen3, configureAccount);
-        String[] server2Inserts = makeInsert(cluster, serverPrefix + 2, dir2, listen2, listen1, listen3, configureAccount);
-        String[] server3Inserts = makeInsert(cluster, serverPrefix + 3, dir3, listen3, listen1, listen2, configureAccount);
+        String[] server1Inserts = makeInsert(cluster, serverPrefix + 1, js, listen1, listen2, listen3, configureAccount);
+        String[] server2Inserts = makeInsert(cluster, serverPrefix + 2, js, listen2, listen1, listen3, configureAccount);
+        String[] server3Inserts = makeInsert(cluster, serverPrefix + 3, js, listen3, listen1, listen2, configureAccount);
 
         try (NatsTestServer srv1 = new NatsTestServer(port1, tstOpts.jetStream(), null, server1Inserts, null);
              NatsTestServer srv2 = new NatsTestServer(port2, tstOpts.jetStream(), null, server2Inserts, null);
@@ -478,12 +478,10 @@ public class TestBase {
         }
     }
 
-    private static String[] makeInsert(String clusterName, String serverName, String jsStoreDir, int listen, int route1, int route2, boolean configureAccount) {
+    private static String[] makeInsert(String clusterName, String serverName, boolean js, int listen, int route1, int route2, boolean configureAccount) {
         List<String> serverInserts = new ArrayList<>();
-        if (jsStoreDir != null) {
-            serverInserts.add("jetstream {");
-            serverInserts.add("    store_dir=" + jsStoreDir);
-            serverInserts.add("}");
+        if (js) {
+            serverInserts.add("jetstream {}"); // store_dir: will be added by the runner
         }
         serverInserts.add("server_name=" + serverName);
         serverInserts.add("cluster {");
@@ -498,8 +496,8 @@ public class TestBase {
             serverInserts.add("accounts {");
             serverInserts.add("  $SYS: {}");
             serverInserts.add("  NVCF: {");
-            if (jsStoreDir != null) {
-                serverInserts.add("    jetstream: \"enabled\",");
+            if (js) {
+                serverInserts.add("    jetstream: enabled,");
             }
             serverInserts.add("    users: [ { nkey: " + USER_NKEY + " } ]");
             serverInserts.add("  }");

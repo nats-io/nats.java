@@ -529,39 +529,43 @@ public class ConnectTests {
             public boolean includeAllServers() {
                 return true;
             }
-        };
 
-        runInCluster(ConnectTests::validateRunInJsCluster);
+            @Override
+            public boolean jetStream() {
+                return true;
+            }
+        };
 
         listeners[0] = new Listener();
         listeners[1] = new Listener();
         listeners[2] = new Listener();
 
-        runInCluster(tstOpts, ConnectTests::validateRunInJsCluster);
-    }
-
-    private static void validateRunInJsCluster(Connection nc1, Connection nc2, Connection nc3) throws InterruptedException {
-        Thread.sleep(200);
-        ServerInfo si1 = nc1.getServerInfo();
-        ServerInfo si2 = nc2.getServerInfo();
-        ServerInfo si3 = nc3.getServerInfo();
-        assertEquals(si1.getCluster(), si2.getCluster());
-        assertEquals(si1.getCluster(), si3.getCluster());
-        String port1 = "" + si1.getPort();
-        String port2 = "" + si2.getPort();
-        String port3 = "" + si3.getPort();
-        String urls1 = String.join(",", si1.getConnectURLs());
-        String urls2 = String.join(",", si2.getConnectURLs());
-        String urls3 = String.join(",", si3.getConnectURLs());
-        assertTrue(urls1.contains(port1));
-        assertTrue(urls1.contains(port2));
-        assertTrue(urls1.contains(port3));
-        assertTrue(urls2.contains(port1));
-        assertTrue(urls2.contains(port2));
-        assertTrue(urls2.contains(port3));
-        assertTrue(urls3.contains(port1));
-        assertTrue(urls3.contains(port2));
-        assertTrue(urls3.contains(port3));
+        runInCluster(tstOpts, (nc1, nc2, nc3) -> {
+            Thread.sleep(200);
+            ServerInfo si1 = nc1.getServerInfo();
+            ServerInfo si2 = nc2.getServerInfo();
+            ServerInfo si3 = nc3.getServerInfo();
+            assertTrue(si1.isJetStreamAvailable());
+            assertTrue(si2.isJetStreamAvailable());
+            assertTrue(si3.isJetStreamAvailable());
+            assertEquals(si1.getCluster(), si2.getCluster());
+            assertEquals(si1.getCluster(), si3.getCluster());
+            String port1 = "" + si1.getPort();
+            String port2 = "" + si2.getPort();
+            String port3 = "" + si3.getPort();
+            String urls1 = String.join(",", si1.getConnectURLs());
+            String urls2 = String.join(",", si2.getConnectURLs());
+            String urls3 = String.join(",", si3.getConnectURLs());
+            assertTrue(urls1.contains(port1));
+            assertTrue(urls1.contains(port2));
+            assertTrue(urls1.contains(port3));
+            assertTrue(urls2.contains(port1));
+            assertTrue(urls2.contains(port2));
+            assertTrue(urls2.contains(port3));
+            assertTrue(urls3.contains(port1));
+            assertTrue(urls3.contains(port2));
+            assertTrue(urls3.contains(port3));
+        });
     }
 
     // https://github.com/nats-io/nats.java/issues/1201

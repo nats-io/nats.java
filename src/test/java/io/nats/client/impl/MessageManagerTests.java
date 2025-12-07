@@ -15,6 +15,8 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.api.StorageType;
+import io.nats.client.api.StreamConfiguration;
 import io.nats.client.support.IncomingHeadersProcessor;
 import io.nats.client.support.Listener;
 import io.nats.client.support.ListenerStatusType;
@@ -43,8 +45,8 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void testConstruction() throws Exception {
-        runInShared(nc -> {
-            NatsJetStreamSubscription sub = genericPushSub(nc);
+        runInSharedCustom((nc, ctx) -> {
+            NatsJetStreamSubscription sub = genericPushSub(ctx);
             _pushConstruction(nc, true, true, push_hb_fc(), sub);
             _pushConstruction(nc, true, false, push_hb_xfc(), sub);
             _pushConstruction(nc, false, false, push_xhb_xfc(), sub);
@@ -76,20 +78,20 @@ public class MessageManagerTests extends JetStreamTestBase {
     @Test
     public void testPushBeforeQueueProcessorAndManage() throws Exception {
         Listener listener = new Listener();
-        runInSharedOwnNc(listener, nc -> {
-            _testPushBqpAndManageRetriable(nc, listener, push_hb_fc(), false, true, false);
-            _testPushBqpAndManageRetriable(nc, listener, push_hb_xfc(), false, true, false);
-            _testPushBqpAndManageRetriable(nc, listener, push_xhb_xfc(), false, true, false);
-            _testPushBqpAndManageRetriable(nc, listener, push_hb_fc(), false, false, false);
-            _testPushBqpAndManageRetriable(nc, listener, push_hb_xfc(), false, false, false);
-            _testPushBqpAndManageRetriable(nc, listener, push_xhb_xfc(), false, false, false);
+        runInSharedCustom(listener, (nc, ctx) -> {
+            _testPushBqpAndManageRetriable(nc, ctx, listener, push_hb_fc(), false, true, false);
+            _testPushBqpAndManageRetriable(nc, ctx, listener, push_hb_xfc(), false, true, false);
+            _testPushBqpAndManageRetriable(nc, ctx, listener, push_xhb_xfc(), false, true, false);
+            _testPushBqpAndManageRetriable(nc, ctx, listener, push_hb_fc(), false, false, false);
+            _testPushBqpAndManageRetriable(nc, ctx, listener, push_hb_xfc(), false, false, false);
+            _testPushBqpAndManageRetriable(nc, ctx, listener, push_xhb_xfc(), false, false, false);
         });
     }
 
-    private void _testPushBqpAndManageRetriable(Connection nc, Listener listener, PushSubscribeOptions pso, boolean ordered, boolean syncMode, boolean queueMode) throws JetStreamApiException, IOException {
+    private void _testPushBqpAndManageRetriable(Connection nc, JetStreamTestingContext ctx, Listener listener, PushSubscribeOptions pso, boolean ordered, boolean syncMode, boolean queueMode) throws JetStreamApiException, IOException {
         listener.reset();
 
-        NatsJetStreamSubscription sub = genericPushSub(nc);
+        NatsJetStreamSubscription sub = genericPushSub(ctx);
         String sid = sub.getSID();
         PushMessageManager manager = getPushManager(nc, pso, sub, ordered, syncMode, queueMode);
 
@@ -126,13 +128,13 @@ public class MessageManagerTests extends JetStreamTestBase {
     public void testPullBeforeQueueProcessorAndManage() throws Exception {
         Listener listener = new Listener();
         runInSharedOwnNc(listener, (nc, ctx) -> {
-            _testPullBqpAndManage(nc, listener, PullRequestOptions.builder(1).build());
-            _testPullBqpAndManage(nc, listener,  PullRequestOptions.builder(1).expiresIn(10000).idleHeartbeat(100).build());
+            _testPullBqpAndManage(nc, ctx, listener, PullRequestOptions.builder(1).build());
+            _testPullBqpAndManage(nc, ctx, listener,  PullRequestOptions.builder(1).expiresIn(10000).idleHeartbeat(100).build());
         });
     }
 
-    private void _testPullBqpAndManage(Connection nc, Listener listener, PullRequestOptions pro) throws JetStreamApiException, IOException {
-        NatsJetStreamSubscription sub = genericPullSub(nc);
+    private void _testPullBqpAndManage(Connection nc, JetStreamTestingContext ctx, Listener listener, PullRequestOptions pro) throws JetStreamApiException, IOException {
+        NatsJetStreamSubscription sub = genericPullSub(ctx);
         PullMessageManager manager = getPullManager(nc, sub, true);
         manager.startPullRequest(random(), pro, true, null);
         listener.reset();
@@ -393,8 +395,8 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void test_hb_yes_settings() throws Exception {
-        runInShared(nc -> {
-            NatsJetStreamSubscription sub = genericPushSub(nc);
+        runInShared((nc, ctx) -> {
+            NatsJetStreamSubscription sub = genericPushSub(ctx);
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder().idleHeartbeat(1000).build();
 
@@ -426,8 +428,8 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void test_hb_no_settings() throws Exception {
-        runInShared(nc -> {
-            NatsJetStreamSubscription sub = genericPushSub(nc);
+        runInShared((nc, ctx) -> {
+            NatsJetStreamSubscription sub = genericPushSub(ctx);
             SubscribeOptions so = push_xhb_xfc();
             PushMessageManager manager = getPushManager(nc, so, sub, false);
             assertEquals(0, manager.getIdleHeartbeatSetting());
@@ -555,23 +557,26 @@ public class MessageManagerTests extends JetStreamTestBase {
     }
 
     static AtomicInteger ID = new AtomicInteger();
-    private static NatsJetStreamSubscription genericPushSub(Connection nc) throws IOException, JetStreamApiException {
-        String subject = genericSub(nc);
-        JetStream js = nc.jetStream();
-        return (NatsJetStreamSubscription) js.subscribe(subject);
+    private static NatsJetStreamSubscription genericPushSub(JetStreamTestingContext ctx) throws IOException, JetStreamApiException {
+        String subject = genericSub(ctx);
+        return (NatsJetStreamSubscription) ctx.js.subscribe(subject);
     }
 
-    private static NatsJetStreamSubscription genericPullSub(Connection nc) throws IOException, JetStreamApiException {
-        String subject = genericSub(nc);
-        JetStream js = nc.jetStream();
-        return (NatsJetStreamSubscription) js.subscribe(subject, PullSubscribeOptions.DEFAULT_PULL_OPTS);
+    private static NatsJetStreamSubscription genericPullSub(JetStreamTestingContext ctx) throws IOException, JetStreamApiException {
+        String subject = genericSub(ctx);
+        return (NatsJetStreamSubscription) ctx.js.subscribe(subject, PullSubscribeOptions.DEFAULT_PULL_OPTS);
     }
 
-    private static String genericSub(Connection nc) throws IOException, JetStreamApiException {
+    private static String genericSub(JetStreamTestingContext ctx) throws IOException, JetStreamApiException {
         String id = "-" + ID.incrementAndGet() + "-" + System.currentTimeMillis();
         String stream = random() + id;
         String subject = random() + id;
-        createMemoryStream(nc.jetStreamManagement(), stream, subject);
+        StreamConfiguration sc = StreamConfiguration.builder()
+            .name(stream)
+            .storageType(StorageType.Memory)
+            .subjects(subject)
+            .build();
+        ctx.addStream(sc);
         return subject;
     }
 
