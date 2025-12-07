@@ -375,7 +375,6 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
 
     @Test
     public void testPrefix() throws Exception {
-        NatsTestServer.verbose();
         String prefix = "tar.api";
         String streamMadeBySrc = "stream-made-by-src";
         String streamMadeByTar = "stream-made-by-tar";

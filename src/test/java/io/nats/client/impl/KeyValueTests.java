@@ -1087,7 +1087,8 @@ public class KeyValueTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testWithAccount() throws Exception {
+    public void
+    testWithAccount() throws Exception {
         runInConfiguredServer("kv_account.conf", ts -> {
             Options acctA = optionsBuilder(ts).userInfo("a", "a").build();
             Options acctI = optionsBuilder(ts).userInfo("i", "i").inboxPrefix("ForI").build();

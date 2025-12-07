@@ -88,13 +88,14 @@ public class ErrorListenerTests extends TestBase {
                 .errorListener(listener)
                 .maxReconnects(-1)
                 .build();
-            nc = (NatsConnection) Nats.connect(options);
-            assertConnected(nc);
-            assertEquals(ts.getServerUri(), nc.getConnectedUrl());
 
             listener.queueConnectionEvent(Events.DISCONNECTED);
             listener.queueConnectionEvent(Events.RECONNECTED);
             listener.queueError("Authorization Violation", LONG_VALIDATE_TIMEOUT);
+
+            nc = (NatsConnection) Nats.connect(options);
+            assertConnected(nc);
+            assertEquals(ts.getServerUri(), nc.getConnectedUrl());
 
             ts.close();
 
