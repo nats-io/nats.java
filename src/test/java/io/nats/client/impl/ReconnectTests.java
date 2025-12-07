@@ -455,9 +455,9 @@ public class ReconnectTests {
             port = mockTs.getPort();
             nc = (NatsConnection) Nats.connect(options);
             assertConnected(nc);
+            listener.queueConnectionEvent(Events.DISCONNECTED);
             nc.subscribe("test");
             subRef.get().get();
-            listener.queueConnectionEvent(Events.DISCONNECTED);
             sendRef.get().complete(true);
             flushConnection(nc); // mock server will close so we do this inside the curly
             listener.validate();
