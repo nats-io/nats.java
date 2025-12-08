@@ -31,7 +31,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.printStreamInfo;
  * <pre>
  * port: 4222
  *
- * jetstream {max_mem_store: 1GB, max_file_store: 1GB}
+ * jetstream: {max_mem_store: 1GB, max_file_store: 1GB}
  *
  * accounts: {
  *   SOURCE: {
