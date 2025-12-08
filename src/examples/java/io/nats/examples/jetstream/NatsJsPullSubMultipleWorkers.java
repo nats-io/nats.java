@@ -43,7 +43,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.createStreamExitWhenExists;
  */
 public class NatsJsPullSubMultipleWorkers {
     static final String usageString =
-        "\nUsage: java -cp <classpath> NatsJsPullSubMultipleWorkers [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount] [-scnt subCount]"
+        "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsPullSubMultipleWorkers [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount] [-scnt subCount]"
             + "\n\nDefault Values:"
             + "\n   [-strm stream]   psmw-stream"
             + "\n   [-sub subject]   psmw-subject"

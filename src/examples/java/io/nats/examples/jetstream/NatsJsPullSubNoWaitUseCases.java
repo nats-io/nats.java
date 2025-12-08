@@ -30,7 +30,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.*;
  */
 public class NatsJsPullSubNoWaitUseCases {
     static final String usageString =
-        "\nUsage: java -cp <classpath> NatsJsPullSubNoWaitUseCases [-s server] [-strm stream] [-sub subject] [-dur durable]"
+        "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsPullSubNoWaitUseCases [-s server] [-strm stream] [-sub subject] [-dur durable]"
             + "\n\nDefault Values:"
             + "\n   [-strm] nowait-uc-stream"
             + "\n   [-sub]  nowait-uc-subject"

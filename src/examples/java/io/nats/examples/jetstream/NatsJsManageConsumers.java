@@ -34,7 +34,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.*;
  */
 public class NatsJsManageConsumers {
     static final String usageString =
-        "\nUsage: java -cp <classpath> NatsJsManageConsumers [-s server] [-strm stream] [-sub subject] [-dur durable-prefix]"
+        "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsManageConsumers [-s server] [-strm stream] [-sub subject] [-dur durable-prefix]"
             + "\n\nDefault Values:"
             + "\n   [-strm] mcon-stream"
             + "\n   [-sub] mcon-subject"

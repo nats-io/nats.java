@@ -29,7 +29,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.publish;
  */
 public class NatsJsPushSubFilterSubject {
     static final String usageString =
-        "\nUsage: java -cp <classpath> NatsJsPushSubFilterSubject [-s server] [-strm stream] [-sub subject-prefix]"
+        "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsPushSubFilterSubject [-s server] [-strm stream] [-sub subject-prefix]"
             + "\n\nDefault Values:"
             + "\n   [-strm] fs-stream"
             + "\n   [-sub]  fs-subject"

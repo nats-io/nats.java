@@ -32,7 +32,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.publish;
  */
 public class NatsJsMirrorSubUseCases {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsJsMirrorSubUseCases [-s server] [-strm stream] [-mir mirror] [-sub subject] [-dur durable]"
+            "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsMirrorSubUseCases [-s server] [-strm stream] [-mir mirror] [-sub subject] [-dur durable]"
                     + "\n\nDefault Values:"
                     + "\n   [-strm] example-stream"
                     + "\n   [-mir]  example-mirror"
