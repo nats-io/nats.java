@@ -34,6 +34,7 @@
 * [Version Notes](#version-notes)
 * [Benchmarking](#benchmarking)
 * [Building From Source](#building-from-source)
+* [Examples](#examples)
 * [License](#license)
 
 ## Simplification
@@ -129,13 +130,12 @@ See [Version Notes](#version-notes)
 
 The java-nats client is provided in a single jar file, with a single external dependency for the encryption in NKey support. 
 See [Building From Source](#building-from-source) for details on building the library.
-Replace `{major.minor.patch}` with the correct version in the examples.
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.23.0/jnats-2.23.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.23.0/jnats-2.23.0.jar).
+You can download the latest jar at [jnats-2.24.1.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.24.1/jnats-2.24.1.jar).
 
-The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.23.0/jnats-2.23.0-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.23.0/jnats-2.23.0-examples.jar).
+The examples are available at [jnats-2.24.1-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.24.1/jnats-2.24.1-examples.jar).
 
 ### Using Gradle
 
@@ -143,7 +143,7 @@ The NATS client is available in the Maven central repository, and can be importe
 
 ```groovy
 dependencies {
-    implementation 'io.nats:jnats:{major.minor.patch}'
+    implementation 'io.nats:jnats:2.24.1'
 }
 ```
 
@@ -169,7 +169,7 @@ repositories {
 }
 
 dependencies {
-   implementation 'io.nats:jnats:{major.minor.patch}-SNAPSHOT'
+   implementation 'io.nats:jnats:2.24.2-SNAPSHOT'
 }
 ```
 
@@ -181,7 +181,7 @@ The NATS client is available on the Maven Central Repository and can be imported
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>{major.minor.patch}</version>
+    <version>2.24.1</version>
 </dependency>
 ```
 
@@ -215,7 +215,7 @@ If you need a snapshot version, you must enable snapshots and change your depend
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>{major.minor.patch}-SNAPSHOT</version>
+    <version>2.24.2-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -1353,14 +1353,13 @@ This will place the class files in a new `build` folder. To just build the jar:
 
 The jar will be placed in `build/libs`.
 
-You can also build the java doc, and the samples jar using:
+You can build the java doc by:
 
 ```bash
 > ./gradlew javadoc
-> ./gradlew exampleJar
 ```
 
-The java doc is located in `build/docs` and the example jar is in `build/libs`. Finally, to run the tests with the coverage report:
+The java doc is located in `build/docs`. Finally, to run the tests with the coverage report:
 
 ```bash
 > ./gradlew test jacocoTestReport
@@ -1369,6 +1368,24 @@ The java doc is located in `build/docs` and the example jar is in `build/libs`. 
 which will create a folder called `build/reports/jacoco` containing the file `index.html` you can open and use to browse the coverage. Keep in mind we have focused on library test coverage, not coverage for the examples.
 
 Many of the tests run nats-server on a custom port. If nats-server is in your path they should just work, but in cases where it is not, or an IDE running tests has issues with the path you can specify the nats-server location with the environment variable `nats_server_path`.
+
+## Examples
+
+The [**examples directory**](https://github.com/nats-io/nats.java/tree/main/src/examples/java/io/nats/examples) covers basic api use.
+
+The examples are easiest to run directly from an IDE, but can also be run from the command line if you build the Uber Jar
+
+and the example jar is in `build/libs`
+
+```bash
+> ./gradlew clean uberJar
+```
+
+Once the Uber jar is built, you can run a class with a main using it's fully qualified class name. As an example:
+
+```bash
+java -cp build/libs/java-nats-2.24.2-SNAPSHOT-uber.jar io.nats.examples.NatsSub
+```
 
 ## License
 

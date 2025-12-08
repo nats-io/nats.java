@@ -164,16 +164,25 @@ tasks.register('testsJar', Jar) {
     from sourceSets.test.allSource
 }
 
-// run build before running fat jar to get classes
-tasks.register('fatJar', Jar) {
-    archiveClassifier.set('fat')
-    manifest {
-        attributes('Implementation-Title': 'Java Nats With Dependencies',
-                'Implementation-Version': jarVersion,
-                'Implementation-Vendor': 'nats.io')
+tasks.register('copyToLib', Copy) {
+    into "build/libs"
+    from configurations.runtimeClasspath
+}
+
+tasks.register('uberJar', Jar) {
+    archiveClassifier = 'uber'
+
+    from sourceSets.main.output
+
+    dependsOn configurations.runtimeClasspath
+    from {
+        configurations.runtimeClasspath.findAll { it.name.endsWith('jar') }.collect { zipTree(it) }
     }
-    from { configurations.compileClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
-    with jar
+
+    exclude ('META-INF/**')
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    dependsOn copyToLib
 }
 
 artifacts {

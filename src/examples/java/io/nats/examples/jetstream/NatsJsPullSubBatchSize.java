@@ -31,7 +31,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.publishInBackground;
  */
 public class NatsJsPullSubBatchSize {
     static final String usageString =
-        "\nUsage: java -cp <classpath> NatsJsPullSubBatchSize [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount]"
+        "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsPullSubBatchSize [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount]"
             + "\n\nDefault Values:"
             + "\n   [-strm] pull-stream"
             + "\n   [-sub]  pull-subject"

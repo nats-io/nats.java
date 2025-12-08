@@ -25,7 +25,7 @@ import java.time.Instant;
 public class StabilityPub {
 
     static final String usageString =
-            "\nUsage: java -cp <classpath> StabilityPub [server] <subject> <msgSize>"
+            "\nUsage: java -cp <classpath> io.nats.examples.StabilityPub [server] <subject> <msgSize>"
                     + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n";
 
     public static void main(String args[]) {

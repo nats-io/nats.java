@@ -57,7 +57,7 @@ public class NatsBench {
     private boolean secure = false;
     private Benchmark bench;
 
-    static final String usageString = "\nUsage: java -cp <classpath> NatsBench [-s server] [-tls] [-np num] [-ns num] [-n num] [-ms size] "
+    static final String usageString = "\nUsage: java -cp <classpath> io.nats.examples.benchmark.NatsBench [-s server] [-tls] [-np num] [-ns num] [-n num] [-ms size] "
             + "[-csv file] <subject>\n\nOptions:\n"
             + "    -s  <urls>                     The nats server URLs (comma-separated), use tls:// or opentls:// to require tls\n"
             + "    -np <int>                       Number of concurrent publishers (1)\n"
