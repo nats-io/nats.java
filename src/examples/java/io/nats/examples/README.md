@@ -68,9 +68,10 @@ All of these examples take the server URL on the command line, which means that 
 
 ## Running the examples
 
-* The examples require both the client library and the examples to be compiled and then the jars be used in the classpath.
-When you build locally, `-SNAPSHOT` is appended to the version.
-See the project [README](/README.md) for specifics on building these.
+The easiest way to run the examples is from an IDE, but they can be run from the command line. First, Build the Uber Jar
+```bash
+gradlew clean uberJar
+```
 
 * When you run, if you supply an unknown parameter or miss a required parameter, the usage string will be shown and the program will exit.
 
@@ -87,13 +88,11 @@ You can also just insert some code before the arguments are processed to set the
     ```
 
 ### Classpath 
-
-In the examples, the usage will show `java <program> -cp <classpath> ...` Make sure you add both the client library and examples into the classpath.
-Replace `{major.minor.patch}` with the correct version.
+In the examples, the usage will show `java -cp <classpath> ...` Use the Uber Jar you built and replace `{major.minor.patch}` with the correct version.
 For example:
 
 ```bash
-java -cp build/libs/jnats-{major.minor.patch}-SNAPSHOT.jar:build/libs/jnats-{major.minor.patch}-SNAPSHOT-examples.jar io.nats.examples.NatsPub nats://localhost:4222 test "hello world"
+java -cp build/libs/java-nats-{major.minor.patch}-SNAPSHOT-uber.jar io.nats.examples.NatsPub nats://localhost:4222 test "hello world"
 ```
 
 ### Some examples depend on others
@@ -111,7 +110,7 @@ java -Djavax.net.ssl.keyStore=src/test/resources/keystore.jks -Djavax.net.ssl.ke
 To run with the completely unverified client:
 
 ```bash
-java -cp build/libs/jnats-{major.minor.patch}-SNAPSHOT.jar:build/libs/jnats-{major.minor.patch}-SNAPSHOT-examples.jar io.nats.examples.NatsSub opentls://localhost:4443 test 3
+java -cp build/libs/java-nats-{major.minor.patch}-SNAPSHOT-uber.jar io.nats.examples.NatsSub opentls://localhost:4443 test 3
 ```
 
 There are a set tls configuration for the server in the test files that can be used to run the NATS server.
