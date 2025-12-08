@@ -132,9 +132,9 @@ See [Building From Source](#building-from-source) for details on building the li
 
 ### Downloading the Jar
 
-You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.23.0/jnats-2.23.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.23.0/jnats-2.23.0.jar).
+You can download the latest jar at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.24.1/jnats-2.24.1.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.24.1/jnats-2.24.1.jar).
 
-The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.23.0/jnats-2.23.0-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.23.0/jnats-2.23.0-examples.jar).
+The examples are available at [https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.24.1/jnats-2.24.1-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.24.1/jnats-2.24.1-examples.jar).
 
 ### Using Gradle
 
