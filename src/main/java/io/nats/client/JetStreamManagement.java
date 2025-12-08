@@ -13,7 +13,6 @@
 package io.nats.client;
 
 import io.nats.client.api.*;
-import org.jspecify.annotations.NonNull;
 
 import java.io.IOException;
 import java.time.ZonedDateTime;
@@ -383,15 +382,13 @@ public interface JetStreamManagement {
      * @return a KeyValue instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
-    @NonNull
-    KeyValue keyValue(@NonNull String bucketName) throws IOException;
+    KeyValue keyValue(String bucketName) throws IOException;
 
     /**
      * Gets a context for managing Key Value buckets
      * @return a KeyValueManagement instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
-    @NonNull
     KeyValueManagement keyValueManagement() throws IOException;
 
     /**
@@ -400,14 +397,11 @@ public interface JetStreamManagement {
      * @return an ObjectStore instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
-    @NonNull
-    ObjectStore objectStore(@NonNull String bucketName) throws IOException;
+    ObjectStore objectStore(String bucketName) throws IOException;
 
     /**
      * Gets a context for managing Object Stores
      * @return an ObjectStoreManagement instance.
      * @throws IOException various IO exception such as timeout or interruption
      */
-    @NonNull
-    ObjectStoreManagement objectStoreManagement() throws IOException;
-}
+    ObjectStoreManagement objectStoreManagement() throws IOException;}
