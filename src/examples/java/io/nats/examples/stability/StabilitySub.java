@@ -23,7 +23,7 @@ import java.time.Instant;
 public class StabilitySub {
 
     static final String usageString =
-            "\nUsage: java -cp <classpath> StabilitySub [server] <subject>"
+            "\nUsage: java -cp <classpath> io.nats.examples.StabilitySub [server] <subject>"
                     + "\n\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n";
 
     public static void main(String args[]) {

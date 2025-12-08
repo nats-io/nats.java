@@ -64,7 +64,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.printStreamInfo;
  */
 public class NatsJsPrefix {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsJsPrefix"
+            "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsPrefix"
                     + "\n\nRun Notes:"
                     + "\n   - this example is not configured for arguments so requires manual change"
                     + "\n   - you will need to create the prefix.conf and run the server as in the comments at the top of the code."

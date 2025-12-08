@@ -30,7 +30,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.createStreamExitWhenExists;
  */
 public class NatsJsPushSubFlowControl {
     static final String usageString =
-        "\nUsage: java -cp <classpath> NatsJsPushSubFlowControl [-s server]"
+        "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsPushSubFlowControl [-s server]"
             + "\n\nDefault Values:"
             + "\n   [-strm] fc-stream"
             + "\n   [-sub]  fc-subject"

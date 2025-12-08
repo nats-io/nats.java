@@ -29,7 +29,7 @@ import java.nio.charset.StandardCharsets;
  */
 public class NatsJsPub {
     static final String usageString =
-        "\nUsage: java -cp <classpath> NatsJsPub [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-m messageWords+] [-r headerKey:headerValue]*"
+        "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsPub [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-m messageWords+] [-r headerKey:headerValue]*"
             + "\n\nDefault Values:"
             + "\n   [-strm] example-stream"
             + "\n   [-sub]  example-subject"

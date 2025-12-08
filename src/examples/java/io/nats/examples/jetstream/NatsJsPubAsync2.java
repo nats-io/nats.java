@@ -23,8 +23,6 @@ import io.nats.examples.ExampleArgs;
 import io.nats.examples.ExampleUtils;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.*;
 
 /**
@@ -32,7 +30,7 @@ import java.util.concurrent.*;
  */
 public class NatsJsPubAsync2 {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsJsPubAsync2 [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-m messageWords+] [-r headerKey:headerValue]*"
+            "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsPubAsync2 [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-m messageWords+] [-r headerKey:headerValue]*"
                     + "\n\nDefault Values:"
                     + "\n   [-strm] example-stream"
                     + "\n   [-sub]  example-subject"

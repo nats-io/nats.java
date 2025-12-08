@@ -29,7 +29,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.exitIfStreamNotExists;
  */
 public class NatsJsPushSubBindDurable {
     static final String usageString =
-        "\nUsage: java -cp <classpath> NatsJsPushSubBindDurable [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-dur durable] [-deliver deliver]"
+        "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsPushSubBindDurable [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-dur durable] [-deliver deliver]"
             + "\n\nDefault Values:"
             + "\n   [-strm]    example-stream"
             + "\n   [-sub]     example-subject"

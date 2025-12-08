@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class NatsAutoBench {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsAutoBench" +
+            "\nUsage: java -cp <classpath> io.nats.examples.autobench.NatsAutoBench" +
                     "\n[serverURL] [help] [tiny|small|med|large] [conscrypt] [jsfile]" +
                     "\n[PubOnly] [PubOnlyWithHeaders] [PubSub] [PubDispatch] [ReqReply] [Latency] " +
                     "\n[JsPubSync] [JsPubAsync] [JsSub] [JsPubRounds]" +

@@ -61,7 +61,7 @@ public class NatsBench2 {
     private long succPubMsgCount;
     private long succSubMsgCount;
     
-    static final String usageString = "\nUsage: java -cp <classpath> NatsBench [-s server] [-tls] [-np num] [-ns num] [-n num] [-ms size] "
+    static final String usageString = "\nUsage: java -cp <classpath> io.nats.examples.benchmark.NatsBench2 [-s server] [-tls] [-np num] [-ns num] [-n num] [-ms size] "
             + "[-csv file] <subject>\n\nOptions:\n"
             + "    -s  <urls>                     The nats server URLs (comma-separated), use tls:// or opentls:// to require tls\n"
             + "    -np <int>                       Number of concurrent publishers (1)\n"
