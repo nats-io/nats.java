@@ -375,4 +375,33 @@ public interface JetStreamManagement {
      * @return a JetStream instance.
      */
     JetStream jetStream();
-}
+
+    /**
+     * Gets a context for working with a Key Value bucket
+     * @param bucketName the bucket name
+     * @return a KeyValue instance.
+     * @throws IOException various IO exception such as timeout or interruption
+     */
+    KeyValue keyValue(String bucketName) throws IOException;
+
+    /**
+     * Gets a context for managing Key Value buckets
+     * @return a KeyValueManagement instance.
+     * @throws IOException various IO exception such as timeout or interruption
+     */
+    KeyValueManagement keyValueManagement() throws IOException;
+
+    /**
+     * Gets a context for working with an Object Store.
+     * @param bucketName the bucket name
+     * @return an ObjectStore instance.
+     * @throws IOException various IO exception such as timeout or interruption
+     */
+    ObjectStore objectStore(String bucketName) throws IOException;
+
+    /**
+     * Gets a context for managing Object Stores
+     * @return an ObjectStoreManagement instance.
+     * @throws IOException various IO exception such as timeout or interruption
+     */
+    ObjectStoreManagement objectStoreManagement() throws IOException;}
