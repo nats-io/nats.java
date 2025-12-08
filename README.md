@@ -129,7 +129,6 @@ See [Version Notes](#version-notes)
 
 The java-nats client is provided in a single jar file, with a single external dependency for the encryption in NKey support. 
 See [Building From Source](#building-from-source) for details on building the library.
-Replace `{major.minor.patch}` with the correct version in the examples.
 
 ### Downloading the Jar
 
@@ -143,7 +142,7 @@ The NATS client is available in the Maven central repository, and can be importe
 
 ```groovy
 dependencies {
-    implementation 'io.nats:jnats:{major.minor.patch}'
+    implementation 'io.nats:jnats:2.24.1'
 }
 ```
 
@@ -169,7 +168,7 @@ repositories {
 }
 
 dependencies {
-   implementation 'io.nats:jnats:{major.minor.patch}-SNAPSHOT'
+   implementation 'io.nats:jnats:2.24.2-SNAPSHOT'
 }
 ```
 
@@ -181,7 +180,7 @@ The NATS client is available on the Maven Central Repository and can be imported
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>{major.minor.patch}</version>
+    <version>2.24.1</version>
 </dependency>
 ```
 
@@ -215,7 +214,7 @@ If you need a snapshot version, you must enable snapshots and change your depend
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>{major.minor.patch}-SNAPSHOT</version>
+    <version>2.24.2-SNAPSHOT</version>
 </dependency>
 ```
 
