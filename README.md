@@ -34,6 +34,7 @@
 * [Version Notes](#version-notes)
 * [Benchmarking](#benchmarking)
 * [Building From Source](#building-from-source)
+* [Examples](#examples)
 * [License](#license)
 
 ## Simplification
@@ -1352,14 +1353,13 @@ This will place the class files in a new `build` folder. To just build the jar:
 
 The jar will be placed in `build/libs`.
 
-You can also build the java doc, and the samples jar using:
+You can build the java doc by:
 
 ```bash
 > ./gradlew javadoc
-> ./gradlew exampleJar
 ```
 
-The java doc is located in `build/docs` and the example jar is in `build/libs`. Finally, to run the tests with the coverage report:
+The java doc is located in `build/docs`. Finally, to run the tests with the coverage report:
 
 ```bash
 > ./gradlew test jacocoTestReport
@@ -1368,6 +1368,24 @@ The java doc is located in `build/docs` and the example jar is in `build/libs`. 
 which will create a folder called `build/reports/jacoco` containing the file `index.html` you can open and use to browse the coverage. Keep in mind we have focused on library test coverage, not coverage for the examples.
 
 Many of the tests run nats-server on a custom port. If nats-server is in your path they should just work, but in cases where it is not, or an IDE running tests has issues with the path you can specify the nats-server location with the environment variable `nats_server_path`.
+
+## Examples
+
+The [**examples directory**](https://github.com/nats-io/nats.java/tree/main/src/examples/java/io/nats/examples) covers basic api use.
+
+The examples are easiest to run directly from an IDE, but can also be run from the command line if you build the Uber Jar
+
+and the example jar is in `build/libs`
+
+```bash
+> ./gradlew clean uberJar
+```
+
+Once the Uber jar is built, you can run a class with a main using it's fully qualified class name. As an example:
+
+```bash
+java -cp build/libs/java-nats-2.24.2-SNAPSHOT-uber.jar io.nats.examples.NatsSub
+```
 
 ## License
 

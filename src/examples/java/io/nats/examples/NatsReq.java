@@ -24,7 +24,7 @@ import java.time.Duration;
 public class NatsReq {
 
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsReq [-s server] [-r headerKey:headerValue]* <subject> <message>\n"
+            "\nUsage: java -cp <classpath> io.nats.examples.NatsReq [-s server] [-r headerKey:headerValue]* <subject> <message>\n"
                     + "\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
                     + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
                     + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"

@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class NatsReply {
 
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsReply [server] <subject> <msgCount>\n"
+            "\nUsage: java -cp <classpath> io.nats.examples.NatsReply [server] <subject> <msgCount>\n"
             + "\nUse tls:// or opentls:// to require tls, via the Default SSLContext\n"
             + "\nSet the environment variable NATS_NKEY to use challenge response authentication by setting a file containing your private key.\n"
             + "\nSet the environment variable NATS_CREDS to use JWT/NKey authentication by setting a file containing your user creds.\n"

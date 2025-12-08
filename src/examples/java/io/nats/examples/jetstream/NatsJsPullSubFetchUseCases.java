@@ -32,7 +32,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.*;
  */
 public class NatsJsPullSubFetchUseCases {
     static final String usageString =
-        "\nUsage: java -cp <classpath> NatsJsPullSubFetchUseCases [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount]"
+        "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsPullSubFetchUseCases [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount]"
             + "\n\nDefault Values:"
             + "\n   [-strm] fetch-uc-stream"
             + "\n   [-sub]  fetch-uc-subject"

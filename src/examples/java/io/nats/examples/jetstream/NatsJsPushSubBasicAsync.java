@@ -30,7 +30,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.exitIfStreamNotExists;
  */
 public class NatsJsPushSubBasicAsync {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsJsPushSubBasicAsync [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-dur durable]"
+            "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsPushSubBasicAsync [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-dur durable]"
                     + "\n\nDefault Values:"
                     + "\n   [-strm]    example-stream"
                     + "\n   [-sub]    example-subject"

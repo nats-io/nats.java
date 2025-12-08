@@ -28,7 +28,7 @@ import static io.nats.examples.ExampleUtils.sleep;
  */
 public class NatsPubMany {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsPubMany [-s server] [-r headerKey:headerValue]* [-mcnt msgCount] [-sub subject] [-m messageWords+]"
+            "\nUsage: java -cp <classpath> io.nats.examples.NatsPubMany [-s server] [-r headerKey:headerValue]* [-mcnt msgCount] [-sub subject] [-m messageWords+]"
                     + "\n\nDefault Values:"
                     + "\n   [-mcnt msgCount]   10"
                     + "\n   [-sub subject]     example-subject"

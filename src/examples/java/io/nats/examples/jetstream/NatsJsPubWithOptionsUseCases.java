@@ -23,7 +23,7 @@ import io.nats.examples.ExampleUtils;
  */
 public class NatsJsPubWithOptionsUseCases {
     static final String usageString =
-        "\nUsage: java -cp <classpath> NatsJsPubWithOptionsUseCases [-s server] [-strm stream] [-sub subject]"
+        "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsPubWithOptionsUseCases [-s server] [-strm stream] [-sub subject]"
             + "\n\nDefault Values:"
             + "\n   [-strm stream]     pubopts-stream"
             + "\n   [-sub subject]     pubopts-subject"

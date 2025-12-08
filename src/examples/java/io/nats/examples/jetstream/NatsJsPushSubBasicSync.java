@@ -29,7 +29,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.exitIfStreamNotExists;
 public class NatsJsPushSubBasicSync {
 
     static final String usageString =
-        "\nUsage: java -cp <classpath> NatsJsPushSubBasicSync [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-dur durable]"
+        "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsPushSubBasicSync [-s server] [-strm stream] [-sub subject] [-mcnt msgCount] [-dur durable]"
             + "\n\nDefault Values:"
             + "\n   [-strm] example-stream"
             + "\n   [-sub]  example-subject"
