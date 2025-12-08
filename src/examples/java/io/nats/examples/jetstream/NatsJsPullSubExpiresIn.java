@@ -30,7 +30,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.publishInBackground;
  */
 public class NatsJsPullSubExpiresIn {
     static final String usageString =
-        "\nUsage: java -cp <classpath> NatsJsPullSubExpiresIn [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount]"
+        "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsPullSubExpiresIn [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount]"
             + "\n\nDefault Values:"
             + "\n   [-strm] expires-in-stream"
             + "\n   [-sub]  expires-in-subject"

@@ -32,7 +32,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.publishInBackground;
  */
 public class NatsJsPullSubIterate {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsJsPullSubIterate [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount]"
+            "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsPullSubIterate [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount]"
                     + "\n\nDefault Values:"
                     + "\n   [-strm] iterate-stream"
                     + "\n   [-sub]  iterate-subject"

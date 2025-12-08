@@ -31,7 +31,7 @@ import java.time.Duration;
  */
 public class NatsJsPubVersusCorePub {
     static final String usageString =
-        "\nUsage: java -cp <classpath> NatsJsPubVersusCorePub [-s server] [-strm stream] [-sub subject]"
+        "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsPubVersusCorePub [-s server] [-strm stream] [-sub subject]"
             + "\n\nDefault Values:"
             + "\n   [-strm] js-or-core-stream"
             + "\n   [-sub]  js-or-core-subject"

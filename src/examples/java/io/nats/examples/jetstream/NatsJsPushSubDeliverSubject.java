@@ -32,7 +32,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.publish;
 public class NatsJsPushSubDeliverSubject {
 
     static final String usageString =
-        "\nUsage: java -cp <classpath> NatsJsPushSubDeliverSubject [-s server] [-strm stream] [-sub subject-prefix] [-deliver deliver-prefix]"
+        "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsPushSubDeliverSubject [-s server] [-strm stream] [-sub subject-prefix] [-deliver deliver-prefix]"
             + "\n\nDefault Values:"
             + "\n   [-strm]    ds-stream"
             + "\n   [-sub]     ds-subject-"

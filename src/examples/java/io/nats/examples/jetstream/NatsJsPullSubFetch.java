@@ -32,7 +32,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.publishInBackground;
  */
 public class NatsJsPullSubFetch {
     static final String usageString =
-        "\nUsage: java -cp <classpath> NatsJsPullSubFetch [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount]"
+        "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsPullSubFetch [-s server] [-strm stream] [-sub subject] [-dur durable] [-mcnt msgCount]"
             + "\n\nDefault Values:"
             + "\n   [-strm] fetch-stream"
             + "\n   [-sub]  fetch-subject"

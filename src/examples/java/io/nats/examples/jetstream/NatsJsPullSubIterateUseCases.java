@@ -35,7 +35,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.publish;
  */
 public class NatsJsPullSubIterateUseCases {
     static final String usageString =
-        "\nUsage: java -cp <classpath> NatsJsPullSubIterateUseCases [-s server] [-strm stream] [-sub subject] [-dur durable]"
+        "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsPullSubIterateUseCases [-s server] [-strm stream] [-sub subject] [-dur durable]"
             + "\n\nDefault Values:"
             + "\n   [-strm] iterate-uc-stream"
             + "\n   [-sub]  iterate-uc-subject"
