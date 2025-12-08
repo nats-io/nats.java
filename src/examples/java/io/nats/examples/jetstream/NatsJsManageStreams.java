@@ -33,7 +33,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.*;
  */
 public class NatsJsManageStreams {
     static final String usageString =
-        "\nUsage: java -cp <classpath> NatsJsManageStreams [-s server] [-strm stream-prefix] [-sub subject-prefix]"
+        "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsManageStreams [-s server] [-strm stream-prefix] [-sub subject-prefix]"
             + "\n\nDefault Values:"
             + "\n   [-strm] manage-stream-"
             + "\n   [-sub] manage-subject-"

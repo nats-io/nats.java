@@ -34,7 +34,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.createOrReplaceStream;
  */
 public class NatsJsPushSubQueueDurable {
     static final String usageString =
-        "\nUsage: java -cp <classpath> NatsJsPushSubQueueDurable [-s server] [-strm stream] [-sub subject] [-q queue] [-dur durable] [-mcnt msgCount] [-scnt subCount]"
+        "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsPushSubQueueDurable [-s server] [-strm stream] [-sub subject] [-q queue] [-dur durable] [-mcnt msgCount] [-scnt subCount]"
             + "\n\nDefault Values:"
             + "\n   [-strm stream]   qdur-stream"
             + "\n   [-sub subject]   qdur-subject"

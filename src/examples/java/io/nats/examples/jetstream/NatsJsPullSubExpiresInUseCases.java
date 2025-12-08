@@ -30,7 +30,7 @@ import static io.nats.examples.jetstream.NatsJsUtils.*;
  */
 public class NatsJsPullSubExpiresInUseCases {
     static final String usageString =
-            "\nUsage: java -cp <classpath> NatsJsPullSubExpiresInUseCases [-s server] [-strm stream] [-sub subject] [-dur durable]"
+            "\nUsage: java -cp <classpath> io.nats.examples.jetstream.NatsJsPullSubExpiresInUseCases [-s server] [-strm stream] [-sub subject] [-dur durable]"
                     + "\n\nDefault Values:"
                     + "\n   [-strm] expires-in-uc-ack-stream"
                     + "\n   [-sub]  expires-in-uc-ack-subject"
