@@ -17,7 +17,9 @@ public class BasicsSubscribe {
                 System.out.println("Received: " + new String(msg.getData(), StandardCharsets.UTF_8)));
             d.subscribe("weather.updates");
             // NATS-DOC-END
-            Thread.sleep(5000);
+
+            System.out.println("Waiting 10 seconds to receive a message from the BasicsPublish example...");
+            Thread.sleep(10000);
         }
         catch (InterruptedException e) {
             // can be thrown by connect
