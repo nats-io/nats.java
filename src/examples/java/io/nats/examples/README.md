@@ -113,7 +113,7 @@ To run with the completely unverified client:
 java -cp build/libs/java-nats-{major.minor.patch}-SNAPSHOT-uber.jar io.nats.examples.NatsSub opentls://localhost:4443 test 3
 ```
 
-There are a set tls configuration for the server in the test files that can be used to run the NATS server.
+There are some example configuration files for the server in the test resources that can be used to run the NATS server with TLS.
 
 ```bash
 nats-server --config src/test/resources/tls.conf
