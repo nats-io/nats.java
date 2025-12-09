@@ -119,11 +119,10 @@ public class JetStreamManagementWithConfTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testJsStuffOnGoodAuthAccount() throws Exception {
+    public void testGoodAuthAccount() throws Exception {
         runInConfiguredServer("js_authorization.conf", ts -> {
             try (Connection nc = ConnectionUtils.managedConnect(optionsBuilder(ts).userInfo("serviceup", "uppass").build())) {
                 JetStreamManagement jsm = nc.jetStreamManagement();
-                JetStream js = jsm.jetStream();
                 // add streams with both account
                 String stream = random();
                 String subject1 = random();

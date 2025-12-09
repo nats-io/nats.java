@@ -104,7 +104,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testStreamMetadata() throws Exception {
-        runInSharedCustom(VersionUtils::atLeast2_9_0, (nc, ctx) -> {
+        runInSharedCustom((nc, ctx) -> {
             Map<String, String> metaData = new HashMap<>(); metaData.put(META_KEY, META_VALUE);
             StreamConfiguration sc = ctx.scBuilder(1).metadata(metaData).build();
             StreamInfo si = ctx.createOrReplaceStream(sc);
@@ -504,7 +504,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             jsapiEx = assertThrows(JetStreamApiException.class, () -> ctx.jsm.getStreamInfo(ctx.stream));
             assertEquals(10059, jsapiEx.getApiErrorCode());
 
-            jsapiEx = assertThrows(JetStreamApiException.class, () -> ctx.deleteStream());
+            jsapiEx = assertThrows(JetStreamApiException.class, ctx::deleteStream);
             assertEquals(10059, jsapiEx.getApiErrorCode());
         });
     }
@@ -1185,8 +1185,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testDirectMessageRepublishedSubject() throws Exception {
-        runInSharedCustom(VersionUtils::atLeast2_9_0, (nc, ctx) -> {
-            String streamName = random();
+        runInSharedCustom((nc, ctx) -> {
             String bucketName = random();
             String subject = random();
             String streamSubject = subject + ".>";
@@ -1229,7 +1228,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
     @Test
     public void testCreateConsumerUpdateConsumer() throws Exception {
-        runInOwnJsServer(VersionUtils::atLeast2_9_0, (nc, jsm, js) -> {
+        runInOwnJsServer((nc, jsm, js) -> {
             String streamPrefix = random();
             JetStreamManagement jsmNew = nc.jetStreamManagement();
             JetStreamManagement jsmPre290 = nc.jetStreamManagement(JetStreamOptions.builder().optOut290ConsumerCreate(true).build());

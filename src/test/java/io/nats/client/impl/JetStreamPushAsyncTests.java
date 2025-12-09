@@ -385,14 +385,13 @@ public class JetStreamPushAsyncTests extends JetStreamTestBase {
             Object expected = expecteds[aix++];
             Headers h = m.getHeaders();
             assertNotNull(h);
+            assertTrue(m.getData() == null || m.getData().length == 0);
             if (expected instanceof String) {
-                assertTrue(m.getData() == null || m.getData().length == 0);
                 assertEquals("" + ((String)expected).length(), h.getFirst(MSG_SIZE_HDR));
                 assertNull(h.getFirst(KV_OPERATION_HEADER_KEY));
                 assertNull(h.getFirst(ROLLUP_HDR));
             }
             else {
-                assertTrue(m.getData() == null || m.getData().length == 0);
                 assertEquals("0", h.getFirst(MSG_SIZE_HDR));
                 assertEquals(expected, KeyValueOperation.valueOf(h.getFirst(KV_OPERATION_HEADER_KEY)));
                 if (expected == KeyValueOperation.PURGE) {

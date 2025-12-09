@@ -195,7 +195,7 @@ public class MessageContentTests extends TestBase {
                 .errorListener(listener)
                 .connectionListener(listener)
                 .build();
-            try (Connection nc = ConnectionUtils.managedConnect(options)) {
+            try (Connection ignore = ConnectionUtils.managedConnect(options)) {
                 listener.queueConnectionEvent(Events.DISCONNECTED);
                 ready.complete(Boolean.TRUE);
                 listener.validate();

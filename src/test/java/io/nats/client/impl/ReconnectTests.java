@@ -44,8 +44,6 @@ import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.*;
 import static io.nats.client.utils.TestBase.*;
 import static io.nats.client.utils.ThreadUtils.sleep;
-import static io.nats.client.utils.VersionUtils.atLeast2_9_0;
-import static io.nats.client.utils.VersionUtils.initVersionServerInfo;
 import static org.junit.jupiter.api.Assertions.*;
 
 @Isolated
@@ -607,29 +605,9 @@ public class ReconnectTests {
         }
     }
 
-    private static class TestReconnectWaitHandler implements ConnectionListener {
-        AtomicInteger disconnectCount = new AtomicInteger();
-
-        public int getDisconnectCount() {
-            return disconnectCount.get();
-        }
-
-        private void incrementDisconnectedCount() {
-            disconnectCount.incrementAndGet();
-        }
-
-        @Override
-        public void connectionEvent(Connection conn, Events type) {
-            if (type == Events.DISCONNECTED) {
-                // disconnect is called after every failed reconnect attempt.
-                incrementDisconnectedCount();
-            }
-        }
-    }
-
     @Test
     public void testReconnectWait() throws Exception {
-        TestReconnectWaitHandler trwh = new TestReconnectWaitHandler();
+        Listener listener = new Listener();
 
         int port = NatsTestServer.nextPort();
 
@@ -638,14 +616,14 @@ public class ReconnectTests {
                 .maxReconnects(-1)
                 .connectionTimeout(Duration.ofSeconds(1))
                 .reconnectWait(Duration.ofMillis(250))
-                .connectionListener(trwh)
+                .connectionListener(listener)
                 .build();
 
             //noinspection unused
             try (Connection nc = Nats.connect(options)) {
                 ts.close();
                 sleep(250);
-                assertTrue(trwh.getDisconnectCount() < 3, "disconnectCount");
+                assertTrue(listener.getConnectionEventCount(Events.DISCONNECTED) < 3, "disconnectCount");
             }
         }
     }
@@ -792,31 +770,28 @@ public class ReconnectTests {
     @Test
     public void testForceReconnectQueueBehaviorCheck() throws Exception {
         runInCluster((nc0, nc1, nc2) -> {
-            initVersionServerInfo(nc0);
-            if (atLeast2_9_0()) {
-                int pubCount = 100_000;
-                int subscribeTime = 5000;
-                int flushWait = 2500;
-                int port = nc0.getServerInfo().getPort();
+            int pubCount = 100_000;
+            int subscribeTime = 5000;
+            int flushWait = 2500;
+            int port = nc0.getServerInfo().getPort();
 
-                ForceReconnectQueueCheckDataPort.DELAY = 75;
+            ForceReconnectQueueCheckDataPort.DELAY = 75;
 
-                String subject = random();
-                ForceReconnectQueueCheckDataPort.setCheck("PUB " + subject);
-                _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, false, 0);
+            String subject = random();
+            ForceReconnectQueueCheckDataPort.setCheck("PUB " + subject);
+            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, false, 0);
 
-                subject = random();
-                ForceReconnectQueueCheckDataPort.setCheck("PUB " + subject);
-                _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, false, flushWait);
+            subject = random();
+            ForceReconnectQueueCheckDataPort.setCheck("PUB " + subject);
+            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, false, flushWait);
 
-                subject = random();
-                ForceReconnectQueueCheckDataPort.setCheck("PUB " + subject);
-                _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, true, 0);
+            subject = random();
+            ForceReconnectQueueCheckDataPort.setCheck("PUB " + subject);
+            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, true, 0);
 
-                subject = random();
-                ForceReconnectQueueCheckDataPort.setCheck("PUB " + subject);
-                _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, true, flushWait);
-            }
+            subject = random();
+            ForceReconnectQueueCheckDataPort.setCheck("PUB " + subject);
+            _testForceReconnectQueueCheck(subject, pubCount, subscribeTime, port, true, flushWait);
         });
     }
 
@@ -833,7 +808,7 @@ public class ReconnectTests {
             froBuilder.forceClose();
         }
 
-        ReconnectQueueCheckConnectionListener listener = new ReconnectQueueCheckConnectionListener();
+        Listener listener = new Listener();
 
         Options options = optionsBuilder(port)
             .connectionListener(listener)
@@ -845,9 +820,10 @@ public class ReconnectTests {
                 nc.publish(subject, (x + "").getBytes());
             }
 
+            listener.queueConnectionEvent(Events.RECONNECTED);
             nc.forceReconnect(froBuilder.build());
 
-            assertTrue(listener.latch.await(subscribeTime, TimeUnit.MILLISECONDS));
+            listener.validate();
 
             long maxTime = subscribeTime;
             while (!subscriber.subscriberDone.get() && maxTime > 0) {
@@ -865,17 +841,6 @@ public class ReconnectTests {
 
         if (flushWait > 0) {
             assertEquals(pubCount, subscriber.lastNotSkipped);
-        }
-    }
-
-    static class ReconnectQueueCheckConnectionListener implements ConnectionListener {
-        public CountDownLatch latch = new CountDownLatch(1);
-
-        @Override
-        public void connectionEvent(Connection conn, Events type) {
-            if (type == Events.RECONNECTED) {
-                latch.countDown();
-            }
         }
     }
 

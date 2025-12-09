@@ -160,11 +160,9 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
         assertFalse(blink1a.isObjectLink());
         assertTrue(blink1a.isBucketLink());
 
-        //noinspection EqualsWithItself
         assertEquals(link1a, link1a);
         assertEquals(link1a, link1b);
         assertEquals(link1a, ObjectLink.object(link1a.getBucket(), link1a.getObjectName()));
-        //noinspection EqualsWithItself
         assertEquals(blink1a, blink1a);
         assertEquals(blink1a, blink1b);
         assertFalse(link1a.equals(new Object()));
@@ -192,7 +190,6 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
         assertTrue(metaOptionsC.hasData());
         assertFalse(ObjectMetaOptions.builder().build().hasData());
 
-        //noinspection EqualsWithItself
         assertEquals(metaOptions, metaOptions);
         assertFalse(metaOptions.equals(new Object()));
         assertFalse(metaOptions.equals(null));
@@ -243,7 +240,6 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
         ObjectMeta metaH = ObjectMeta.builder("meta").headers(new Headers().put("key", "data")).headers(null).build();
         assertEquals(0, metaH.getHeaders().size());
 
-        //noinspection EqualsWithItself
         assertEquals(meta1a, meta1a);
         assertEquals(meta1a, meta1b);
         assertNotEquals(meta1a, meta1c);
@@ -253,19 +249,16 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
         assertNotEquals(meta1a, meta3a);
         assertNotEquals(meta1a, meta4a);
 
-        //noinspection EqualsWithItself
         assertEquals(meta2a, meta2a);
         assertEquals(meta2a, meta2b);
         assertNotEquals(meta2a, meta2c);
         assertNotEquals(meta2a, meta1a);
 
-        //noinspection EqualsWithItself
         assertEquals(meta3a, meta3a);
         assertEquals(meta3a, meta3b);
         assertNotEquals(meta3a, meta3c);
         assertNotEquals(meta3a, meta1a);
 
-        //noinspection EqualsWithItself
         assertEquals(meta4a, meta4a);
         assertEquals(meta4a, meta4b);
         assertNotEquals(meta4a, meta4c);
@@ -346,7 +339,6 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
 
         assertEquals(info1a, info1b);
         assertNotEquals(info1a, info1c);
-        //noinspection EqualsWithItself
         assertEquals(info1a, info1a);
         assertFalse(info1a.equals(null));
         assertFalse(info1a.equals(new Object()));
@@ -358,43 +350,36 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
         assertNotEquals(info1a, info7a);
         assertNotEquals(info1a, info8a);
 
-        //noinspection EqualsWithItself
         assertEquals(info2a, info2a);
         assertEquals(info2a, info2b);
         assertNotEquals(info2a, info2c);
         assertNotEquals(info2a, info1a);
 
-        //noinspection EqualsWithItself
         assertEquals(info3a, info3a);
         assertEquals(info3a, info3b);
         assertNotEquals(info3a, info3c);
         assertNotEquals(info3a, info1a);
 
-        //noinspection EqualsWithItself
         assertEquals(info4a, info4a);
         assertEquals(info4a, info4b);
         assertNotEquals(info4a, info4c);
         assertNotEquals(info4a, info1a);
 
-        //noinspection EqualsWithItself
         assertEquals(info5a, info5a);
         assertEquals(info5a, info5b);
         assertNotEquals(info5a, info5c);
         assertNotEquals(info5a, info1a);
 
-        //noinspection EqualsWithItself
         assertEquals(info6a, info6a);
         assertEquals(info6a, info6b);
         assertNotEquals(info6a, info6c);
         assertNotEquals(info6a, info1a);
 
-        //noinspection EqualsWithItself
         assertEquals(info7a, info7a);
         assertEquals(info7a, info7b);
         assertNotEquals(info7a, info7c);
         assertNotEquals(info7a, info1a);
 
-        //noinspection EqualsWithItself
         assertEquals(info8a, info8a);
         assertEquals(info8a, info8b);
         assertNotEquals(info8a, info8c);

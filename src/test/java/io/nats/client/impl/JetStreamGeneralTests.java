@@ -33,7 +33,8 @@ import static io.nats.client.api.ConsumerConfiguration.*;
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.support.NatsJetStreamClientError.*;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
-import static io.nats.client.utils.VersionUtils.*;
+import static io.nats.client.utils.VersionUtils.atLeast2_10;
+import static io.nats.client.utils.VersionUtils.before2_11;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamGeneralTests extends JetStreamTestBase {
@@ -124,11 +125,14 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             // coverage
             Dispatcher dispatcher = nc.createDispatcher();
             ctx.js.subscribe(ctx.subject());
-            ctx.js.subscribe(ctx.subject(), (PushSubscribeOptions)null);
+            ctx.js.subscribe(ctx.subject(), (PushSubscribeOptions) null);
             ctx.js.subscribe(ctx.subject(), random(), null);
-            ctx.js.subscribe(ctx.subject(), dispatcher, mh -> {}, false);
-            ctx.js.subscribe(ctx.subject(), dispatcher, mh -> {}, false, null);
-            ctx.js.subscribe(ctx.subject(), random(), dispatcher, mh -> {}, false, null);
+            ctx.js.subscribe(ctx.subject(), dispatcher, mh -> {
+            }, false);
+            ctx.js.subscribe(ctx.subject(), dispatcher, mh -> {
+            }, false, null);
+            ctx.js.subscribe(ctx.subject(), random(), dispatcher, mh -> {
+            }, false, null);
 
             // bind with w/o subject
             durable = random();
@@ -142,9 +146,11 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             PushSubscribeOptions psoBind = PushSubscribeOptions.bind(ctx.stream, durable);
             unsubscribeEnsureNotBound(ctx.js.subscribe(null, psoBind));
             unsubscribeEnsureNotBound(ctx.js.subscribe("", psoBind));
-            JetStreamSubscription sub = ctx.js.subscribe(null, dispatcher, mh -> {}, false, psoBind);
+            JetStreamSubscription sub = ctx.js.subscribe(null, dispatcher, mh -> {
+            }, false, psoBind);
             unsubscribeEnsureNotBound(dispatcher, sub);
-            ctx.js.subscribe("", dispatcher, mh -> {}, false, psoBind);
+            ctx.js.subscribe("", dispatcher, mh -> {
+            }, false, psoBind);
 
             durable = random();
             deliver = random();
@@ -159,54 +165,54 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
             psoBind = PushSubscribeOptions.bind(ctx.stream, durable);
             unsubscribeEnsureNotBound(ctx.js.subscribe(null, queue, psoBind));
             unsubscribeEnsureNotBound(ctx.js.subscribe("", queue, psoBind));
-            sub = ctx.js.subscribe(null, queue, dispatcher, mh -> {}, false, psoBind);
+            sub = ctx.js.subscribe(null, queue, dispatcher, mh -> {
+            }, false, psoBind);
             unsubscribeEnsureNotBound(dispatcher, sub);
-            ctx.js.subscribe("", queue, dispatcher, mh -> {}, false, psoBind);
+            ctx.js.subscribe("", queue, dispatcher, mh -> {
+            }, false, psoBind);
 
-            if (atLeast2_9_0()) {
-                String name = random();
-                ConsumerConfiguration cc = builder().name(name).build();
-                pso = PushSubscribeOptions.builder().configuration(cc).build();
-                sub = ctx.js.subscribe(ctx.subject(), pso);
-                m = sub.nextMessage(DEFAULT_TIMEOUT);
-                assertNotNull(m);
-                assertEquals(DATA, new String(m.getData()));
-                ConsumerInfo ci = sub.getConsumerInfo();
-                assertEquals(name, ci.getName());
-                assertEquals(name, ci.getConsumerConfiguration().getName());
-                assertNull(ci.getConsumerConfiguration().getDurable());
+            String name = random();
+            ConsumerConfiguration cc = builder().name(name).build();
+            pso = PushSubscribeOptions.builder().configuration(cc).build();
+            sub = ctx.js.subscribe(ctx.subject(), pso);
+            m = sub.nextMessage(DEFAULT_TIMEOUT);
+            assertNotNull(m);
+            assertEquals(DATA, new String(m.getData()));
+            ConsumerInfo ci = sub.getConsumerInfo();
+            assertEquals(name, ci.getName());
+            assertEquals(name, ci.getConsumerConfiguration().getName());
+            assertNull(ci.getConsumerConfiguration().getDurable());
 
-                durable = random();
-                cc = builder().durable(durable).build();
-                pso = PushSubscribeOptions.builder().configuration(cc).build();
-                sub = ctx.js.subscribe(ctx.subject(), pso);
-                m = sub.nextMessage(DEFAULT_TIMEOUT);
-                assertNotNull(m);
-                assertEquals(DATA, new String(m.getData()));
-                ci = sub.getConsumerInfo();
-                assertEquals(durable, ci.getName());
-                assertEquals(durable, ci.getConsumerConfiguration().getName());
-                assertEquals(durable, ci.getConsumerConfiguration().getDurable());
+            durable = random();
+            cc = builder().durable(durable).build();
+            pso = PushSubscribeOptions.builder().configuration(cc).build();
+            sub = ctx.js.subscribe(ctx.subject(), pso);
+            m = sub.nextMessage(DEFAULT_TIMEOUT);
+            assertNotNull(m);
+            assertEquals(DATA, new String(m.getData()));
+            ci = sub.getConsumerInfo();
+            assertEquals(durable, ci.getName());
+            assertEquals(durable, ci.getConsumerConfiguration().getName());
+            assertEquals(durable, ci.getConsumerConfiguration().getDurable());
 
-                String durName = random();
-                cc = builder().durable(durName).name(durName).build();
-                pso = PushSubscribeOptions.builder().configuration(cc).build();
-                sub = ctx.js.subscribe(ctx.subject(), pso);
-                m = sub.nextMessage(DEFAULT_TIMEOUT);
-                assertNotNull(m);
-                assertEquals(DATA, new String(m.getData()));
-                ci = sub.getConsumerInfo();
-                assertEquals(durName, ci.getName());
-                assertEquals(durName, ci.getConsumerConfiguration().getName());
-                assertEquals(durName, ci.getConsumerConfiguration().getDurable());
+            String durName = random();
+            cc = builder().durable(durName).name(durName).build();
+            pso = PushSubscribeOptions.builder().configuration(cc).build();
+            sub = ctx.js.subscribe(ctx.subject(), pso);
+            m = sub.nextMessage(DEFAULT_TIMEOUT);
+            assertNotNull(m);
+            assertEquals(DATA, new String(m.getData()));
+            ci = sub.getConsumerInfo();
+            assertEquals(durName, ci.getName());
+            assertEquals(durName, ci.getConsumerConfiguration().getName());
+            assertEquals(durName, ci.getConsumerConfiguration().getDurable());
 
-                // test opt out
-                JetStreamOptions jso = JetStreamOptions.builder().optOut290ConsumerCreate(true).build();
-                JetStream jsOptOut = nc.jetStream(jso);
-                ConsumerConfiguration ccOptOut = builder().name(random()).build();
-                PushSubscribeOptions psoOptOut = PushSubscribeOptions.builder().configuration(ccOptOut).build();
-                assertClientError(JsConsumerCreate290NotAvailable, () -> jsOptOut.subscribe(ctx.subject(), psoOptOut));
-            }
+            // test opt out
+            JetStreamOptions jso = JetStreamOptions.builder().optOut290ConsumerCreate(true).build();
+            JetStream jsOptOut = nc.jetStream(jso);
+            ConsumerConfiguration ccOptOut = builder().name(random()).build();
+            PushSubscribeOptions psoOptOut = PushSubscribeOptions.builder().configuration(ccOptOut).build();
+            assertClientError(JsConsumerCreate290NotAvailable, () -> jsOptOut.subscribe(ctx.subject(), psoOptOut));
         });
     }
 

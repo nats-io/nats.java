@@ -199,6 +199,7 @@ public class RequestTests extends TestBase {
             Dispatcher d3 = nc.createDispatcher(handler);
             Dispatcher d4 = nc.createDispatcher(msg -> {
                 requests.incrementAndGet();
+                //noinspection ResultOfMethodCallIgnored
                 d4CanReply.await(5, TimeUnit.SECONDS);
                 nc.publish(msg.getReplyTo(), null);
             });
@@ -742,8 +743,6 @@ public class RequestTests extends TestBase {
 
     @Test
     public void testRtt() throws Exception {
-        runInShared(nc -> {
-            assertTrue(nc.RTT().toMillis() < 50);
-        });
+        runInShared(nc -> assertTrue(nc.RTT().toMillis() < 50));
     }
 }

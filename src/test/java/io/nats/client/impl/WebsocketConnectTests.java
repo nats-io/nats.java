@@ -152,16 +152,12 @@ public class WebsocketConnectTests extends TestBase {
 
     @Test
     public void testWssTlsFirstIgnored() throws Exception {
-        runInSharedConfiguredServer("wss.conf", ts -> {
-            _test(wssBuilder(ts).tlsFirst());
-        });
+        runInSharedConfiguredServer("wss.conf", ts -> _test(wssBuilder(ts).tlsFirst()));
     }
 
     @Test
     public void testWssVerifyTlsFirstIgnored() throws Exception {
-        runInSharedConfiguredServer("wssverify.conf", ts -> {
-            _test(wssBuilder(ts).tlsFirst());
-        });
+        runInSharedConfiguredServer("wssverify.conf", ts -> _test(wssBuilder(ts).tlsFirst()));
     }
 
     @Test
@@ -239,7 +235,6 @@ public class WebsocketConnectTests extends TestBase {
     @Test
     public void testClientSecureServerInsecureMismatch() throws Exception {
         runInSharedOwnNc(nc -> {
-            SSLContext ctx = SslTestingHelper.createTestSSLContext();
             //noinspection DataFlowIssue
             Options options = builder()
                 .server(nc.getConnectedUrl())

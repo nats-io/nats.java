@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class AuthAndConnectTests extends TestBase {
     @Test
-    public void testIsAuthError() throws Exception {
+    public void testIsAuthError() {
         //noinspection resource
         NatsConnection nats = new NatsConnection(options());
         assertTrue(nats.isAuthenticationError("user authentication expired"));

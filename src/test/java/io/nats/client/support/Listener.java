@@ -18,7 +18,9 @@ import org.junit.jupiter.api.Assertions;
 
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -37,6 +39,7 @@ public class Listener implements ErrorListener, ConnectionListener {
 
     private final List<ListenerFuture> futures;
     private final List<Message> discardedMessages;
+    private final Map<ConnectionListener.Events, Integer> connectionEventCounts;
     private Connection lastConnectionEventConnection;
     private int exceptionCount;
     private int heartbeatAlarmCount;
@@ -57,6 +60,7 @@ public class Listener implements ErrorListener, ConnectionListener {
         this.verbose = verbose;
         futures = new ArrayList<>();
         discardedMessages = new ArrayList<>();
+        connectionEventCounts = new HashMap<>();
     }
 
     public void reset() {
@@ -65,6 +69,7 @@ public class Listener implements ErrorListener, ConnectionListener {
         }
         futures.clear();
         discardedMessages.clear();
+        connectionEventCounts.clear();
         lastConnectionEventConnection = null;
         exceptionCount = 0;
         heartbeatAlarmCount = 0;
@@ -225,6 +230,10 @@ public class Listener implements ErrorListener, ConnectionListener {
         return discardedMessages;
     }
 
+    public int getConnectionEventCount(ConnectionListener.Events event) {
+        return connectionEventCounts.getOrDefault(event, 0);
+    }
+
     public Connection getLastConnectionEventConnection() {
         return lastConnectionEventConnection;
     }
@@ -251,17 +260,18 @@ public class Listener implements ErrorListener, ConnectionListener {
     // Connection Listener
     // ----------------------------------------------------------------------------------------------------
     @Override
-    public void connectionEvent(Connection conn, Events type) {
-        connectionEvent(conn, type, 0L, null);
+    public void connectionEvent(Connection conn, Events event) {
+        connectionEvent(conn, event, 0L, null);
     }
 
     @Override
-    public void connectionEvent(Connection conn, Events type, Long time, String uriDetails) {
+    public void connectionEvent(Connection conn, Events event, Long time, String uriDetails) {
         if (verbose) {
-            report("connectionEvent", type);
+            report("connectionEvent", event);
         }
+        connectionEventCounts.merge(event, 1, Integer::sum);
         lastConnectionEventConnection = conn;
-        tryToComplete(futures, f -> type.equals(f.eventType));
+        tryToComplete(futures, f -> event.equals(f.eventType));
     }
 
     // ----------------------------------------------------------------------------------------------------

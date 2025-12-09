@@ -266,11 +266,9 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         for (String l1 : lines) {
             if (l1.startsWith("{")) {
                 Mirror m1 = new Mirror(JsonParser.parseUnchecked(l1));
-                //noinspection EqualsWithItself
                 assertEquals(m1, m1);
                 assertEquals(m1, Mirror.builder(m1).build());
                 Source s1 = new Source(JsonParser.parseUnchecked(l1));
-                //noinspection EqualsWithItself
                 assertEquals(s1, s1);
                 assertEquals(s1, Source.builder(s1).build());
                 //this provides testing coverage
@@ -298,7 +296,6 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         lines = ResourceUtils.dataAsLines("ExternalJson.txt");
         for (String l1 : lines) {
             External e1 = new External(JsonParser.parseUnchecked(l1));
-            //noinspection EqualsWithItself
             assertEquals(e1, e1);
             //noinspection MisorderedAssertEqualsArguments
             assertNotEquals(e1, null);

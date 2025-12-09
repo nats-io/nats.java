@@ -33,9 +33,7 @@ public class NatsStatisticsTests extends TestBase {
     @Test
     public void testHumanReadableString() throws Exception {
         runInSharedOwnNc(optionsBuilder().turnOnAdvancedStats(), nc -> {
-            Dispatcher d = nc.createDispatcher(msg -> {
-                nc.publish(msg.getReplyTo(), new byte[16]);
-            });
+            Dispatcher d = nc.createDispatcher(msg -> nc.publish(msg.getReplyTo(), new byte[16]));
             String subject = random();
             d.subscribe(subject);
 

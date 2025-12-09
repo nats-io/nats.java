@@ -29,26 +29,6 @@ public abstract class VersionUtils {
         }
     }
 
-    public static boolean atLeast2_9_0() {
-        return atLeast2_9_0(VERSION_SERVER_INFO);
-    }
-
-    public static boolean atLeast2_9_0(ServerInfo si) {
-        return si.isSameOrNewerThanVersion("2.9.0");
-    }
-
-    public static boolean atLeast2_9_6(ServerInfo si) {
-        return si.isSameOrNewerThanVersion("2.9.6");
-    }
-
-    public static boolean atLeast2_10_26(ServerInfo si) {
-        return si.isSameOrNewerThanVersion("2.10.26");
-    }
-
-    public static boolean atLeast2_9_1(ServerInfo si) {
-        return si.isSameOrNewerThanVersion("2.9.1");
-    }
-
     public static boolean atLeast2_10() {
         return atLeast2_10(VERSION_SERVER_INFO);
     }
@@ -59,6 +39,10 @@ public abstract class VersionUtils {
 
     public static boolean atLeast2_10_3(ServerInfo si) {
         return si.isSameOrNewerThanVersion("2.10.3");
+    }
+
+    public static boolean atLeast2_10_26(ServerInfo si) {
+        return si.isSameOrNewerThanVersion("2.10.26");
     }
 
     public static boolean atLeast2_11(ServerInfo si) {

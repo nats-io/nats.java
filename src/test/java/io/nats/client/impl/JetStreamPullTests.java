@@ -618,7 +618,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
 
     @Test
     public void testNamed() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_0, (nc, ctx) -> {
+        runInShared((nc, ctx) -> {
             String name = random();
 
             ctx.jsm.addOrUpdateConsumer(ctx.stream, ConsumerConfiguration.builder()
@@ -1035,7 +1035,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testExceedsMaxRequestBytesNthMessageSyncSub() throws Exception {
         Listener listener = new Listener();
-        runInSharedOwnNc(listener, VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+        runInSharedOwnNc(listener, (nc, ctx) -> {
             listener.queueStatus(PullWarning, CONFLICT_CODE);
             String dur = random();
             ctx.jsm.addOrUpdateConsumer(ctx.stream, builder().durable(dur).ackPolicy(AckPolicy.None).filterSubjects(ctx.subject()).build());
@@ -1061,7 +1061,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testDoesNotExceedMaxRequestBytesExactBytes() throws Exception {
         Listener listener = new Listener();
-        runInSharedOwnNc(listener, VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+        runInSharedOwnNc(listener, (nc, ctx) -> {
             listener.queueStatus(PullWarning, CONFLICT_CODE);
             ctx.stream = randomWide(6); // six letters so I can count
             String subject = randomWide(5); // five letters so I can count

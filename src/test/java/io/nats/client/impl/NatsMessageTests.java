@@ -122,9 +122,8 @@ public class NatsMessageTests extends JetStreamTestBase {
             subject.append(subject);
         }
 
-        runInSharedOwnNc(optionsBuilder().maxReconnects(0).maxControlLine(maxControlLine), nc -> {
-            assertThrows(IllegalArgumentException.class, () -> nc.request(subject.toString(), body));
-        });
+        runInSharedOwnNc(optionsBuilder().maxReconnects(0).maxControlLine(maxControlLine),
+            nc -> assertThrows(IllegalArgumentException.class, () -> nc.request(subject.toString(), body)));
     }
 
     @Test

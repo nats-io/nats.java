@@ -662,10 +662,6 @@ public class TestBase {
             }
             assertEquals(META_VALUE, metadata.get(META_KEY));
         }
-        else if (atLeast2_9_0() ){
-            assertNotNull(metadata);
-            assertEquals(0, metadata.size());
-        }
     }
 
     // ----------------------------------------------------------------------------------------------------

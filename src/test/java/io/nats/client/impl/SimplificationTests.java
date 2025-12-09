@@ -18,7 +18,6 @@ import io.nats.client.api.*;
 import io.nats.client.support.*;
 import io.nats.client.utils.ConnectionUtils;
 import io.nats.client.utils.VersionUtils;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.*;
@@ -43,7 +42,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testStreamContextErrors() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, nc -> {
+        runInShared(nc -> {
             assertThrows(JetStreamApiException.class, () -> nc.getStreamContext(random()));
             assertThrows(JetStreamApiException.class, () -> nc.getStreamContext(random(), JetStreamOptions.DEFAULT_JS_OPTIONS));
             assertThrows(JetStreamApiException.class, () -> nc.jetStream().getStreamContext(random()));
@@ -52,7 +51,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testStreamContextFromConnection() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+        runInShared((nc, ctx) -> {
             StreamContext streamContext = nc.getStreamContext(ctx.stream);
             assertEquals(ctx.stream, streamContext.getStreamName());
             _testStreamContext(ctx, streamContext);
@@ -61,7 +60,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testStreamContextFromContext() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+        runInShared((nc, ctx) -> {
             StreamContext streamContext = ctx.js.getStreamContext(ctx.stream);
             assertEquals(ctx.stream, streamContext.getStreamName());
             _testStreamContext(ctx, streamContext);
@@ -190,9 +189,10 @@ public class SimplificationTests extends JetStreamTestBase {
     static int FETCH_EPHEMERAL = 1;
     static int FETCH_DURABLE = 2;
     static int FETCH_ORDERED = 3;
+
     @Test
     public void testFetch() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+        runInShared((nc, ctx) -> {
             for (int x = 1; x <= 20; x++) {
                 ctx.js.publish(ctx.subject(), ("test-fetch-msg-" + x).getBytes());
             }
@@ -331,7 +331,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testFetchNoWaitPlusExpires() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+        runInShared((nc, ctx) -> {
             ctx.jsm.addOrUpdateConsumer(ctx.stream, ConsumerConfiguration.builder()
                 .name(ctx.consumerName())
                 .inactiveThreshold(100000) // I could have used a durable, but this is long enough for the test
@@ -395,7 +395,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testIterableConsumer() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+        runInShared((nc, ctx) -> {
             // Pre define a consumer
             ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(ctx.consumerName()).build();
             ctx.jsm.addOrUpdateConsumer(ctx.stream, cc);
@@ -422,7 +422,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedConsumerDeliverPolices() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+        runInShared((nc, ctx) -> {
             jsPublish(ctx.js, ctx.subject(), 101, 3, 100);
             ZonedDateTime startTime = getStartTimeFirstMessage(ctx);
 
@@ -477,7 +477,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedIterableConsumerBasic() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+        runInShared((nc, ctx) -> {
             StreamContext sctx = nc.getStreamContext(ctx.stream);
 
             int stopCount = 500;
@@ -541,7 +541,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testConsumeWithHandler() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+        runInShared((nc, ctx) -> {
             jsPublish(ctx.js, ctx.subject(), 2500);
 
             // Pre define a consumer
@@ -629,7 +629,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testNext() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+        runInShared((nc, ctx) -> {
             jsPublish(ctx.js, ctx.subject(), 4);
 
             String name = random();
@@ -701,7 +701,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testCoverage() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+        runInShared((nc, ctx) -> {
             // Pre define a consumer
             ctx.jsm.addOrUpdateConsumer(ctx.stream, ConsumerConfiguration.builder().durable(ctx.consumerName(1)).build());
             ctx.jsm.addOrUpdateConsumer(ctx.stream, ConsumerConfiguration.builder().durable(ctx.consumerName(2)).build());
@@ -723,8 +723,10 @@ public class SimplificationTests extends JetStreamTestBase {
 
             after(cctx1.iterate(), ctx.consumerName(1), true);
             after(cctx2.iterate(ConsumeOptions.DEFAULT_CONSUME_OPTIONS), ctx.consumerName(2), true);
-            after(cctx3.consume(m -> {}), ctx.consumerName(3), true);
-            after(cctx4.consume(ConsumeOptions.DEFAULT_CONSUME_OPTIONS, m -> {}), ctx.consumerName(4), true);
+            after(cctx3.consume(m -> {
+            }), ctx.consumerName(3), true);
+            after(cctx4.consume(ConsumeOptions.DEFAULT_CONSUME_OPTIONS, m -> {
+            }), ctx.consumerName(4), true);
             after(cctx5.fetchMessages(1), ctx.consumerName(5), false);
             after(cctx6.fetchBytes(1000), ctx.consumerName(6), false);
         });
@@ -806,7 +808,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     private FetchConsumeOptions roundTripSerialize(FetchConsumeOptions fco) throws IOException, ClassNotFoundException {
         SerializableFetchConsumeOptions sfco = new SerializableFetchConsumeOptions(fco);
-        sfco = (SerializableFetchConsumeOptions)roundTripSerialize(sfco);
+        sfco = (SerializableFetchConsumeOptions) roundTripSerialize(sfco);
         return sfco.getFetchConsumeOptions();
     }
 
@@ -888,7 +890,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     private ConsumeOptions roundTripSerialize(ConsumeOptions co) throws IOException, ClassNotFoundException {
         SerializableConsumeOptions sco = new SerializableConsumeOptions(co);
-        sco = (SerializableConsumeOptions)roundTripSerialize(sco);
+        sco = (SerializableConsumeOptions) roundTripSerialize(sco);
         return sco.getConsumeOptions();
     }
 
@@ -923,7 +925,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedBehaviorNext() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+        runInShared((nc, ctx) -> {
             StreamContext sctx = ctx.js.getStreamContext(ctx.stream);
 
             jsPublish(ctx.js, ctx.subject(), 101, 6, 100);
@@ -983,6 +985,7 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     public static long CS_FOR_SS_3 = 3;
+
     public static class PullOrderedTestDropSimulator extends PullOrderedMessageManager {
         @SuppressWarnings("ClassEscapesDefinedScope")
         public PullOrderedTestDropSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode) {
@@ -993,8 +996,7 @@ public class SimplificationTests extends JetStreamTestBase {
         protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
             if (msg.isJetStream()
                 && msg.metaData().streamSequence() == 3
-                && msg.metaData().consumerSequence() == CS_FOR_SS_3)
-            {
+                && msg.metaData().consumerSequence() == CS_FOR_SS_3) {
                 return false;
             }
 
@@ -1004,7 +1006,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedBehaviorFetch() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+        runInShared((nc, ctx) -> {
             StreamContext sctx = ctx.js.getStreamContext(ctx.stream);
 
             jsPublish(ctx.js, ctx.subject(), 101, 6, 100);
@@ -1073,7 +1075,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedBehaviorIterable() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+        runInShared((nc, ctx) -> {
             StreamContext sctx = ctx.js.getStreamContext(ctx.stream);
 
             jsPublish(ctx.js, ctx.subject(), 101, 6, 100);
@@ -1129,13 +1131,13 @@ public class SimplificationTests extends JetStreamTestBase {
         assertEquals(GREATER_THAN, occ.getFilterSubjects().get(0));
         assertFalse(occ.hasMultipleFilterSubjects());
 
-        occ = new OrderedConsumerConfiguration().filterSubjects((String[])null);
+        occ = new OrderedConsumerConfiguration().filterSubjects((String[]) null);
         assertNotNull(occ.getFilterSubjects());
         assertEquals(GREATER_THAN, occ.getFilterSubject());
         assertEquals(GREATER_THAN, occ.getFilterSubjects().get(0));
         assertFalse(occ.hasMultipleFilterSubjects());
 
-        occ = new OrderedConsumerConfiguration().filterSubjects((List<String>)null);
+        occ = new OrderedConsumerConfiguration().filterSubjects((List<String>) null);
         assertNotNull(occ.getFilterSubjects());
         assertEquals(GREATER_THAN, occ.getFilterSubject());
         assertEquals(GREATER_THAN, occ.getFilterSubjects().get(0));
@@ -1156,7 +1158,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedConsume() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+        runInShared((nc, ctx) -> {
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration()
                 .filterSubject(ctx.subject());
             _testOrderedConsume(ctx, occ);
@@ -1165,7 +1167,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedConsumeWithPrefix() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+        runInShared((nc, ctx) -> {
             OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration()
                 .consumerNamePrefix(random())
                 .filterSubject(ctx.subject());
@@ -1240,105 +1242,122 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedMultipleWays() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+        runInShared((nc, ctx) -> {
             StreamContext sctx = ctx.js.getStreamContext(ctx.stream);
 
-            OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(ctx.subject());
+            OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration()
+                .filterSubject(ctx.subject());
             OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
 
             // can't do others while doing next
-            CountDownLatch latch = new CountDownLatch(1);
+            CountDownLatch latch1 = new CountDownLatch(1);
             new Thread(() -> {
                 try {
                     // make sure there is enough time to call other methods.
-                    assertNull(occtx.next(2000));
+                    assertNull(occtx.next(1000));
                 }
                 catch (Exception e) {
                     throw new RuntimeException(e);
                 }
                 finally {
-                    latch.countDown();
+                    latch1.countDown();
                 }
             }).start();
 
             Thread.sleep(100); // make sure there is enough time for the thread to start and get into the next method
-            validateCantCallOtherMethods(occtx);
+            validateCantCallOtherMethods(occtx, true, true);
 
             //noinspection ResultOfMethodCallIgnored
-            latch.await(3000, TimeUnit.MILLISECONDS);
-
-            for (int x = 0; x < 10_000; x++) {
-                ctx.js.publish(ctx.subject(), ("multiple" + x).getBytes());
-            }
+            latch1.await(3000, TimeUnit.MILLISECONDS);
 
             // can do others now
+            jsPublishNull(ctx.js, ctx.subject(), 1);
             Message m = occtx.next(1000);
             assertNotNull(m);
             assertEquals(1, m.metaData().streamSequence());
 
-            // can't do others while doing next
+            // can't do others while doing fetch
             int seq = 2;
             try (FetchConsumer fc = occtx.fetchMessages(5)) {
-                while (seq <= 6) {
-                    m = fc.nextMessage();
+                validateCantCallOtherMethods(occtx, false, true);
+                jsPublishNull(ctx.js, ctx.subject(), 5);
+                m = fc.nextMessage();
+                while (m != null) {
                     assertNotNull(m);
                     assertEquals(seq, m.metaData().streamSequence());
                     assertFalse(fc.isFinished());
-                    validateCantCallOtherMethods(occtx);
+                    validateCantCallOtherMethods(occtx, false, true);
                     seq++;
+                    m = fc.nextMessage();
                 }
-
                 assertNull(fc.nextMessage());
                 assertTrue(fc.isFinished());
-                assertNull(fc.nextMessage()); // just some coverage
+                assertNull(fc.nextMessage()); // just some coverage for when finished
             }
 
             // can do others now
+            jsPublishNull(ctx.js, ctx.subject(), 1);
             m = occtx.next(1000);
             assertNotNull(m);
             assertEquals(seq++, m.metaData().streamSequence());
 
             // can't do others while doing iterate
-            ConsumeOptions copts = ConsumeOptions.builder().batchSize(10).build();
+            ConsumeOptions copts = ConsumeOptions.builder().batchSize(10).expiresIn(3000).build();
             try (IterableConsumer ic = occtx.iterate(copts)) {
-                ic.stop();
+                validateCantCallOtherMethods(occtx, true, true);
+                jsPublishNull(ctx.js, ctx.subject(), 1);
                 m = ic.nextMessage(1000);
-                while (m != null) {
-                    assertEquals(seq, m.metaData().streamSequence());
-                    if (!ic.isFinished()) {
-                        validateCantCallOtherMethods(occtx);
-                    }
-                    ++seq;
-                    m = ic.nextMessage(1000);
+                assertNotNull(m);
+                assertEquals(seq++, m.metaData().streamSequence());
+                ic.stop();
+                while (!ic.isFinished()) {
+                    assertNull(ic.nextMessage(100));
                 }
             }
 
             // can do others now
+            jsPublishNull(ctx.js, ctx.subject(), 1);
             m = occtx.next(1000);
             assertNotNull(m);
             assertEquals(seq++, m.metaData().streamSequence());
 
-            int last = Math.min(seq + 10, 9999);
-            try (FetchConsumer fc = occtx.fetchMessages(last - seq)) {
-                while (seq < last) {
-                    fc.stop();
-                    m = fc.nextMessage();
-                    assertNotNull(m);
-                    assertEquals(seq, m.metaData().streamSequence());
-                    assertFalse(fc.isFinished());
-                    validateCantCallOtherMethods(occtx);
-                    seq++;
-                }
+            CountDownLatch latch2 = new CountDownLatch(1);
+            AtomicLong conSeq = new AtomicLong();
+            copts = ConsumeOptions.builder().batchSize(10).expiresIn(1000).build();
+            MessageConsumer mc = occtx.consume(copts, cm -> {
+                assertNotNull(cm);
+                conSeq.set(cm.metaData().streamSequence());
+                latch2.countDown();
+            });
+
+            validateCantCallOtherMethods(occtx, true, false);
+
+            jsPublishNull(ctx.js, ctx.subject(), 1);
+            assertTrue(latch2.await(1000, TimeUnit.MILLISECONDS));
+            assertEquals(seq++, conSeq.get());
+            mc.stop();
+            while (!mc.isFinished()) {
+                sleep(100);
             }
+            mc.close();
+
+            // can do others now
+            jsPublishNull(ctx.js, ctx.subject(), 1);
+            m = occtx.next(1000);
+            assertNotNull(m);
+            assertEquals(seq, m.metaData().streamSequence());
         });
     }
 
     @SuppressWarnings("resource")
-    private void validateCantCallOtherMethods(OrderedConsumerContext ctx) {
+    private void validateCantCallOtherMethods(OrderedConsumerContext ctx, boolean fetch, boolean consume) {
         assertThrows(IOException.class, () -> ctx.next(1000));
-        assertThrows(IOException.class, () -> ctx.fetchMessages(1));
-        //noinspection DataFlowIssue
-        assertThrows(IllegalArgumentException.class, () -> ctx.consume(null));
+        if (fetch) {
+            assertThrows(IOException.class, () -> ctx.fetchMessages(1));
+        }
+        if (consume) {
+            assertThrows(IOException.class, () -> ctx.consume(m -> {}));
+        }
     }
 
     @Test
@@ -1441,7 +1460,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     private OrderedConsumerConfiguration roundTripSerialize(OrderedConsumerConfiguration occ) throws IOException, ClassNotFoundException {
         SerializableOrderedConsumerConfiguration socc = new SerializableOrderedConsumerConfiguration(occ);
-        socc = (SerializableOrderedConsumerConfiguration)roundTripSerialize(socc);
+        socc = (SerializableOrderedConsumerConfiguration) roundTripSerialize(socc);
         return socc.getOrderedConsumerConfiguration();
     }
 
@@ -1456,7 +1475,7 @@ public class SimplificationTests extends JetStreamTestBase {
 
     @Test
     public void testOverflowFetch() throws Exception {
-        runInShared(VersionUtils::atLeast2_9_1, (nc, ctx) -> {
+        runInShared((nc, ctx) -> {
             jsPublish(ctx.js, ctx.subject(), 100);
 
             // Testing min ack pending
@@ -1649,8 +1668,7 @@ public class SimplificationTests extends JetStreamTestBase {
             };
 
             try (MessageConsumer mcOver = ctxOver.consume(coOver, overHandler);
-                 MessageConsumer mcPrime = ctxPrime.consume(coPrime, primeHandler))
-            {
+                 MessageConsumer mcPrime = ctxPrime.consume(coPrime, primeHandler)) {
                 validateConsumerName(ctxPrime, mcPrime, cname);
                 validateConsumerName(ctxOver, mcOver, cname);
                 while (left.get() > 0) {
@@ -1688,107 +1706,101 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    @Disabled("This is a timing flapper and is annoying. java 21 makes it worse")
     public void testReconnectOverOrdered() throws Exception {
-            // ------------------------------------------------------------
-            // The idea here is...
-            // 1. connect with an ordered consumer and start consuming
-            // 2. stop the server then restart it causing a disconnect,
-            //    but reconnect before the idle heartbeat alarm kicks in
-            // 3. stop the server but wait a little before restarting
-            //    so the alarm goes off but still disconnected
-            //    to make sure the consumer continues after that condition
-            // ------------------------------------------------------------
-            int port = NatsTestServer.nextPort();
-            Listener listener = new Listener();
-            Options options = optionsBuilder()
-                .connectionListener(listener)
-                .errorListener(listener)
-                .server(NatsTestServer.getLocalhostUri(port)).build();
-            NatsConnection nc;
+        // ------------------------------------------------------------
+        // The idea here is...
+        // 1. connect with an ordered consumer and start consuming
+        // 2. stop the server then restart it causing a disconnect,
+        //    but reconnect before the idle heartbeat alarm kicks in
+        // 3. stop the server but wait a little before restarting
+        //    so the alarm goes off but still disconnected
+        //    to make sure the consumer continues after that condition
+        // ------------------------------------------------------------
+        String stream = random();
+        String subject = random();
 
-            String stream = random();
-            String subject = random();
+        AtomicBoolean allInOrder = new AtomicBoolean(true);
+        AtomicInteger messageCount = new AtomicInteger();
+        AtomicLong nextExpectedSequence = new AtomicLong(0);
 
-            AtomicBoolean allInOrder = new AtomicBoolean(true);
-            AtomicInteger atomicCount = new AtomicInteger();
-            AtomicLong nextExpectedSequence = new AtomicLong(0);
-
-            MessageHandler handler = msg -> {
-                if (msg.metaData().streamSequence() != nextExpectedSequence.incrementAndGet()) {
-                    allInOrder.set(false);
-                }
-                msg.ack();
-                atomicCount.incrementAndGet();
-                sleep(50); // simulate some work and to slow the endless consume
-            };
-
-            // variable are here. initialized during first server, but used after.
-            StreamContext streamContext;
-            OrderedConsumerContext orderedConsumerContext;
-            MessageConsumer mcon;
-            String firstConsumerName;
-
-            //noinspection unused
-            try (NatsTestServer ts = new NatsTestServer(port, true)) {
-                nc = (NatsConnection) ConnectionUtils.managedConnect(options);
-                StreamConfiguration sc = StreamConfiguration.builder()
-                    .name(stream)
-                    .storageType(StorageType.File) // file since we are killing the server and bringing it back up.
-                    .subjects(subject).build();
-                nc.jetStreamManagement().addStream(sc);
-
-                jsPublish(nc, subject, 10000);
-
-                ConsumeOptions consumeOptions = ConsumeOptions.builder()
-                    .batchSize(100) // small batch size means more round trips
-                    .expiresIn(1500) // idle heartbeat is half of this, alarm time is 3 * ihb
-                    .build();
-
-                OrderedConsumerConfiguration ocConfig = new OrderedConsumerConfiguration().filterSubjects(subject);
-                streamContext = nc.getStreamContext(stream);
-                orderedConsumerContext = streamContext.createOrderedConsumer(ocConfig);
-                assertNull(orderedConsumerContext.getConsumerName());
-                mcon = orderedConsumerContext.consume(consumeOptions, handler);
-                firstConsumerName = validateConsumerNameForOrdered(orderedConsumerContext, mcon, null);
-
-                sleep(500); // time enough to get some messages
+        MessageHandler handler = msg -> {
+            if (msg.metaData().streamSequence() != nextExpectedSequence.incrementAndGet()) {
+                allInOrder.set(false);
             }
+            msg.ack();
+            messageCount.incrementAndGet();
+            sleep(50); // simulate some work and to slow the endless consume
+        };
 
-            assertTrue(allInOrder.get());
-            int count1 = atomicCount.get();
-            assertTrue(count1 > 0);
-            assertEquals(count1, nextExpectedSequence.get());
+        StreamConfiguration sc = StreamConfiguration.builder()
+            .name(stream)
+            .storageType(StorageType.File) // file since we are killing the server and bringing it back up.
+            .subjects(subject).build();
 
-            // reconnect and get some more messages
-            try (NatsTestServer ignored = new NatsTestServer(port, true)) {
-                ConnectionUtils.confirmConnected(nc); // wait for reconnect
-                sleep(10000); // long enough to get messages and for the hb alarm to have tripped
-            }
+        NatsTestServer ts = new NatsTestServer(NatsTestServer.builder().jetstream());
+        /* start server */
+        Listener listener = new Listener();
+        Options options = optionsBuilder(ts)
+            .connectionListener(listener)
+            .errorListener(listener)
+            .build();
+        NatsConnection nc = (NatsConnection) ConnectionUtils.managedConnect(options);
+        JetStreamManagement jsm = nc.jetStreamManagement();
+        JetStream js = jsm.jetStream();
+        jsm.addStream(sc);
 
-            assertNotEquals(firstConsumerName, orderedConsumerContext.getConsumerName());
-
-            assertTrue(allInOrder.get());
-            int count2 = atomicCount.get();
-            assertTrue(count2 > count1);
-            assertEquals(count2, nextExpectedSequence.get());
-
-            sleep(6000); // enough delay before reconnect to trip hb alarm again
-            try (NatsTestServer ignored = new NatsTestServer(port, true)) {
-                ConnectionUtils.confirmConnected(nc); // wait for reconnect
-                sleep(6000); // long enough to get messages and for the hb alarm to have tripped
-
-                try {
-                    nc.jetStreamManagement().deleteStream(stream); // it was a file stream clean it up
-                }
-                catch (JetStreamApiException ignore) {
-                    // in GH actions this fails sometimes
-                }
-            }
-
-            assertTrue(allInOrder.get());
-            int count3 = atomicCount.get();
-            assertTrue(count3 > count2);
-            assertEquals(count3, nextExpectedSequence.get());
+        for (int x = 0; x < 2000; x++) {
+            js.publish(subject, null);
         }
+
+        ConsumeOptions consumeOptions = ConsumeOptions.builder()
+            .batchSize(100) // small batch size means more round trips
+            .expiresIn(1000) // idle heartbeat is half of this, alarm time is 3 times
+            .build();
+
+        OrderedConsumerConfiguration ocConfig = new OrderedConsumerConfiguration().filterSubjects(subject);
+        StreamContext streamContext = nc.getStreamContext(stream);
+        OrderedConsumerContext orderedConsumerContext = streamContext.createOrderedConsumer(ocConfig);
+        assertNull(orderedConsumerContext.getConsumerName());
+        MessageConsumer mcon = orderedConsumerContext.consume(consumeOptions, handler);
+        validateConsumerNameForOrdered(orderedConsumerContext, mcon, null);
+        sleep(500); // time enough to get some messages
+
+        /* close server */ ts.close();
+
+        validateOverOrdered(messageCount, allInOrder, nextExpectedSequence);
+
+        // reconnect and get some more messages
+        messageCount.set(0);
+        listener.queueConnectionEvent(ConnectionListener.Events.RECONNECTED);
+        /* start server */ ts.start();
+        listener.validate(); // reconnected
+        listener.queueHeartbeat();
+        sleep(3500); // long enough to get messages and for the hb alarm to have tripped
+        /* close server */ ts.close();
+
+        listener.validate(); // heartbeat
+        validateOverOrdered(messageCount, allInOrder, nextExpectedSequence);
+
+        // wait enough time to get more heartbeats, then reconnect and get some more messages
+        listener.queueHeartbeat();
+        sleep(3500);
+        listener.validate(); // heartbeat
+
+        messageCount.set(0);
+        listener.queueConnectionEvent(ConnectionListener.Events.RECONNECTED);
+        /* start server */ ts.start();
+        listener.validate(); // reconnected
+        listener.queueHeartbeat();
+        sleep(3500); // long enough to get messages and for the hb alarm to have tripped
+        /* close server */ ts.close();
+        listener.validate(); // heartbeat
+        validateOverOrdered(messageCount, allInOrder, nextExpectedSequence);
+    }
+
+    private static void validateOverOrdered(AtomicInteger atomicCount, AtomicBoolean allInOrder, AtomicLong nextExpectedSequence) {
+        int count = atomicCount.get();
+        assertTrue(allInOrder.get());
+        assertTrue(count > 0);
+    }
 }

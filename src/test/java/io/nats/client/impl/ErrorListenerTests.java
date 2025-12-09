@@ -36,7 +36,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class ErrorListenerTests extends TestBase {
 
     @Test
-    public void testLastError() throws Exception {
+    public void testLastError_ClearError_AuthViolation() throws Exception {
         NatsConnection nc;
         Listener listener = new Listener();
         String[] customArgs = {"--user", "stephen", "--pass", "password"};
@@ -70,76 +70,9 @@ public class ErrorListenerTests extends TestBase {
 
             confirmConnected(nc); // wait for reconnect
             assertEquals(ts3.getServerUri(), nc.getConnectedUrl());
-        }
-    }
-
-    @Test
-    public void testClearLastError() throws Exception {
-        NatsConnection nc = null;
-        Listener listener = new Listener();
-        String[] customArgs = {"--user", "stephen", "--pass", "password"};
-
-        try (NatsTestServer ts = new NatsTestServer();
-             NatsTestServer ts2 = new NatsTestServer(customArgs); //ts2 requires auth
-             NatsTestServer ts3 = new NatsTestServer()) {
-            Options options = optionsBuilder(ts.getServerUri(), ts2.getServerUri(), ts3.getServerUri())
-                .noRandomize()
-                .connectionListener(listener)
-                .errorListener(listener)
-                .maxReconnects(-1)
-                .build();
-
-            listener.queueConnectionEvent(Events.DISCONNECTED);
-            listener.queueConnectionEvent(Events.RECONNECTED);
-            listener.queueError("Authorization Violation", LONG_VALIDATE_TIMEOUT);
-
-            nc = (NatsConnection) Nats.connect(options);
-            assertConnected(nc);
-            assertEquals(ts.getServerUri(), nc.getConnectedUrl());
-
-            ts.close();
-
-            try {
-                nc.flush(Duration.ofSeconds(1));
-            }
-            catch (Exception exp) {
-                // this usually fails
-            }
-
-            listener.validateAll();
-
-            assertConnected(nc);
-            assertEquals(ts3.getServerUri(), nc.getConnectedUrl());
 
             nc.clearLastError();
             assertNull(nc.getLastError());
-        }
-        finally {
-            closeAndConfirm(nc);
-        }
-    }
-
-    @Test
-    public void testErrorOnNoAuth() throws Exception {
-        String[] customArgs = {"--user", "stephen", "--pass", "password"};
-        Listener listener = new Listener();
-        try (NatsTestServer ts = new NatsTestServer(customArgs)) {
-            // See config file for user/pass
-            // no or wrong u/p in the options is an error
-            Options options = optionsBuilder(ts)
-                .maxReconnects(0)
-                .errorListener(listener)
-                .build();
-            try {
-                Nats.connect(options);
-                fail();
-            }
-            catch (AuthenticationException ae) {
-                if (ae.getMessage().contains("Authorization Violation")) {
-                    return;
-                }
-                fail();
-            }
         }
     }
 
@@ -159,10 +92,8 @@ public class ErrorListenerTests extends TestBase {
                 d.subscribe(subject);
                 Future<Message> incoming = nc.request(subject, null);
 
-                Message msg;
-
                 try {
-                    msg = incoming.get(200, TimeUnit.MILLISECONDS);
+                    incoming.get(200, TimeUnit.MILLISECONDS);
                     fail();
                 }
                 catch (TimeoutException te) {

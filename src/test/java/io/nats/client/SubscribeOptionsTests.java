@@ -379,10 +379,12 @@ public class SubscribeOptionsTests extends TestBase {
 
         ConsumerConfiguration ccHb = ConsumerConfiguration.builder().idleHeartbeat(100).build();
         PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(ccHb).ordered(true).build();
+        assertNotNull(pso.getConsumerConfiguration().getIdleHeartbeat());
         assertEquals(100, pso.getConsumerConfiguration().getIdleHeartbeat().toMillis());
 
         ccHb = ConsumerConfiguration.builder().idleHeartbeat(DEFAULT_ORDERED_HEARTBEAT + 1).build();
         pso = PushSubscribeOptions.builder().configuration(ccHb).ordered(true).build();
+        assertNotNull(pso.getConsumerConfiguration().getIdleHeartbeat());
         assertEquals(DEFAULT_ORDERED_HEARTBEAT + 1, pso.getConsumerConfiguration().getIdleHeartbeat().toMillis());
 
         // okay if you set it to true

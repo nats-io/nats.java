@@ -39,9 +39,9 @@ public class JetStreamTestBase extends TestBase {
     public static final String TestMetaV2 = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.4";
     public static final String TestMetaVFuture = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.4.dont.care.how.many.more";
     public static final String InvalidMetaNoAck = "$JS.nope.test-stream.test-consumer.1.2.3.1605139610113260000";
+    public static final String InvalidMetaData = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.not-a-number";
     public static final String InvalidMetaLt8Tokens = "$JS.ACK.less-than.8-tokens.1.2.3";
     public static final String InvalidMeta10Tokens = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000";
-    public static final String InvalidMetaData = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.not-a-number";
 
     public static final Duration DEFAULT_TIMEOUT = Duration.ofMillis(1000);
 
@@ -103,6 +103,12 @@ public class JetStreamTestBase extends TestBase {
     public static void jsPublish(JetStream js, String subject, int startId, int count) throws IOException, JetStreamApiException {
         for (int x = 0; x < count; x++) {
             js.publish(NatsMessage.builder().subject(subject).data((dataBytes(startId++))).build());
+        }
+    }
+
+    public static void jsPublishNull(JetStream js, String subject, int count) throws IOException, JetStreamApiException {
+        for (int x = 0; x < count; x++) {
+            js.publish(subject, null);
         }
     }
 
@@ -272,36 +278,6 @@ public class JetStreamTestBase extends TestBase {
         assertTrue(m.isJetStream());
         assertFalse(m.isStatusMessage());
         assertNull(m.getStatus());
-    }
-
-    public static void assertLastIsStatus(List<Message> messages, int code) {
-        int lastIndex = messages.size() - 1;
-        for (int x = 0; x < lastIndex; x++) {
-            Message m = messages.get(x);
-            assertTrue(m.isJetStream());
-        }
-        assertIsStatus(messages.get(lastIndex), code);
-    }
-
-    public static void assertStarts408(List<Message> messages, int count408, int expectedJs) {
-        for (int x = 0; x < count408; x++) {
-            assertIsStatus(messages.get(x), 408);
-        }
-        int countedJs = 0;
-        int lastIndex = messages.size() - 1;
-        for (int x = count408; x <= lastIndex; x++) {
-            Message m = messages.get(x);
-            assertTrue(m.isJetStream());
-            countedJs++;
-        }
-        assertEquals(expectedJs, countedJs);
-    }
-
-    private static void assertIsStatus(Message statusMsg, int code) {
-        assertFalse(statusMsg.isJetStream());
-        assertTrue(statusMsg.isStatusMessage());
-        assertNotNull(statusMsg.getStatus());
-        assertEquals(code, statusMsg.getStatus().getCode());
     }
 
     public static void assertSource(JetStreamManagement jsm, String stream, Long msgCount, Long firstSeq)

@@ -18,7 +18,6 @@ import io.nats.client.Options;
 import io.nats.client.utils.ConnectionUtils;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -119,7 +118,7 @@ public class NatsConnectionImplTests {
     private static void verifyExternalExecutors(Options options,
                                                 ExecutorService userEs, ScheduledExecutorService userSes,
                                                 ExecutorService userCallbackEs, ExecutorService userConnectEs
-    ) throws InterruptedException, IOException {
+    ) throws InterruptedException {
         try (NatsConnection nc = (NatsConnection) ConnectionUtils.managedConnect(options)) {
             ExecutorService es = options.getExecutor();
             ScheduledExecutorService ses = options.getScheduledExecutor();
