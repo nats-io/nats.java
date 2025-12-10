@@ -74,6 +74,7 @@ public abstract class ConnectionUtils {
     // ----------------------------------------------------------------------------------------------------
     // connect or wait for a connection
     // ----------------------------------------------------------------------------------------------------
+    @SuppressWarnings("UnusedReturnValue")
     public static Connection confirmConnected(Connection conn) {
         return waitUntilStatus(conn, DEFAULT_WAIT, Connection.Status.CONNECTED);
     }

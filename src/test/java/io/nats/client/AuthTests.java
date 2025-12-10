@@ -41,6 +41,7 @@ import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.NOOP_EL;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ResourceUtils.jwtResource;
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.condition.OS.WINDOWS;
 
@@ -661,8 +662,7 @@ public class AuthTests extends TestBase {
 
     @Test
     public void testRealUserAuthenticationExpired() throws Exception {
-        Listener listener = new Listener(true);
-        listener.queueError("User Authentication Expired");
+        Listener listener = new Listener();
 
         String accountSeed = "SAAPXJRFMUYDUH3NOZKE7BS2ZDO2P4ND7G6W743MTNA3KCSFPX3HNN6AX4";
         String accountId = "ACPWDUYSZRRF7XAEZKUAGPUH6RPICWEHSTFELYKTOWUVZ4R2XMP4QJJX";
@@ -688,10 +688,22 @@ public class AuthTests extends TestBase {
                 .errorListener(listener)
                 .maxReconnects(5)
                 .build();
-            try (Connection ignored = managedConnect(options)) {
-                listener.validate();
+
+            listener.queueError("User Authentication Expired");
+
+            // so these shenanigans to test this...
+            // 1. sometimes it connects and the expiration comes while connected
+            // 2. sometimes the connect exceptions right away
+            // 3. sometimes the connect happens but still exceptions
+            // this is all simply the speed and timing of the machine/server/connection
+            try (Connection ignored = Nats.connect(options)) {
+                sleep(2500); // 1. connected, so the validate() at the end verifies this
+            }
+            catch (AuthenticationException ignore) {
+                return; // 2. sometimes the connect exceptions right away
             }
             catch (RuntimeException e) {
+                // 3. sometimes the connect happens but still exceptions
                 Throwable t = e;
                 while (t != null) {
                     if (t instanceof AuthenticationException) {
@@ -701,6 +713,7 @@ public class AuthTests extends TestBase {
                 }
                 fail(e);
             }
+            listener.validate(); // 1. finish
         });
     }
 }
