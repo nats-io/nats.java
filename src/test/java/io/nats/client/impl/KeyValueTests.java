@@ -1953,23 +1953,16 @@ public class KeyValueTests extends JetStreamTestBase {
                         .build())
                     .build());
 
-            long mark = System.currentTimeMillis();
+            long createdTimeMark = System.currentTimeMillis();
             kv.create(key, dataBytes(), MessageTtl.seconds(1));
             StreamInfo si = ctx.jsm.getStreamInfo(rawStream);
             assertEquals(1, si.getStreamState().getMsgCount());
 
-            long safety = 0;
-            long gotZero = -1;
-            while (++safety < 10000 && errorLatch.getCount() > 0) {
-                si = ctx.jsm.getStreamInfo(rawStream);
-                if (si.getStreamState().getMsgCount() == 0) {
-                    gotZero = System.currentTimeMillis();
-                    break;
-                }
-            }
+            long purgedTimeMark = waitForPurge(ctx, rawStream);
+
             assertEquals(1, errorLatch.getCount(), error.get());
             assertEquals(2, messages.get());
-            assertTrue(gotZero - mark >= 100); // this is arbitrary but I need something
+            assertTrue(purgedTimeMark - createdTimeMark >= 1000); // ttl is 1 second, should take at least this long
             assertEquals("PUT", ops.get(0));
             assertEquals("MaxAge", ops.get(1));
 
@@ -1981,21 +1974,24 @@ public class KeyValueTests extends JetStreamTestBase {
             si = ctx.jsm.getStreamInfo(rawStream);
             assertEquals(1, si.getStreamState().getMsgCount());
 
-            safety = 0;
-            gotZero = -1;
-            while (++safety < 10000 && errorLatch.getCount() > 0) {
-                si = ctx.jsm.getStreamInfo(rawStream);
-                if (si.getStreamState().getMsgCount() == 0) {
-                    gotZero = System.currentTimeMillis();
-                    break;
-                }
-            }
+            purgedTimeMark = waitForPurge(ctx, rawStream);
             assertEquals(1, errorLatch.getCount(), error.get());
             assertEquals(4, messages.get());
-            assertTrue(gotZero - mark >= 1000);
+            assertTrue(purgedTimeMark - createdTimeMark >= 1000); // ttl is 1 second, should take at least this long
             assertEquals("PUT", ops.get(2));
             assertEquals("PURGE", ops.get(3));
         });
+    }
+
+    private static long waitForPurge(JetStreamTestingContext ctx, String rawStream) throws IOException, JetStreamApiException {
+        for (int tries = 0; tries < 20; tries++) {
+            sleep(500); // it takes a bit of time for the purge to happen, depends on the server load
+            StreamInfo si = ctx.jsm.getStreamInfo(rawStream);
+            if (si.getStreamState().getMsgCount() == 0) {
+                return System.currentTimeMillis();
+            }
+        }
+        return -1;
     }
 
     @Test
@@ -2058,41 +2054,25 @@ public class KeyValueTests extends JetStreamTestBase {
             assertEquals(1, si.getStreamState().getMsgCount());
 
             kv.delete(key);
-            long mark = System.currentTimeMillis();
+            long createdTimeMark = System.currentTimeMillis();
             si = ctx.jsm.getStreamInfo(rawStream);
             assertEquals(1, si.getStreamState().getMsgCount());
 
-            long safety = 0;
-            long gotZero = -1;
-            while (++safety < 10000 && errorLatch.getCount() > 0) {
-                si = ctx.jsm.getStreamInfo(rawStream);
-                if (si.getStreamState().getMsgCount() == 0) {
-                    gotZero = System.currentTimeMillis();
-                    break;
-                }
-            }
+            long purgedTimeMark = waitForPurge(ctx, rawStream);
             assertEquals(1, errorLatch.getCount(), error.get());
             assertEquals(2, messages.get());
-            assertTrue(gotZero - mark >= 1000);
+            assertTrue(purgedTimeMark - createdTimeMark >= 1000);
             assertEquals("PUT", ops.get(0));
             assertEquals("DEL", ops.get(1));
 
             kv.create(key, dataBytes());
-            mark = System.currentTimeMillis();
+            createdTimeMark = System.currentTimeMillis();
             kv.purge(key);
 
-            safety = 0;
-            gotZero = -1;
-            while (++safety < 10000 && errorLatch.getCount() > 0) {
-                si = ctx.jsm.getStreamInfo(rawStream);
-                if (si.getStreamState().getMsgCount() == 0) {
-                    gotZero = System.currentTimeMillis();
-                    break;
-                }
-            }
+            purgedTimeMark = waitForPurge(ctx, rawStream);
             assertEquals(1, errorLatch.getCount(), error.get());
             assertEquals(4, messages.get());
-            assertTrue(gotZero - mark >= 1000);
+            assertTrue(purgedTimeMark - createdTimeMark >= 1000);
             assertEquals("PUT", ops.get(2));
             assertEquals("PURGE", ops.get(3));
         });
