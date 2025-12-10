@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.time.Duration;
 
-import static io.nats.client.utils.ConnectionUtils.assertClosed;
+import static io.nats.client.utils.ConnectionUtils.assertCanConnect;
 import static io.nats.client.utils.OptionsUtils.options;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.*;
@@ -31,24 +31,16 @@ public class EchoTests extends TestBase {
     @Test
     public void testFailWithBadServerProtocol() throws Exception {
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-            Options opt = optionsBuilder(mockTs).noEcho().noReconnect().build();
-            assertThrows(IOException.class, () -> Nats.connect(opt));
+            Options options = optionsBuilder(mockTs).noEcho().noReconnect().build();
+            assertThrows(IOException.class, () -> Nats.connect(options));
         }
     }
 
     @Test
     public void testConnectToOldServerWithEcho() throws Exception {
-        Connection nc = null;
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-            Options opt = optionsBuilder(mockTs).noReconnect().build();
-            try {
-                nc = Nats.connect(opt);
-            } finally {
-                if (nc != null) {
-                    nc.close();
-                    assertClosed(nc);
-                }
-            }
+            Options options = optionsBuilder(mockTs).noReconnect().build();
+            assertCanConnect(options);
         }
     }
     

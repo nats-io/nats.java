@@ -13,14 +13,13 @@
 
 package io.nats.client;
 
-import io.nats.client.utils.ConnectionUtils;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 
-import static io.nats.client.utils.OptionsUtils.options;
+import static io.nats.client.utils.ConnectionUtils.standardConnect;
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -108,14 +107,14 @@ public class SubscriberTests {
         };
 
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(receiveMessageCustomizer)) {
-            try (Connection nc = ConnectionUtils.managedConnect(options(mockTs))) {
+            try (Connection nc = standardConnect(mockTs)) {
                 String subject = random();
                 Subscription sub = nc.subscribe(subject);
 
                 gotSub.get();
                 sendMsg.complete(Boolean.TRUE);
 
-                Message msg = sub.nextMessage(Duration.ZERO);//Duration.ofMillis(1000));
+                Message msg = sub.nextMessage(Duration.ZERO);
 
                 assertTrue(sub.isActive());
                 assertNotNull(msg);

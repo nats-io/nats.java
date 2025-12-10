@@ -1063,9 +1063,9 @@ public class JetStreamPullTests extends JetStreamTestBase {
         Listener listener = new Listener();
         runInSharedOwnNc(listener, (nc, ctx) -> {
             listener.queueStatus(PullWarning, CONFLICT_CODE);
-            ctx.stream = randomWide(6); // six letters so I can count
-            String subject = randomWide(5); // five letters so I can count
-            String durable = randomWide(10); // short keeps under max bytes
+            ctx.stream = random(6); // six letters so I can count
+            String subject = random(5); // five letters so I can count
+            String durable = random(); // default random is 10 chars so is short enough to keeps under max bytes
             ctx.createOrReplaceStream(subject);
             ctx.jsm.addOrUpdateConsumer(ctx.stream, builder().durable(durable).ackPolicy(AckPolicy.None).filterSubjects(subject).build());
             PullSubscribeOptions so = PullSubscribeOptions.bind(ctx.stream, durable);
@@ -1371,7 +1371,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
         // unpin 10 times and make sure that new pins are made
         runInShared(VersionUtils::atLeast2_12, (nc, ctx) -> {
             String consumer = random();
-            String group = random();
+                String group = random();
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder()
                 .filterSubject(ctx.subject())

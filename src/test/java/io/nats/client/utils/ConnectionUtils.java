@@ -15,11 +15,13 @@ package io.nats.client.utils;
 
 import io.nats.client.Connection;
 import io.nats.client.Nats;
+import io.nats.client.NatsServerProtocolMock;
 import io.nats.client.Options;
 import org.opentest4j.AssertionFailedError;
 
 import java.io.IOException;
 
+import static io.nats.client.utils.OptionsUtils.options;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
@@ -34,7 +36,7 @@ public abstract class ConnectionUtils {
     public static final long MEDIUM_FLUSH_TIMEOUT_MS = 5000;
 
     // ----------------------------------------------------------------------------------------------------
-    // standardConnect
+    // connectWithRetry
     // ----------------------------------------------------------------------------------------------------
     private static final int RETRY_DELAY_INCREMENT = 50;
     private static final int CONNECTION_RETRIES = 10;
@@ -69,6 +71,17 @@ public abstract class ConnectionUtils {
             }
         }
         throw last;
+    }
+
+    // ----------------------------------------------------------------------------------------------------
+    // standardConnect
+    // ----------------------------------------------------------------------------------------------------
+    public static Connection standardConnect(NatsServerProtocolMock ts) throws IOException, InterruptedException {
+        return confirmConnected(Nats.connect(options(ts)));
+    }
+
+    public static Connection standardConnect(Options options) throws IOException, InterruptedException {
+        return confirmConnected(Nats.connect(options));
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -146,6 +159,10 @@ public abstract class ConnectionUtils {
     public static void assertClosed(Connection conn) {
         assertSame(Connection.Status.CLOSED, conn.getStatus(),
             () -> expectingMessage(conn, Connection.Status.CLOSED));
+    }
+
+    public static void assertCanConnect(NatsServerProtocolMock ts) {
+        closeAndConfirm(managedConnect(options(ts)));
     }
 
     public static void assertCanConnect(Options options) {

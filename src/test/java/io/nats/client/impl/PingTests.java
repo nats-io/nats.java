@@ -58,13 +58,8 @@ public class PingTests extends TestBase {
         };
 
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(pingPongCustomizer)) {
-            Connection  nc = Nats.connect(mockTs.getServerUri());
-            try {
-                assertConnected(nc);
+            try (Connection nc = standardConnect(mockTs)) {
                 assertTrue(gotPong.get(), "Got pong.");
-            } finally {
-                nc.close();
-                assertClosed(nc);
             }
         }
     }
@@ -89,7 +84,7 @@ public class PingTests extends TestBase {
                 .maxPingsOut(2)
                 .maxReconnects(0)
                 .build();
-            try (NatsConnection nc = (NatsConnection) managedConnect(options)) {
+            try (NatsConnection nc = (NatsConnection)standardConnect(options)) {
                 nc.sendPing();
                 nc.sendPing();
                 assertNull(nc.sendPing(), "No future returned when past max");
@@ -106,7 +101,7 @@ public class PingTests extends TestBase {
                 .connectionListener(listener)
                 .errorListener(listener)
                 .build();
-            try (Connection nc = managedConnect(options)) {
+            try (Connection nc = standardConnect(options)) {
                 // fake server so flush will time out
                 assertThrows(TimeoutException.class, () -> nc.flush(Duration.ofMillis(50)));
             }

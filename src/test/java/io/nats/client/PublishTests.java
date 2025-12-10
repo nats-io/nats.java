@@ -86,16 +86,14 @@ public class PublishTests extends TestBase {
     @Test
     public void testThrowsIfHeadersNotSupported() throws Exception {
         String customInfo = "{\"server_id\":\"test\", \"version\":\"9.9.99\"}";
-
-        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(null, customInfo);
-             Connection nc = Nats.connect(mockTs.getServerUri())) {
-            assertConnected(nc);
-
-            assertThrows(IllegalArgumentException.class,
-                () -> nc.publish(NatsMessage.builder()
-                    .subject("testThrowsIfheadersNotSupported")
-                    .headers(new Headers().add("key", "value"))
-                    .build()));
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(null, customInfo)) {
+            try (Connection nc = standardConnect(mockTs)) {
+                assertThrows(IllegalArgumentException.class,
+                    () -> nc.publish(NatsMessage.builder()
+                        .subject("testThrowsIfheadersNotSupported")
+                        .headers(new Headers().add("key", "value"))
+                        .build()));
+            }
         }
     }
 
@@ -165,7 +163,7 @@ public class PublishTests extends TestBase {
         };
 
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(receiveMessageCustomizer)) {
-            try (Connection nc = managedConnect(options(mockTs))) {
+            try (Connection nc = standardConnect(mockTs)) {
                 byte[] bodyBytes;
                 if (bodyString == null || bodyString.isEmpty()) {
                     bodyBytes = EMPTY_BODY;

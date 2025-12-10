@@ -25,9 +25,9 @@ import org.junit.jupiter.api.function.Executable;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 
 import static io.nats.client.support.NatsConstants.DOT;
@@ -533,25 +533,27 @@ public class TestBase {
         return b.build();
     }
 
-    private static String tempJsStoreDir() throws IOException {
-        return Files.createTempDirectory(random()).toString().replace("\\", "\\\\");  // when on windows this is necessary. unix doesn't have backslash
-    }
-
     // ----------------------------------------------------------------------------------------------------
     // data makers
     // ----------------------------------------------------------------------------------------------------
     public static final String DATA = "data";
 
-    public static String random() {
-        return NUID.nextGlobalSequence();
+    // Fastest - using char array directly
+    private static final char[] CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".toCharArray();
+
+    public static String random(int length) {
+        ThreadLocalRandom random = ThreadLocalRandom.current();
+        char[] result = new char[length];
+
+        for (int i = 0; i < length; i++) {
+            result[i] = CHARS[random.nextInt(CHARS.length)];
+        }
+
+        return new String(result);
     }
 
-    public static String randomWide(int width) {
-        StringBuilder sb = new StringBuilder();
-        while (sb.length() < width) {
-            sb.append(random());
-        }
-        return sb.substring(0, width);
+    public static String random() {
+        return random(10);
     }
 
     public static String subject(int variant) {

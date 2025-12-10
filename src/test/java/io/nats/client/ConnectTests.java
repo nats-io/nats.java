@@ -111,7 +111,7 @@ public class ConnectTests {
     @Test
     public void testFullFakeConnect() throws Exception {
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-            assertCanConnect(options(mockTs));
+            assertCanConnect(mockTs);
         }
     }
 
@@ -119,7 +119,7 @@ public class ConnectTests {
     public void testFullFakeConnectWithTabs() throws Exception {
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
             mockTs.useTabs();
-            assertCanConnect(options(mockTs));
+            assertCanConnect(mockTs);
         }
     }
 

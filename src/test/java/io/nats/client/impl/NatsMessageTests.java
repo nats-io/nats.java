@@ -133,7 +133,7 @@ public class NatsMessageTests extends JetStreamTestBase {
             subject.append(subject);
         }
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-            try (Connection nc = ConnectionUtils.managedConnect(options(mockTs))) {
+            try (Connection nc = ConnectionUtils.standardConnect(options(mockTs))) {
                 // Without Body
                 assertThrows(IllegalArgumentException.class, () -> nc.subscribe(subject.toString()));
 

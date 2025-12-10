@@ -61,7 +61,7 @@ public class ConnectionListenerTests extends TestBase {
                     .connectionListener(listener)
                     .build();
                 listener.queueConnectionEvent(Events.DISCOVERED_SERVERS);
-                try (Connection ignore = managedConnect(options)) {
+                try (Connection ignore = standardConnect(options)) {
                     listener.validate();
                 }
             }

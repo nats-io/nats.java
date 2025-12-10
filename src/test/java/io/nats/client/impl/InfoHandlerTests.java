@@ -13,7 +13,10 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.*;
+import io.nats.client.Connection;
+import io.nats.client.ConnectionListener;
+import io.nats.client.NatsServerProtocolMock;
+import io.nats.client.Options;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -22,8 +25,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static io.nats.client.utils.ConnectionUtils.assertClosed;
-import static io.nats.client.utils.ConnectionUtils.assertConnected;
+import static io.nats.client.utils.ConnectionUtils.standardConnect;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -32,15 +34,9 @@ public class InfoHandlerTests {
     @Test
     public void testInitialInfo() throws IOException, InterruptedException {
         String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\"}";
-
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(null, customInfo)) {
-            Connection nc = Nats.connect(mockTs.getServerUri());
-            try {
-                assertConnected(nc);
+            try (Connection nc = standardConnect(mockTs)) {
                 assertEquals("myid", nc.getServerInfo().getServerId(), "got custom info");
-            } finally {
-                nc.close();
-                assertClosed(nc);
             }
         }
     }
@@ -89,22 +85,15 @@ public class InfoHandlerTests {
         };
 
         try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(infoCustomizer, customInfo)) {
-            Connection nc = Nats.connect(mockTs.getServerUri());
-            try {
-                assertConnected(nc);
+            try (Connection nc = standardConnect(mockTs)) {
                 assertEquals("myid", nc.getServerInfo().getServerId(), "got custom info");
                 sendInfo.complete(Boolean.TRUE);
 
                 assertTrue(gotPong.get(), "Got pong."); // Server round tripped so we should have new info
                 assertEquals("replacement", nc.getServerInfo().getServerId(), "got replacement info");
-            } finally {
-                nc.close();
-                assertClosed(nc);
             }
         }
     }
-
-
 
     @Test
     public void testLDM() throws IOException, InterruptedException, ExecutionException, TimeoutException {
@@ -157,17 +146,12 @@ public class InfoHandlerTests {
 
             Options options = optionsBuilder(mockTs).connectionListener(cl).build();
 
-            Connection nc = Nats.connect(options);
-            try {
-                assertConnected(nc);
+            try (Connection nc = standardConnect(options)) {
                 assertEquals("myid", nc.getServerInfo().getServerId(), "got custom info");
                 sendInfo.complete(Boolean.TRUE);
 
                 assertTrue(gotPong.get(), "Got pong."); // Server round tripped so we should have new info
                 assertEquals("replacement", nc.getServerInfo().getServerId(), "got replacement info");
-            } finally {
-                nc.close();
-                assertClosed(nc);
             }
         }
 

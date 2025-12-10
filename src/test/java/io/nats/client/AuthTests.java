@@ -646,7 +646,7 @@ public class AuthTests extends TestBase {
 
                 listener.queueConnectionEvent(Events.RECONNECTED);
 
-                try (Connection nc = managedConnect(options)) {
+                try (Connection nc = standardConnect(options)) {
                     assertEquals(mockTs.getServerUri(), nc.getConnectedUrl());
                     fMock.complete(true);
                     listener.validate();

@@ -109,7 +109,7 @@ public class ReconnectTests {
 
         listener.queueConnectionEvent(Events.RESUBSCRIBED);
 
-        try (NatsTestServer ignored = new NatsTestServer(nsrb.port(port))) {
+        try (NatsTestServer ignored = new NatsTestServer(nsrb)) {
             confirmConnected(nc); // wait for reconnect
             listener.validate();
 
@@ -332,7 +332,7 @@ public class ReconnectTests {
     public void testReconnectToSecondServerFromInfo() throws Exception {
         Listener listener = new Listener();
         runInSharedServer(ts -> {
-            NatsConnection nc;
+            Connection nc;
             String striped = ts.getServerUri().substring("nats://".length()); // info doesn't have protocol
             String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\",\"connect_urls\": [\""+striped+"\"]}";
             try (NatsServerProtocolMock mockTs2 = new NatsServerProtocolMock(null, customInfo)) {
@@ -342,7 +342,7 @@ public class ReconnectTests {
                     .connectionTimeout(Duration.ofSeconds(5))
                     .reconnectWait(Duration.ofSeconds(1))
                     .build();
-                nc = (NatsConnection) managedConnect(options);
+                nc = standardConnect(options);
                 assertEquals(mockTs2.getServerUri(), nc.getConnectedUrl());
                 listener.queueConnectionEvent(Events.RECONNECTED);
             }
@@ -371,9 +371,10 @@ public class ReconnectTests {
 
         listener.validate();
 
+        String subject = random();
         assertThrows(IllegalStateException.class, () -> {
             for (int i = 0; i < 20; i++) {
-                nc.publish("test", new byte[512]);// Should be full by the 5th message
+                nc.publish(subject, new byte[512]);// Should be full by the 5th message
             }
         });
 
@@ -451,8 +452,7 @@ public class ReconnectTests {
                 .connectionListener(listener)
                 .build();
             port = mockTs.getPort();
-            nc = (NatsConnection) Nats.connect(options);
-            assertConnected(nc);
+            nc = (NatsConnection) standardConnect(options);
             listener.queueConnectionEvent(Events.DISCONNECTED);
             nc.subscribe("test");
             subRef.get().get();
