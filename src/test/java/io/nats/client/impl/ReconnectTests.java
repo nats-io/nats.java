@@ -330,9 +330,9 @@ public class ReconnectTests {
 
     @Test
     public void testReconnectToSecondServerFromInfo() throws Exception {
-        NatsConnection nc;
         Listener listener = new Listener();
-        try (NatsTestServer ts = new NatsTestServer()) {
+        runInSharedServer(ts -> {
+            NatsConnection nc;
             String striped = ts.getServerUri().substring("nats://".length()); // info doesn't have protocol
             String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\",\"connect_urls\": [\""+striped+"\"]}";
             try (NatsServerProtocolMock mockTs2 = new NatsServerProtocolMock(null, customInfo)) {
@@ -352,7 +352,7 @@ public class ReconnectTests {
             assertConnected(nc);
             assertEquals(ts.getServerUri(), nc.getConnectedUrl());
             closeAndConfirm(nc);
-        }
+        });
     }
 
     @Test

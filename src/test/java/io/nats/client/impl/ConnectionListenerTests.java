@@ -52,7 +52,7 @@ public class ConnectionListenerTests extends TestBase {
 
     @Test
     public void testDiscoveredServersCountAndListenerInOptions() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer()) {
+        runInSharedServer(ts -> {
             String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\",\"connect_urls\": [\""+ts.getServerUri()+"\"]}";
             try (NatsServerProtocolMock mockTs2 = new NatsServerProtocolMock(null, customInfo)) {
                 Listener listener = new Listener();
@@ -65,7 +65,7 @@ public class ConnectionListenerTests extends TestBase {
                     listener.validate();
                 }
             }
-        }
+        });
     }
 
     @Test

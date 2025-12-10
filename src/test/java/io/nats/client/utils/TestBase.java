@@ -181,6 +181,10 @@ public class TestBase {
         inServerTest.test(ts);
     }
 
+    public static void runInSharedServer(InServerTest inServerTest) throws Exception {
+        inServerTest.test(SharedServer.getInstance(SHARED_NAME).getServer());
+    }
+
     public static void runInSharedNamed(String name, InServerTest inServerTest) throws Exception {
         _runInSharedNamedServer(name, null, null, -1, inServerTest);
     }
