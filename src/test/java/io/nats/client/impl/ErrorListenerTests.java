@@ -38,7 +38,7 @@ public class ErrorListenerTests extends TestBase {
     @Test
     public void testLastError_ClearError_AuthViolation() throws Exception {
         NatsConnection nc;
-        Listener listener = new Listener();
+        Listener listener = new Listener(true);
         String[] customArgs = {"--user", "stephen", "--pass", "password"};
 
         try (NatsTestServer ts = new NatsTestServer();

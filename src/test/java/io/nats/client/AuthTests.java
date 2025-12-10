@@ -692,9 +692,14 @@ public class AuthTests extends TestBase {
                 listener.validate();
             }
             catch (RuntimeException e) {
-                if (!e.getMessage().contains("Authorization Violation")) {
-                    fail(e);
+                Throwable t = e;
+                while (t != null) {
+                    if (t instanceof AuthenticationException) {
+                        return;
+                    }
+                    t = t.getCause();
                 }
+                fail(e);
             }
         });
     }
