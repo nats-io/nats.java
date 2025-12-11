@@ -17,7 +17,7 @@ public class SubjectsMultiWildcard {
             // Asynchronous subscribers require a dispatcher
 
             // Subscribe to the weather
-            CountDownLatch latch = new CountDownLatch(4);
+            CountDownLatch latch = new CountDownLatch(3);
             Dispatcher dMulti = nc.createDispatcher(msg -> {
                 latch.countDown();
                 System.out.println("Received weather for " +
@@ -27,17 +27,14 @@ public class SubjectsMultiWildcard {
             dMulti.subscribe("weather.>");
 
             // Publish a message to the various subjects
-            byte[] data = "Temperature: 11°C".getBytes(StandardCharsets.UTF_8);
-            nc.publish("weather.north.fr", data);
+            byte[] data = "US weather update".getBytes(StandardCharsets.UTF_8);
+            nc.publish("weather.us", data);
 
-            data = "Temperature: 15°C".getBytes(StandardCharsets.UTF_8);
-            nc.publish("weather.south.fr", data);
+            data = "East coast update".getBytes(StandardCharsets.UTF_8);
+            nc.publish("weather.us.east", data);
 
-            data = "Temperature: 74°F".getBytes(StandardCharsets.UTF_8);
-            nc.publish("weather.southwest.us", data);
-
-            data = "Temperature: 30°F".getBytes(StandardCharsets.UTF_8);
-            nc.publish("weather.midwest.us", data);
+            data = "Finland weather".getBytes(StandardCharsets.UTF_8);
+            nc.publish("weather.eu.north.finland", data);
 
             System.out.println("Waiting for messages...");
             latch.await();
