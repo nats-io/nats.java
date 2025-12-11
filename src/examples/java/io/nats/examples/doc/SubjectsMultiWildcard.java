@@ -10,7 +10,7 @@ import java.util.concurrent.CountDownLatch;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-public class SubjectsSingleWildcard {
+public class SubjectsMultiWildcard {
     // NATS-DOC-START
     public static void main(String[] args) {
         try (Connection nc = Nats.connect("nats://localhost:4222")) {
@@ -19,25 +19,14 @@ public class SubjectsSingleWildcard {
             // Asynchronous Subscribers requires a dispatcher
 
             // Subscribe to the weather in the US
-            CountDownLatch latchUs = new CountDownLatch(2);
-            Dispatcher dus = nc.createDispatcher(msg -> {
-                latchUs.countDown();
-                System.out.println("US | Received weather for " +
+            CountDownLatch latch = new CountDownLatch(2);
+            Dispatcher dMulti = nc.createDispatcher(msg -> {
+                latch.countDown();
+                System.out.println("Received weather for " +
                     msg.getSubject() + " --> " +
                     new String(msg.getData(), UTF_8));
             });
-            dus.subscribe("weather.*.us");
-
-            // Subscribe to the weather in France
-            CountDownLatch latchFr = new CountDownLatch(2);
-            Dispatcher dfr = nc.createDispatcher(msg -> {
-                latchFr.countDown();
-                System.out.println("FR | Received weather for " +
-                    msg.getSubject() + " --> " +
-                    new String(msg.getData(), UTF_8));
-                latchFr.countDown();
-            });
-            dfr.subscribe("weather.*.fr");
+            dMulti.subscribe("weather.>");
 
             // Publish a message to the various subjects
             byte[] data = "Temperature: 11°C".getBytes(StandardCharsets.UTF_8);
@@ -53,8 +42,7 @@ public class SubjectsSingleWildcard {
             nc.publish("weather.midwest.us", data);
 
             System.out.println("Waiting for messages...");
-            latchFr.await();
-            latchUs.await();
+            latch.await();
             // NATS-DOC-END
         }
         catch (InterruptedException e) {
