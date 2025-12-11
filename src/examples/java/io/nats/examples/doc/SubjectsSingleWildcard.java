@@ -8,15 +8,13 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CountDownLatch;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 public class SubjectsSingleWildcard {
     // NATS-DOC-START
     public static void main(String[] args) {
         try (Connection nc = Nats.connect("nats://localhost:4222")) {
 
             // NATS-DOC-START
-            // Asynchronous Subscribers requires a dispatcher
+            // Asynchronous subscribers require a dispatcher
 
             // Subscribe to the weather in the US
             CountDownLatch latchUs = new CountDownLatch(2);
@@ -24,7 +22,7 @@ public class SubjectsSingleWildcard {
                 latchUs.countDown();
                 System.out.println("US | Received weather for " +
                     msg.getSubject() + " --> " +
-                    new String(msg.getData(), UTF_8));
+                    new String(msg.getData(), StandardCharsets.UTF_8));
             });
             dus.subscribe("weather.*.us");
 
@@ -34,7 +32,7 @@ public class SubjectsSingleWildcard {
                 latchFr.countDown();
                 System.out.println("FR | Received weather for " +
                     msg.getSubject() + " --> " +
-                    new String(msg.getData(), UTF_8));
+                    new String(msg.getData(), StandardCharsets.UTF_8));
                 latchFr.countDown();
             });
             dfr.subscribe("weather.*.fr");

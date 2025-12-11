@@ -6,8 +6,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CountDownLatch;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 public class PublishSubscribeBasic {
     // NATS-DOC-START
     public static void main(String[] args) {
@@ -16,7 +14,8 @@ public class PublishSubscribeBasic {
             // Dispatchers can be shared
             CountDownLatch latch = new CountDownLatch(1);
             Dispatcher d = nc.createDispatcher(msg -> {
-                System.out.println("Asynchronous Subscriber Received: " + new String(msg.getData(), UTF_8));
+                System.out.println("Asynchronous Subscriber Received: " +
+                    new String(msg.getData(), StandardCharsets.UTF_8));
                 latch.countDown();
             });
             // Subscribe to the "events.data" subject
