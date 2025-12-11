@@ -17,5 +17,5 @@ gradlew clean uberJar
 Then run with the jar in the classpath
 
 ```
-java -cp build/libs/java-nats-{major.minor.patch}-SNAPSHOT-uber.jar io.nats.examples.doc.BasicsSubscribe
+java -cp build/libs/java-nats-{major.minor.patch}-SNAPSHOT-uber.jar io.nats.examples.natsIoDoc.BasicsSubscribe
 ```

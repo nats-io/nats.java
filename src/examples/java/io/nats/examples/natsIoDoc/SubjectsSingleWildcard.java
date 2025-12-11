@@ -1,4 +1,4 @@
-package io.nats.examples.doc;
+package io.nats.examples.natsIoDoc;
 
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;

@@ -1,4 +1,4 @@
-package io.nats.examples.doc;
+package io.nats.examples.natsIoDoc;
 
 import io.nats.client.Connection;
 import io.nats.client.Nats;
@@ -6,15 +6,14 @@ import io.nats.client.Nats;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-public class BasicsPublish {
+public class GettingStartedPublish {
+    // NATS-DOC-START
     public static void main(String[] args) {
         try (Connection nc = Nats.connect("nats://localhost:4222")) {
-            // NATS-DOC-START
-            // Publish a message to the subject "weather.updates"
-            byte[] data = "Temperature: 72°F".getBytes(StandardCharsets.UTF_8);
-            nc.publish("weather.updates", data);
-            System.out.println("Message published to weather.updates");
-            // NATS-DOC-END
+            // Publish a message to the subject "hello"
+            byte[] data = "Hello NATS!".getBytes(StandardCharsets.UTF_8);
+            nc.publish("hello", data);
+            System.out.println("Message published to hello");
         }
         catch (InterruptedException e) {
             // can be thrown by connect
@@ -24,4 +23,5 @@ public class BasicsPublish {
             // can be thrown by connect
         }
     }
+    // NATS-DOC-END
 }
