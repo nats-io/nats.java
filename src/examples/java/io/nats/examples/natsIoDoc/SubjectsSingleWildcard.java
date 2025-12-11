@@ -16,43 +16,42 @@ public class SubjectsSingleWildcard {
             // NATS-DOC-START
             // Asynchronous subscribers require a dispatcher
 
-            // Subscribe to the weather in the US
-            CountDownLatch latchUs = new CountDownLatch(2);
-            Dispatcher dus = nc.createDispatcher(msg -> {
-                latchUs.countDown();
-                System.out.println("US | Received weather for " +
-                    msg.getSubject() + " --> " +
+            // Subscribe to the placed orders
+            CountDownLatch latchPlaced = new CountDownLatch(2);
+            Dispatcher dPlaced = nc.createDispatcher(msg -> {
+                latchPlaced.countDown();
+                String[] split = msg.getSubject().split("\\.");
+                System.out.println("Placed | " + split[1] + " | " +
                     new String(msg.getData(), StandardCharsets.UTF_8));
             });
-            dus.subscribe("weather.*.us");
+            dPlaced.subscribe("orders.*.placed");
 
-            // Subscribe to the weather in France
-            CountDownLatch latchFr = new CountDownLatch(2);
-            Dispatcher dfr = nc.createDispatcher(msg -> {
-                latchFr.countDown();
-                System.out.println("FR | Received weather for " +
-                    msg.getSubject() + " --> " +
-                    new String(msg.getData(), StandardCharsets.UTF_8));
-                latchFr.countDown();
+            // Subscribe to the shipped orders
+            CountDownLatch latchShipped = new CountDownLatch(2);
+            Dispatcher dShipped = nc.createDispatcher(msg -> {
+                latchShipped.countDown();
+                String[] split = msg.getSubject().split("\\.");
+                System.out.println("Shipped | " + split[1] + " | " +
+                        new String(msg.getData(), StandardCharsets.UTF_8));
             });
-            dfr.subscribe("weather.*.fr");
+            dShipped.subscribe("orders.*.shipped");
 
             // Publish a message to the various subjects
-            byte[] data = "Temperature: 11°C".getBytes(StandardCharsets.UTF_8);
-            nc.publish("weather.north.fr", data);
+            byte[] data = "Order W7373".getBytes(StandardCharsets.UTF_8);
+            nc.publish("orders.Wholesale.placed", data);
 
-            data = "Temperature: 15°C".getBytes(StandardCharsets.UTF_8);
-            nc.publish("weather.south.fr", data);
+            data = "Order R65432".getBytes(StandardCharsets.UTF_8);
+            nc.publish("orders.Retail.placed", data);
 
-            data = "Temperature: 74°F".getBytes(StandardCharsets.UTF_8);
-            nc.publish("weather.southwest.us", data);
+            data = "Order W7300".getBytes(StandardCharsets.UTF_8);
+            nc.publish("orders.Wholesale.shipped", data);
 
-            data = "Temperature: 30°F".getBytes(StandardCharsets.UTF_8);
-            nc.publish("weather.midwest.us", data);
+            data = "Order R65321".getBytes(StandardCharsets.UTF_8);
+            nc.publish("orders.Retail.shipped", data);
 
             System.out.println("Waiting for messages...");
-            latchFr.await();
-            latchUs.await();
+            latchPlaced.await();
+            latchShipped.await();
             // NATS-DOC-END
         }
         catch (InterruptedException e) {
