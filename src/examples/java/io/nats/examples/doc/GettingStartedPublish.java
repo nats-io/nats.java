@@ -9,10 +9,10 @@ import java.nio.charset.StandardCharsets;
 public class GettingStartedPublish {
     // NATS-DOC-START
     public static void main(String[] args) {
-        // NATS-DOC-START
         try (Connection nc = Nats.connect("nats://localhost:4222")) {
-            // Publish a message
-            nc.publish("hello", "Hello NATS!".getBytes(StandardCharsets.UTF_8));
+            // Publish a message to the subject "hello"
+            byte[] data = "Hello NATS!".getBytes(StandardCharsets.UTF_8);
+            nc.publish("hello", data);
             System.out.println("Message published to hello");
         }
         catch (InterruptedException e) {

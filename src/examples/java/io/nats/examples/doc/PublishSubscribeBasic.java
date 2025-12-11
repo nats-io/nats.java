@@ -4,27 +4,39 @@ import io.nats.client.*;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CountDownLatch;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class PublishSubscribeBasic {
     // NATS-DOC-START
     public static void main(String[] args) {
-        // NATS-DOC-START
         try (Connection nc = Nats.connect("nats://localhost:4222")) {
-            // Asynchronous Subscriber
-            Dispatcher d = nc.createDispatcher(msg ->
-                System.out.println("Asynchronous Subscriber Received: " + new String(msg.getData(), StandardCharsets.UTF_8)));
+            // Asynchronous Subscriber requires a dispatcher
+            // Dispatchers can be shared
+            CountDownLatch latch = new CountDownLatch(1);
+            Dispatcher d = nc.createDispatcher(msg -> {
+                System.out.println("Asynchronous Subscriber Received: " + new String(msg.getData(), UTF_8));
+                latch.countDown();
+            });
+            // Subscribe to the "events.data" subject
             d.subscribe("events.data");
 
-            // Synchronous Subscriber
+            // Subscribe to 'events.data' synchronously
             Subscription syncSub = nc.subscribe("events.data");
 
-            nc.publish("events.data", "Hello from NATS!".getBytes(StandardCharsets.UTF_8));
+            // Publish a message to the subject "events.data"
+            byte[] data = "xyz123".getBytes(StandardCharsets.UTF_8);
+            nc.publish("events.data", data);
             System.out.println("Message published to events.data");
 
-            Message m = syncSub.nextMessage(500); // wait 500 ms to get a message
-            System.out.println("Synchronous Subscriber Read: " + new String(m.getData(), StandardCharsets.UTF_8));
+            System.out.println("Waiting for message on events.data");
+            latch.await(); // will release when async gets the message
 
-            Thread.sleep(100); // just in case the async sub needs some more time
+            // wait 500 ms to get a message, should already be at the client though
+            Message m = syncSub.nextMessage(500);
+            System.out.println("Synchronous Subscriber Read: " +
+                new String(m.getData(), StandardCharsets.UTF_8));
         }
         catch (InterruptedException e) {
             // can be thrown by connect

@@ -10,8 +10,10 @@ public class BasicsPublish {
     public static void main(String[] args) {
         try (Connection nc = Nats.connect("nats://localhost:4222")) {
             // NATS-DOC-START
-            // Publish a message to the "weather.updates" subject
-            nc.publish("weather.updates", "Temperature: 72°F".getBytes(StandardCharsets.UTF_8));
+            // Publish a message to the subject "weather.updates"
+            byte[] data = "Temperature: 72°F".getBytes(StandardCharsets.UTF_8);
+            nc.publish("weather.updates", data);
+            System.out.println("Message published to weather.updates");
             // NATS-DOC-END
         }
         catch (InterruptedException e) {

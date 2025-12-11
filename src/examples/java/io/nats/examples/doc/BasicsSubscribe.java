@@ -1,24 +1,38 @@
 package io.nats.examples.doc;
 
-import io.nats.client.Connection;
-import io.nats.client.Dispatcher;
-import io.nats.client.Nats;
+import io.nats.client.*;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CountDownLatch;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class BasicsSubscribe {
     public static void main(String[] args) {
         try (Connection nc = Nats.connect("nats://localhost:4222")) {
             // NATS-DOC-START
-            // Subscribe to the "weather.updates" subject on a dispatcher
-            Dispatcher d = nc.createDispatcher(msg ->
-                System.out.println("Received: " + new String(msg.getData(), StandardCharsets.UTF_8)));
+            // Asynchronous Subscriber requires a dispatcher
+            // Dispatchers can be shared
+            CountDownLatch latch = new CountDownLatch(1);
+            Dispatcher d = nc.createDispatcher(msg -> {
+                System.out.println("Asynchronous Subscriber Received: " + new String(msg.getData(), UTF_8));
+                latch.countDown();
+            });
+            // Subscribe to the "weather.updates" subject
             d.subscribe("weather.updates");
-            // NATS-DOC-END
 
-            System.out.println("Waiting 10 seconds to receive a message from the BasicsPublish example...");
-            Thread.sleep(10000);
+            // Subscribe to 'weather.updates' synchronously
+            Subscription syncSub = nc.subscribe("weather.updates");
+
+            System.out.println("Waiting for message on 'weather.updates'");
+            latch.await(); // will release when async gets the message
+
+            // wait 500 ms to get a message, should already be at the client though
+            Message m = syncSub.nextMessage(500);
+            System.out.println("Synchronous Subscriber Read: " +
+                new String(m.getData(), StandardCharsets.UTF_8));
+            // NATS-DOC-END
         }
         catch (InterruptedException e) {
             // can be thrown by connect
