@@ -178,7 +178,12 @@ class MessageQueue {
                 try {
                     // offer with no timeout returns true if the queue was not full
                     if (!internal && discardWhenFull) {
-                        return queue.offer(msg);
+                        if (queue.offer(msg)) {
+                            sizeInBytes.getAndAdd(msg.getSizeInBytes());
+                            length.incrementAndGet();
+                            return true;
+                        }
+                        return false;
                     }
 
                     long timeoutNanosLeft = Math.max(MIN_OFFER_TIMEOUT_NANOS, offerTimeoutNanos - (NatsSystemClock.nanoTime() - startNanos));
@@ -226,17 +231,18 @@ class MessageQueue {
         queue.offer(msg);
     }
 
-    NatsMessage poll(Duration timeout) throws InterruptedException {
+    private NatsMessage _poll(Duration timeout) throws InterruptedException {
         NatsMessage msg = null;
 
         if (timeout == null || this.isDraining()) { // try immediately
             msg = this.queue.poll();
-        } else {
+        } 
+        else {
             long nanos = timeout.toNanos();
-
             if (nanos != 0) {
                 msg = this.queue.poll(nanos, TimeUnit.NANOSECONDS);
-            } else {
+            } 
+            else {
                 // A value of 0 means wait forever
                 // We will loop and wait for a LONG time
                 // if told to suspend/drain the poison pill will break this loop
@@ -255,7 +261,7 @@ class MessageQueue {
             return null;
         }
 
-        NatsMessage msg = this.poll(timeout);
+        NatsMessage msg = _poll(timeout);
 
         if (msg == null) {
             return null;
@@ -288,7 +294,7 @@ class MessageQueue {
             return null;
         }
 
-        NatsMessage msg = this.poll(timeout);
+        NatsMessage msg = _poll(timeout);
 
         if (msg == null) {
             return null;
