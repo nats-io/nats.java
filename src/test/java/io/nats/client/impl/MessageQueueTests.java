@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.Message;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -658,5 +659,37 @@ public class MessageQueueTests {
         assertTrue(q.push(msg1));
         assertTrue(q.push(msg2));
         assertFalse(q.push(msg3));
+    }
+
+    @Test
+    public void testCountingWhenQueueFull() throws InterruptedException {
+        MessageQueue q  = new MessageQueue(true, 2, true, REQUEST_CLEANUP_INTERVAL);
+
+        NatsMessage msg1 = new ProtocolMessage("1".getBytes(StandardCharsets.ISO_8859_1));
+        assertTrue(q.push(msg1));
+        assertEquals(1, q.length());
+        assertEquals(3, q.sizeInBytes());
+
+        NatsMessage msg2 = new ProtocolMessage("2".getBytes(StandardCharsets.ISO_8859_1));
+        assertTrue(q.push(msg2));
+        assertEquals(2, q.length());
+        assertEquals(6, q.sizeInBytes());
+
+        NatsMessage msg3 = new ProtocolMessage("3".getBytes(StandardCharsets.ISO_8859_1));
+        assertFalse(q.push(msg3));
+        assertEquals(2, q.length());
+        assertEquals(6, q.sizeInBytes());
+
+        Message m = q.popNow();
+        assertEquals(msg1, m);
+        assertEquals(1, q.length());
+        assertEquals(3, q.sizeInBytes());
+
+        m = q.popNow();
+        assertEquals(msg2, m);
+        assertEquals(0, q.length());
+        assertEquals(0, q.sizeInBytes());
+
+        assertNull(q.popNow());
     }
 }
