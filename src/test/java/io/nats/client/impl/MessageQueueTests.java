@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.Message;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
