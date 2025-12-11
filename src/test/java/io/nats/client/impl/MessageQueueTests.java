@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.support.NatsConstants.OUTPUT_QUEUE_IS_FULL;
-import static io.nats.client.utils.TestBase.sleep;
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class MessageQueueTests {
@@ -44,11 +44,9 @@ public class MessageQueueTests {
 
     @Test
     public void testAccumulateThrowsOnNonSingleReader() {
-        assertThrows(IllegalStateException.class, () -> {
-            MessageQueue q = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
-            q.push(new ProtocolMessage(PING));
-            q.accumulate(100,1,null);
-        });
+        MessageQueue q = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
+        q.push(new ProtocolMessage(PING));
+        assertThrows(IllegalStateException.class, () -> q.accumulate(100, 1, null));
     }
 
     @Test
@@ -562,7 +560,7 @@ public class MessageQueueTests {
 
         long before = q.sizeInBytes();
         q.pause();
-        q.filter((msg) -> Arrays.equals(expected, msg.getProtocolBytes()));
+        q.filter(msg -> Arrays.equals(expected, msg.getProtocolBytes()));
         q.resume();
         long after = q.sizeInBytes();
 
@@ -586,7 +584,7 @@ public class MessageQueueTests {
 
         long before = q.sizeInBytes();
         q.pause();
-        q.filter((msg) -> Arrays.equals(expected, msg.getProtocolBytes()));
+        q.filter(msg -> Arrays.equals(expected, msg.getProtocolBytes()));
         q.resume();
         long after = q.sizeInBytes();
 
@@ -610,7 +608,7 @@ public class MessageQueueTests {
 
         long before = q.sizeInBytes();
         q.pause();
-        q.filter((msg) -> Arrays.equals(expected, msg.getProtocolBytes()));
+        q.filter(msg -> Arrays.equals(expected, msg.getProtocolBytes()));
         q.resume();
         long after = q.sizeInBytes();
 
@@ -630,11 +628,8 @@ public class MessageQueueTests {
 
     @Test
     public void testThrowOnFilterIfRunning() {
-        assertThrows(IllegalStateException.class, () -> {
-            MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
-            q.filter((msg) -> true);
-            fail();
-        });
+        MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
+        assertThrows(IllegalStateException.class, () -> q.filter(msg -> true));
     }
 
     @Test

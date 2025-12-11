@@ -43,8 +43,7 @@ public class NatsProvidersAndImplementationsTests {
         validateNatsInetAddress("synadia.io");
         validateNatsInetAddress("synadia.com");
 
-        NatsInetAddress.setProvider(new NatsInetAddressProvider() {
-        });
+        NatsInetAddress.setProvider(new NatsInetAddressProvider() {});
         validateNatsInetAddress("synadia.io");
         validateNatsInetAddress("synadia.com");
     }
@@ -64,8 +63,8 @@ public class NatsProvidersAndImplementationsTests {
             assertEquals(ia, iaByAddress);
         }
 
-        InetAddress ia = NatsInetAddress.getLoopbackAddress();
-        ia = NatsInetAddress.getLocalHost();
+        NatsInetAddress.getLoopbackAddress();
+        NatsInetAddress.getLocalHost();
     }
 
     @Test
@@ -124,8 +123,7 @@ public class NatsProvidersAndImplementationsTests {
         }
 
         @Override
-        public void upgradeToSecure() throws IOException {
-        }
+        public void upgradeToSecure() throws IOException {}
 
         @Override
         public int read(byte[] dst, int off, int len) throws IOException {
@@ -137,8 +135,7 @@ public class NatsProvidersAndImplementationsTests {
         }
 
         @Override
-        public void shutdownInput() throws IOException {
-        }
+        public void shutdownInput() throws IOException {}
 
         @Override
         public void close() throws IOException {
@@ -154,7 +151,9 @@ public class NatsProvidersAndImplementationsTests {
     public void testSocketDataPort() throws IOException, URISyntaxException {
         // this is coverage for connect, afterConstruct and forceClose
         InterfaceCoverageDataPort cdp = new InterfaceCoverageDataPort();
+        //noinspection DataFlowIssue
         cdp.connect((NatsConnection) null, new NatsUri(Options.DEFAULT_URL), 0);
+        //noinspection DataFlowIssue
         cdp.afterConstruct(null);
         cdp.forceClose();
 

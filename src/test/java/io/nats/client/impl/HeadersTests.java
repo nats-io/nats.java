@@ -557,36 +557,36 @@ public class HeadersTests {
         assertValidStatus("NATS/1.0   923   Unknown Message And Code\r\n", 923, "Unknown Message And Code");
 
         // additional coverage for status extraction comparing status text to known values
-        assertValidStatus(999, EXCEEDED_MAX_WAITING);
-        assertValidStatus(999, EXCEEDED_MAX_REQUEST_BATCH);
-        assertValidStatus(999, EXCEEDED_MAX_REQUEST_MAX_BYTES);
-        assertValidStatus(999, EXCEEDED_MAX_REQUEST_EXPIRES);
-        assertValidStatus(999, EOB_TEXT);
+        assertValidStatus(EXCEEDED_MAX_WAITING);
+        assertValidStatus(EXCEEDED_MAX_REQUEST_BATCH);
+        assertValidStatus(EXCEEDED_MAX_REQUEST_MAX_BYTES);
+        assertValidStatus(EXCEEDED_MAX_REQUEST_EXPIRES);
+        assertValidStatus(EOB_TEXT);
 
-        assertValidStatus(999, BATCH_COMPLETED);
-        assertValidStatus(999, BAD_REQUEST);
+        assertValidStatus(BATCH_COMPLETED);
+        assertValidStatus(BAD_REQUEST);
 
-        assertValidStatus(999, NO_RESPONDERS_TEXT);
-        assertValidStatus(999, NO_MESSAGES);
+        assertValidStatus(NO_RESPONDERS_TEXT);
+        assertValidStatus(NO_MESSAGES);
 
-        assertValidStatus(999, FLOW_CONTROL_TEXT);
-        assertValidStatus(999, HEARTBEAT_TEXT);
-        assertValidStatus(999, MESSAGE_SIZE_EXCEEDS_MAX_BYTES);
-        assertValidStatus(999, LEADERSHIP_CHANGE);
-        assertValidStatus(999, SERVER_SHUTDOWN);
-        assertValidStatus(999, CONSUMER_DELETED);
-        assertValidStatus(999, CONSUMER_IS_PUSH_BASED);
+        assertValidStatus(FLOW_CONTROL_TEXT);
+        assertValidStatus(HEARTBEAT_TEXT);
+        assertValidStatus(MESSAGE_SIZE_EXCEEDS_MAX_BYTES);
+        assertValidStatus(LEADERSHIP_CHANGE);
+        assertValidStatus(SERVER_SHUTDOWN);
+        assertValidStatus(CONSUMER_DELETED);
+        assertValidStatus(CONSUMER_IS_PUSH_BASED);
 
         // coverage
-        assertValidStatus(999, "E Test Starts With Known Letter But Not Known");
-        assertValidStatus(999, "B Test Starts With Known Letter But Not Known");
-        assertValidStatus(999, "N Test Starts With Known Letter But Not Known");
-        assertValidStatus(999, "F Test Starts With Known Letter But Not Known");
-        assertValidStatus(999, "I Test Starts With Known Letter But Not Known");
-        assertValidStatus(999, "M Test Starts With Known Letter But Not Known");
-        assertValidStatus(999, "L Test Starts With Known Letter But Not Known");
-        assertValidStatus(999, "S Test Starts With Known Letter But Not Known");
-        assertValidStatus(999, "C Test Starts With Known Letter But Not Known");
+        assertValidStatus("E Test Starts With Known Letter But Not Known");
+        assertValidStatus("B Test Starts With Known Letter But Not Known");
+        assertValidStatus("N Test Starts With Known Letter But Not Known");
+        assertValidStatus("F Test Starts With Known Letter But Not Known");
+        assertValidStatus("I Test Starts With Known Letter But Not Known");
+        assertValidStatus("M Test Starts With Known Letter But Not Known");
+        assertValidStatus("L Test Starts With Known Letter But Not Known");
+        assertValidStatus("S Test Starts With Known Letter But Not Known");
+        assertValidStatus("C Test Starts With Known Letter But Not Known");
     }
 
     @Test
@@ -686,10 +686,10 @@ public class HeadersTests {
         }
     }
 
-    private void assertValidStatus(int code, String text) {
-        String test = "NATS/1.0 " + code + " " + text + "\r\n";
+    private void assertValidStatus(String text) {
+        String test = "NATS/1.0 999 " + text + "\r\n";
         IncomingHeadersProcessor ihp = new IncomingHeadersProcessor(test.getBytes());
-        assertValidStatus(ihp, code, text);
+        assertValidStatus(ihp, 999, text);
     }
 
     private IncomingHeadersProcessor assertValidStatus(String test, int code, String msg) {
@@ -815,7 +815,6 @@ public class HeadersTests {
         Headers h2 = new Headers();
         //noinspection MisorderedAssertEqualsArguments
         assertNotEquals(h1, null);
-        //noinspection EqualsWithItself
         assertEquals(h1, h1);
         assertEquals(h1, h2);
         assertEquals(h1.hashCode(), h1.hashCode());
