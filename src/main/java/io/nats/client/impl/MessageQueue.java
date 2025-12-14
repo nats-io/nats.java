@@ -23,7 +23,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Predicate;
 
 import static io.nats.client.support.NatsConstants.*;
 
@@ -45,12 +44,23 @@ class MessageQueue {
     protected final long offerTimeoutNanos;
     protected final Duration requestCleanupInterval;
 
-    // SPECIAL MARKER MESSAGES
+    // Used for POISON_PILL and NatsConnectionWriter.END_RECONNECT
+    static class TerminalMessage extends NatsMessage {
+        public TerminalMessage(String subject) {
+            super(subject, null, EMPTY_BODY);
+        }
+
+        @Override
+        boolean isFilterOnStop() {
+            return true; // always filtered out
+        }
+    }
+
     // A simple == is used to resolve if any message is exactly the static pill object in question
     // ----------
     // 1. Poison pill is a graphic, but common term for an item that breaks loops or stop something.
     // In this class the poison pill is used to break out of timed waits on the blocking queue.
-    protected static final NatsMessage POISON_PILL = new NatsMessage("_poison", null, EMPTY_BODY);
+    protected static final NatsMessage POISON_PILL = new TerminalMessage("_poison");
 
     MessageQueue(boolean singleReaderMode, Duration requestCleanupInterval) {
         this(singleReaderMode, -1, false, requestCleanupInterval, null);
@@ -168,8 +178,7 @@ class MessageQueue {
                     // offer with no timeout returns true if the queue was not full
                     if (!internal && discardWhenFull) {
                         if (queue.offer(msg)) {
-                            sizeInBytes.getAndAdd(msg.getSizeInBytes());
-                            length.incrementAndGet();
+                            messageAdded(msg);
                             return true;
                         }
                         return false;
@@ -181,8 +190,7 @@ class MessageQueue {
                     if (!queue.offer(msg, timeoutNanosLeft, TimeUnit.NANOSECONDS)) {
                         throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
                     }
-                    sizeInBytes.getAndAdd(msg.getSizeInBytes());
-                    length.incrementAndGet();
+                    messageAdded(msg);
                     return true;
 
                 }
@@ -215,7 +223,7 @@ class MessageQueue {
      * Intended to only be used with an unbounded queue. Use at your own risk.
      * @param msg the mark
      */
-    void markTheQueue(NatsMessage msg) {
+    void queueTerminalMessage(TerminalMessage msg) {
         queue.offer(msg);
     }
 
@@ -282,53 +290,74 @@ class MessageQueue {
             return null;
         }
 
+        // _poll returns null if no messages or was a POISON_PILL
         NatsMessage msg = _poll(timeout);
-
         if (msg == null) {
             return null;
         }
-
-        long size = msg.getSizeInBytes();
-
-        if (maxMessagesToAccumulate <= 1 || size >= maxBytesToAccumulate) {
-            sizeInBytes.addAndGet(-size);
-            length.decrementAndGet();
+        // TerminalMessage is specifically a termination. Claude said instanceof is fast
+        // We know terminal messages are not counted
+        if (msg instanceof TerminalMessage) {
             return msg;
         }
 
         long accumulated = 1;
+        long accumulatedSize = msg.getSizeInBytes();
+
+        if (maxMessagesToAccumulate <= 1 || accumulatedSize >= maxBytesToAccumulate) {
+            length.decrementAndGet();
+            sizeInBytes.addAndGet(-accumulatedSize);
+            return msg;
+        }
+
         NatsMessage cursor = msg;
 
         while (true) {
             NatsMessage next = this.queue.peek();
-            if (next != null && next != POISON_PILL) {
-                long s = next.getSizeInBytes();
-                if (maxBytesToAccumulate < 0 || (size + s) < maxBytesToAccumulate) { // keep going
-                    size += s;
-                    accumulated++;
-
-                    this.queue.poll(); // we need to get the message out of the queue b/c we only peeked
+            if (next == null) {
+                break;
+            }
+            if (next instanceof TerminalMessage) {
+                // get the message out of the queue b/c we only peeked
+                // POISON_PILL does not get added to the cursor.next chain
+                // other Terminal Messages always do.
+                this.queue.poll();
+                if (next != POISON_PILL) {
                     cursor.next = next;
-                    if (next.flushImmediatelyAfterPublish) {
-                        // if we are going to flush, then don't accumulate more
-                        break;
-                    }
-                    if (accumulated == maxMessagesToAccumulate) {
-                        break;
-                    }
-                    cursor = cursor.next;
-                } else { // One more is too far
+                }
+                break;
+            }
+            long size = next.getSizeInBytes();
+            if (maxBytesToAccumulate < 0 || (accumulatedSize + size) < maxBytesToAccumulate) { // keep going
+                accumulated++;
+                accumulatedSize += size;
+
+                this.queue.poll(); // get the message out of the queue b/c we only peeked
+                cursor.next = next;
+                if (next.flushImmediatelyAfterPublish) {
+                    // if we are going to flush, then don't accumulate more
                     break;
                 }
-            } else { // Didn't meet max condition
+                if (accumulated == maxMessagesToAccumulate) {
+                    break;
+                }
+                cursor = cursor.next;
+            }
+            else { // One more is too far
                 break;
             }
         }
 
-        sizeInBytes.addAndGet(-size);
         length.addAndGet(-accumulated);
+        sizeInBytes.addAndGet(-accumulatedSize);
 
         return msg;
+    }
+
+    private void messageAdded(NatsMessage msg) {
+        // this must only be called with counted messages
+        sizeInBytes.getAndAdd(msg.getSizeInBytes());
+        length.incrementAndGet();
     }
 
     // Returns a message or null
@@ -344,7 +373,7 @@ class MessageQueue {
         return sizeInBytes.get();
     }
 
-    void filter(Predicate<NatsMessage> p) {
+    void filterOnStop() {
         editLock.lock();
         try {
             if (this.isRunning()) {
@@ -353,11 +382,16 @@ class MessageQueue {
             ArrayList<NatsMessage> newQueue = new ArrayList<>();
             NatsMessage cursor = this.queue.poll();
             while (cursor != null) {
-                if (!p.test(cursor)) {
+                if (cursor.isFilterOnStop()) {
+                    // 1. do not add it to the new queue
+                    // 2. reduce the count if it's not a terminal message
+                    if (!(cursor instanceof TerminalMessage)) {
+                        sizeInBytes.addAndGet(-cursor.getSizeInBytes());
+                        length.decrementAndGet();
+                    }
+                }
+                else {
                     newQueue.add(cursor);
-                } else {
-                    sizeInBytes.addAndGet(-cursor.getSizeInBytes());
-                    length.decrementAndGet();
                 }
                 cursor = this.queue.poll();
             }

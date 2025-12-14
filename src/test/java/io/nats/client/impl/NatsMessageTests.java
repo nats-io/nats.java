@@ -196,7 +196,7 @@ public class NatsMessageTests extends JetStreamTestBase {
         assertNotNull(m.toString());
         assertNotNull(m.toDetailString());
         assertFalse(m.isProtocol());
-        assertFalse(m.isProtocolFilterOnStop());
+        assertFalse(m.isFilterOnStop());
 
         m = NatsMessage.builder()
             .subject("test").replyTo("reply")
@@ -270,7 +270,7 @@ public class NatsMessageTests extends JetStreamTestBase {
         assertThrows(IllegalStateException.class, scm::getProtocolBytes);
         assertThrows(IllegalStateException.class, scm::getControlLineLength);
         assertFalse(scm.isProtocol());
-        assertFalse(scm.isProtocolFilterOnStop());
+        assertFalse(scm.isFilterOnStop());
 
         // coverage coverage coverage
         //noinspection deprecation
@@ -286,7 +286,7 @@ public class NatsMessageTests extends JetStreamTestBase {
         assertEquals(2, pm.getSizeInBytes());
         assertEquals(2, pm.getControlLineLength());
         assertTrue(pm.isProtocol());
-        assertEquals(isProtocolFilterOnStop, pm.isProtocolFilterOnStop());
+        assertEquals(isProtocolFilterOnStop, pm.isFilterOnStop());
     }
 
     @Test

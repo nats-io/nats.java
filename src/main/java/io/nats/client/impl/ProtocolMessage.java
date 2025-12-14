@@ -46,7 +46,7 @@ class ProtocolMessage extends NatsPublishableMessage {
     }
 
     @Override
-    boolean isProtocolFilterOnStop() {
+    boolean isFilterOnStop() {
         return filterOnStop;
     }
 
