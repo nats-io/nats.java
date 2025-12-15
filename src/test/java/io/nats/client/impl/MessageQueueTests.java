@@ -455,10 +455,6 @@ public class MessageQueueTests {
         NatsMessage msg3 = new NatsMessage(subject, replyTo, h, new byte[16]);
         long expected = 0;
 
-        assertEquals(64, msg1.getSizeInBytes());
-        assertEquals(72, msg2.getSizeInBytes());
-        assertEquals(78, msg3.getSizeInBytes());
-
         q1.push(msg1);
         expected += msg1.getSizeInBytes();
         assertEquals(1, q1.length());

@@ -116,8 +116,9 @@ class MessageQueue {
         countLock.lock();
         try {
             queue.drainTo(target.queue);
-            target.length.set(length.getAndSet(0));
-            target.sizeInBytes.set(sizeInBytes.getAndSet(0));
+            long messages = length.getAndSet(0);
+            long bytes = sizeInBytes.getAndSet(0);
+            target.count(messages, bytes);
         }
         finally {
             countLock.unlock();
