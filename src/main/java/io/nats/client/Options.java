@@ -238,6 +238,8 @@ public class Options {
      */
     public static final Supplier<ExecutorService> DEFAULT_SINGLE_THREAD_EXECUTOR = Executors::newSingleThreadExecutor;
 
+    public enum SubjectValidationType {None, Lenient, Strict}
+
     // ----------------------------------------------------------------------------------------------------
     // ENVIRONMENT PROPERTIES
     // ----------------------------------------------------------------------------------------------------
@@ -373,6 +375,14 @@ public class Options {
      * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#noResolveHostnames() noResolveHostnames}.
      */
     public static final String PROP_NO_RESOLVE_HOSTNAMES = PFX + "noResolveHostnames";
+    /**
+     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#noSubjectValidation() noSubjectValidation}.
+     */
+    public static final String PROP_NO_SUBJECT_VALIDATION = PFX + "noSubjectValidation";
+    /**
+     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#noSubjectValidation() noSubjectValidation}.
+     */
+    public static final String PROP_STRICT_SUBJECT_VALIDATION = PFX + "strictSubjectValidation";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#reportNoResponders() reportNoResponders}.
      */
@@ -663,6 +673,7 @@ public class Options {
     private final List<String> unprocessedServers;
     private final boolean noRandomize;
     private final boolean noResolveHostnames;
+    private final SubjectValidationType subjectValidationType;
     private final boolean reportNoResponders;
     private final String connectionName;
     private final boolean verbose;
@@ -819,6 +830,7 @@ public class Options {
         private final List<String> unprocessedServers = new ArrayList<>();
         private boolean noRandomize = false;
         private boolean noResolveHostnames = false;
+        private SubjectValidationType subjectValidationType = SubjectValidationType.Lenient;
         private boolean reportNoResponders = false;
         private String connectionName = null; // Useful for debugging -> "test: " + NatsTestServer.currentPort();
         private boolean verbose = false;
@@ -963,6 +975,8 @@ public class Options {
 
             booleanProperty(props, PROP_NORANDOMIZE, b -> this.noRandomize = b);
             booleanProperty(props, PROP_NO_RESOLVE_HOSTNAMES, b -> this.noResolveHostnames = b);
+            booleanPropertyIfTrue(props, PROP_NO_SUBJECT_VALIDATION, b -> subjectValidationType = SubjectValidationType.None);
+            booleanPropertyIfTrue(props, PROP_STRICT_SUBJECT_VALIDATION, b -> subjectValidationType = SubjectValidationType.Strict);
             booleanProperty(props, PROP_REPORT_NO_RESPONDERS, b -> this.reportNoResponders = b);
 
             stringProperty(props, PROP_CONNECTION_NAME, s -> this.connectionName = s);
@@ -1087,6 +1101,47 @@ public class Options {
          */
         public Builder noResolveHostnames() {
             this.noResolveHostnames = true;
+            return this;
+        }
+
+        /**
+         * Whether to skip the call to validate when a subject is presented
+         * for instance in subscribe or publish.
+         * Use with caution if you know your subjects are always valid.
+         * @return the Builder for chaining
+         */
+        public Builder noSubjectValidation() {
+            this.subjectValidationType = SubjectValidationType.None;
+            return this;
+        }
+
+        /**
+         * Whether to use lenient validation to validate when a subject is presented
+         * for instance in subscribe or publish.
+         * Lenient is the default
+         * @return the Builder for chaining
+         */
+        public Builder lenientSubjectValidation() {
+            this.subjectValidationType = SubjectValidationType.Lenient;
+            return this;
+        }
+
+        /**
+         * Whether to use lenient validation to validate when a subject is presented
+         * for instance in subscribe or publish.
+         * @return the Builder for chaining
+         */
+        public Builder stringSubjectValidation() {
+            this.subjectValidationType = SubjectValidationType.Strict;
+            return this;
+        }
+
+        /**
+         * Directly set the subjectValidationType. Null sets to the default, Lenient.
+         * @return the Builder for chaining
+         */
+        public Builder subjectValidationType(SubjectValidationType subjectValidationType) {
+            this.subjectValidationType = subjectValidationType == null ? SubjectValidationType.Lenient : subjectValidationType;
             return this;
         }
 
@@ -2110,6 +2165,7 @@ public class Options {
             this.unprocessedServers.addAll(o.unprocessedServers);
             this.noRandomize = o.noRandomize;
             this.noResolveHostnames = o.noResolveHostnames;
+            this.subjectValidationType = o.subjectValidationType;
             this.reportNoResponders = o.reportNoResponders;
             this.connectionName = o.connectionName;
             this.verbose = o.verbose;
@@ -2186,6 +2242,7 @@ public class Options {
         this.unprocessedServers = Collections.unmodifiableList(b.unprocessedServers);  // exactly how the user gave them
         this.noRandomize = b.noRandomize;
         this.noResolveHostnames = b.noResolveHostnames;
+        this.subjectValidationType = b.subjectValidationType;
         this.reportNoResponders = b.reportNoResponders;
         this.connectionName = b.connectionName;
         this.verbose = b.verbose;
@@ -2577,11 +2634,19 @@ public class Options {
     }
 
     /**
-     * should we resolve hostnames for server connection attempts, see {@link Builder#noResolveHostnames() noResolveHostnames()} in the builder doc
+     * should we skip resolving hostnames for server connection attempts, see {@link Builder#noResolveHostnames() noResolveHostnames()} in the builder doc
      * @return true if we should resolve hostnames
      */
     public boolean isNoResolveHostnames() {
         return noResolveHostnames;
+    }
+
+    /**
+     * what type of subject validation should be done
+     * @return the configured SubjectValidationType
+     */
+    public SubjectValidationType subjectValidationType() {
+        return subjectValidationType;
     }
 
     /**
@@ -3153,6 +3218,12 @@ public class Options {
         String value = getPropertyValue(props, key);
         if (value != null) {
             consumer.accept(Boolean.parseBoolean(value));
+        }
+    }
+
+    private static void booleanPropertyIfTrue(Properties props, String key, java.util.function.Consumer<Boolean> consumer) {
+        if (Boolean.parseBoolean(getPropertyValue(props, key))) { // parseBoolean treats null as false
+            consumer.accept(true);
         }
     }
 

@@ -102,6 +102,10 @@ public abstract class Validator {
         return validateSubjectTerm(s, "Subject", required);
     }
 
+    public static String validateSubjectStrict(String s, boolean required) {
+        return validateSubjectTermStrict(s, "Subject", required);
+    }
+
     public static String validateSubject(String subject, String label, boolean required, boolean cantEndWithGt) {
         subject = validateSubjectTermStrict(subject, label, required);
         if (subject != null && cantEndWithGt && subject.endsWith(".>")) {
