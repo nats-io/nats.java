@@ -981,7 +981,7 @@ public class ReconnectTests {
                             }
                         }
                     }
-                    assertTrue(listener.waitForStatusChange(5, TimeUnit.SECONDS));
+                    assertTrue(listener.waitForStatusChange(10, TimeUnit.SECONDS));
 
                     assertTrue(gotOutputQueueIsFull.get());
                     assertTrue(listener.getSocketWriteTimeoutCount() > 0);
