@@ -944,9 +944,10 @@ public class ReconnectTests {
 
     @Test
     public void testSocketDataPortTimeout() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        ListenerForTesting listener = new ListenerForTesting(false, true);
         Options.Builder builder = Options.builder()
-            .socketWriteTimeout(5000)
+            .noRandomize()
+            .socketWriteTimeout(5000) // long time ensures we can get to OUTPUT_QUEUE_IS_FULL
             .pingInterval(Duration.ofSeconds(1))
             .maxMessagesInOutgoingQueue(100)
             .dataPortType(SocketDataPortBlockSimulator.class.getCanonicalName())
@@ -954,38 +955,40 @@ public class ReconnectTests {
             .errorListener(listener);
 
         AtomicBoolean gotOutputQueueIsFull = new AtomicBoolean();
-        runInJsServer(nc1 -> runInServer(nc2 -> {
-            int port1 = nc1.getServerInfo().getPort();
-            int port2 = nc2.getServerInfo().getPort();
+        try (NatsTestServer ts1 = new NatsTestServer()) {
+            try (NatsTestServer ts2 = new NatsTestServer()) {
+                String[] servers = new String[]{
+                    ts1.getNatsLocalhostUri(),
+                    ts2.getNatsLocalhostUri()
+                };
+                try (Connection nc = standardConnection(builder.servers(servers).build())) {
+                    int connectedPort = nc.getServerInfo().getPort();
+                    listener.prepForStatusChange(Events.RECONNECTED);
 
-            String[] servers = new String[]{
-                getNatsLocalhostUri(port1),
-                getNatsLocalhostUri(port2)
-            };
-            Connection nc = standardConnection(builder.servers(servers).build());
-            String subject = subject();
-            int connectedPort = nc.getServerInfo().getPort();
-            AtomicInteger pubId = new AtomicInteger();
-            while (pubId.get() < 50000) {
-                try {
-                    nc.publish(subject, ("" + pubId.incrementAndGet()).getBytes());
-                    if (pubId.get() == 10) {
-                        SocketDataPortBlockSimulator.simulateBlock();
+                    String subject = subject();
+                    AtomicInteger pubId = new AtomicInteger();
+                    while (pubId.get() < 50000) {
+                        try {
+                            nc.publish(subject, ("" + pubId.incrementAndGet()).getBytes());
+                            if (pubId.get() == 10) {
+                                SocketDataPortBlockSimulator.simulateBlock();
+                            }
+                        }
+                        catch (Exception e) {
+                            if (e.getMessage().contains(OUTPUT_QUEUE_IS_FULL)) {
+                                gotOutputQueueIsFull.set(true);
+                                break;
+                            }
+                        }
                     }
-                }
-                catch (Exception e) {
-                    if (e.getMessage().contains(OUTPUT_QUEUE_IS_FULL)) {
-                        gotOutputQueueIsFull.set(true);
-                    }
+                    assertTrue(listener.waitForStatusChange(10, TimeUnit.SECONDS));
+
+                    assertTrue(gotOutputQueueIsFull.get());
+                    assertTrue(listener.getSocketWriteTimeoutCount() > 0);
+                    assertTrue(listener.getConnectionEvents().contains(Events.DISCONNECTED));
+                    assertNotEquals(connectedPort, nc.getServerInfo().getPort());
                 }
             }
-            assertNotEquals(connectedPort, nc.getServerInfo().getPort());
-            nc.close();
-        }));
-
-        assertTrue(gotOutputQueueIsFull.get());
-        assertTrue(listener.getSocketWriteTimeoutCount() > 0);
-        assertTrue(listener.getConnectionEvents().contains(Events.DISCONNECTED));
-        assertTrue(listener.getConnectionEvents().contains(Events.RECONNECTED));
+        }
     }
 }
