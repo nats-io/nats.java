@@ -103,9 +103,9 @@ public class Endpoint implements JsonSerializable {
                 this.subject = this.name;
             }
             else {
-                this.subject = Validator.validateSubjectTerm(subject, "Endpoint Subject", false);
+                this.subject = Validator.validateSubjectTermStrict(subject, "Endpoint Subject", false);
             }
-            this.queueGroup = queueGroup == null ? null : Validator.validateSubjectTerm(queueGroup, "Endpoint Queue Group", true);
+            this.queueGroup = queueGroup == null ? null : Validator.validateSubjectTermStrict(queueGroup, "Endpoint Queue Group", true);
         }
         else {
             this.name = name;
