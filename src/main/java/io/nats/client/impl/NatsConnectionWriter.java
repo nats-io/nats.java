@@ -128,7 +128,7 @@ class NatsConnectionWriter implements Runnable {
         return running.get();
     }
 
-    private static final MessageQueue.TerminalMessage END_RECONNECT = new MessageQueue.TerminalMessage("_end");
+    private static final MessageQueue.MarkerMessage END_RECONNECT = new MessageQueue.MarkerMessage("_end");
 
     void sendMessageBatch(NatsMessage msg, DataPort dataPort, StatisticsCollector stats) throws IOException {
         writerLock.lock();
@@ -238,7 +238,7 @@ class NatsConnectionWriter implements Runnable {
     }
 
     void enterWaitingForEndReconnectMode() {
-        reconnectOutgoing.queueTerminalMessage(END_RECONNECT);
+        reconnectOutgoing.queueMarker(END_RECONNECT);
         mode.set(Mode.WaitingForEndReconnect);
     }
 

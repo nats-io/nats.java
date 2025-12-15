@@ -108,7 +108,7 @@ public class NatsMessage implements Message {
     }
 
     boolean isFilterOnStop() {
-        return false; // overridden in NatsMessage.ProtocolMessage and MessageQueue.TerminalMessage
+        return false; // overridden in NatsMessage.ProtocolMessage
     }
 
     private static final Headers EMPTY_READ_ONLY = new Headers(null, true, null);

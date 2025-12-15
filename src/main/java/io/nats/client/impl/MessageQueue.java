@@ -37,7 +37,8 @@ class MessageQueue {
     protected final AtomicInteger running;
     protected final boolean singleReaderMode;
     protected final LinkedBlockingQueue<NatsMessage> queue;
-    protected final Lock editLock;
+    protected final Lock pushLock;
+    protected final Lock countLock;
     protected final int maxMessagesInOutgoingQueue;
     protected final boolean discardWhenFull;
     protected final long offerLockNanos;
@@ -45,14 +46,9 @@ class MessageQueue {
     protected final Duration requestCleanupInterval;
 
     // Used for POISON_PILL and NatsConnectionWriter.END_RECONNECT
-    static class TerminalMessage extends NatsMessage {
-        public TerminalMessage(String subject) {
+    static class MarkerMessage extends NatsMessage {
+        public MarkerMessage(String subject) {
             super(subject, null, EMPTY_BODY);
-        }
-
-        @Override
-        boolean isFilterOnStop() {
-            return true; // always filtered out
         }
     }
 
@@ -60,7 +56,7 @@ class MessageQueue {
     // ----------
     // 1. Poison pill is a graphic, but common term for an item that breaks loops or stop something.
     // In this class the poison pill is used to break out of timed waits on the blocking queue.
-    protected static final NatsMessage POISON_PILL = new TerminalMessage("_poison");
+    protected static final MarkerMessage POISON_PILL = new MarkerMessage("_poison");
 
     MessageQueue(boolean singleReaderMode, Duration requestCleanupInterval) {
         this(singleReaderMode, -1, false, requestCleanupInterval, null);
@@ -94,7 +90,8 @@ class MessageQueue {
         this.offerLockNanos = requestCleanupInterval.toNanos();
         this.offerTimeoutNanos = Math.max(MIN_OFFER_TIMEOUT_NANOS, requestCleanupInterval.toMillis() * NANOS_PER_MILLI * 95 / 100) ;
 
-        editLock = new ReentrantLock();
+        pushLock = new ReentrantLock();
+        countLock = new ReentrantLock();
 
         this.singleReaderMode = singleReaderMode;
         this.requestCleanupInterval = requestCleanupInterval;
@@ -104,14 +101,26 @@ class MessageQueue {
         }
     }
 
+    private void count(long messages, long bytes) {
+        countLock.lock();
+        try {
+            length.addAndGet(messages);
+            sizeInBytes.addAndGet(bytes);
+        }
+        finally {
+            countLock.unlock();
+        }
+    }
+
     void drainTo(MessageQueue target) {
-        editLock.lock();
+        countLock.lock();
         try {
             queue.drainTo(target.queue);
             target.length.set(length.getAndSet(0));
             target.sizeInBytes.set(sizeInBytes.getAndSet(0));
-        } finally {
-            editLock.unlock();
+        }
+        finally {
+            countLock.unlock();
         }
     }
 
@@ -151,10 +160,20 @@ class MessageQueue {
     }
 
     boolean push(NatsMessage msg, boolean internal) {
+        // In this condition, we don't care if the offer fails, so no need to go through the lock
+        if (!internal && discardWhenFull) {
+            // offer with no timeout returns true if the queue was not full
+            if (queue.offer(msg)) {
+                count(1, msg.getSizeInBytes());
+                return true;
+            }
+            return false;
+        }
+
         try {
             long startNanos = NatsSystemClock.nanoTime();
             /*
-                This was essentially a Head-Of-Line blocking problem.
+                This lock is to address a Head-Of-Line blocking problem.
 
                 So the crux of the problem was that many threads were waiting to push a message to the queue.
                 They all waited for the lock and once they had the lock they waited 5 seconds (4750 millis actually)
@@ -173,29 +192,19 @@ class MessageQueue {
                 Notes: The 5 seconds and the 4750 seconds is derived from the Options requestCleanupInterval, which defaults to 5 seconds and can be modified.
                 The 4750 is 95% of that time. The MIN_OFFER_TIMEOUT_NANOS 100 ms minimum is arbitrary.
              */
-            if (editLock.tryLock(offerLockNanos, TimeUnit.NANOSECONDS)) {
+            if (pushLock.tryLock(offerLockNanos, TimeUnit.NANOSECONDS)) {
                 try {
-                    // offer with no timeout returns true if the queue was not full
-                    if (!internal && discardWhenFull) {
-                        if (queue.offer(msg)) {
-                            messageAdded(msg);
-                            return true;
-                        }
-                        return false;
-                    }
-
                     long timeoutNanosLeft = Math.max(MIN_OFFER_TIMEOUT_NANOS, offerTimeoutNanos - (NatsSystemClock.nanoTime() - startNanos));
 
                     // offer with timeout
                     if (!queue.offer(msg, timeoutNanosLeft, TimeUnit.NANOSECONDS)) {
                         throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
                     }
-                    messageAdded(msg);
+                    count(1, msg.getSizeInBytes());
                     return true;
-
                 }
                 finally {
-                    editLock.unlock();
+                    pushLock.unlock();
                 }
             }
             else {
@@ -209,21 +218,23 @@ class MessageQueue {
     }
 
     /**
-     * poisoning the queue puts the known poison pill into the queue, forcing any waiting code to stop
-     * waiting and return.
-     * This is done outside of push so it is not counted in length or size
-     * offer is used instead of add since we don't care if it fails because it was full
+     * poisoning the queue puts the known poison pill into the queue,
+     * forcing any waiting code to stop waiting and return.
+     * This is done without calling push since it is not counted in length or size
+     * offer is used instead of add since we don't care if it fails if it was full
      */
     void poisonTheQueue() {
         queue.offer(POISON_PILL);
     }
 
     /**
-     * Marking the queue, like POISON, is a message we don't want to count.
-     * Intended to only be used with an unbounded queue. Use at your own risk.
-     * @param msg the mark
+     * Queue a message we don't want to count.
+     * offer is used instead of add since it should never fail,
+     * because it is intended to only be used with an unbounded queue
+     * Use carefully.
+     * @param msg the message
      */
-    void queueTerminalMessage(TerminalMessage msg) {
+    void queueMarker(MarkerMessage msg) {
         queue.offer(msg);
     }
 
@@ -263,9 +274,7 @@ class MessageQueue {
             return null;
         }
 
-        sizeInBytes.getAndAdd(-msg.getSizeInBytes());
-        length.decrementAndGet();
-
+        count(-1, -msg.getSizeInBytes());
         return msg;
     }
 
@@ -291,73 +300,56 @@ class MessageQueue {
         }
 
         // _poll returns null if no messages or was a POISON_PILL
+        // MarkerMessage is a termination, is not counted, but is returned
         NatsMessage msg = _poll(timeout);
-        if (msg == null) {
-            return null;
-        }
-        // TerminalMessage is specifically a termination. Claude said instanceof is fast
-        // We know terminal messages are not counted
-        if (msg instanceof TerminalMessage) {
+        if (msg == null || msg instanceof MarkerMessage) {
             return msg;
         }
 
         long accumulated = 1;
         long accumulatedSize = msg.getSizeInBytes();
-
-        if (maxMessagesToAccumulate <= 1 || accumulatedSize >= maxBytesToAccumulate) {
-            length.decrementAndGet();
-            sizeInBytes.addAndGet(-accumulatedSize);
-            return msg;
-        }
-
-        NatsMessage cursor = msg;
-
-        while (true) {
-            NatsMessage next = this.queue.peek();
-            if (next == null) {
-                break;
-            }
-            if (next instanceof TerminalMessage) {
-                // get the message out of the queue b/c we only peeked
-                // POISON_PILL does not get added to the cursor.next chain
-                // other Terminal Messages always do.
-                this.queue.poll();
-                if (next != POISON_PILL) {
-                    cursor.next = next;
-                }
-                break;
-            }
-            long size = next.getSizeInBytes();
-            if (maxBytesToAccumulate < 0 || (accumulatedSize + size) < maxBytesToAccumulate) { // keep going
-                accumulated++;
-                accumulatedSize += size;
-
-                this.queue.poll(); // get the message out of the queue b/c we only peeked
-                cursor.next = next;
-                if (next.flushImmediatelyAfterPublish) {
-                    // if we are going to flush, then don't accumulate more
+        if (maxMessagesToAccumulate > 1 || accumulatedSize < maxBytesToAccumulate) {
+            NatsMessage cursor = msg;
+            while (true) {
+                NatsMessage next = this.queue.peek();
+                if (next == null) {
                     break;
                 }
-                if (accumulated == maxMessagesToAccumulate) {
+                if (next instanceof MarkerMessage) {
+                    // Stop accumulation on MarkerMessage
+                    // - get the message out of the queue b/c we only peeked
+                    // - POISON_PILL does not get added to the cursor.next
+                    //   chain other MarkerMessages do.
+                    this.queue.poll();
+                    if (next != POISON_PILL) {
+                        cursor.next = next;
+                    }
                     break;
                 }
-                cursor = cursor.next;
-            }
-            else { // One more is too far
-                break;
+                // are we allowed to accumulate more bytes? maxBytesToAccumulate < 1 is unlimited bytes
+                long size = next.getSizeInBytes();
+                if (maxBytesToAccumulate < 1 || (accumulatedSize + size) < maxBytesToAccumulate) {
+                    accumulated++;
+                    accumulatedSize += size;
+
+                    this.queue.poll();  // get the message out of the queue b/c we only peeked
+                    cursor.next = next; // add to the chain
+                    if (next.flushImmediatelyAfterPublish) {
+                        break; // if we are going to flush, then don't accumulate more
+                    }
+                    if (accumulated == maxMessagesToAccumulate) {
+                        break; // if we've accumulated max messages, then don't accumulate more
+                    }
+                    cursor = cursor.next; // move the cursor since we are continuing
+                }
+                else { // we've reached the byte limit
+                    break;
+                }
             }
         }
 
-        length.addAndGet(-accumulated);
-        sizeInBytes.addAndGet(-accumulatedSize);
-
+        count(-accumulated, -accumulatedSize);
         return msg;
-    }
-
-    private void messageAdded(NatsMessage msg) {
-        // this must only be called with counted messages
-        sizeInBytes.getAndAdd(msg.getSizeInBytes());
-        length.incrementAndGet();
     }
 
     // Returns a message or null
@@ -374,41 +366,45 @@ class MessageQueue {
     }
 
     void filterOnStop() {
-        editLock.lock();
+        if (this.isRunning()) {
+            throw new IllegalStateException("Filter is only supported when the queue is paused");
+        }
+        countLock.lock();
         try {
-            if (this.isRunning()) {
-                throw new IllegalStateException("Filter is only supported when the queue is paused");
-            }
-            ArrayList<NatsMessage> newQueue = new ArrayList<>();
-            NatsMessage cursor = this.queue.poll();
-            while (cursor != null) {
-                if (cursor.isFilterOnStop()) {
+            ArrayList<NatsMessage> tempQueue = new ArrayList<>();
+            this.queue.drainTo(tempQueue); // I realize this is a copy of a queue, but polling locks the queue every time
+            long removed = 0;
+            long bytesRemoved = 0;
+            for (NatsMessage msg : tempQueue) {
+                if (msg.isFilterOnStop()) {
                     // 1. do not add it to the new queue
-                    // 2. reduce the count if it's not a terminal message
-                    if (!(cursor instanceof TerminalMessage)) {
-                        sizeInBytes.addAndGet(-cursor.getSizeInBytes());
-                        length.decrementAndGet();
+                    // 2. track the count if it's not a MarkerMessage
+                    if (!(msg instanceof MarkerMessage)) {
+                        removed++;
+                        bytesRemoved += msg.getSizeInBytes();
                     }
                 }
                 else {
-                    newQueue.add(cursor);
+                    // Just queue. No need to save up for add all, which loops and offers one at a time anyway
+                    this.queue.offer(msg);
                 }
-                cursor = this.queue.poll();
             }
-            this.queue.addAll(newQueue);
-        } finally {
-            editLock.unlock();
+            count(-removed, -bytesRemoved);
+        }
+        finally {
+            countLock.unlock();
         }
     }
 
     void clear() {
-        editLock.lock();
+        countLock.lock();
         try {
             this.queue.clear();
             length.set(0);
             sizeInBytes.set(0);
-        } finally {
-            editLock.unlock();
+        }
+        finally {
+            countLock.unlock();
         }
     }
 }

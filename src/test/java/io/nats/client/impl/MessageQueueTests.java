@@ -93,7 +93,7 @@ public class MessageQueueTests {
     }
 
     @Test
-    public void testInterupt() throws InterruptedException {
+    public void testInterrupt() throws InterruptedException {
         // Possible flaky test, since we can't be sure of thread timing
         MessageQueue q = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
         Thread t = new Thread(() -> {try {Thread.sleep(100);}catch(Exception e){/**/} q.pause();});
@@ -287,7 +287,7 @@ public class MessageQueueTests {
     }
 
     @Test
-    public void testAccumulateOnCount() throws InterruptedException {
+    public void testAccumulateLimitCount() throws InterruptedException {
         MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         pushTestMessages(q, 7);
         long maxBytesToAccumulate = TEST_MESSAGE_BYTES * 10;
@@ -297,7 +297,7 @@ public class MessageQueueTests {
     }
 
     @Test
-    public void testAccumulateOnSize() throws InterruptedException {
+    public void testAccumulateLimitBytes() throws InterruptedException {
         MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         pushTestMessages(q, 7);
         long maxBytesToAccumulate = TEST_MESSAGE_BYTES * 4 - 1;
@@ -390,7 +390,7 @@ public class MessageQueueTests {
         NatsMessage msg1 = getTestMessage();
         NatsMessage msg2 = getTestMessage();
         NatsMessage msg3 = getTestMessage();
-        MessageQueue.TerminalMessage notCounted = new MessageQueue.TerminalMessage("not-counted");
+        MessageQueue.MarkerMessage notCounted = new MessageQueue.MarkerMessage("not-counted");
 
         q.push(msg1);
         assertEquals(TEST_MESSAGE_BYTES, q.sizeInBytes());
@@ -401,7 +401,7 @@ public class MessageQueueTests {
         q.push(msg3);
         assertEquals(TEST_MESSAGE_BYTES * 3, q.sizeInBytes());
 
-        q.queueTerminalMessage(notCounted);
+        q.queueMarker(notCounted);
         assertEquals(TEST_MESSAGE_BYTES * 3, q.sizeInBytes());
 
         q.popNow();
@@ -481,27 +481,34 @@ public class MessageQueueTests {
     }
 
     @Test
-    public void testTerminal() throws InterruptedException {
-        NatsMessage msg = getTestMessage();
-        MessageQueue.TerminalMessage term = new MessageQueue.TerminalMessage("term");
+    public void testFilteringAndCounting() throws InterruptedException {
+        NatsMessage test = getTestMessage();
+        ProtocolMessage proto = new ProtocolMessage("proto".getBytes(), true);
+        MessageQueue.MarkerMessage marker = new MessageQueue.MarkerMessage("marker");
 
-        long size = msg.getSizeInBytes();
+        long sizeM = test.getSizeInBytes();
+        long sizeP = proto.getSizeInBytes();
 
         MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
-        q.push(msg);
-        q.queueTerminalMessage(term);
+        q.push(test);
+        q.push(proto);
+        q.queueMarker(marker);
 
-        assertEquals(2, q.queue.size());
-        assertEquals(1, q.length());
-        assertEquals(size, q.sizeInBytes());
+        assertEquals(3, q.queue.size()); // test, proto, marker
+        assertEquals(2, q.length());     // test, proto
+        assertEquals(sizeM + sizeP, q.sizeInBytes());
 
-        q.pause();
-        q.filterOnStop();
+        q.pause(); // this poisons the queue, adding another Marker Message
+        assertEquals(4, q.queue.size()); // test, proto, marker, poison
+        assertEquals(2, q.length());     // test, proto
+        assertEquals(sizeM + sizeP, q.sizeInBytes());
+
+        q.filterOnStop(); // this ends up removing the proto message since it's filter on stop
         q.resume();
 
-        assertEquals(1, q.queue.size());
-        assertEquals(1, q.length());
-        assertEquals(size, q.sizeInBytes());
+        assertEquals(3, q.queue.size()); // test, marker, poison
+        assertEquals(1, q.length());     // test
+        assertEquals(sizeM, q.sizeInBytes());
     }
 
     @Test
