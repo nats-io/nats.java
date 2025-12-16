@@ -401,7 +401,7 @@ public class MessageQueueTests {
         q.push(msg3);
         assertEquals(TEST_MESSAGE_BYTES * 3, q.sizeInBytes());
 
-        q.queueMarker(notCounted);
+        q.queueMarkerMessage(notCounted);
         assertEquals(TEST_MESSAGE_BYTES * 3, q.sizeInBytes());
 
         q.popNow();
@@ -488,7 +488,7 @@ public class MessageQueueTests {
         MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         q.push(test);
         q.push(proto);
-        q.queueMarker(marker);
+        q.queueMarkerMessage(marker);
 
         assertEquals(3, q.queue.size()); // test, proto, marker
         assertEquals(2, q.length());     // test, proto

@@ -161,20 +161,10 @@ class MessageQueue {
     }
 
     boolean push(NatsMessage msg, boolean internal) {
-        // In this condition, we don't care if the offer fails, so no need to go through the lock
-        if (!internal && discardWhenFull) {
-            // offer with no timeout returns true if the queue was not full
-            if (queue.offer(msg)) {
-                count(1, msg.getSizeInBytes());
-                return true;
-            }
-            return false;
-        }
-
         try {
-            long startNanos = NatsSystemClock.nanoTime();
             /*
-                This lock is to address a Head-Of-Line blocking problem.
+                The pushLock is used to address a Head-Of-Line blocking problem and to
+                also ensure that pushes happen in order. See filterOnStop
 
                 So the crux of the problem was that many threads were waiting to push a message to the queue.
                 They all waited for the lock and once they had the lock they waited 5 seconds (4750 millis actually)
@@ -193,8 +183,18 @@ class MessageQueue {
                 Notes: The 5 seconds and the 4750 seconds is derived from the Options requestCleanupInterval, which defaults to 5 seconds and can be modified.
                 The 4750 is 95% of that time. The MIN_OFFER_TIMEOUT_NANOS 100 ms minimum is arbitrary.
              */
+            long startNanos = NatsSystemClock.nanoTime();
             if (pushLock.tryLock(offerLockNanos, TimeUnit.NANOSECONDS)) {
                 try {
+                    if (!internal && discardWhenFull) {
+                        // offer with no timeout returns true if the queue was not full
+                        if (queue.offer(msg)) {
+                            count(1, msg.getSizeInBytes());
+                            return true;
+                        }
+                        return false;
+                    }
+
                     long timeoutNanosLeft = Math.max(MIN_OFFER_TIMEOUT_NANOS, offerTimeoutNanos - (NatsSystemClock.nanoTime() - startNanos));
 
                     // offer with timeout
@@ -235,7 +235,7 @@ class MessageQueue {
      * Use carefully.
      * @param msg the message
      */
-    void queueMarker(MarkerMessage msg) {
+    void queueMarkerMessage(MarkerMessage msg) {
         queue.offer(msg);
     }
 
@@ -304,10 +304,6 @@ class MessageQueue {
         // MarkerMessage is a termination, is not counted, but is returned
         NatsMessage headMessage = _poll(timeout);
         if (headMessage == null || headMessage instanceof MarkerMessage) {
-            return headMessage;
-        }
-
-        if (headMessage.flushImmediatelyAfterPublish) {
             return headMessage;
         }
 
@@ -386,10 +382,13 @@ class MessageQueue {
         if (this.isRunning()) {
             throw new IllegalStateException("Filter is only supported when the queue is paused");
         }
-        countLock.lock();
+        // the pushLock is used here to ensure the filter happens before any other messages get pushed.
+        pushLock.lock();
         try {
             ArrayList<NatsMessage> tempQueue = new ArrayList<>();
-            this.queue.drainTo(tempQueue); // I realize this is a copy of a queue, but polling locks the queue every time
+            // I realize this is a transfer of a queue, but polling "read" locks
+            // the queue every time, whereas this uses one read lock.
+            this.queue.drainTo(tempQueue);
             long removed = 0;
             long bytesRemoved = 0;
             for (NatsMessage msg : tempQueue) {
@@ -399,14 +398,15 @@ class MessageQueue {
                     bytesRemoved += msg.getSizeInBytes();
                 }
                 else {
-                    // Just queue. No need to save up for add all, which loops and offers one at a time anyway
+                    // The queue was cleared by drainTo, so was fresh
+                    // to add back in message wanted to be kept.
                     this.queue.offer(msg);
                 }
             }
             count(-removed, -bytesRemoved);
         }
         finally {
-            countLock.unlock();
+            pushLock.unlock();
         }
     }
 
