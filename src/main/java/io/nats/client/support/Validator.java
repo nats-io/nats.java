@@ -32,10 +32,29 @@ public abstract class Validator {
 
     /*
         cannot contain spaces \r \n \t
+    */
+    public static String validateSubjectTerm(String subject, String label, boolean required) {
+        if (subject == null || subject.length() == 0) {
+            if (required) {
+                throw new IllegalArgumentException(label + " cannot be null or empty.");
+            }
+            return null;
+        }
+        for (int i = 0; i < subject.length(); i++) {
+            char c = subject.charAt(i);
+            if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+                throw new IllegalArgumentException(label + " cannot contain space, tab, carriage return or linefeed character");
+            }
+        }
+        return subject;
+    }
+
+    /*
+        cannot contain spaces \r \n \t
         cannot start or end with subject token delimiter .
         some things don't allow it to end greater
     */
-    public static String validateSubjectTerm(String subject, String label, boolean required) {
+    public static String validateSubjectTermStrict(String subject, String label, boolean required) {
         subject = emptyAsNull(subject);
         if (subject == null) {
             if (required) {
@@ -60,22 +79,18 @@ public abstract class Validator {
             else {
                 for (int m = 0; m < sl; m++) {
                     char c = segment.charAt(m);
-                    switch (c) {
-                        case 32:
-                        case '\r':
-                        case '\n':
-                        case '\t':
-                            throw new IllegalArgumentException(label + " cannot contain space, tab, carriage return or linefeed character");
-                        case '*':
-                            if (sl != 1) {
-                                throw new IllegalArgumentException(label + " wildcard improperly placed.");
-                            }
-                            break;
-                        case '>':
-                            if (sl != 1 || (seg + 1 != segments.length)) {
-                                throw new IllegalArgumentException(label + " wildcard improperly placed.");
-                            }
-                            break;
+                    if (c == ' ' || c == '\t' || c == '\r' || c == '\n') {
+                        throw new IllegalArgumentException(label + " cannot contain space, tab, carriage return or linefeed character");
+                    }
+                    if (c == '*') {
+                        if (sl != 1) {
+                            throw new IllegalArgumentException(label + " wildcard improperly placed.");
+                        }
+                    }
+                    if (c == '>') {
+                        if (sl != 1 || (seg + 1 != segments.length)) {
+                            throw new IllegalArgumentException(label + " wildcard improperly placed.");
+                        }
                     }
                 }
             }
@@ -87,8 +102,12 @@ public abstract class Validator {
         return validateSubjectTerm(s, "Subject", required);
     }
 
+    public static String validateSubjectStrict(String s, boolean required) {
+        return validateSubjectTermStrict(s, "Subject", required);
+    }
+
     public static String validateSubject(String subject, String label, boolean required, boolean cantEndWithGt) {
-        subject = validateSubjectTerm(subject, label, required);
+        subject = validateSubjectTermStrict(subject, label, required);
         if (subject != null && cantEndWithGt && subject.endsWith(".>")) {
             throw new IllegalArgumentException(label + " last segment cannot be '>'");
         }
@@ -100,7 +119,7 @@ public abstract class Validator {
     }
 
     public static String validateQueueName(String s, boolean required) {
-        return validateSubjectTerm(s, "QueueName", required);
+        return validateSubjectTermStrict(s, "QueueName", required);
     }
 
     public static String validateStreamName(String s, boolean required) {

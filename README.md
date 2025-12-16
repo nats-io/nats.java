@@ -24,6 +24,7 @@
 ## Table of Contents
 * [Simplification](#simplification)
 * [Service Framework](#service-framework)
+* [Subject Validation](#subject-validation)
 * [Recent Version Notes](#recent-version-notes)
 * [Installation](#installation)
 * [Basic Usage](#basic-usage)
@@ -61,6 +62,38 @@ The Services Framework further streamlines their development by providing observ
 The Service Framework allows your services to be discovered and queried for status without additional work.
 
 Check out the [ServiceExample](src/examples/java/io/nats/examples/service/ServiceExample.java)
+
+## Subject Validation
+Subject validation is changed as of 2.24.2. Up until now, subject validation has been strict.
+This means that when subjects were presented for instance in publish or subscribe calls,
+strict validation was applied. While this is great for some use cases, for instance when
+giving the ability of an application user to set a subject, it's generally not necessary.
+And in that case, you may want to validate the subject as you would to prevent a sql injection.
+If you tightly control your subjects, you may prefer no validation at all.
+
+Options now specifies lenient validation by default and gives you the ability 
+to set the validation to none or strict if that makes sense for your application.
+This can be accomplished with Options.Builder methods:
+
+```
+public Builder noSubjectValidation();
+public Builder strictSubjectValidation();
+```
+
+of via properties
+```
+noSubjectValidation=true
+strictSubjectValidation=true
+```
+
+Behavior and Benchmark over 37 million passes...
+
+| Type     | Millis Total | Nanos Per | Behavior                                                                    |
+|----------|-------------:|----------:|-----------------------------------------------------------------------------|
+| Lenient  |       `7393` |  `199.81` | Space, Tab, CR, LF are invalid                                              |
+| Strict   |      `15272` |  `413.76` | Lenient plus check for improper formation of segments or wildcard use       |
+| None     |       `2155` |   `58.24` | Only checks for string not being null or empty when the subject is required |
+
 
 ## Recent Version Notes
 
@@ -379,8 +412,11 @@ assertEquals(8000, o.getMaxMessagesInOutgoingQueue());
 | pinginterval                      | Configure pingInterval.                                                              |
 | cleanupinterval                   | Configure requestCleanupInterval.                                                    |
 | timeout                           | Configure connectionTimeout.                                                         |
-| socket.write.timeout              | Set the timeout around socket writes, providing support where Java is lacking        | 
-| socket.so.linger                  | Configure the socket SO LINGER property for built in data port implementations       |
+| socket.read.timeout               | Set the underlying socket SO_TIMEOUT property                                        |
+| socket.write.timeout              | Set the timeout around socket writes, providing support where Java is lacking.       | 
+| socket.so.linger                  | Configure the socket SO LINGER property for built in data port implementations.      |
+| socket.receive.buffer.size        | Set the underlying socket receive buffer size hint (SO_RCVBUF)                       |
+| socket.send.buffer.size           | Set the underlying socket send buffer size hint (SO_SNDBUF)                          |
 | reconnect.buffer.size             | Configure reconnectBufferSize.                                                       |
 | reconnect.wait                    | Configure reconnectWait.                                                             |
 | reconnect.max                     | Configure maxReconnects.                                                             |
@@ -394,6 +430,8 @@ assertEquals(8000, o.getMaxMessagesInOutgoingQueue());
 | nonoresponders                    | Configure noNoResponders.                                                            |
 | norandomize                       | Configure noRandomize.                                                               |
 | noResolveHostnames                | Configure noResolveHostnames.                                                        |
+| noSubjectValidation               | Set subject validation to none.                                                      |
+| strictSubjectValidation           | Set subject validation to strict.                                                    |
 | reportNoResponders                | Configure reportNoResponders.                                                        |
 | clientsidelimitchecks             | Configure clientsidelimitchecks.                                                     | 
 | url                               | Configure server.  The value can be a comma-separated list of server URLs.           |
@@ -401,6 +439,7 @@ assertEquals(8000, o.getMaxMessagesInOutgoingQueue());
 | password                          | Configure userinfo password.                                                         |
 | username                          | Configure userinfo username.                                                         |
 | token                             | Configure token.                                                                     |
+| token.supplier                    | Property used to set class name for the token supplier                               |
 | secure                            | See notes above on ssl configruration.                                               |
 | opentls                           | See notes above on ssl configruration.                                               |
 | outgoingqueue.maxmessages         | Configure maxMessagesInOutgoingQueue.                                                |
@@ -421,6 +460,14 @@ assertEquals(8000, o.getMaxMessagesInOutgoingQueue());
 | tls.first                         | Property used to set TLS Handshake First behavior                                    |
 | use.timeout.exception             | Instruct the client to throw TimeoutException instead of CancellationException       |
 | use.dispatcher.with.executor      | Instruct dispatchers to dispatch all messages as a task                              |
+| force.flush.on.request            | When makeing a core request, send the message as soon as it's first in the queue     |
+| executor.service.class            | Property used to set class name for the main executor                                |
+| scheduled.executor.service.class  | Property used to set class name for the scheduled executor                           |
+| connect.executor.service.class    | Property used to set class name for the connection executor                          |
+| callback.executor.service.class   | Property used to set class name for the callback executor                            |
+| connect.thread.factory.class      | Property used to set class name for the connection executor thread factory           |              
+| callback.thread.factory.class     | Property used to set class name for the callback executor thread factory             |
+| read.listener.class               | Property used to set class name for the ReadListener implementation                  |
 | fast.fallback                     | Use fast fallback algorithm for socket connection                                    |
 ```
 
