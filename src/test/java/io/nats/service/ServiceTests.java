@@ -630,7 +630,9 @@ public class ServiceTests extends JetStreamTestBase {
             assertTrue(service1.isStarted(1, TimeUnit.SECONDS));
             assertTrue(service2.isStarted(1, TimeUnit.SECONDS));
 
-            Discovery discovery = new Discovery(clientNc);
+            // give 10 seconds for responses, b/c sometimes on GH this takes more than the default 5 seconds.
+            // limit to 2 results so we don't wait the entire time when we do get results
+            Discovery discovery = new Discovery(clientNc, 10_000, 2);
 
             List<PingResponse> prs = discovery.ping();
             boolean one = false;

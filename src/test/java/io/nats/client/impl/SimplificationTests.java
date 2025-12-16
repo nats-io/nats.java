@@ -984,19 +984,21 @@ public class SimplificationTests extends JetStreamTestBase {
         validateConsumerNameForOrdered(occtx, null, occ.getConsumerNamePrefix());
     }
 
-    public static long CS_FOR_SS_3 = 3;
-
     public static class PullOrderedTestDropSimulator extends PullOrderedMessageManager {
+        long ccForSs3;
         @SuppressWarnings("ClassEscapesDefinedScope")
-        public PullOrderedTestDropSimulator(NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so, ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode) {
+        public PullOrderedTestDropSimulator(long ccForSs3,
+            NatsConnection conn, NatsJetStream js, String stream, SubscribeOptions so,
+                                            ConsumerConfiguration serverCC, boolean queueMode, boolean syncMode) {
             super(conn, js, stream, so, serverCC, syncMode);
+            this.ccForSs3 = ccForSs3;
         }
 
         @Override
         protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
             if (msg.isJetStream()
                 && msg.metaData().streamSequence() == 3
-                && msg.metaData().consumerSequence() == CS_FOR_SS_3) {
+                && msg.metaData().consumerSequence() == ccForSs3) {
                 return false;
             }
 
@@ -1010,31 +1012,69 @@ public class SimplificationTests extends JetStreamTestBase {
             StreamContext sctx = ctx.js.getStreamContext(ctx.stream);
 
             jsPublish(ctx.js, ctx.subject(), 101, 6, 100);
-            ZonedDateTime startTime = getStartTimeFirstMessage(ctx);
 
             // New pomm factory in place before subscriptions are made
-            ctx.js._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
+            ctx.js._pullOrderedMessageManagerFactory =
+                (conn, js, stream, so, serverCC, queueMode, syncMode) ->
+                    new PullOrderedTestDropSimulator(3, conn, js, stream, so, serverCC, queueMode, syncMode);
 
-            // Set the Consumer Sequence For Stream Sequence 3 statically for ease
-            CS_FOR_SS_3 = 3;
-            _testOrderedFetch(sctx, 1, new OrderedConsumerConfiguration().filterSubject(ctx.subject()));
+            _testOrderedFetch(sctx, 1, new OrderedConsumerConfiguration()
+                .filterSubject(ctx.subject()));
+
             _testOrderedFetch(sctx, 1, new OrderedConsumerConfiguration()
                 .consumerNamePrefix(random())
                 .filterSubject(ctx.subject()));
+        });
+    }
 
-            CS_FOR_SS_3 = 2;
-            _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(ctx.subject())
-                .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
-            _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(ctx.subject())
-                .consumerNamePrefix(random())
-                .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
+    @Test
+    public void testOrderedBehaviorFetchByStartTime() throws Exception {
+        runInShared((nc, ctx) -> {
+            StreamContext sctx = ctx.js.getStreamContext(ctx.stream);
 
-            CS_FOR_SS_3 = 2;
-            _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(ctx.subject())
-                .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
-            _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration().filterSubject(ctx.subject())
+            jsPublish(ctx.js, ctx.subject(), 101, 6, 100);
+            ZonedDateTime startTime = getStartTimeFirstMessage(ctx);
+
+            // New pomm factory in place before subscriptions are made
+            ctx.js._pullOrderedMessageManagerFactory =
+                (conn, js, stream, so, serverCC, queueMode, syncMode) ->
+                    new PullOrderedTestDropSimulator(2, conn, js, stream, so, serverCC, queueMode, syncMode);
+
+            _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration()
+                .filterSubject(ctx.subject())
+                .deliverPolicy(DeliverPolicy.ByStartTime)
+                .startTime(startTime));
+
+            _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration()
                 .consumerNamePrefix(random())
-                .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
+                .filterSubject(ctx.subject())
+                .deliverPolicy(DeliverPolicy.ByStartTime)
+                .startTime(startTime));
+        });
+    }
+
+    @Test
+    public void testOrderedBehaviorFetchByStartSequence() throws Exception {
+        runInShared((nc, ctx) -> {
+            StreamContext sctx = ctx.js.getStreamContext(ctx.stream);
+
+            jsPublish(ctx.js, ctx.subject(), 101, 6, 100);
+
+            // New pomm factory in place before subscriptions are made
+            ctx.js._pullOrderedMessageManagerFactory =
+                (conn, js, stream, so, serverCC, queueMode, syncMode) ->
+                    new PullOrderedTestDropSimulator(2, conn, js, stream, so, serverCC, queueMode, syncMode);
+
+            _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration()
+                .filterSubject(ctx.subject())
+                .deliverPolicy(DeliverPolicy.ByStartSequence)
+                .startSequence(2));
+
+            _testOrderedFetch(sctx, 2, new OrderedConsumerConfiguration()
+                .consumerNamePrefix(random())
+                .filterSubject(ctx.subject())
+                .deliverPolicy(DeliverPolicy.ByStartSequence)
+                .startSequence(2));
         });
     }
 
@@ -1079,32 +1119,70 @@ public class SimplificationTests extends JetStreamTestBase {
             StreamContext sctx = ctx.js.getStreamContext(ctx.stream);
 
             jsPublish(ctx.js, ctx.subject(), 101, 6, 100);
-            ZonedDateTime startTime = getStartTimeFirstMessage(ctx);
 
-            // New pomm factory in place before each subscription is made
-            // Set the Consumer Sequence For Stream Sequence 3 statically for ease
-            CS_FOR_SS_3 = 3;
-            ctx.js._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
-            _testOrderedIterate(sctx, 1, new OrderedConsumerConfiguration().filterSubject(ctx.subject()));
+            // New pomm factory in place before subscription is made
+            ctx.js._pullOrderedMessageManagerFactory =
+                (conn, js, stream, so, serverCC, queueMode, syncMode) ->
+                    new PullOrderedTestDropSimulator(3, conn, js, stream, so, serverCC, queueMode, syncMode);
+
+            _testOrderedIterate(sctx, 1, new OrderedConsumerConfiguration()
+                .filterSubject(ctx.subject()));
+
             _testOrderedIterate(sctx, 1, new OrderedConsumerConfiguration()
                 .consumerNamePrefix(random())
                 .filterSubject(ctx.subject()));
+        });
+    }
 
-            CS_FOR_SS_3 = 2;
-            ctx.js._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
-            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(ctx.subject())
-                .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
-            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(ctx.subject())
-                .consumerNamePrefix(random())
-                .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
+    @Test
+    public void testOrderedBehaviorIterableByStartTime() throws Exception {
+        runInShared((nc, ctx) -> {
+            StreamContext sctx = ctx.js.getStreamContext(ctx.stream);
 
-            CS_FOR_SS_3 = 2;
-            ctx.js._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
-            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(ctx.subject())
-                .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
-            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(ctx.subject())
+            jsPublish(ctx.js, ctx.subject(), 101, 6, 100);
+            ZonedDateTime startTime = getStartTimeFirstMessage(ctx);
+
+            // New pomm factory in place before subscription is made
+            ctx.js._pullOrderedMessageManagerFactory =
+                (conn, js, stream, so, serverCC, queueMode, syncMode) ->
+                    new PullOrderedTestDropSimulator(2, conn, js, stream, so, serverCC, queueMode, syncMode);
+
+            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration()
+                .filterSubject(ctx.subject())
+                .deliverPolicy(DeliverPolicy.ByStartTime)
+                .startTime(startTime));
+
+            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration()
                 .consumerNamePrefix(random())
-                .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
+                .filterSubject(ctx.subject())
+                .deliverPolicy(DeliverPolicy.ByStartTime)
+                .startTime(startTime));
+
+        });
+    }
+
+    @Test
+    public void testOrderedBehaviorIterableByStartSequence() throws Exception {
+        runInShared((nc, ctx) -> {
+            StreamContext sctx = ctx.js.getStreamContext(ctx.stream);
+
+            jsPublish(ctx.js, ctx.subject(), 101, 6, 100);
+
+            // New pomm factory in place before subscription is made
+            ctx.js._pullOrderedMessageManagerFactory =
+                (conn, js, stream, so, serverCC, queueMode, syncMode) ->
+                    new PullOrderedTestDropSimulator(2, conn, js, stream, so, serverCC, queueMode, syncMode);
+
+            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration()
+                .filterSubject(ctx.subject())
+                .deliverPolicy(DeliverPolicy.ByStartSequence)
+                .startSequence(2));
+
+            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration()
+                .consumerNamePrefix(random())
+                .filterSubject(ctx.subject())
+                .deliverPolicy(DeliverPolicy.ByStartSequence)
+                .startSequence(2));
         });
     }
 
@@ -1179,7 +1257,9 @@ public class SimplificationTests extends JetStreamTestBase {
         StreamContext sctx = ctx.js.getStreamContext(ctx.stream);
 
         // Get this in place before subscriptions are made
-        ctx.js._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
+        ctx.js._pullOrderedMessageManagerFactory =
+            (conn, js, stream, so, serverCC, queueMode, syncMode) ->
+                new PullOrderedTestDropSimulator(3, conn, js, stream, so, serverCC, queueMode, syncMode);
 
         CountDownLatch msgLatch = new CountDownLatch(6);
         AtomicInteger received = new AtomicInteger();

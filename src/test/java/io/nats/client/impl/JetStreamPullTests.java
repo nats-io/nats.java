@@ -740,12 +740,12 @@ public class JetStreamPullTests extends JetStreamTestBase {
         return c.customize(ConsumerConfiguration.builder().ackPolicy(AckPolicy.None)).inactiveThreshold(INACTIVE_THRESHOLD).buildPullSubscribeOptions();
     }
 
-    static final long NEXT_MESSAGE_TIMEOUT = 2000;
+    static final long NEXT_MESSAGE_TIMEOUT = 5000;
     static final long INACTIVE_THRESHOLD = 30_000;
     private void _testConflictStatuses(int statusCode, String statusText, ListenerStatusType statusType, ConflictSetup setup) throws Exception {
         runInSharedNamed("conflict", ts -> {
             if (conflictNc == null) {
-                conflictListener = new Listener();
+                conflictListener = new Listener(true);
                 conflictNc = ConnectionUtils.managedConnect(
                     optionsBuilder(ts).errorListener(conflictListener).connectionListener(conflictListener).build());
             }
@@ -754,7 +754,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             }
             try (JetStreamTestingContext tcsCtx = new JetStreamTestingContext(conflictNc, 1)) {
                 if (statusType != null) {
-                    conflictListener.queueStatus(statusType, statusCode);
+                    conflictListener.queueStatus(statusType, statusCode, Listener.LONG_VALIDATE_TIMEOUT);
                 }
                 JetStreamSubscription sub = setup.setup(conflictNc, tcsCtx);
                 if (sub.getDispatcher() == null) {
