@@ -103,6 +103,8 @@ public class OptionsTests {
         assertNull(o.getStatisticsCollector(), "statistics collector");
         assertFalse(o.isOldRequestStyle(), "default oldstyle");
         assertFalse(o.isEnableFastFallback(), "fast fallback");
+
+        assertEquals(SubjectValidationType.Lenient, o.subjectValidationType());
     }
 
     @Test
@@ -681,6 +683,42 @@ public class OptionsTests {
         assertEquals(Duration.ofMillis(404), o.getRequestCleanupInterval(), "property cleanup interval");
         assertEquals(Duration.ofMillis(505), o.getReconnectJitter(), "property reconnect jitter");
         assertEquals(Duration.ofMillis(606), o.getReconnectJitterTls(), "property reconnect jitter tls");
+    }
+
+    @Test
+    public void testPropertiesSubjectValidationType() {
+        Properties props = new Properties();
+        Options o = new Options.Builder(props).build();
+        assertEquals(SubjectValidationType.Lenient, o.subjectValidationType());
+
+        props.clear();
+        props.setProperty(Options.PROP_NO_SUBJECT_VALIDATION, "false");
+        o = new Options.Builder(props).build();
+        assertEquals(SubjectValidationType.Lenient, o.subjectValidationType());
+
+        props.clear();
+        props.setProperty(Options.PROP_STRICT_SUBJECT_VALIDATION, "false");
+        o = new Options.Builder(props).build();
+        assertEquals(SubjectValidationType.Lenient, o.subjectValidationType());
+
+        props.clear();
+        props.setProperty(Options.PROP_NO_SUBJECT_VALIDATION, "true");
+        o = new Options.Builder(props).build();
+        assertEquals(SubjectValidationType.None, o.subjectValidationType());
+
+        props.clear();
+        props.setProperty(Options.PROP_STRICT_SUBJECT_VALIDATION, "true");
+        o = new Options.Builder(props).build();
+        assertEquals(SubjectValidationType.Strict, o.subjectValidationType());
+
+        o = new Options.Builder().build();
+        assertEquals(SubjectValidationType.Lenient, o.subjectValidationType());
+
+        o = new Options.Builder().noSubjectValidation().build();
+        assertEquals(SubjectValidationType.None, o.subjectValidationType());
+
+        o = new Options.Builder().strictSubjectValidation().build();
+        assertEquals(SubjectValidationType.Strict, o.subjectValidationType());
     }
 
     @Test

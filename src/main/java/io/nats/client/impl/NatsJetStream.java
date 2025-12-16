@@ -51,7 +51,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public PublishAck publish(String subject, byte[] body) throws IOException, JetStreamApiException {
-        return publishSyncInternal(subject, null, body, null, true);
+        return publishSyncInternal(subject, null, body, null);
     }
 
     /**
@@ -59,7 +59,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public PublishAck publish(String subject, Headers headers, byte[] body) throws IOException, JetStreamApiException {
-        return publishSyncInternal(subject, headers, body, null, true);
+        return publishSyncInternal(subject, headers, body, null);
     }
 
     /**
@@ -67,7 +67,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public PublishAck publish(String subject, byte[] body, PublishOptions options) throws IOException, JetStreamApiException {
-        return publishSyncInternal(subject, null, body, options, true);
+        return publishSyncInternal(subject, null, body, options);
     }
 
     /**
@@ -75,7 +75,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public PublishAck publish(String subject, Headers headers, byte[] body, PublishOptions options) throws IOException, JetStreamApiException {
-        return publishSyncInternal(subject, headers, body, options, true);
+        return publishSyncInternal(subject, headers, body, options);
     }
 
     /**
@@ -84,7 +84,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     @Override
     public PublishAck publish(Message message) throws IOException, JetStreamApiException {
         validateNotNull(message, "Message");
-        return publishSyncInternal(message.getSubject(), message.getHeaders(), message.getData(), null, false);
+        return publishSyncInternal(message.getSubject(), message.getHeaders(), message.getData(), null);
     }
 
     /**
@@ -93,7 +93,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     @Override
     public PublishAck publish(Message message, PublishOptions options) throws IOException, JetStreamApiException {
         validateNotNull(message, "Message");
-        return publishSyncInternal(message.getSubject(), message.getHeaders(), message.getData(), options, false);
+        return publishSyncInternal(message.getSubject(), message.getHeaders(), message.getData(), options);
     }
 
     /**
@@ -146,15 +146,15 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         return publishAsyncInternal(message.getSubject(), message.getHeaders(), message.getData(), options, false);
     }
 
-    private PublishAck publishSyncInternal(String subject, Headers headers, byte[] data, PublishOptions options, boolean validateSubjectAndReplyTo) throws IOException, JetStreamApiException {
+    private PublishAck publishSyncInternal(String subject, Headers headers, byte[] data, PublishOptions options) throws IOException, JetStreamApiException {
         Headers merged = mergePublishOptions(headers, options);
 
         if (jso.isPublishNoAck()) {
-            conn.publishInternal(subject, null, merged, data, validateSubjectAndReplyTo, false);
+            conn.publishInternal(subject, null, merged, data, false);
             return null;
         }
 
-        Message resp = makeInternalRequestResponseRequired(subject, merged, data, getTimeout(), CancelAction.COMPLETE, validateSubjectAndReplyTo, conn.forceFlushOnRequest);
+        Message resp = makeInternalRequestResponseRequired(subject, merged, data, getTimeout(), CancelAction.COMPLETE, conn.forceFlushOnRequest);
         return processPublishResponse(resp, options);
     }
 
@@ -162,11 +162,11 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         Headers merged = mergePublishOptions(headers, options);
 
         if (jso.isPublishNoAck()) {
-            conn.publishInternal(subject, null, merged, data, validateSubjectAndReplyTo, false);
+            conn.publishInternal(subject, null, merged, data, false);
             return null;
         }
 
-        CompletableFuture<Message> future = conn.requestFutureInternal(subject, merged, data, null, CancelAction.COMPLETE, validateSubjectAndReplyTo, conn.forceFlushOnRequest);
+        CompletableFuture<Message> future = conn.requestFutureInternal(subject, merged, data, null, CancelAction.COMPLETE, conn.forceFlushOnRequest);
 
         return future.thenCompose(resp -> {
             try {
@@ -595,7 +595,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public JetStreamSubscription subscribe(String subscribeSubject) throws IOException, JetStreamApiException {
-        subscribeSubject = validateSubject(subscribeSubject, true);
+        subscribeSubject = conn.subjectValidate(subscribeSubject, true);
         return createSubscription(subscribeSubject, null, null, null, null, null, false, null);
     }
 
@@ -604,7 +604,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public JetStreamSubscription subscribe(String subscribeSubject, PushSubscribeOptions options) throws IOException, JetStreamApiException {
-        subscribeSubject = validateSubject(subscribeSubject, false);
+        subscribeSubject = conn.subjectValidate(subscribeSubject, false);
         return createSubscription(subscribeSubject, options, null, null, null, null, false, null);
     }
 
@@ -613,7 +613,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public JetStreamSubscription subscribe(String subscribeSubject, String queue, PushSubscribeOptions options) throws IOException, JetStreamApiException {
-        subscribeSubject = validateSubject(subscribeSubject, false);
+        subscribeSubject = conn.subjectValidate(subscribeSubject, false);
         validateQueueName(queue, false);
         return createSubscription(subscribeSubject, options, null, queue, null, null, false, null);
     }
@@ -623,7 +623,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public JetStreamSubscription subscribe(String subscribeSubject, Dispatcher dispatcher, MessageHandler handler, boolean autoAck) throws IOException, JetStreamApiException {
-        subscribeSubject = validateSubject(subscribeSubject, false);
+        subscribeSubject = conn.subjectValidate(subscribeSubject, false);
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
         return createSubscription(subscribeSubject, null, null, null, (NatsDispatcher) dispatcher, handler, autoAck, null);
@@ -634,7 +634,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public JetStreamSubscription subscribe(String subscribeSubject, Dispatcher dispatcher, MessageHandler handler, boolean autoAck, PushSubscribeOptions options) throws IOException, JetStreamApiException {
-        subscribeSubject = validateSubject(subscribeSubject, false);
+        subscribeSubject = conn.subjectValidate(subscribeSubject, false);
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
         return createSubscription(subscribeSubject, options, null, null, (NatsDispatcher) dispatcher, handler, autoAck, null);
@@ -645,7 +645,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public JetStreamSubscription subscribe(String subscribeSubject, String queue, Dispatcher dispatcher, MessageHandler handler, boolean autoAck, PushSubscribeOptions options) throws IOException, JetStreamApiException {
-        subscribeSubject = validateSubject(subscribeSubject, false);
+        subscribeSubject = conn.subjectValidate(subscribeSubject, false);
         validateQueueName(queue, false);
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
@@ -657,7 +657,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public JetStreamSubscription subscribe(String subscribeSubject, PullSubscribeOptions options) throws IOException, JetStreamApiException {
-        subscribeSubject = validateSubject(subscribeSubject, false);
+        subscribeSubject = conn.subjectValidate(subscribeSubject, false);
         validateNotNull(options, "Pull Subscribe Options");
         return createSubscription(subscribeSubject, null, options, null, null, null, false, null);
     }
@@ -667,7 +667,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public JetStreamSubscription subscribe(String subscribeSubject, Dispatcher dispatcher, MessageHandler handler, PullSubscribeOptions options) throws IOException, JetStreamApiException {
-        subscribeSubject = validateSubject(subscribeSubject, false);
+        subscribeSubject = conn.subjectValidate(subscribeSubject, false);
         validateNotNull(dispatcher, "Dispatcher");
         validateNotNull(handler, "Handler");
         validateNotNull(options, "Pull Subscribe Options");

@@ -40,24 +40,30 @@ public class ValidatorTests {
         allowedRequired(Validator::validateSubject, Arrays.asList(PLAIN, HAS_PRINTABLE, HAS_DOT, HAS_DOLLAR, HAS_LOW, HAS_127));
         allowedRequired(Validator::validateSubject, UTF_ONLY_STRINGS);
         allowedRequired(Validator::validateSubject, Arrays.asList(STAR_SEGMENT, GT_LAST_SEGMENT));
+        allowedRequired(Validator::validateSubject, Arrays.asList(STARTS_WITH_DOT, STAR_NOT_SEGMENT, GT_NOT_SEGMENT, EMPTY_SEGMENT, GT_NOT_LAST_SEGMENT));
+        allowedRequired(Validator::validateSubject, Collections.singletonList(ENDS_WITH_DOT));
         notAllowedRequired(Validator::validateSubject, Arrays.asList(null, EMPTY, HAS_SPACE, HAS_CR, HAS_LF));
-        notAllowedRequired(Validator::validateSubject, Arrays.asList(STARTS_WITH_DOT, STAR_NOT_SEGMENT, GT_NOT_SEGMENT, EMPTY_SEGMENT, GT_NOT_LAST_SEGMENT));
-        notAllowedRequired(Validator::validateSubject, Arrays.asList(ENDS_WITH_DOT, ENDS_WITH_DOT_SPACE, ENDS_WITH_CR, ENDS_WITH_LF, ENDS_WITH_TAB));
+        notAllowedRequired(Validator::validateSubject, Arrays.asList(ENDS_WITH_CR, ENDS_WITH_LF, ENDS_WITH_TAB));
+        notAllowedRequiredStrict(Arrays.asList(STARTS_WITH_DOT, STAR_NOT_SEGMENT, GT_NOT_SEGMENT, EMPTY_SEGMENT, GT_NOT_LAST_SEGMENT));
+        notAllowedRequiredStrict(Arrays.asList(ENDS_WITH_DOT, ENDS_WITH_DOT_SPACE, ENDS_WITH_CR, ENDS_WITH_LF, ENDS_WITH_TAB));
 
         // subject not required, null and empty both mean not supplied
         allowedNotRequiredEmptyAsNull(Validator::validateSubject, Arrays.asList(null, EMPTY));
         allowedNotRequired(Validator::validateSubject, Arrays.asList(PLAIN, HAS_PRINTABLE, HAS_DOT, HAS_DOLLAR, HAS_LOW, HAS_127));
         allowedNotRequired(Validator::validateSubject, UTF_ONLY_STRINGS);
         allowedNotRequired(Validator::validateSubject, Arrays.asList(STAR_SEGMENT, GT_LAST_SEGMENT));
-        notAllowedNotRequired(Validator::validateSubject, Arrays.asList(HAS_SPACE, HAS_CR, HAS_LF));
-        notAllowedNotRequired(Validator::validateSubject, Arrays.asList(STARTS_WITH_DOT, STAR_NOT_SEGMENT, GT_NOT_SEGMENT, EMPTY_SEGMENT, GT_NOT_LAST_SEGMENT));
-        notAllowedNotRequired(Validator::validateSubject, Arrays.asList(ENDS_WITH_DOT, ENDS_WITH_DOT_SPACE, ENDS_WITH_CR, ENDS_WITH_LF, ENDS_WITH_TAB));
+        allowedNotRequired(Validator::validateSubject, Arrays.asList(STARTS_WITH_DOT, STAR_NOT_SEGMENT, GT_NOT_SEGMENT, EMPTY_SEGMENT, GT_NOT_LAST_SEGMENT));
+        allowedNotRequired(Validator::validateSubject, Collections.singletonList(ENDS_WITH_DOT));
 
-        allowedRequired(Validator::validateSubject, false, Arrays.asList(STAR_SEGMENT, GT_LAST_SEGMENT));
-        allowedRequired(Validator::validateSubject, true, Collections.singletonList(STAR_SEGMENT));
-        notAllowedRequired(Validator::validateSubject, true, Collections.singletonList(GT_LAST_SEGMENT));
-        allowedNotRequired(Validator::validateSubject, false, Arrays.asList(null, GT_LAST_SEGMENT));
-        notAllowedNotRequired(Validator::validateSubject, true, Collections.singletonList(GT_LAST_SEGMENT));
+        notAllowedNotRequired(Validator::validateSubject, Arrays.asList(HAS_SPACE, HAS_CR, HAS_LF));
+        notAllowedNotRequiredStrict(Arrays.asList(STARTS_WITH_DOT, STAR_NOT_SEGMENT, GT_NOT_SEGMENT, EMPTY_SEGMENT, GT_NOT_LAST_SEGMENT));
+        notAllowedNotRequiredStrict(Arrays.asList(ENDS_WITH_DOT, ENDS_WITH_DOT_SPACE, ENDS_WITH_CR, ENDS_WITH_LF, ENDS_WITH_TAB));
+
+        allowedRequiredCheckEndWith(Validator::validateSubject, false, Arrays.asList(STAR_SEGMENT, GT_LAST_SEGMENT));
+        allowedRequiredCheckEndWith(Validator::validateSubject, true, Collections.singletonList(STAR_SEGMENT));
+        notAllowedRequiredCheckEndWith(Validator::validateSubject, true, Collections.singletonList(GT_LAST_SEGMENT));
+        allowedNotRequiredCheckEndWith(Validator::validateSubject, false, Arrays.asList(null, GT_LAST_SEGMENT));
+        notAllowedNotRequiredCheckEndWith(Validator::validateSubject, true, Collections.singletonList(GT_LAST_SEGMENT));
     }
 
     @Test
@@ -491,7 +497,7 @@ public class ValidatorTests {
         }
     }
 
-    private void allowedRequired(StringLabelRequiredCantEndWithGtTest test, boolean cantEndWithGt, List<String> strings) {
+    private void allowedRequiredCheckEndWith(StringLabelRequiredCantEndWithGtTest test, boolean cantEndWithGt, List<String> strings) {
         for (String s : strings) {
             assertEquals(s, test.validate(s, "allowedRequired", true, cantEndWithGt), allowedMessage(s));
         }
@@ -503,8 +509,13 @@ public class ValidatorTests {
         }
     }
 
-    private void notAllowedRequired(StringLabelRequiredCantEndWithGtTest test,
-                                    @SuppressWarnings("SameParameterValue") boolean cantEndWithGt, List<String> strings) {
+    private void notAllowedRequiredStrict(List<String> strings) {
+        for (String s : strings) {
+            assertThrows(IllegalArgumentException.class, () -> validateSubjectTermStrict(s, "notAllowedRequiredStrict", true), notAllowedMessage(s));
+        }
+    }
+
+    private void notAllowedRequiredCheckEndWith(StringLabelRequiredCantEndWithGtTest test, boolean cantEndWithGt, List<String> strings) {
         for (String s : strings) {
             assertThrows(IllegalArgumentException.class, () -> test.validate(s, "notAllowedRequired", true, cantEndWithGt), notAllowedMessage(s));
         }
@@ -516,8 +527,7 @@ public class ValidatorTests {
         }
     }
 
-    private void allowedNotRequired(StringLabelRequiredCantEndWithGtTest test,
-                                    @SuppressWarnings("SameParameterValue") boolean cantEndWithGt, List<String> strings) {
+    private void allowedNotRequiredCheckEndWith(StringLabelRequiredCantEndWithGtTest test, boolean cantEndWithGt, List<String> strings) {
         for (String s : strings) {
             assertEquals(s, test.validate(s, "allowedNotRequired", false, cantEndWithGt), allowedMessage(s));
         }
@@ -535,8 +545,13 @@ public class ValidatorTests {
         }
     }
 
-    private void notAllowedNotRequired(StringLabelRequiredCantEndWithGtTest test,
-                                       @SuppressWarnings("SameParameterValue") boolean cantEndWithGt, List<String> strings) {
+    private void notAllowedNotRequiredStrict(List<String> strings) {
+        for (String s : strings) {
+            assertThrows(IllegalArgumentException.class, () -> validateSubjectTermStrict(s, "notAllowedRequiredStrict", false), notAllowedMessage(s));
+        }
+    }
+
+    private void notAllowedNotRequiredCheckEndWith(StringLabelRequiredCantEndWithGtTest test, boolean cantEndWithGt, List<String> strings) {
         for (String s : strings) {
             assertThrows(IllegalArgumentException.class, () -> test.validate(s, "notAllowedNotRequired", false, cantEndWithGt), notAllowedMessage(s));
         }

@@ -332,36 +332,4 @@ public class NatsMessageTests extends JetStreamTestBase {
             assertEquals(3, incoming.getHeaders().size());
         });
     }
-
-    @Test
-    public void testNatsPublishableMessageHeadersCoverage() {
-        byte[] data = new byte[0];
-
-        NatsPublishableMessage npm = new NatsPublishableMessage("subject", "replyTo", null, data, false, false);
-        assertFalse(npm.hasHeaders);
-        assertNull(npm.getHeaders());
-
-        Headers h = new Headers();
-        assertTrue(h.isEmpty());
-        assertFalse(h.isReadOnly());
-        npm = new NatsPublishableMessage("subject", "replyTo", h, data, false, false);
-        assertFalse(npm.hasHeaders);
-        assertNull(npm.getHeaders());
-
-        h.put("foo", "bar");
-        assertFalse(h.isEmpty());
-        assertFalse(h.isReadOnly());
-        npm = new NatsPublishableMessage("subject", "replyTo", h, data, false, false);
-        assertTrue(npm.hasHeaders);
-        assertFalse(npm.getHeaders().isEmpty());
-        assertTrue(npm.getHeaders().isReadOnly());
-
-        h = new Headers(h, true);
-        assertFalse(h.isEmpty());
-        assertTrue(h.isReadOnly());
-        npm = new NatsPublishableMessage("subject", "replyTo", h, data, false, false);
-        assertTrue(npm.hasHeaders);
-        assertFalse(npm.getHeaders().isEmpty());
-        assertTrue(npm.getHeaders().isReadOnly());
-    }
 }
