@@ -1825,7 +1825,7 @@ class NatsConnection implements Connection {
             throw new IllegalArgumentException("Control line is too long");
         }
         if (!writer.queue(msg)) {
-            options.getErrorListener().messageDiscarded(this, msg);
+            makeCallback(() -> options.getErrorListener().messageDiscarded(this, msg));
         }
     }
 
