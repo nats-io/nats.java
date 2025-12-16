@@ -15,39 +15,33 @@ package io.nats.client.impl;
 
 import io.nats.client.support.ByteArrayBuilder;
 
+import java.nio.charset.StandardCharsets;
+
 // ----------------------------------------------------------------------------------------------------
 // Protocol message is a special version of a NatsPublishableMessage extends NatsMessage
 // ----------------------------------------------------------------------------------------------------
 class ProtocolMessage extends NatsPublishableMessage {
-    final boolean filterOnStop;
-
-    ProtocolMessage(ByteArrayBuilder babProtocol, boolean filterOnStop) {
+    ProtocolMessage(ByteArrayBuilder babProtocol) {
         super(false);
         protocolBab = babProtocol;
         sizeInBytes = controlLineLength = protocolBab.length() + 2; // CRLF, protocol doesn't have data
-        this.filterOnStop = filterOnStop;
     }
 
     ProtocolMessage(byte[] protocol) {
-        this(new ByteArrayBuilder(protocol), true);
+        this(new ByteArrayBuilder(protocol));
     }
 
-    ProtocolMessage(byte[] protocol, boolean filterOnStop) {
-        this(new ByteArrayBuilder(protocol), filterOnStop);
+    ProtocolMessage(String protocol) {
+        this(new ByteArrayBuilder(protocol.getBytes(StandardCharsets.ISO_8859_1)));
     }
 
     ProtocolMessage(ProtocolMessage pm) {
-        this(pm.protocolBab, pm.filterOnStop);
+        this(pm.protocolBab);
     }
 
     @Override
     boolean isProtocol() {
         return true;
-    }
-
-    @Override
-    boolean isFilterOnStop() {
-        return filterOnStop;
     }
 
     @Override

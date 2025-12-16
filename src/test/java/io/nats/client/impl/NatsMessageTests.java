@@ -196,7 +196,6 @@ public class NatsMessageTests extends JetStreamTestBase {
         assertNotNull(m.toString());
         assertNotNull(m.toDetailString());
         assertFalse(m.isProtocol());
-        assertFalse(m.isFilterOnStop());
 
         m = NatsMessage.builder()
             .subject("test").replyTo("reply")
@@ -249,20 +248,11 @@ public class NatsMessageTests extends JetStreamTestBase {
         assertNotNull(m.toString()); // COVERAGE
 
         ProtocolMessage pmFilterOnStop = new ProtocolMessage(new byte[0]);
-        ProtocolMessage pmNotFilterOnStop = new ProtocolMessage(pmFilterOnStop.getProtocolBab(), false);
 
-        validateProto(pmFilterOnStop, true);
-        validateProto(pmNotFilterOnStop, false);
+        validateProto(pmFilterOnStop);
 
         // retains filter on stop
-        validateProto(new ProtocolMessage(pmFilterOnStop), true);
-        validateProto(new ProtocolMessage(pmNotFilterOnStop), false);
-
-        // sets filter on stop
-        validateProto(new ProtocolMessage(pmFilterOnStop.getProtocolBab(), true), true);
-        validateProto(new ProtocolMessage(pmFilterOnStop.getProtocolBab(), false), false);
-        validateProto(new ProtocolMessage(pmNotFilterOnStop.getProtocolBab(), true), true);
-        validateProto(new ProtocolMessage(pmNotFilterOnStop.getProtocolBab(), false), false);
+        validateProto(new ProtocolMessage(pmFilterOnStop));
 
         IncomingMessage scm = new IncomingMessage() {};
         assertEquals(0, scm.getSizeInBytes());
@@ -270,7 +260,6 @@ public class NatsMessageTests extends JetStreamTestBase {
         assertThrows(IllegalStateException.class, scm::getProtocolBytes);
         assertThrows(IllegalStateException.class, scm::getControlLineLength);
         assertFalse(scm.isProtocol());
-        assertFalse(scm.isFilterOnStop());
 
         // coverage coverage coverage
         //noinspection deprecation
@@ -280,13 +269,12 @@ public class NatsMessageTests extends JetStreamTestBase {
         assertTrue(nmCov.toDetailString().contains("PUB sub reply 0"));
     }
 
-    private static void validateProto(ProtocolMessage pm, boolean isProtocolFilterOnStop) {
+    private static void validateProto(ProtocolMessage pm) {
         assertNotNull(pm.getProtocolBab());
         assertEquals(0, pm.getProtocolBab().length());
         assertEquals(2, pm.getSizeInBytes());
         assertEquals(2, pm.getControlLineLength());
         assertTrue(pm.isProtocol());
-        assertEquals(isProtocolFilterOnStop, pm.isFilterOnStop());
     }
 
     @Test

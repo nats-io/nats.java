@@ -393,13 +393,10 @@ class MessageQueue {
             long removed = 0;
             long bytesRemoved = 0;
             for (NatsMessage msg : tempQueue) {
-                if (msg.isFilterOnStop()) {
-                    // 1. do not add it to the new queue
-                    // 2. track the count if it's not a MarkerMessage
-                    if (!(msg instanceof MarkerMessage)) {
-                        removed++;
-                        bytesRemoved += msg.getSizeInBytes();
-                    }
+                if (msg instanceof ProtocolMessage) {
+                    // do not add it to the new queue and track the count
+                    removed++;
+                    bytesRemoved += msg.getSizeInBytes();
                 }
                 else {
                     // Just queue. No need to save up for add all, which loops and offers one at a time anyway

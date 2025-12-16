@@ -477,9 +477,9 @@ public class MessageQueueTests {
     }
 
     @Test
-    public void testFilteringAndCounting() throws InterruptedException {
+    public void testFilteringAndCounting() {
         NatsMessage test = getTestMessage();
-        ProtocolMessage proto = new ProtocolMessage("proto".getBytes(), true);
+        ProtocolMessage proto = new ProtocolMessage("proto".getBytes());
         MessageQueue.MarkerMessage marker = new MessageQueue.MarkerMessage("marker");
 
         long sizeM = test.getSizeInBytes();
@@ -522,21 +522,23 @@ public class MessageQueueTests {
         _testFiltered(2);
     }
 
-    static NatsMessage getCustomFilter(String id, final boolean filterOnStop) {
-        return new NatsMessage("customFilter" + id, null, null) {
-            @Override
-            boolean isFilterOnStop() {
-                return filterOnStop;
-            }
-        };
+    static NatsMessage getMightBeFiltered(String id, final boolean filterOnStop) {
+        if (filterOnStop) {
+            return new ProtocolMessage("customFilter" + id);
+        }
+        return new NatsMessage("customFilter" + id, null, null);
     }
 
     private static void _testFiltered(int filtered) throws InterruptedException {
-        NatsMessage msg1 = getCustomFilter("1", filtered == 1);
-        NatsMessage msg2 = getCustomFilter("2", filtered == 2);
-        NatsMessage msg3 = getCustomFilter("3", filtered == 3);
+        NatsMessage msg1 = getMightBeFiltered("1", filtered == 1);
+        NatsMessage msg2 = getMightBeFiltered("2", filtered == 2);
+        NatsMessage msg3 = getMightBeFiltered("3", filtered == 3);
 
-        long size = msg1.getSizeInBytes(); // will all be the same size
+        long size1 = msg1.getSizeInBytes();
+        long size2 = msg2.getSizeInBytes();
+        long size3 = msg3.getSizeInBytes();
+        long sizeAll = size1 + size2 + size3;
+        long sizeAfter = filtered == 1 ? size2 + size3 : size1 * 2;
 
         MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         q.push(msg1);
@@ -544,21 +546,21 @@ public class MessageQueueTests {
         q.push(msg3);
 
         assertEquals(3, q.length());
-        assertEquals(size * 3, q.sizeInBytes());
+        assertEquals(sizeAll, q.sizeInBytes());
 
         q.pause();
         q.filterOnStop();
         q.resume();
 
         assertEquals(2, q.length());
-        assertEquals(size * 2, q.sizeInBytes());
+        assertEquals(sizeAfter, q.sizeInBytes());
 
         q.pause();
         q.filterOnStop();
         q.resume();
 
         assertEquals(2, q.length());
-        assertEquals(size * 2, q.sizeInBytes());
+        assertEquals(sizeAfter, q.sizeInBytes());
 
         if (filtered != 1) {
             assertEquals(msg1, q.popNow());
