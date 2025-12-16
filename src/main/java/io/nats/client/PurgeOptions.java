@@ -20,7 +20,7 @@ import org.jspecify.annotations.NonNull;
 import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.beginJson;
 import static io.nats.client.support.JsonUtils.endJson;
-import static io.nats.client.support.Validator.validateSubject;
+import static io.nats.client.support.Validator.validateSubjectStrict;
 
 /**
  * The PurgeOptions class specifies the options for purging a stream
@@ -107,7 +107,7 @@ public class PurgeOptions implements JsonSerializable {
          * @return the builder
          */
         public Builder subject(final String subject) {
-            this.subject = validateSubject(subject, false);
+            this.subject = validateSubjectStrict(subject, false);
             return this;
         }
 
@@ -136,8 +136,6 @@ public class PurgeOptions implements JsonSerializable {
          * @return the built PurgeOptions
          */
         public PurgeOptions build() {
-            validateSubject(subject, false);
-
             if (seq > 0 && keep > 0) {
                 throw new IllegalArgumentException("seq and keep are mutually exclusive.");
             }
