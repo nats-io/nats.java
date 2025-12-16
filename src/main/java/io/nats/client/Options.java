@@ -1106,8 +1106,10 @@ public class Options {
 
         /**
          * Whether to skip the call to validate when a subject is presented
-         * for instance in subscribe or publish.
-         * Use with caution if you know your subjects are always valid.
+         * for instance in subscribe or publish. Will only validate that a
+         * subject is not null and is not and empty string
+         * Fastest validation, but use with caution
+         * If you know your subjects are always valid.
          * @return the Builder for chaining
          */
         public Builder noSubjectValidation() {
@@ -1116,22 +1118,13 @@ public class Options {
         }
 
         /**
-         * Whether to use lenient validation to validate when a subject is presented
+         * Use strict validation to validate when a subject is presented
          * for instance in subscribe or publish.
-         * Lenient is the default
+         * Slower validation, but may be useful when exposing the ability
+         * of an application user to set a subject.
          * @return the Builder for chaining
          */
-        public Builder lenientSubjectValidation() {
-            this.subjectValidationType = SubjectValidationType.Lenient;
-            return this;
-        }
-
-        /**
-         * Whether to use lenient validation to validate when a subject is presented
-         * for instance in subscribe or publish.
-         * @return the Builder for chaining
-         */
-        public Builder stringSubjectValidation() {
+        public Builder strictSubjectValidation() {
             this.subjectValidationType = SubjectValidationType.Strict;
             return this;
         }
