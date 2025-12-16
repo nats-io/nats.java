@@ -31,15 +31,12 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
 import static io.nats.client.AuthTests.getUserCredsAuthHander;
 import static io.nats.client.NatsTestServer.configFileBuilder;
-import static io.nats.client.NatsTestServer.getLocalhostUri;
-import static io.nats.client.support.Listener.VERY_LONG_VALIDATE_TIMEOUT;
-import static io.nats.client.support.NatsConstants.OUTPUT_QUEUE_IS_FULL;
+import static io.nats.client.support.Listener.*;
 import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.*;
 import static io.nats.client.utils.TestBase.*;
@@ -894,52 +891,50 @@ public class ReconnectTests {
 
     @Test
     public void testSocketDataPortTimeout() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting(false, true);
+        Listener listener = new Listener();
         Options.Builder builder = Options.builder()
             .noRandomize()
-            .socketWriteTimeout(5000) // long time ensures we can get to OUTPUT_QUEUE_IS_FULL
+            .socketWriteTimeout(5000) // long time vital! to get OUTPUT_QUEUE_IS_FULL
             .pingInterval(Duration.ofSeconds(1))
             .maxMessagesInOutgoingQueue(100)
             .dataPortType(SocketDataPortBlockSimulator.class.getCanonicalName())
             .connectionListener(listener)
             .errorListener(listener);
 
+        // 1. The socket port gets blocked, the queue fills up before the socketWriteTimeout()
+        // 2. The socket write times out
+        // 3. That causes a disconnect
+        // 4. Eventually reconnected. Give it a long timeout, it takes a while on GH machine
+        listener.queueException(IllegalStateException.class, "Output queue", MEDIUM_VALIDATE_TIMEOUT);
+        listener.queueSocketWriteTimeout(LONG_VALIDATE_TIMEOUT);
         listener.queueConnectionEvent(Events.DISCONNECTED);
-        listener.queueConnectionEvent(Events.RECONNECTED);
-        listener.queueSocketWriteTimeout();
+        listener.queueConnectionEvent(Events.RECONNECTED, MEDIUM_VALIDATE_TIMEOUT);
 
-        AtomicBoolean gotOutputQueueIsFull = new AtomicBoolean();
         try (NatsTestServer ts1 = new NatsTestServer()) {
             try (NatsTestServer ts2 = new NatsTestServer()) {
                 String[] servers = new String[]{
                     ts1.getNatsLocalhostUri(),
                     ts2.getNatsLocalhostUri()
                 };
-                try (Connection nc = standardConnection(builder.servers(servers).build())) {
+                try (Connection nc = standardConnect(builder.servers(servers).build())) {
                     int connectedPort = nc.getServerInfo().getPort();
-                    listener.prepForStatusChange(Events.RECONNECTED);
 
-                    String subject = subject();
-                    AtomicInteger pubId = new AtomicInteger();
-                    while (pubId.get() < 50000) {
-                        try {
-                            nc.publish(subject, ("" + pubId.incrementAndGet()).getBytes());
-                            if (pubId.get() == 10) {
-                                SocketDataPortBlockSimulator.simulateBlock();
-                            }
+                    String subject = random();
+                    int pubId = 0;
+                    while (pubId++ < 1000) {
+                        if (pubId == 10) {
+                            SocketDataPortBlockSimulator.simulateBlock();
                         }
-                        catch (Exception e) {
-                            if (e.getMessage().contains(OUTPUT_QUEUE_IS_FULL)) {
-                                gotOutputQueueIsFull.set(true);
+                        try {
+                            nc.publish(subject, null);
+                        }
+                        catch (IllegalStateException e) {
+                            if (e.getMessage().contains("Output queue")) {
                                 break;
                             }
                         }
                     }
-                    assertTrue(listener.waitForStatusChange(10, TimeUnit.SECONDS));
-
-                    assertTrue(gotOutputQueueIsFull.get());
-                    assertTrue(listener.getSocketWriteTimeoutCount() > 0);
-                    assertTrue(listener.getConnectionEvents().contains(Events.DISCONNECTED));
+                    listener.validateAll();
                     assertNotEquals(connectedPort, nc.getServerInfo().getPort());
                 }
             }
