@@ -38,7 +38,6 @@ import java.util.function.Predicate;
 
 import static io.nats.client.support.NatsConstants.*;
 import static io.nats.client.support.NatsRequestCompletableFuture.CancelAction;
-import static io.nats.client.support.Validator.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 class NatsConnection implements Connection {
@@ -111,6 +110,22 @@ class NatsConnection implements Connection {
     private final boolean trace;
     private final TimeTraceLogger timeTraceLogger;
 
+    // allows user to opt into the level of subject validation they want
+    interface SubjectReplyValidator {
+        String validate(String subject, boolean required);
+    }
+
+    private final SubjectReplyValidator subjectValidator;
+    private final SubjectReplyValidator replyValidator;
+
+    String subjectValidate(String subject, boolean required) {
+        return subjectValidator.validate(subject, required);
+    }
+
+    String replyValidate(String replyTo, boolean required) {
+        return replyValidator.validate(replyTo, required);
+    }
+
     NatsConnection(@NonNull Options options) {
         trace = options.isTraceConnection();
         timeTraceLogger = options.getTimeTraceLogger();
@@ -177,6 +192,25 @@ class NatsConnection implements Connection {
         cancelAction = options.isReportNoResponders() ? CancelAction.REPORT : CancelAction.CANCEL;
 
         timeTraceLogger.trace("connection object created");
+
+        switch (options.subjectValidationType()) {
+            case None:
+                subjectValidator = (subject, required) -> required
+                    ? Validator.required(subject, "Subject")
+                    : Validator.emptyAsNull(subject);
+                replyValidator = (replyTo, required) -> Validator.emptyAsNull(replyTo);
+                break;
+            case Strict:
+                subjectValidator = (subject, required) ->
+                    Validator.validateSubjectTermStrict(subject, "Subject", required);
+                replyValidator = Validator::validateReplyTo;
+                break;
+            default:
+                subjectValidator = (subject, required) ->
+                    Validator.validateSubjectTerm(subject, "Subject", required);
+                replyValidator = Validator::validateReplyTo;
+                break;
+        }
     }
 
     // Connect is only called after creation
@@ -970,7 +1004,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public void publish(@NonNull String subject, byte @Nullable [] body) {
-        publishInternal(subject, null, null, body, true, false);
+        publishInternal(subject, null, null, body, false);
     }
 
     /**
@@ -978,7 +1012,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public void publish(@NonNull String subject, @Nullable Headers headers, byte @Nullable [] body) {
-        publishInternal(subject, null, headers, body, true, false);
+        publishInternal(subject, null, headers, body, false);
     }
 
     /**
@@ -986,7 +1020,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public void publish(@NonNull String subject, @Nullable String replyTo, byte @Nullable [] body) {
-        publishInternal(subject, replyTo, null, body, true, false);
+        publishInternal(subject, replyTo, null, body, false);
     }
 
     /**
@@ -994,7 +1028,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public void publish(@NonNull String subject, @Nullable String replyTo, @Nullable Headers headers, byte @Nullable [] body) {
-        publishInternal(subject, replyTo, headers, body, true, false);
+        publishInternal(subject, replyTo, headers, body, false);
     }
 
     /**
@@ -1002,13 +1036,15 @@ class NatsConnection implements Connection {
      */
     @Override
     public void publish(@NonNull Message message) {
-        validateNotNull(message, "Message");
-        publishInternal(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), false, false);
+        Validator.validateNotNull(message, "Message");
+        publishInternal(message.getSubject(), message.getReplyTo(), message.getHeaders(), message.getData(), false);
     }
 
-    void publishInternal(@NonNull String subject, @Nullable String replyTo, @Nullable Headers headers, byte @Nullable [] data, boolean validateSubjectAndReplyTo, boolean flushImmediatelyAfterPublish) {
+    void publishInternal(@NonNull String subject, @Nullable String replyTo, @Nullable Headers headers, byte @Nullable [] data, boolean flushImmediatelyAfterPublish) {
         checkPayloadSize(data);
-        NatsPublishableMessage npm = new NatsPublishableMessage(subject, replyTo, headers, data, validateSubjectAndReplyTo, flushImmediatelyAfterPublish);
+        subject = subjectValidate(subject, true);
+        replyTo = replyValidate(replyTo, false);
+        NatsPublishableMessage npm = new NatsPublishableMessage(subject, replyTo, headers, data, flushImmediatelyAfterPublish);
         if (npm.hasHeaders && !serverInfo.get().isHeadersSupported()) {
             throw new IllegalArgumentException("Headers are not supported by the server, version: " + serverInfo.get().getVersion());
         }
@@ -1042,7 +1078,7 @@ class NatsConnection implements Connection {
     @Override
     @NonNull
     public Subscription subscribe(@NonNull String subject) {
-        validateSubject(subject, true);
+        subjectValidate(subject, true);
         return createSubscription(subject, null, null, null);
     }
 
@@ -1052,8 +1088,8 @@ class NatsConnection implements Connection {
     @Override
     @NonNull
     public Subscription subscribe(@NonNull String subject, @NonNull String queueName) {
-        validateSubject(subject, true);
-        validateQueueName(queueName, true);
+        subjectValidate(subject, true);
+        Validator.validateQueueName(queueName, true);
         return createSubscription(subject, queueName, null, null);
     }
 
@@ -1260,7 +1296,7 @@ class NatsConnection implements Connection {
     @Override
     @Nullable
     public Message request(@NonNull String subject, byte @Nullable [] body, @Nullable Duration timeout) throws InterruptedException {
-        return requestInternal(subject, null, body, timeout, cancelAction, true, forceFlushOnRequest);
+        return requestInternal(subject, null, body, timeout, cancelAction, forceFlushOnRequest);
     }
 
     /**
@@ -1269,7 +1305,7 @@ class NatsConnection implements Connection {
     @Override
     @Nullable
     public Message request(@NonNull String subject, @Nullable Headers headers, byte @Nullable [] body, @Nullable Duration timeout) throws InterruptedException {
-        return requestInternal(subject, headers, body, timeout, cancelAction, true, forceFlushOnRequest);
+        return requestInternal(subject, headers, body, timeout, cancelAction, forceFlushOnRequest);
     }
 
     /**
@@ -1278,8 +1314,8 @@ class NatsConnection implements Connection {
     @Override
     @Nullable
     public Message request(@NonNull Message message, @Nullable Duration timeout) throws InterruptedException {
-        validateNotNull(message, "Message");
-        return requestInternal(message.getSubject(), message.getHeaders(), message.getData(), timeout, cancelAction, false, forceFlushOnRequest);
+        Validator.validateNotNull(message, "Message");
+        return requestInternal(message.getSubject(), message.getHeaders(), message.getData(), timeout, cancelAction, forceFlushOnRequest);
     }
 
     @Nullable
@@ -1288,10 +1324,9 @@ class NatsConnection implements Connection {
                             byte @Nullable [] data,
                             @Nullable Duration timeout,
                             @NonNull CancelAction cancelAction,
-                            boolean validateSubjectAndReplyTo,
                             boolean flushImmediatelyAfterPublish) throws InterruptedException
     {
-        CompletableFuture<Message> incoming = requestFutureInternal(subject, headers, data, timeout, cancelAction, validateSubjectAndReplyTo, flushImmediatelyAfterPublish);
+        CompletableFuture<Message> incoming = requestFutureInternal(subject, headers, data, timeout, cancelAction, flushImmediatelyAfterPublish);
         try {
             if (timeout == null) {
                 timeout = getOptions().getConnectionTimeout();
@@ -1309,7 +1344,7 @@ class NatsConnection implements Connection {
     @Override
     @NonNull
     public CompletableFuture<Message> request(@NonNull String subject, byte @Nullable [] body) {
-        return requestFutureInternal(subject, null, body, null, cancelAction, true, forceFlushOnRequest);
+        return requestFutureInternal(subject, null, body, null, cancelAction, forceFlushOnRequest);
     }
 
     /**
@@ -1318,7 +1353,7 @@ class NatsConnection implements Connection {
     @Override
     @NonNull
     public CompletableFuture<Message> request(@NonNull String subject, @Nullable Headers headers, byte @Nullable [] body) {
-        return requestFutureInternal(subject, headers, body, null, cancelAction, true, forceFlushOnRequest);
+        return requestFutureInternal(subject, headers, body, null, cancelAction, forceFlushOnRequest);
     }
 
     /**
@@ -1327,7 +1362,7 @@ class NatsConnection implements Connection {
     @Override
     @NonNull
     public CompletableFuture<Message> requestWithTimeout(@NonNull String subject, byte @Nullable [] body, @Nullable Duration timeout) {
-        return requestFutureInternal(subject, null, body, timeout, cancelAction, true, forceFlushOnRequest);
+        return requestFutureInternal(subject, null, body, timeout, cancelAction, forceFlushOnRequest);
     }
 
     /**
@@ -1336,7 +1371,7 @@ class NatsConnection implements Connection {
     @Override
     @NonNull
     public CompletableFuture<Message> requestWithTimeout(@NonNull String subject, @Nullable Headers headers, byte @Nullable [] body, Duration timeout) {
-        return requestFutureInternal(subject, headers, body, timeout, cancelAction, true, forceFlushOnRequest);
+        return requestFutureInternal(subject, headers, body, timeout, cancelAction, forceFlushOnRequest);
     }
 
     /**
@@ -1345,8 +1380,8 @@ class NatsConnection implements Connection {
     @Override
     @NonNull
     public CompletableFuture<Message> requestWithTimeout(@NonNull Message message, @Nullable Duration timeout) {
-        validateNotNull(message, "Message");
-        return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), timeout, cancelAction, false, forceFlushOnRequest);
+        Validator.validateNotNull(message, "Message");
+        return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), timeout, cancelAction, forceFlushOnRequest);
     }
 
     /**
@@ -1355,8 +1390,8 @@ class NatsConnection implements Connection {
     @Override
     @NonNull
     public CompletableFuture<Message> request(@NonNull Message message) {
-        validateNotNull(message, "Message");
-        return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), null, cancelAction, false, forceFlushOnRequest);
+        Validator.validateNotNull(message, "Message");
+        return requestFutureInternal(message.getSubject(), message.getHeaders(), message.getData(), null, cancelAction, forceFlushOnRequest);
     }
 
     @NonNull
@@ -1365,7 +1400,6 @@ class NatsConnection implements Connection {
                                                      byte @Nullable [] body,
                                                      @Nullable Duration futureTimeout,
                                                      @NonNull CancelAction cancelAction,
-                                                     boolean validateSubjectAndReplyTo,
                                                      boolean flushImmediatelyAfterPublish) {
         checkPayloadSize(body);
 
@@ -1420,7 +1454,7 @@ class NatsConnection implements Connection {
             responsesAwaiting.put(sub.getSID(), future);
         }
 
-        publishInternal(subject, responseInbox, headers, body, validateSubjectAndReplyTo, flushImmediatelyAfterPublish);
+        publishInternal(subject, responseInbox, headers, body, flushImmediatelyAfterPublish);
         statistics.incrementRequestsSent();
 
         return future;

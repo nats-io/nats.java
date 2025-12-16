@@ -244,9 +244,9 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         }
     }
 
-    Message makeInternalRequestResponseRequired(String subject, Headers headers, byte[] data, Duration timeout, CancelAction cancelAction, boolean validateSubjectAndReplyTo, boolean flushImmediatelyAfterPublish) throws IOException {
+    Message makeInternalRequestResponseRequired(String subject, Headers headers, byte[] data, Duration timeout, CancelAction cancelAction, boolean flushImmediatelyAfterPublish) throws IOException {
         try {
-            return responseRequired(conn.requestInternal(subject, headers, data, timeout, cancelAction, validateSubjectAndReplyTo, flushImmediatelyAfterPublish));
+            return responseRequired(conn.requestInternal(subject, headers, data, timeout, cancelAction, flushImmediatelyAfterPublish));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException(e);

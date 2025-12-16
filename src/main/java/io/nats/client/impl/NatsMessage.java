@@ -25,8 +25,6 @@ import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 
 import static io.nats.client.support.NatsConstants.*;
-import static io.nats.client.support.Validator.validateReplyTo;
-import static io.nats.client.support.Validator.validateSubject;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -88,8 +86,8 @@ public class NatsMessage implements Message {
 
     public NatsMessage(String subject, String replyTo, Headers headers, byte[] data) {
         this(data);
-        this.subject = validateSubject(subject, true);
-        this.replyTo = validateReplyTo(replyTo, false);
+        this.subject = subject;
+        this.replyTo = replyTo;
         this.headers = headers;
     }
 
