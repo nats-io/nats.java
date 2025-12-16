@@ -43,7 +43,7 @@ public class Group {
             throw new IllegalArgumentException("Group name cannot contain '>'.");
         }
 
-        this.name = Validator.validateSubjectTerm(name, "Group name", false);
+        this.name = Validator.validateSubjectTermStrict(name, "Group name", false);
     }
 
     /**
