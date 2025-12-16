@@ -13,9 +13,6 @@
 
 package io.nats.client.impl;
 
-import static io.nats.client.support.Validator.validateReplyTo;
-import static io.nats.client.support.Validator.validateSubject;
-
 class NatsPublishableMessage extends NatsMessage {
     final boolean hasHeaders;
 
@@ -24,17 +21,11 @@ class NatsPublishableMessage extends NatsMessage {
         flushImmediatelyAfterPublish = false;
     }
 
-    public NatsPublishableMessage(String subject, String replyTo, Headers headers, byte[] data, boolean validateSubjectAndReplyTo, boolean flushImmediatelyAfterPublish) {
+    public NatsPublishableMessage(String subject, String replyTo, Headers headers, byte[] data, boolean flushImmediatelyAfterPublish) {
         super(data);
         this.flushImmediatelyAfterPublish = flushImmediatelyAfterPublish;
-        if (validateSubjectAndReplyTo) {
-            this.subject = validateSubject(subject, true);
-            this.replyTo = validateReplyTo(replyTo, false);
-        }
-        else {
-            this.subject = subject;
-            this.replyTo = replyTo;
-        }
+        this.subject = subject;
+        this.replyTo = replyTo;
         if (headers == null || headers.isEmpty()) {
             hasHeaders = false;
         }

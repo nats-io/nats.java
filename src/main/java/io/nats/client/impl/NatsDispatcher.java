@@ -23,7 +23,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static io.nats.client.support.Validator.*;
+import static io.nats.client.support.Validator.required;
+import static io.nats.client.support.Validator.validateQueueName;
 
 class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
@@ -220,31 +221,31 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         if (defaultHandler == null) {
             throw new IllegalStateException("Dispatcher was made without a default handler.");
         }
-        validateSubject(subject, true);
+        connection.subjectValidate(subject, true);
         this.subscribeImplCore(subject, null, null);
         return this;
     }
 
     NatsSubscription subscribeReturningSubscription(String subject) {
-        validateSubject(subject, true);
+        connection.subjectValidate(subject, true);
         return this.subscribeImplCore(subject, null, null);
     }
 
     public Subscription subscribe(String subject, MessageHandler handler) {
-        validateSubject(subject, true);
+        connection.subjectValidate(subject, true);
         required(handler, "Handler");
         return this.subscribeImplCore(subject, null, handler);
     }
 
     public Dispatcher subscribe(String subject, String queueName) {
-        validateSubject(subject, true);
+        connection.subjectValidate(subject, true);
         validateQueueName(queueName, true);
         this.subscribeImplCore(subject, queueName, null);
         return this;
     }
 
     public Subscription subscribe(String subject, String queueName,  MessageHandler handler) {
-        validateSubject(subject, true);
+        connection.subjectValidate(subject, true);
         validateQueueName(queueName, true);
         if (handler == null) {
             throw new IllegalArgumentException("MessageHandler is required in subscribe");
