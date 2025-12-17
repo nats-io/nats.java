@@ -155,6 +155,14 @@ public class Options {
     public static final Duration DEFAULT_REQUEST_CLEANUP_INTERVAL = Duration.ofSeconds(5);
 
     /**
+     * Default amount of time to lock waiting to offer a message to the outgoing write queue
+     * A timer is used to clean up futures that were handed out but never completed
+     * via a message, {@link #getQueueOfferLockWait() getQueueOfferLockWait()}.
+     * <p>This property is defined as 5 seconds.</p>
+     */
+    public static final Duration DEFAULT_QUEUE_OFFER_LOCK_WAIT = Duration.ofSeconds(5);
+
+    /**
      * Default maximum number of pings have not received a response allowed by the
      * client, {@link #getMaxPingsOut() getMaxPingsOut()}.
      * <p>This property is defined as {@value}</p>
@@ -285,6 +293,11 @@ public class Options {
      * requestCleanupInterval}.
      */
     public static final String PROP_CLEANUP_INTERVAL = PFX + "cleanupinterval";
+    /**
+     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#queueOfferLockWait(Duration)
+     * queueOfferLockWait}.
+     */
+    public static final String PROP_QUEUE_OFFER_LOCK_WAIT = PFX + "queueofferlockwait";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see
      * {@link Builder#connectionTimeout(Duration) connectionTimeout}.
@@ -692,6 +705,7 @@ public class Options {
     private final int sendBufferSize;
     private final Duration pingInterval;
     private final Duration requestCleanupInterval;
+    private final Duration queueOfferLockWait;
     private final int maxPingsOut;
     private final long reconnectBufferSize;
     private final char[] username;
@@ -850,6 +864,7 @@ public class Options {
         private int sendBufferSize = -1;
         private Duration pingInterval = DEFAULT_PING_INTERVAL;
         private Duration requestCleanupInterval = DEFAULT_REQUEST_CLEANUP_INTERVAL;
+        private Duration queueOfferLockWait = DEFAULT_QUEUE_OFFER_LOCK_WAIT;
         private int maxPingsOut = DEFAULT_MAX_PINGS_OUT;
         private long reconnectBufferSize = DEFAULT_RECONNECT_BUF_SIZE;
         private char[] username = null;
@@ -1003,6 +1018,7 @@ public class Options {
             intGtEqZeroProperty(props, PROP_MAX_CONTROL_LINE, i -> this.maxControlLine = i);
             durationProperty(props, PROP_PING_INTERVAL, d -> this.pingInterval = d);
             durationProperty(props, PROP_CLEANUP_INTERVAL, d -> this.requestCleanupInterval = d);
+            durationProperty(props, PROP_QUEUE_OFFER_LOCK_WAIT, d -> this.queueOfferLockWait = d);
             intProperty(props, PROP_MAX_PINGS, i -> this.maxPingsOut = i);
             booleanProperty(props, PROP_USE_OLD_REQUEST_STYLE, b -> this.useOldRequestStyle = b);
 
@@ -1576,6 +1592,16 @@ public class Options {
          */
         public Builder requestCleanupInterval(Duration time) {
             this.requestCleanupInterval = time;
+            return this;
+        }
+
+        /**
+         * Set the amount of time to wait to acquire the lock to offer a message to the outgoing message queue
+         * @param time the wait time
+         * @return the Builder for chaining
+         */
+        public Builder queueOfferLockWait(Duration time) {
+            this.queueOfferLockWait = time;
             return this;
         }
 
@@ -2176,6 +2202,7 @@ public class Options {
             this.sendBufferSize = o.sendBufferSize;
             this.pingInterval = o.pingInterval;
             this.requestCleanupInterval = o.requestCleanupInterval;
+            this.queueOfferLockWait = o.queueOfferLockWait;
             this.maxPingsOut = o.maxPingsOut;
             this.reconnectBufferSize = o.reconnectBufferSize;
             this.username = o.username;
@@ -2253,6 +2280,7 @@ public class Options {
         this.sendBufferSize = b.sendBufferSize;
         this.pingInterval = b.pingInterval;
         this.requestCleanupInterval = b.requestCleanupInterval;
+        this.queueOfferLockWait = b.queueOfferLockWait;
         this.maxPingsOut = b.maxPingsOut;
         this.reconnectBufferSize = b.reconnectBufferSize;
         this.username = b.username;
@@ -2849,6 +2877,14 @@ public class Options {
      */
     public Duration getRequestCleanupInterval() {
         return requestCleanupInterval;
+    }
+
+    /**
+     * the queue offer lock wait, see {@link Builder#queueOfferLockWait(Duration) queueOfferLockWait()} in the builder doc
+     * @return the wait time
+     */
+    public Duration getQueueOfferLockWait() {
+        return queueOfferLockWait;
     }
 
     /**

@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2015-2025 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -13,8 +13,6 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.NatsSystemClock;
-
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -24,15 +22,14 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static io.nats.client.impl.MarkerMessage.POISON_PILL;
-import static io.nats.client.support.NatsConstants.*;
+import static io.nats.client.support.NatsConstants.OUTPUT_QUEUE_BUSY;
+import static io.nats.client.support.NatsConstants.OUTPUT_QUEUE_IS_FULL;
 
 class WriterMessageQueue {
-    private static final long MIN_OFFER_TIMEOUT_NANOS = 100 * NANOS_PER_MILLI;
-
+    private final int maxLength;
     private final boolean discardWhenFull;
 
-    private final long offerLockNanos;
-    private final long offerTimeoutNanos;
+    private final long lockWaitNanos;
 
     private final AtomicBoolean running;
     private final ReentrantLock editLock;
@@ -42,23 +39,34 @@ class WriterMessageQueue {
     private final AtomicLong sizeInBytes;
 
     /**
-     * If maxMessagesInOutgoingQueue is set to a number of messages, the publish command will block, which provides
-     * backpressure on a publisher if the writer is slow to push things onto the network. Publishers use the value of Options.getMaxMessagesInOutgoingQueue().
-     *
+     * This version of the message queue is intended for the
+     * reconnectOutgoing queue, which is unbounded
+     * and is not used for user messages
+     */
+    WriterMessageQueue() {
+        // queueOfferLockWait is set to 1 second so there is something
+        // but reconnectOutgoing only calls pushReconnect
+        this(Integer.MAX_VALUE, false, Duration.ofSeconds(1));
+    }
+
+    /**
      * @param maxMessagesInOutgoingQueue sets a limit on the size of the underlying queue
      * @param discardWhenFull            allows to discard messages when the underlying queue is full
-     * @param requestCleanupInterval     is used to figure the offer timeout
+     * @param queueOfferLockWait         is used to for the head-of-line-blocking lock acquisition timeout
      */
-    WriterMessageQueue(int maxMessagesInOutgoingQueue, boolean discardWhenFull, Duration requestCleanupInterval) {
-         this.discardWhenFull = discardWhenFull;
-
-        offerLockNanos = requestCleanupInterval.toNanos();
-        offerTimeoutNanos = Math.max(MIN_OFFER_TIMEOUT_NANOS, requestCleanupInterval.toMillis() * NANOS_PER_MILLI * 95 / 100) ;
+    WriterMessageQueue(int maxMessagesInOutgoingQueue, boolean discardWhenFull, Duration queueOfferLockWait) {
+        maxLength = maxMessagesInOutgoingQueue < 1 ? Integer.MAX_VALUE : maxMessagesInOutgoingQueue;
+        this.discardWhenFull = discardWhenFull;
+        lockWaitNanos = queueOfferLockWait.toNanos();
 
         running = new AtomicBoolean(true);
         editLock = new ReentrantLock();
 
-        queue = maxMessagesInOutgoingQueue > 0 ? new LinkedBlockingQueue<>(maxMessagesInOutgoingQueue) : new LinkedBlockingQueue<>();
+        // we will manually check for the queue being full instead of relying on queue capacity
+        // because we could have MarkerMessages (POISON_PILL, END_RECONNECT) in the queue
+        // and they do not count towards the maxMessagesInOutgoingQueue limit
+        // so we just make the LinkedBlockingQueue max capacity
+        queue = new LinkedBlockingQueue<>();
         length = new AtomicLong(0);
         sizeInBytes = new AtomicLong(0);
     }
@@ -71,54 +79,48 @@ class WriterMessageQueue {
         running.set(true);
     }
 
+    void pushReconnect(NatsMessage msg) {
+        // We do this without locking because it is assumed this is
+        // called for the reconnectOutgoing queue which is only called
+        // from one thread since it's only used internally during reconnect.
+        // So it's never for user messages which could come from multiple
+        // threads where order is an issue
+        if (queue.offer(msg)) {
+            length.incrementAndGet();
+            sizeInBytes.addAndGet(msg.getSizeInBytes());
+        }
+    }
+
     boolean push(NatsMessage msg) {
         return push(msg, false);
     }
-    
+
     boolean push(NatsMessage msg, boolean internal) {
         try {
             /*
-                The editLock is used to address a Head-Of-Line blocking problem and to
-                also ensure that edits happen in order. See filterOnStop and clear
-
-                So the crux of the problem was that many threads were waiting to push a message to the queue.
-                They all waited for the lock and once they had the lock they waited 5 seconds (4750 millis actually)
-                only to find out the queue was full. They released the lock, so then another thread acquired the lock,
-                and waited 5 seconds. So instead of being parallel, all these threads had to wait in line
-                200 * 4750 = 15.8 minutes
-
-                So what I did was try to acquire the lock but only wait 5 seconds.
-                If I could not acquire the lock, then I assumed that this means that we are in this exact situation,
-                another thread can't add b/c the queue is full, and so there is no point in even trying, so just throw the queue full exception.
-
-                If I did acquire the lock, I deducted the time spent waiting for the lock from the time allowed to try to add.
-                I took the max of that or 100 millis to try to add to the queue.
-                This ensures that the max total time each thread can take is 5100 millis in parallel.
-
-                Notes: The 5 seconds and the 4750 seconds is derived from the Options requestCleanupInterval, which defaults to 5 seconds and can be modified.
-                The 4750 is 95% of that time. The MIN_OFFER_TIMEOUT_NANOS 100 ms minimum is arbitrary.
+                The editLock is used to address 2 issues.
+                1. ensure that writes happen in order when
+                   - multi-threaded
+                   - competing with pause() which filters the queue
+                2. Head-Of-Line blocking problem related to obtaining the lock
              */
-            long startNanos = NatsSystemClock.nanoTime();
-            if (editLock.tryLock(offerLockNanos, TimeUnit.NANOSECONDS)) {
+            if (editLock.tryLock(lockWaitNanos, TimeUnit.NANOSECONDS)) {
                 try {
-                    if (!internal && discardWhenFull) {
-                        if (queue.offer(msg)) { // offer with no timeout returns true if the queue was not full
-                            length.incrementAndGet();
-                            sizeInBytes.addAndGet(msg.getSizeInBytes());
-                            return true;
+                    // once we are pass the lock, we can offer
+                    // if the offer succeeds, great, return
+                    // otherwise the queue is full and
+                    // - not internal and discardWhenFull? not an error, return false indicating failure
+                    // - internal or not discardWhenFull? throw the exception
+                    if (length.get() == maxLength) {
+                        if (!internal && discardWhenFull) {
+                            return false;
                         }
-                        return false;
+                        throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
                     }
-
-                    long timeoutNanosLeft = Math.max(MIN_OFFER_TIMEOUT_NANOS, offerTimeoutNanos - (NatsSystemClock.nanoTime() - startNanos));
-                    // offer with timeout
-                    if (queue.offer(msg, timeoutNanosLeft, TimeUnit.NANOSECONDS)) {
-                        length.incrementAndGet();
-                        sizeInBytes.addAndGet(msg.getSizeInBytes());
-                        return true;
-                    }
-
-                    throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
+                    queue.offer(msg);
+                    length.incrementAndGet();
+                    sizeInBytes.addAndGet(msg.getSizeInBytes());
+                    return true;
                 }
                 finally {
                     editLock.unlock();

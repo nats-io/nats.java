@@ -1173,7 +1173,7 @@ class NatsConnection implements Connection {
 
     String reSubscribe(NatsSubscription sub, String subject, String queueName) {
         String sid = getNextSid();
-        sendSubscriptionMessage(sid, subject, queueName, false);
+        sendSubscriptionMessage(sid, subject, queueName, true);
         subscribers.put(sid, sub);
         return sid;
     }
@@ -1829,7 +1829,7 @@ class NatsConnection implements Connection {
         }
     }
 
-    void queueInternalOutgoing(NatsMessage msg) {
+    void queueInternalOutgoing(ProtocolMessage msg) {
         if (msg.getControlLineLength() > this.options.getMaxControlLine()) {
             throw new IllegalArgumentException("Control line is too long");
         }

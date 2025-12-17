@@ -84,10 +84,7 @@ class NatsConnectionWriter implements Runnable {
                 options.getMaxMessagesInOutgoingQueue(),
                 options.isDiscardMessagesWhenOutgoingQueueFull(),
                 options.getRequestCleanupInterval());
-            reconnectOutgoing = new WriterMessageQueue(
-                -1,    // maxMessagesInOutgoingQueue is unlimited in size
-                false, // discardWhenFull
-                options.getRequestCleanupInterval());
+            reconnectOutgoing = new WriterMessageQueue();
         }
         else {
             // It's assumed if this is being created from another sourceWriter that
@@ -267,7 +264,9 @@ class NatsConnectionWriter implements Runnable {
 
     void queueInternalMessage(NatsMessage msg) {
         if (mode.get() == Mode.Reconnect) {
-            reconnectOutgoing.push(msg);
+            // we can offer directly because we know
+            // this is a protocol message
+            reconnectOutgoing.pushReconnect(msg);
         }
         else {
             normalOutgoing.push(msg, true);
