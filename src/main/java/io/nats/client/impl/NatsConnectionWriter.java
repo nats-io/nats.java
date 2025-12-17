@@ -262,10 +262,8 @@ class NatsConnectionWriter implements Runnable {
         return this.normalOutgoing.push(msg);
     }
 
-    void queueInternalMessage(NatsMessage msg) {
+    void queueInternalMessage(ProtocolMessage msg) {
         if (mode.get() == Mode.Reconnect) {
-            // we can offer directly because we know
-            // this is a protocol message
             reconnectOutgoing.pushReconnect(msg);
         }
         else {
