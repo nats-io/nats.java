@@ -19,152 +19,97 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static io.nats.client.impl.MarkerMessage.POISON_PILL;
 import static io.nats.client.support.NatsConstants.*;
 
 class MessageQueue {
-    protected static final int STOPPED = 0;
-    protected static final int RUNNING = 1;
-    protected static final int DRAINING = 2;
-    protected static final long MIN_OFFER_TIMEOUT_NANOS = 100 * NANOS_PER_MILLI;
+    private static final long MIN_OFFER_TIMEOUT_NANOS = 100 * NANOS_PER_MILLI;
 
-    protected final AtomicLong length;
-    protected final AtomicLong sizeInBytes;
-    protected final AtomicInteger running;
-    protected final boolean singleReaderMode;
-    protected final LinkedBlockingQueue<NatsMessage> queue;
-    protected final Lock pushLock;
-    protected final Lock countLock;
-    protected final int maxMessagesInOutgoingQueue;
-    protected final boolean discardWhenFull;
-    protected final long offerLockNanos;
-    protected final long offerTimeoutNanos;
-    protected final Duration requestCleanupInterval;
+    private final boolean discardWhenFull;
 
-    // Used for POISON_PILL and NatsConnectionWriter.END_RECONNECT
-    static class MarkerMessage extends NatsMessage {
-        public MarkerMessage(String subject) {
-            super(subject, null, EMPTY_BODY);
-        }
-    }
+    private final long offerLockNanos;
+    private final long offerTimeoutNanos;
 
-    // A simple == is used to resolve if any message is exactly the static pill object in question
-    // ----------
-    // 1. Poison pill is a graphic, but common term for an item that breaks loops or stop something.
-    // In this class the poison pill is used to break out of timed waits on the blocking queue.
-    protected static final MarkerMessage POISON_PILL = new MarkerMessage("_poison");
+    private final AtomicBoolean running;
+    private final ReentrantLock editLock;
 
-    MessageQueue(boolean singleReaderMode, Duration requestCleanupInterval) {
-        this(singleReaderMode, -1, false, requestCleanupInterval, null);
-    }
-
-    MessageQueue(boolean singleReaderMode, Duration requestCleanupInterval, MessageQueue source) {
-        this(singleReaderMode, -1, false, requestCleanupInterval, source);
-    }
+    private final LinkedBlockingQueue<NatsMessage> queue;
+    private final AtomicLong length;
+    private final AtomicLong sizeInBytes;
 
     /**
-     * If publishHighwaterMark is set to 0 the underlying queue can grow forever (or until the max size of a linked blocking queue that is).
-     * A value of 0 is used by readers to prevent the read thread from blocking.
-     * If set to a number of messages, the publish command will block, which provides
+     * If maxMessagesInOutgoingQueue is set to a number of messages, the publish command will block, which provides
      * backpressure on a publisher if the writer is slow to push things onto the network. Publishers use the value of Options.getMaxMessagesInOutgoingQueue().
-     * @param singleReaderMode allows the use of "accumulate"
      * @param maxMessagesInOutgoingQueue sets a limit on the size of the underlying queue
      * @param discardWhenFull allows to discard messages when the underlying queue is full
      * @param requestCleanupInterval is used to figure the offer timeout
      */
-    MessageQueue(boolean singleReaderMode, int maxMessagesInOutgoingQueue, boolean discardWhenFull, Duration requestCleanupInterval) {
-        this(singleReaderMode, maxMessagesInOutgoingQueue, discardWhenFull, requestCleanupInterval, null);
-    }
+    MessageQueue(int maxMessagesInOutgoingQueue, boolean discardWhenFull, Duration requestCleanupInterval, MessageQueue source) {
+         this.discardWhenFull = discardWhenFull;
 
-    MessageQueue(boolean singleReaderMode, int maxMessagesInOutgoingQueue, boolean discardWhenFull, Duration requestCleanupInterval, MessageQueue source) {
-        this.maxMessagesInOutgoingQueue = maxMessagesInOutgoingQueue;
-        this.queue = maxMessagesInOutgoingQueue > 0 ? new LinkedBlockingQueue<>(maxMessagesInOutgoingQueue) : new LinkedBlockingQueue<>();
-        this.discardWhenFull = discardWhenFull;
-        this.running = new AtomicInteger(RUNNING);
-        sizeInBytes = new AtomicLong(0);
-        length = new AtomicLong(0);
-        this.offerLockNanos = requestCleanupInterval.toNanos();
-        this.offerTimeoutNanos = Math.max(MIN_OFFER_TIMEOUT_NANOS, requestCleanupInterval.toMillis() * NANOS_PER_MILLI * 95 / 100) ;
+        offerLockNanos = requestCleanupInterval.toNanos();
+        offerTimeoutNanos = Math.max(MIN_OFFER_TIMEOUT_NANOS, requestCleanupInterval.toMillis() * NANOS_PER_MILLI * 95 / 100) ;
 
-        pushLock = new ReentrantLock();
-        countLock = new ReentrantLock();
+        running = new AtomicBoolean(true);
+        editLock = new ReentrantLock();
 
-        this.singleReaderMode = singleReaderMode;
-        this.requestCleanupInterval = requestCleanupInterval;
-
-        if (source != null) {
-            source.drainTo(this);
+        if (source == null) {
+            queue = maxMessagesInOutgoingQueue > 0 ? new LinkedBlockingQueue<>(maxMessagesInOutgoingQueue) : new LinkedBlockingQueue<>();
+            length = new AtomicLong(0);
+            sizeInBytes = new AtomicLong(0);
         }
+        else {
+            queue = source.queue;
+            length = source.length;
+            sizeInBytes = source.sizeInBytes;
+        }
+
+//        length = new AtomicLong(0);
+//        sizeInBytes = new AtomicLong(0);
+//        queue = maxMessagesInOutgoingQueue > 0 ? new LinkedBlockingQueue<>(maxMessagesInOutgoingQueue) : new LinkedBlockingQueue<>();
+//        if (source != null) {
+//            source.drainTo(this);
+//        }
     }
 
-    private void count(long messages, long bytes) {
-        countLock.lock();
+    void drainTo(MessageQueue constructingQueue) {
+        editLock.lock();
         try {
-            length.addAndGet(messages);
-            sizeInBytes.addAndGet(bytes);
+            queue.drainTo(constructingQueue.queue);
+            constructingQueue.length.set(length.getAndSet(0));
+            constructingQueue.sizeInBytes.set(sizeInBytes.getAndSet(0));
         }
         finally {
-            countLock.unlock();
+            editLock.unlock();
         }
-    }
-
-    void drainTo(MessageQueue target) {
-        countLock.lock();
-        try {
-            queue.drainTo(target.queue);
-            long messages = length.getAndSet(0);
-            long bytes = sizeInBytes.getAndSet(0);
-            target.count(messages, bytes);
-        }
-        finally {
-            countLock.unlock();
-        }
-    }
-
-    boolean isSingleReaderMode() {
-        return singleReaderMode;
     }
 
     boolean isRunning() {
-        return this.running.get() != STOPPED;
-    }
-
-    boolean isDraining() {
-        return this.running.get() == DRAINING;
+        return running.get();
     }
 
     void pause() {
-        this.running.set(STOPPED);
-        this.poisonTheQueue();
+        running.set(false);
+        poisonTheQueue();
     }
 
     void resume() {
-        this.running.set(RUNNING);
-    }
-
-    void drain() {
-        this.running.set(DRAINING);
-        this.poisonTheQueue();
-    }
-
-    boolean isDrained() {
-        // poison pill  and any other "mark" messages are not included in the length count, or the size
-        return this.running.get() == DRAINING && length.get() == 0;
+        running.set(true);
     }
 
     boolean push(NatsMessage msg) {
         return push(msg, false);
     }
-
+    
     boolean push(NatsMessage msg, boolean internal) {
         try {
             /*
-                The pushLock is used to address a Head-Of-Line blocking problem and to
-                also ensure that pushes happen in order. See filterOnStop
+                The editLock is used to address a Head-Of-Line blocking problem and to
+                also ensure that edits happen in order. See filterOnStop and clear
 
                 So the crux of the problem was that many threads were waiting to push a message to the queue.
                 They all waited for the lock and once they had the lock they waited 5 seconds (4750 millis actually)
@@ -184,28 +129,29 @@ class MessageQueue {
                 The 4750 is 95% of that time. The MIN_OFFER_TIMEOUT_NANOS 100 ms minimum is arbitrary.
              */
             long startNanos = NatsSystemClock.nanoTime();
-            if (pushLock.tryLock(offerLockNanos, TimeUnit.NANOSECONDS)) {
+            if (editLock.tryLock(offerLockNanos, TimeUnit.NANOSECONDS)) {
                 try {
                     if (!internal && discardWhenFull) {
-                        // offer with no timeout returns true if the queue was not full
-                        if (queue.offer(msg)) {
-                            count(1, msg.getSizeInBytes());
+                        if (queue.offer(msg)) { // offer with no timeout returns true if the queue was not full
+                            length.incrementAndGet();
+                            sizeInBytes.addAndGet(msg.getSizeInBytes());
                             return true;
                         }
                         return false;
                     }
 
                     long timeoutNanosLeft = Math.max(MIN_OFFER_TIMEOUT_NANOS, offerTimeoutNanos - (NatsSystemClock.nanoTime() - startNanos));
-
                     // offer with timeout
-                    if (!queue.offer(msg, timeoutNanosLeft, TimeUnit.NANOSECONDS)) {
-                        throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
+                    if (queue.offer(msg, timeoutNanosLeft, TimeUnit.NANOSECONDS)) {
+                        length.incrementAndGet();
+                        sizeInBytes.addAndGet(msg.getSizeInBytes());
+                        return true;
                     }
-                    count(1, msg.getSizeInBytes());
-                    return true;
+
+                    throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
                 }
                 finally {
-                    pushLock.unlock();
+                    editLock.unlock();
                 }
             }
             else {
@@ -242,20 +188,20 @@ class MessageQueue {
     private NatsMessage _poll(Duration timeout) throws InterruptedException {
         NatsMessage msg = null;
 
-        if (timeout == null || this.isDraining()) { // try immediately
-            msg = this.queue.poll();
+        if (timeout == null) { // try immediately
+            msg = queue.poll();
         } 
         else {
             long nanos = timeout.toNanos();
             if (nanos != 0) {
-                msg = this.queue.poll(nanos, TimeUnit.NANOSECONDS);
+                msg = queue.poll(nanos, TimeUnit.NANOSECONDS);
             } 
             else {
                 // A value of 0 means wait forever
                 // We will loop and wait for a LONG time
-                // if told to suspend/drain the poison pill will break this loop
-                while (this.isRunning()) {
-                    msg = this.queue.poll(100, TimeUnit.DAYS);
+                // if told to pause the poison pill will break this loop
+                while (isRunning()) {
+                    msg = queue.poll(100, TimeUnit.DAYS);
                     if (msg != null) break;
                 }
             }
@@ -265,38 +211,34 @@ class MessageQueue {
     }
 
     NatsMessage pop(Duration timeout) throws InterruptedException {
-        if (!this.isRunning()) {
+        if (!isRunning()) {
             return null;
         }
 
         NatsMessage msg = _poll(timeout);
-
         if (msg == null) {
             return null;
         }
 
-        count(-1, -msg.getSizeInBytes());
+        length.decrementAndGet();
+        sizeInBytes.addAndGet(-msg.getSizeInBytes());
         return msg;
     }
 
     // Waits up to the timeout to try to accumulate multiple messages
-    // Use the next field to read the entire set accumulated.
-    // maxSize and maxMessages are both checked and if either is exceeded
-    // the method returns.
+    // Use the NatsMessage.next field to read the entire set accumulated.
+    // maxBytesToAccumulate and maxMessagesToAccumulate are both checked
+    // and if either is exceeded the method returns.
     //
     // A timeout of 0 will wait forever (or until the queue is stopped/drained)
     //
-    // Only works in single reader mode, because we want to maintain order.
+    // Only works in writer mode, because we want to maintain order.
     // accumulate reads off the concurrent queue one at a time, so if multiple
     // readers are present, you could get out of order message delivery.
     NatsMessage accumulate(long maxBytesToAccumulate, long maxMessagesToAccumulate, Duration timeout)
         throws InterruptedException {
 
-        if (!this.singleReaderMode) {
-            throw new IllegalStateException("Accumulate is only supported in single reader mode.");
-        }
-
-        if (!this.isRunning()) {
+        if (!isRunning()) {
             return null;
         }
 
@@ -323,7 +265,7 @@ class MessageQueue {
         // If the accumulatedMessages is >= maxMessagesToAccumulate, don't accumulate more
         while (!cursor.flushImmediatelyAfterPublish && accumulatedMessages < maxMessagesToAccumulate) {
             // We are allowed to try more messages. Peek first to see what we are dealing with
-            NatsMessage peeked = this.queue.peek();
+            NatsMessage peeked = queue.peek();
 
             if (peeked == null) {
                 break; // no messages in the queue so we are done.
@@ -334,7 +276,7 @@ class MessageQueue {
                 // - POISON_PILL does not get added to the cursor.next chain
                 //   but all other MarkerMessages do.
                 // - We are done.
-                this.queue.poll();
+                queue.poll();
                 if (peeked != POISON_PILL) {
                     cursor.next = peeked;
                 }
@@ -351,7 +293,7 @@ class MessageQueue {
             // - Get the message out of the queue b/c we only peeked
             // - Track the message and the bytes for later counting and the while loop
             // - Add the message to the chain
-            this.queue.poll();
+            queue.poll();
             accumulatedMessages++;
             accumulatedSize += size;
             cursor.next = peeked;
@@ -361,13 +303,13 @@ class MessageQueue {
             cursor = peeked;
         }
 
-        count(-accumulatedMessages, -accumulatedSize);
+        length.addAndGet(-accumulatedMessages);
+        sizeInBytes.addAndGet(-accumulatedSize);
         return headMessage;
     }
 
-    // Returns a message or null
-    NatsMessage popNow() throws InterruptedException {
-        return pop(null);
+    long size() {
+        return queue.size();
     }
 
     long length() {
@@ -379,46 +321,47 @@ class MessageQueue {
     }
 
     void filterOnStop() {
-        if (this.isRunning()) {
+        if (isRunning()) {
             throw new IllegalStateException("Filter is only supported when the queue is paused");
         }
-        // the pushLock is used here to ensure the filter happens before any other messages get pushed.
-        pushLock.lock();
+        // the editLock is used here to ensure the filter happens before any other messages get pushed.
+        editLock.lock();
         try {
             ArrayList<NatsMessage> tempQueue = new ArrayList<>();
             // I realize this is a transfer of a queue, but polling "read" locks
             // the queue every time, whereas this uses one read lock.
-            this.queue.drainTo(tempQueue);
-            long removed = 0;
-            long bytesRemoved = 0;
+            queue.drainTo(tempQueue);
+            long left = length.get();
+            long bytesLeft = sizeInBytes.get();
             for (NatsMessage msg : tempQueue) {
                 if (msg instanceof ProtocolMessage) {
                     // do not add it to the new queue and track the count
-                    removed++;
-                    bytesRemoved += msg.getSizeInBytes();
+                    left--;
+                    bytesLeft -= msg.getSizeInBytes();
                 }
                 else {
                     // The queue was cleared by drainTo, so was fresh
                     // to add back in message wanted to be kept.
-                    this.queue.offer(msg);
+                    queue.offer(msg);
                 }
             }
-            count(-removed, -bytesRemoved);
+            length.set(left);
+            sizeInBytes.set(bytesLeft);
         }
         finally {
-            pushLock.unlock();
+            editLock.unlock();
         }
     }
 
     void clear() {
-        countLock.lock();
+        editLock.lock();
         try {
-            this.queue.clear();
+            queue.clear();
             length.set(0);
             sizeInBytes.set(0);
         }
         finally {
-            countLock.unlock();
+            editLock.unlock();
         }
     }
 }

@@ -29,7 +29,7 @@ class NatsSubscription extends NatsConsumer implements Subscription {
     private String sid;
 
     private NatsDispatcher dispatcher;
-    private MessageQueue incoming;
+    private ConsumerMessageQueue incoming;
 
     private final AtomicLong unSubMessageLimit;
 
@@ -44,7 +44,7 @@ class NatsSubscription extends NatsConsumer implements Subscription {
         this.unSubMessageLimit = new AtomicLong(-1);
 
         if (this.dispatcher == null) {
-            this.incoming = new MessageQueue(false, connection.getOptions().getRequestCleanupInterval());
+            this.incoming = new ConsumerMessageQueue();
         }
 
         setBeforeQueueProcessor(null);
@@ -105,7 +105,7 @@ class NatsSubscription extends NatsConsumer implements Subscription {
      * {@inheritDoc}
      */
     @Override
-    MessageQueue getMessageQueue() {
+    ConsumerMessageQueue getMessageQueue() {
         return this.incoming;
     }
 

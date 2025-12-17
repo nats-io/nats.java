@@ -1847,7 +1847,7 @@ class NatsConnection implements Connection {
 
             NatsDispatcher d = sub.getNatsDispatcher();
             NatsConsumer c = (d == null) ? sub : d;
-            MessageQueue q = ((d == null) ? sub.getMessageQueue() : d.getMessageQueue());
+            ConsumerMessageQueue q = ((d == null) ? sub.getMessageQueue() : d.getMessageQueue());
 
             if (c.hasReachedPendingLimits()) {
                 // Drop the message and count it

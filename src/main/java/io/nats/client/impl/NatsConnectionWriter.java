@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static io.nats.client.impl.MarkerMessage.END_RECONNECT;
 import static io.nats.client.support.BuilderBase.bufferAllocSize;
 import static io.nats.client.support.NatsConstants.CR;
 import static io.nats.client.support.NatsConstants.LF;
@@ -77,14 +78,17 @@ class NatsConnectionWriter implements Runnable {
         sendBufferLength = new AtomicInteger(sbl);
         sendBuffer = new byte[sbl];
 
-        normalOutgoing = new MessageQueue(true,
+        normalOutgoing = new MessageQueue(
             options.getMaxMessagesInOutgoingQueue(),
             options.isDiscardMessagesWhenOutgoingQueueFull(),
             options.getRequestCleanupInterval(),
             sourceWriter == null ? null : sourceWriter.normalOutgoing);
 
         // The "reconnect" buffer contains internal messages, and we will keep it unlimited in size
-        reconnectOutgoing = new MessageQueue(true, options.getRequestCleanupInterval(),
+        reconnectOutgoing = new MessageQueue(
+            -1,    // maxMessagesInOutgoingQueue
+            false, // discardWhenFull
+            options.getRequestCleanupInterval(),
             sourceWriter == null ? null : sourceWriter.reconnectOutgoing);
         reconnectBufferSize = options.getReconnectBufferSize();
     }
@@ -127,8 +131,6 @@ class NatsConnectionWriter implements Runnable {
     boolean isRunning() {
         return running.get();
     }
-
-    private static final MessageQueue.MarkerMessage END_RECONNECT = new MessageQueue.MarkerMessage("_end");
 
     void sendMessageBatch(NatsMessage msg, DataPort dataPort, StatisticsCollector stats) throws IOException {
         writerLock.lock();
