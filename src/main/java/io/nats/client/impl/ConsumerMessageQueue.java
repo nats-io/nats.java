@@ -42,6 +42,10 @@ class ConsumerMessageQueue {
         return running.get() != PAUSED;
     }
 
+    boolean isPaused() {
+        return running.get() == PAUSED;
+    }
+
     boolean isDraining() {
         return running.get() == DRAINING;
     }
@@ -72,11 +76,11 @@ class ConsumerMessageQueue {
     }
 
     NatsMessage pop(Duration timeout) throws InterruptedException {
-        if (!isRunning()) {
+        if (isPaused()) {
             return null;
         }
 
-        NatsMessage msg = null;
+        NatsMessage msg;
         if (timeout == null || isDraining()) { // try immediately
             msg = queue.poll();
         }

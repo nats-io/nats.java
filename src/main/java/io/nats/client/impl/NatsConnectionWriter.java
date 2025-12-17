@@ -53,10 +53,10 @@ class NatsConnectionWriter implements Runnable {
 
     private byte[] sendBuffer;
     private final AtomicInteger sendBufferLength;
-
-    private final MessageQueue normalOutgoing;
-    private final MessageQueue reconnectOutgoing;
     private final long reconnectBufferSize;
+
+    private final WriterMessageQueue normalOutgoing;
+    private final WriterMessageQueue reconnectOutgoing;
 
     NatsConnectionWriter(NatsConnection connection, NatsConnectionWriter sourceWriter) {
         this.connection = connection;
@@ -77,20 +77,33 @@ class NatsConnectionWriter implements Runnable {
         int sbl = bufferAllocSize(options.getBufferSize(), BUFFER_BLOCK_SIZE);
         sendBufferLength = new AtomicInteger(sbl);
         sendBuffer = new byte[sbl];
-
-        normalOutgoing = new MessageQueue(
-            options.getMaxMessagesInOutgoingQueue(),
-            options.isDiscardMessagesWhenOutgoingQueueFull(),
-            options.getRequestCleanupInterval(),
-            sourceWriter == null ? null : sourceWriter.normalOutgoing);
-
-        // The "reconnect" buffer contains internal messages, and we will keep it unlimited in size
-        reconnectOutgoing = new MessageQueue(
-            -1,    // maxMessagesInOutgoingQueue
-            false, // discardWhenFull
-            options.getRequestCleanupInterval(),
-            sourceWriter == null ? null : sourceWriter.reconnectOutgoing);
         reconnectBufferSize = options.getReconnectBufferSize();
+
+        if (sourceWriter == null) {
+            normalOutgoing = new WriterMessageQueue(
+                options.getMaxMessagesInOutgoingQueue(),
+                options.isDiscardMessagesWhenOutgoingQueueFull(),
+                options.getRequestCleanupInterval());
+            reconnectOutgoing = new WriterMessageQueue(
+                -1,    // maxMessagesInOutgoingQueue is unlimited in size
+                false, // discardWhenFull
+                options.getRequestCleanupInterval());
+        }
+        else {
+            // It's assumed if this is being created from another sourceWriter that
+            // - it's due to a reconnect
+            // - has the same connection options,
+            // - it won't be using its queues anymore, which need to be moved or copied
+            // So just take the queues from the source writer!
+            // This avoids instance creation, copying settings and data so is faster
+            // They have already been filterOnStop
+            // resume() makes sure they are in running mode, since they
+            // were stopped and filtered already.
+            normalOutgoing = sourceWriter.normalOutgoing;
+            normalOutgoing.resume();
+            reconnectOutgoing = sourceWriter.reconnectOutgoing;
+            reconnectOutgoing.resume();
+        }
     }
 
     // Should only be called if the current thread has exited.
@@ -117,9 +130,8 @@ class NatsConnectionWriter implements Runnable {
             running.set(false);
             startStopLock.lock();
             try {
-                this.normalOutgoing.pause();
                 this.reconnectOutgoing.pause();
-                this.normalOutgoing.filterOnStop();
+                this.normalOutgoing.pause();
             }
             finally {
                 this.startStopLock.unlock();
