@@ -23,8 +23,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Predicate;
 
+import static io.nats.client.impl.MarkerMessage.POISON_PILL;
 import static io.nats.client.support.NatsConstants.*;
 
 class MessageQueue {
@@ -43,21 +43,18 @@ class MessageQueue {
     protected final boolean discardWhenFull;
     protected final long offerLockNanos;
     protected final long offerTimeoutNanos;
-    protected final Duration requestCleanupInterval;
+    protected final Duration offerLockWait;
 
-    // SPECIAL MARKER MESSAGES
-    // A simple == is used to resolve if any message is exactly the static pill object in question
-    // ----------
-    // 1. Poison pill is a graphic, but common term for an item that breaks loops or stop something.
-    // In this class the poison pill is used to break out of timed waits on the blocking queue.
-    protected static final NatsMessage POISON_PILL = new NatsMessage("_poison", null, EMPTY_BODY);
-
-    MessageQueue(boolean singleReaderMode, Duration requestCleanupInterval) {
-        this(singleReaderMode, -1, false, requestCleanupInterval, null);
+    MessageQueue(Duration offerLockWait) {
+        this(false, -1, false, offerLockWait, null);
     }
 
-    MessageQueue(boolean singleReaderMode, Duration requestCleanupInterval, MessageQueue source) {
-        this(singleReaderMode, -1, false, requestCleanupInterval, source);
+    MessageQueue(boolean singleReaderMode, Duration offerLockWait) {
+        this(singleReaderMode, -1, false, offerLockWait, null);
+    }
+
+    MessageQueue(boolean singleReaderMode, Duration offerLockWait, MessageQueue source) {
+        this(singleReaderMode, -1, false, offerLockWait, source);
     }
 
     /**
@@ -68,26 +65,26 @@ class MessageQueue {
      * @param singleReaderMode allows the use of "accumulate"
      * @param maxMessagesInOutgoingQueue sets a limit on the size of the underlying queue
      * @param discardWhenFull allows to discard messages when the underlying queue is full
-     * @param requestCleanupInterval is used to figure the offer timeout
+     * @param offerLockWait is used to figure the offer timeout
      */
-    MessageQueue(boolean singleReaderMode, int maxMessagesInOutgoingQueue, boolean discardWhenFull, Duration requestCleanupInterval) {
-        this(singleReaderMode, maxMessagesInOutgoingQueue, discardWhenFull, requestCleanupInterval, null);
+    MessageQueue(boolean singleReaderMode, int maxMessagesInOutgoingQueue, boolean discardWhenFull, Duration offerLockWait) {
+        this(singleReaderMode, maxMessagesInOutgoingQueue, discardWhenFull, offerLockWait, null);
     }
 
-    MessageQueue(boolean singleReaderMode, int maxMessagesInOutgoingQueue, boolean discardWhenFull, Duration requestCleanupInterval, MessageQueue source) {
+    MessageQueue(boolean singleReaderMode, int maxMessagesInOutgoingQueue, boolean discardWhenFull, Duration offerLockWait, MessageQueue source) {
         this.maxMessagesInOutgoingQueue = maxMessagesInOutgoingQueue;
         this.queue = maxMessagesInOutgoingQueue > 0 ? new LinkedBlockingQueue<>(maxMessagesInOutgoingQueue) : new LinkedBlockingQueue<>();
         this.discardWhenFull = discardWhenFull;
         this.running = new AtomicInteger(RUNNING);
         sizeInBytes = new AtomicLong(0);
         length = new AtomicLong(0);
-        this.offerLockNanos = requestCleanupInterval.toNanos();
-        this.offerTimeoutNanos = Math.max(MIN_OFFER_TIMEOUT_NANOS, requestCleanupInterval.toMillis() * NANOS_PER_MILLI * 95 / 100) ;
+        this.offerLockNanos = offerLockWait.toNanos();
+        this.offerTimeoutNanos = Math.max(MIN_OFFER_TIMEOUT_NANOS, offerLockWait.toMillis() * NANOS_PER_MILLI * 95 / 100) ;
 
         editLock = new ReentrantLock();
 
         this.singleReaderMode = singleReaderMode;
-        this.requestCleanupInterval = requestCleanupInterval;
+        this.offerLockWait = offerLockWait;
 
         if (source != null) {
             source.drainTo(this);
@@ -160,7 +157,7 @@ class MessageQueue {
                 I took the max of that or 100 millis to try to add to the queue.
                 This ensures that the max total time each thread can take is 5100 millis in parallel.
 
-                Notes: The 5 seconds and the 4750 seconds is derived from the Options requestCleanupInterval, which defaults to 5 seconds and can be modified.
+                Notes: The 5 seconds and the 4750 seconds is derived from the Options offerLockWait, which defaults to 5 seconds and can be modified.
                 The 4750 is 95% of that time. The MIN_OFFER_TIMEOUT_NANOS 100 ms minimum is arbitrary.
              */
             if (editLock.tryLock(offerLockNanos, TimeUnit.NANOSECONDS)) {
@@ -215,7 +212,8 @@ class MessageQueue {
      * Intended to only be used with an unbounded queue. Use at your own risk.
      * @param msg the mark
      */
-    void markTheQueue(NatsMessage msg) {
+    @SuppressWarnings("SameParameterValue")
+    void queueMarkerMessage(MarkerMessage msg) {
         queue.offer(msg);
     }
 
@@ -344,7 +342,7 @@ class MessageQueue {
         return sizeInBytes.get();
     }
 
-    void filter(Predicate<NatsMessage> p) {
+    void filter() {
         editLock.lock();
         try {
             if (this.isRunning()) {
@@ -353,11 +351,12 @@ class MessageQueue {
             ArrayList<NatsMessage> newQueue = new ArrayList<>();
             NatsMessage cursor = this.queue.poll();
             while (cursor != null) {
-                if (!p.test(cursor)) {
-                    newQueue.add(cursor);
-                } else {
+                if (cursor.isFilterOnStop()) {
                     sizeInBytes.addAndGet(-cursor.getSizeInBytes());
                     length.decrementAndGet();
+                }
+                else {
+                    newQueue.add(cursor);
                 }
                 cursor = this.queue.poll();
             }

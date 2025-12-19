@@ -30,8 +30,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static io.nats.client.impl.MarkerMessage.END_RECONNECT;
 import static io.nats.client.support.BuilderBase.bufferAllocSize;
-import static io.nats.client.support.NatsConstants.*;
+import static io.nats.client.support.NatsConstants.CR;
+import static io.nats.client.support.NatsConstants.LF;
 
 class NatsConnectionWriter implements Runnable {
     enum Mode {
@@ -79,11 +81,11 @@ class NatsConnectionWriter implements Runnable {
         normalOutgoing = new MessageQueue(true,
             options.getMaxMessagesInOutgoingQueue(),
             options.isDiscardMessagesWhenOutgoingQueueFull(),
-            options.getRequestCleanupInterval(),
+            options.getQueueOfferLockWait(),
             sourceWriter == null ? null : sourceWriter.normalOutgoing);
 
         // The "reconnect" buffer contains internal messages, and we will keep it unlimited in size
-        reconnectOutgoing = new MessageQueue(true, options.getRequestCleanupInterval(),
+        reconnectOutgoing = new MessageQueue(true, options.getQueueOfferLockWait(),
             sourceWriter == null ? null : sourceWriter.reconnectOutgoing);
         reconnectBufferSize = options.getReconnectBufferSize();
     }
@@ -114,7 +116,7 @@ class NatsConnectionWriter implements Runnable {
             try {
                 this.normalOutgoing.pause();
                 this.reconnectOutgoing.pause();
-                this.normalOutgoing.filter(NatsMessage::isProtocolFilterOnStop);
+                this.normalOutgoing.filter();
             }
             finally {
                 this.startStopLock.unlock();
@@ -126,8 +128,6 @@ class NatsConnectionWriter implements Runnable {
     boolean isRunning() {
         return running.get();
     }
-
-    private static final NatsMessage END_RECONNECT = new NatsMessage("_end", null, EMPTY_BODY);
 
     void sendMessageBatch(NatsMessage msg, DataPort dataPort, StatisticsCollector stats) throws IOException {
         writerLock.lock();
@@ -237,7 +237,7 @@ class NatsConnectionWriter implements Runnable {
     }
 
     void enterWaitingForEndReconnectMode() {
-        reconnectOutgoing.markTheQueue(END_RECONNECT);
+        reconnectOutgoing.queueMarkerMessage(END_RECONNECT);
         mode.set(Mode.WaitingForEndReconnect);
     }
 

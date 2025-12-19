@@ -18,7 +18,6 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -334,7 +333,6 @@ public class MessageQueueTests {
         msg = q.accumulate(100, 2, null);
         checkCount(msg, 2);
     }
-    
 
     @Test
     public void testPartialAccumulateOnSize() throws InterruptedException {
@@ -549,75 +547,72 @@ public class MessageQueueTests {
     }
 
     @Test
-    public void testFilterTail() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
-        NatsMessage msg1 = new ProtocolMessage(ONE);
-        NatsMessage msg2 = new ProtocolMessage(TWO);
-        NatsMessage msg3 = new ProtocolMessage(THREE);
-        byte[] expected = "one".getBytes(StandardCharsets.UTF_8);
-
-        q.push(msg1);
-        q.push(msg2);
-        q.push(msg3);
-
-        long before = q.sizeInBytes();
-        q.pause();
-        q.filter((msg) -> Arrays.equals(expected, msg.getProtocolBytes()));
-        q.resume();
-        long after = q.sizeInBytes();
-
-        assertEquals(2,q.length());
-        assertEquals(before, after + expected.length + 2);
-        assertEquals(q.popNow(), msg2);
-        assertEquals(q.popNow(), msg3);
+    public void testFilterFirstIn() throws InterruptedException {
+        _testFiltered(1);
     }
 
     @Test
-    public void testFilterHead() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
-        NatsMessage msg1 = new ProtocolMessage(ONE);
-        NatsMessage msg2 = new ProtocolMessage(TWO);
-        NatsMessage msg3 = new ProtocolMessage(THREE);
-        byte[] expected = "three".getBytes(StandardCharsets.UTF_8);
-
-        q.push(msg1);
-        q.push(msg2);
-        q.push(msg3);
-
-        long before = q.sizeInBytes();
-        q.pause();
-        q.filter((msg) -> Arrays.equals(expected, msg.getProtocolBytes()));
-        q.resume();
-        long after = q.sizeInBytes();
-
-        assertEquals(2,q.length());
-        assertEquals(before, after + expected.length + 2);
-        assertEquals(q.popNow(), msg1);
-        assertEquals(q.popNow(), msg2);
+    public void testFilterLastIn() throws InterruptedException {
+        _testFiltered(3);
     }
 
     @Test
     public void testFilterMiddle() throws InterruptedException {
-        MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
-        NatsMessage msg1 = new ProtocolMessage(ONE);
-        NatsMessage msg2 = new ProtocolMessage(TWO);
-        NatsMessage msg3 = new ProtocolMessage(THREE);
-        byte[] expected = "two".getBytes(StandardCharsets.UTF_8);
+        _testFiltered(2);
+    }
 
+    private static NatsMessage getTestFilteredMessage(String id, final boolean filterOnStop) {
+        if (filterOnStop) {
+            return new ProtocolMessage(("customFilter" + id).getBytes());
+        }
+        return new NatsMessage("customFilter" + id, null, null);
+    }
+
+    private static void _testFiltered(int filtered) throws InterruptedException {
+        NatsMessage msg1 = getTestFilteredMessage("1", filtered == 1);
+        NatsMessage msg2 = getTestFilteredMessage("2", filtered == 2);
+        NatsMessage msg3 = getTestFilteredMessage("3", filtered == 3);
+
+        long size1 = msg1.getSizeInBytes();
+        long size2 = msg2.getSizeInBytes();
+        long size3 = msg3.getSizeInBytes();
+        long sizeAll = size1 + size2 + size3;
+        long sizeAfter = filtered == 1 ? size2 + size3 : size1 * 2;
+
+        MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
         q.push(msg1);
         q.push(msg2);
         q.push(msg3);
 
-        long before = q.sizeInBytes();
-        q.pause();
-        q.filter((msg) -> Arrays.equals(expected, msg.getProtocolBytes()));
-        q.resume();
-        long after = q.sizeInBytes();
+        assertEquals(3, q.length());
+        assertEquals(sizeAll, q.sizeInBytes());
 
-        assertEquals(2,q.length());
-        assertEquals(before, after + expected.length + 2);
-        assertEquals(q.popNow(), msg1);
-        assertEquals(q.popNow(), msg3);
+        q.pause();
+        q.filter();
+        q.resume();
+
+        assertEquals(2, q.length());
+        assertEquals(sizeAfter, q.sizeInBytes());
+
+        q.pause();
+        q.filter();
+        q.resume();
+
+        assertEquals(2, q.length());
+        assertEquals(sizeAfter, q.sizeInBytes());
+
+        NatsMessage head = q.accumulate(1000, 3, Duration.ofMillis(500));
+        if (filtered != 1) {
+            assertEquals(msg1, head);
+            head = head.next;
+        }
+        if (filtered != 2) {
+            assertEquals(msg2, head);
+            head = head.next;
+        }
+        if (filtered != 3) {
+            assertEquals(msg3, head);
+        }
     }
 
     @Test
@@ -632,7 +627,7 @@ public class MessageQueueTests {
     public void testThrowOnFilterIfRunning() {
         assertThrows(IllegalStateException.class, () -> {
             MessageQueue q = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
-            q.filter((msg) -> true);
+            q.filter();
             fail();
         });
     }
