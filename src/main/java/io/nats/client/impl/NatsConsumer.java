@@ -234,7 +234,7 @@ abstract class NatsConsumer implements Consumer {
      */
     public abstract boolean isActive();
 
-    abstract MessageQueue getMessageQueue();
+    abstract ConsumerMessageQueue getMessageQueue();
 
     /**
      * Called during drain to tell the consumer to send appropriate unsub requests

@@ -28,7 +28,7 @@ import static io.nats.client.support.Validator.validateQueueName;
 
 class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
 
-    protected final MessageQueue incoming;
+    protected final ConsumerMessageQueue incoming;
     protected final MessageHandler defaultHandler;
 
     protected Future<Boolean> thread;
@@ -55,7 +55,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
     NatsDispatcher(NatsConnection conn, MessageHandler handler) {
         super(conn);
         this.defaultHandler = handler;
-        this.incoming = new MessageQueue(conn.getOptions().getQueueOfferLockWait());
+        this.incoming = new ConsumerMessageQueue();
         this.subWithDefaultHandlerBySubject = new ConcurrentHashMap<>();
         this.subWithNonDefaultHandlerBySid = new ConcurrentHashMap<>();
         this.subsBySidNonDefaultHandlersBySubject = new ConcurrentHashMap<>();
@@ -169,7 +169,7 @@ class NatsDispatcher extends NatsConsumer implements Dispatcher, Runnable {
         return id;
     }
 
-    MessageQueue getMessageQueue() {
+    ConsumerMessageQueue getMessageQueue() {
         return incoming;
     }
 
