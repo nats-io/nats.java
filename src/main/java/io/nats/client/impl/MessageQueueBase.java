@@ -18,7 +18,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.ReentrantLock;
 
 import static io.nats.client.impl.MarkerMessage.POISON_PILL;
 
@@ -28,37 +27,37 @@ abstract class MessageQueueBase {
     protected static final int DRAINING = 2;
 
     protected final int queueCapacity;
-    protected final AtomicInteger running;
-    protected final ReentrantLock editLock;
-
     protected final LinkedBlockingQueue<NatsMessage> queue;
     protected final AtomicLong length;
     protected final AtomicLong sizeInBytes;
+    protected final AtomicInteger running;
 
     MessageQueueBase() {
-        queueCapacity = Integer.MAX_VALUE;
-        running = new AtomicInteger(RUNNING);
-        editLock = new ReentrantLock();
-        queue = new LinkedBlockingQueue<>(); // unbounded
-        length = new AtomicLong(0);
-        sizeInBytes = new AtomicLong(0);
+        this(Integer.MAX_VALUE);
     }
 
     MessageQueueBase(int queueCapacity) {
-        this.queueCapacity = queueCapacity;
-        running = new AtomicInteger(RUNNING);
-        editLock = new ReentrantLock();
-        queue = new LinkedBlockingQueue<>(queueCapacity);
+        this.queueCapacity = queueCapacity > 0 ? queueCapacity : Integer.MAX_VALUE;
+        queue = new LinkedBlockingQueue<>(this.queueCapacity);
         length = new AtomicLong(0);
         sizeInBytes = new AtomicLong(0);
+        running = new AtomicInteger(RUNNING);
     }
 
     boolean isRunning() {
         return running.get() != PAUSED;
     }
 
+    boolean isPaused() {
+        return running.get() == PAUSED;
+    }
+
     boolean isDraining() {
         return running.get() == DRAINING;
+    }
+
+    boolean isDrained() {
+        return running.get() == DRAINING && length.get() == 0;
     }
 
     void pause() {
@@ -67,18 +66,18 @@ abstract class MessageQueueBase {
         }
     }
 
-    void resume() {
-        running.set(RUNNING);
-    }
-
     void drain() {
         if (running.compareAndSet(RUNNING, DRAINING)) {
             queue.offer(POISON_PILL);
         }
     }
 
-    boolean isDrained() {
-        return running.get() == DRAINING && length.get() == 0;
+    void resume() {
+        running.set(RUNNING);
+    }
+
+    long queueSize() {
+        return queue.size();
     }
 
     long length() {
@@ -89,22 +88,10 @@ abstract class MessageQueueBase {
         return sizeInBytes.get();
     }
 
-    void offer(NatsMessage msg) {
-        // We do this without locking because it is assumed this is
-        // called for the reconnectOutgoing queue which is only called
-        // from one thread since it's only used internally during reconnect.
-        // So it's never for user messages which could come from multiple
-        // threads where order is an issue
-        if (queue.offer(msg)) {
-            length.incrementAndGet();
-            sizeInBytes.addAndGet(msg.getSizeInBytes());
-        }
-    }
-
     // this is just a helper method to poll a message from
     // the queue handling various forms of timeouts
     // if the polled message was a POISON_PILL, return null
-    protected NatsMessage _poll(Duration timeout) throws InterruptedException {
+    NatsMessage _poll(Duration timeout) throws InterruptedException {
         NatsMessage msg = null;
 
         if (timeout == null || this.isDraining()) { // try immediately
@@ -128,17 +115,5 @@ abstract class MessageQueueBase {
         }
 
         return msg == null || msg == POISON_PILL ? null : msg;
-    }
-
-    void clear() {
-        editLock.lock();
-        try {
-            queue.clear();
-            length.set(0);
-            sizeInBytes.set(0);
-        }
-        finally {
-            editLock.unlock();
-        }
     }
 }

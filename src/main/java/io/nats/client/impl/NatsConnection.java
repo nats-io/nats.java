@@ -1136,7 +1136,7 @@ class NatsConnection implements Connection {
         if (after > 0) {
             bab.append(SP).append(after);
         }
-        queueOutgoing(new ProtocolMessage(bab, true));
+        queueOutgoing(new ProtocolMessage(bab));
     }
 
     // Assumes the null/empty checks were handled elsewhere
@@ -1193,7 +1193,7 @@ class NatsConnection implements Connection {
         // if it's an "internal" message, it won't be filtered
         // if it's a normal message, the subscription will already be registered
         // and therefore will be re-subscribed after a stop anyway
-        ProtocolMessage subMsg = new ProtocolMessage(bab, true);
+        ProtocolMessage subMsg = new ProtocolMessage(bab);
         if (treatAsInternal) {
             queueInternalOutgoing(subMsg);
         }

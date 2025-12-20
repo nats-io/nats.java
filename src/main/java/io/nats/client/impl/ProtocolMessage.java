@@ -28,6 +28,10 @@ class ProtocolMessage extends NatsPublishableMessage {
         this.filterOnStop = filterOnStop;
     }
 
+    ProtocolMessage(ByteArrayBuilder babProtoco) {
+        this(babProtoco, true);
+    }
+
     ProtocolMessage(byte[] protocol) {
         this(new ByteArrayBuilder(protocol), true);
     }

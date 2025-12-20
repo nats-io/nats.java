@@ -54,8 +54,8 @@ class NatsConnectionWriter implements Runnable {
     private byte[] sendBuffer;
     private final AtomicInteger sendBufferLength;
 
-    private final MessageQueue normalOutgoing;
-    private final MessageQueue reconnectOutgoing;
+    private final WriterMessageQueue normalOutgoing;
+    private final WriterMessageQueue reconnectOutgoing;
     private final long reconnectBufferSize;
 
     NatsConnectionWriter(NatsConnection connection, NatsConnectionWriter sourceWriter) {
@@ -78,14 +78,17 @@ class NatsConnectionWriter implements Runnable {
         sendBufferLength = new AtomicInteger(sbl);
         sendBuffer = new byte[sbl];
 
-        normalOutgoing = new MessageQueue(true,
+        normalOutgoing = new WriterMessageQueue(
             options.getMaxMessagesInOutgoingQueue(),
             options.isDiscardMessagesWhenOutgoingQueueFull(),
             options.getQueueOfferLockWait(),
             sourceWriter == null ? null : sourceWriter.normalOutgoing);
 
         // The "reconnect" buffer contains internal messages, and we will keep it unlimited in size
-        reconnectOutgoing = new MessageQueue(true, options.getQueueOfferLockWait(),
+        reconnectOutgoing = new WriterMessageQueue(
+            -1,    // unbounded
+            false, // not discard when full
+            options.getQueueOfferLockWait(),
             sourceWriter == null ? null : sourceWriter.reconnectOutgoing);
         reconnectBufferSize = options.getReconnectBufferSize();
     }
