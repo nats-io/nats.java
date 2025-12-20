@@ -288,10 +288,10 @@ public class MessageQueueTests {
         q.queueMarkerMessage(notCounted);
         assertEquals(TEST_MESSAGE_BYTES * 3, q.sizeInBytes());
 
-        validateAccumulate(1, q.accumulate(TEST_MESSAGE_BYTES + 1, 100, null));
+        validateAccumulate(q.accumulate(TEST_MESSAGE_BYTES + 1, 100, null), msg1);
         assertEquals(TEST_MESSAGE_BYTES * 2, q.sizeInBytes());
 
-        validateAccumulate(3, q.accumulate(TEST_MESSAGE_BYTES * 3, 100, null));
+        validateAccumulate(q.accumulate(TEST_MESSAGE_BYTES * 3, 100, null), msg2, msg3, notCounted);
         assertEquals(0, q.sizeInBytes());
     }
 
@@ -364,12 +364,7 @@ public class MessageQueueTests {
         assertEquals(sizeAll, q.sizeInBytes());
 
         q.pause();
-        q.resume();
-
-        assertEquals(2, q.length());
-        assertEquals(sizeAfter, q.sizeInBytes());
-
-        q.pause();
+        q.filter();
         q.resume();
 
         assertEquals(2, q.length());

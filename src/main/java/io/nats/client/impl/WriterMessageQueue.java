@@ -135,69 +135,86 @@ class WriterMessageQueue extends MessageQueueBase {
     }
 
     // Waits up to the timeout to try to accumulate multiple messages
-    // Use the next field to read the entire set accumulated.
-    // maxSize and maxMessages are both checked and if either is exceeded
-    // the method returns.
+    // Use the NatsMessage.next field to read the entire set accumulated.
+    // maxBytesToAccumulate and maxMessagesToAccumulate are both checked
+    // and if either is exceeded the method returns.
     //
     // A timeout of 0 will wait forever (or until the queue is stopped/drained)
     //
-    // Only works in single reader mode, because we want to maintain order.
+    // Only works in writer mode, because we want to maintain order.
     // accumulate reads off the concurrent queue one at a time, so if multiple
     // readers are present, you could get out of order message delivery.
     NatsMessage accumulate(long maxBytesToAccumulate, long maxMessagesToAccumulate, Duration timeout)
         throws InterruptedException {
 
-        if (!this.isRunning()) {
+        if (!isRunning()) {
             return null;
         }
 
-        NatsMessage msg = _poll(timeout);
-
-        if (msg == null) {
-            return null;
+        // _poll returns null if no messages or was a POISON_PILL
+        // MarkerMessage is a termination, is not counted, but is returned
+        NatsMessage headMessage = _poll(timeout);
+        if (headMessage == null || headMessage instanceof MarkerMessage) {
+            return headMessage;
         }
 
-        long size = msg.getSizeInBytes();
-
-        if (maxMessagesToAccumulate <= 1 || size >= maxBytesToAccumulate) {
-            sizeInBytes.addAndGet(-size);
-            length.decrementAndGet();
-            return msg;
+        if (maxBytesToAccumulate < 1) {
+            maxBytesToAccumulate = Long.MAX_VALUE; // this just makes it easier to loop
         }
 
-        long accumulated = 1;
-        NatsMessage cursor = msg;
+        // these will be used to call count() after the loop ends
+        long accumulatedMessages = 1;
+        long accumulatedSize = headMessage.getSizeInBytes();
 
-        while (true) {
-            NatsMessage next = this.queue.peek();
-            if (next != null && next != POISON_PILL) {
-                long s = next.getSizeInBytes();
-                if (maxBytesToAccumulate < 0 || (size + s) < maxBytesToAccumulate) { // keep going
-                    size += s;
-                    accumulated++;
+        // We need a cursor for the chain of messages
+        // and we return the head message
+        NatsMessage cursor = headMessage;
 
-                    this.queue.poll(); // we need to get the message out of the queue b/c we only peeked
-                    cursor.next = next;
-                    if (next.flushImmediatelyAfterPublish) {
-                        // if we are going to flush, then don't accumulate more
-                        break;
-                    }
-                    if (accumulated == maxMessagesToAccumulate) {
-                        break;
-                    }
-                    cursor = cursor.next;
-                } else { // One more is too far
-                    break;
+        // If the message wants to flushImmediatelyAfterPublish, don't accumulate more
+        // If the accumulatedMessages is >= maxMessagesToAccumulate, don't accumulate more
+        while (!cursor.flushImmediatelyAfterPublish && accumulatedMessages < maxMessagesToAccumulate) {
+            // We are allowed to try more messages. Peek first to see what we are dealing with
+            NatsMessage peeked = queue.peek();
+
+            if (peeked == null) {
+                break; // no messages in the queue so we are done.
+            }
+
+            if (peeked instanceof MarkerMessage) {
+                // - Get the message out of the queue b/c we only peeked
+                // - POISON_PILL does not get added to the cursor.next chain
+                //   but all other MarkerMessages do.
+                // - We are done.
+                queue.poll();
+                if (peeked != POISON_PILL) {
+                    cursor.next = peeked;
                 }
-            } else { // Didn't meet max condition
                 break;
             }
+
+            // How big is the message we just peeked at? Will it put us over maxBytesToAccumulate?
+            long size = peeked.getSizeInBytes();
+            if (accumulatedSize + size > maxBytesToAccumulate) {
+                break; // Too many bytes, so we are done.
+            }
+
+            // We can add the peeked message to the chain...
+            // - Get the message out of the queue b/c we only peeked
+            // - Track the message and the bytes for later counting and the while loop
+            // - Add the message to the chain
+            queue.poll();
+            accumulatedMessages++;
+            accumulatedSize += size;
+            cursor.next = peeked;
+
+            // Move the cursor. It's okay if the while terminates at it's
+            // next check, we don't need the cursor outside the loop
+            cursor = peeked;
         }
 
-        sizeInBytes.addAndGet(-size);
-        length.addAndGet(-accumulated);
-
-        return msg;
+        length.addAndGet(-accumulatedMessages);
+        sizeInBytes.addAndGet(-accumulatedSize);
+        return headMessage;
     }
 
     void filter() {
