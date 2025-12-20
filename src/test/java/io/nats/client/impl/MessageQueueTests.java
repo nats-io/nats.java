@@ -49,7 +49,7 @@ public class MessageQueueTests {
     }
 
     private static WriterMessageQueue getWriterMessageQueue(int maxMessagesInOutgoingQueue) {
-        return new WriterMessageQueue(maxMessagesInOutgoingQueue, false, Duration.ofMillis(500), null);
+        return new WriterMessageQueue(maxMessagesInOutgoingQueue, false, Duration.ofMillis(500));
     }
 
     @Test
@@ -417,7 +417,7 @@ public class MessageQueueTests {
 
     @Test
     public void testDiscardMessageWhenQueueFull() throws InterruptedException {
-        WriterMessageQueue q = new WriterMessageQueue(2, true, Duration.ofMillis(500), null);
+        WriterMessageQueue q = new WriterMessageQueue(2, true, Duration.ofMillis(500));
         NatsMessage msg1 = getTestMessage();
         NatsMessage msg2 = getTestMessage();
         NatsMessage msg3 = getTestMessage();

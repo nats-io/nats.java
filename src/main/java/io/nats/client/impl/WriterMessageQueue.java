@@ -34,7 +34,7 @@ class WriterMessageQueue extends MessageQueueBase {
     protected final long offerTimeoutNanos;
     protected final Duration offerLockWait;
 
-    WriterMessageQueue(int maxMessagesInOutgoingQueue, boolean discardWhenFull, Duration offerLockWait, WriterMessageQueue source) {
+    WriterMessageQueue(int maxMessagesInOutgoingQueue, boolean discardWhenFull, Duration offerLockWait) {
         super(maxMessagesInOutgoingQueue);
         this.maxMessagesInOutgoingQueue = queueCapacity;
         this.discardWhenFull = discardWhenFull;
@@ -43,21 +43,6 @@ class WriterMessageQueue extends MessageQueueBase {
 
         this.editLock = new ReentrantLock();
         this.offerLockWait = offerLockWait;
-
-        if (source != null) {
-            source.drainTo(this);
-        }
-    }
-
-    void drainTo(WriterMessageQueue target) {
-        editLock.lock();
-        try {
-            queue.drainTo(target.queue);
-            target.length.set(length.getAndSet(0));
-            target.sizeInBytes.set(sizeInBytes.getAndSet(0));
-        } finally {
-            editLock.unlock();
-        }
     }
 
     boolean push(NatsMessage msg) {

@@ -77,20 +77,29 @@ class NatsConnectionWriter implements Runnable {
         int sbl = bufferAllocSize(options.getBufferSize(), BUFFER_BLOCK_SIZE);
         sendBufferLength = new AtomicInteger(sbl);
         sendBuffer = new byte[sbl];
-
-        normalOutgoing = new WriterMessageQueue(
-            options.getMaxMessagesInOutgoingQueue(),
-            options.isDiscardMessagesWhenOutgoingQueueFull(),
-            options.getQueueOfferLockWait(),
-            sourceWriter == null ? null : sourceWriter.normalOutgoing);
-
-        // The "reconnect" buffer contains internal messages, and we will keep it unlimited in size
-        reconnectOutgoing = new WriterMessageQueue(
-            -1,    // unbounded
-            false, // not discard when full
-            options.getQueueOfferLockWait(),
-            sourceWriter == null ? null : sourceWriter.reconnectOutgoing);
         reconnectBufferSize = options.getReconnectBufferSize();
+
+        if (sourceWriter == null) {
+            normalOutgoing = new WriterMessageQueue(
+                options.getMaxMessagesInOutgoingQueue(),
+                options.isDiscardMessagesWhenOutgoingQueueFull(),
+                options.getQueueOfferLockWait()
+            );
+
+            // The "reconnect" buffer contains internal messages, and we will keep it unlimited in size
+            reconnectOutgoing = new WriterMessageQueue(
+                -1,    // unbounded
+                false, // not discard when full
+                options.getQueueOfferLockWait()
+            );
+        }
+        else {
+            normalOutgoing = sourceWriter.normalOutgoing;
+            normalOutgoing.resume();
+            reconnectOutgoing = sourceWriter.reconnectOutgoing;
+            reconnectOutgoing.resume();
+        }
+
     }
 
     // Should only be called if the current thread has exited.
