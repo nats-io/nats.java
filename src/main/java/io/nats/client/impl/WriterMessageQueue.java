@@ -208,20 +208,19 @@ class WriterMessageQueue extends MessageQueueBase {
             if (this.isRunning()) {
                 throw new IllegalStateException("Filter is only supported when the queue is paused");
             }
-            ArrayList<NatsMessage> newQueue = new ArrayList<>();
-            NatsMessage cursor = this.queue.poll();
-            while (cursor != null) {
+            ArrayList<NatsMessage> temp = new ArrayList<>();
+            queue.drainTo(temp);
+            for (NatsMessage cursor : temp) {
                 if (cursor.isFilterOnStop()) {
                     sizeInBytes.addAndGet(-cursor.getSizeInBytes());
                     length.decrementAndGet();
                 }
                 else {
-                    newQueue.add(cursor);
+                    queue.add(cursor);
                 }
-                cursor = this.queue.poll();
             }
-            this.queue.addAll(newQueue);
-        } finally {
+        }
+        finally {
             editLock.unlock();
         }
     }

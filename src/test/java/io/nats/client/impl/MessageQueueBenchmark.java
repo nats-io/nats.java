@@ -22,7 +22,7 @@ import java.util.concurrent.CompletableFuture;
 public class MessageQueueBenchmark {
     static final Duration OFFER_LOCK_WAIT = Options.DEFAULT_QUEUE_OFFER_LOCK_WAIT;
     
-    public static void main(String args[]) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException {
         int msgCount = 10_000_000;
         NatsMessage[] msgs = new NatsMessage[msgCount];
         long start, end;
