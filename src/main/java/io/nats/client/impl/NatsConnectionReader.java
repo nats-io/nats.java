@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.Message;
 import io.nats.client.ReadListener;
 import io.nats.client.support.IncomingHeadersProcessor;
 
@@ -85,7 +86,24 @@ class NatsConnectionReader implements Runnable {
         this.bufferPosition = 0;
 
         this.utf8Mode = connection.getOptions().supportUTF8Subjects();
-        readListener = connection.getOptions().getReadListener();
+
+        final ReadListener rl = connection.getOptions().getReadListener();
+        if (rl == null) {
+            readListener = new ReadListener() {};
+        }
+        else {
+            readListener = new ReadListener() {
+                @Override
+                public void protocol(String op, String text) {
+                    connection.makeCallback(() -> rl.protocol(op, text));
+                }
+
+                @Override
+                public void message(String op, Message message) {
+                    connection.makeCallback(() -> rl.message(op, message));
+                }
+            };
+        }
     }
 
     // Should only be called if the current thread has exited.
@@ -223,7 +241,7 @@ class NatsConnectionReader implements Runnable {
                 }
             }
         } catch (ArrayIndexOutOfBoundsException | IllegalStateException | NumberFormatException | NullPointerException ex) {
-            this.encounteredProtocolError(ex);
+            throw new IOException("Read Operation", ex);
         }
     }
 
@@ -253,7 +271,7 @@ class NatsConnectionReader implements Runnable {
                 }
             }
         } catch (IllegalStateException | NumberFormatException | NullPointerException ex) {
-            this.encounteredProtocolError(ex);
+            throw new IOException("Read Message", ex);
         }
     }
 
@@ -284,7 +302,7 @@ class NatsConnectionReader implements Runnable {
                 }
             }
         } catch (IllegalStateException | NumberFormatException | NullPointerException ex) {
-            this.encounteredProtocolError(ex);
+            throw new IOException("Read Protocol", ex);
         }
     }
 
@@ -318,7 +336,7 @@ class NatsConnectionReader implements Runnable {
                 }
             }
         } catch (IllegalStateException | NullPointerException ex) {
-            this.encounteredProtocolError(ex);
+            throw new IOException("Read Header", ex);
         }
     }
 
@@ -351,9 +369,7 @@ class NatsConnectionReader implements Runnable {
                         incoming.setData(msgData);
                         NatsMessage m = incoming.getMessage();
                         this.connection.deliverMessage(m);
-                        if (readListener != null) {
-                            readListener.message(op, m);
-                        }
+                        readListener.message(op, m);
                         msgData = null;
                         msgDataPosition = 0;
                         incoming = null;
@@ -371,7 +387,7 @@ class NatsConnectionReader implements Runnable {
                 }
             }
         } catch (IllegalStateException | NullPointerException ex) {
-            this.encounteredProtocolError(ex);
+            throw new IOException("Read Message Data", ex);
         }
     }
 
@@ -551,43 +567,33 @@ class NatsConnectionReader implements Runnable {
                     break;
                 case OP_OK:
                     this.connection.processOK();
-                    if (readListener != null) {
-                        readListener.protocol(op, null);
-                    }
+                    readListener.protocol(op, null);
                     this.op = UNKNOWN_OP;
                     this.mode = Mode.GATHER_OP;
                     break;
                 case OP_ERR:
                     String errorText = StandardCharsets.UTF_8.decode(protocolBuffer).toString().replace("'", "");
                     this.connection.processError(errorText);
-                    if (readListener != null) {
-                        readListener.protocol(op, errorText);
-                    }
+                    readListener.protocol(op, errorText);
                     this.op = UNKNOWN_OP;
                     this.mode = Mode.GATHER_OP;
                     break;
                 case OP_PING:
+                    readListener.protocol(op, null);
                     this.connection.sendPong();
-                    if (readListener != null) {
-                        readListener.protocol(op, null);
-                    }
                     this.op = UNKNOWN_OP;
                     this.mode = Mode.GATHER_OP;
                     break;
                 case OP_PONG:
+                    readListener.protocol(op, null);
                     this.connection.handlePong();
-                    if (readListener != null) {
-                        readListener.protocol(op, null);
-                    }
                     this.op = UNKNOWN_OP;
                     this.mode = Mode.GATHER_OP;
                     break;
                 case OP_INFO:
                     String info = StandardCharsets.UTF_8.decode(protocolBuffer).toString();
                     this.connection.handleInfo(info);
-                    if (readListener != null) {
-                        readListener.protocol(op, info);
-                    }
+                    readListener.protocol(op, info);
                     this.op = UNKNOWN_OP;
                     this.mode = Mode.GATHER_OP;
                     break;
@@ -596,12 +602,8 @@ class NatsConnectionReader implements Runnable {
             }
 
         } catch (IllegalStateException | NumberFormatException | NullPointerException ex) {
-            this.encounteredProtocolError(ex);
+            throw new IOException("Parse Protocol OP_" + op, ex);
         }
-    }
-
-    void encounteredProtocolError(Exception ex) throws IOException {
-        throw new IOException(ex);
     }
 
     //For testing
