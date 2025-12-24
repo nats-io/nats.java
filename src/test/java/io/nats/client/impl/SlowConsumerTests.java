@@ -14,224 +14,238 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class SlowConsumerTests {
+public class SlowConsumerTests extends TestBase {
 
     @Test
     public void testDefaultPendingLimits() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-            
-            Subscription sub = nc.subscribe("subject");
+        runInSharedOwnNc(nc -> {
+            String subject = random();
+            Subscription sub = nc.subscribe(subject);
             Dispatcher d = nc.createDispatcher((Message m) -> {});
 
-            assertEquals(sub.getPendingMessageLimit(), Consumer.DEFAULT_MAX_MESSAGES);
-            assertEquals(sub.getPendingByteLimit(), Consumer.DEFAULT_MAX_BYTES);
+            assertEquals(Consumer.DEFAULT_MAX_MESSAGES, sub.getPendingMessageLimit());
+            assertEquals(Consumer.DEFAULT_MAX_BYTES, sub.getPendingByteLimit());
 
-            assertEquals(d.getPendingMessageLimit(), Consumer.DEFAULT_MAX_MESSAGES);
-            assertEquals(d.getPendingByteLimit(), Consumer.DEFAULT_MAX_BYTES);
-        }
+            assertEquals(Consumer.DEFAULT_MAX_MESSAGES, d.getPendingMessageLimit());
+            assertEquals(Consumer.DEFAULT_MAX_BYTES, d.getPendingByteLimit());
+            nc.closeDispatcher(d);
+        });
     }
 
     @Test
     public void testSlowSubscriberByMessages() throws Exception {
-
-        try (NatsTestServer ts = new NatsTestServer(false);
-                NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-            
-            Subscription sub = nc.subscribe("subject");
+        runInSharedOwnNc(nc -> {
+            String subject = random();
+            int expectedPending = subject.length() + 12;
+            Subscription sub = nc.subscribe(subject);
             sub.setPendingLimits(1, -1);
 
             assertEquals(1, sub.getPendingMessageLimit());
             assertEquals(0, sub.getPendingByteLimit());
             assertEquals(0, sub.getDroppedCount());
 
-            nc.publish("subject", null);
-            nc.publish("subject", null);
-            nc.publish("subject", null);
-            nc.publish("subject", null);
+            nc.publish(subject, null);
+            nc.publish(subject, null);
+            nc.publish(subject, null);
+            nc.publish(subject, null);
             nc.flush(Duration.ofMillis(5000));
 
             assertEquals(3, sub.getDroppedCount());
             assertEquals(1, sub.getPendingMessageCount());
-            assertEquals(19, sub.getPendingByteCount()); // "msg 1 subject 0" + crlf + crlf
+            assertEquals(expectedPending, sub.getPendingByteCount()); // "msg 1 subject 0" + crlf + crlf
 
             sub.clearDroppedCount();
             
-            nc.publish("subject", null);
+            nc.publish(subject, null);
             nc.flush(Duration.ofMillis(5000));
 
             assertEquals(1, sub.getDroppedCount());
             assertEquals(1, sub.getPendingMessageCount());
-        }
+        });
     }
 
     @Test
     public void testSlowSubscriberByBytes() throws Exception {
+        runInSharedOwnNc(nc -> {
+            String subject = random();
+            int maxBytes = subject.length() + 3;
+            int expectedPending = maxBytes + 9;
+            Subscription sub = nc.subscribe(subject);
+            sub.setPendingLimits(-1, maxBytes); // will take the first, not the second
 
-        try (NatsTestServer ts = new NatsTestServer(false);
-                NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-            
-            Subscription sub = nc.subscribe("subject");
-            sub.setPendingLimits(-1, 10); // will take the first, not the second
-
-            assertEquals(10, sub.getPendingByteLimit());
+            assertEquals(maxBytes, sub.getPendingByteLimit());
             assertEquals(0, sub.getPendingMessageLimit());
             assertEquals(0, sub.getDroppedCount());
 
-            nc.publish("subject", null);
-            nc.publish("subject", null);
+            nc.publish(subject, null);
+            nc.publish(subject, null);
             nc.flush(Duration.ofMillis(5000));
 
             assertEquals(1, sub.getDroppedCount());
             assertEquals(1, sub.getPendingMessageCount());
-            assertEquals(19, sub.getPendingByteCount()); // "msg 1 subject 0" + crlf + crlf
+            assertEquals(expectedPending, sub.getPendingByteCount()); // "msg 1 subject 0" + crlf + crlf
 
             sub.clearDroppedCount();
             
-            nc.publish("subject", null);
+            nc.publish(subject, null);
             nc.flush(Duration.ofMillis(5000));
 
             assertEquals(1, sub.getDroppedCount());
             assertEquals(1, sub.getPendingMessageCount());
-        }
+        });
     }
 
     @Test
     public void testSlowSDispatcherByMessages() throws Exception {
+        runInSharedOwnNc(nc -> {
+            String subject = random();
+            int expectedPending = subject.length() + 12;
 
-        try (NatsTestServer ts = new NatsTestServer(false);
-                NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-            
             final CompletableFuture<Void> ok = new CompletableFuture<>();
-            Dispatcher d = nc.createDispatcher((msg) -> {
+            Dispatcher d = nc.createDispatcher(msg -> {
                 ok.complete(null);
                 Thread.sleep(5 * 60 * 1000); // will wait until interrupted
             });
 
             d.setPendingLimits(1, -1);
-            d.subscribe("subject");
+            d.subscribe(subject);
 
             assertEquals(1, d.getPendingMessageLimit());
             assertEquals(0, d.getPendingByteLimit());
             assertEquals(0, d.getDroppedCount());
 
-            nc.publish("subject", null);
+            nc.publish(subject, null);
 
             ok.get(1000,TimeUnit.MILLISECONDS); // make sure we got the first one
             
-            nc.publish("subject", null);
-            nc.publish("subject", null);
+            nc.publish(subject, null);
+            nc.publish(subject, null);
             nc.flush(Duration.ofMillis(1000));
 
             assertEquals(1, d.getDroppedCount());
             assertEquals(1, d.getPendingMessageCount());
-            assertEquals(19, d.getPendingByteCount()); // "msg 1 subject 0" + crlf + crlf
+            assertEquals(expectedPending, d.getPendingByteCount()); // "msg 1 subject 0" + crlf + crlf
 
             d.clearDroppedCount();
             
-            nc.publish("subject", null);
+            nc.publish(subject, null);
             nc.flush(Duration.ofMillis(5000));
 
             assertEquals(1, d.getDroppedCount());
             assertEquals(1, d.getPendingMessageCount());
-        }
+        });
     }
 
     @Test
     public void testSlowSDispatcherByBytes() throws Exception {
-
-        try (NatsTestServer ts = new NatsTestServer(false);
-                NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-            
+        runInSharedOwnNc(nc -> {
+            String subject = random();
+            int maxBytes = subject.length() + 3;
+            int expectedPending = maxBytes + 9;
             final CompletableFuture<Void> ok = new CompletableFuture<>();
-            Dispatcher d = nc.createDispatcher((msg) -> {
+            Dispatcher d = nc.createDispatcher(msg -> {
                 ok.complete(null);
                 Thread.sleep(5 * 60 * 1000); // will wait until interrupted
             });
 
-            d.setPendingLimits(-1, 10);
-            d.subscribe("subject");
+            d.setPendingLimits(-1, maxBytes);
+            d.subscribe(subject);
 
             assertEquals(0, d.getPendingMessageLimit());
-            assertEquals(10, d.getPendingByteLimit());
+            assertEquals(maxBytes, d.getPendingByteLimit());
             assertEquals(0, d.getDroppedCount());
 
-            nc.publish("subject", null);
+            nc.publish(subject, null);
 
             ok.get(1000,TimeUnit.MILLISECONDS); // make sure we got the first one
             
-            nc.publish("subject", null);
-            nc.publish("subject", null);
+            nc.publish(subject, null);
+            nc.publish(subject, null);
             nc.flush(Duration.ofMillis(5000));
 
             assertEquals(1, d.getDroppedCount());
             assertEquals(1, d.getPendingMessageCount());
-            assertEquals(19, d.getPendingByteCount()); // "msg 1 subject 0" + crlf + crlf
+            assertEquals(expectedPending, d.getPendingByteCount()); // "msg 1 subject 0" + crlf + crlf
 
             d.clearDroppedCount();
             
-            nc.publish("subject", null);
+            nc.publish(subject, null);
             nc.flush(Duration.ofMillis(5000));
 
             assertEquals(1, d.getDroppedCount());
             assertEquals(1, d.getPendingMessageCount());
+        });
+    }
+
+    static class SlowConsumerListener implements ErrorListener {
+        public CompletableFuture<Boolean> future;
+        public final List<Consumer> consumers = new ArrayList<>();
+
+        public void waitForSlow() {
+            future = new CompletableFuture<>();
+        }
+
+        @Override
+        public void slowConsumerDetected(Connection conn, Consumer consumer) {
+            consumers.add(consumer);
+            if (future != null) {
+                future.complete(true);
+            }
         }
     }
 
     @Test
     public void testSlowSubscriberNotification() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
-        try (NatsTestServer ts = new NatsTestServer(false);
-                NatsConnection nc = (NatsConnection) Nats.connect(new Options.Builder().
-                                                                    server(ts.getURI()).errorListener(listener).build())) {
-            
-            Subscription sub = nc.subscribe("subject");
+        SlowConsumerListener listener = new SlowConsumerListener();
+        runInSharedOwnNc(listener, nc -> {
+            String subject = random();
+            NatsSubscription sub = (NatsSubscription)nc.subscribe(subject);
             sub.setPendingLimits(1, -1);
 
-            Future<Boolean> waitForSlow = listener.waitForSlow();
+            listener.waitForSlow();
 
-            nc.publish("subject", null);
-            nc.publish("subject", null);
-            nc.publish("subject", null);
-            nc.publish("subject", null);
+            nc.publish(subject, null);
+            nc.publish(subject, null);
+            nc.publish(subject, null);
+            nc.publish(subject, null);
             nc.flush(Duration.ofMillis(5000));
 
             // Notification is in another thread, wait for it, or fail
-            waitForSlow.get(1000, TimeUnit.MILLISECONDS);
+            listener.future.get(3000, TimeUnit.MILLISECONDS);
 
-            List<Consumer> slow = listener.getSlowConsumers();
-            assertEquals(1, slow.size()); // should only appear once
-            assertEquals(sub, slow.get(0));
-            slow.clear();
+            assertEquals(1, listener.consumers.size()); // should only appear once
+            assertEquals(sub, listener.consumers.get(0));
+            listener.consumers.clear();
             
-            nc.publish("subject", null);
+            nc.publish(subject, null);
             nc.flush(Duration.ofMillis(1000));
 
-            assertEquals(0, slow.size()); // no renotifiy
+            assertEquals(0, listener.consumers.size()); // no renotify
 
-            waitForSlow = listener.waitForSlow();
-            // Clear the queue, we shoudl become a non-slow consumer
+            listener.waitForSlow();
+            // Clear the queue, we should become a non-slow consumer
             sub.nextMessage(Duration.ofMillis(1000)); // only 1 to get
 
             // Notification again on 2nd message
-            nc.publish("subject", null);
-            nc.publish("subject", null);
+            nc.publish(subject, null);
+            nc.publish(subject, null);
             nc.flush(Duration.ofMillis(1000));
 
-            waitForSlow.get(1000, TimeUnit.MILLISECONDS);
+            listener.future.get(3000, TimeUnit.MILLISECONDS);
 
-            assertEquals(1, slow.size()); // should only appear once
-            assertEquals(sub, slow.get(0));
-        }
+            assertEquals(1, listener.consumers.size()); // should only appear once
+            assertEquals(sub, listener.consumers.get(0));
+        });
     }
 }

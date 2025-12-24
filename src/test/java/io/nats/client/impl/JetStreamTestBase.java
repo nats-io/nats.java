@@ -16,14 +16,13 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.utils.TestBase;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.function.Executable;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -31,6 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamTestBase extends TestBase {
@@ -39,23 +39,9 @@ public class JetStreamTestBase extends TestBase {
     public static final String TestMetaV2 = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.4";
     public static final String TestMetaVFuture = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.4.dont.care.how.many.more";
     public static final String InvalidMetaNoAck = "$JS.nope.test-stream.test-consumer.1.2.3.1605139610113260000";
+    public static final String InvalidMetaData = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.not-a-number";
     public static final String InvalidMetaLt8Tokens = "$JS.ACK.less-than.8-tokens.1.2.3";
     public static final String InvalidMeta10Tokens = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000";
-    public static final String InvalidMetaData = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.not-a-number";
-
-    public static LongRunningNatsTestServer jsServer;
-
-    @BeforeAll
-    public static void beforeAll() throws IOException, InterruptedException {
-        jsServer = new LongRunningNatsTestServer(false, true, null);
-    }
-
-    @AfterAll
-    public static void afterAll() throws Exception {
-        if (jsServer != null) {
-            jsServer.close();
-        }
-    }
 
     public static final Duration DEFAULT_TIMEOUT = Duration.ofMillis(1000);
 
@@ -86,106 +72,6 @@ public class JetStreamTestBase extends TestBase {
 
     public NatsMessage getTestMessage(String replyTo, String sid) {
         return new IncomingMessageFactory(sid, "subj", replyTo, 0, false).getMessage();
-    }
-
-    // ----------------------------------------------------------------------------------------------------
-    // Management
-    // ----------------------------------------------------------------------------------------------------
-    public static class TestingStreamContainer {
-        private String defaultSubjectVariant;
-        private final String defaultNameVariant = TestBase.name();
-        public final StreamInfo si;
-        public final String stream = stream();
-        private final Map<Object, String> subjects = new HashMap<>();
-        private final Map<Object, String> names = new HashMap<>();
-
-        public TestingStreamContainer(Connection nc) throws JetStreamApiException, IOException {
-            this(nc.jetStreamManagement(), (String[])null);
-        }
-
-        public TestingStreamContainer(Connection nc, int subjectCount) throws JetStreamApiException, IOException {
-            this(nc.jetStreamManagement(), subjectCount);
-        }
-
-        public TestingStreamContainer(Connection nc, String... subjects) throws JetStreamApiException, IOException {
-            this(nc.jetStreamManagement(), subjects);
-        }
-
-        public TestingStreamContainer(JetStreamManagement jsm) throws JetStreamApiException, IOException {
-            this(jsm, (String[])null);
-        }
-
-        public TestingStreamContainer(JetStreamManagement jsm, String... subjects) throws JetStreamApiException, IOException {
-            if (subjects == null) {
-                this.si = createMemoryStream(jsm, stream, subject());
-            }
-            else {
-                this.si = createMemoryStream(jsm, stream, subjects);
-            }
-        }
-
-        public TestingStreamContainer(JetStreamManagement jsm, int subjectCount) throws JetStreamApiException, IOException {
-            String[] subjects = new String[subjectCount];
-            for (int x = 0; x < subjectCount; x++) {
-                subjects[x] = subject(x);
-            }
-            this.si = createMemoryStream(jsm, stream, subjects);
-        }
-
-        public String subject() {
-            if (defaultSubjectVariant == null) {
-                defaultSubjectVariant = TestBase.variant(null);
-            }
-            return subject(defaultSubjectVariant);
-        }
-
-        public String subject(Object variant) {
-            return subjects.computeIfAbsent(variant, TestBase::subject);
-        }
-
-        public String consumerName() {
-            return consumerName(defaultNameVariant);
-        }
-
-        public String consumerName(Object variant) {
-            return names.computeIfAbsent(variant, TestBase::name);
-        }
-    }
-
-    public static StreamInfo createMemoryStream(JetStreamManagement jsm, String streamName, String... subjects) throws IOException, JetStreamApiException {
-        if (streamName == null) {
-            streamName = stream();
-        }
-
-        if (subjects == null || subjects.length == 0) {
-            subjects = new String[]{subject()};
-        }
-
-        StreamConfiguration sc = StreamConfiguration.builder()
-                .name(streamName)
-                .storageType(StorageType.Memory)
-                .subjects(subjects).build();
-
-        return jsm.addStream(sc);
-    }
-
-    public static StreamInfo createMemoryStream(Connection nc, String streamName, String... subjects)
-        throws IOException, JetStreamApiException {
-        return createMemoryStream(nc.jetStreamManagement(), streamName, subjects);
-    }
-
-    public static StreamInfo createDefaultTestStream(Connection nc) throws IOException, JetStreamApiException {
-        return createMemoryStream(nc, STREAM, SUBJECT);
-    }
-
-    public static StreamInfo createDefaultTestStream(JetStreamManagement jsm) throws IOException, JetStreamApiException {
-        return createMemoryStream(jsm, STREAM, SUBJECT);
-    }
-
-    public static <T extends Throwable> T assertThrowsPrint(Class<T> expectedType, Executable executable) {
-        T t = org.junit.jupiter.api.Assertions.assertThrows(expectedType, executable);
-        t.printStackTrace();
-        return t;
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -220,6 +106,12 @@ public class JetStreamTestBase extends TestBase {
         }
     }
 
+    public static void jsPublishNull(JetStream js, String subject, int count) throws IOException, JetStreamApiException {
+        for (int x = 0; x < count; x++) {
+            js.publish(subject, null);
+        }
+    }
+
     public static void jsPublishBytes(JetStream js, String subject, int count, byte[] bytes) throws IOException, JetStreamApiException {
         for (int x = 0; x < count; x++) {
             js.publish(subject, bytes);
@@ -240,10 +132,6 @@ public class JetStreamTestBase extends TestBase {
 
     public static PublishAck jsPublish(JetStream js, String subject, String data) throws IOException, JetStreamApiException {
         return js.publish(NatsMessage.builder().subject(subject).data(data.getBytes(StandardCharsets.US_ASCII)).build());
-    }
-
-    public static PublishAck jsPublish(JetStream js) throws IOException, JetStreamApiException {
-        return jsPublish(js, SUBJECT, DATA);
     }
 
     public static PublishAck jsPublish(JetStream js, String subject) throws IOException, JetStreamApiException {
@@ -323,7 +211,7 @@ public class JetStreamTestBase extends TestBase {
             try {
                 while (keepGoing.get()) {
                     if (jitter > 0) {
-                        Thread.sleep(ThreadLocalRandom.current().nextLong(jitter));
+                        sleep(ThreadLocalRandom.current().nextLong(jitter));
                     }
                     js.publish(subject, dataBytes(++dataId));
                 }
@@ -392,36 +280,6 @@ public class JetStreamTestBase extends TestBase {
         assertNull(m.getStatus());
     }
 
-    public static void assertLastIsStatus(List<Message> messages, int code) {
-        int lastIndex = messages.size() - 1;
-        for (int x = 0; x < lastIndex; x++) {
-            Message m = messages.get(x);
-            assertTrue(m.isJetStream());
-        }
-        assertIsStatus(messages.get(lastIndex), code);
-    }
-
-    public static void assertStarts408(List<Message> messages, int count408, int expectedJs) {
-        for (int x = 0; x < count408; x++) {
-            assertIsStatus(messages.get(x), 408);
-        }
-        int countedJs = 0;
-        int lastIndex = messages.size() - 1;
-        for (int x = count408; x <= lastIndex; x++) {
-            Message m = messages.get(x);
-            assertTrue(m.isJetStream());
-            countedJs++;
-        }
-        assertEquals(expectedJs, countedJs);
-    }
-
-    private static void assertIsStatus(Message statusMsg, int code) {
-        assertFalse(statusMsg.isJetStream());
-        assertTrue(statusMsg.isStatusMessage());
-        assertNotNull(statusMsg.getStatus());
-        assertEquals(code, statusMsg.getStatus().getCode());
-    }
-
     public static void assertSource(JetStreamManagement jsm, String stream, Long msgCount, Long firstSeq)
             throws IOException, JetStreamApiException {
         sleep(1000);
@@ -457,7 +315,10 @@ public class JetStreamTestBase extends TestBase {
     }
 
     public static void assertStreamSource(MessageInfo info, String stream, int i) {
-        String hval = info.getHeaders().get("Nats-Stream-Source").get(0);
+        assertNotNull(info.getHeaders());
+        List<String> nss = info.getHeaders().get("Nats-Stream-Source");
+        assertNotNull(nss);
+        String hval = nss.get(0);
         assertTrue(hval.contains(stream));
         assertTrue(hval.contains("" + i));
     }

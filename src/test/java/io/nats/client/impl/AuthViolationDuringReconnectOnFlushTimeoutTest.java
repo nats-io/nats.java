@@ -1,28 +1,27 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
-import io.nats.client.support.NatsUri;
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Isolated;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /* Test to reproduce #1426 */
+@Isolated
 public class AuthViolationDuringReconnectOnFlushTimeoutTest {
 
     private static final int NUMBER_OF_SUBS = 1_000_000;
 
     private static void startServer(Context ctx) throws IOException {
-        ctx.server.set(new NatsTestServer(new String[]{"--auth", "1234"}, ctx.port, false));
+        ctx.server.set(new NatsTestServer(new String[]{"--auth", "1234"}, ctx.port));
     }
 
     private static void restartServer(Context ctx) {
@@ -44,18 +43,15 @@ public class AuthViolationDuringReconnectOnFlushTimeoutTest {
             ctx.port = NatsTestServer.nextPort();
             startServer(ctx);
 
-            Options options = new Options.Builder()
-                    .servers(new String[]{"nats://" + "127.0.0.1:" + ctx.port})
+            Options options = optionsBuilder(ctx.port)
                     .noRandomize()
                     .token(new char[]{'1', '2', '3', '4'})
-
                     .maxMessagesInOutgoingQueue(NUMBER_OF_SUBS )
                     .reconnectBufferSize(NUMBER_OF_SUBS * 100)
                     .connectionTimeout(Duration.ofMillis(10))
                     .reconnectWait(Duration.ofMillis(2000))
-                    .connectionListener((conn, e) ->
-                            System.out.println(String.format("Tid: %d, NATS: connection event - %s, connected url: %s. servers: %s ", Thread.currentThread().getId(), e, conn.getConnectedUrl(), conn.getServers())
-                            ))
+//                    .connectionListener((conn, e) ->
+//                            System.out.printf("Tid: %d, NATS: connection event - %s, connected url: %s. servers: %s %n", Thread.currentThread().getId(), e, conn.getConnectedUrl(), conn.getServers()))
                     .errorListener(ctx.errorListener)
                     .build();
 
@@ -76,8 +72,8 @@ public class AuthViolationDuringReconnectOnFlushTimeoutTest {
             TimeUnit.SECONDS.sleep(20); // give time to restore all subscriptions
 
             synchronized(ctx.nc.getStatus()) {
-                while (ctx.nc.getStatus() != Connection.Status.CONNECTED && ctx.nc.getStatus() != Connection.Status.CLOSED) {
-                }
+                //noinspection StatementWithEmptyBody
+                while (ctx.nc.getStatus() != Connection.Status.CONNECTED && ctx.nc.getStatus() != Connection.Status.CLOSED) {}
             }
             assertFalse(ctx.violated.get());
 
@@ -98,21 +94,20 @@ public class AuthViolationDuringReconnectOnFlushTimeoutTest {
         AtomicBoolean violated = new AtomicBoolean(false);
         CountDownLatch restartsLeft = new CountDownLatch(1);
         ErrorListener errorListener = new ErrorListener() {
-            @Override
-            public void slowConsumerDetected(Connection conn, Consumer consumer) {
-                System.out.println(String.format("Tid: %d, %s: Slow Consumer", Thread.currentThread().getId(), conn.getConnectedUrl()));
-            }
-
-            @Override
-            public void exceptionOccurred(Connection conn, Exception exp) {
-                exp.printStackTrace();
-                System.out.println(String.format("Tid: %d, Nats '%s' exception: %s", Thread.currentThread().getId(), conn.getConnectedUrl(), exp.toString()));
-            }
+//            @Override
+//            public void slowConsumerDetected(Connection conn, Consumer consumer) {
+//                System.out.printf("Tid: %d, %s: Slow Consumer%n", Thread.currentThread().getId(), conn.getConnectedUrl());
+//            }
+//
+//            @Override
+//            public void exceptionOccurred(Connection conn, Exception exp) {
+//                exp.printStackTrace();
+//                System.out.printf("Tid: %d, Nats '%s' exception: %s%n", Thread.currentThread().getId(), conn.getConnectedUrl(), exp);
+//            }
 
             @Override
             public void errorOccurred(Connection conn, String error) {
-                System.out.println(String.format("Tid: %d, Nats '%s': Error %s", Thread.currentThread().getId(), conn.getConnectedUrl(), error.toString()));
-
+//                System.out.printf("Tid: %d, Nats '%s': Error %s%n", Thread.currentThread().getId(), conn.getConnectedUrl(), error);
                 if (error.contains("Authorization Violation")) {
                     violated.set(true);
                 }

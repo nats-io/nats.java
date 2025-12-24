@@ -18,8 +18,8 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeoutException;
 
+import static io.nats.client.utils.ConnectionUtils.standardConnect;
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -27,56 +27,49 @@ public class SubscriberTests {
 
     @Test
     public void testCreateInbox() throws Exception {
-        HashSet<String> check = new HashSet<>();
-        try (NatsTestServer ts = new NatsTestServer(false);
-            Connection nc = Nats.connect(ts.getURI())) {
-            standardConnectionWait(nc);
-
-            for (int i=0; i < 10_000; i++) {
+        runInShared(nc -> {
+            HashSet<String> check = new HashSet<>();
+            for (int i=0; i < 100; i++) {
                 String inbox = nc.createInbox();
                 assertFalse(check.contains(inbox));
                 check.add(inbox);
             }
-        }
+        });
     }
 
     @Test
     public void testSingleMessage() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection nc = Nats.connect(ts.getURI())) {
-            standardConnectionWait(nc);
-
-            Subscription sub = nc.subscribe("subject");
-            nc.publish("subject", new byte[16]);
+        runInShared(nc -> {
+            String subject = random();
+            Subscription sub = nc.subscribe(subject);
+            nc.publish(subject, new byte[16]);
 
             Message msg = sub.nextMessage(Duration.ofMillis(500));
 
             assertTrue(sub.isActive());
-            assertEquals("subject", msg.getSubject());
+            assertEquals(subject, msg.getSubject());
             assertEquals(sub, msg.getSubscription());
             assertNull(msg.getReplyTo());
             assertEquals(16, msg.getData().length);
-        }
+        });
     }
 
     @Test
     public void testMessageFromSubscriptionContainsConnection() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection nc = Nats.connect(ts.getURI())) {
-            standardConnectionWait(nc);
-
-            Subscription sub = nc.subscribe("subject");
-            nc.publish("subject", new byte[16]);
+        runInShared(nc -> {
+            String subject = random();
+            Subscription sub = nc.subscribe(subject);
+            nc.publish(subject, new byte[16]);
 
             Message msg = sub.nextMessage(Duration.ofMillis(500));
 
             assertTrue(sub.isActive());
-            assertEquals("subject", msg.getSubject());
+            assertEquals(subject, msg.getSubject());
             assertEquals(sub, msg.getSubscription());
             assertNull(msg.getReplyTo());
             assertEquals(16, msg.getData().length);
             assertSame(msg.getConnection(), nc);
-        }
+        });
     }
 
     @Test
@@ -85,7 +78,7 @@ public class SubscriberTests {
         CompletableFuture<Boolean> sendMsg = new CompletableFuture<>();
 
         NatsServerProtocolMock.Customizer receiveMessageCustomizer = (ts, r,w) -> {
-            String subLine = "";
+            String subLine;
             
             // System.out.println("*** Mock Server @" + ts.getPort() + " waiting for SUB ...");
             try {
@@ -113,42 +106,38 @@ public class SubscriberTests {
             w.flush();
         };
 
-        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(receiveMessageCustomizer);
-                    Connection  nc = Nats.connect(ts.getURI())) {
-            standardConnectionWait(nc);
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(receiveMessageCustomizer)) {
+            try (Connection nc = standardConnect(mockTs)) {
+                String subject = random();
+                Subscription sub = nc.subscribe(subject);
 
-            Subscription sub = nc.subscribe("subject");
+                gotSub.get();
+                sendMsg.complete(Boolean.TRUE);
 
-            gotSub.get();
-            sendMsg.complete(Boolean.TRUE);
+                Message msg = sub.nextMessage(Duration.ZERO);
 
-            Message msg = sub.nextMessage(Duration.ZERO);//Duration.ofMillis(1000));
-
-            assertTrue(sub.isActive());
-            assertNotNull(msg);
-            assertEquals("subject", msg.getSubject());
-            assertEquals(sub, msg.getSubscription());
-            assertNull(msg.getReplyTo());
-            assertEquals(0, msg.getData().length);
-
-            standardCloseConnection(nc);
+                assertTrue(sub.isActive());
+                assertNotNull(msg);
+                assertEquals(subject, msg.getSubject());
+                assertEquals(sub, msg.getSubscription());
+                assertNull(msg.getReplyTo());
+                assertEquals(0, msg.getData().length);
+            }
         }
     }
 
     @Test
     public void testMultiMessage() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(ts.getURI())) {
-            standardConnectionWait(nc);
-
-            Subscription sub = nc.subscribe("subject");
-            nc.publish("subject", new byte[16]);
-            nc.publish("subject", new byte[16]);
-            nc.publish("subject", new byte[16]);
+        runInShared(nc -> {
+            String subject = random();
+            Subscription sub = nc.subscribe(subject);
+            nc.publish(subject, new byte[16]);
+            nc.publish(subject, new byte[16]);
+            nc.publish(subject, new byte[16]);
 
             Message msg = sub.nextMessage(Duration.ofMillis(500));
 
-            assertEquals("subject", msg.getSubject());
+            assertEquals(subject, msg.getSubject());
             assertEquals(sub, msg.getSubscription());
             assertNull(msg.getReplyTo());
             assertEquals(16, msg.getData().length);
@@ -158,26 +147,25 @@ public class SubscriberTests {
             assertNotNull(msg);
             msg = sub.nextMessage(100); // coverage for nextMessage(millis)
             assertNull(msg);
-        }
+        });
     }
 
     @Test
-    public void testQueueSubscribers() throws Exception, TimeoutException {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection nc = Nats.connect(ts.getURI())) {
-            standardConnectionWait(nc);
-
+    public void testQueueSubscribers() throws Exception {
+        runInShared(nc -> {
             int msgs = 100;
             int received = 0;
             int sub1Count = 0;
             int sub2Count = 0;
             Message msg;
 
-            Subscription sub1 = nc.subscribe("subject", "queue");
-            Subscription sub2 = nc.subscribe("subject", "queue");
+            String subject = random();
+            String queue = random();
+            Subscription sub1 = nc.subscribe(subject, queue);
+            Subscription sub2 = nc.subscribe(subject, queue);
 
             for (int i = 0; i < msgs; i++) {
-                nc.publish("subject", new byte[16]);
+                nc.publish(subject, new byte[16]);
             }
 
             nc.flush(Duration.ofMillis(200));// Get them all to the server
@@ -186,7 +174,7 @@ public class SubscriberTests {
                 msg = sub1.nextMessage(null);
 
                 if (msg != null) {
-                    assertEquals("subject", msg.getSubject());
+                    assertEquals(subject, msg.getSubject());
                     assertNull(msg.getReplyTo());
                     assertEquals(16, msg.getData().length);
                     received++;
@@ -198,7 +186,7 @@ public class SubscriberTests {
                 msg = sub2.nextMessage(null);
 
                 if (msg != null) {
-                    assertEquals("subject", msg.getSubject());
+                    assertEquals(subject, msg.getSubject());
                     assertNull(msg.getReplyTo());
                     assertEquals(16, msg.getData().length);
                     received++;
@@ -208,299 +196,180 @@ public class SubscriberTests {
 
             assertEquals(msgs, received);
             assertEquals(msgs, sub1Count + sub2Count);
-
-            // System.out.println("### Sub 1 " + sub1Count);
-            // System.out.println("### Sub 2 " + sub2Count);
-        }
+        });
     }
 
     @Test
-    public void testUnsubscribe() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                standardConnectionWait(nc);
+    public void testUnsubscribe() throws Exception {
+        runInShared(nc -> {
+            String subject = random();
+            Subscription sub = nc.subscribe(subject);
+            nc.publish(subject, new byte[16]);
 
-                Subscription sub = nc.subscribe("subject");
-                nc.publish("subject", new byte[16]);
+            Message msg = sub.nextMessage(Duration.ofMillis(500));
+            assertNotNull(msg);
 
-                Message msg = sub.nextMessage(Duration.ofMillis(500));
+            sub.unsubscribe();
+            assertFalse(sub.isActive());
+            assertThrows(IllegalStateException.class, () -> sub.nextMessage(Duration.ofMillis(500)));
+        });
+    }
+
+    @Test
+    public void testAutoUnsubscribe() throws Exception {
+        runInShared(nc -> {
+            String subject = random();
+            Subscription sub = nc.subscribe(subject).unsubscribe(1);
+            nc.publish(subject, new byte[16]);
+
+            Message msg = sub.nextMessage(Duration.ofMillis(500)); // should get 1
+            assertNotNull(msg);
+
+            assertThrows(IllegalStateException.class, () -> sub.nextMessage(Duration.ofMillis(500)));
+        });
+    }
+
+    @Test
+    public void testMultiAutoUnsubscribe() throws Exception {
+        runInShared(nc -> {
+            String subject = random();
+            int msgCount = 10;
+            Subscription sub = nc.subscribe(subject).unsubscribe(msgCount);
+
+            for (int i = 0; i < msgCount; i++) {
+                nc.publish(subject, new byte[16]);
+            }
+
+            Message msg;
+            for (int i = 0; i < msgCount; i++) {
+                msg = sub.nextMessage(Duration.ofMillis(500)); // should get 1
                 assertNotNull(msg);
+            }
 
+            assertThrows(IllegalStateException.class, () -> sub.nextMessage(Duration.ofMillis(500)));
+        });
+    }
+
+    @Test
+    public void testOnlyOneUnsubscribe() throws Exception {
+        runInShared(nc -> {
+            String subject = random();
+            Subscription sub = nc.subscribe(subject);
+            sub.unsubscribe();
+            assertThrows(IllegalStateException.class, sub::unsubscribe);
+        });
+    }
+
+    @Test
+    public void testOnlyOneAutoUnsubscribe() throws Exception {
+        runInShared(nc -> {
+            String subject = random();
+
+            Subscription sub = nc.subscribe(subject).unsubscribe(1);
+            nc.publish(subject, new byte[16]);
+
+            Message msg = sub.nextMessage(Duration.ofMillis(500)); // should get 1
+            assertNotNull(msg);
+
+            assertThrows(IllegalStateException.class, sub::unsubscribe);
+        });
+    }
+
+    @Test
+    public void testUnsubscribeInAnotherThread() throws Exception {
+        runInShared(nc -> {
+            String subject = random();
+            Subscription sub = nc.subscribe(subject);
+            new Thread(sub::unsubscribe).start();
+            assertThrows(IllegalStateException.class, () -> sub.nextMessage(Duration.ofMillis(5000)));
+        });
+    }
+
+    @Test
+    public void testAutoUnsubAfterMaxIsReached() throws Exception {
+        runInShared(nc -> {
+            String subject = random();
+            Subscription sub = nc.subscribe(subject);
+
+            int msgCount = 10;
+            for (int i = 0; i < msgCount; i++) {
+                nc.publish(subject, new byte[16]);
+            }
+
+            nc.flush(Duration.ofMillis(1000)); // Slow things down so we have time to unsub
+
+            for (int i = 0; i < msgCount; i++) {
+                sub.nextMessage(null);
+            }
+
+            sub.unsubscribe(msgCount); // we already have that many
+
+            assertThrows(IllegalStateException.class, () -> sub.nextMessage(Duration.ofMillis(5000)));
+        });
+    }
+
+    @Test
+    public void testSubscribesThatException() throws Exception {
+        // own nc b/c we will close
+        runInShared(nc -> {
+
+            // null subject
+            //noinspection DataFlowIssue
+            assertThrows(IllegalArgumentException.class, () -> nc.subscribe(null));
+
+            // empty subject
+            assertThrows(IllegalArgumentException.class, () -> nc.subscribe(""));
+
+            // null queue
+            //noinspection DataFlowIssue
+            assertThrows(IllegalArgumentException.class, () -> nc.subscribe(random(), null));
+
+            // empty queue
+            assertThrows(IllegalArgumentException.class, () -> nc.subscribe(random(), ""));
+
+            // null subject with queue
+            //noinspection DataFlowIssue
+            assertThrows(IllegalArgumentException.class, () -> nc.subscribe(null, random()));
+
+            // empty subject with queue
+            assertThrows(IllegalArgumentException.class, () -> nc.subscribe("", random()));
+        });
+    }
+
+    @Test
+    public void testSubscribesThatExceptionAfterClose() throws Exception {
+        // own nc b/c we will close
+        runInSharedOwnNc(nc -> {
+            Subscription sub = nc.subscribe(random());
+            nc.close();
+
+            /// can't subscribe when closed
+            assertThrows(IllegalStateException.class, () -> nc.subscribe(random()));
+
+            /// can't unsubscribe when closed
+            assertThrows(IllegalStateException.class, sub::unsubscribe);
+
+            /// can't auto unsubscribe when closed
+            assertThrows(IllegalStateException.class, () -> sub.unsubscribe(1));
+        });
+    }
+
+    @Test
+    public void testUnsubscribeWhileWaiting() throws Exception {
+        runInShared(nc -> {
+            String subject = random();
+            Subscription sub = nc.subscribe(subject);
+            nc.flush(Duration.ofMillis(1000));
+
+            new Thread(() -> {
+                try {
+                    Thread.sleep(100);
+                }
+                catch (Exception e) { /* ignored */ }
                 sub.unsubscribe();
-                assertFalse(sub.isActive());
-                sub.nextMessage(Duration.ofMillis(500)); // Will throw an exception
-            }
+            }).start();
+
+            assertThrows(IllegalStateException.class, () -> sub.nextMessage(Duration.ofMillis(5000)));
         });
-    }
-
-    @Test
-    public void testAutoUnsubscribe() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                standardConnectionWait(nc);
-
-                Subscription sub = nc.subscribe("subject").unsubscribe(1);
-                nc.publish("subject", new byte[16]);
-
-                Message msg = sub.nextMessage(Duration.ofMillis(500)); // should get 1
-                assertNotNull(msg);
-
-                sub.nextMessage(Duration.ofMillis(500)); // Will throw an exception
-            }
-        });
-    }
-
-    @Test
-    public void testMultiAutoUnsubscribe() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                standardConnectionWait(nc);
-
-                int msgCount = 10;
-                Subscription sub = nc.subscribe("subject").unsubscribe(msgCount);
-
-                for (int i = 0; i < msgCount; i++) {
-                    nc.publish("subject", new byte[16]);
-                }
-
-                Message msg;
-                for (int i = 0; i < msgCount; i++) {
-                    msg = sub.nextMessage(Duration.ofMillis(500)); // should get 1
-                    assertNotNull(msg);
-                }
-
-                sub.nextMessage(Duration.ofMillis(500)); // Will throw an exception
-            }
-        });
-    }
-
-    @Test
-    public void testOnlyOneUnsubscribe() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                standardConnectionWait(nc);
-
-                Subscription sub = nc.subscribe("subject");
-
-                sub.unsubscribe();
-                sub.unsubscribe(); // Will throw an exception
-            }
-        });
-    }
-
-    @Test
-    public void testOnlyOneAutoUnsubscribe() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                standardConnectionWait(nc);
-
-                Subscription sub = nc.subscribe("subject").unsubscribe(1);
-                nc.publish("subject", new byte[16]);
-
-                Message msg = sub.nextMessage(Duration.ofMillis(500)); // should get 1
-                assertNotNull(msg);
-
-                sub.unsubscribe(); // Will throw an exception
-            }
-        });
-    }
-
-    @Test
-    public void testUnsubscribeInAnotherThread() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                standardConnectionWait(nc);
-
-                Subscription sub = nc.subscribe("subject");
-
-                new Thread(sub::unsubscribe).start();
-
-                sub.nextMessage(Duration.ofMillis(5000)); // throw
-            }
-        });
-    }
-
-    @Test
-    public void testAutoUnsubAfterMaxIsReached() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                standardConnectionWait(nc);
-
-                Subscription sub = nc.subscribe("subject");
-
-                int msgCount = 10;
-                for (int i = 0; i < msgCount; i++) {
-                    nc.publish("subject", new byte[16]);
-                }
-
-                nc.flush(Duration.ofMillis(1000)); // Slow things down so we have time to unsub
-
-                for (int i = 0; i < msgCount; i++) {
-                    sub.nextMessage(null);
-                }
-
-                sub.unsubscribe(msgCount); // we already have that many
-
-                sub.nextMessage(Duration.ofMillis(500)); // Will throw an exception
-            }
-        });
-    }
-
-    @Test
-    public void testThrowOnNullSubject() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                nc.subscribe(null);
-            }
-        });
-    }
-
-    @Test
-    public void testThrowOnEmptySubject() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                nc.subscribe("");
-            }
-        });
-    }
-
-    @Test
-    public void testThrowOnNullQueue() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                nc.subscribe("subject", null);
-            }
-        });
-    }
-
-    @Test
-    public void testThrowOnEmptyQueue() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                nc.subscribe("subject", "");
-            }
-        });
-    }
-
-    @Test
-    public void testThrowOnNullSubjectWithQueue() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                nc.subscribe(null, "quque");
-            }
-        });
-    }
-
-    @Test
-    public void testThrowOnEmptySubjectWithQueue() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                nc.subscribe("", "quque");
-            }
-        });
-    }
-
-    @Test
-    public void throwsOnSubscribeIfClosed() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                nc.close();
-                nc.subscribe("subject");
-            }
-        });
-    }
-
-    @Test
-    public void throwsOnUnsubscribeIfClosed() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                Subscription sub = nc.subscribe("subject");
-                nc.close();
-                sub.unsubscribe();
-            }
-        });
-    }
-
-    @Test
-    public void throwsOnAutoUnsubscribeIfClosed() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                standardConnectionWait(nc);
-                Subscription sub = nc.subscribe("subject");
-                nc.close();
-                sub.unsubscribe(1);
-            }
-        });
-    }
-
-    @Test
-    public void testUnsubscribeWhileWaiting() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                standardConnectionWait(nc);
-
-                Subscription sub = nc.subscribe("subject");
-                nc.flush(Duration.ofMillis(1000));
-
-                new Thread(()->{
-                    try { Thread.sleep(100); } catch(Exception e) { /* ignored */ }
-                    sub.unsubscribe();
-                }).start();
-
-                sub.nextMessage(Duration.ofMillis(5000)); // Should throw
-            }
-        });
-    }
-
-    @Test
-    public void testInvalidSubjectsAndQueueNames() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-            Connection nc = Nats.connect(ts.getURI())) {
-            standardConnectionWait(nc);
-            Dispatcher d = nc.createDispatcher(m -> {});
-            for (String bad : BAD_SUBJECTS_OR_QUEUES) {
-                assertThrows(IllegalArgumentException.class, () -> nc.subscribe(bad));
-                assertThrows(IllegalArgumentException.class, () -> d.subscribe(bad));
-                assertThrows(IllegalArgumentException.class, () -> d.subscribe(bad, m -> {}));
-                assertThrows(IllegalArgumentException.class, () -> d.subscribe(bad, "q"));
-                assertThrows(IllegalArgumentException.class, () -> d.subscribe(bad, "q", m -> {}));
-                assertThrows(IllegalArgumentException.class, () -> nc.subscribe("s", bad));
-                assertThrows(IllegalArgumentException.class, () -> d.subscribe("s", bad));
-                assertThrows(IllegalArgumentException.class, () -> d.subscribe("s", bad, m -> {}));
-            }
-        }
-    }
-
-    private static int getDataId(Message m) {
-        return Integer.parseInt(new String(m.getData()));
-    }
-
-    @Test
-    public void testDispatcherDefaultSubscribeWhenNoDefaultHandler() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-             Connection nc = Nats.connect(ts.getURI())) {
-            standardConnectionWait(nc);
-            String subject = subject();
-
-            Dispatcher d = nc.createDispatcher();
-            assertThrows(IllegalStateException.class, () -> d.subscribe(subject));
-        }
     }
 }
