@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.Message;
 import io.nats.client.ReadListener;
 import io.nats.client.support.IncomingHeadersProcessor;
 
@@ -102,7 +103,24 @@ class NatsConnectionReader implements Runnable {
         this.bufferPosition = 0;
 
         this.utf8Mode = connection.getOptions().supportUTF8Subjects();
-        readListener = connection.getOptions().getReadListener();
+
+        final ReadListener rl = connection.getOptions().getReadListener();
+        if (rl == null) {
+            readListener = new ReadListener() {};
+        }
+        else {
+            readListener = new ReadListener() {
+                @Override
+                public void protocol(String op, String text) {
+                    connection.makeCallback(() -> rl.protocol(op, text));
+                }
+
+                @Override
+                public void message(String op, Message message) {
+                    connection.makeCallback(() -> rl.message(op, message));
+                }
+            };
+        }
     }
 
     // Should only be called if the current thread has exited.
@@ -368,9 +386,7 @@ class NatsConnectionReader implements Runnable {
                         incoming.setData(msgData);
                         NatsMessage m = incoming.getMessage();
                         this.connection.deliverMessage(m);
-                        if (readListener != null) {
-                            readListener.message(op.text, m);
-                        }
+                        readListener.message(op, m);
                         msgData = null;
                         msgDataPosition = 0;
                         incoming = null;
@@ -581,44 +597,34 @@ class NatsConnectionReader implements Runnable {
                     break;
                 case OK:
                     this.connection.processOK();
-                    if (readListener != null) {
-                        readListener.protocol(op.text, null);
-                    }
-                    this.op = Op.UNKNOWN;
+                    readListener.protocol(op, null);
+                    this.op = UNKNOWN_OP;
                     this.mode = Mode.GATHER_OP;
                     break;
                 case ERR:
                     String errorText = StandardCharsets.UTF_8.decode(protocolBuffer).toString().replace("'", "");
                     this.connection.processError(errorText);
-                    if (readListener != null) {
-                        readListener.protocol(op.text, errorText);
-                    }
-                    this.op = Op.UNKNOWN;
+                    readListener.protocol(op, errorText);
+                    this.op = UNKNOWN_OP;
                     this.mode = Mode.GATHER_OP;
                     break;
-                case PING:
+                case OP_PING:
+                    readListener.protocol(op, null);
                     this.connection.sendPong();
-                    if (readListener != null) {
-                        readListener.protocol(op.text, null);
-                    }
-                    this.op = Op.UNKNOWN;
+                    this.op = UNKNOWN_OP;
                     this.mode = Mode.GATHER_OP;
                     break;
-                case PONG:
+                case OP_PONG:
+                    readListener.protocol(op, null);
                     this.connection.handlePong();
-                    if (readListener != null) {
-                        readListener.protocol(op.text, null);
-                    }
-                    this.op = Op.UNKNOWN;
+                    this.op = UNKNOWN_OP;
                     this.mode = Mode.GATHER_OP;
                     break;
                 case INFO:
                     String info = StandardCharsets.UTF_8.decode(protocolBuffer).toString();
                     this.connection.handleInfo(info);
-                    if (readListener != null) {
-                        readListener.protocol(op.text, info);
-                    }
-                    this.op = Op.UNKNOWN;
+                    readListener.protocol(op, null);
+                    this.op = UNKNOWN_OP;
                     this.mode = Mode.GATHER_OP;
                     break;
                 default:
