@@ -24,12 +24,12 @@ public interface ReadListener {
      * @param op the protocol operation
      * @param text the text associated with the protocol if there is any. May be null
      */
-    void protocol(String op, String text);
+    default void protocol(String op, String text) {};
 
     /**
      * Called when the message is any non-protocol message
      * @param op the message operation
      * @param message the actual message
      */
-    void message(String op, Message message);
+    default void message(String op, Message message) {};
 }
