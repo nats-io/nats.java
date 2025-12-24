@@ -38,7 +38,7 @@ class NatsConnectionReader implements Runnable {
         PARSE_PROTO,
         GATHER_HEADERS,
         GATHER_DATA
-    };
+    }
 
     private final NatsConnection connection;
 
@@ -240,8 +240,9 @@ class NatsConnectionReader implements Runnable {
                     this.opPos++;
                 }
             }
-        } catch (ArrayIndexOutOfBoundsException | IllegalStateException | NumberFormatException | NullPointerException ex) {
-            this.encounteredProtocolError(ex);
+        }
+        catch (ArrayIndexOutOfBoundsException | IllegalStateException | NumberFormatException | NullPointerException ex) {
+            throw new IOException("Gather Operation", ex);
         }
     }
 
@@ -270,8 +271,9 @@ class NatsConnectionReader implements Runnable {
                     this.msgLinePosition++;
                 }
             }
-        } catch (IllegalStateException | NumberFormatException | NullPointerException ex) {
-            this.encounteredProtocolError(ex);
+        }
+        catch (IllegalStateException | NumberFormatException | NullPointerException ex) {
+            throw new IOException("Gather Message", ex);
         }
     }
 
@@ -301,8 +303,9 @@ class NatsConnectionReader implements Runnable {
                     this.protocolBuffer.put(b);
                 }
             }
-        } catch (IllegalStateException | NumberFormatException | NullPointerException ex) {
-            this.encounteredProtocolError(ex);
+        }
+        catch (IllegalStateException | NumberFormatException | NullPointerException ex) {
+            throw new IOException("Gather Protocol", ex);
         }
     }
 
@@ -335,8 +338,9 @@ class NatsConnectionReader implements Runnable {
                     throw new IllegalStateException("Bad socket data, headers do not match expected length");
                 }
             }
-        } catch (IllegalStateException | NullPointerException ex) {
-            this.encounteredProtocolError(ex);
+        }
+        catch (IllegalStateException | NullPointerException ex) {
+            throw new IOException("Gather Header", ex);
         }
     }
 
@@ -386,8 +390,9 @@ class NatsConnectionReader implements Runnable {
                     throw new IllegalStateException("Bad socket data, no CRLF after data");
                 }
             }
-        } catch (IllegalStateException | NullPointerException ex) {
-            this.encounteredProtocolError(ex);
+        }
+        catch (IllegalStateException | NullPointerException ex) {
+            throw new IOException("Gather Message Data", ex);
         }
     }
 
@@ -500,7 +505,7 @@ class NatsConnectionReader implements Runnable {
                     String subject = grabNextMessageLineElement(protocolLength);
                     String sid = grabNextMessageLineElement(protocolLength);
                     String replyTo = grabNextMessageLineElement(protocolLength);
-                    String lengthChars = null;
+                    String lengthChars;
 
                     if (this.msgLinePosition < protocolLength) {
                         lengthChars = grabNextMessageLineElement(protocolLength);
@@ -540,15 +545,16 @@ class NatsConnectionReader implements Runnable {
                     String hdrLenOrTotLen = grabNextMessageLineElement(hProtocolLength);
 
                     String hReplyTo = null;
-                    int hdrLen = -1;
-                    int totLen = -1;
+                    int hdrLen;
+                    int totLen;
 
                     // if there is more it must be replyTo hdrLen totLen instead of just hdrLen totLen
                     if (this.msgLinePosition < hProtocolLength) {
                         hReplyTo = replyToOrHdrLen;
                         hdrLen = parseLength(hdrLenOrTotLen);
                         totLen = parseLength(grabNextMessageLineElement(hProtocolLength));
-                    } else {
+                    }
+                    else {
                         hdrLen = parseLength(replyToOrHdrLen);
                         totLen = parseLength(hdrLenOrTotLen);
                     }
@@ -600,14 +606,10 @@ class NatsConnectionReader implements Runnable {
                 default:
                     throw new IllegalStateException("Unknown protocol operation "+op);
             }
-
-        } catch (IllegalStateException | NumberFormatException | NullPointerException ex) {
-            this.encounteredProtocolError(ex);
         }
-    }
-
-    void encounteredProtocolError(Exception ex) throws IOException {
-        throw new IOException(ex);
+        catch (IllegalStateException | NumberFormatException | NullPointerException ex) {
+            throw new IOException("Parse Protocol OP_" + op, ex);
+        }
     }
 
     //For testing
