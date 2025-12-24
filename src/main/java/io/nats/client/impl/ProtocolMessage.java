@@ -28,12 +28,12 @@ class ProtocolMessage extends NatsPublishableMessage {
         this.filterOnStop = filterOnStop;
     }
 
-    ProtocolMessage(byte[] protocol) {
-        this(new ByteArrayBuilder(protocol), true);
+    ProtocolMessage(ByteArrayBuilder babProtoco) {
+        this(babProtoco, true);
     }
 
-    ProtocolMessage(byte[] protocol, boolean filterOnStop) {
-        this(new ByteArrayBuilder(protocol), filterOnStop);
+    ProtocolMessage(byte[] protocol) {
+        this(new ByteArrayBuilder(protocol), true);
     }
 
     ProtocolMessage(ProtocolMessage pm) {
@@ -46,7 +46,7 @@ class ProtocolMessage extends NatsPublishableMessage {
     }
 
     @Override
-    boolean isProtocolFilterOnStop() {
+    boolean isFilterOnStop() {
         return filterOnStop;
     }
 
