@@ -44,11 +44,11 @@ public class MessageQueueTests {
         }
     }
 
-    private static WriterMessageQueue getWriterMessageQueue() {
-        return getWriterMessageQueue(-1);
+    private static WriterMessageQueue newWriterMessageQueue() {
+        return newWriterMessageQueue(-1);
     }
 
-    private static WriterMessageQueue getWriterMessageQueue(int maxMessagesInOutgoingQueue) {
+    private static WriterMessageQueue newWriterMessageQueue(int maxMessagesInOutgoingQueue) {
         return new WriterMessageQueue(maxMessagesInOutgoingQueue, false, Duration.ofMillis(500));
     }
 
@@ -133,7 +133,7 @@ public class MessageQueueTests {
 
     @Test
     public void testMultipleWriters() throws InterruptedException {
-        WriterMessageQueue q = getWriterMessageQueue();
+        WriterMessageQueue q = newWriterMessageQueue();
         Thread[] threads = new Thread[10];
         for (int i = 0; i < 10; i++) {
             threads[i] = new Thread(() -> {
@@ -215,7 +215,7 @@ public class MessageQueueTests {
 
     @Test
     public void testAccumulate() throws InterruptedException {
-        WriterMessageQueue q = getWriterMessageQueue();
+        WriterMessageQueue q = newWriterMessageQueue();
         validateAccumulate(0, q.accumulate(-1, 10, null));
 
         NatsMessage expected1 = getTestMessage();
@@ -231,7 +231,7 @@ public class MessageQueueTests {
 
     @Test
     public void testAccumulateLimitCount() throws InterruptedException {
-        WriterMessageQueue q = getWriterMessageQueue();
+        WriterMessageQueue q = newWriterMessageQueue();
         pushTestMessages(q, 7);
         long maxBytesToAccumulate = TEST_MESSAGE_BYTES * 10;
         validateAccumulate(3, q.accumulate(maxBytesToAccumulate, 3, null));
@@ -241,7 +241,7 @@ public class MessageQueueTests {
 
     @Test
     public void testAccumulateLimitBytes() throws InterruptedException {
-        WriterMessageQueue q = getWriterMessageQueue();
+        WriterMessageQueue q = newWriterMessageQueue();
         pushTestMessages(q, 7);
         long maxBytesToAccumulate = TEST_MESSAGE_BYTES * 4 - 1;
         validateAccumulate(3, q.accumulate(maxBytesToAccumulate, 100, null));
@@ -251,7 +251,7 @@ public class MessageQueueTests {
 
     @Test
     public void testLength() throws InterruptedException {
-        WriterMessageQueue q = getWriterMessageQueue();
+        WriterMessageQueue q = newWriterMessageQueue();
         NatsMessage msg1 = getTestMessage();
         NatsMessage msg2 = getTestMessage();
         NatsMessage msg3 = getTestMessage();
@@ -270,7 +270,7 @@ public class MessageQueueTests {
 
     @Test
     public void testSizeInBytes() throws InterruptedException {
-        WriterMessageQueue q = getWriterMessageQueue();
+        WriterMessageQueue q = newWriterMessageQueue();
         NatsMessage msg1 = getTestMessage();
         NatsMessage msg2 = getTestMessage();
         NatsMessage msg3 = getTestMessage();
@@ -304,7 +304,7 @@ public class MessageQueueTests {
         long sizeM = test.getSizeInBytes();
         long sizeP = proto.getSizeInBytes();
 
-        WriterMessageQueue q = getWriterMessageQueue();
+        WriterMessageQueue q = newWriterMessageQueue();
         q.push(test);
         q.push(proto);
         q.queueMarkerMessage(marker);
@@ -355,7 +355,7 @@ public class MessageQueueTests {
         long sizeAll = size1 + size2 + size3;
         long sizeAfter = filtered == 1 ? size2 + size3 : size1 * 2;
 
-        WriterMessageQueue q = getWriterMessageQueue();
+        WriterMessageQueue q = newWriterMessageQueue();
         q.push(msg1);
         q.push(msg2);
         q.push(msg3);
@@ -386,7 +386,7 @@ public class MessageQueueTests {
 
     @Test
     public void testPausedAccumulate() throws InterruptedException {
-        WriterMessageQueue q = getWriterMessageQueue();
+        WriterMessageQueue q = newWriterMessageQueue();
         q.pause();
         NatsMessage msg = q.accumulate(1, 1, null);
         assertNull(msg);
@@ -394,7 +394,7 @@ public class MessageQueueTests {
 
     @Test
     public void testExceptionWhenQueueIsFull() {
-        WriterMessageQueue q = getWriterMessageQueue(2);
+        WriterMessageQueue q = newWriterMessageQueue(2);
         NatsMessage msg1 = getTestMessage();
         NatsMessage msg2 = getTestMessage();
         NatsMessage msg3 = getTestMessage();
@@ -443,7 +443,7 @@ public class MessageQueueTests {
 
     @Test
     public void testClear() throws InterruptedException {
-        WriterMessageQueue q = getWriterMessageQueue();
+        WriterMessageQueue q = newWriterMessageQueue();
         NatsMessage msg = getTestMessage();
 
         assertTrue(q.push(msg));
@@ -459,7 +459,7 @@ public class MessageQueueTests {
 
     @Test
     public void testStateWriter() throws InterruptedException {
-        WriterMessageQueue q = getWriterMessageQueue();
+        WriterMessageQueue q = newWriterMessageQueue();
         q.push(getTestMessage());
         assertTrue(q.isRunning());
         assertFalse(q.isPaused());

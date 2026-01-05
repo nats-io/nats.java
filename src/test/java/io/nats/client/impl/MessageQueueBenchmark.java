@@ -13,15 +13,13 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.Options;
-
 import java.text.NumberFormat;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
+import static io.nats.client.Options.DEFAULT_WRITE_QUEUE_PUSH_TIMEOUT;
+
 public class MessageQueueBenchmark {
-    static final Duration OFFER_LOCK_WAIT = Options.DEFAULT_QUEUE_OFFER_LOCK_WAIT;
-    
     public static void main(String[] args) throws InterruptedException {
         int msgCount = 10_000_000;
         NatsMessage[] msgs = new NatsMessage[msgCount];
@@ -65,7 +63,7 @@ public class MessageQueueBenchmark {
         System.out.printf("\tor %s op/s\n",
                 NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
 
-        WriterMessageQueue accumulateQueue = new WriterMessageQueue(-1, false, OFFER_LOCK_WAIT);
+        WriterMessageQueue accumulateQueue = new WriterMessageQueue(DEFAULT_WRITE_QUEUE_PUSH_TIMEOUT);
         for (int j = 0; j < msgCount; j++) {
             msgs[j].next = null;
         }
@@ -175,7 +173,7 @@ public class MessageQueueBenchmark {
             msgs[j].next = null;
         }
 
-        WriterMessageQueue pushAccumulateThreadQueue = new WriterMessageQueue(-1, false, OFFER_LOCK_WAIT);
+        WriterMessageQueue pushAccumulateThreadQueue = new WriterMessageQueue(DEFAULT_WRITE_QUEUE_PUSH_TIMEOUT);
         pusher = new Thread(() -> {
             try {
                 go3.get();

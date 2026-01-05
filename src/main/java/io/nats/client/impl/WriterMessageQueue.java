@@ -21,28 +21,29 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static io.nats.client.Options.MINIMUM_WRITE_QUEUE_PUSH_TIMEOUT;
 import static io.nats.client.impl.MarkerMessage.POISON_PILL;
-import static io.nats.client.support.NatsConstants.*;
+import static io.nats.client.support.NatsConstants.OUTPUT_QUEUE_BUSY;
+import static io.nats.client.support.NatsConstants.OUTPUT_QUEUE_IS_FULL;
 
 class WriterMessageQueue extends MessageQueueBase {
-    protected static final long MIN_OFFER_TIMEOUT_NANOS = 100 * NANOS_PER_MILLI;
+    protected static final long MIN_PUSH_TIMEOUT_NANOS = MINIMUM_WRITE_QUEUE_PUSH_TIMEOUT.toNanos();
 
     protected final int maxMessagesInOutgoingQueue;
     protected final boolean discardWhenFull;
     protected final Lock editLock;
-    protected final long offerLockNanos;
-    protected final long offerTimeoutNanos;
-    protected final Duration offerLockWait;
+    protected final long pushTimeoutNanos;
 
-    WriterMessageQueue(int maxMessagesInOutgoingQueue, boolean discardWhenFull, Duration offerLockWait) {
+    WriterMessageQueue(Duration pushTimeout) {
+        this(-1, false, pushTimeout);
+    }
+
+    WriterMessageQueue(int maxMessagesInOutgoingQueue, boolean discardWhenFull, Duration pushTimeout) {
         super(maxMessagesInOutgoingQueue);
         this.maxMessagesInOutgoingQueue = queueCapacity;
         this.discardWhenFull = discardWhenFull;
-        this.offerLockNanos = offerLockWait.toNanos();
-        this.offerTimeoutNanos = Math.max(MIN_OFFER_TIMEOUT_NANOS, offerLockWait.toMillis() * NANOS_PER_MILLI * 95 / 100) ;
-
+        this.pushTimeoutNanos = Math.max(MIN_PUSH_TIMEOUT_NANOS, pushTimeout.toNanos());
         this.editLock = new ReentrantLock();
-        this.offerLockWait = offerLockWait;
     }
 
     boolean push(NatsMessage msg) {
@@ -52,48 +53,22 @@ class WriterMessageQueue extends MessageQueueBase {
     boolean push(NatsMessage msg, boolean internal) {
         try {
             long startNanos = NatsSystemClock.nanoTime();
-            /*
-                This was essentially a Head-Of-Line blocking problem.
-
-                So the crux of the problem was that many threads were waiting to push a message to the queue.
-                They all waited for the lock and once they had the lock they waited 5 seconds (4750 millis actually)
-                only to find out the queue was full. They released the lock, so then another thread acquired the lock,
-                and waited 5 seconds. So instead of being parallel, all these threads had to wait in line
-                200 * 4750 = 15.8 minutes
-
-                So what I did was try to acquire the lock but only wait 5 seconds.
-                If I could not acquire the lock, then I assumed that this means that we are in this exact situation,
-                another thread can't add b/c the queue is full, and so there is no point in even trying, so just throw the queue full exception.
-
-                If I did acquire the lock, I deducted the time spent waiting for the lock from the time allowed to try to add.
-                I took the max of that or 100 millis to try to add to the queue.
-                This ensures that the max total time each thread can take is 5100 millis in parallel.
-
-                Notes: The 5 seconds and the 4750 seconds is derived from the Options offerLockWait, which defaults to 5 seconds and can be modified.
-                The 4750 is 95% of that time. The MIN_OFFER_TIMEOUT_NANOS 100 ms minimum is arbitrary.
-             */
-            if (editLock.tryLock(offerLockNanos, TimeUnit.NANOSECONDS)) {
+            if (editLock.tryLock(pushTimeoutNanos, TimeUnit.NANOSECONDS)) {
                 try {
-                    // offer with no timeout returns true if the queue was not full
+                    long timeoutNanosLeft = Math.max(
+                        MIN_PUSH_TIMEOUT_NANOS,
+                        pushTimeoutNanos - (NatsSystemClock.nanoTime() - startNanos)
+                    );
+                   if (queue.offer(msg, timeoutNanosLeft, TimeUnit.NANOSECONDS)) {
+                        sizeInBytes.getAndAdd(msg.getSizeInBytes());
+                        length.incrementAndGet();
+                        return true;
+                    }
+                    // internal or !discardWhenFull throws instead of returns
                     if (!internal && discardWhenFull) {
-                        if (queue.offer(msg)) {
-                            sizeInBytes.getAndAdd(msg.getSizeInBytes());
-                            length.incrementAndGet();
-                            return true;
-                        }
                         return false;
                     }
-
-                    long timeoutNanosLeft = Math.max(MIN_OFFER_TIMEOUT_NANOS, offerTimeoutNanos - (NatsSystemClock.nanoTime() - startNanos));
-
-                    // offer with timeout
-                    if (!queue.offer(msg, timeoutNanosLeft, TimeUnit.NANOSECONDS)) {
-                        throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
-                    }
-                    sizeInBytes.getAndAdd(msg.getSizeInBytes());
-                    length.incrementAndGet();
-                    return true;
-
+                    throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
                 }
                 finally {
                     editLock.unlock();
@@ -203,11 +178,11 @@ class WriterMessageQueue extends MessageQueueBase {
     }
 
     void filter() {
+        if (this.isRunning()) {
+            throw new IllegalStateException("Filter is only supported when the queue is paused");
+        }
         editLock.lock();
         try {
-            if (this.isRunning()) {
-                throw new IllegalStateException("Filter is only supported when the queue is paused");
-            }
             ArrayList<NatsMessage> temp = new ArrayList<>();
             queue.drainTo(temp);
             for (NatsMessage cursor : temp) {
@@ -216,7 +191,7 @@ class WriterMessageQueue extends MessageQueueBase {
                     length.decrementAndGet();
                 }
                 else {
-                    queue.add(cursor);
+                    queue.offer(cursor);
                 }
             }
         }

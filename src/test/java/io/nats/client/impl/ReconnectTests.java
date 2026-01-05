@@ -852,6 +852,7 @@ public class ReconnectTests {
         Options options = Options.builder()
             .server(getNatsLocalhostUri(port))
             .connectionListener(listener)
+            .errorListener(new ErrorListener() {})
             .dataPortType(ForceReconnectQueueCheckDataPort.class.getCanonicalName())
             .build();
 
@@ -862,7 +863,7 @@ public class ReconnectTests {
 
             nc.forceReconnect(froBuilder.build());
 
-            assertTrue(listener.latch.await(subscribeTime, TimeUnit.MILLISECONDS));
+            assertTrue(listener.latch.await(flushWait + subscribeTime, TimeUnit.MILLISECONDS));
 
             long maxTime = subscribeTime;
             while (!subscriber.subscriberDone.get() && maxTime > 0) {
@@ -944,11 +945,12 @@ public class ReconnectTests {
 
     @Test
     public void testSocketDataPortTimeout() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        ListenerForTesting listener = new ListenerForTesting(true, true);
         Options.Builder builder = Options.builder()
             .noRandomize()
             .socketWriteTimeout(5000) // long time ensures we can get to OUTPUT_QUEUE_IS_FULL
-            .pingInterval(Duration.ofSeconds(1))
+            .writeQueuePushTimeout(Duration.ofSeconds(5))
+            .pingInterval(Duration.ofSeconds(100)) // avoid pings messing the test
             .maxMessagesInOutgoingQueue(100)
             .dataPortType(SocketDataPortBlockSimulator.class.getCanonicalName())
             .connectionListener(listener)
@@ -966,11 +968,11 @@ public class ReconnectTests {
                     listener.prepForStatusChange(Events.RECONNECTED);
 
                     String subject = subject();
-                    AtomicInteger pubId = new AtomicInteger();
-                    while (pubId.get() < 50000) {
+                    int pub = 0;
+                    while (++pub < 50000) {
                         try {
-                            nc.publish(subject, ("" + pubId.incrementAndGet()).getBytes());
-                            if (pubId.get() == 10) {
+                            nc.publish(subject, null);
+                            if (pub == 10) {
                                 SocketDataPortBlockSimulator.simulateBlock();
                             }
                         }
@@ -981,7 +983,7 @@ public class ReconnectTests {
                             }
                         }
                     }
-                    assertTrue(listener.waitForStatusChange(10, TimeUnit.SECONDS));
+                    assertTrue(listener.waitForStatusChange(15, TimeUnit.SECONDS));
 
                     assertTrue(gotOutputQueueIsFull.get());
                     assertTrue(listener.getSocketWriteTimeoutCount() > 0);
