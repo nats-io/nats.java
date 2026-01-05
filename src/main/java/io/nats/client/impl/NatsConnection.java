@@ -1136,7 +1136,7 @@ class NatsConnection implements Connection {
         if (after > 0) {
             bab.append(SP).append(after);
         }
-        queueOutgoing(new ProtocolMessage(bab));
+        queueOutgoing(new ProtocolMessage(bab, true));
     }
 
     // Assumes the null/empty checks were handled elsewhere
@@ -1193,7 +1193,7 @@ class NatsConnection implements Connection {
         // if it's an "internal" message, it won't be filtered
         // if it's a normal message, the subscription will already be registered
         // and therefore will be re-subscribed after a stop anyway
-        ProtocolMessage subMsg = new ProtocolMessage(bab);
+        ProtocolMessage subMsg = new ProtocolMessage(bab, true);
         if (treatAsInternal) {
             queueInternalOutgoing(subMsg);
         }
@@ -1730,8 +1730,8 @@ class NatsConnection implements Connection {
     // This constructor "ProtocolMessage(ProtocolMessage pm)" shares the data and size
     // reducing allocation of data for something that is often created and used.
     // These static instances are the ones that are used for copying in sendPing and sendPong
-    private static final ProtocolMessage PING_PROTO = new ProtocolMessage(OP_PING_BYTES);
-    private static final ProtocolMessage PONG_PROTO = new ProtocolMessage(OP_PONG_BYTES);
+    private static final ProtocolMessage PING_PROTO = new ProtocolMessage(OP_PING_BYTES, true);
+    private static final ProtocolMessage PONG_PROTO = new ProtocolMessage(OP_PONG_BYTES, true);
 
     void sendPong() {
         queueInternalOutgoing(new ProtocolMessage(PONG_PROTO));

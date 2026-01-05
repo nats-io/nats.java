@@ -31,7 +31,7 @@ public class MessageQueueBenchmark {
 
         ConsumerMessageQueue warm = new ConsumerMessageQueue();
         for (int j = 0; j < msgCount; j++) {
-            msgs[j] = new ProtocolMessage(warmBytes);
+            msgs[j] = new ProtocolMessage(warmBytes, true);
             warm.push(msgs[j]);
         }
 

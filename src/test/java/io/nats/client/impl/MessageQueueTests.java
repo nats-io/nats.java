@@ -298,7 +298,7 @@ public class MessageQueueTests {
     @Test
     public void testFilteringAndCounting() {
         NatsMessage test = getTestMessage();
-        ProtocolMessage proto = new ProtocolMessage("proto".getBytes());
+        ProtocolMessage proto = new ProtocolMessage("proto".getBytes(), true);
         MarkerMessage marker = new MarkerMessage("marker");
 
         long sizeM = test.getSizeInBytes();
@@ -339,7 +339,7 @@ public class MessageQueueTests {
 
     private static NatsMessage getTestFilteredMessage(String id, final boolean filterOnStop) {
         if (filterOnStop) {
-            return new ProtocolMessage(("customFilter" + id).getBytes());
+            return new ProtocolMessage(("customFilter" + id).getBytes(), true);
         }
         return new NatsMessage("customFilter" + id, null, null);
     }
