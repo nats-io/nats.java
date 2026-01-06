@@ -79,7 +79,7 @@ public class Listener implements ErrorListener, ConnectionListener {
     }
 
     // ----------------------------------------------------------------------------------------------------
-    // Valdiate
+    // Validate
     // ----------------------------------------------------------------------------------------------------
     public void validate() {
         _validate(futures.get(0));

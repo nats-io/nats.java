@@ -36,7 +36,9 @@ import java.util.function.BiConsumer;
 
 import static io.nats.client.AuthTests.getUserCredsAuthHander;
 import static io.nats.client.NatsTestServer.configFileBuilder;
-import static io.nats.client.support.Listener.*;
+import static io.nats.client.support.Listener.LONG_VALIDATE_TIMEOUT;
+import static io.nats.client.support.Listener.VERY_LONG_VALIDATE_TIMEOUT;
+import static io.nats.client.support.NatsConstants.OUTPUT_QUEUE_IS_FULL;
 import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.*;
 import static io.nats.client.utils.TestBase.*;
@@ -894,22 +896,15 @@ public class ReconnectTests {
         Listener listener = new Listener();
         Options.Builder builder = Options.builder()
             .noRandomize()
-            .socketWriteTimeout(5000) // long time vital! to get OUTPUT_QUEUE_IS_FULL
-            .pingInterval(Duration.ofSeconds(1))
+            .socketWriteTimeout(5000) // long time ensures we can get to OUTPUT_QUEUE_IS_FULL
+            .writeQueuePushTimeout(Duration.ofSeconds(5))
+            .pingInterval(Duration.ofSeconds(100)) // avoid pings messing the test
             .maxMessagesInOutgoingQueue(100)
             .dataPortType(SocketDataPortBlockSimulator.class.getCanonicalName())
             .connectionListener(listener)
             .errorListener(listener);
 
-        // 1. The socket port gets blocked, the queue fills up before the socketWriteTimeout()
-        // 2. The socket write times out
-        // 3. That causes a disconnect
-        // 4. Eventually reconnected. Give it a long timeout, it takes a while on GH machine
-        listener.queueException(IllegalStateException.class, "Output queue", MEDIUM_VALIDATE_TIMEOUT);
-        listener.queueSocketWriteTimeout(LONG_VALIDATE_TIMEOUT);
-        listener.queueConnectionEvent(Events.DISCONNECTED);
-        listener.queueConnectionEvent(Events.RECONNECTED, MEDIUM_VALIDATE_TIMEOUT);
-
+        AtomicBoolean gotOutputQueueIsFull = new AtomicBoolean();
         try (NatsTestServer ts1 = new NatsTestServer()) {
             try (NatsTestServer ts2 = new NatsTestServer()) {
                 String[] servers = new String[]{
@@ -918,23 +913,28 @@ public class ReconnectTests {
                 };
                 try (Connection nc = standardConnect(builder.servers(servers).build())) {
                     int connectedPort = nc.getServerInfo().getPort();
+                    listener.queueConnectionEvent(Events.DISCONNECTED, LONG_VALIDATE_TIMEOUT);
+                    listener.queueConnectionEvent(Events.RECONNECTED, LONG_VALIDATE_TIMEOUT);
 
                     String subject = random();
                     int pubId = 0;
-                    while (pubId++ < 1000) {
-                        if (pubId == 10) {
-                            SocketDataPortBlockSimulator.simulateBlock();
-                        }
+                    while (pubId++ < 50000) {
                         try {
                             nc.publish(subject, null);
+                            if (pubId == 10) {
+                                SocketDataPortBlockSimulator.simulateBlock();
+                            }
                         }
-                        catch (IllegalStateException e) {
-                            if (e.getMessage().contains("Output queue")) {
+                        catch (Exception e) {
+                            if (e.getMessage().contains(OUTPUT_QUEUE_IS_FULL)) {
+                                gotOutputQueueIsFull.set(true);
                                 break;
                             }
                         }
                     }
-                    listener.validateAll();
+                    listener.validate();
+                    assertTrue(gotOutputQueueIsFull.get());
+                    assertTrue(listener.getSocketWriteTimeoutCount() > 0);
                     assertNotEquals(connectedPort, nc.getServerInfo().getPort());
                 }
             }
