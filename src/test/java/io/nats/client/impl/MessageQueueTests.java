@@ -19,14 +19,13 @@ import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.support.NatsConstants.OUTPUT_QUEUE_IS_FULL;
-import static io.nats.client.utils.TestBase.sleep;
-import static io.nats.client.utils.TestBase.variant;
+import static io.nats.client.utils.TestBase.random;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class MessageQueueTests {
     private static NatsMessage getTestMessage() {
-        return new NatsMessage(variant(), null, null);
+        return new NatsMessage(random(), null, null);
     }
 
     private static final long TEST_MESSAGE_BYTES = getTestMessage().getSizeInBytes();
