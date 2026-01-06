@@ -155,6 +155,23 @@ public class Options {
     public static final Duration DEFAULT_REQUEST_CLEANUP_INTERVAL = Duration.ofSeconds(5);
 
     /**
+     * Default amount of time to try to add something to the outgoing queue.
+     * This covers the entire time it takes to obtain the lock and
+     * the time allowed to offer the message to the queue before it's determined
+     * that the queue is busy (lock not obtained) or full (offer failed)
+     * For slow publishers, this is plenty of time. For fast publishers,
+     * you may want a larger value and a larger than default maximum queue size
+     * <p>This property is defined as 5 seconds.</p>
+     */
+    public static final Duration DEFAULT_WRITE_QUEUE_PUSH_TIMEOUT = Duration.ofSeconds(2);
+
+    /**
+     * The minimum amount of time to try to add something to the outgoing queue.
+     * <p>This property is defined as 50 milliseconds.</p>
+     */
+    public static final Duration MINIMUM_WRITE_QUEUE_PUSH_TIMEOUT = Duration.ofMillis(50);
+
+    /**
      * Default maximum number of pings have not received a response allowed by the
      * client, {@link #getMaxPingsOut() getMaxPingsOut()}.
      * <p>This property is defined as {@value}</p>
@@ -285,6 +302,11 @@ public class Options {
      * requestCleanupInterval}.
      */
     public static final String PROP_CLEANUP_INTERVAL = PFX + "cleanupinterval";
+    /**
+     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#writeQueuePushTimeout(Duration)
+     * writeQueuePushTimeout}.
+     */
+    public static final String PROP_WRITE_QUEUE_PUSH_TIMEOUT = PFX + "writeQueuePushTimeout";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see
      * {@link Builder#connectionTimeout(Duration) connectionTimeout}.
@@ -692,6 +714,7 @@ public class Options {
     private final int sendBufferSize;
     private final Duration pingInterval;
     private final Duration requestCleanupInterval;
+    private final Duration writeQueuePushTimeout;
     private final int maxPingsOut;
     private final long reconnectBufferSize;
     private final char[] username;
@@ -850,6 +873,7 @@ public class Options {
         private int sendBufferSize = -1;
         private Duration pingInterval = DEFAULT_PING_INTERVAL;
         private Duration requestCleanupInterval = DEFAULT_REQUEST_CLEANUP_INTERVAL;
+        private Duration writeQueuePushTimeout = DEFAULT_WRITE_QUEUE_PUSH_TIMEOUT;
         private int maxPingsOut = DEFAULT_MAX_PINGS_OUT;
         private long reconnectBufferSize = DEFAULT_RECONNECT_BUF_SIZE;
         private char[] username = null;
@@ -1003,6 +1027,7 @@ public class Options {
             intGtEqZeroProperty(props, PROP_MAX_CONTROL_LINE, i -> this.maxControlLine = i);
             durationProperty(props, PROP_PING_INTERVAL, d -> this.pingInterval = d);
             durationProperty(props, PROP_CLEANUP_INTERVAL, d -> this.requestCleanupInterval = d);
+            durationProperty(props, PROP_WRITE_QUEUE_PUSH_TIMEOUT, d -> this.writeQueuePushTimeout = d);
             intProperty(props, PROP_MAX_PINGS, i -> this.maxPingsOut = i);
             booleanProperty(props, PROP_USE_OLD_REQUEST_STYLE, b -> this.useOldRequestStyle = b);
 
@@ -1576,6 +1601,16 @@ public class Options {
          */
         public Builder requestCleanupInterval(Duration time) {
             this.requestCleanupInterval = time;
+            return this;
+        }
+
+        /**
+         * Set the amount of time to wait to acquire the lock and to offer a message to the outgoing message queue
+         * @param time the wait time
+         * @return the Builder for chaining
+         */
+        public Builder writeQueuePushTimeout(Duration time) {
+            this.writeQueuePushTimeout = time;
             return this;
         }
 
@@ -2176,6 +2211,7 @@ public class Options {
             this.sendBufferSize = o.sendBufferSize;
             this.pingInterval = o.pingInterval;
             this.requestCleanupInterval = o.requestCleanupInterval;
+            this.writeQueuePushTimeout = o.writeQueuePushTimeout;
             this.maxPingsOut = o.maxPingsOut;
             this.reconnectBufferSize = o.reconnectBufferSize;
             this.username = o.username;
@@ -2253,6 +2289,7 @@ public class Options {
         this.sendBufferSize = b.sendBufferSize;
         this.pingInterval = b.pingInterval;
         this.requestCleanupInterval = b.requestCleanupInterval;
+        this.writeQueuePushTimeout = b.writeQueuePushTimeout;
         this.maxPingsOut = b.maxPingsOut;
         this.reconnectBufferSize = b.reconnectBufferSize;
         this.username = b.username;
@@ -2849,6 +2886,14 @@ public class Options {
      */
     public Duration getRequestCleanupInterval() {
         return requestCleanupInterval;
+    }
+
+    /**
+     * the write queue push timeout, see {@link Builder#writeQueuePushTimeout(Duration) writeQueuePushTimeout()} in the builder doc
+     * @return the time given to lock and offer a message to the outgoing queue
+     */
+    public Duration getWriteQueuePushTimeout() {
+        return writeQueuePushTimeout;
     }
 
     /**

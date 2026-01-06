@@ -891,7 +891,7 @@ public class ReconnectTests {
 
     @Test
     public void testSocketDataPortTimeout() throws Exception {
-        Listener listener = new Listener(true);
+        Listener listener = new Listener();
         Options.Builder builder = Options.builder()
             .noRandomize()
             .socketWriteTimeout(5000) // long time vital! to get OUTPUT_QUEUE_IS_FULL
