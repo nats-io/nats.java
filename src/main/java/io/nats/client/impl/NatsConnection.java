@@ -1730,8 +1730,8 @@ class NatsConnection implements Connection {
     // This constructor "ProtocolMessage(ProtocolMessage pm)" shares the data and size
     // reducing allocation of data for something that is often created and used.
     // These static instances are the ones that are used for copying in sendPing and sendPong
-    private static final ProtocolMessage PING_PROTO = new ProtocolMessage(OP_PING_BYTES);
-    private static final ProtocolMessage PONG_PROTO = new ProtocolMessage(OP_PONG_BYTES);
+    private static final ProtocolMessage PING_PROTO = new ProtocolMessage(OP_PING_BYTES, true);
+    private static final ProtocolMessage PONG_PROTO = new ProtocolMessage(OP_PONG_BYTES, true);
 
     void sendPong() {
         queueInternalOutgoing(new ProtocolMessage(PONG_PROTO));
@@ -1847,7 +1847,7 @@ class NatsConnection implements Connection {
 
             NatsDispatcher d = sub.getNatsDispatcher();
             NatsConsumer c = (d == null) ? sub : d;
-            MessageQueue q = ((d == null) ? sub.getMessageQueue() : d.getMessageQueue());
+            ConsumerMessageQueue q = ((d == null) ? sub.getMessageQueue() : d.getMessageQueue());
 
             if (c.hasReachedPendingLimits()) {
                 // Drop the message and count it
