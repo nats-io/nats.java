@@ -226,7 +226,7 @@ public class OptionsTests {
     public void testHttpRequestInterceptors() {
         java.util.function.Consumer<HttpRequest> interceptor1 = req -> req.getHeaders().add("Test1", "Header");
         java.util.function.Consumer<HttpRequest> interceptor2 = req -> req.getHeaders().add("Test2", "Header");
-        Options o = new Options.Builder()            
+        Options o = new Options.Builder()
             .httpRequestInterceptor(interceptor1)
             .httpRequestInterceptor(interceptor2)
             .build();
