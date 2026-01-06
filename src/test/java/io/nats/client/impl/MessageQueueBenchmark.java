@@ -17,10 +17,10 @@ import java.text.NumberFormat;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
+import static io.nats.client.Options.DEFAULT_WRITE_QUEUE_PUSH_TIMEOUT;
+
 public class MessageQueueBenchmark {
-    static final Duration REQUEST_CLEANUP_INTERVAL = Duration.ofSeconds(5);
-    
-    public static void main(String args[]) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException {
         int msgCount = 10_000_000;
         NatsMessage[] msgs = new NatsMessage[msgCount];
         long start, end;
@@ -29,14 +29,14 @@ public class MessageQueueBenchmark {
         System.out.println("Warmed up ...");
         byte[] warmBytes = "a".getBytes();
 
-        MessageQueue warm = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
+        ConsumerMessageQueue warm = new ConsumerMessageQueue();
         for (int j = 0; j < msgCount; j++) {
-            msgs[j] = new ProtocolMessage(warmBytes);
+            msgs[j] = new ProtocolMessage(warmBytes, true);
             warm.push(msgs[j]);
         }
 
         System.out.println("Starting tests ...");
-        MessageQueue push = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
+        ConsumerMessageQueue push = new ConsumerMessageQueue();
         start = System.nanoTime();
         for (int i = 0; i < msgCount; i++) {
             push.push(msgs[i]);
@@ -52,7 +52,7 @@ public class MessageQueueBenchmark {
 
         start = System.nanoTime();
         for (int i = 0; i < msgCount; i++) {
-            push.popNow();
+            push.pop(null);
         }
         end = System.nanoTime();
 
@@ -63,7 +63,7 @@ public class MessageQueueBenchmark {
         System.out.printf("\tor %s op/s\n",
                 NumberFormat.getInstance().format(1_000_000_000L * ((double) (msgCount))/((double) (end - start))));
 
-        MessageQueue accumulateQueue = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
+        WriterMessageQueue accumulateQueue = new WriterMessageQueue(DEFAULT_WRITE_QUEUE_PUSH_TIMEOUT);
         for (int j = 0; j < msgCount; j++) {
             msgs[j].next = null;
         }
@@ -86,7 +86,7 @@ public class MessageQueueBenchmark {
         for (int j = 0; j < msgCount; j++) {
             msgs[j].next = null;
         }
-        final MessageQueue pushPopThreadQueue = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
+        final ConsumerMessageQueue pushPopThreadQueue = new ConsumerMessageQueue();
         final Duration timeout = Duration.ofMillis(10);
         final CompletableFuture<Void> go = new CompletableFuture<>();
         Thread pusher = new Thread(() -> {
@@ -130,7 +130,7 @@ public class MessageQueueBenchmark {
         for (int j = 0; j < msgCount; j++) {
             msgs[j].next = null;
         }
-        final MessageQueue pushPopNowThreadQueue = new MessageQueue(false, REQUEST_CLEANUP_INTERVAL);
+        final ConsumerMessageQueue pushPopNowThreadQueue = new ConsumerMessageQueue();
         pusher = new Thread(() -> {
             try {
                 go2.get();
@@ -147,7 +147,7 @@ public class MessageQueueBenchmark {
             try {
                 go2.get();
                 for (int i = 0; i < msgCount; i++) {
-                    pushPopNowThreadQueue.popNow();
+                    pushPopNowThreadQueue.pop(null);
                 }
             } catch (Exception exp) {
                 exp.printStackTrace();
@@ -173,7 +173,7 @@ public class MessageQueueBenchmark {
             msgs[j].next = null;
         }
 
-        final MessageQueue pushAccumulateThreadQueue = new MessageQueue(true, REQUEST_CLEANUP_INTERVAL);
+        WriterMessageQueue pushAccumulateThreadQueue = new WriterMessageQueue(DEFAULT_WRITE_QUEUE_PUSH_TIMEOUT);
         pusher = new Thread(() -> {
             try {
                 go3.get();

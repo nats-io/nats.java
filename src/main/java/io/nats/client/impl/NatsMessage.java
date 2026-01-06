@@ -105,7 +105,7 @@ public class NatsMessage implements Message {
         return false; // overridden in NatsMessage.ProtocolMessage
     }
 
-    boolean isProtocolFilterOnStop() {
+    boolean isFilterOnStop() {
         return false; // overridden in NatsMessage.ProtocolMessage
     }
 
