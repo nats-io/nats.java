@@ -16,7 +16,7 @@ public class RequestReplyTimeout {
             // Make a request expecting a future
             CompletableFuture<Message> responseFuture = nc.request("service", null);
             try {
-                Message m = responseFuture.get(1, TimeUnit.SECONDS);
+                Message m = responseFuture.get(500, TimeUnit.MILLISECONDS);
                 System.out.println("1) Response: " + new String(m.getData()));
             }
             catch (CancellationException | ExecutionException | TimeoutException e) {
@@ -24,7 +24,7 @@ public class RequestReplyTimeout {
             }
 
             // Make a request with a timeout and direct response
-            Message m = nc.request("service", null, Duration.ofSeconds(1));
+            Message m = nc.request("service", null, Duration.ofMillis(500));
             if (m == null) {
                 System.out.println("2) No Response");
             }

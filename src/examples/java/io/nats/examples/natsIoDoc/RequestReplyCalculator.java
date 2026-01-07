@@ -35,7 +35,7 @@ public class RequestReplyCalculator {
             // Make a request expecting a future
             CompletableFuture<Message> responseFuture = nc.request("calc.add", "5 3".getBytes(StandardCharsets.UTF_8));
             try {
-                Message m = responseFuture.get(1, TimeUnit.SECONDS);
+                Message m = responseFuture.get(500, TimeUnit.MILLISECONDS);
                 System.out.printf("5 + 3 = %s\n", new String(m.getData()));
             }
             catch (CancellationException | ExecutionException | TimeoutException e) {
@@ -43,7 +43,7 @@ public class RequestReplyCalculator {
             }
 
             // Make a request with a timeout and direct response
-            Message m = nc.request("calc.add", "10 7".getBytes(StandardCharsets.UTF_8), Duration.ofSeconds(1));
+            Message m = nc.request("calc.add", "10 7".getBytes(StandardCharsets.UTF_8), Duration.ofMillis(500));
             if (m == null) {
                 System.out.println("2) No Response");
             }

@@ -8,43 +8,40 @@ import io.nats.client.Nats;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.concurrent.*;
 
-public class RequestReplyMultipleResponders {
+public class QueueGroupsMixedSubscribers {
     public static void main(String[] args) {
         try (Connection nc = Nats.connect("nats://localhost:4222")) {
 
             // NATS-DOC-START
-            // Set up 2 instances of the service
+            // Set up 3 instances of the service
             Dispatcher dService1 = nc.createDispatcher(msg -> {
                 byte[] response = calculateResponse(1, msg);
                 nc.publish(msg.getReplyTo(), response);
             });
-            dService1.subscribe("service");
+            dService1.subscribe("api.calculate", "api-workers-queue");
 
             Dispatcher dService2 = nc.createDispatcher(msg -> {
                 byte[] response = calculateResponse(2, msg);
                 nc.publish(msg.getReplyTo(), response);
             });
-            dService2.subscribe("service");
+            dService2.subscribe("api.calculate", "api-workers-queue");
 
-            // Make a request expecting a future
-            CompletableFuture<Message> responseFuture = nc.request("service", null);
-            try {
-                Message m = responseFuture.get(500, TimeUnit.MILLISECONDS);
-                System.out.println("1) " + new String(m.getData()));
-            }
-            catch (CancellationException | ExecutionException | TimeoutException e) {
-                System.out.println("1) No Response");
-            }
+            Dispatcher dService3 = nc.createDispatcher(msg -> {
+                byte[] response = calculateResponse(3, msg);
+                nc.publish(msg.getReplyTo(), response);
+            });
+            dService3.subscribe("api.calculate", "api-workers-queue");
 
-            // Make a request with a timeout and direct response
-            Message m = nc.request("service", null, Duration.ofMillis(500));
-            if (m == null) {
-                System.out.println("2) No Response");
-            }
-            else {
-                System.out.println("2) " + new String(m.getData()));
+            // Make requests - messages are balanced among the subscribers in the queue
+            for (int x = 0; x < 10; x++) {
+                Message m = nc.request("api.calculate", null, Duration.ofMillis(500));
+                if (m == null) {
+                    System.out.println(x + ") No Response");
+                }
+                else {
+                    System.out.println(x + ") " + new String(m.getData()));
+                }
             }
             // NATS-DOC-END
         }

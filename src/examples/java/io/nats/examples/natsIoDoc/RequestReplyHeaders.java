@@ -32,7 +32,7 @@ public class RequestReplyHeaders {
             headers1.put("X-Priority", "high");
             CompletableFuture<Message> responseFuture = nc.request("header.echo", headers1, null);
             try {
-                Message m = responseFuture.get(1, TimeUnit.SECONDS);
+                Message m = responseFuture.get(500, TimeUnit.MILLISECONDS);
                 Headers hIncoming = m.getHeaders();
                 System.out.println("Response Headers: " + hIncoming);
             }
@@ -44,7 +44,7 @@ public class RequestReplyHeaders {
             Headers headers2 = new Headers();
             headers2.put("X-Request-ID", "2");
             headers2.put("X-Priority", "med");
-            Message m = nc.request("header.echo", headers2, null, Duration.ofSeconds(1));
+            Message m = nc.request("header.echo", headers2, null, Duration.ofMillis(500));
             if (m == null) {
                 System.out.println("2) No Response");
             }

@@ -25,7 +25,7 @@ public class RequestReplyBasic {
             // Make a request expecting a future
             CompletableFuture<Message> responseFuture = nc.request("time", null);
             try {
-                Message m = responseFuture.get(1, TimeUnit.SECONDS);
+                Message m = responseFuture.get(500, TimeUnit.MILLISECONDS);
                 System.out.println("1) Time is " + new Date(Long.parseLong(new String(m.getData()))));
             }
             catch (CancellationException | ExecutionException | TimeoutException e) {
@@ -33,7 +33,7 @@ public class RequestReplyBasic {
             }
 
             // Make a request with a timeout and direct response
-            Message m = nc.request("time", null, Duration.ofSeconds(1));
+            Message m = nc.request("time", null, Duration.ofMillis(500));
             if (m == null) {
                 System.out.println("2) No Response");
             }

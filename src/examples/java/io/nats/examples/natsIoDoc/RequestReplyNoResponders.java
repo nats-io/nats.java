@@ -20,7 +20,7 @@ public class RequestReplyNoResponders {
             // Make a request expecting a future
             CompletableFuture<Message> responseFuture = nc.request("no.such.service", null);
             try {
-                Message m = responseFuture.get(1, TimeUnit.SECONDS);
+                Message m = responseFuture.get(500, TimeUnit.MILLISECONDS);
                 System.out.println("Response: " + new String(m.getData()));
             }
             catch (CancellationException | ExecutionException | TimeoutException e) {
