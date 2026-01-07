@@ -8,10 +8,7 @@ import io.nats.client.Nats;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 
 public class RequestReplyCalculator {
     public static void main(String[] args) {
@@ -41,9 +38,8 @@ public class RequestReplyCalculator {
                 Message m = responseFuture.get(1, TimeUnit.SECONDS);
                 System.out.printf("5 + 3 = %s\n", new String(m.getData()));
             }
-            catch (ExecutionException | TimeoutException e) {
+            catch (CancellationException | ExecutionException | TimeoutException e) {
                 System.out.println("1) No Response");
-                throw new RuntimeException(e);
             }
 
             // Make a request with a timeout and direct response
