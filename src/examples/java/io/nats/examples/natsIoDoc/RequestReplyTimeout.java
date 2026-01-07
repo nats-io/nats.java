@@ -20,7 +20,7 @@ public class RequestReplyTimeout {
                 System.out.println("1) Response: " + new String(m.getData()));
             }
             catch (CancellationException | ExecutionException | TimeoutException e) {
-                System.out.println("1) No Response");
+                System.out.println("1) No Response: " + e);
             }
 
             // Make a request with a timeout and direct response
