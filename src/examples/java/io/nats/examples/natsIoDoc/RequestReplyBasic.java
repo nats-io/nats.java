@@ -15,7 +15,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public class RequestReplyBasic {
-    // NATS-DOC-START
     public static void main(String[] args) {
         try (Connection nc = Nats.connect("nats://localhost:4222")) {
 
