@@ -18,13 +18,13 @@ public class RequestReplyBasic {
     public static void main(String[] args) {
         try (Connection nc = Nats.connect("nats://localhost:4222")) {
 
+            // NATS-DOC-START
             // Set up the time service
             Dispatcher dTime = nc.createDispatcher(msg -> {
                 nc.publish(msg.getReplyTo(), ("" + System.currentTimeMillis()).getBytes(StandardCharsets.UTF_8));
             });
             dTime.subscribe("time");
 
-            // NATS-DOC-START
             CompletableFuture<Message> responseFuture = nc.request("time", null);
             try {
                 Message m = responseFuture.get(1, TimeUnit.SECONDS);
