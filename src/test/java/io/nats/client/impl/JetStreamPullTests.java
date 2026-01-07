@@ -745,7 +745,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     private void _testConflictStatuses(int statusCode, String statusText, ListenerStatusType statusType, ConflictSetup setup) throws Exception {
         runInSharedNamed("conflict", ts -> {
             if (conflictNc == null) {
-                conflictListener = new Listener(true);
+                conflictListener = new Listener();
                 conflictNc = ConnectionUtils.managedConnect(
                     optionsBuilder(ts).errorListener(conflictListener).connectionListener(conflictListener).build());
             }

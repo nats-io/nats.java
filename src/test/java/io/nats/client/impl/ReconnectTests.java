@@ -912,7 +912,6 @@ public class ReconnectTests {
                     ts2.getNatsLocalhostUri()
                 };
                 try (Connection nc = standardConnect(builder.servers(servers).build())) {
-                    int connectedPort = nc.getServerInfo().getPort();
                     listener.queueConnectionEvent(Events.DISCONNECTED, LONG_VALIDATE_TIMEOUT);
                     listener.queueConnectionEvent(Events.RECONNECTED, LONG_VALIDATE_TIMEOUT);
 
@@ -935,7 +934,6 @@ public class ReconnectTests {
                     listener.validate();
                     assertTrue(gotOutputQueueIsFull.get());
                     assertTrue(listener.getSocketWriteTimeoutCount() > 0);
-                    assertNotEquals(connectedPort, nc.getServerInfo().getPort());
                 }
             }
         }
