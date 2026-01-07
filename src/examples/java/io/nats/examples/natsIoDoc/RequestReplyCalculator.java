@@ -35,6 +35,7 @@ public class RequestReplyCalculator {
             });
             dCalcAdd.subscribe("calc.add");
 
+            // Make a request expecting a future
             CompletableFuture<Message> responseFuture = nc.request("calc.add", "5 3".getBytes(StandardCharsets.UTF_8));
             try {
                 Message m = responseFuture.get(1, TimeUnit.SECONDS);
@@ -45,6 +46,7 @@ public class RequestReplyCalculator {
                 throw new RuntimeException(e);
             }
 
+            // Make a request with a timeout and direct response
             Message m = nc.request("calc.add", "10 7".getBytes(StandardCharsets.UTF_8), Duration.ofSeconds(1));
             if (m == null) {
                 System.out.println("2) No Response");

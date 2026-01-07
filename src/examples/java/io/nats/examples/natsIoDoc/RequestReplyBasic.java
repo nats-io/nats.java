@@ -25,6 +25,7 @@ public class RequestReplyBasic {
             });
             dTime.subscribe("time");
 
+            // Make a request expecting a future
             CompletableFuture<Message> responseFuture = nc.request("time", null);
             try {
                 Message m = responseFuture.get(1, TimeUnit.SECONDS);
@@ -35,6 +36,7 @@ public class RequestReplyBasic {
                 throw new RuntimeException(e);
             }
 
+            // Make a request with a timeout and direct response
             Message m = nc.request("time", null, Duration.ofSeconds(1));
             if (m == null) {
                 System.out.println("2) No Response");
