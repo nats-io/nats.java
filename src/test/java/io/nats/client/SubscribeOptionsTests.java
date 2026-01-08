@@ -36,13 +36,16 @@ public class SubscribeOptionsTests extends TestBase {
         assertNull(so.getName());
         assertNull(so.getDeliverSubject());
 
+        String stream = random();
+        String durable = random();
+        String deliver = random();
         so = PushSubscribeOptions.builder()
-                .stream(STREAM).durable(DURABLE).deliverSubject(DELIVER).build();
+                .stream(stream).durable(durable).deliverSubject(deliver).build();
 
-        assertEquals(STREAM, so.getStream());
-        assertEquals(DURABLE, so.getDurable());
-        assertEquals(DURABLE, so.getName());
-        assertEquals(DELIVER, so.getDeliverSubject());
+        assertEquals(stream, so.getStream());
+        assertEquals(durable, so.getDurable());
+        assertEquals(durable, so.getName());
+        assertEquals(deliver, so.getDeliverSubject());
 
         // demonstrate that you can clear the builder
         so = PushSubscribeOptions.builder()
@@ -187,14 +190,16 @@ public class SubscribeOptionsTests extends TestBase {
 
     @Test
     public void testPullAffirmative() {
+        String stream = random();
+        String durable = random();
         PullSubscribeOptions.Builder builder = PullSubscribeOptions.builder()
-                .stream(STREAM)
-                .durable(DURABLE);
+                .stream(stream)
+                .durable(durable);
 
         PullSubscribeOptions so = builder.build();
-        assertEquals(STREAM, so.getStream());
-        assertEquals(DURABLE, so.getDurable());
-        assertEquals(DURABLE, so.getName());
+        assertEquals(stream, so.getStream());
+        assertEquals(durable, so.getDurable());
+        assertEquals(durable, so.getName());
         assertTrue(so.isPull());
 
         assertNotNull(so.toString()); // COVERAGE
@@ -211,29 +216,31 @@ public class SubscribeOptionsTests extends TestBase {
             assertThrows(IllegalArgumentException.class, () -> ConsumerConfiguration.builder().name(bad).build());
         }
 
-        assertClientError(JsConsumerNameDurableMismatch, () -> PushSubscribeOptions.builder().name(NAME).durable(DURABLE).build());
+        String name = random();
+        String durable = random();
+        assertClientError(JsConsumerNameDurableMismatch, () -> PushSubscribeOptions.builder().name(name).durable(durable).build());
 
         // durable directly
-        PushSubscribeOptions uso = PushSubscribeOptions.builder().durable(DURABLE).build();
-        assertEquals(DURABLE, uso.getDurable());
-        assertEquals(DURABLE, uso.getName());
-        uso = PushSubscribeOptions.builder().name(NAME).build();
+        PushSubscribeOptions uso = PushSubscribeOptions.builder().durable(durable).build();
+        assertEquals(durable, uso.getDurable());
+        assertEquals(durable, uso.getName());
+        uso = PushSubscribeOptions.builder().name(name).build();
         assertNull(uso.getDurable());
-        assertEquals(NAME, uso.getName());
+        assertEquals(name, uso.getName());
 
         // in configuration
-        ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(DURABLE).build();
+        ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(durable).build();
         uso = PushSubscribeOptions.builder().configuration(cc).build();
-        assertEquals(DURABLE, uso.getDurable());
-        assertEquals(DURABLE, uso.getName());
-        cc = ConsumerConfiguration.builder().name(NAME).build();
+        assertEquals(durable, uso.getDurable());
+        assertEquals(durable, uso.getName());
+        cc = ConsumerConfiguration.builder().name(name).build();
         uso = PushSubscribeOptions.builder().configuration(cc).build();
         assertNull(uso.getDurable());
-        assertEquals(NAME, uso.getName());
+        assertEquals(name, uso.getName());
 
         // new helper
-        ConsumerConfiguration.builder().durable(DURABLE).buildPushSubscribeOptions();
-        ConsumerConfiguration.builder().name(NAME).buildPushSubscribeOptions();
+        ConsumerConfiguration.builder().durable(durable).buildPushSubscribeOptions();
+        ConsumerConfiguration.builder().name(name).buildPushSubscribeOptions();
     }
 
     @Test
@@ -247,87 +254,94 @@ public class SubscribeOptionsTests extends TestBase {
             assertThrows(IllegalArgumentException.class, () -> ConsumerConfiguration.builder().name(bad).build());
         }
 
-        assertClientError(JsConsumerNameDurableMismatch, () -> PullSubscribeOptions.builder().name(NAME).durable(DURABLE).build());
+        String durable = random();
+        assertClientError(JsConsumerNameDurableMismatch, () -> PullSubscribeOptions.builder().name(random()).durable(durable).build());
 
         // durable directly
-        PullSubscribeOptions lso = PullSubscribeOptions.builder().durable(DURABLE).build();
-        assertEquals(DURABLE, lso.getDurable());
-        assertEquals(DURABLE, lso.getName());
+        PullSubscribeOptions lso = PullSubscribeOptions.builder().durable(durable).build();
+        assertEquals(durable, lso.getDurable());
+        assertEquals(durable, lso.getName());
 
         // in configuration
-        ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(DURABLE).build();
+        ConsumerConfiguration cc = ConsumerConfiguration.builder().durable(durable).build();
         lso = PullSubscribeOptions.builder().configuration(cc).build();
-        assertEquals(DURABLE, lso.getDurable());
-        assertEquals(DURABLE, lso.getName());
+        assertEquals(durable, lso.getDurable());
+        assertEquals(durable, lso.getName());
 
         // new helper
-        lso = ConsumerConfiguration.builder().durable(DURABLE).buildPullSubscribeOptions();
-        assertEquals(DURABLE, lso.getDurable());
-        assertEquals(DURABLE, lso.getName());
+        lso = ConsumerConfiguration.builder().durable(durable).buildPullSubscribeOptions();
+        assertEquals(durable, lso.getDurable());
+        assertEquals(durable, lso.getName());
     }
 
     @Test
     public void testCreationErrors() {
-        ConsumerConfiguration cc1 = ConsumerConfiguration.builder().durable(durable((1))).build();
+        String durable1 = random();
+        String durable2 = random();
+        ConsumerConfiguration cc1 = ConsumerConfiguration.builder().durable(durable1).build();
         assertClientError(JsSoDurableMismatch,
-            () -> PushSubscribeOptions.builder().configuration(cc1).durable(durable(2)).build());
+            () -> PushSubscribeOptions.builder().configuration(cc1).durable(durable2).build());
 
-        ConsumerConfiguration cc2 = ConsumerConfiguration.builder().deliverGroup(deliver((1))).build();
+        String deliver1 = random();
+        String deliver2 = random();
+        ConsumerConfiguration cc2 = ConsumerConfiguration.builder().deliverGroup(deliver1).build();
         assertClientError(JsSoDeliverGroupMismatch,
-            () -> PushSubscribeOptions.builder().configuration(cc2).deliverGroup(deliver(2)).build());
+            () -> PushSubscribeOptions.builder().configuration(cc2).deliverGroup(deliver2).build());
 
-        ConsumerConfiguration cc3 = ConsumerConfiguration.builder().name(name((1))).build();
+        String name1 = random();
+        String name2 = random();
+        ConsumerConfiguration cc3 = ConsumerConfiguration.builder().name(name1).build();
         assertClientError(JsSoNameMismatch,
-            () -> PushSubscribeOptions.builder().configuration(cc3).name(name(2)).build());
+            () -> PushSubscribeOptions.builder().configuration(cc3).name(name2).build());
     }
 
     @Test
     public void testBindCreationErrors() {
-        String durOrName = name();
+        String random = random();
 
         // bind
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bind(null, durOrName));
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bind(EMPTY, durOrName));
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bind(STREAM, null));
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bind(STREAM, EMPTY));
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(STREAM).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bind(null, random));
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bind(EMPTY, random));
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bind(random, null));
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.bind(random, EMPTY));
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(random).bind(true).build());
 
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(EMPTY).durable(durOrName).bind(true).build());
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().durable(durOrName).bind(true).build());
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(STREAM).durable(EMPTY).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(EMPTY).durable(random).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().durable(random).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(random).durable(EMPTY).bind(true).build());
 
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(EMPTY).name(durOrName).bind(true).build());
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().name(durOrName).bind(true).build());
-        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(STREAM).name(EMPTY).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(EMPTY).name(random).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().name(random).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PushSubscribeOptions.builder().stream(random).name(EMPTY).bind(true).build());
 
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.bind(null, durOrName));
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.bind(EMPTY, durOrName));
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.bind(STREAM, null));
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.bind(STREAM, EMPTY));
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(STREAM).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.bind(null, random));
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.bind(EMPTY, random));
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.bind(random, null));
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.bind(random, EMPTY));
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(random).bind(true).build());
 
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(EMPTY).durable(durOrName).bind(true).build());
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().durable(durOrName).bind(true).build());
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(STREAM).durable(EMPTY).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(EMPTY).durable(random).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().durable(random).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(random).durable(EMPTY).bind(true).build());
 
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(EMPTY).name(durOrName).bind(true).build());
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().name(durOrName).bind(true).build());
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(STREAM).name(EMPTY).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(EMPTY).name(random).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().name(random).bind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(random).name(EMPTY).bind(true).build());
 
         // fast bind
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.fastBind(null, durOrName));
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.fastBind(EMPTY, durOrName));
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.fastBind(STREAM, null));
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.fastBind(STREAM, EMPTY));
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(STREAM).fastBind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.fastBind(null, random));
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.fastBind(EMPTY, random));
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.fastBind(random, null));
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.fastBind(random, EMPTY));
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(random).fastBind(true).build());
 
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(EMPTY).durable(durOrName).fastBind(true).build());
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().durable(durOrName).fastBind(true).build());
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(STREAM).durable(EMPTY).fastBind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(EMPTY).durable(random).fastBind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().durable(random).fastBind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(random).durable(EMPTY).fastBind(true).build());
 
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(EMPTY).name(durOrName).fastBind(true).build());
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().name(durOrName).fastBind(true).build());
-        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(STREAM).name(EMPTY).fastBind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(EMPTY).name(random).fastBind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().name(random).fastBind(true).build());
+        assertThrows(IllegalArgumentException.class, () -> PullSubscribeOptions.builder().stream(random).name(EMPTY).fastBind(true).build());
     }
 
     @Test
@@ -335,17 +349,18 @@ public class SubscribeOptionsTests extends TestBase {
         ConsumerConfiguration ccEmpty = ConsumerConfiguration.builder().build();
         PushSubscribeOptions.builder().configuration(ccEmpty).ordered(true).build();
 
+        String random = random();
         assertClientError(JsSoOrderedNotAllowedWithBind,
-            () -> PushSubscribeOptions.builder().stream(STREAM).bind(true).ordered(true).build());
+            () -> PushSubscribeOptions.builder().stream(random).bind(true).ordered(true).build());
 
         assertClientError(JsSoOrderedNotAllowedWithDeliverGroup,
-            () -> PushSubscribeOptions.builder().deliverGroup(DELIVER).ordered(true).build());
+            () -> PushSubscribeOptions.builder().deliverGroup(random).ordered(true).build());
 
         assertClientError(JsSoOrderedNotAllowedWithDurable,
-            () -> PushSubscribeOptions.builder().durable(DURABLE).ordered(true).build());
+            () -> PushSubscribeOptions.builder().durable(random).ordered(true).build());
 
         assertClientError(JsSoOrderedNotAllowedWithDeliverSubject,
-            () -> PushSubscribeOptions.builder().deliverSubject(DELIVER).ordered(true).build());
+            () -> PushSubscribeOptions.builder().deliverSubject(random).ordered(true).build());
 
         ConsumerConfiguration ccAckNotNone1 = ConsumerConfiguration.builder().ackPolicy(AckPolicy.All).build();
         assertClientError(JsSoOrderedRequiresAckPolicyNone,
@@ -364,10 +379,12 @@ public class SubscribeOptionsTests extends TestBase {
 
         ConsumerConfiguration ccHb = ConsumerConfiguration.builder().idleHeartbeat(100).build();
         PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(ccHb).ordered(true).build();
+        assertNotNull(pso.getConsumerConfiguration().getIdleHeartbeat());
         assertEquals(100, pso.getConsumerConfiguration().getIdleHeartbeat().toMillis());
 
         ccHb = ConsumerConfiguration.builder().idleHeartbeat(DEFAULT_ORDERED_HEARTBEAT + 1).build();
         pso = PushSubscribeOptions.builder().configuration(ccHb).ordered(true).build();
+        assertNotNull(pso.getConsumerConfiguration().getIdleHeartbeat());
         assertEquals(DEFAULT_ORDERED_HEARTBEAT + 1, pso.getConsumerConfiguration().getIdleHeartbeat().toMillis());
 
         // okay if you set it to true
