@@ -9,7 +9,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CountDownLatch;
 
 public class SubjectsMonitoring {
-    // NATS-DOC-START
     public static void main(String[] args) {
         try (Connection nc = Nats.connect("nats://localhost:4222")) {
 
@@ -42,5 +41,4 @@ public class SubjectsMonitoring {
             // can be thrown by connect
         }
     }
-    // NATS-DOC-END
 }
