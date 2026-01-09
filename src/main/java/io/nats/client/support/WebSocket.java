@@ -72,14 +72,14 @@ public class WebSocket extends Socket {
         String key = base64BasicEncodeToString(keyBytes);
 
         request.getHeaders()
-               .add("Host", host)
-               .add("Upgrade", "websocket")
-               .add("Connection", "Upgrade")
-               .add("Sec-WebSocket-Key", key)
-               .add("Sec-WebSocket-Protocol", "nats")
-               .add("Sec-WebSocket-Version", "13");
-        // TODO: Support Sec-WebSocket-Extensions: permessage-deflate
-        // TODO: Support Nats-No-Masking: TRUE
+            .add("Host", host)
+            .add("Upgrade", "websocket")
+            .add("Connection", "Upgrade")
+            .add("Sec-WebSocket-Key", key)
+            .add("Sec-WebSocket-Protocol", "nats")
+            .add("Sec-WebSocket-Version", "13");
+            // TODO: Support Sec-WebSocket-Extensions: permessage-deflate
+            // TODO: Support Nats-No-Masking: TRUE
 
         for (Consumer<HttpRequest> interceptor : interceptors) {
             interceptor.accept(request);
@@ -110,18 +110,22 @@ public class WebSocket extends Socket {
                 if (headers.size() >= MAX_HTTP_HEADERS) {
                     throw new IllegalStateException("Exceeded max HTTP headers=" + MAX_HTTP_HEADERS);
                 }
-                headers.put(line.substring(0, colon).trim().toLowerCase(), line.substring(colon + 1).trim());
+                headers.put(
+                    line.substring(0, colon).trim().toLowerCase(),
+                    line.substring(colon + 1).trim());
             } else {
                 throw new IllegalStateException("Expected HTTP header to contain ':', but got " + line);
             }
         }
         // 2. Expect `Upgrade: websocket`
         if (!"websocket".equalsIgnoreCase(headers.get("upgrade"))) {
-            throw new IllegalStateException("Expected HTTP `Upgrade: websocket` header");
+            throw new IllegalStateException(
+                "Expected HTTP `Upgrade: websocket` header");
         }
         // 3. Expect `Connection: Upgrade`
         if (!"upgrade".equalsIgnoreCase(headers.get("connection"))) {
-            throw new IllegalStateException("Expected HTTP `Connection: Upgrade` header");
+            throw new IllegalStateException(
+                "Expected HTTP `Connection: Upgrade` header");
         }
         // 4. Sec-WebSocket-Accept: base64(sha1(key + "258EAF..."))
         MessageDigest sha1;
@@ -136,7 +140,7 @@ public class WebSocket extends Socket {
         String gotAcceptKey = headers.get("sec-websocket-accept");
         if (!acceptKey.equals(gotAcceptKey)) {
             throw new IllegalStateException(
-                    "Expected HTTP `Sec-WebSocket-Accept: " + acceptKey + ", but got " + gotAcceptKey);
+                "Expected HTTP `Sec-WebSocket-Accept: " + acceptKey + ", but got " + gotAcceptKey);
         }
         // 5 & 6 are not valid, since nats-server doesn't
         // implement extensions or protocols.
@@ -153,13 +157,16 @@ public class WebSocket extends Socket {
                 return new String(buffer, 0, offset, StandardCharsets.ISO_8859_1);
             case '\n':
                 // Found \n, remove \r if it is there:
-                return new String(buffer, 0, '\r' == lastCh ? offset - 1 : offset, StandardCharsets.ISO_8859_1);
+                return new String(
+                    buffer,
+                    0,
+                    '\r' == lastCh ? offset - 1 : offset, StandardCharsets.ISO_8859_1);
             }
             // Line length exceeded:
             if (offset >= buffer.length) {
                 return null;
             }
-            buffer[offset++] = (byte) ch;
+            buffer[offset++] = (byte)ch;
             lastCh = ch;
         }
     }
@@ -341,7 +348,8 @@ public class WebSocket extends Socket {
         try {
             // TODO: send websocket close:
             wrappedSocket.close();
-        } finally {
+        }
+        finally {
             closeLock.unlock();
         }
     }

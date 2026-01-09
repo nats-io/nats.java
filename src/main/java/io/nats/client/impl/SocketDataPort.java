@@ -55,7 +55,8 @@ public class SocketDataPort implements DataPort {
     public void connect(@NonNull String serverURI, @NonNull NatsConnection conn, long timeoutNanos) throws IOException {
         try {
             connect(conn, new NatsUri(serverURI), timeoutNanos);
-        } catch (URISyntaxException e) {
+        }
+        catch (URISyntaxException e) {
             throw new IOException(e);
         }
     }
@@ -105,12 +106,10 @@ public class SocketDataPort implements DataPort {
             }
             in = socket.getInputStream();
             out = socket.getOutputStream();
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             if (socket != null) {
-                try {
-                    socket.close();
-                } catch (Exception ignore) {
-                }
+                try { socket.close(); } catch (Exception ignore) {}
             }
             socket = null;
             if (e instanceof IOException) {
@@ -145,7 +144,8 @@ public class SocketDataPort implements DataPort {
         } catch (Exception ex) {
             connection.handleCommunicationIssue(ex);
             return;
-        } finally {
+        }
+        finally {
             sslSocket.removeHandshakeCompletedListener(hcl);
         }
 
@@ -184,7 +184,8 @@ public class SocketDataPort implements DataPort {
             try {
                 // If we are being asked to force close, there is no need to linger.
                 socket.setSoLinger(true, 0);
-            } catch (SocketException e) {
+            }
+            catch (SocketException e) {
                 // don't want to fail if I couldn't set linger
             }
             close();
@@ -196,7 +197,8 @@ public class SocketDataPort implements DataPort {
     }
 
     protected static boolean isWebsocketScheme(String scheme) {
-        return "ws".equalsIgnoreCase(scheme) || "wss".equalsIgnoreCase(scheme);
+        return "ws".equalsIgnoreCase(scheme) ||
+            "wss".equalsIgnoreCase(scheme);
     }
 
     /**
@@ -204,8 +206,8 @@ public class SocketDataPort implements DataPort {
      * which attempts to connect to multiple IP addresses in parallel to reduce
      * connection setup delays.
      */
-    private Socket connectToFastestIp(Options options, String hostname, int port, int timeoutMillis)
-            throws IOException {
+    private Socket connectToFastestIp(Options options, String hostname, int port,
+                                      int timeoutMillis) throws IOException {
         // Get all IP addresses for the hostname
         List<InetAddress> ips = Arrays.asList(NatsInetAddress.getAllByName(hostname));
 
