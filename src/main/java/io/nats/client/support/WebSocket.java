@@ -13,6 +13,9 @@
 
 package io.nats.client.support;
 
+import static io.nats.client.support.Encoding.base64BasicEncodeToString;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -31,14 +34,11 @@ import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
-import static io.nats.client.support.Encoding.base64BasicEncodeToString;
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 public class WebSocket extends Socket {
     private static final int MAX_LINE_LEN = 8192;
     private static final int MAX_HTTP_HEADERS = 100;
-    private static final String WEBSOCKET_RESPONSE_LINE =
-        "HTTP/1.1 101 Switching Protocols";
+    private static final String WEBSOCKET_RESPONSE_LINE = "HTTP/1.1 101 Switching Protocols";
+    private static final String DEFAULT_PATH = "/";
 
     private final Socket wrappedSocket;
     private final WebsocketInputStream in;
@@ -46,17 +46,23 @@ public class WebSocket extends Socket {
     private final ReentrantLock closeLock;
 
     public WebSocket(Socket wrappedSocket, String host, List<Consumer<HttpRequest>> interceptors) throws IOException {
+        this(wrappedSocket, host, interceptors, null);
+    }
+
+    public WebSocket(Socket wrappedSocket, String host, List<Consumer<HttpRequest>> interceptors, String path)
+            throws IOException {
         closeLock = new ReentrantLock();
         this.wrappedSocket = wrappedSocket;
-        handshake(wrappedSocket, host, interceptors);
+        handshake(wrappedSocket, host, interceptors, getPathOrDefault(path, DEFAULT_PATH));
         this.in = new WebsocketInputStream(wrappedSocket.getInputStream());
         this.out = new WebsocketOutputStream(wrappedSocket.getOutputStream(), true);
     }
 
-    private static void handshake(Socket socket, String host, List<Consumer<HttpRequest>> interceptors) throws IOException {
+    private static void handshake(Socket socket, String host, List<Consumer<HttpRequest>> interceptors, String path)
+            throws IOException {
         InputStream in = socket.getInputStream();
         OutputStream out = socket.getOutputStream();
-        HttpRequest request = new HttpRequest();
+        HttpRequest request = new HttpRequest().uri(path);
 
         // The value of this header field MUST be a
         // nonce consisting of a randomly selected 16-byte value that has
@@ -66,14 +72,14 @@ public class WebSocket extends Socket {
         String key = base64BasicEncodeToString(keyBytes);
 
         request.getHeaders()
-            .add("Host", host)
-            .add("Upgrade", "websocket")
-            .add("Connection", "Upgrade")
-            .add("Sec-WebSocket-Key", key)
-            .add("Sec-WebSocket-Protocol", "nats")
-            .add("Sec-WebSocket-Version", "13");
-            // TODO: Support Sec-WebSocket-Extensions: permessage-deflate
-            // TODO: Support Nats-No-Masking: TRUE
+               .add("Host", host)
+               .add("Upgrade", "websocket")
+               .add("Connection", "Upgrade")
+               .add("Sec-WebSocket-Key", key)
+               .add("Sec-WebSocket-Protocol", "nats")
+               .add("Sec-WebSocket-Version", "13");
+        // TODO: Support Sec-WebSocket-Extensions: permessage-deflate
+        // TODO: Support Nats-No-Masking: TRUE
 
         for (Consumer<HttpRequest> interceptor : interceptors) {
             interceptor.accept(request);
@@ -104,22 +110,18 @@ public class WebSocket extends Socket {
                 if (headers.size() >= MAX_HTTP_HEADERS) {
                     throw new IllegalStateException("Exceeded max HTTP headers=" + MAX_HTTP_HEADERS);
                 }
-                headers.put(
-                    line.substring(0, colon).trim().toLowerCase(),
-                    line.substring(colon + 1).trim());
+                headers.put(line.substring(0, colon).trim().toLowerCase(), line.substring(colon + 1).trim());
             } else {
                 throw new IllegalStateException("Expected HTTP header to contain ':', but got " + line);
             }
         }
         // 2. Expect `Upgrade: websocket`
         if (!"websocket".equalsIgnoreCase(headers.get("upgrade"))) {
-            throw new IllegalStateException(
-                "Expected HTTP `Upgrade: websocket` header");
+            throw new IllegalStateException("Expected HTTP `Upgrade: websocket` header");
         }
         // 3. Expect `Connection: Upgrade`
         if (!"upgrade".equalsIgnoreCase(headers.get("connection"))) {
-            throw new IllegalStateException(
-                "Expected HTTP `Connection: Upgrade` header");
+            throw new IllegalStateException("Expected HTTP `Connection: Upgrade` header");
         }
         // 4. Sec-WebSocket-Accept: base64(sha1(key + "258EAF..."))
         MessageDigest sha1;
@@ -134,7 +136,7 @@ public class WebSocket extends Socket {
         String gotAcceptKey = headers.get("sec-websocket-accept");
         if (!acceptKey.equals(gotAcceptKey)) {
             throw new IllegalStateException(
-                "Expected HTTP `Sec-WebSocket-Accept: " + acceptKey + ", but got " + gotAcceptKey);
+                    "Expected HTTP `Sec-WebSocket-Accept: " + acceptKey + ", but got " + gotAcceptKey);
         }
         // 5 & 6 are not valid, since nats-server doesn't
         // implement extensions or protocols.
@@ -151,18 +153,31 @@ public class WebSocket extends Socket {
                 return new String(buffer, 0, offset, StandardCharsets.ISO_8859_1);
             case '\n':
                 // Found \n, remove \r if it is there:
-                return new String(
-                    buffer,
-                    0,
-                    '\r' == lastCh ? offset - 1 : offset, StandardCharsets.ISO_8859_1);
+                return new String(buffer, 0, '\r' == lastCh ? offset - 1 : offset, StandardCharsets.ISO_8859_1);
             }
             // Line length exceeded:
             if (offset >= buffer.length) {
                 return null;
             }
-            buffer[offset++] = (byte)ch;
+            buffer[offset++] = (byte) ch;
             lastCh = ch;
         }
+    }
+
+    /**
+     * Returns the given uri if not empty otherwise return the fallback.
+     *
+     * @param uri
+     *         the uri to return if not null or empty.
+     * @param fallback
+     *         in case the uri is empty or null return the fallback.
+     * @return the uri if not empty otherwise <code>fallback</code>
+     */
+    private String getPathOrDefault(String uri, String fallback) {
+        if (uri == null || uri.isEmpty()) {
+            return fallback;
+        }
+        return uri;
     }
 
     @Override
@@ -326,8 +341,7 @@ public class WebSocket extends Socket {
         try {
             // TODO: send websocket close:
             wrappedSocket.close();
-        }
-        finally {
+        } finally {
             closeLock.unlock();
         }
     }

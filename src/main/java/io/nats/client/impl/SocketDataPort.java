@@ -13,27 +13,34 @@
 
 package io.nats.client.impl;
 
+import static io.nats.client.support.NatsConstants.SECURE_WEBSOCKET_PROTOCOL;
+
 import io.nats.client.Options;
 import io.nats.client.support.NatsInetAddress;
 import io.nats.client.support.NatsUri;
 import io.nats.client.support.WebSocket;
-import org.jspecify.annotations.NonNull;
-
-import javax.net.ssl.HandshakeCompletedListener;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSocket;
-import javax.net.ssl.SSLSocketFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.*;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.SocketException;
+import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.*;
-
-import static io.nats.client.support.NatsConstants.SECURE_WEBSOCKET_PROTOCOL;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import javax.net.ssl.HandshakeCompletedListener;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
+import org.jspecify.annotations.NonNull;
 
 /**
  * This class is not thread-safe.  Caller must ensure thread safety.
@@ -55,8 +62,7 @@ public class SocketDataPort implements DataPort {
     public void connect(@NonNull String serverURI, @NonNull NatsConnection conn, long timeoutNanos) throws IOException {
         try {
             connect(conn, new NatsUri(serverURI), timeoutNanos);
-        }
-        catch (URISyntaxException e) {
+        } catch (URISyntaxException e) {
             throw new IOException(e);
         }
     }
@@ -98,7 +104,7 @@ public class SocketDataPort implements DataPort {
                     upgradeToSecure();
                 }
                 try {
-                    socket = new WebSocket(socket, host, options.getHttpRequestInterceptors());
+                    socket = new WebSocket(socket, host, options.getHttpRequestInterceptors(), nuri.getUri().getPath());
                 } catch (Exception ex) {
                     socket.close();
                     throw ex;
@@ -106,10 +112,12 @@ public class SocketDataPort implements DataPort {
             }
             in = socket.getInputStream();
             out = socket.getOutputStream();
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             if (socket != null) {
-                try { socket.close(); } catch (Exception ignore) {}
+                try {
+                    socket.close();
+                } catch (Exception ignore) {
+                }
             }
             socket = null;
             if (e instanceof IOException) {
@@ -120,8 +128,8 @@ public class SocketDataPort implements DataPort {
     }
 
     /**
-     * Upgrade the port to SSL. If it is already secured, this is a no-op.
-     * If the data port type doesn't support SSL it should throw an exception.
+     * Upgrade the port to SSL. If it is already secured, this is a no-op. If the data port type doesn't support SSL it
+     * should throw an exception.
      */
     public void upgradeToSecure() throws IOException {
         Options options = connection.getOptions();
@@ -144,8 +152,7 @@ public class SocketDataPort implements DataPort {
         } catch (Exception ex) {
             connection.handleCommunicationIssue(ex);
             return;
-        }
-        finally {
+        } finally {
             sslSocket.removeHandshakeCompletedListener(hcl);
         }
 
@@ -184,8 +191,7 @@ public class SocketDataPort implements DataPort {
             try {
                 // If we are being asked to force close, there is no need to linger.
                 socket.setSoLinger(true, 0);
-            }
-            catch (SocketException e) {
+            } catch (SocketException e) {
                 // don't want to fail if I couldn't set linger
             }
             close();
@@ -197,17 +203,15 @@ public class SocketDataPort implements DataPort {
     }
 
     protected static boolean isWebsocketScheme(String scheme) {
-        return "ws".equalsIgnoreCase(scheme) ||
-            "wss".equalsIgnoreCase(scheme);
+        return "ws".equalsIgnoreCase(scheme) || "wss".equalsIgnoreCase(scheme);
     }
 
     /**
-     * Implements the "Happy Eyeballs" algorithm as described in RFC 6555,
-     * which attempts to connect to multiple IP addresses in parallel to reduce
-     * connection setup delays.
+     * Implements the "Happy Eyeballs" algorithm as described in RFC 6555, which attempts to connect to multiple IP
+     * addresses in parallel to reduce connection setup delays.
      */
-    private Socket connectToFastestIp(Options options, String hostname, int port,
-                                      int timeoutMillis) throws IOException {
+    private Socket connectToFastestIp(Options options, String hostname, int port, int timeoutMillis)
+            throws IOException {
         // Get all IP addresses for the hostname
         List<InetAddress> ips = Arrays.asList(NatsInetAddress.getAllByName(hostname));
 
