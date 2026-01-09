@@ -37,8 +37,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 public class WebSocket extends Socket {
     private static final int MAX_LINE_LEN = 8192;
     private static final int MAX_HTTP_HEADERS = 100;
-    private static final String WEBSOCKET_RESPONSE_LINE =
-        "HTTP/1.1 101 Switching Protocols";
+    private static final String WEBSOCKET_RESPONSE_LINE = "HTTP/1.1 101 Switching Protocols";
+    private static final String DEFAULT_PATH = "/";
 
     private final Socket wrappedSocket;
     private final WebsocketInputStream in;
@@ -46,17 +46,23 @@ public class WebSocket extends Socket {
     private final ReentrantLock closeLock;
 
     public WebSocket(Socket wrappedSocket, String host, List<Consumer<HttpRequest>> interceptors) throws IOException {
+        this(wrappedSocket, host, interceptors, null);
+    }
+
+    public WebSocket(Socket wrappedSocket, String host, List<Consumer<HttpRequest>> interceptors, String path)
+            throws IOException {
         closeLock = new ReentrantLock();
         this.wrappedSocket = wrappedSocket;
-        handshake(wrappedSocket, host, interceptors);
+        handshake(wrappedSocket, host, interceptors, getPathOrDefault(path, DEFAULT_PATH));
         this.in = new WebsocketInputStream(wrappedSocket.getInputStream());
         this.out = new WebsocketOutputStream(wrappedSocket.getOutputStream(), true);
     }
 
-    private static void handshake(Socket socket, String host, List<Consumer<HttpRequest>> interceptors) throws IOException {
+    private static void handshake(Socket socket, String host, List<Consumer<HttpRequest>> interceptors, String path)
+            throws IOException {
         InputStream in = socket.getInputStream();
         OutputStream out = socket.getOutputStream();
-        HttpRequest request = new HttpRequest();
+        HttpRequest request = new HttpRequest().uri(path);
 
         // The value of this header field MUST be a
         // nonce consisting of a randomly selected 16-byte value that has
@@ -163,6 +169,22 @@ public class WebSocket extends Socket {
             buffer[offset++] = (byte)ch;
             lastCh = ch;
         }
+    }
+
+    /**
+     * Returns the given path if not empty otherwise return the fallback.
+     *
+     * @param path
+     *         the path to return if not null or empty.
+     * @param fallback
+     *         in case the path is empty or null return the fallback.
+     * @return the path if not empty otherwise <code>fallback</code>
+     */
+    private String getPathOrDefault(String path, String fallback) {
+        if (path == null || path.isEmpty()) {
+            return fallback;
+        }
+        return path;
     }
 
     @Override
