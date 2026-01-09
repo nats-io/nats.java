@@ -13,34 +13,27 @@
 
 package io.nats.client.impl;
 
-import static io.nats.client.support.NatsConstants.SECURE_WEBSOCKET_PROTOCOL;
-
 import io.nats.client.Options;
 import io.nats.client.support.NatsInetAddress;
 import io.nats.client.support.NatsUri;
 import io.nats.client.support.WebSocket;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.net.SocketException;
-import java.net.URISyntaxException;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
+import org.jspecify.annotations.NonNull;
+
 import javax.net.ssl.HandshakeCompletedListener;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
-import org.jspecify.annotations.NonNull;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.*;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.*;
+
+import static io.nats.client.support.NatsConstants.SECURE_WEBSOCKET_PROTOCOL;
 
 /**
  * This class is not thread-safe.  Caller must ensure thread safety.
@@ -128,8 +121,8 @@ public class SocketDataPort implements DataPort {
     }
 
     /**
-     * Upgrade the port to SSL. If it is already secured, this is a no-op. If the data port type doesn't support SSL it
-     * should throw an exception.
+     * Upgrade the port to SSL. If it is already secured, this is a no-op.
+     * If the data port type doesn't support SSL it should throw an exception.
      */
     public void upgradeToSecure() throws IOException {
         Options options = connection.getOptions();
@@ -207,8 +200,9 @@ public class SocketDataPort implements DataPort {
     }
 
     /**
-     * Implements the "Happy Eyeballs" algorithm as described in RFC 6555, which attempts to connect to multiple IP
-     * addresses in parallel to reduce connection setup delays.
+     * Implements the "Happy Eyeballs" algorithm as described in RFC 6555,
+     * which attempts to connect to multiple IP addresses in parallel to reduce
+     * connection setup delays.
      */
     private Socket connectToFastestIp(Options options, String hostname, int port, int timeoutMillis)
             throws IOException {

@@ -13,9 +13,6 @@
 
 package io.nats.client.support;
 
-import static io.nats.client.support.Encoding.base64BasicEncodeToString;
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -33,6 +30,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
+
+import static io.nats.client.support.Encoding.base64BasicEncodeToString;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class WebSocket extends Socket {
     private static final int MAX_LINE_LEN = 8192;
@@ -165,19 +165,19 @@ public class WebSocket extends Socket {
     }
 
     /**
-     * Returns the given uri if not empty otherwise return the fallback.
+     * Returns the given path if not empty otherwise return the fallback.
      *
-     * @param uri
-     *         the uri to return if not null or empty.
+     * @param path
+     *         the path to return if not null or empty.
      * @param fallback
-     *         in case the uri is empty or null return the fallback.
-     * @return the uri if not empty otherwise <code>fallback</code>
+     *         in case the path is empty or null return the fallback.
+     * @return the path if not empty otherwise <code>fallback</code>
      */
-    private String getPathOrDefault(String uri, String fallback) {
-        if (uri == null || uri.isEmpty()) {
+    private String getPathOrDefault(String path, String fallback) {
+        if (path == null || path.isEmpty()) {
             return fallback;
         }
-        return uri;
+        return path;
     }
 
     @Override
