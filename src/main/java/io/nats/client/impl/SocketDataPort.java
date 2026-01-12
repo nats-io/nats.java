@@ -98,7 +98,7 @@ public class SocketDataPort implements DataPort {
                     upgradeToSecure();
                 }
                 try {
-                    socket = new WebSocket(socket, host, options.getHttpRequestInterceptors());
+                    socket = new WebSocket(socket, host, options.getHttpRequestInterceptors(), nuri.getUri().getPath());
                 } catch (Exception ex) {
                     socket.close();
                     throw ex;
