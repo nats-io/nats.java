@@ -1,5 +1,29 @@
 # Change Log
 
+## 2.25.0
+### Core
+* Fix setting options via properties #1489 @scottf
+* Lazy initialize Options executors #1492 @scottf
+* Adding flexibility for executor options #1493 @scottf
+* [bug] Properly count message/bytes when in discardWhenFull mode #1498 @scottf
+* Subject validation #1501 @scottf
+* Call to error listener should have been done in a callback, not directly #1502 @scottf
+* Message Queue Splitting #1505 @scottf
+* NatsConnectionReader better ReadListener call #1507 @scottf
+* NatsConnectionReader better exceptions #1509 @scottf
+* Enable path component when connecting via WebSocket #1514 @jbaeck
+
+### Object Store
+* Object Store purge on re-put #1491 @scottf
+
+### Miscellaneous
+* Documenting Uber Jar and fixing example class usages. #1496 @scottf
+* Fix Flapper Test testSocketDataPortTimeout #1500 @scottf
+* Subject validation readme and backfill #1503 @scottf
+* Doc examples #1508 @scottf
+* Fix line ends #1511 @scottf
+* Doc examples #1513 @scottf
+
 ## 2.24.1
 
 ### Build
