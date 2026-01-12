@@ -11,13 +11,13 @@ plugins {
     id("signing")
 }
 
-def jarVersion = "2.25.0"
+def jarVersion = "2.25.1"
+group = 'io.nats'
 
 def isRelease = System.getenv("BUILD_EVENT") == "release"
 def brn = System.getenv("BRANCH_REF_NAME")
 def snap = brn == null || brn.equals("") ? "-SNAPSHOT" : "." + brn + "-SNAPSHOT"
 
-group = 'io.nats'
 version = isRelease ? jarVersion : jarVersion + snap // version is the variable the build actually uses.
 
 java {
