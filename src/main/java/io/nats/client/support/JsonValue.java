@@ -249,31 +249,39 @@ public class JsonValue implements JsonSerializable {
         JsonValue jsonValue = (JsonValue) o;
 
         if (type != jsonValue.type) return false;
-        if (!Objects.equals(map, jsonValue.map)) return false;
-        if (!Objects.equals(array, jsonValue.array)) return false;
-        if (!Objects.equals(string, jsonValue.string)) return false;
-        if (!Objects.equals(bool, jsonValue.bool)) return false;
-        if (!Objects.equals(i, jsonValue.i)) return false;
-        if (!Objects.equals(l, jsonValue.l)) return false;
-        if (!Objects.equals(d, jsonValue.d)) return false;
-        if (!Objects.equals(f, jsonValue.f)) return false;
-        if (!Objects.equals(bd, jsonValue.bd)) return false;
-        return Objects.equals(bi, jsonValue.bi);
+
+        switch (type) {
+            case STRING: return Objects.equals(string, jsonValue.string);
+            case BOOL: return Objects.equals(bool, jsonValue.bool);
+            case INTEGER: return Objects.equals(i, jsonValue.i);
+            case LONG: return Objects.equals(l, jsonValue.l);
+            case DOUBLE: return Objects.equals(d, jsonValue.d);
+            case FLOAT: return Objects.equals(f, jsonValue.f);
+            case BIG_DECIMAL: return Objects.equals(bd, jsonValue.bd);
+            case BIG_INTEGER: return Objects.equals(bi, jsonValue.bi);
+            case MAP: return Objects.equals(map, jsonValue.map);
+            case ARRAY: return Objects.equals(array, jsonValue.array);
+        }
+
+        return false;
     }
 
     @Override
     public int hashCode() {
-        int result = map != null ? map.hashCode() : 0;
-        result = 31 * result + (array != null ? array.hashCode() : 0);
-        result = 31 * result + (string != null ? string.hashCode() : 0);
-        result = 31 * result + (bool != null ? bool.hashCode() : 0);
-        result = 31 * result + (i != null ? i.hashCode() : 0);
-        result = 31 * result + (l != null ? l.hashCode() : 0);
-        result = 31 * result + (d != null ? d.hashCode() : 0);
-        result = 31 * result + (f != null ? f.hashCode() : 0);
-        result = 31 * result + (bd != null ? bd.hashCode() : 0);
-        result = 31 * result + (bi != null ? bi.hashCode() : 0);
-        result = 31 * result + (type != null ? type.hashCode() : 0);
-        return result;
+        int hc = 0;
+        switch (type) {
+            case STRING: hc = string.hashCode(); break;
+            case BOOL: hc = bool.hashCode(); break;
+            case INTEGER: hc = i.hashCode(); break;
+            case LONG: hc = l.hashCode(); break;
+            case DOUBLE: hc = d.hashCode(); break;
+            case FLOAT: hc = f.hashCode(); break;
+            case BIG_DECIMAL: hc = bd.hashCode(); break;
+            case BIG_INTEGER: hc = bi.hashCode(); break;
+            case MAP: hc = map.hashCode(); break;
+            case ARRAY: hc = array.hashCode(); break;
+        }
+
+        return 31 * type.hashCode() + hc;
     }
 }
