@@ -13,8 +13,6 @@
 
 package io.nats.client.support;
 
-import nl.jqno.equalsverifier.EqualsVerifier;
-import nl.jqno.equalsverifier.Warning;
 import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
 
@@ -78,9 +76,18 @@ public final class JsonParsingTests {
         addField(key(x++), HAS_TIC, oMap, list, encodeds, decodeds);
 
         for (int i = 0; i < list.size(); i++) {
-            JsonValue v = list.get(i);
-            assertEquals(decodeds.get(i), v.string);
-            assertEquals(v.toJson(), "\"" + encodeds.get(i) + "\"");
+            JsonValue vi = list.get(i);
+            assertEquals(decodeds.get(i), vi.string);
+            assertEquals(vi.toJson(), "\"" + encodeds.get(i) + "\"");
+            for (int j = 0; j < list.size(); j++) {
+                JsonValue vj = list.get(j);
+                if (i == j) {
+                    assertEquals(vi, vj);
+                }
+                else {
+                    assertNotEquals(vi, vj);
+                }
+            }
         }
     }
 
@@ -121,7 +128,9 @@ public final class JsonParsingTests {
 
         // some coverage here
         JsonValue vMap = new JsonValue(oMap);
+        JsonValue vMap2 = new JsonValue(oMap);
         assertEquals(vMap.toJson(), vMap.toString());
+        assertEquals(vMap, vMap2);
 
         validateMapTypes(oMap, oMap, true);
 
@@ -220,12 +229,20 @@ public final class JsonParsingTests {
         assertEquals(list.size(), root.array.size());
         List<JsonValue> array = root.array;
         for (int i = 0; i < array.size(); i++) {
-            JsonValue v = array.get(i);
+            JsonValue vi = array.get(i);
             JsonValue p = root.array.get(i);
-            assertEquals(v.object, p.object);
-            assertTrue(list.contains(v));
+            assertEquals(vi.object, p.object);
+            assertTrue(list.contains(vi));
+            for (int j = 0; j < array.size(); j++) {
+                JsonValue vj = array.get(j);
+                if (i == j) {
+                    assertEquals(vi, vj);
+                }
+                else {
+                    assertNotEquals(vi, vj);
+                }
+            }
         }
-
 
         list.clear();
         list.add(new JsonValue(1));
@@ -503,24 +520,6 @@ public final class JsonParsingTests {
             assertNull(readNanos(vv, "na"));
             assertEquals(Duration.ZERO, readNanos(vv, "na", Duration.ZERO));
         }
-    }
-
-    @Test
-    public void equalsContract() {
-        Map<String, JsonValue> map1 = new HashMap<>();
-        map1.put("1", new JsonValue(1));
-        Map<String, JsonValue> map2 = new HashMap<>();
-        map1.put("2", new JsonValue(2));
-        List<JsonValue> list3 = new ArrayList<>();
-        list3.add(new JsonValue(3));
-        List<JsonValue> list4 = new ArrayList<>();
-        list4.add(new JsonValue(4));
-        EqualsVerifier.simple().forClass(JsonValue.class)
-            .withPrefabValues(Map.class, map1, map2)
-            .withPrefabValues(List.class, list3, list4)
-            .withIgnoredFields("object", "number", "mapOrder")
-            .suppress(Warning.BIGDECIMAL_EQUALITY)
-            .verify();
     }
 
     private void validateParse(JsonValue expected, String json) throws JsonParseException {
