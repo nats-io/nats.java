@@ -261,6 +261,7 @@ public class JsonValue implements JsonSerializable {
             case BIG_INTEGER: return Objects.equals(bi, jsonValue.bi);
             case MAP: return Objects.equals(map, jsonValue.map);
             case ARRAY: return Objects.equals(array, jsonValue.array);
+            case NULL: return true; // null has null value, type was already checked.
         }
 
         return false;
