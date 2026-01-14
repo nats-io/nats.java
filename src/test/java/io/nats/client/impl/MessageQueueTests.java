@@ -492,6 +492,33 @@ public class MessageQueueTests {
     }
 
     @Test
+    public void doNotBlockQueueIfDiscardWhenFullIsTrue() {
+        WriterMessageQueue q = new WriterMessageQueue(10, true, Duration.ofMillis(50));
+        Thread poller = new Thread() {
+            final Duration pollDuration = Duration.ofMillis(50);
+            @Override
+            public void run() {
+                try {
+                    while(!isInterrupted()) {
+                        Thread.sleep(40);
+                        q._poll(pollDuration);
+                    }
+                } catch (InterruptedException ignored) {}
+            }
+        };
+        try {
+            poller.start();
+            int pushedMessages = 0;
+            while (q.push(getTestMessage()) && pushedMessages <= 10) {
+                pushedMessages++;
+            }
+            assertEquals(10, pushedMessages);
+        } finally {
+            poller.interrupt();
+        }
+    }
+
+    @Test
     public void testStateConsumer() throws InterruptedException {
         ConsumerMessageQueue q = new ConsumerMessageQueue();
         q.push(getTestMessage());

@@ -55,20 +55,20 @@ class WriterMessageQueue extends MessageQueueBase {
             long startNanos = NatsSystemClock.nanoTime();
             if (editLock.tryLock(pushTimeoutNanos, TimeUnit.NANOSECONDS)) {
                 try {
-                    long timeoutNanosLeft = Math.max(
-                        MIN_PUSH_TIMEOUT_NANOS,
-                        pushTimeoutNanos - (NatsSystemClock.nanoTime() - startNanos)
-                    );
-                   if (queue.offer(msg, timeoutNanosLeft, TimeUnit.NANOSECONDS)) {
-                        sizeInBytes.getAndAdd(msg.getSizeInBytes());
-                        length.incrementAndGet();
-                        return true;
-                    }
-                    // internal or !discardWhenFull throws instead of returns
                     if (!internal && discardWhenFull) {
-                        return false;
+                        if (!queue.offer(msg)) return false;
+                    } else {
+                        long timeoutNanosLeft = Math.max(
+                            MIN_PUSH_TIMEOUT_NANOS,
+                            pushTimeoutNanos - (NatsSystemClock.nanoTime() - startNanos)
+                        );
+                        if (!queue.offer(msg, timeoutNanosLeft, TimeUnit.NANOSECONDS)) {
+                            throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
+                        }
                     }
-                    throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
+                    sizeInBytes.getAndAdd(msg.getSizeInBytes());
+                    length.incrementAndGet();
+                    return true;
                 }
                 finally {
                     editLock.unlock();
