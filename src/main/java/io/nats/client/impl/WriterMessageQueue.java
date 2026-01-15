@@ -55,18 +55,25 @@ class WriterMessageQueue extends MessageQueueBase {
             long startNanos = NatsSystemClock.nanoTime();
             if (editLock.tryLock(pushTimeoutNanos, TimeUnit.NANOSECONDS)) {
                 try {
+                    // offer with no timeout returns true if the queue was not full
+                    if (!internal && discardWhenFull) {
+                        if (queue.offer(msg)) {
+                            sizeInBytes.getAndAdd(msg.getSizeInBytes());
+                            length.incrementAndGet();
+                            return true;
+                        }
+                        return false;
+                    }
+
+                    // offer with timeout
                     long timeoutNanosLeft = Math.max(
                         MIN_PUSH_TIMEOUT_NANOS,
                         pushTimeoutNanos - (NatsSystemClock.nanoTime() - startNanos)
                     );
-                   if (queue.offer(msg, timeoutNanosLeft, TimeUnit.NANOSECONDS)) {
+                    if (queue.offer(msg, timeoutNanosLeft, TimeUnit.NANOSECONDS)) {
                         sizeInBytes.getAndAdd(msg.getSizeInBytes());
                         length.incrementAndGet();
                         return true;
-                    }
-                    // internal or !discardWhenFull throws instead of returns
-                    if (!internal && discardWhenFull) {
-                        return false;
                     }
                     throw new IllegalStateException(OUTPUT_QUEUE_IS_FULL + queue.size());
                 }
