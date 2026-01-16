@@ -4,7 +4,7 @@
 
 ### A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
-**Current Release**: 2.25.0 &nbsp; **Current Snapshot**: 2.25.1-SNAPSHOT
+**Current Release**: 2.25.1 &nbsp; **Current Snapshot**: 2.25.2-SNAPSHOT
 
 [![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
@@ -64,7 +64,7 @@ The Service Framework allows your services to be discovered and queried for stat
 Check out the [ServiceExample](src/examples/java/io/nats/examples/service/ServiceExample.java)
 
 ## Subject Validation
-Subject validation is changed as of 2.25.0. Up until now, subject validation has been strict.
+Subject validation is changed as of 2.25.1. Up until now, subject validation has been strict.
 This means that when subjects were presented for instance in publish or subscribe calls,
 strict validation was applied. While this is great for some use cases, for instance when
 giving the ability of an application user to set a subject, it's generally not necessary.
@@ -166,9 +166,9 @@ See [Building From Source](#building-from-source) for details on building the li
 
 ### Downloading the Jar
 
-You can download the latest jar at [jnats-2.25.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.25.0/jnats-2.25.0.jar).
+You can download the latest jar at [jnats-2.25.1.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.25.1/jnats-2.25.1.jar).
 
-The examples are available at [jnats-2.25.0-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.25.0/jnats-2.25.0-examples.jar).
+The examples are available at [jnats-2.25.1-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.25.1/jnats-2.25.1-examples.jar).
 
 ### Using Gradle
 
@@ -176,7 +176,7 @@ The NATS client is available in the Maven central repository, and can be importe
 
 ```groovy
 dependencies {
-    implementation 'io.nats:jnats:2.25.0'
+    implementation 'io.nats:jnats:2.25.1'
 }
 ```
 
@@ -202,7 +202,7 @@ repositories {
 }
 
 dependencies {
-   implementation 'io.nats:jnats:2.25.1-SNAPSHOT'
+   implementation 'io.nats:jnats:2.25.2-SNAPSHOT'
 }
 ```
 
@@ -214,7 +214,7 @@ The NATS client is available on the Maven Central Repository and can be imported
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.25.0</version>
+    <version>2.25.1</version>
 </dependency>
 ```
 
@@ -248,7 +248,7 @@ If you need a snapshot version, you must enable snapshots and change your depend
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.25.1-SNAPSHOT</version>
+    <version>2.25.2-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -1431,7 +1431,7 @@ and the example jar is in `build/libs`
 Once the Uber jar is built, you can run a class with a main using it's fully qualified class name. As an example:
 
 ```bash
-java -cp build/libs/java-nats-2.25.1-SNAPSHOT-uber.jar io.nats.examples.NatsSub
+java -cp build/libs/java-nats-2.25.2-SNAPSHOT-uber.jar io.nats.examples.NatsSub
 ```
 
 ## License
