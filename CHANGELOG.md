@@ -1,6 +1,6 @@
 # Change Log
 
-## 2.25.0
+## 2.25.1
 ### Core
 * Fix setting options via properties #1489 @scottf
 * Lazy initialize Options executors #1492 @scottf
