@@ -15,7 +15,9 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.support.Listener;
 import io.nats.client.support.Status;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -26,33 +28,34 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static io.nats.client.utils.TestBase.*;
+import static io.nats.client.support.Listener.LONG_VALIDATE_TIMEOUT;
+import static io.nats.client.utils.ConnectionUtils.*;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class ErrorListenerTests {
+public class ErrorListenerTests extends TestBase {
 
     @Test
-    public void testLastError() throws Exception {
-        NatsConnection nc = null;
-        ListenerForTesting listener = new ListenerForTesting();
+    public void testLastError_ClearError_AuthViolation() throws Exception {
+        NatsConnection nc;
+        Listener listener = new Listener(true);
         String[] customArgs = {"--user", "stephen", "--pass", "password"};
 
         try (NatsTestServer ts = new NatsTestServer();
-             NatsTestServer ts2 = new NatsTestServer(customArgs, false); //ts2 requires auth
+             NatsTestServer ts2 = new NatsTestServer(customArgs); //ts2 requires auth
              NatsTestServer ts3 = new NatsTestServer()) {
-            Options options = new Options.Builder()
-                .server(ts.getURI())
-                .server(ts2.getURI())
-                .server(ts3.getURI())
+            Options options = optionsBuilder(ts.getServerUri(), ts2.getServerUri(), ts3.getServerUri())
                 .noRandomize()
                 .connectionListener(listener)
                 .errorListener(listener)
                 .maxReconnects(-1)
                 .build();
             nc = (NatsConnection) Nats.connect(options);
-            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-            assertEquals(ts.getURI(), nc.getConnectedUrl());
-            listener.prepForStatusChange(Events.DISCONNECTED);
+            assertConnected(nc);
+            assertEquals(ts.getServerUri(), nc.getConnectedUrl());
+            listener.queueConnectionEvent(Events.DISCONNECTED);
+            listener.queueConnectionEvent(Events.RECONNECTED);
+            listener.queueError("Authorization Violation");
 
             ts.close();
 
@@ -63,126 +66,40 @@ public class ErrorListenerTests {
                 // this usually fails
             }
 
-            listener.waitForStatusChange(5, TimeUnit.SECONDS);
+            listener.validateAll();
 
-            listener.prepForStatusChange(Events.RECONNECTED);
-            listener.waitForStatusChange(5, TimeUnit.SECONDS);
-
-            assertTrue(listener.errorsEventually("Authorization Violation", 2000));
-
-            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-            assertEquals(ts3.getURI(), nc.getConnectedUrl());
-        } finally {
-            standardCloseConnection(nc);
-        }
-    }
-
-    @Test
-    public void testClearLastError() throws Exception {
-        NatsConnection nc = null;
-        ListenerForTesting listener = new ListenerForTesting();
-        String[] customArgs = {"--user", "stephen", "--pass", "password"};
-
-        try (NatsTestServer ts = new NatsTestServer();
-             NatsTestServer ts2 = new NatsTestServer(customArgs, false); //ts2 requires auth
-             NatsTestServer ts3 = new NatsTestServer()) {
-            Options options = new Options.Builder()
-                .server(ts.getURI())
-                .server(ts2.getURI())
-                .server(ts3.getURI())
-                .noRandomize()
-                .connectionListener(listener)
-                .errorListener(listener)
-                .maxReconnects(-1)
-                .build();
-            nc = (NatsConnection) Nats.connect(options);
-            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-            assertEquals(ts.getURI(), nc.getConnectedUrl());
-            listener.prepForStatusChange(Events.DISCONNECTED);
-
-            ts.close();
-
-            try {
-                nc.flush(Duration.ofSeconds(1));
-            }
-            catch (Exception exp) {
-                // this usually fails
-            }
-
-            listener.waitForStatusChange(5, TimeUnit.SECONDS);
-
-            listener.prepForStatusChange(Events.RECONNECTED);
-            listener.waitForStatusChange(5, TimeUnit.SECONDS);
-
-            assertTrue(listener.errorsEventually("Authorization Violation", 2000));
-
-            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
-            assertEquals(ts3.getURI(), nc.getConnectedUrl());
+            confirmConnected(nc); // wait for reconnect
+            assertEquals(ts3.getServerUri(), nc.getConnectedUrl());
 
             nc.clearLastError();
             assertNull(nc.getLastError());
-        }
-        finally {
-            standardCloseConnection(nc);
-        }
-    }
-
-    @Test
-    public void testErrorOnNoAuth() throws Exception {
-        String[] customArgs = {"--user", "stephen", "--pass", "password"};
-        ListenerForTesting listener = new ListenerForTesting();
-        try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
-            sleep(1000); // give the server time to get ready, otherwise sometimes this test flaps
-            // See config file for user/pass
-            // no or wrong u/p in the options is an error
-            Options options = new Options.Builder().
-                    server(ts.getURI())
-                    .maxReconnects(0)
-                    .errorListener(listener)
-                    .build();
-            try {
-                Nats.connect(options);
-                fail();
-            }
-            catch (AuthenticationException ae) {
-                if (ae.getMessage().contains("Authorization Violation")) {
-                    return;
-                }
-                fail();
-            }
-            assertTrue(listener.errorsEventually("Authorization Violation", 10000));
         }
     }
 
     @Test
     public void testExceptionOnBadDispatcher() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         try (NatsTestServer ts = new NatsTestServer()) {
-            Options options = new Options.Builder().
-                    server(ts.getURI()).
-                    maxReconnects(0).
-                    errorListener(listener).
-                    build();
-            Connection nc = Nats.connect(options);
-            try {
-                Dispatcher d = nc.createDispatcher((msg) -> {
+            Options options = optionsBuilder(ts)
+                .maxReconnects(0)
+                .errorListener(listener)
+                .build();
+            try (Connection nc = Nats.connect(options)) {
+                Dispatcher d = nc.createDispatcher(msg -> {
                     throw new ArithmeticException();
                 });
-                d.subscribe("subject");
-                Future<Message> incoming = nc.request("subject", null);
-
-                Message msg;
+                String subject = random();
+                d.subscribe(subject);
+                Future<Message> incoming = nc.request(subject, null);
 
                 try {
-                    msg = incoming.get(200, TimeUnit.MILLISECONDS);
-                } catch (TimeoutException te) {
-                    msg = null;
+                    incoming.get(200, TimeUnit.MILLISECONDS);
+                    fail();
                 }
-
-                assertNull(msg);
-                assertEquals(1, listener.getCount());
-            } finally {
-                standardCloseConnection(nc);
+                catch (TimeoutException te) {
+                    // expected
+                }
+                assertEquals(1, listener.getExceptionCount());
             }
         }
     }
@@ -191,14 +108,13 @@ public class ErrorListenerTests {
     public void testExceptionInErrorHandler() throws Exception {
         String[] customArgs = {"--user", "stephen", "--pass", "password"};
         BadHandler listener = new BadHandler();
-        try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
+        try (NatsTestServer ts = new NatsTestServer(customArgs)) {
             // See config file for user/pass
-            Options options = new Options.Builder()
-                    .server(ts.getURI())
-                    .maxReconnects(0)
-                    .errorListener(listener)
-                    // skip this so we get an error userInfo("stephen", "password").
-                    .build();
+            // don't put u/p in options
+            Options options = optionsBuilder(ts)
+                .maxReconnects(0)
+                .errorListener(listener)
+                .build();
             assertThrows(IOException.class, () -> Nats.connect(options));
         }
     }
@@ -206,19 +122,17 @@ public class ErrorListenerTests {
     @Test
     public void testExceptionInSlowConsumerHandler() throws Exception {
         BadHandler listener = new BadHandler();
-        try (NatsTestServer ts = new NatsTestServer(false);
-             NatsConnection nc = (NatsConnection) Nats.connect(new Options.Builder().
-                     server(ts.getURI()).
-                     errorListener(listener).
-                     build())) {
+        try (NatsTestServer ts = new NatsTestServer();
+             Connection nc = Nats.connect(optionsBuilder(ts).errorListener(listener).build())) {
 
-            Subscription sub = nc.subscribe("subject");
+            String subject = random();
+            Subscription sub = nc.subscribe(subject);
             sub.setPendingLimits(1, -1);
 
-            nc.publish("subject", null);
-            nc.publish("subject", null);
-            nc.publish("subject", null);
-            nc.publish("subject", null);
+            nc.publish(subject, null);
+            nc.publish(subject, null);
+            nc.publish(subject, null);
+            nc.publish(subject, null);
 
             nc.flush(Duration.ofMillis(5000));
 
@@ -226,7 +140,7 @@ public class ErrorListenerTests {
 
             nc.close(); // should force the exception listener through
 
-            assertTrue(nc.getStatisticsCollector().getExceptions() > 0);
+            assertTrue(nc.getStatistics().getExceptions() > 0);
         }
     }
 
@@ -234,18 +148,15 @@ public class ErrorListenerTests {
     public void testExceptionInExceptionHandler() throws Exception {
         BadHandler listener = new BadHandler();
         try (NatsTestServer ts = new NatsTestServer()) {
-            Options options = new Options.Builder().
-                    server(ts.getURI()).
-                    maxReconnects(0).
-                    errorListener(listener).
-                    build();
+            Options options = optionsBuilder(ts).maxReconnects(0).errorListener(listener).build();
             Connection nc = Nats.connect(options);
             try {
-                Dispatcher d = nc.createDispatcher((msg) -> {
+                Dispatcher d = nc.createDispatcher(msg -> {
                     throw new ArithmeticException();
                 });
-                d.subscribe("subject");
-                Future<Message> incoming = nc.request("subject", null);
+                String subject = random();
+                d.subscribe(subject);
+                Future<Message> incoming = nc.request(subject, null);
 
                 Message msg;
 
@@ -256,82 +167,78 @@ public class ErrorListenerTests {
                 }
 
                 assertNull(msg);
-                assertEquals(((NatsConnection) nc).getStatisticsCollector().getExceptions(), 2); // 1 for the dispatcher, 1 for the handlers
+                assertEquals(2, nc.getStatistics().getExceptions()); // 1 for the dispatcher, 1 for the handlers
             } finally {
-                standardCloseConnection(nc);
+                closeAndConfirm(nc);
             }
         }
     }
 
     @Test
     public void testDiscardedMessageFastProducer() throws Exception {
+        String subject = random();
         int maxMessages = 10;
-        ListenerForTesting listener = new ListenerForTesting();
+        Listener listener = new Listener();
         try (NatsTestServer ts = new NatsTestServer()) {
-            Options options = new Options.Builder().
-                    server(ts.getURI()).
-                    maxMessagesInOutgoingQueue(maxMessages).
-                    discardMessagesWhenOutgoingQueueFull().
-                    errorListener(listener).
-                    pingInterval(Duration.ofSeconds(100)). // make this long so we don't ping during test
-                    build();
+            Options options = optionsBuilder(ts)
+                .maxMessagesInOutgoingQueue(maxMessages)
+                .discardMessagesWhenOutgoingQueueFull()
+                .errorListener(listener)
+                .pingInterval(Duration.ofSeconds(100)) // make this long so we don't ping during test
+                .build();
             NatsConnection nc = (NatsConnection) Nats.connect(options);
 
             try {
                 nc.flush(Duration.ofSeconds(2));
-
                 nc.getWriter().stop().get(2, TimeUnit.SECONDS);
                 for (int i = 0; i < maxMessages + 1; i++) {
-                    nc.publish("subject" + i, ("message" + i).getBytes());
+                    nc.publish(subject + i, ("message" + i).getBytes());
                 }
                 nc.getWriter().start(nc.getDataPortFuture());
 
                 nc.flush(Duration.ofSeconds(2));
             } finally {
-                standardCloseConnection(nc);
+                closeAndConfirm(nc);
             }
         }
 
         List<Message> discardedMessages = listener.getDiscardedMessages();
         assertFalse(discardedMessages.isEmpty(), "expected discardedMessages > 0, got " + discardedMessages.size());
         int offset = maxMessages + 1 - discardedMessages.size();
-        assertEquals("subject" + offset, discardedMessages.get(0).getSubject());
+        assertEquals(subject + offset, discardedMessages.get(0).getSubject());
         assertEquals("message" + offset, new String(discardedMessages.get(0).getData()));
     }
 
     @Test
     public void testDiscardedMessageServerClosed() throws Exception {
+        String subject = random();
         int maxMessages = 10;
-        ListenerForTesting listener = new ListenerForTesting();
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Options options = new Options.Builder().
-                    server(ts.getURI()).
-                    maxMessagesInOutgoingQueue(maxMessages).
-                    discardMessagesWhenOutgoingQueueFull().
-                    pingInterval(Duration.ofSeconds(100)). // make this long so we don't ping during test
-                    connectionListener(listener).
-                    errorListener(listener).
-                    build();
-            Connection nc = standardConnection(options);
-
-            try {
-                nc.flush(Duration.ofSeconds(1)); // Get the sub to the server
-
-                listener.prepForStatusChange(Events.DISCONNECTED);
+        Listener listener = new Listener();
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = optionsBuilder(ts)
+                .maxMessagesInOutgoingQueue(maxMessages)
+                .discardMessagesWhenOutgoingQueueFull()
+                .connectionListener(listener)
+                .errorListener(listener)
+                .pingInterval(Duration.ofSeconds(100)) // make this long so we don't ping during test
+                .build();
+            listener.queueConnectionEvent(Events.CONNECTED, LONG_VALIDATE_TIMEOUT);
+            listener.queueConnectionEvent(Events.DISCONNECTED, LONG_VALIDATE_TIMEOUT);
+            try (Connection nc = managedConnect(options)) {
+                nc.flush(Duration.ofSeconds(1));
+                listener.validate();
                 ts.close();
-                listener.waitForStatusChange(2, TimeUnit.SECONDS); // make sure the connection is down
+                listener.validate();
 
                 for (int i = 0; i < maxMessages + 1; i++) {
-                    nc.publish("subject" + i, ("message" + i).getBytes());
+                    nc.publish(subject + i, ("message" + i).getBytes());
                 }
-            } finally {
-                standardCloseConnection(nc);
             }
         }
 
         List<Message> discardedMessages = listener.getDiscardedMessages();
         assertFalse(discardedMessages.isEmpty(), "At least one message discarded");
-        assertTrue(discardedMessages.get(0).getSubject().startsWith("subject"), "Message subject");
+        assertTrue(discardedMessages.get(0).getSubject().startsWith(subject), "Message subject");
         assertTrue(new String(discardedMessages.get(0).getData()).startsWith("message"), "Message data");
     }
 

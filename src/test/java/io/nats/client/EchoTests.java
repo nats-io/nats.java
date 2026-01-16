@@ -13,68 +13,50 @@
 
 package io.nats.client;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import io.nats.client.NatsServerProtocolMock.ExitAt;
+import io.nats.client.impl.SharedServer;
+import io.nats.client.utils.ConnectionUtils;
+import io.nats.client.utils.TestBase;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
 
-import org.junit.jupiter.api.Test;
+import static io.nats.client.utils.ConnectionUtils.assertCanConnect;
+import static io.nats.client.utils.OptionsUtils.options;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
+import static org.junit.jupiter.api.Assertions.*;
 
-import io.nats.client.NatsServerProtocolMock.ExitAt;
-
-public class EchoTests {
+public class EchoTests extends TestBase {
     @Test
-    public void testFailWithBadServerProtocol() {
-        assertThrows(IOException.class, () -> {
-            Connection nc = null;
-            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-                Options opt = new Options.Builder().server(ts.getURI()).noEcho().noReconnect().build();
-                try {
-                    nc = Nats.connect(opt); // Should fail
-                } finally {
-                    if (nc != null) {
-                        nc.close();
-                        assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
-                    }
-                }
-            }
-        });
+    public void testFailWithBadServerProtocol() throws Exception {
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
+            Options options = optionsBuilder(mockTs).noEcho().noReconnect().build();
+            assertThrows(IOException.class, () -> Nats.connect(options));
+        }
     }
 
     @Test
     public void testConnectToOldServerWithEcho() throws Exception {
-        Connection nc = null;
-        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-            Options opt = new Options.Builder().server(ts.getURI()).noReconnect().build();
-            try {
-                nc = Nats.connect(opt);
-            } finally {
-                if (nc != null) {
-                    nc.close();
-                    assertTrue(Connection.Status.CLOSED == nc.getStatus(), "Closed Status");
-                }
-            }
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
+            Options options = optionsBuilder(mockTs).noReconnect().build();
+            assertCanConnect(options);
         }
     }
     
     @Test
     public void testWithEcho() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer()) {
-            Options options = new Options.Builder().server(ts.getURI()).noReconnect().build();
-            try (Connection nc1 = Nats.connect(options);
-                    Connection nc2 = Nats.connect(options);) {
-
+        runInShared(nc1 -> {
+            try (Connection nc2 = ConnectionUtils.managedConnect(options(nc1))) {
                 // Echo is on so both sub should get messages from both pub
-                Subscription sub1 = nc1.subscribe("test");
+                String subject = random();
+                Subscription sub1 = nc1.subscribe(subject);
                 nc1.flush(Duration.ofSeconds(1));
-                Subscription sub2 = nc2.subscribe("test");
+                Subscription sub2 = nc2.subscribe(subject);
                 nc2.flush(Duration.ofSeconds(1));
 
                 // Pub from connect 1
-                nc1.publish("test", null);
+                nc1.publish(subject, null);
                 nc1.flush(Duration.ofSeconds(1));
                 Message msg = sub1.nextMessage(Duration.ofSeconds(1));
                 assertNotNull(msg);
@@ -82,45 +64,42 @@ public class EchoTests {
                 assertNotNull(msg);
 
                 // Pub from connect 2
-                nc2.publish("test", null);
+                nc2.publish(subject, null);
                 nc2.flush(Duration.ofSeconds(1));
                 msg = sub1.nextMessage(Duration.ofSeconds(1));
                 assertNotNull(msg);
                 msg = sub2.nextMessage(Duration.ofSeconds(1));
                 assertNotNull(msg);
             }
-        }
+        });
     }
-    
+
     @Test
     public void testWithNoEcho() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer()) {
-            Options options = new Options.Builder().server(ts.getURI()).noEcho().noReconnect().build();
-            try (Connection nc1 = Nats.connect(options);
-                    Connection nc2 = Nats.connect(options);) {
+        runInSharedOwnNc(optionsBuilder().noEcho().noReconnect(), nc1 -> {
+            Connection nc2 = SharedServer.sharedConnectionForSameServer(nc1);
 
-                // Echo is on so both sub should get messages from both pub
-                Subscription sub1 = nc1.subscribe("test");
-                nc1.flush(Duration.ofSeconds(1));
-                Subscription sub2 = nc2.subscribe("test");
-                nc2.flush(Duration.ofSeconds(1));
+            String subject = random();
+            Subscription sub1 = nc1.subscribe(subject);
+            nc1.flush(Duration.ofSeconds(1));
+            Subscription sub2 = nc2.subscribe(subject);
+            nc2.flush(Duration.ofSeconds(1));
 
-                // Pub from connect 1
-                nc1.publish("test", null);
-                nc1.flush(Duration.ofSeconds(1));
-                Message msg = sub1.nextMessage(Duration.ofSeconds(1));
-                assertNull(msg); // no message for sub1 from pub 1
-                msg = sub2.nextMessage(Duration.ofSeconds(1));
-                assertNotNull(msg);
+            // Pub from connect 1
+            nc1.publish(subject, null);
+            nc1.flush(Duration.ofSeconds(1));
+            Message msg = sub1.nextMessage(Duration.ofSeconds(1));
+            assertNull(msg); // no message for sub1 from pub 1
+            msg = sub2.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(msg);
 
-                // Pub from connect 2
-                nc2.publish("test", null);
-                nc2.flush(Duration.ofSeconds(1));
-                msg = sub1.nextMessage(Duration.ofSeconds(1));
-                assertNotNull(msg);
-                msg = sub2.nextMessage(Duration.ofSeconds(1));
-                assertNull(msg); // no message for sub2 from pub 2
-            }
-        }
+            // Pub from connect 2
+            nc2.publish(subject, null);
+            nc2.flush(Duration.ofSeconds(1));
+            msg = sub1.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(msg);
+            msg = sub2.nextMessage(Duration.ofSeconds(1));
+            assertNotNull(msg); // nc2 is not no echo
+        });
     }
 }

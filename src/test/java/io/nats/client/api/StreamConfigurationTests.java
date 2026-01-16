@@ -13,7 +13,6 @@
 
 package io.nats.client.api;
 
-import io.nats.client.JetStreamManagement;
 import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.JsonParseException;
@@ -31,6 +30,7 @@ import static io.nats.client.api.CompressionOption.None;
 import static io.nats.client.api.CompressionOption.S2;
 import static io.nats.client.api.ConsumerConfiguration.*;
 import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.utils.VersionUtils.atLeast2_10;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class StreamConfigurationTests extends JetStreamTestBase {
@@ -54,11 +54,10 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
     @Test
     public void testRoundTrip() throws Exception {
-        runInJsServer(si -> si.isNewerVersionThan("2.8.4"), nc -> {
-            CompressionOption compressionOption = atLeast2_10(ensureRunServerInfo()) ? S2 : None;
-            String stream = stream();
+        runInSharedCustom((nc, ctx) -> {
+            CompressionOption compressionOption = atLeast2_10() ? S2 : None;
             StreamConfiguration sc = StreamConfiguration.builder(getTestConfiguration())
-                .name(stream)
+                .name(ctx.stream)
                 .mirror(null)
                 .sources()
                 .replicas(1)
@@ -71,8 +70,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 .allowMessageCounter(false)
                 .persistMode(null)
                 .build();
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            validateTestStreamConfiguration(jsm.addStream(sc).getConfiguration(), true, stream);
+            validateTestStreamConfiguration(ctx.createOrReplaceStream(sc).getConfiguration(), true, ctx.stream);
         });
     }
 
@@ -148,7 +146,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
     public void testInvalidNameInJson() throws Exception{
         String originalJson = getStreamConfigurationJson();
         JsonValue originalParsedJson = JsonParser.parse(originalJson);
-        originalParsedJson.map.put(NAME, new JsonValue("Inavlid*Name"));
+        originalParsedJson.map.put("name", new JsonValue("Invalid*Name"));
         assertThrows(IllegalArgumentException.class, () -> StreamConfiguration.instance(originalParsedJson.toJson()));
     }
 
@@ -268,11 +266,9 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         for (String l1 : lines) {
             if (l1.startsWith("{")) {
                 Mirror m1 = new Mirror(JsonParser.parseUnchecked(l1));
-                //noinspection EqualsWithItself
                 assertEquals(m1, m1);
                 assertEquals(m1, Mirror.builder(m1).build());
                 Source s1 = new Source(JsonParser.parseUnchecked(l1));
-                //noinspection EqualsWithItself
                 assertEquals(s1, s1);
                 assertEquals(s1, Source.builder(s1).build());
                 //this provides testing coverage
@@ -300,7 +296,6 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         lines = ResourceUtils.dataAsLines("ExternalJson.txt");
         for (String l1 : lines) {
             External e1 = new External(JsonParser.parseUnchecked(l1));
-            //noinspection EqualsWithItself
             assertEquals(e1, e1);
             //noinspection MisorderedAssertEqualsArguments
             assertNotEquals(e1, null);
@@ -319,7 +314,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
         // coverage for null StreamConfiguration, millis maxAge, millis duplicateWindow
         StreamConfiguration scCov = StreamConfiguration.builder(null)
-            .name(name())
+            .name(random())
             .maxAge(1111)
             .duplicateWindow(2222)
             .build();
@@ -455,63 +450,74 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
     @Test
     public void testSubjects() {
-        StreamConfiguration.Builder builder = StreamConfiguration.builder().name(name());
+        StreamConfiguration.Builder builder = StreamConfiguration.builder().name(random());
 
+        String subject = random();
         // subjects(...) replaces
-        builder.subjects(subject(0));
-        assertSubjects(builder.build(), 0);
+        builder.subjects(subject);
+        assertSubjects(builder.build(), subject);
 
         // subjects(...) replaces
         builder.subjects();
         assertSubjects(builder.build());
 
         // subjects(...) replaces
-        builder.subjects(subject(1));
-        assertSubjects(builder.build(), 1);
+        subject = random();
+        builder.subjects(subject);
+        assertSubjects(builder.build(), subject);
 
         // subjects(...) replaces
         builder.subjects((String)null);
         assertSubjects(builder.build());
 
         // subjects(...) replaces
-        builder.subjects(subject(2), subject(3));
-        assertSubjects(builder.build(), 2, 3);
+        String subjectA = random();
+        String subjectB = random();
+        builder.subjects(subjectA, subjectB);
+        assertSubjects(builder.build(), subjectA, subjectB);
 
         // subjects(...) replaces
-        builder.subjects(subject(101), null, subject(102));
-        assertSubjects(builder.build(), 101, 102);
+        subjectA = random();
+        subjectB = random();
+        builder.subjects(subjectA, null, subjectB);
+        assertSubjects(builder.build(), subjectA, subjectB);
 
         // subjects(...) replaces
-        builder.subjects(Arrays.asList(subject(4), subject(5)));
-        assertSubjects(builder.build(), 4, 5);
+        subjectA = random();
+        subjectB = random();
+        builder.subjects(Arrays.asList(subjectA, subjectB));
+        assertSubjects(builder.build(), subjectA, subjectB);
 
         // addSubjects(...) adds unique
-        builder.addSubjects(subject(5), subject(6));
-        assertSubjects(builder.build(), 4, 5, 6);
+        String subjectC = random();
+        builder.addSubjects(subjectB, subjectC);
+        assertSubjects(builder.build(), subjectA, subjectB, subjectC);
 
         // addSubjects(...) adds unique
-        builder.addSubjects(Arrays.asList(subject(6), subject(7), subject(8)));
-        assertSubjects(builder.build(), 4, 5, 6, 7, 8);
+        String subjectD = random();
+        String subjectE = random();
+        builder.addSubjects(Arrays.asList(subjectC, subjectD, subjectE));
+        assertSubjects(builder.build(), subjectA, subjectB, subjectC, subjectD, subjectE);
 
         // addSubjects(...) null check
         builder.addSubjects((String[]) null);
-        assertSubjects(builder.build(), 4, 5, 6, 7, 8);
+        assertSubjects(builder.build(), subjectA, subjectB, subjectC, subjectD, subjectE);
 
         // addSubjects(...) null check
         builder.addSubjects((Collection<String>) null);
-        assertSubjects(builder.build(), 4, 5, 6, 7, 8);
+        assertSubjects(builder.build(), subjectA, subjectB, subjectC, subjectD, subjectE);
     }
 
-    private void assertSubjects(StreamConfiguration sc, int... subIds) {
-        assertEquals(subIds.length, sc.getSubjects().size());
-        for (int subId : subIds) {
-            assertTrue(sc.getSubjects().contains(subject(subId)));
+    private void assertSubjects(StreamConfiguration sc, String... subjects) {
+        assertEquals(subjects.length, sc.getSubjects().size());
+        for (String s : subjects) {
+            assertTrue(sc.getSubjects().contains(s));
         }
     }
 
     @Test
     public void testRetentionPolicy() {
-        StreamConfiguration.Builder builder = StreamConfiguration.builder().name(name());
+        StreamConfiguration.Builder builder = StreamConfiguration.builder().name(random());
         assertEquals(RetentionPolicy.Limits, builder.build().getRetentionPolicy());
 
         builder.retentionPolicy(RetentionPolicy.Limits);
@@ -529,7 +535,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
     @Test
     public void testCompressionOption() {
-        StreamConfiguration.Builder builder = StreamConfiguration.builder().name(name());
+        StreamConfiguration.Builder builder = StreamConfiguration.builder().name(random());
         assertEquals(None, builder.build().getCompressionOption());
 
         builder.compressionOption(None);
@@ -546,7 +552,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
     @Test
     public void testStorageType() {
-        StreamConfiguration.Builder builder = StreamConfiguration.builder().name(name());
+        StreamConfiguration.Builder builder = StreamConfiguration.builder().name(random());
         assertEquals(StorageType.File, builder.build().getStorageType());
 
         builder.storageType(StorageType.Memory);
@@ -558,7 +564,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
     @Test
     public void testDiscardPolicy() {
-        StreamConfiguration.Builder builder = StreamConfiguration.builder().name(name());
+        StreamConfiguration.Builder builder = StreamConfiguration.builder().name(random());
         assertEquals(DiscardPolicy.Old, builder.build().getDiscardPolicy());
 
         builder.discardPolicy(DiscardPolicy.New);
