@@ -4,14 +4,14 @@
 
 ### A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
-**Current Release**: 2.25.1 &nbsp; **Current Snapshot**: 2.25.2-SNAPSHOT
+![2.25.1](https://img.shields.io/badge/Current_Release-2.25.1-27AAE0?style=for-the-badge)
+![2.25.2](https://img.shields.io/badge/Current_Snapshot-2.25.2--SNAPSHOT-27AAE0?style=for-the-badge)
 
-[![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats/badge.svg)](https://maven-badges.herokuapp.com/maven-central/io.nats/jnats)
-[![javadoc](https://javadoc.io/badge2/io.nats/jnats/javadoc.svg)](https://javadoc.io/doc/io.nats/jnats)
-[![Coverage Status](https://coveralls.io/repos/github/nats-io/nats.java/badge.svg?branch=main)](https://coveralls.io/github/nats-io/nats.java?branch=main)
 [![Build Main Badge](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml/badge.svg?event=push)](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml)
-[![Release Badge](https://github.com/nats-io/nats.java/actions/workflows/build-release.yml/badge.svg?event=release)](https://github.com/nats-io/nats.java/actions/workflows/build-release.yml)
+[![Coverage Status](https://coveralls.io/repos/github/nats-io/nats.java/badge.svg?branch=main)](https://coveralls.io/github/nats-io/nats.java?branch=main)
+[![Maven Central](https://img.shields.io/maven-central/v/io.nats/jnats)](https://img.shields.io/maven-central/v/io.nats/jnats)
+[![javadoc](https://javadoc.io/badge/io.nats/jnats/javadoc.svg)](https://javadoc.io/doc/io.nats/jnats)
+[![License Apache 2](https://img.shields.io/badge/License-Apache2-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
 ### Examples and other documentation...
 
