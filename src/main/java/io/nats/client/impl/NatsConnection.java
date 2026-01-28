@@ -1811,14 +1811,14 @@ class NatsConnection implements Connection {
     }
 
     private void validatePayloadAndControlLineSizes(NatsMessage msg) {
-        if (options.clientSideLimitChecks() && getMaxPayload() > 0) {
-            if (msg.getPayloadSize() > getMaxPayload()) {
+        if (options.clientSideLimitChecks()) {
+            if (getMaxPayload() > 0 && msg.getPayloadSize() > getMaxPayload()) {
                 throw new IllegalArgumentException(
                     "Message payload size exceed server configuration " + msg.getPayloadSize() + " vs " + this.getMaxPayload());
             }
-        }
-        if (msg.getControlLineLength() > this.options.getMaxControlLine()) {
-            throw new IllegalArgumentException("Control line is too long");
+            if (msg.getControlLineLength() > this.options.getMaxControlLine()) {
+                throw new IllegalArgumentException("Control line is too long");
+            }
         }
     }
 
