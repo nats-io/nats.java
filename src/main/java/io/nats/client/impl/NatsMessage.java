@@ -177,6 +177,11 @@ public class NatsMessage implements Message {
         return protocolBab.toByteArray();
     }
 
+    int getPayloadSize() {
+        calculate();
+        return dataLen + headerLen;
+    }
+
     int getControlLineLength() {
         calculate();
         return controlLineLength;

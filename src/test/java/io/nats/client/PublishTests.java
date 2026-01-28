@@ -60,7 +60,6 @@ public class PublishTests extends TestBase {
             assertThrows(IllegalArgumentException.class, () -> nc.publish(null, null));
         });
     }
-
     @Test
     public void testThrowsIfTooBig() throws Exception {
         byte[] body = new byte[1024]; // 1024 is > than max_payload.conf max_payload: 1000
@@ -81,6 +80,46 @@ public class PublishTests extends TestBase {
                 listener.validateForAny(); // sometimes the exception comes in before the error and the error never comes, so validate for either.
             }
         });
+    }
+
+    @Test
+    public void testThrowsIfTooBig() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/max_payload.conf", false, false))
+        {
+            Connection nc = Nats.connect(ts.getURI());
+            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+
+            byte[] body1001 = new byte[1001];
+            assertThrows(IllegalArgumentException.class, () -> nc.publish("subject", null, null, body1001));
+
+            byte[] body977 = new byte[977];
+            Headers h = new Headers();
+            h.put("abcd", "12345"); // NATS/1.0\r\nabcd:12345\r\n\r\n 24 characters 971 + 24 = 1001
+            assertThrows(IllegalArgumentException.class, () -> nc.publish("subject", null, h, body977));
+
+            nc.close();
+
+            AtomicBoolean mpv = new AtomicBoolean(false);
+            AtomicBoolean se = new AtomicBoolean(false);
+            ErrorListener el = new ErrorListener() {
+                @Override
+                public void errorOccurred(Connection conn, String error) {
+                    mpv.set(error.contains("Maximum Payload Violation"));
+                }
+
+            Listener listener = new Listener();
+            Options options = optionsBuilder(ts)
+                .clientSideLimitChecks(false)
+                .errorListener(listener)
+                .build();
+            Connection nc2 = Nats.connect(options);
+            assertSame(Connection.Status.CONNECTED, nc2.getStatus(), "Connected Status");
+            nc2.publish("subject", null, null, body1001);
+
+            sleep(250);
+            assertTrue(mpv.get());
+            assertTrue(se.get());
+        }
     }
 
     @Test
