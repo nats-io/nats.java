@@ -75,8 +75,14 @@ public class PublishTests {
             Connection nc = Nats.connect(ts.getURI());
             assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
 
-            byte[] body = new byte[1001];
-            assertThrows(IllegalArgumentException.class, () -> nc.publish("subject", null, null, body));
+            byte[] body1001 = new byte[1001];
+            assertThrows(IllegalArgumentException.class, () -> nc.publish("subject", null, null, body1001));
+
+            byte[] body977 = new byte[977];
+            Headers h = new Headers();
+            h.put("abcd", "12345"); // NATS/1.0\r\nabcd:12345\r\n\r\n 24 characters 971 + 24 = 1001
+            assertThrows(IllegalArgumentException.class, () -> nc.publish("subject", null, h, body977));
+
             nc.close();
 
             AtomicBoolean mpv = new AtomicBoolean(false);
@@ -99,9 +105,9 @@ public class PublishTests {
                 .build();
             Connection nc2 = Nats.connect(options);
             assertSame(Connection.Status.CONNECTED, nc2.getStatus(), "Connected Status");
-            nc2.publish("subject", null, null, body);
+            nc2.publish("subject", null, null, body1001);
 
-            sleep(100);
+            sleep(250);
             assertTrue(mpv.get());
             assertTrue(se.get());
         }
