@@ -1041,7 +1041,6 @@ class NatsConnection implements Connection {
     }
 
     void publishInternal(@NonNull String subject, @Nullable String replyTo, @Nullable Headers headers, byte @Nullable [] data, boolean flushImmediatelyAfterPublish) {
-        checkPayloadSize(data);
         subject = subjectValidate(subject, true);
         replyTo = replyValidate(replyTo, false);
         NatsPublishableMessage npm = new NatsPublishableMessage(subject, replyTo, headers, data, flushImmediatelyAfterPublish);
@@ -1063,13 +1062,6 @@ class NatsConnection implements Connection {
         }
 
         queueOutgoing(npm);
-    }
-
-    private void checkPayloadSize(byte @Nullable [] body) {
-        if (body != null && options.clientSideLimitChecks() && body.length > this.getMaxPayload() && this.getMaxPayload() > 0) {
-            throw new IllegalArgumentException(
-                "Message payload size exceed server configuration " + body.length + " vs " + this.getMaxPayload());
-        }
     }
 
     /**
@@ -1401,8 +1393,6 @@ class NatsConnection implements Connection {
                                                      @Nullable Duration futureTimeout,
                                                      @NonNull CancelAction cancelAction,
                                                      boolean flushImmediatelyAfterPublish) {
-        checkPayloadSize(body);
-
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
         }
@@ -1820,19 +1810,28 @@ class NatsConnection implements Connection {
         }
     }
 
-    void queueOutgoing(NatsMessage msg) {
+    private void validatePayloadAndControlLineSizes(NatsMessage msg) {
+        if (options.clientSideLimitChecks() && getMaxPayload() > 0) {
+            if (msg.getPayloadSize() > getMaxPayload()) {
+                throw new IllegalArgumentException(
+                    "Message payload size exceed server configuration " + msg.getPayloadSize() + " vs " + this.getMaxPayload());
+            }
+        }
+
         if (msg.getControlLineLength() > this.options.getMaxControlLine()) {
             throw new IllegalArgumentException("Control line is too long");
         }
+    }
+
+    void queueOutgoing(NatsMessage msg) {
+        validatePayloadAndControlLineSizes(msg);
         if (!writer.queue(msg)) {
             makeCallback(() -> options.getErrorListener().messageDiscarded(this, msg));
         }
     }
 
     void queueInternalOutgoing(NatsMessage msg) {
-        if (msg.getControlLineLength() > this.options.getMaxControlLine()) {
-            throw new IllegalArgumentException("Control line is too long");
-        }
+        validatePayloadAndControlLineSizes(msg);
         this.writer.queueInternalMessage(msg);
     }
 

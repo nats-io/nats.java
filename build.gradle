@@ -33,8 +33,8 @@ repositories {
 }
 
 dependencies {
-    implementation 'org.bouncycastle:bcprov-lts8on:2.73.9'
-    implementation 'org.jspecify:jspecify:1.0.0'
+    api 'org.bouncycastle:bcprov-lts8on:2.73.10'
+    api 'org.jspecify:jspecify:1.0.0'
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.14.1'
     testImplementation 'io.nats:jnats-server-runner:3.0.1'
