@@ -80,6 +80,7 @@ public class NatsJetStreamMetaDataTests extends JetStreamTestBase {
 
     @Test
     public void testInvalidMetaData() {
+        assertThrows(IllegalArgumentException.class, () -> getTestMessage(InvalidMetaData).metaData());
         assertThrows(IllegalArgumentException.class, () -> getTestMessage(InvalidMetaLt8Tokens).metaData());
         assertThrows(IllegalArgumentException.class, () -> getTestMessage(InvalidMeta10Tokens).metaData());
 

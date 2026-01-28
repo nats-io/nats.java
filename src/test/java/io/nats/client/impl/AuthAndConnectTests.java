@@ -17,45 +17,41 @@ import io.nats.client.Connection;
 import io.nats.client.ErrorListener;
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
-import java.time.Duration;
-import java.util.concurrent.atomic.AtomicBoolean;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 
-import static io.nats.client.utils.TestBase.*;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-public class AuthAndConnectTests {
+import static io.nats.client.utils.ConnectionUtils.*;
+import static io.nats.client.utils.OptionsUtils.options;
+import static io.nats.client.utils.ThreadUtils.sleep;
+import static org.junit.jupiter.api.Assertions.*;
+
+public class AuthAndConnectTests extends TestBase {
     @Test
-    public void testIsAuthError() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Connection nc = standardConnection(ts.getURI());
-            NatsConnection nats = (NatsConnection)nc;
-
-            assertTrue(nats.isAuthenticationError("user authentication expired"));
-            assertTrue(nats.isAuthenticationError("authorization violation"));
-            assertTrue(nats.isAuthenticationError("Authorization Violation"));
-            assertFalse(nats.isAuthenticationError("test"));
-            assertFalse(nats.isAuthenticationError(""));
-            assertFalse(nats.isAuthenticationError(null));
-
-            standardCloseConnection(nc);
-        }
+    public void testIsAuthError() {
+        //noinspection resource
+        NatsConnection nats = new NatsConnection(options());
+        assertTrue(nats.isAuthenticationError("user authentication expired"));
+        assertTrue(nats.isAuthenticationError("authorization violation"));
+        assertTrue(nats.isAuthenticationError("Authorization Violation"));
+        assertFalse(nats.isAuthenticationError("test"));
+        assertFalse(nats.isAuthenticationError(""));
+        assertFalse(nats.isAuthenticationError(null));
     }
 
     @Test()
     public void testConnectWhenClosed() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            NatsConnection nc = (NatsConnection)standardConnection(ts.getURI());
-            standardCloseConnection(nc);
+        runInSharedOwnNc(c -> {
+            NatsConnection nc = (NatsConnection)c;
+            closeAndConfirm(nc);
             nc.connect(false); // should do nothing
             assertClosed(nc);
             nc.reconnect(); // should do nothing
             assertClosed(nc);
-        }
+        });
     }
 
     /**
@@ -72,35 +68,36 @@ public class AuthAndConnectTests {
             }
         };
 
-        try (NatsTestServer ts = new NatsTestServer(false)) {
+        try (NatsTestServer ts = new NatsTestServer()) {
             Options options = Options.builder()
-                    .server(ts.getURI())
+                    .server(ts.getServerUri())
                     .maxReconnects(-1)
                     .reconnectWait(Duration.ZERO)
                     .errorListener(noopErrorListener)
                     .build();
 
-            NatsConnection nc = (NatsConnection) standardConnection(options);
+            try (NatsConnection nc = (NatsConnection) managedConnect(options)) {
 
-            // After we've connected, shut down, so we can attempt reconnecting.
-            ts.shutdown(true);
+                // After we've connected, shut down, so we can attempt reconnecting.
+                ts.shutdown(true);
 
-            final AtomicBoolean running = new AtomicBoolean(true);
-            Thread parallelCommunicationIssues = new Thread(() -> {
-                while (running.get()) {
-                    nc.handleCommunicationIssue(new Exception());
+                final AtomicBoolean running = new AtomicBoolean(true);
+                Thread parallelCommunicationIssues = new Thread(() -> {
+                    while (running.get()) {
+                        nc.handleCommunicationIssue(new Exception());
 
-                    // Shortly sleep, to not spam at full speed.
-                    sleep(1);
-                }
-            });
-            parallelCommunicationIssues.start();
+                        // Shortly sleep, to not spam at full speed.
+                        sleep(1);
+                    }
+                });
+                parallelCommunicationIssues.start();
 
-            // Wait for some time to allow for reconnection logic to run.
-            Thread.sleep(2000);
-            running.set(false);
+                // Wait for some time to allow for reconnection logic to run.
+                Thread.sleep(2000);
+                running.set(false);
 
-            assertNotEquals(Connection.Status.CLOSED, nc.getStatus());
+                assertNotEquals(Connection.Status.CLOSED, nc.getStatus());
+            }
         }
     }
 }
