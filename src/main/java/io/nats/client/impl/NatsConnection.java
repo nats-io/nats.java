@@ -1816,10 +1816,9 @@ class NatsConnection implements Connection {
                 throw new IllegalArgumentException(
                     "Message payload size exceed server configuration " + msg.getPayloadSize() + " vs " + this.getMaxPayload());
             }
-        }
-
-        if (msg.getControlLineLength() > this.options.getMaxControlLine()) {
-            throw new IllegalArgumentException("Control line is too long");
+            if (msg.getControlLineLength() > this.options.getMaxControlLine()) {
+                throw new IllegalArgumentException("Control line is too long");
+            }
         }
     }
 
