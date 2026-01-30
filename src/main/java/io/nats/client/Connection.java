@@ -493,7 +493,7 @@ public interface Connection extends AutoCloseable {
     void close() throws InterruptedException ;
 
     /**
-     * Returns the connections current status.
+     * Returns the connection's current status.
      * 
      * @return the connection's status
      */

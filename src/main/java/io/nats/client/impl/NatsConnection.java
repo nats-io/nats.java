@@ -44,36 +44,36 @@ class NatsConnection implements Connection {
 
     public static final double NANOS_PER_SECOND = 1_000_000_000.0;
 
-    private final Options options;
+    protected final Options options;
     final boolean forceFlushOnRequest;
 
     private final StatisticsCollector statistics;
 
-    private boolean connecting; // you can only connect in one thread
+    protected boolean connecting; // you can only connect in one thread
     private boolean disconnecting; // you can only disconnect in one thread
     private boolean closing; // respect a close call regardless
     private Exception exceptionDuringConnectChange; // exception occurred in another thread while dis/connecting
     final ReentrantLock closeSocketLock; // this is not private so it can be tested
 
     private Status status;
-    private final ReentrantLock statusLock;
-    private final Condition statusChanged;
+    protected final ReentrantLock statusLock;
+    protected final Condition statusChanged;
 
-    private CompletableFuture<DataPort> dataPortFuture;
-    private DataPort dataPort;
-    private NatsUri currentServer;
-    private NatsUri lastServer;
+    protected CompletableFuture<DataPort> dataPortFuture;
+    protected DataPort dataPort;
+    protected NatsUri currentServer;
+    protected NatsUri lastServer;
     private CompletableFuture<Boolean> reconnectWaiter;
-    private final ConcurrentHashMap<NatsUri, String> serverAuthErrors;
+    protected final ConcurrentHashMap<NatsUri, String> serverAuthErrors;
 
-    private NatsConnectionReader reader;
-    private NatsConnectionWriter writer;
+    protected NatsConnectionReader reader;
+    protected NatsConnectionWriter writer;
 
-    private final AtomicReference<ServerInfo> serverInfo;
+    protected final AtomicReference<ServerInfo> serverInfo;
 
     private final Map<String, NatsSubscription> subscribers;
     private final Map<String, NatsDispatcher> dispatchers; // use a concurrent map so we get more consistent iteration behavior
-    private final Collection<ConnectionListener> connectionListeners;
+    protected final Collection<ConnectionListener> connectionListeners;
     private final Map<String, NatsRequestCompletableFuture> responsesAwaiting;
     private final Map<String, NatsRequestCompletableFuture> responsesRespondedTo;
     private final ConcurrentLinkedDeque<CompletableFuture<Boolean>> pongQueue;
@@ -103,7 +103,7 @@ class NatsConnection implements Connection {
 
     private final boolean advancedTracking;
 
-    private final ServerPool serverPool;
+    protected final ServerPool serverPool;
     private final DispatcherFactory dispatcherFactory;
     private final @NonNull CancelAction cancelAction;
 
@@ -181,7 +181,7 @@ class NatsConnection implements Connection {
 
         timeTraceLogger.trace("creating reader and writer");
         this.reader = new NatsConnectionReader(this);
-        this.writer = new NatsConnectionWriter(this, null);
+        this.writer = new NatsConnectionWriter(this);
 
         this.needPing = new AtomicBoolean(true);
 
@@ -381,10 +381,6 @@ class NatsConnection implements Connection {
             catch (Exception ex) {
                 processException(ex);
             }
-
-            // new reader/writer
-            reader = new NatsConnectionReader(this);
-            writer = new NatsConnectionWriter(this, writer);
         }
         finally {
             closeSocketLock.unlock();
@@ -419,56 +415,8 @@ class NatsConnection implements Connection {
         writer.enterReconnectMode();
 
         if (!isConnected() && !isClosed() && !this.isClosing()) {
-            boolean keepGoing = true;
-            int totalRounds = 0;
-            NatsUri first = null;
-            NatsUri cur;
-            while (keepGoing && (cur = serverPool.nextServer()) != null) {
-                if (first == null) {
-                    first = cur;
-                }
-                else if (first.equals(cur)) {
-                    // went around the pool an entire time
-                    invokeReconnectDelayHandler(++totalRounds);
-                }
-
-                // let server list provider resolve hostnames
-                // then loop through resolved
-                List<NatsUri> resolvedList = resolveHost(cur);
-                for (NatsUri resolved : resolvedList) {
-                    if (isClosed()) {
-                        keepGoing = false;
-                        break;
-                    }
-                    connectError.set(""); // reset on each loop
-                    if (isDisconnectingOrClosed() || this.isClosing()) {
-                        keepGoing = false;
-                        break;
-                    }
-                    updateStatus(Status.RECONNECTING, resolved, cur);
-
-                    timeTraceLogger.trace("reconnecting to server %s", cur);
-                    tryToConnect(cur, resolved, NatsSystemClock.nanoTime());
-
-                    if (isConnected()) {
-                        serverPool.connectSucceeded(cur);
-                        statistics.incrementReconnects();
-                        keepGoing = false;
-                        break;
-                    }
-
-                    serverPool.connectFailed(cur);
-                    String err = connectError.get();
-                    if (this.isAuthenticationError(err)) {
-                        if (err.equals(this.serverAuthErrors.get(resolved))) {
-                            keepGoing = false; // double auth error
-                            break;
-                        }
-                        serverAuthErrors.put(resolved, err);
-                    }
-                }
-            }
-        } // end-main-loop
+            reconnectImplConnect();
+        }
 
         if (!isConnected()) {
             this.close();
@@ -490,6 +438,53 @@ class NatsConnection implements Connection {
         writer.enterWaitingForEndReconnectMode();
 
         processConnectionEvent(Events.RESUBSCRIBED, uriDetail(currentServer));
+    }
+
+    void reconnectImplConnect() throws InterruptedException {
+        int totalRounds = 0;
+        NatsUri first = null;
+        NatsUri cur;
+        while ((cur = serverPool.nextServer()) != null) {
+            if (first == null) {
+                first = cur;
+            }
+            else if (first.equals(cur)) {
+                // went around the pool an entire time
+                invokeReconnectDelayHandler(++totalRounds);
+            }
+
+            // let server list provider resolve hostnames
+            // then loop through resolved
+            List<NatsUri> resolvedList = resolveHost(cur);
+            for (NatsUri resolved : resolvedList) {
+                if (isClosed()) {
+                    return;
+                }
+                connectError.set(""); // reset on each loop
+                if (isDisconnectingOrClosed() || this.isClosing()) {
+                    return;
+                }
+                updateStatus(Status.RECONNECTING, resolved, cur);
+
+                timeTraceLogger.trace("reconnecting to server %s", cur);
+                tryToConnect(cur, resolved, NatsSystemClock.nanoTime());
+
+                if (isConnected()) {
+                    serverPool.connectSucceeded(cur);
+                    statistics.incrementReconnects();
+                    return;
+                }
+
+                serverPool.connectFailed(cur);
+                String err = connectError.get();
+                if (this.isAuthenticationError(err)) {
+                    if (err.equals(this.serverAuthErrors.get(resolved))) {
+                        return; // double auth error
+                    }
+                    serverAuthErrors.put(resolved, err);
+                }
+            }
+        }
     }
 
     long timeCheck(long endNanos, String message) throws TimeoutException {
@@ -699,7 +694,7 @@ class NatsConnection implements Connection {
         }
     }
 
-    private void clearCurrentServer() {
+    void clearCurrentServer() {
         if (currentServer != null) {
             lastServer = currentServer;
         }
