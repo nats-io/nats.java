@@ -382,7 +382,7 @@ public class TLSConnectTests {
         }
 
         @Override
-        void handleInfo(String infoJson) {
+        protected void handleInfo(String infoJson) {
             switch (serverType) {
                 case SERVER_INSECURE:
                     super.handleInfo(infoJson.replace(",\"tls_required\":true", "")); break;

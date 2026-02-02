@@ -550,7 +550,7 @@ public class MessageManagerTests extends JetStreamTestBase {
         }
 
         @Override
-        void publishInternal(@NonNull String subject, @Nullable String replyTo, @Nullable Headers headers, byte @Nullable [] data, boolean flushImmediatelyAfterPublish) {
+        protected void publishInternal(@NonNull String subject, @Nullable String replyTo, @Nullable Headers headers, byte @Nullable [] data, boolean flushImmediatelyAfterPublish) {
             fcSubject = subject;
             ++pubCount;
         }
