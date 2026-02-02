@@ -2486,7 +2486,7 @@ public class Options {
 
     /**
      * Called by NatsConnection to let the options know the executors are being used
-     * Fixes the problem of executors being close if the actual instance of Options
+     * Fixes the problem of executors being closed if the actual instance of Options
      * is shared among multiple connections.
      */
     public void incrementExecutorUse() {
