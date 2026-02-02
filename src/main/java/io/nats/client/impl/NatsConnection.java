@@ -174,6 +174,7 @@ class NatsConnection implements Connection {
         this.tryingToConnect = new AtomicBoolean();
 
         timeTraceLogger.trace("creating executors");
+        options.incrementExecutorUse();
         this.executor = options.getExecutor();
         this.callbackExecutor = options.getCallbackExecutor();
         this.connectExecutor = options.getConnectExecutor();

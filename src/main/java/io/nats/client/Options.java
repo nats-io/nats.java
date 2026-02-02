@@ -772,6 +772,9 @@ public class Options {
     private final Proxy proxy;
     private final boolean enableFastFallback;
 
+    // STATE VARIABLES
+    private int executorUseCount = 0;
+
     static class DefaultThreadFactory implements ThreadFactory {
         final String name;
         final AtomicInteger threadNumber;
@@ -2481,41 +2484,64 @@ public class Options {
         return userConnectExecutor == null && userConnectThreadFactory == null;
     }
 
+    /**
+     * Called by NatsConnection to let the options know the executors are being used
+     * Fixes the problem of executors being close if the actual instance of Options
+     * is shared among multiple connections.
+     */
+    public void incrementExecutorUse() {
+        // Lock intentionally used of Atomic to synchronize fully with shutdownExecutors
+        executorsLock.lock();
+        try {
+            executorUseCount++;
+        }
+        finally {
+            executorsLock.unlock();
+        }
+    }
+
+    /**
+     * Shutdown the executors.
+     * Will only shut down internal executors, not user executors.
+     * Uses the executorUseCount to ensure shared Options doesn't prematurely shut down internal executors
+     * @throws InterruptedException if any shutdown was interrupted
+     */
     public void shutdownExecutors() throws InterruptedException {
         executorsLock.lock();
         try {
-            if (resolvedCallbackExecutor != null && callbackExecutorIsInternal()) {
-                // we don't just shutdownNow to give any callbacks a chance to finish
-                ExecutorService es = resolvedCallbackExecutor;
-                resolvedCallbackExecutor = null;
-                es.shutdown();
-                try {
-                    //noinspection ResultOfMethodCallIgnored
-                    es.awaitTermination(getConnectionTimeout().toNanos(), TimeUnit.NANOSECONDS);
+            if (--executorUseCount == 0) {
+                if (resolvedCallbackExecutor != null && callbackExecutorIsInternal()) {
+                    // we don't just shutdownNow to give any callbacks a chance to finish
+                    ExecutorService es = resolvedCallbackExecutor;
+                    resolvedCallbackExecutor = null;
+                    es.shutdown();
+                    try {
+                        //noinspection ResultOfMethodCallIgnored
+                        es.awaitTermination(getConnectionTimeout().toNanos(), TimeUnit.NANOSECONDS);
+                    }
+                    finally {
+                        es.shutdownNow();
+                    }
                 }
-                finally {
-                    es.shutdownNow();
+
+                if (resolvedConnectExecutor != null && connectExecutorIsInternal()) {
+                    ExecutorService es = resolvedConnectExecutor;
+                    resolvedConnectExecutor = null;
+                    es.shutdownNow(); // There's no need to wait...
+                }
+
+                if (resolvedExecutor != null && executorIsInternal()) {
+                    ExecutorService es = resolvedExecutor;
+                    resolvedExecutor = null;
+                    es.shutdownNow(); // There's no need to wait...
+                }
+
+                if (resolvedScheduledExecutor != null && scheduledExecutorIsInternal()) {
+                    ScheduledExecutorService ses = resolvedScheduledExecutor;
+                    resolvedScheduledExecutor = null;
+                    ses.shutdownNow(); // There's no need to wait...
                 }
             }
-
-            if (resolvedConnectExecutor != null && connectExecutorIsInternal()) {
-                ExecutorService es = resolvedConnectExecutor;
-                resolvedConnectExecutor = null;
-                es.shutdownNow(); // There's no need to wait...
-            }
-
-            if (resolvedExecutor != null && executorIsInternal()) {
-                ExecutorService es = resolvedExecutor;
-                resolvedExecutor = null;
-                es.shutdownNow(); // There's no need to wait...
-            }
-
-            if (resolvedScheduledExecutor != null && scheduledExecutorIsInternal()) {
-                ScheduledExecutorService ses = resolvedScheduledExecutor;
-                resolvedScheduledExecutor = null;
-                ses.shutdownNow(); // There's no need to wait...
-            }
-
         }
         finally {
             executorsLock.unlock();
