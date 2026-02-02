@@ -53,7 +53,7 @@ dependencies {
     api 'org.jspecify:jspecify:1.0.0'
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.14.1'
-    testImplementation 'io.nats:jnats-server-runner:3.0.2'
+    testImplementation 'io.nats:jnats-server-runner:3.1.0'
     if (compilerIsJava8) {
         testImplementation 'nl.jqno.equalsverifier:equalsverifier:3.12.3'
     }
