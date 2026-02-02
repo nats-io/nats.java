@@ -58,17 +58,12 @@ class NatsConnectionWriter implements Runnable {
     private final WriterMessageQueue reconnectOutgoing;
     private final long reconnectBufferSize;
 
-    NatsConnectionWriter(NatsConnection connection, NatsConnectionWriter sourceWriter) {
+    NatsConnectionWriter(NatsConnection connection) {
         this.connection = connection;
         writerLock = new ReentrantLock();
 
         this.running = new AtomicBoolean(false);
-        if (sourceWriter == null) {
-            mode = new AtomicReference<>(Mode.Normal);
-        }
-        else {
-            mode = new AtomicReference<>(Mode.Reconnect);
-        }
+        mode = new AtomicReference<>(Mode.Normal);
         this.startStopLock = new ReentrantLock();
         this.stopped = new CompletableFuture<>();
         ((CompletableFuture<Boolean>)this.stopped).complete(Boolean.TRUE); // we are stopped on creation
@@ -79,26 +74,15 @@ class NatsConnectionWriter implements Runnable {
         sendBuffer = new byte[sbl];
         reconnectBufferSize = options.getReconnectBufferSize();
 
-        if (sourceWriter == null) {
-            normalOutgoing = new WriterMessageQueue(
-                options.getMaxMessagesInOutgoingQueue(),
-                options.isDiscardMessagesWhenOutgoingQueueFull(),
-                options.getWriteQueuePushTimeout()
-            );
+        normalOutgoing = new WriterMessageQueue(
+            options.getMaxMessagesInOutgoingQueue(),
+            options.isDiscardMessagesWhenOutgoingQueueFull(),
+            options.getWriteQueuePushTimeout()
+        );
 
-            // The "reconnect" buffer contains internal messages
-            // Using this constructor makes it unbounded and without "discard when full"
-            reconnectOutgoing = new WriterMessageQueue(options.getWriteQueuePushTimeout());
-        }
-        else {
-            // if we are creating this from another writer,
-            // it's after reconnect... just take their queues
-            normalOutgoing = sourceWriter.normalOutgoing;
-            normalOutgoing.resume();
-            reconnectOutgoing = sourceWriter.reconnectOutgoing;
-            reconnectOutgoing.resume();
-        }
-
+        // The "reconnect" buffer contains internal messages
+        // Using this constructor makes it unbounded and without "discard when full"
+        reconnectOutgoing = new WriterMessageQueue(options.getWriteQueuePushTimeout());
     }
 
     // Should only be called if the current thread has exited.

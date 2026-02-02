@@ -22,6 +22,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -181,6 +182,47 @@ public class NatsConnectionImplTests {
             if (userConnectEs != null) {
                 assertFalse(userConnectEs.isShutdown());
             }
+        }
+    }
+
+    @Test
+    void testExecutorUseCount() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer()) {
+            AtomicLong count1 = new AtomicLong();
+            AtomicLong count2 = new AtomicLong();
+
+            Options options = new Options.Builder().server(ts.getURI()).build();
+
+            // THESE SHARE THE EXACT SAME OPTIONS INSTANCE
+            NatsConnection nc1 = (NatsConnection)standardConnection(options);
+            NatsConnection nc2 = (NatsConnection)standardConnection(options);
+
+            // Both connections live, both callbacks work
+            nc1.makeCallback(count1::incrementAndGet);
+            nc2.makeCallback(count2::incrementAndGet);
+            Thread.sleep(250); // allow time for callbacks to happen
+            assertEquals(1, count1.get());
+            assertEquals(1, count2.get());
+
+            // Close first connection, second connection callback will still work
+            standardCloseConnection(nc1);
+            Thread.sleep(250); // allow time for shutdownExecutors() to process
+
+            nc1.makeCallback(count1::incrementAndGet);
+            nc2.makeCallback(count2::incrementAndGet);
+            Thread.sleep(250); // allow time for callbacks to happen
+            assertEquals(1, count1.get());
+            assertEquals(2, count2.get());
+
+            // Close second connection, no callbacks will work
+            standardCloseConnection(nc2);
+            Thread.sleep(250); // allow time for shutdownExecutors() to process
+
+            nc1.makeCallback(count1::incrementAndGet);
+            nc2.makeCallback(count2::incrementAndGet);
+            Thread.sleep(250); // allow time for callbacks to happen
+            assertEquals(1, count1.get());
+            assertEquals(2, count2.get());
         }
     }
 }
