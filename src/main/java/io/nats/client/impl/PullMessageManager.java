@@ -24,9 +24,6 @@ import static io.nats.client.support.Status.*;
 
 class PullMessageManager extends MessageManager {
 
-    protected int pendingMessages;
-    protected long pendingBytes;
-    protected boolean trackingBytes;
     protected boolean raiseStatusWarnings;
     protected PullManagerObserver pullManagerObserver;
     protected String currentPinId;
@@ -48,9 +45,9 @@ class PullMessageManager extends MessageManager {
         try {
             this.raiseStatusWarnings = raiseStatusWarnings;
             this.pullManagerObserver = pullManagerObserver;
-            pendingMessages += pro.getBatchSize();
-            pendingBytes += pro.getMaxBytes();
-            trackingBytes = (pendingBytes > 0);
+            if (pullManagerObserver != null) {
+                pullManagerObserver.startPullRequest(pro.getBatchSize(), pro.getMaxBytes());
+            }
             configureIdleHeartbeat(pro.getIdleHeartbeat(), -1);
             if (hb.get()) {
                 initOrResetHeartbeatTimer();
@@ -73,70 +70,38 @@ class PullMessageManager extends MessageManager {
         }
     }
 
-    private void trackIncoming(int m, long b) {
-        stateChangeLock.lock();
-        try {
-            // message time used for heartbeat tracking
-            updateLastMessageReceived();
-
-            if (m != Integer.MIN_VALUE) {
-                pendingMessages -= m;
-                boolean zero = pendingMessages < 1;
-                if (trackingBytes) {
-                    pendingBytes -= b;
-                    zero |= pendingBytes < 1;
-                }
-                if (zero) {
-                    resetTracking();
-                }
-                if (pullManagerObserver != null) {
-                    pullManagerObserver.pendingUpdated();
-                }
-            }
-        }
-        finally {
-            stateChangeLock.unlock();
-        }
-    }
-
     protected void resetTracking() {
-        pendingMessages = 0;
-        pendingBytes = 0;
-        trackingBytes = false;
         updateLastMessageReceived();
     }
 
     @Override
     protected Boolean beforeQueueProcessorImpl(NatsMessage msg) {
+        updateLastMessageReceived();
+
         Status status = msg.getStatus();
 
         // normal js message
         if (status == null) {
-            trackIncoming(1, msg.consumeByteCount());
             return true;
         }
 
         // heartbeat just needed to be recorded
         if (status.isHeartbeat()) {
-            updateLastMessageReceived(); // no need to call track incoming, this is all it does
             return false;
         }
 
-        int m = Integer.MIN_VALUE;
-        long b = Long.MIN_VALUE;
         Headers h = msg.getHeaders();
         if (h != null) {
             try {
                 //noinspection DataFlowIssue WE ALREADY CATCH THE EXCEPTION
-                m = Integer.parseInt(h.getFirst(NATS_PENDING_MESSAGES));
+                int m = Integer.parseInt(h.getFirst(NATS_PENDING_MESSAGES));
                 //noinspection DataFlowIssue WE ALREADY CATCH THE EXCEPTION
-                b = Long.parseLong(h.getFirst(NATS_PENDING_BYTES));
+                long b = Long.parseLong(h.getFirst(NATS_PENDING_BYTES));
+                pullManagerObserver.updatePending(m, b);
             }
-            catch (NumberFormatException ignore) {
-                m = Integer.MIN_VALUE; // shouldn't happen but don't fail; make sure don't track m/b
-            }
+            catch (Exception ignore) {}
         }
-        trackIncoming(m, b);
+
         return true;
     }
 
@@ -199,9 +164,5 @@ class PullMessageManager extends MessageManager {
         // These known ones are also errors: "Consumer Deleted" and "Consumer is push based"
         conn.notifyErrorListener((c, el) -> el.pullStatusError(c, sub, status));
         return STATUS_ERROR;
-    }
-
-    protected boolean noMorePending() {
-        return pendingMessages < 1 || (trackingBytes && pendingBytes < 1);
     }
 }
