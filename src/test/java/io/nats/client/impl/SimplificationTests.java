@@ -20,6 +20,8 @@ import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.io.*;
 import java.time.Duration;
@@ -1113,34 +1115,13 @@ public class SimplificationTests extends JetStreamTestBase {
         }
     }
 
-    @Test
-    public void testOrderedBehaviorIterable() throws Exception {
-        jsServer.run(TestBase::atLeast2_9_1, nc -> {
-            jsServer.setExitOnDisconnect();
-            jsServer.setExitOnHeartbeatError();
-
-            // Setup
-            JetStream js = nc.jetStream();
-            JetStreamManagement jsm = nc.jetStreamManagement();
-
-            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
-            StreamContext sctx = js.getStreamContext(tsc.stream);
-
-            jsPublish(js, tsc.subject(), 101, 6, 100);
-
-            // New pomm factory in place before each subscription is made
-            // Set the Consumer Sequence For Stream Sequence 3 statically for ease
-            CS_FOR_SS_3 = 3;
-            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
-            _testOrderedIterate(sctx, 1, new OrderedConsumerConfiguration().filterSubject(tsc.subject()));
-            _testOrderedIterate(sctx, 1, new OrderedConsumerConfiguration()
-                .consumerNamePrefix(prefix())
-                .filterSubject(tsc.subject()));
-        });
-    }
-
-    @Test
-    public void testOrderedBehaviorIterableByStartTime() throws Exception {
+    @ParameterizedTest
+    @CsvSource(value = {
+        "DeliverPolicy.All:No Prefix", "DeliverPolicy.All:With Prefix",
+        "DeliverPolicy.ByStartTime:No Prefix", "DeliverPolicy.ByStartTime:With Prefix",
+        "DeliverPolicy.ByStartSequence:No Prefix", "DeliverPolicy.ByStartSequence:With Prefix"},
+        delimiter = ':')
+    public void testOrderedBehaviorIterable(String deliverPolicyStr, String prefix) throws Exception {
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
             jsServer.setExitOnDisconnect();
             jsServer.setExitOnHeartbeatError();
@@ -1157,40 +1138,29 @@ public class SimplificationTests extends JetStreamTestBase {
 
             // New pomm factory in place before each subscription is made
             // Set the Consumer Sequence For Stream Sequence 3 statically for ease
-            CS_FOR_SS_3 = 2;
-            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
-            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
-                .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
-            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
-                .consumerNamePrefix(prefix())
-                .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
-        });
-    }
-
-    @Test
-    public void testOrderedBehaviorIterableByStartSequence() throws Exception {
-        jsServer.run(TestBase::atLeast2_9_1, nc -> {
-            jsServer.setExitOnDisconnect();
-            jsServer.setExitOnHeartbeatError();
-
-            // Setup
-            JetStream js = nc.jetStream();
-            JetStreamManagement jsm = nc.jetStreamManagement();
-
-            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
-            StreamContext sctx = js.getStreamContext(tsc.stream);
-
-            jsPublish(js, tsc.subject(), 101, 6, 100);
-
-            // New pomm factory in place before each subscription is made
-            // Set the Consumer Sequence For Stream Sequence 3 statically for ease
-            CS_FOR_SS_3 = 2;
-            ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
-            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
-                .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
-            _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
-                .consumerNamePrefix(prefix())
-                .deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2));
+            OrderedConsumerConfiguration occ = new OrderedConsumerConfiguration().filterSubject(tsc.subject());
+            if (prefix.equals("With Prefix")) {
+                occ.consumerNamePrefix(prefix());
+            }
+            int expectedStreamSeq = -1;
+            switch (deliverPolicyStr) {
+                case "DeliverPolicy.All":
+                    CS_FOR_SS_3 = 3;
+                    expectedStreamSeq = 1;
+                    break;
+                case "DeliverPolicy.ByStartTime":
+                    CS_FOR_SS_3 = 2;
+                    expectedStreamSeq = 2;
+                    occ.deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime);
+                    break;
+                case "DeliverPolicy.ByStartSequence":
+                    CS_FOR_SS_3 = 2;
+                    expectedStreamSeq = 2;
+                    occ.deliverPolicy(DeliverPolicy.ByStartSequence).startSequence(2);
+                    break;
+            }
+            ((NatsJetStream) js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
+            _testOrderedIterate(sctx, expectedStreamSeq, occ);
         });
     }
 
