@@ -1127,7 +1127,6 @@ public class SimplificationTests extends JetStreamTestBase {
             StreamContext sctx = js.getStreamContext(tsc.stream);
 
             jsPublish(js, tsc.subject(), 101, 6, 100);
-            ZonedDateTime startTime = getStartTimeFirstMessage(js, tsc);
 
             // New pomm factory in place before each subscription is made
             // Set the Consumer Sequence For Stream Sequence 3 statically for ease
@@ -1137,7 +1136,27 @@ public class SimplificationTests extends JetStreamTestBase {
             _testOrderedIterate(sctx, 1, new OrderedConsumerConfiguration()
                 .consumerNamePrefix(prefix())
                 .filterSubject(tsc.subject()));
+        });
+    }
 
+    @Test
+    public void testOrderedBehaviorIterableByStartTime() throws Exception {
+        jsServer.run(TestBase::atLeast2_9_1, nc -> {
+            jsServer.setExitOnDisconnect();
+            jsServer.setExitOnHeartbeatError();
+
+            // Setup
+            JetStream js = nc.jetStream();
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
+            StreamContext sctx = js.getStreamContext(tsc.stream);
+
+            jsPublish(js, tsc.subject(), 101, 6, 100);
+            ZonedDateTime startTime = getStartTimeFirstMessage(js, tsc);
+
+            // New pomm factory in place before each subscription is made
+            // Set the Consumer Sequence For Stream Sequence 3 statically for ease
             CS_FOR_SS_3 = 2;
             ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
             _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
@@ -1145,7 +1164,26 @@ public class SimplificationTests extends JetStreamTestBase {
             _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
                 .consumerNamePrefix(prefix())
                 .deliverPolicy(DeliverPolicy.ByStartTime).startTime(startTime));
+        });
+    }
 
+    @Test
+    public void testOrderedBehaviorIterableByStartSequence() throws Exception {
+        jsServer.run(TestBase::atLeast2_9_1, nc -> {
+            jsServer.setExitOnDisconnect();
+            jsServer.setExitOnHeartbeatError();
+
+            // Setup
+            JetStream js = nc.jetStream();
+            JetStreamManagement jsm = nc.jetStreamManagement();
+
+            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
+            StreamContext sctx = js.getStreamContext(tsc.stream);
+
+            jsPublish(js, tsc.subject(), 101, 6, 100);
+
+            // New pomm factory in place before each subscription is made
+            // Set the Consumer Sequence For Stream Sequence 3 statically for ease
             CS_FOR_SS_3 = 2;
             ((NatsJetStream)js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
             _testOrderedIterate(sctx, 2, new OrderedConsumerConfiguration().filterSubject(tsc.subject())
