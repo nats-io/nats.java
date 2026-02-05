@@ -13,10 +13,13 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.*;
+import io.nats.client.JetStreamApiException;
+import io.nats.client.JetStreamSubscription;
+import io.nats.client.Message;
+import io.nats.client.PushSubscribeOptions;
 import io.nats.client.api.*;
 import io.nats.client.support.DateTimeUtils;
-import org.junit.jupiter.api.Disabled;
+import io.nats.client.utils.VersionUtils;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -29,105 +32,96 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
 
     @Test
     public void testMirrorBasics() throws Exception {
-        String S1 = stream();
-        String U1 = subject();
-        String U2 = subject();
-        String U3 = subject();
-        String M1 = mirror();
+        String S1 = random();
+        String S2 = random();
+        String S3 = random();
+        String S4 = random();
+        String U1 = random();
+        String U2 = random();
+        String U3 = random();
+        String M1 = random();
 
-        jsServer.run(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            JetStream js = nc.jetStream();
-
+        runInSharedCustom((nc, ctx) -> {
             Mirror mirror = Mirror.builder().sourceName(S1).build();
 
             // Create source stream
-            StreamConfiguration sc = StreamConfiguration.builder()
-                    .name(S1)
-                    .storageType(StorageType.Memory)
-                    .subjects(U1, U2, U3)
-                    .build();
-            StreamInfo si = jsm.addStream(sc);
+            StreamConfiguration sc = ctx.scBuilder(U1, U2, U3).name(S1).build();
+            StreamInfo si = ctx.addStream(sc);
             sc = si.getConfiguration();
             assertNotNull(sc);
             assertEquals(S1, sc.getName());
 
             // Now create our mirror stream.
-            sc = StreamConfiguration.builder()
-                    .name(M1)
-                    .storageType(StorageType.Memory)
-                    .mirror(mirror)
-                    .build();
-            jsm.addStream(sc);
-            assertMirror(jsm, M1, S1, null, null);
+            sc = ctx.scBuilder()
+                .name(M1)
+                .subjects() // scBuilder added subjects
+                .mirror(mirror)
+                .build();
+            ctx.addStream(sc);
+            assertMirror(ctx.jsm, M1, S1, null, null);
 
             // Send 100 messages.
-            jsPublish(js, U2, 100);
+            jsPublish(ctx.js, U2, 100);
 
             // Check the state
-            assertMirror(jsm, M1, S1, 100L, null);
+            assertMirror(ctx.jsm, M1, S1, 100L, null);
 
             // Purge the source stream.
-            jsm.purgeStream(S1);
+            ctx.jsm.purgeStream(S1);
 
-            jsPublish(js, U2, 50);
+            jsPublish(ctx.js, U2, 50);
 
             // Create second mirror
-            sc = StreamConfiguration.builder()
-                    .name(mirror(2))
-                    .storageType(StorageType.Memory)
-                    .mirror(mirror)
-                    .build();
-            jsm.addStream(sc);
+            sc = ctx.scBuilder()
+                .name(S2)
+                .subjects() // scBuilder added subjects
+                .mirror(mirror)
+                .build();
+            ctx.createOrReplaceStream(sc);
 
             // Check the state
-            assertMirror(jsm, mirror(2), S1, 50L, 101L);
+            assertMirror(ctx.jsm, S2, S1, 50L, 101L);
 
-            jsPublish(js, U3, 100);
+            jsPublish(ctx.js, U3, 100);
 
             // third mirror checks start seq
-            sc = StreamConfiguration.builder()
-                    .name(mirror(3))
-                    .storageType(StorageType.Memory)
-                    .mirror(Mirror.builder().sourceName(S1).startSeq(150).build())
-                    .build();
-            jsm.addStream(sc);
+            sc = ctx.scBuilder()
+                .name(S3)
+                .subjects() // scBuilder added subjects
+                .mirror(Mirror.builder().sourceName(S1).startSeq(150).build())
+                .build();
+            ctx.createOrReplaceStream(sc);
 
             // Check the state
-            assertMirror(jsm, mirror(3), S1, 101L, 150L);
+            assertMirror(ctx.jsm, S3, S1, 101L, 150L);
 
             // third mirror checks start seq
             ZonedDateTime zdt = DateTimeUtils.fromNow(Duration.ofHours(-2));
-            sc = StreamConfiguration.builder()
-                    .name(mirror(4))
-                    .storageType(StorageType.Memory)
-                    .mirror(Mirror.builder().sourceName(S1).startTime(zdt).build())
-                    .build();
-            jsm.addStream(sc);
+            sc = ctx.scBuilder()
+                .name(S4)
+                .subjects() // scBuilder added subjects
+                .mirror(Mirror.builder().sourceName(S1).startTime(zdt).build())
+                .build();
+            ctx.createOrReplaceStream(sc);
 
             // Check the state
-            assertMirror(jsm, mirror(4), S1, 150L, 101L);
+            assertMirror(ctx.jsm, S4, S1, 150L, 101L);
         });
     }
 
     @Test
     public void testMirrorReading() throws Exception {
-        String S1 = stream();
-        String U1 = subject();
-        String U2 = subject();
-        String M1 = mirror();
+        String S1 = random();
+        String U1 = random();
+        String U2 = random();
+        String M1 = random();
 
-        jsServer.run(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            JetStream js = nc.jetStream();
-
+        runInSharedCustom((nc, ctx) -> {
             // Create source stream
-            StreamConfiguration sc = StreamConfiguration.builder()
+            StreamConfiguration sc = ctx.scBuilder(U1, U2)
                     .name(S1)
-                    .storageType(StorageType.Memory)
-                    .subjects(U1, U2)
                     .build();
-            StreamInfo si = jsm.addStream(sc);
+            StreamInfo si = ctx.createOrReplaceStream(sc);
             sc = si.getConfiguration();
             assertNotNull(sc);
             assertEquals(S1, sc.getName());
@@ -135,28 +129,28 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
             Mirror mirror = Mirror.builder().sourceName(S1).build();
 
             // Now create our mirror stream.
-            sc = StreamConfiguration.builder()
-                    .name(M1)
-                    .storageType(StorageType.Memory)
-                    .mirror(mirror)
-                    .build();
-            jsm.addStream(sc);
-            assertMirror(jsm, M1, S1, null, null);
+            sc = ctx.scBuilder()
+                .name(M1)
+                .subjects() // scBuilder added subjects
+                .mirror(mirror)
+                .build();
+            ctx.addStream(sc);
+            assertMirror(ctx.jsm, M1, S1, null, null);
 
             // Send messages.
-            jsPublish(js, U1, 10);
-            jsPublish(js, U2, 20);
+            jsPublish(ctx.js, U1, 10);
+            jsPublish(ctx.js, U2, 20);
 
-            assertMirror(jsm, M1, S1, 30L, null);
+            assertMirror(ctx.jsm, M1, S1, 30L, null);
 
-            JetStreamSubscription sub = js.subscribe(U1);
+            JetStreamSubscription sub = ctx.js.subscribe(U1);
             List<Message> list = readMessagesAck(sub);
             assertEquals(10, list.size());
             for (Message m : list) {
                 assertEquals(S1, m.metaData().getStream());
             }
 
-            sub = js.subscribe(U2);
+            sub = ctx.js.subscribe(U2);
             list = readMessagesAck(sub);
             assertEquals(20, list.size());
             for (Message m : list) {
@@ -166,14 +160,14 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
             //noinspection deprecation
             PushSubscribeOptions.bind(M1); // coverage for deprecated
             PushSubscribeOptions pso = PushSubscribeOptions.stream(M1);
-            sub = js.subscribe(U1, pso);
+            sub = ctx.js.subscribe(U1, pso);
             list = readMessagesAck(sub);
             assertEquals(10, list.size());
             for (Message m : list) {
                 assertEquals(M1, m.metaData().getStream());
             }
 
-            sub = js.subscribe(U2, pso);
+            sub = ctx.js.subscribe(U2, pso);
             list = readMessagesAck(sub);
             assertEquals(20, list.size());
             for (Message m : list) {
@@ -184,58 +178,52 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
 
     @Test
     public void testMirrorExceptions() throws Exception {
-        jsServer.run(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-
-            Mirror mirror = Mirror.builder().sourceName(STREAM).build();
-
+        runInSharedCustom((nc, ctx) -> {
+            Mirror mirror = Mirror.builder().sourceName(random()).build();
             StreamConfiguration scEx = StreamConfiguration.builder()
-                    .name(mirror())
-                    .subjects(subject())
+                    .name(random())
+                    .subjects(random())
                     .mirror(mirror)
                     .build();
-            assertThrows(JetStreamApiException.class, () -> jsm.addStream(scEx));
+            assertThrows(JetStreamApiException.class, () -> ctx.createOrReplaceStream(scEx));
         });
     }
 
     @Test
     public void testSourceBasics() throws Exception {
-        String S1 = stream();
-        String S2 = stream();
-        String S3 = stream();
-        String S4 = stream();
-        String S5 = stream();
-        String S99 = stream();
-        String R1 = source();
-        String R2 = source();
+        String S1 = random();
+        String S2 = random();
+        String S3 = random();
+        String S4 = random();
+        String S5 = random();
+        String S99 = random();
+        String R1 = random();
+        String R2 = random();
 
-        jsServer.run(nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            JetStream js = nc.jetStream();
-
+        runInSharedCustom((nc, ctx) -> {
             // Create streams
-            StreamInfo si = jsm.addStream(StreamConfiguration.builder()
+            StreamInfo si = ctx.addStream(StreamConfiguration.builder()
                     .name(S1).storageType(StorageType.Memory).build());
             StreamConfiguration sc = si.getConfiguration();
             assertNotNull(sc);
             assertEquals(S1, sc.getName());
 
-            si = jsm.addStream(StreamConfiguration.builder()
+            si = ctx.addStream(StreamConfiguration.builder()
                     .name(S2).storageType(StorageType.Memory).build());
             sc = si.getConfiguration();
             assertNotNull(sc);
             assertEquals(S2, sc.getName());
 
-            si = jsm.addStream(StreamConfiguration.builder()
+            si = ctx.addStream(StreamConfiguration.builder()
                     .name(S3).storageType(StorageType.Memory).build());
             sc = si.getConfiguration();
             assertNotNull(sc);
             assertEquals(S3, sc.getName());
 
             // Populate each one.
-            jsPublish(js, S1, 10);
-            jsPublish(js, S2, 15);
-            jsPublish(js, S3, 25);
+            jsPublish(ctx.js, S1, 10);
+            jsPublish(ctx.js, S2, 15);
+            jsPublish(ctx.js, S3, 25);
 
             sc = StreamConfiguration.builder()
                     .name(R1)
@@ -245,9 +233,9 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
                             Source.builder().sourceName(S3).build())
                     .build();
 
-            jsm.addStream(sc);
+            ctx.addStream(sc);
 
-            assertSource(jsm, R1, 50L, null);
+            assertSource(ctx.jsm, R1, 50L, null);
 
             sc = StreamConfiguration.builder()
                     .name(R1)
@@ -257,91 +245,88 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
                             Source.builder().sourceName(S4).build())
                     .build();
 
-            jsm.updateStream(sc);
+            ctx.jsm.updateStream(sc);
 
             sc = StreamConfiguration.builder()
                     .name(S99)
                     .storageType(StorageType.Memory)
                     .subjects(S4, S5)
                     .build();
-            jsm.addStream(sc);
+            ctx.addStream(sc);
 
-            jsPublish(js, S4, 20);
-            jsPublish(js, S5, 20);
-            jsPublish(js, S4, 10);
+            jsPublish(ctx.js, S4, 20);
+            jsPublish(ctx.js, S5, 20);
+            jsPublish(ctx.js, S4, 10);
 
             sc = StreamConfiguration.builder()
                     .name(R2)
                     .storageType(StorageType.Memory)
                     .sources(Source.builder().sourceName(S99).startSeq(26).build())
                     .build();
-            jsm.addStream(sc);
-            assertSource(jsm, R2, 25L, null);
+            ctx.addStream(sc);
+            assertSource(ctx.jsm, R2, 25L, null);
 
-            MessageInfo info = jsm.getMessage(R2, 1);
+            MessageInfo info = ctx.jsm.getMessage(R2, 1);
             assertStreamSource(info, S99, 26);
 
+            String source3 = random();
             sc = StreamConfiguration.builder()
-                    .name(source(3))
+                    .name(source3)
                     .storageType(StorageType.Memory)
                     .sources(Source.builder().sourceName(S99).startSeq(11).filterSubject(S4).build())
                     .build();
-            jsm.addStream(sc);
-            assertSource(jsm, source(3), 20L, null);
+            ctx.addStream(sc);
+            assertSource(ctx.jsm, source3, 20L, null);
 
-            info = jsm.getMessage(source(3), 1);
+            info = ctx.jsm.getMessage(source3, 1);
             assertStreamSource(info, S99, 11);
         });
     }
 
     @Test
-    @Disabled("This used to work.")
     public void testSourceAndTransformsRoundTrips() throws Exception {
-        jsServer.run(si -> atLeast2_10(), nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            StreamConfiguration scSource = StreamConfigurationTests.getStreamConfigurationFromJson(
+        runInOwnJsServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
+            StreamConfiguration sc = StreamConfigurationTests.getStreamConfigurationFromJson(
                 "StreamConfigurationSourcedSubjectTransform.json");
 
-            StreamInfo si = jsm.addStream(scSource);
-            assertNull(scSource.getMirror());
+            assertNotNull(sc.getSources());
+            assertNull(sc.getMirror());
+
+            Source sourceFoo = sc.getSources().get(0);
+            Source sourceBar = sc.getSources().get(1);
+
+            StreamInfo si = jsm.addStream(sc);
+            assertNotNull(si.getSourceInfos());
             assertNull(si.getMirrorInfo());
 
-            assertNotNull(scSource.getSources());
-            assertNotNull(si.getSourceInfos());
-            Source source = scSource.getSources().get(0);
-            SourceInfo info = si.getSourceInfos().get(0);
-            assertNotNull(info);
-            assertNotNull(info.getSubjectTransforms());
-            assertEquals(1, info.getSubjectTransforms().size());
+            for (SourceInfo info : si.getSourceInfos()) {
+                assertNotNull(info);
+                assertNotNull(info.getSubjectTransforms());
+                assertEquals(1, info.getSubjectTransforms().size());
 
-            assertEquals(source.getName(), info.getName());
-            assertNotNull(source.getSubjectTransforms());
-            assertEquals(1, source.getSubjectTransforms().size());
+                String which = info.getName().substring(7); // sourcedfoo --> foo sourcebar --> bar
+                Source source;
+                if (which.equals("foo")) {
+                    source = sourceFoo;
+                }
+                else {
+                    source = sourceBar;
+                }
+                assertEquals(source.getName(), info.getName());
+                assertNotNull(source.getSubjectTransforms());
+                assertEquals(1, source.getSubjectTransforms().size());
 
-            SubjectTransform st = source.getSubjectTransforms().get(0);
-            SubjectTransform infoSt = info.getSubjectTransforms().get(0);
-            assertEquals(st.getSource(), infoSt.getSource());
-            assertEquals(st.getDestination(), infoSt.getDestination());
-
-            source = scSource.getSources().get(1);
-            info = si.getSourceInfos().get(1);
-            assertNotNull(scSource.getSources());
-            assertNotNull(si.getSourceInfos());
-            assertEquals(source.getName(), info.getName());
-            assertNotNull(info.getSubjectTransforms());
-            assertEquals(1, info.getSubjectTransforms().size());
-            assertNotNull(source.getSubjectTransforms());
-            st = source.getSubjectTransforms().get(0);
-            infoSt = info.getSubjectTransforms().get(0);
-            assertEquals(st.getSource(), infoSt.getSource());
-            assertEquals(st.getDestination(), infoSt.getDestination());
+                SubjectTransform st = source.getSubjectTransforms().get(0);
+                SubjectTransform infoSt = info.getSubjectTransforms().get(0);
+                assertEquals(st.getSource(), infoSt.getSource());
+                assertEquals(st.getDestination(), infoSt.getDestination());
+            }
         });
     }
 
     @Test
     public void testMirror() throws Exception {
-        jsServer.run(si -> atLeast2_10(), nc -> {
-            JetStreamManagement jsm = nc.jetStreamManagement();
+        runInOwnJsServer(VersionUtils::atLeast2_10, (nc, jsm, js) -> {
             StreamConfiguration scMirror = StreamConfigurationTests.getStreamConfigurationFromJson(
                 "StreamConfigurationMirrorSubjectTransform.json");
 

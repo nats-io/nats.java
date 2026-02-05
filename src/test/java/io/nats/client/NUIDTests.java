@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class NUIDTests {
     @Test
     public void testDigits() {
-        assertEquals(NUID.digits.length, NUID.base, "digits length does not match base modulo");
+        assertEquals(NUID.base, NUID.digits.length, "digits length does not match base modulo");
     }
 
     @Test
@@ -104,6 +104,7 @@ public class NUIDTests {
     public void whenMultipleThreadsIncrementSequenceThenNoCollisionsOccur() throws InterruptedException {
         NUID nuid = NUID.getInstance();
         Set<String> sequences = ConcurrentHashMap.newKeySet();
+        //noinspection resource
         ExecutorService service = Executors.newFixedThreadPool(10);
 
         // This test checks the thread-safety of nextSequence by generating sequences from multiple threads.
@@ -116,6 +117,7 @@ public class NUIDTests {
         }
 
         service.shutdown();
+        //noinspection ResultOfMethodCallIgnored
         service.awaitTermination(1, TimeUnit.MINUTES);
 
         // All sequences should be unique, verifying no sequence collision occurs when accessed by multiple threads.
