@@ -67,19 +67,33 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
 
     void doSub(boolean first) throws JetStreamApiException, IOException {
         MessageHandler mh = userMessageHandler == null ? null : msg -> {
-            userMessageHandler.onMessage(msg);
-            if (stopped.get() && pmm.noMorePending()) {
-                finished.set(true);
+            try {
+                userMessageHandler.onMessage(msg);
+            }
+            finally {
+                updatePending(1, msg.consumeByteCount());
             }
         };
+
         try {
             stopped.set(false);
             finished.set(false);
             super.initSub(subscriptionMaker.subscribe(mh, userDispatcher, pmm, null), !first);
-            repull();
+            rePull();
         }
         catch (JetStreamApiException | IOException e) {
             setupHbAlarmToTrigger();
+        }
+    }
+
+    protected void afterUpdatePending() {
+        if (stopped.get()) {
+            if (noMorePending()) {
+                fullClose();
+            }
+        }
+        else if (pendingMessages <= thresholdMessages || (isTrackingBytes && pendingBytes <= thresholdBytes)) {
+            rePull();
         }
     }
 
@@ -88,22 +102,9 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
         pmm.initOrResetHeartbeatTimer();
     }
 
-    @Override
-    public void pendingUpdated() {
-        if (stopped.get()) {
-            if (pmm.noMorePending()) {
-                fullClose();
-            }
-        }
-        else if (pmm.pendingMessages <= thresholdMessages || (pmm.trackingBytes && pmm.pendingBytes <= thresholdBytes))
-        {
-            repull();
-        }
-    }
-
-    private void repull() {
-        int rePullMessages = Math.max(1, consumeOpts.getBatchSize() - pmm.pendingMessages);
-        long rePullBytes = consumeOpts.getBatchBytes() == 0 ? 0 : consumeOpts.getBatchBytes() - pmm.pendingBytes;
+    protected void rePull() {
+        int rePullMessages = Math.max(1, consumeOpts.getBatchSize() - pendingMessages);
+        long rePullBytes = consumeOpts.getBatchBytes() == 0 ? 0 : consumeOpts.getBatchBytes() - pendingBytes;
         PinnablePullRequestOptions pro = new PinnablePullRequestOptions(pmm.currentPinId,
             PullRequestOptions.builder(rePullMessages)
                 .maxBytes(rePullBytes)

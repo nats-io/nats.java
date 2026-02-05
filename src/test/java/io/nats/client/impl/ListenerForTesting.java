@@ -136,6 +136,14 @@ public class ListenerForTesting implements ErrorListener, ConnectionListener {
         exitOnHeartbeatError.set(true);
     }
 
+    public void clearExitOnDisconnect() {
+        exitOnDisconnect.set(false);
+    }
+
+    public void clearExitOnHeartbeatError() {
+        exitOnHeartbeatError.set(false);
+    }
+
     public void prepForStatusChange(Events waitFor) {
         prepLock.lock();
         try {

@@ -14,6 +14,12 @@
 package io.nats.client.impl;
 
 interface PullManagerObserver {
+    @Deprecated
     void pendingUpdated();
+
+    void startPullRequest(int batchSize, long maxBytes);
+
+    void updatePending(int messages, long bytes);
+
     void heartbeatError();
 }

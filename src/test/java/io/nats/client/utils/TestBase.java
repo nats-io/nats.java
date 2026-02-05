@@ -297,6 +297,18 @@ public class TestBase {
             }
         }
 
+        public void clearExitOnDisconnect() {
+            if (listenerForTesting != null) {
+                listenerForTesting.clearExitOnDisconnect();
+            }
+        }
+
+        public void clearExitOnHeartbeatError() {
+            if (listenerForTesting != null) {
+                listenerForTesting.clearExitOnHeartbeatError();
+            }
+        }
+
         public Connection connect() throws IOException, InterruptedException {
             return standardConnection(builder.server(getURI()).build());
         }
@@ -337,6 +349,8 @@ public class TestBase {
                     inServerTest.test(nc);
                 }
                 finally {
+                    clearExitOnDisconnect();
+                    clearExitOnHeartbeatError();
                     if (jetstream) {
                         cleanupJs(nc);
                     }
