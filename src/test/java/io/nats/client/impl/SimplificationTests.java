@@ -1123,9 +1123,6 @@ public class SimplificationTests extends JetStreamTestBase {
         delimiter = ':')
     public void testOrderedBehaviorIterable(String deliverPolicyStr, String prefix) throws Exception {
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
-            jsServer.setExitOnDisconnect();
-            jsServer.setExitOnHeartbeatError();
-
             // Setup
             JetStream js = nc.jetStream();
             JetStreamManagement jsm = nc.jetStreamManagement();
@@ -1167,7 +1164,10 @@ public class SimplificationTests extends JetStreamTestBase {
     private void _testOrderedIterate(StreamContext sctx, int expectedStreamSeq, OrderedConsumerConfiguration occ) throws Exception {
         OrderedConsumerContext occtx = sctx.createOrderedConsumer(occ);
         assertNull(occtx.getConsumerName());
-        try (IterableConsumer icon = occtx.iterate()) {
+        ConsumeOptions consumeOptions = ConsumeOptions.builder()
+            .expiresIn(1000)
+            .build();
+        try (IterableConsumer icon = occtx.iterate(consumeOptions)) {
             validateConsumerNameForOrdered(occtx, icon, occ.getConsumerNamePrefix());
             // Loop through the messages to make sure I get stream sequence 1 to 5
             while (expectedStreamSeq <= 5) {
