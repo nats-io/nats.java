@@ -255,6 +255,9 @@ public class Options {
      */
     public static final Supplier<ExecutorService> DEFAULT_SINGLE_THREAD_EXECUTOR = Executors::newSingleThreadExecutor;
 
+    /**
+     * Whether subject strings should be validated against naming rules. Default is None - no validation.
+     */
     public enum SubjectValidationType {None, Lenient, Strict}
 
     // ----------------------------------------------------------------------------------------------------
@@ -784,7 +787,8 @@ public class Options {
             threadNumber = new AtomicInteger(0);
         }
 
-        public Thread newThread(@NonNull Runnable r) {
+        @Override
+		public Thread newThread(@NonNull Runnable r) {
             String threadName = name + ":" + threadNumber.incrementAndGet();
             Thread t = new Thread(r, threadName);
             if (t.isDaemon()) {
@@ -1159,6 +1163,7 @@ public class Options {
 
         /**
          * Directly set the subjectValidationType. Null sets to the default, Lenient.
+         * @param subjectValidationType the validation type (None, Lenient, or Strict)
          * @return the Builder for chaining
          */
         public Builder subjectValidationType(SubjectValidationType subjectValidationType) {
