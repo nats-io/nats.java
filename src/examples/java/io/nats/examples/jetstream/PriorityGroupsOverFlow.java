@@ -1,4 +1,4 @@
-package io.nats.examples.jetstream;
+	package io.nats.examples.jetstream;
 //package io.nats.examples.jetstream.simple;
 
 import io.nats.client.*;
