@@ -11,9 +11,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.compatibility;
+package io.nats.client.other;
 
 import io.nats.client.*;
+import io.nats.compatibility.*;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutorService;

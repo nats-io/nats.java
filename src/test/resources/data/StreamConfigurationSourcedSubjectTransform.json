@@ -13,7 +13,7 @@
   "duplicate_window": 120000000000,
   "sources": [
     {
-      "name": "sourcedstream",
+      "name": "sourcedfoo",
       "subject_transforms": [
         {
           "src": "foo",
@@ -22,7 +22,7 @@
       ]
     },
     {
-      "name": "sourcedstream",
+      "name": "sourcedbar",
       "subject_transforms": [
         {
           "src": "bar",
