@@ -36,7 +36,8 @@ abstract class SourceInfoBase {
         jv = vSourceInfo;
         name = readString(vSourceInfo, NAME);
         lag = readLong(vSourceInfo, LAG, 0);
-        active = readNanos(vSourceInfo, ACTIVE, Duration.ZERO);
+        Long l = readLong(vSourceInfo, ACTIVE);
+        active = l == null || l < 0 ? null : Duration.ofNanos(l);
         external = External.optionalInstance(readValue(vSourceInfo, EXTERNAL));
         subjectTransforms = SubjectTransform.optionalListOf(readValue(vSourceInfo, SUBJECT_TRANSFORMS));
         error = Error.optionalInstance(readValue(vSourceInfo, ERROR));
@@ -60,10 +61,10 @@ abstract class SourceInfoBase {
     }
 
     /**
-     * Time since this peer was last seen
+     * Time since this peer was last seen, or null if there is no information
      * @return the time
      */
-    @NonNull
+    @Nullable
     public Duration getActive() {
         return active;
     }
