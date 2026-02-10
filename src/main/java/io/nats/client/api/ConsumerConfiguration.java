@@ -395,6 +395,9 @@ public class ConsumerConfiguration implements JsonSerializable {
 
     /**
      * Gets the priority groups as a list. May be null, otherwise won't be empty
+     * Needs to be set when PriorityPolicy is specified.
+     * For Overflow, Pinned and Prioritized Policies only a single group can be specified.
+     * See {@link io.nats.client.api.PriorityPolicy}
      * @return the list
      */
     @Nullable
@@ -556,6 +559,8 @@ public class ConsumerConfiguration implements JsonSerializable {
 
     /**
      * Gets the priority policy of this consumer configuration. Defaults to PriorityPolicy.None
+     * When PriorityPolicy is specified a PriorityGroup needs to be set as well. The PriorityGroup will be referenced in the ConsumerOptions for Pull consumers.
+     * See {@link io.nats.client.api.PriorityPolicy}
      * @return the priority policy.
      */
     @NonNull
@@ -564,7 +569,8 @@ public class ConsumerConfiguration implements JsonSerializable {
     }
 
     /**
-     * For pinned_client priority policy how long before the client times out
+     * For pinned_client priority policy how long before the client times out.
+     * See {@link io.nats.client.api.PriorityPolicy}
      * @return the duration
      */
     @Nullable
