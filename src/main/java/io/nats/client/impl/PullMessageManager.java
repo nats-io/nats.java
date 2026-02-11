@@ -86,21 +86,35 @@ class PullMessageManager extends MessageManager {
 
         // all other status messages return true, but some have work to do.
 
+        int m = Integer.MIN_VALUE;
+        long b = 0;
+
         // pin error or status with pending headers
-        // pass that info on as soon as possible, before manage
+        // pin is checked first, since there may be a version
+        // of the error where headers are set.
+        // Always clear currentPinId anyway
+        if (status.getCode() == PIN_ERROR_CODE) {
+            currentPinId = null;
+            m = -1;
+            b = -1;
+        }
         Headers h = msg.getHeaders();
         if (h != null) {
             try {
                 //noinspection DataFlowIssue WE ALREADY CATCH THE EXCEPTION
-                int m = Integer.parseInt(h.getFirst(NATS_PENDING_MESSAGES));
+                m = Integer.parseInt(h.getFirst(NATS_PENDING_MESSAGES));
                 //noinspection DataFlowIssue WE ALREADY CATCH THE EXCEPTION
-                long b = Long.parseLong(h.getFirst(NATS_PENDING_BYTES));
-                if (pullManagerObserver != null) {
-                    pullManagerObserver.pullCompletedWithStatus(m, b);
-                }
+                b = Long.parseLong(h.getFirst(NATS_PENDING_BYTES));
             }
-            catch (NumberFormatException ignore) {}
+            catch (NumberFormatException ignore) {
+                m = Integer.MIN_VALUE;
+            }
         }
+
+        if (m != Integer.MIN_VALUE && pullManagerObserver != null) {
+            pullManagerObserver.pullCompletedWithStatus(m, b);
+        }
+
         return true;
     }
 
@@ -127,11 +141,6 @@ class PullMessageManager extends MessageManager {
         Status status = msg.getStatus();
         switch (status.getCode()) {
             case PIN_ERROR_CODE:
-                currentPinId = null;
-                if (pullManagerObserver != null) {
-                    pullManagerObserver.pullCompletedWithStatus(-1, -1);
-                }
-                // no break PIN_ERROR_CODE is STATUS_TERMINUS
             case NOT_FOUND_CODE:
             case REQUEST_TIMEOUT_CODE:
             case NO_RESPONDERS_CODE:

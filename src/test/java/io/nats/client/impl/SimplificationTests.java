@@ -17,7 +17,6 @@ import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.*;
 import io.nats.client.utils.TestBase;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -229,7 +228,6 @@ public class SimplificationTests extends JetStreamTestBase {
                     _testFetch("1A", nc, tsc, 20, 0, 20, f, true);
                     _testFetch("2A", nc, tsc, 0, 750, 20, f, true);
                 }
-
             }
         });
     }
@@ -1778,7 +1776,7 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-    @Disabled("This is a timing flapper and is annoying.")
+//    @Disabled("This is a timing flapper and is annoying.")
     public void testReconnectOverOrdered() throws Exception {
         // ------------------------------------------------------------
         // The idea here is...

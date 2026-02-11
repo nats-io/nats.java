@@ -132,24 +132,15 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
 
     private void checkState() throws IOException {
         NatsMessageConsumerBase lastCon = lastConsumer.get();
-        if (lastCon != null) {
-            if (ordered) {
-                if (!lastCon.finished.get()) {
-                    throw new IOException("The ordered consumer is already receiving messages. Ordered Consumer does not allow multiple instances at time.");
-                }
-            }
-            if (lastCon.finished.get() && !lastCon.stopped.get()) {
-                lastCon.shutdownSub(); // finished, might as well make sure the sub is closed.
-            }
+        if (lastCon != null && ordered && !lastCon.finished.get()) {
+            throw new IOException("The ordered consumer is already receiving messages. Ordered Consumer does not allow multiple instances at time.");
         }
     }
 
     private void checkNotPinned(String label) throws IOException {
         ConsumerInfo ci = cachedConsumerInfo.get();
-        if (ci != null) {
-            if (ci.getConsumerConfiguration().getPriorityPolicy() == PriorityPolicy.PinnedClient) {
-                throw new IOException("Pinned not allowed with " + label);
-            }
+        if (ci != null && ci.getConsumerConfiguration().getPriorityPolicy() == PriorityPolicy.PinnedClient) {
+            throw new IOException("Pinned not allowed with " + label);
         }
     }
 
@@ -229,10 +220,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             }
             catch (Exception e) {
                 if (nnc != null) {
-                    try {
-                        nnc.close();
-                    }
-                    catch (Exception ignore) {}
+                    nnc.fullClose();
                 }
                 return null;
             }
@@ -242,18 +230,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         }
 
         // intentionally outside the lock
-        try {
-            return nnc.sub.nextMessage(maxWaitMillis);
-        }
-        finally {
-            try {
-                nnc.finished.set(true);
-                nnc.close();
-            }
-            catch (Exception e) {
-                // from close/autocloseable, but we know it doesn't actually throw
-            }
-        }
+        return nnc.getMessage();
     }
 
     /**

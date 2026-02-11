@@ -94,7 +94,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
         if (pendingProcessedMessages < thresholdMessages) {
             processedHasCrossedThreshold = true;
         }
-        else if (isTrackingBytes) {
+        if (isTrackingBytes) {
             pendingProcessedBytes = Math.max(0, pendingProcessedBytes - msg.consumeByteCount());
             processedHasCrossedThreshold |= pendingProcessedBytes < thresholdBytes;
         }
@@ -107,7 +107,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
         if (pendingReceivedMessages == 0) {
             noReceivedArePending = true;
         }
-        else if (isTrackingBytes) {
+        if (isTrackingBytes) {
             pendingReceivedBytes = Math.max(0, pendingReceivedMessages - msg.consumeByteCount());
             noReceivedArePending |= pendingReceivedBytes == 0;
         }
@@ -128,17 +128,17 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
 
     @Override
     public void pullTerminatedByError() {
-        try {
-            if (stopped.get()) {
-                fullClose();
-            }
-            else {
+        if (stopped.get()) {
+            fullClose();
+        }
+        else {
+            try {
                 shutdownSub();
                 doSub(false);
             }
-        }
-        catch (JetStreamApiException | IOException e) {
-            resetOnException();
+            catch (JetStreamApiException | IOException e) {
+                resetOnException();
+            }
         }
     }
 
