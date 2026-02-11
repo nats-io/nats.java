@@ -106,7 +106,7 @@
     {
       "name": "sname18",
       "lag": 18,
-      "active": 180000000000,
+      "active": -1,
       "external": {
         "api": "api18",
         "deliver": "dlvr18"
@@ -114,6 +114,18 @@
       "subject_transforms": [
         {"src":"18_st_src0","dest":"18_st_dest0"},
         {"src":"18_st_src1","dest":"18_st_dest1"}
+      ]
+    },
+    {
+      "name": "sname19",
+      "lag": 19,
+      "external": {
+        "api": "api19",
+        "deliver": "dlvr19"
+      },
+      "subject_transforms": [
+        {"src":"19_st_src0","dest":"19_st_dest0"},
+        {"src":"19_st_src1","dest":"19_st_dest1"}
       ]
     }
   ],
