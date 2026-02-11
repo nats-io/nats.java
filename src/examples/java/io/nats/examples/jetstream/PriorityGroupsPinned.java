@@ -58,7 +58,6 @@ public class PriorityGroupsPinned {
 				.durable(CONSUMER_NAME)
 				.priorityGroups(PIN_GROUP)
 				.priorityPolicy(PriorityPolicy.PinnedClient)
-				.priorityTimeout(500) // the time it takes to auto unpin when an instance stops
 				.build());
 
 			// some control variables
