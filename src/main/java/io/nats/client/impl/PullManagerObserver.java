@@ -13,13 +13,19 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.Message;
+
 interface PullManagerObserver {
-    @Deprecated
-    void pendingUpdated();
 
-    void startPullRequest(int batchSize, long maxBytes);
+    void messageReceived(Message msg);
 
-    void updatePending(int messages, long bytes);
+    void pullCompletedWithStatus(int messages, long bytes);
 
-    void heartbeatError();
+    void pullTerminatedByError();
+
+    @Deprecated // deprecated b/c replaced with messageReceived and pullClosedViaStatus
+    default void pendingUpdated() {}
+
+    @Deprecated // deprecated b/c replaced with pullTerminatedByError
+    default void heartbeatError() {}
 }

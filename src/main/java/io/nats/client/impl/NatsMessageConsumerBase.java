@@ -20,8 +20,9 @@ import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
-class NatsMessageConsumerBase implements MessageConsumer, PullManagerObserver {
+abstract class NatsMessageConsumerBase implements MessageConsumer, PullManagerObserver {
     protected NatsJetStreamPullSubscription sub;
     protected PullMessageManager pmm;
     protected final AtomicBoolean stopped;
@@ -29,11 +30,11 @@ class NatsMessageConsumerBase implements MessageConsumer, PullManagerObserver {
     protected ConsumerInfo cachedConsumerInfo;
     protected String consumerName;
 
-    protected int pendingMessages;
-    protected long pendingBytes;
-    protected boolean isTrackingBytes;
+    static AtomicInteger ID = new AtomicInteger(64);
+    protected final String id;
 
     NatsMessageConsumerBase(ConsumerInfo cachedConsumerInfo) {
+        id = "" + (char)ID.incrementAndGet();
         this.cachedConsumerInfo = cachedConsumerInfo;
         if (cachedConsumerInfo != null) {
             this.consumerName = cachedConsumerInfo.getName();
@@ -58,43 +59,6 @@ class NatsMessageConsumerBase implements MessageConsumer, PullManagerObserver {
     protected void rePull() {
         // may or may not be implemented
         // fetch does not implement
-    }
-
-    protected boolean noMorePending() {
-        return pendingMessages < 1 || (isTrackingBytes && pendingBytes < 1);
-    }
-
-    @Override
-    @Deprecated
-    public void pendingUpdated() {}
-
-    @Override
-    public void startPullRequest(int batchSize, long maxBytes) {
-        pendingMessages += batchSize;
-        pendingBytes += maxBytes;
-        isTrackingBytes = (pendingBytes > 0);
-    }
-
-    protected void afterUpdatePending() {}
-
-    @Override
-    public void updatePending(int messages, long bytes) {
-        pendingMessages -= messages;
-        boolean zero = pendingMessages < 1;
-        if (isTrackingBytes) {
-            pendingBytes -= bytes;
-            zero |= pendingBytes < 1;
-        }
-        if (zero) {
-            pendingMessages = 0;
-            pendingBytes = 0;
-        }
-        afterUpdatePending();
-    }
-
-    @Override
-    public void heartbeatError() {
-        fullClose();
     }
 
     /**

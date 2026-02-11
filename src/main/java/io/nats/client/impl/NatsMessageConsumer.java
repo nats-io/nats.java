@@ -20,11 +20,21 @@ import java.io.IOException;
 
 class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManagerObserver {
     protected final ConsumeOptions consumeOpts;
-    protected final int thresholdMessages;
-    protected final long thresholdBytes;
     protected final SimplifiedSubscriptionMaker subscriptionMaker;
     protected final Dispatcher userDispatcher;
     protected final MessageHandler userMessageHandler;
+
+    protected final int thresholdMessages;
+    protected final long thresholdBytes;
+    protected final boolean isTrackingBytes;
+
+    protected int pendingReceivedMessages;
+    protected long pendingReceivedBytes;
+    protected boolean noReceivedArePending;
+    protected boolean forcePull;
+    protected int pendingProcessedMessages;
+    protected long pendingProcessedBytes;
+    protected boolean processedHasCrossedThreshold;
 
     NatsMessageConsumer(SimplifiedSubscriptionMaker subscriptionMaker,
                         ConsumerInfo cachedConsumerInfo,
@@ -45,12 +55,79 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
         long rePullBytes = bb == 0 ? 0 : Math.max(1, bb * consumeOpts.getThresholdPercent() / 100);
         thresholdMessages = bm - rePullMessages;
         thresholdBytes = bb == 0 ? Integer.MIN_VALUE : bb - rePullBytes;
-
+        isTrackingBytes = rePullBytes > 0;
         doSub(true);
     }
 
+    protected void fullResetPending() {
+        pendingReceivedMessages = 0;
+        pendingReceivedBytes = 0;
+        noReceivedArePending = true;
+        forcePull = true;
+        pendingProcessedMessages = 0;
+        pendingProcessedBytes = 0;
+        processedHasCrossedThreshold = true;
+    }
+
+    protected void statusAdjustPending(int messages, long bytes) {
+        pendingReceivedMessages = Math.max(0, pendingReceivedMessages - messages);
+        pendingReceivedBytes = Math.max(0, pendingReceivedBytes - bytes);
+        noReceivedArePending = pendingReceivedMessages == 0 || (isTrackingBytes && pendingReceivedBytes == 0);
+        forcePull = true;
+        pendingProcessedMessages = Math.max(0, pendingProcessedMessages - messages);
+        pendingProcessedBytes = Math.max(0, pendingProcessedBytes - bytes);
+        processedHasCrossedThreshold = pendingProcessedMessages < thresholdMessages || (isTrackingBytes && pendingProcessedBytes < thresholdBytes);
+    }
+
+    protected void aboutToPull(int messages, long bytes) {
+        pendingReceivedMessages += messages;
+        pendingReceivedBytes += bytes;
+        noReceivedArePending = false;
+        forcePull = false;
+        pendingProcessedMessages += messages;
+        pendingProcessedBytes += bytes;
+        processedHasCrossedThreshold = false;
+    }
+
+    protected void updateProcessed(Message msg) {
+        pendingProcessedMessages = Math.max(0, pendingProcessedMessages - 1);
+        if (pendingProcessedMessages < thresholdMessages) {
+            processedHasCrossedThreshold = true;
+        }
+        else if (isTrackingBytes) {
+            pendingProcessedBytes = Math.max(0, pendingProcessedBytes - msg.consumeByteCount());
+            processedHasCrossedThreshold |= pendingProcessedBytes < thresholdBytes;
+        }
+        afterPendingUpdated();
+    }
+
     @Override
-    public void heartbeatError() {
+    public void messageReceived(Message msg) {
+        pendingReceivedMessages = Math.max(0, pendingReceivedMessages - 1);
+        if (pendingReceivedMessages == 0) {
+            noReceivedArePending = true;
+        }
+        else if (isTrackingBytes) {
+            pendingReceivedBytes = Math.max(0, pendingReceivedMessages - msg.consumeByteCount());
+            noReceivedArePending |= pendingReceivedBytes == 0;
+        }
+        afterPendingUpdated();
+    }
+
+    @Override
+    public void pullCompletedWithStatus(int messages, long bytes) {
+        if (messages == -1) {
+            // status without Nats-Pending-* headers
+            fullResetPending();
+        }
+        else {
+            statusAdjustPending(messages, bytes);
+        }
+        afterPendingUpdated();
+    }
+
+    @Override
+    public void pullTerminatedByError() {
         try {
             if (stopped.get()) {
                 fullClose();
@@ -61,7 +138,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
             }
         }
         catch (JetStreamApiException | IOException e) {
-            setupHbAlarmToTrigger();
+            resetOnException();
         }
     }
 
@@ -71,7 +148,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
                 userMessageHandler.onMessage(msg);
             }
             finally {
-                updatePending(1, msg.consumeByteCount());
+                updateProcessed(msg);
             }
         };
 
@@ -79,32 +156,35 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
             stopped.set(false);
             finished.set(false);
             super.initSub(subscriptionMaker.subscribe(mh, userDispatcher, pmm, null), !first);
+            fullResetPending();
             rePull();
         }
         catch (JetStreamApiException | IOException e) {
-            setupHbAlarmToTrigger();
+            resetOnException();
         }
     }
 
-    protected void afterUpdatePending() {
+    private void resetOnException() {
+        fullResetPending();
+        pmm.updateLastMessageReceived();
+        pmm.initOrResetHeartbeatTimer();
+    }
+
+    protected void afterPendingUpdated() {
         if (stopped.get()) {
-            if (noMorePending()) {
+            pmm.shutdownHeartbeatTimer();
+            if (noReceivedArePending) {
                 fullClose();
             }
         }
-        else if (pendingMessages <= thresholdMessages || (isTrackingBytes && pendingBytes <= thresholdBytes)) {
+        else if (forcePull || processedHasCrossedThreshold) {
             rePull();
         }
     }
 
-    private void setupHbAlarmToTrigger() {
-        pmm.resetTracking();
-        pmm.initOrResetHeartbeatTimer();
-    }
-
     protected void rePull() {
-        int rePullMessages = Math.max(1, consumeOpts.getBatchSize() - pendingMessages);
-        long rePullBytes = consumeOpts.getBatchBytes() == 0 ? 0 : consumeOpts.getBatchBytes() - pendingBytes;
+        int rePullMessages = Math.max(1, consumeOpts.getBatchSize() - pendingProcessedMessages);
+        long rePullBytes = consumeOpts.getBatchBytes() == 0 ? 0 : consumeOpts.getBatchBytes() - pendingProcessedBytes;
         PinnablePullRequestOptions pro = new PinnablePullRequestOptions(pmm.currentPinId,
             PullRequestOptions.builder(rePullMessages)
                 .maxBytes(rePullBytes)
@@ -114,6 +194,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
                 .priority(consumeOpts.getPriority())
                 .minPending(consumeOpts.getMinPending())
                 .minAckPending(consumeOpts.getMinAckPending()));
+        aboutToPull(rePullMessages, rePullBytes);
         sub._pull(pro, consumeOpts.raiseStatusWarnings(), this);
     }
 }

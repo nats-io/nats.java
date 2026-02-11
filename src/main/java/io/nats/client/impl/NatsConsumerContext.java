@@ -31,7 +31,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import static io.nats.client.BaseConsumeOptions.DEFAULT_EXPIRES_IN_MILLIS;
 import static io.nats.client.BaseConsumeOptions.MIN_EXPIRES_MILLS;
 import static io.nats.client.ConsumeOptions.DEFAULT_CONSUME_OPTIONS;
-import static io.nats.client.impl.NatsJetStreamSubscription.EXPIRE_ADJUSTMENT;
 
 /**
  * Implementation of Consumer Context
@@ -218,26 +217,20 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             throw new IllegalArgumentException("Max wait must be at least " + MIN_EXPIRES_MILLS + " milliseconds.");
         }
 
-        NatsMessageConsumerBase nmcb = null;
+        NatsNextConsumer nnc = null;
         try {
             stateLock.lock();
             checkState();
             checkNotPinned("Next");
 
             try {
-                long inactiveThreshold = maxWaitMillis * 110 / 100; // 10% longer than the wait
-                nmcb = new NatsMessageConsumerBase(cachedConsumerInfo.get());
-                nmcb.initSub(subscribe(null, null, null, inactiveThreshold), false);
-                nmcb.setConsumerName(consumerName.get()); // the call to subscribe sets this
-                trackConsume(nmcb); // this has to be done after the nmcb is fully set up
-                nmcb.sub._pull(PullRequestOptions.builder(1)
-                    .expiresIn(maxWaitMillis - EXPIRE_ADJUSTMENT)
-                    .build(), false, null);
+                nnc = new NatsNextConsumer(this, cachedConsumerInfo.get(), maxWaitMillis);
+                trackConsume(nnc); // this has to be done after the nnc is fully set up
             }
             catch (Exception e) {
-                if (nmcb != null) {
+                if (nnc != null) {
                     try {
-                        nmcb.close();
+                        nnc.close();
                     }
                     catch (Exception ignore) {}
                 }
@@ -250,12 +243,12 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
 
         // intentionally outside the lock
         try {
-            return nmcb.sub.nextMessage(maxWaitMillis);
+            return nnc.sub.nextMessage(maxWaitMillis);
         }
         finally {
             try {
-                nmcb.finished.set(true);
-                nmcb.close();
+                nnc.finished.set(true);
+                nnc.close();
             }
             catch (Exception e) {
                 // from close/autocloseable, but we know it doesn't actually throw

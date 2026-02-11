@@ -33,7 +33,7 @@ class NatsIterableConsumer extends NatsMessageConsumer implements IterableConsum
         try {
             Message msg = sub.nextMessage(timeout);
             if (msg != null) {
-                updatePending(1, msg.consumeByteCount());
+                updateProcessed(msg);
             }
             return msg;
         }

@@ -30,7 +30,6 @@ class PullMessageManager extends MessageManager {
 
     protected PullMessageManager(NatsConnection conn, SubscribeOptions so, boolean syncMode) {
         super(conn, so, syncMode);
-        resetTracking();
     }
 
     @Override
@@ -45,9 +44,6 @@ class PullMessageManager extends MessageManager {
         try {
             this.raiseStatusWarnings = raiseStatusWarnings;
             this.pullManagerObserver = pullManagerObserver;
-            if (pullManagerObserver != null) {
-                pullManagerObserver.startPullRequest(pro.getBatchSize(), pro.getMaxBytes());
-            }
             configureIdleHeartbeat(pro.getIdleHeartbeat(), -1);
             if (hb.get()) {
                 initOrResetHeartbeatTimer();
@@ -64,14 +60,9 @@ class PullMessageManager extends MessageManager {
     @Override
     protected void handleHeartbeatError() {
         super.handleHeartbeatError();
-        resetTracking();
         if (pullManagerObserver != null) {
-            pullManagerObserver.heartbeatError();
+            pullManagerObserver.pullTerminatedByError();
         }
-    }
-
-    protected void resetTracking() {
-        updateLastMessageReceived();
     }
 
     @Override
@@ -82,14 +73,21 @@ class PullMessageManager extends MessageManager {
 
         // normal js message
         if (status == null) {
+            if (pullManagerObserver != null) {
+                pullManagerObserver.messageReceived(msg);
+            }
             return true;
         }
 
-        // heartbeat just needed to be recorded
+        // heartbeat just needed to updateLastMessageReceived
         if (status.isHeartbeat()) {
             return false;
         }
 
+        // all other status messages return true, but some have work to do.
+
+        // pin error or status with pending headers
+        // pass that info on as soon as possible, before manage
         Headers h = msg.getHeaders();
         if (h != null) {
             try {
@@ -97,34 +95,43 @@ class PullMessageManager extends MessageManager {
                 int m = Integer.parseInt(h.getFirst(NATS_PENDING_MESSAGES));
                 //noinspection DataFlowIssue WE ALREADY CATCH THE EXCEPTION
                 long b = Long.parseLong(h.getFirst(NATS_PENDING_BYTES));
-                pullManagerObserver.updatePending(m, b);
+                if (pullManagerObserver != null) {
+                    pullManagerObserver.pullCompletedWithStatus(m, b);
+                }
             }
-            catch (Exception ignore) {}
+            catch (NumberFormatException ignore) {}
         }
-
         return true;
     }
 
     @Override
     protected ManageResult manage(Message msg) {
-        // normal js message
-        if (msg.getStatus() == null) {
+        if (msg.isJetStream()) {
             trackJsMessage(msg);
+            checkForPin(msg);
             return MESSAGE;
         }
         return manageStatus(msg);
     }
 
-    @Override
-    protected void subTrackJsMessage(Message msg) {
+    protected void checkForPin(Message msg) {
         if (msg.hasHeaders()) {
-            currentPinId = msg.getHeaders().getFirst(NATS_PIN_ID_HDR);
+            String pinId = msg.getHeaders().getFirst(NATS_PIN_ID_HDR);
+            if (pinId != null) {
+                currentPinId = pinId;
+            }
         }
     }
 
     protected ManageResult manageStatus(Message msg) {
         Status status = msg.getStatus();
         switch (status.getCode()) {
+            case PIN_ERROR_CODE:
+                currentPinId = null;
+                if (pullManagerObserver != null) {
+                    pullManagerObserver.pullCompletedWithStatus(-1, -1);
+                }
+                // no break PIN_ERROR_CODE is STATUS_TERMINUS
             case NOT_FOUND_CODE:
             case REQUEST_TIMEOUT_CODE:
             case NO_RESPONDERS_CODE:
@@ -154,10 +161,6 @@ class PullMessageManager extends MessageManager {
                     return STATUS_TERMINUS;
                 }
                 break;
-
-            case PIN_ERROR_CODE:
-                currentPinId = null;
-                return STATUS_TERMINUS;
         }
 
         // All unknown 409s are errors, since that basically means the client is not aware of them.

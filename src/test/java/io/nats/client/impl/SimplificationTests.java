@@ -426,6 +426,7 @@ public class SimplificationTests extends JetStreamTestBase {
             IterableConsumer consumer = consumerContext.iterate(ConsumeOptions.DEFAULT_CONSUME_OPTIONS);
             validateConsumerName(consumerContext, consumer, tsc.consumerName());
             consumer.close();
+            //noinspection resource,DataFlowIssue
             assertThrows(IllegalArgumentException.class, () -> consumerContext.iterate(null));
         });
     }
