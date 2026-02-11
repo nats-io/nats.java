@@ -20,7 +20,6 @@ import io.nats.client.api.ConsumerInfo;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 abstract class NatsMessageConsumerBase implements MessageConsumer, PullManagerObserver {
     protected NatsJetStreamPullSubscription sub;
@@ -30,11 +29,7 @@ abstract class NatsMessageConsumerBase implements MessageConsumer, PullManagerOb
     protected ConsumerInfo cachedConsumerInfo;
     protected String consumerName;
 
-    static AtomicInteger ID = new AtomicInteger(64);
-    protected final String id;
-
     NatsMessageConsumerBase(ConsumerInfo cachedConsumerInfo) {
-        id = "" + (char)ID.incrementAndGet();
         this.cachedConsumerInfo = cachedConsumerInfo;
         if (cachedConsumerInfo != null) {
             this.consumerName = cachedConsumerInfo.getName();

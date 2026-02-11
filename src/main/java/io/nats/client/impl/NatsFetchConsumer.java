@@ -29,7 +29,6 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
     private long startNanos;
     private final boolean isTrackingBytes;
     private int pendingReceivedMessages;
-    private int unprocessedMessages;
     private long pendingReceivedBytes;
     private boolean noReceivedArePending;
 
@@ -56,7 +55,6 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
         pendingReceivedMessages = fetchConsumeOptions.getMaxMessages();
         pendingReceivedBytes = fetchConsumeOptions.getMaxBytes();
         noReceivedArePending = false;
-        unprocessedMessages = 0;
 
         isTrackingBytes = pendingReceivedBytes > 0;
 
@@ -82,10 +80,9 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
             noReceivedArePending = true;
         }
         else if (isTrackingBytes) {
-            pendingReceivedBytes = Math.max(0, pendingReceivedMessages - msg.consumeByteCount());
+            pendingReceivedBytes = Math.max(0, pendingReceivedBytes - msg.consumeByteCount());
             noReceivedArePending |= pendingReceivedBytes == 0;
         }
-        unprocessedMessages++;
     }
 
     @Override
@@ -102,7 +99,6 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
 
     @Override
     public Message nextMessage() throws InterruptedException, JetStreamStatusCheckedException {
-        Message msg = null;
         try {
             if (finished.get()) {
                 return null;
@@ -112,7 +108,7 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
             // that all the messages are already in the internal queue and there is
             // no waiting necessary
             if (noReceivedArePending) {
-                msg = sub._nextUnmanagedNoWait(pullSubject);
+                Message msg = sub._nextUnmanagedNoWait(pullSubject);
                 if (msg == null) {
                     // if there are no messages in the internal cache AND there are no more pending,
                     // they all have been read and we can go ahead and finish
@@ -132,7 +128,7 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
             // if the timer has run out, don't allow waiting
             // this might happen once, but it should already be noMorePending
             if (timeLeftNanos < NANOS_PER_MILLI) {
-                msg = sub._nextUnmanagedNoWait(pullSubject);
+                Message msg = sub._nextUnmanagedNoWait(pullSubject);
                 if (msg == null) {
                     // no message and no time left, go ahead and finish
                     fullClose();
@@ -140,7 +136,7 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
                 return msg;
             }
 
-            msg = sub._nextUnmanaged(timeLeftNanos, pullSubject);
+            Message msg = sub._nextUnmanaged(timeLeftNanos, pullSubject);
             if (msg == null) {
                 if (isNoWaitNoExpires) {
                     // no message and no wait, go ahead and finish
@@ -156,11 +152,6 @@ class NatsFetchConsumer extends NatsMessageConsumerBase implements FetchConsumer
             // this happens if the consumer is stopped, since it is
             // drained/unsubscribed, so don't pass it on if it's expected
             return null;
-        }
-        finally {
-            if (msg != null) {
-                unprocessedMessages--;
-            }
         }
     }
 }

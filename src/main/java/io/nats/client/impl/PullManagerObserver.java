@@ -22,10 +22,4 @@ interface PullManagerObserver {
     void pullCompletedWithStatus(int messages, long bytes);
 
     void pullTerminatedByError();
-
-    @Deprecated // deprecated b/c replaced with messageReceived and pullClosedViaStatus
-    default void pendingUpdated() {}
-
-    @Deprecated // deprecated b/c replaced with pullTerminatedByError
-    default void heartbeatError() {}
 }

@@ -108,7 +108,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
             noReceivedArePending = true;
         }
         if (isTrackingBytes) {
-            pendingReceivedBytes = Math.max(0, pendingReceivedMessages - msg.consumeByteCount());
+            pendingReceivedBytes = Math.max(0, pendingReceivedBytes - msg.consumeByteCount());
             noReceivedArePending |= pendingReceivedBytes == 0;
         }
         afterPendingUpdated();
