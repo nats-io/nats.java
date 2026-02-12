@@ -21,7 +21,7 @@ import io.nats.client.api.ConsumerInfo;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-class NatsMessageConsumerBase implements MessageConsumer {
+abstract class NatsMessageConsumerBase implements MessageConsumer, PullManagerObserver {
     protected NatsJetStreamPullSubscription sub;
     protected PullMessageManager pmm;
     protected final AtomicBoolean stopped;
@@ -49,6 +49,11 @@ class NatsMessageConsumerBase implements MessageConsumer {
             cachedConsumerInfo = null;
         }
         pmm = (PullMessageManager)sub.manager;
+    }
+
+    protected void rePull() {
+        // may or may not be implemented
+        // fetch does not implement
     }
 
     /**

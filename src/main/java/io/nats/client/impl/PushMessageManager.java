@@ -95,7 +95,7 @@ class PushMessageManager extends MessageManager {
 
     @Override
     protected ManageResult manage(Message msg) {
-        if (msg.getStatus() == null) {
+        if (msg.isJetStream()) {
             trackJsMessage(msg);
             return MESSAGE;
         }

@@ -7,9 +7,7 @@ import io.nats.client.api.PriorityPolicy;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
-import static io.nats.client.support.NatsJetStreamConstants.NATS_PIN_ID_HDR;
 import static io.nats.examples.jetstream.NatsJsUtils.createOrReplaceStream;
 
 /**
@@ -17,18 +15,18 @@ import static io.nats.examples.jetstream.NatsJsUtils.createOrReplaceStream;
  * Priority groups are a new set of features allowing warm standby and
  * dynamic worker pools processing messages on the same consumer.
  * ----------------------------------------------------------------------
- * This example demonstrates a consumer being pinned, meaning it is the
- * sole processor of messages, and then being unpinned and then processing
- * of messages moves to another instance of the consumer.
+ * This example demonstrates a consumer being prioritized, meaning it is the
+ * sole processor of messages, and then being shutdown and then
+ * messages moves to another instance of the consumer.
  * ----------------------------------------------------------------------
  */
-public class PriorityGroupsPinned {
+public class PriorityGroupsPrioritized {
 	private static final String SERVER = "nats://localhost:4222";
-	private static final String STREAM = "pinned-stream";
-	private static final String SUBJECT = "pinned-subject";
-	private static final String CONSUMER_NAME = "pinned-consumer";
-	private static final String PIN_GROUP = "pinned-group";
-	private static final String MESSAGE_PREFIX = "pinned-";
+	private static final String STREAM = "priority-stream";
+	private static final String SUBJECT = "priority-subject";
+	private static final String CONSUMER_NAME = "priority-consumer";
+	private static final String PRIORITY_GROUP = "priority-group";
+	private static final String MESSAGE_PREFIX = "priority-";
 
 	// size of the simplified-consume's batch in messages
 	private static final int CONSUME_BATCH_SIZE = 10;
@@ -40,7 +38,8 @@ public class PriorityGroupsPinned {
 	private static final long WORK_TIME = 250;
 
 	public static void main(String[] args) {
-		Options options = Options.builder().server(SERVER).build();
+		Options options = Options.builder().server(SERVER)
+			.build();
 		try (Connection nc = Nats.connect(options)) {
 			JetStreamManagement jsm = nc.jetStreamManagement();
 			createOrReplaceStream(jsm, STREAM, SUBJECT);
@@ -56,52 +55,56 @@ public class PriorityGroupsPinned {
 			StreamContext streamContext = nc.getStreamContext(STREAM);
 			ConsumerContext consumerContext = streamContext.createOrUpdateConsumer(ConsumerConfiguration.builder()
 				.durable(CONSUMER_NAME)
-				.priorityGroups(PIN_GROUP)
-				.priorityPolicy(PriorityPolicy.PinnedClient)
+				.priorityGroups(PRIORITY_GROUP)
+				.priorityPolicy(PriorityPolicy.Prioritized)
 				.build());
 
 			// some control variables
-			CountDownLatch[] unpinLatches = new CountDownLatch[2];
-			unpinLatches[0] = new CountDownLatch(PUBLISH_COUNT / 5);
-			unpinLatches[1] = new CountDownLatch(PUBLISH_COUNT * 2 / 5);
-			CountDownLatch stopLatch = new CountDownLatch(PUBLISH_COUNT);
-			AtomicReference<String> currentPin = new AtomicReference<>();
+			CountDownLatch stopLatch1 = new CountDownLatch(PUBLISH_COUNT / 8);
+			CountDownLatch stopLatch2 = new CountDownLatch(PUBLISH_COUNT / 4);
+			CountDownLatch stopLatch3 = new CountDownLatch(PUBLISH_COUNT / 4);
 
 			// set up the consumer instances...
 			// a new ConsumerContext for each so they have their own dispatcher
-			ConsumeOptions consumeOpts = new ConsumeOptions.Builder()
+			ConsumeOptions consumeOpts1and3 = new ConsumeOptions.Builder()
 				.batchSize(CONSUME_BATCH_SIZE)
-				.expiresIn(5000) // instead of the default 30 seconds
-				.thresholdPercent(50) // instead of the default 25 percent
-				.group(PIN_GROUP)
+				.expiresIn(5000)
+				.thresholdPercent(50)
+				.group(PRIORITY_GROUP)
+				.priority(1)
+				.build();
+			ConsumeOptions consumeOpts2 = new ConsumeOptions.Builder()
+				.batchSize(CONSUME_BATCH_SIZE)
+				.expiresIn(5000)
+				.thresholdPercent(50)
+				.group(PRIORITY_GROUP)
+				.priority(2)
 				.build();
 
 			// set up and start the first consumer
 			ConsumerContext cc1 = streamContext.getConsumerContext(CONSUMER_NAME);
-			PinnedConsumer pinned1 = new PinnedConsumer("First", cc1, consumeOpts, unpinLatches, stopLatch, currentPin);
+			PriorityConsumer pinned1 = new PriorityConsumer("P1", cc1, consumeOpts1and3, stopLatch1);
 			Thread thread1 = new Thread(pinned1);
 			thread1.start();
 
 			// set up and start the second and third consumer
-			// give the first a little time to become the pinned one
-			Thread.sleep(500);
+			// give the first a little time to do some work
+			Thread.sleep(2500);
 			ConsumerContext cc2 = streamContext.getConsumerContext(CONSUMER_NAME);
-			PinnedConsumer pinned2 = new PinnedConsumer("Second", cc2, consumeOpts, unpinLatches, stopLatch, currentPin);
+			PriorityConsumer pinned2 = new PriorityConsumer("P2", cc2, consumeOpts2, stopLatch2);
 			Thread thread2 = new Thread(pinned2);
 			thread2.start();
 
-			unpinLatches[0].await();
-			System.out.println("Unpinning...");
-			// any instance of the ConsumerContext will work
-			consumerContext.unpin(PIN_GROUP);
-
-			unpinLatches[1].await();
-			System.out.println("Unpinning...");
-			// you can also unpin from the management context
-			jsm.unpinConsumer(STREAM, CONSUMER_NAME, PIN_GROUP);
-
 			thread1.join();
+
+			Thread.sleep(2500);
+			ConsumerContext cc3 = streamContext.getConsumerContext(CONSUMER_NAME);
+			PriorityConsumer pinned3 = new PriorityConsumer("P3", cc3, consumeOpts1and3, stopLatch3);
+			Thread thread3 = new Thread(pinned3);
+			thread3.start();
+
 			thread2.join();
+			thread3.join();
 		}
 		catch (Exception e) {
 			System.err.println("Exception in main: " + e.getMessage());
@@ -110,26 +113,19 @@ public class PriorityGroupsPinned {
 		}
 	}
 
-	static class PinnedConsumer implements Runnable {
+	static class PriorityConsumer implements Runnable {
 		final String label;
 		final ConsumerContext consumerContext;
 		final ConsumeOptions consumeOptions;
-		final CountDownLatch[] unpinLatches;
 		final CountDownLatch stopLatch;
-		final AtomicReference<String> currentPin;
 		final AtomicInteger count;
 
-		public PinnedConsumer(String label, ConsumerContext consumerContext, ConsumeOptions consumeOptions,
-							  CountDownLatch[] unpinLatches,
-                              CountDownLatch stopLatch,
-							  AtomicReference<String> currentPin)
+		public PriorityConsumer(String label, ConsumerContext consumerContext, ConsumeOptions consumeOptions, CountDownLatch stopLatch)
 		{
 			this.label = label;
 			this.consumerContext = consumerContext;
 			this.consumeOptions = consumeOptions;
-			this.unpinLatches = unpinLatches;
 			this.stopLatch = stopLatch;
-			this.currentPin = currentPin;
 			this.count = new AtomicInteger(0);
 		}
 
@@ -138,14 +134,14 @@ public class PriorityGroupsPinned {
 			try {
 				// 1. call consumer with handler and options
 				// 2. wait for the latch
-				System.out.printf("%-6s | Start consuming...\n", label);
+				System.out.printf("%-3s | Start consuming...\n", label);
 				try (MessageConsumer consumer = consumerContext.consume(consumeOptions, handler())) {
 					stopLatch.await();
 				}
-				System.out.printf("%-6s | Shutting Down...\n", label);
+				System.out.printf("%-3s | Shutting Down...\n", label);
 			}
 			catch (Exception e) {
-				System.err.printf("%-6s | Exception: %s\n", label, e.getMessage());
+				System.err.printf("%-3s | Exception: %s\n", label, e.getMessage());
 			}
 		}
 
@@ -153,12 +149,7 @@ public class PriorityGroupsPinned {
 			return msg -> {
 				Thread.sleep(WORK_TIME);
 				msg.ack();
-				String natsPinId = msg.getHeaders().getFirst(NATS_PIN_ID_HDR);
-				currentPin.set(natsPinId);
-				System.out.printf("%-6s | %4d | Pin: %s | Data: %s\n", label, count.incrementAndGet(), natsPinId, new String(msg.getData()));
-				for (CountDownLatch unpinLatch : unpinLatches) {
-					unpinLatch.countDown();
-				}
+				System.out.printf("%-3s | %4d | Data: %s\n", label, count.incrementAndGet(), new String(msg.getData()));
 				stopLatch.countDown();
 			};
 		}
