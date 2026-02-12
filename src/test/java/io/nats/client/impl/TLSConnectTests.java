@@ -13,6 +13,8 @@
 
 package io.nats.client.impl;
 
+import io.nats.NatsRunnerUtils;
+import io.nats.NatsServerRunner;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
@@ -20,14 +22,20 @@ import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLException;
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Level;
 
 import static io.nats.client.Options.PROP_SSL_CONTEXT_FACTORY_CLASS;
 import static io.nats.client.utils.TestBase.*;
@@ -495,5 +503,83 @@ public class TLSConnectTests {
             connRA.connect(false);
             closeConnection(standardConnectionWait(connRA), 1000);
         }
+    }
+
+    @Test
+    public void testConnectFailsAfterInitialConnect() throws Exception {
+        SwitchableSSLContext switchableSslContext =
+            SwitchableSSLContext.create(SslTestingHelper.createTestSSLContext());
+
+        AtomicInteger connects = new AtomicInteger(0);
+        ConnectionListener cl = new ConnectionListener() {
+            @Override
+            public void connectionEvent(Connection conn, Events type) {
+                // this is deprecated because the other method is called now
+            }
+
+            @Override
+            public void connectionEvent(Connection conn, Events type, Long time, String uriDetails) {
+                if (type == Events.CONNECTED) {
+                    connects.incrementAndGet();
+                }
+            }
+        };
+
+        List<Exception> exceptions = new ArrayList<>();
+
+        ErrorListener el = new ErrorListener() {
+            @Override
+            public void exceptionOccurred(Connection conn, Exception exp) {
+                if (hasSSLCauseInChain(exp)) {
+                    exceptions.add(exp);
+                }
+            }
+        };
+
+        NatsServerRunner.setDefaultOutputLevel(Level.ALL);
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
+            Options options = new Options.Builder()
+                .server(NatsRunnerUtils.getNatsLocalhostUri(ts.getPort()))
+                .sslContext(switchableSslContext)
+                .maxReconnects(1)
+                .connectionTimeout(Duration.ofSeconds(5))
+                .connectionListener(cl)
+                .errorListener(el)
+                .build();
+
+            //noinspection resource
+            Connection nc = Nats.connect(options);
+
+            assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Should connect successfully with valid cert");
+
+            Thread.sleep(1000); // just stay connected for a second
+
+            switchableSslContext.changeToFailMode();
+
+            nc.forceReconnect(); // reconnect;
+
+            Thread.sleep(2000);  // give time for a couple tries
+        }
+
+        assertEquals(1, connects.get());
+        assertEquals(2, exceptions.size());
+    }
+
+    /**
+     * Helper to check if an exception or any of its causes is SSL-related.
+     */
+    static boolean hasSSLCauseInChain(Throwable t) {
+        while (t != null) {
+            if (t instanceof SSLException || t instanceof GeneralSecurityException) {
+                return true;
+            }
+            // Also check the class name for variations
+            String name = t.getClass().getName();
+            if (name.contains("SSL") || name.contains("Certificate")) {
+                return true;
+            }
+            t = t.getCause();
+        }
+        return false;
     }
 }
