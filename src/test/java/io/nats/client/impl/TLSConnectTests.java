@@ -26,7 +26,6 @@ import javax.net.ssl.SSLException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.time.Duration;
@@ -641,7 +640,6 @@ public class TLSConnectTests {
 
         Path tmpDir = Files.createTempDirectory(null).toAbsolutePath();
         String configFilePath = result.writeNatsConfig(tmpDir);
-        System.out.println("configFilePath: " + configFilePath);
 
         AtomicInteger connects = new AtomicInteger(0);
         CountDownLatch connectLatch = new CountDownLatch(1);
@@ -700,12 +698,7 @@ public class TLSConnectTests {
      */
     static boolean hasSSLCauseInChain(Throwable t) {
         while (t != null) {
-            if (t instanceof SSLException || t instanceof GeneralSecurityException) {
-                return true;
-            }
-            // Also check the class name for variations
-            String name = t.getClass().getName();
-            if (name.contains("SSL") || name.contains("Certificate")) {
+            if (t instanceof SSLException) {
                 return true;
             }
             t = t.getCause();
