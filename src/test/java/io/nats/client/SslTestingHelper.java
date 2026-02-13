@@ -18,8 +18,13 @@ import io.nats.client.support.SSLUtils;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import java.security.KeyManagementException;
 import java.security.KeyStore;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.Properties;
 
 public class SslTestingHelper {
@@ -64,5 +69,30 @@ public class SslTestingHelper {
         SSLContext ctx = SSLContext.getInstance(Options.DEFAULT_SSL_PROTOCOL);
         ctx.init(new KeyManager[0], new TrustManager[0], new SecureRandom());
         return ctx;
+    }
+
+    public static SSLContext getFailContext() throws Exception {
+        return getFailContext(createTestSSLContext());
+    }
+
+    public static SSLContext getFailContext(SSLContext goodContext) throws NoSuchAlgorithmException, KeyManagementException {
+        SSLContext failContext = SSLContext.getInstance(goodContext.getProtocol());
+        failContext.init(null, new TrustManager[]{new X509TrustManager() {
+            @Override
+            public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+                throw new CertificateException("Fail mode: all certificates rejected");
+            }
+
+            @Override
+            public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+                throw new CertificateException("Fail mode: all certificates rejected");
+            }
+
+            @Override
+            public X509Certificate[] getAcceptedIssuers() {
+                return new X509Certificate[0];
+            }
+        }}, new SecureRandom());
+        return failContext;
     }
 }
