@@ -16,12 +16,16 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
+import io.nats.client.utils.ExpiringClientCertUtil;
+import io.nats.client.utils.SwitchableSSLContext;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
@@ -504,9 +508,42 @@ public class TLSConnectTests {
     }
 
     @Test
+    public void testConnectFailsFromSslContext() throws Exception {
+        SSLContext sslContext = SslTestingHelper.getFailContext();
+
+        CountDownLatch exceptionLatch = new CountDownLatch(1);
+        ErrorListener el = new ErrorListener() {
+            @Override
+            public void exceptionOccurred(Connection conn, Exception exp) {
+                if (hasSSLCauseInChain(exp)) {
+                    exceptionLatch.countDown();
+                }
+            }
+        };
+
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
+            Options options = new Options.Builder()
+                .server(ts.getNatsLocalhostUri())
+                .sslContext(sslContext)
+                .maxReconnects(1)
+                .connectionTimeout(Duration.ofSeconds(2))
+                .errorListener(el)
+                .build();
+
+            try (Connection nc = Nats.connect(options)) {
+                fail("Should not have connected");
+            }
+            catch (Exception e) {
+                assertTrue(e.getMessage().contains("Unable to connect to NATS servers"));
+            }
+
+            assertTrue(exceptionLatch.await(2, TimeUnit.SECONDS));
+        }
+    }
+
+    @Test
     public void testConnectFailsAfterInitialConnect() throws Exception {
-        SwitchableSSLContext switchableSslContext =
-            SwitchableSSLContext.create(SslTestingHelper.createTestSSLContext());
+        SwitchableSSLContext switchableSslContext = SwitchableSSLContext.create();
 
         AtomicInteger connects = new AtomicInteger(0);
         CountDownLatch connectLatch = new CountDownLatch(1);
@@ -551,6 +588,104 @@ public class TLSConnectTests {
                 assertEquals(Connection.Status.CONNECTED, nc.getStatus());
                 assertTrue(connectLatch.await(2, TimeUnit.SECONDS));
                 switchableSslContext.changeToFailMode();
+                nc.forceReconnect();
+                assertTrue(exceptionLatch.await(2, TimeUnit.SECONDS));
+            }
+        }
+
+        assertEquals(1, connects.get());
+        assertEquals(2, exceptions.size());
+    }
+
+    @Test
+    public void testConnectFailsCertAlreadyExpired() throws Exception {
+        ExpiringClientCertUtil.Result result = ExpiringClientCertUtil.createExpired();
+
+        Path tmpDir = Files.createTempDirectory(null).toAbsolutePath();
+        String configFilePath = result.writeNatsConfig(tmpDir);
+
+        CountDownLatch exceptionLatch = new CountDownLatch(1);
+        ErrorListener el = new ErrorListener() {
+            @Override
+            public void exceptionOccurred(Connection conn, Exception exp) {
+                if (hasSSLCauseInChain(exp)) {
+                    exceptionLatch.countDown();
+                }
+            }
+        };
+
+        try (NatsTestServer ts = new NatsTestServer(configFilePath, false)) {
+            Options options = new Options.Builder()
+                .server(ts.getNatsLocalhostUri())
+                .sslContext(result.sslContext)
+                .maxReconnects(1)
+                .connectionTimeout(Duration.ofSeconds(5))
+                .errorListener(el)
+                .build();
+
+            try (Connection nc = Nats.connect(options)) {
+                fail("should have thrown an exception");
+            }
+            catch (Exception e) {
+                assertTrue(e.getMessage().contains("Unable to connect to NATS servers"));
+            }
+
+            assertTrue(exceptionLatch.await(2, TimeUnit.SECONDS));
+        }
+    }
+
+    @Test
+    public void testReconnectFailsAfterCertExpires() throws Exception {
+        ExpiringClientCertUtil.Result result =
+            ExpiringClientCertUtil.create(3000);
+
+        Path tmpDir = Files.createTempDirectory(null).toAbsolutePath();
+        String configFilePath = result.writeNatsConfig(tmpDir);
+        System.out.println("configFilePath: " + configFilePath);
+
+        AtomicInteger connects = new AtomicInteger(0);
+        CountDownLatch connectLatch = new CountDownLatch(1);
+        ConnectionListener cl = new ConnectionListener() {
+            @Override
+            public void connectionEvent(Connection conn, Events type) {
+                // this is deprecated because the other method is called now
+            }
+
+            @Override
+            public void connectionEvent(Connection conn, Events type, Long time, String uriDetails) {
+                if (type == Events.CONNECTED) {
+                    connects.incrementAndGet();
+                    connectLatch.countDown();
+                }
+            }
+        };
+
+        List<Exception> exceptions = new ArrayList<>();
+        CountDownLatch exceptionLatch = new CountDownLatch(2);
+        ErrorListener el = new ErrorListener() {
+            @Override
+            public void exceptionOccurred(Connection conn, Exception exp) {
+                if (hasSSLCauseInChain(exp)) {
+                    exceptions.add(exp);
+                    exceptionLatch.countDown();
+                }
+            }
+        };
+
+        try (NatsTestServer ts = new NatsTestServer(configFilePath, false)) {
+            Options options = new Options.Builder()
+                .server(ts.getNatsLocalhostUri())
+                .sslContext(result.sslContext)
+                .maxReconnects(1)
+                .connectionTimeout(Duration.ofSeconds(5))
+                .connectionListener(cl)
+                .errorListener(el)
+                .build();
+
+            try (Connection nc = Nats.connect(options)) {
+                assertEquals(Connection.Status.CONNECTED, nc.getStatus());
+                assertTrue(connectLatch.await(2, TimeUnit.SECONDS));
+                sleep(3500); // sleep enough time for the cert to expire
                 nc.forceReconnect();
                 assertTrue(exceptionLatch.await(2, TimeUnit.SECONDS));
             }
