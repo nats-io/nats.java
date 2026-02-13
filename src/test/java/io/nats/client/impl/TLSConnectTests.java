@@ -670,6 +670,72 @@ public class TLSConnectTests {
             }
         };
 
+        int port = NatsTestServer.nextPort();
+        Connection nc;
+        try (NatsTestServer ts = new NatsTestServer(configFilePath, port, false)) {
+            Options options = new Options.Builder()
+                .server(ts.getNatsLocalhostUri())
+                .sslContext(result.sslContext)
+                .maxReconnects(1)
+                .connectionTimeout(Duration.ofSeconds(5))
+                .connectionListener(cl)
+                .errorListener(el)
+                .build();
+
+            nc = Nats.connect(options);
+            assertEquals(Connection.Status.CONNECTED, nc.getStatus());
+            assertTrue(connectLatch.await(2, TimeUnit.SECONDS));
+            sleep(3500); // sleep enough time for the cert to expire
+        }
+
+        // the server should have closed, start it again
+
+        try (NatsTestServer ts = new NatsTestServer(configFilePath, port, false)) {
+            assertTrue(exceptionLatch.await(2, TimeUnit.SECONDS));
+            nc.close();
+        }
+        assertEquals(1, connects.get());
+        assertEquals(2, exceptions.size());
+
+    }
+
+    @Test
+    public void testForceReconnectFailsAfterCertExpires() throws Exception {
+        ExpiringClientCertUtil.Result result =
+            ExpiringClientCertUtil.create(3000);
+
+        Path tmpDir = Files.createTempDirectory(null).toAbsolutePath();
+        String configFilePath = result.writeNatsConfig(tmpDir);
+
+        AtomicInteger connects = new AtomicInteger(0);
+        CountDownLatch connectLatch = new CountDownLatch(1);
+        ConnectionListener cl = new ConnectionListener() {
+            @Override
+            public void connectionEvent(Connection conn, Events type) {
+                // this is deprecated because the other method is called now
+            }
+
+            @Override
+            public void connectionEvent(Connection conn, Events type, Long time, String uriDetails) {
+                if (type == Events.CONNECTED) {
+                    connects.incrementAndGet();
+                    connectLatch.countDown();
+                }
+            }
+        };
+
+        List<Exception> exceptions = new ArrayList<>();
+        CountDownLatch exceptionLatch = new CountDownLatch(2);
+        ErrorListener el = new ErrorListener() {
+            @Override
+            public void exceptionOccurred(Connection conn, Exception exp) {
+                if (hasSSLCauseInChain(exp)) {
+                    exceptions.add(exp);
+                    exceptionLatch.countDown();
+                }
+            }
+        };
+
         try (NatsTestServer ts = new NatsTestServer(configFilePath, false)) {
             Options options = new Options.Builder()
                 .server(ts.getNatsLocalhostUri())
