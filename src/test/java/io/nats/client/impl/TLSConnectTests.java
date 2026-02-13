@@ -13,8 +13,6 @@
 
 package io.nats.client.impl;
 
-import io.nats.NatsRunnerUtils;
-import io.nats.NatsServerRunner;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
@@ -31,11 +29,11 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Level;
 
 import static io.nats.client.Options.PROP_SSL_CONTEXT_FACTORY_CLASS;
 import static io.nats.client.utils.TestBase.*;
@@ -511,6 +509,7 @@ public class TLSConnectTests {
             SwitchableSSLContext.create(SslTestingHelper.createTestSSLContext());
 
         AtomicInteger connects = new AtomicInteger(0);
+        CountDownLatch connectLatch = new CountDownLatch(1);
         ConnectionListener cl = new ConnectionListener() {
             @Override
             public void connectionEvent(Connection conn, Events type) {
@@ -521,25 +520,26 @@ public class TLSConnectTests {
             public void connectionEvent(Connection conn, Events type, Long time, String uriDetails) {
                 if (type == Events.CONNECTED) {
                     connects.incrementAndGet();
+                    connectLatch.countDown();
                 }
             }
         };
 
         List<Exception> exceptions = new ArrayList<>();
-
+        CountDownLatch exceptionLatch = new CountDownLatch(2);
         ErrorListener el = new ErrorListener() {
             @Override
             public void exceptionOccurred(Connection conn, Exception exp) {
                 if (hasSSLCauseInChain(exp)) {
                     exceptions.add(exp);
+                    exceptionLatch.countDown();
                 }
             }
         };
 
-        NatsServerRunner.setDefaultOutputLevel(Level.ALL);
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
             Options options = new Options.Builder()
-                .server(NatsRunnerUtils.getNatsLocalhostUri(ts.getPort()))
+                .server(ts.getNatsLocalhostUri())
                 .sslContext(switchableSslContext)
                 .maxReconnects(1)
                 .connectionTimeout(Duration.ofSeconds(5))
@@ -547,18 +547,13 @@ public class TLSConnectTests {
                 .errorListener(el)
                 .build();
 
-            //noinspection resource
-            Connection nc = Nats.connect(options);
-
-            assertEquals(Connection.Status.CONNECTED, nc.getStatus(), "Should connect successfully with valid cert");
-
-            Thread.sleep(1000); // just stay connected for a second
-
-            switchableSslContext.changeToFailMode();
-
-            nc.forceReconnect(); // reconnect;
-
-            Thread.sleep(2000);  // give time for a couple tries
+            try (Connection nc = Nats.connect(options)) {
+                assertEquals(Connection.Status.CONNECTED, nc.getStatus());
+                assertTrue(connectLatch.await(2, TimeUnit.SECONDS));
+                switchableSslContext.changeToFailMode();
+                nc.forceReconnect();
+                assertTrue(exceptionLatch.await(2, TimeUnit.SECONDS));
+            }
         }
 
         assertEquals(1, connects.get());

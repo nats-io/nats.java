@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import javax.net.ssl.*;
 import java.security.SecureRandom;
+import java.util.Enumeration;
 
 /**
  * An SSLContextSpi that delegates to one of two SSLContexts.
@@ -31,7 +32,24 @@ class SwitchableSSLContextSpi extends SSLContextSpi {
     }
 
     void switchToFailMode() {
+        // Invalidate all cached SSL sessions from the good context so that
+        // the next connection attempt cannot reuse a cached handshake and
+        // must perform a full handshake against the fail context.
+        invalidateSessions(goodContext.getClientSessionContext());
         failMode = true;
+    }
+
+    private static void invalidateSessions(SSLSessionContext sessionContext) {
+        if (sessionContext == null) {
+            return;
+        }
+        Enumeration<byte[]> ids = sessionContext.getIds();
+        while (ids.hasMoreElements()) {
+            SSLSession session = sessionContext.getSession(ids.nextElement());
+            if (session != null) {
+                session.invalidate();
+            }
+        }
     }
 
     private SSLContext current() {
