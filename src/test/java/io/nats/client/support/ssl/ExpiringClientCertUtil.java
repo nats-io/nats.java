@@ -11,16 +11,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client.utils;
+package io.nats.client.support.ssl;
 
-import io.nats.client.SslTestingHelper;
 import org.bouncycastle.asn1.*;
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.*;
 
 import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -56,11 +54,11 @@ public class ExpiringClientCertUtil {
      * Result of creating an SSLContext with an expiring client cert.
      */
     public static class Result {
-        public final SSLContext sslContext;
+        public final DiagnosticSslContext sslContext;
         public final X509Certificate clientCert;
         private final X509Certificate clientCaCert;
 
-        Result(SSLContext sslContext, X509Certificate clientCert, X509Certificate clientCaCert) {
+        Result(DiagnosticSslContext sslContext, X509Certificate clientCert, X509Certificate clientCaCert) {
             this.sslContext = sslContext;
             this.clientCert = clientCert;
             this.clientCaCert = clientCaCert;
@@ -137,7 +135,7 @@ public class ExpiringClientCertUtil {
         KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
         kmf.init(ks, pw);
 
-        SSLContext ctx = SSLContext.getInstance("TLSv1.2");
+        DiagnosticSslContext ctx = DiagnosticSslContext.getInstance("TLSv1.2");
         ctx.init(kmf.getKeyManagers(), trustManagers, new SecureRandom());
 
         return new Result(ctx, clientCert, caCert);
@@ -177,7 +175,7 @@ public class ExpiringClientCertUtil {
         KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
         kmf.init(ks, pw);
 
-        SSLContext ctx = SSLContext.getInstance("TLSv1.2");
+        DiagnosticSslContext ctx = DiagnosticSslContext.getInstance("TLSv1.2");
         ctx.init(kmf.getKeyManagers(), trustManagers, new SecureRandom());
 
         return new Result(ctx, clientCert, caCert);

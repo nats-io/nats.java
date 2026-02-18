@@ -569,7 +569,7 @@ class NatsConnection implements Connection {
 
             timeoutNanos = timeCheck(end, "connecting data port");
             DataPort newDataPort = this.options.buildDataPort();
-            newDataPort.connect(resolved.toString(), this, timeoutNanos);
+            newDataPort.connect(this, resolved, timeoutNanos);
 
             // Notify any threads waiting on the sockets
             this.dataPort = newDataPort;

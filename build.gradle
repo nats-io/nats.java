@@ -39,8 +39,7 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter:5.14.1'
     testImplementation 'io.nats:jnats-server-runner:3.0.1'
     testImplementation 'nl.jqno.equalsverifier:equalsverifier:3.12.3'
-
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testImplementation 'org.junit.platform:junit-platform-launcher:1.14.3'
 }
 
 sourceSets {

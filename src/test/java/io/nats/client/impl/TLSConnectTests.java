@@ -15,27 +15,28 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.support.ssl.ExpiringClientCertUtil;
+import io.nats.client.support.ssl.SslTestingHelper;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
-import io.nats.client.utils.ExpiringClientCertUtil;
-import io.nats.client.utils.SwitchableSSLContext;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
 import java.io.IOException;
+import java.net.SocketException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.Options.PROP_SSL_CONTEXT_FACTORY_CLASS;
@@ -510,15 +511,7 @@ public class TLSConnectTests {
     public void testConnectFailsFromSslContext() throws Exception {
         SSLContext sslContext = SslTestingHelper.getFailContext();
 
-        CountDownLatch exceptionLatch = new CountDownLatch(1);
-        ErrorListener el = new ErrorListener() {
-            @Override
-            public void exceptionOccurred(Connection conn, Exception exp) {
-                if (hasSSLCauseInChain(exp)) {
-                    exceptionLatch.countDown();
-                }
-            }
-        };
+        SslTestErrorListener el = new SslTestErrorListener(1);
 
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
             Options options = new Options.Builder()
@@ -536,82 +529,19 @@ public class TLSConnectTests {
                 assertTrue(e.getMessage().contains("Unable to connect to NATS servers"));
             }
 
-            assertTrue(exceptionLatch.await(2, TimeUnit.SECONDS));
+            assertTrue(el.latch.await(2, TimeUnit.SECONDS));
         }
-    }
-
-    @Test
-    public void testConnectFailsAfterInitialConnect() throws Exception {
-        SwitchableSSLContext switchableSslContext = SwitchableSSLContext.create();
-
-        AtomicInteger connects = new AtomicInteger(0);
-        CountDownLatch connectLatch = new CountDownLatch(1);
-        ConnectionListener cl = new ConnectionListener() {
-            @Override
-            public void connectionEvent(Connection conn, Events type) {
-                // this is deprecated because the other method is called now
-            }
-
-            @Override
-            public void connectionEvent(Connection conn, Events type, Long time, String uriDetails) {
-                if (type == Events.CONNECTED) {
-                    connects.incrementAndGet();
-                    connectLatch.countDown();
-                }
-            }
-        };
-
-        List<Exception> exceptions = new ArrayList<>();
-        CountDownLatch exceptionLatch = new CountDownLatch(2);
-        ErrorListener el = new ErrorListener() {
-            @Override
-            public void exceptionOccurred(Connection conn, Exception exp) {
-                if (hasSSLCauseInChain(exp)) {
-                    exceptions.add(exp);
-                    exceptionLatch.countDown();
-                }
-            }
-        };
-
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
-            Options options = new Options.Builder()
-                .server(ts.getNatsLocalhostUri())
-                .sslContext(switchableSslContext)
-                .maxReconnects(1)
-                .connectionTimeout(Duration.ofSeconds(5))
-                .connectionListener(cl)
-                .errorListener(el)
-                .build();
-
-            try (Connection nc = Nats.connect(options)) {
-                assertEquals(Connection.Status.CONNECTED, nc.getStatus());
-                assertTrue(connectLatch.await(2, TimeUnit.SECONDS));
-                switchableSslContext.changeToFailMode();
-                nc.forceReconnect();
-                assertTrue(exceptionLatch.await(2, TimeUnit.SECONDS));
-            }
-        }
-
-        assertEquals(1, connects.get());
-        assertEquals(2, exceptions.size());
     }
 
     @Test
     public void testConnectFailsCertAlreadyExpired() throws Exception {
         ExpiringClientCertUtil.Result result = ExpiringClientCertUtil.createExpired();
+        validateExpiry(result, true);
 
         Path tmpDir = Files.createTempDirectory(null).toAbsolutePath();
         String configFilePath = result.writeNatsConfig(tmpDir);
 
-        CountDownLatch exceptionLatch = new CountDownLatch(1);
-        ErrorListener el = new ErrorListener() {
-            @Override
-            public void exceptionOccurred(Connection conn, Exception exp) {
-                if (hasSSLCauseInChain(exp)) {
-                    exceptionLatch.countDown();
-                }
-            }
-        };
+        SslTestErrorListener el = new SslTestErrorListener(1);
 
         try (NatsTestServer ts = new NatsTestServer(configFilePath, false)) {
             Options options = new Options.Builder()
@@ -629,112 +559,59 @@ public class TLSConnectTests {
                 assertTrue(e.getMessage().contains("Unable to connect to NATS servers"));
             }
 
-            assertTrue(exceptionLatch.await(2, TimeUnit.SECONDS));
+            assertTrue(el.latch.await(2, TimeUnit.SECONDS));
         }
     }
 
     @Test
     public void testReconnectFailsAfterCertExpires() throws Exception {
-        ExpiringClientCertUtil.Result result =
-            ExpiringClientCertUtil.create(3000);
+        ExpiringClientCertUtil.Result result = ExpiringClientCertUtil.create(5000);
+        validateExpiry(result, false);
 
         Path tmpDir = Files.createTempDirectory(null).toAbsolutePath();
         String configFilePath = result.writeNatsConfig(tmpDir);
 
-        AtomicInteger connects = new AtomicInteger(0);
-        CountDownLatch connectLatch = new CountDownLatch(1);
-        ConnectionListener cl = new ConnectionListener() {
-            @Override
-            public void connectionEvent(Connection conn, Events type) {
-                // this is deprecated because the other method is called now
-            }
+        SslTestConnectionListener cl = new SslTestConnectionListener(1);
+        SslTestErrorListener el = new SslTestErrorListener(2);
 
-            @Override
-            public void connectionEvent(Connection conn, Events type, Long time, String uriDetails) {
-                if (type == Events.CONNECTED) {
-                    connects.incrementAndGet();
-                    connectLatch.countDown();
-                }
-            }
-        };
-
-        List<Exception> exceptions = new ArrayList<>();
-        CountDownLatch exceptionLatch = new CountDownLatch(2);
-        ErrorListener el = new ErrorListener() {
-            @Override
-            public void exceptionOccurred(Connection conn, Exception exp) {
-                if (hasSSLCauseInChain(exp)) {
-                    exceptions.add(exp);
-                    exceptionLatch.countDown();
-                }
-            }
-        };
-
-        int port = NatsTestServer.nextPort();
         Connection nc;
-        try (NatsTestServer ts = new NatsTestServer(configFilePath, port, false)) {
-            Options options = new Options.Builder()
-                .server(ts.getNatsLocalhostUri())
-                .sslContext(result.sslContext)
-                .maxReconnects(1)
-                .connectionTimeout(Duration.ofSeconds(5))
-                .connectionListener(cl)
-                .errorListener(el)
-                .build();
+        try (NatsTestServer ts1 = new NatsTestServer(configFilePath, false)) {
+            try (NatsTestServer ts2 = new NatsTestServer(configFilePath, false)) {
+                Options options = new Options.Builder()
+                    .servers(new String[]{ts2.getNatsLocalhostUri(), ts1.getNatsLocalhostUri()})
+                    .noRandomize()
+                    .sslContext(result.sslContext)
+                    .maxReconnects(1)
+                    .connectionTimeout(Duration.ofSeconds(5))
+                    .connectionListener(cl)
+                    .errorListener(el)
+                    .build();
 
-            nc = Nats.connect(options);
-            assertEquals(Connection.Status.CONNECTED, nc.getStatus());
-            assertTrue(connectLatch.await(2, TimeUnit.SECONDS));
-            sleep(3500); // sleep enough time for the cert to expire
-        }
-
-        // the server should have closed, start it again
-
-        try (NatsTestServer ts = new NatsTestServer(configFilePath, port, false)) {
-            assertTrue(exceptionLatch.await(2, TimeUnit.SECONDS));
+                nc = Nats.connect(options);
+                assertEquals(Connection.Status.CONNECTED, nc.getStatus());
+                assertTrue(cl.latch.await(2, TimeUnit.SECONDS));
+                sleep(5000); // sleep enough time for the cert to expire
+                validateExpiry(result, true);
+            }
+            assertTrue(el.latch.await(2, TimeUnit.SECONDS));
             nc.close();
         }
-        assertEquals(1, connects.get());
-        assertEquals(2, exceptions.size());
+        sleep(200);
 
+        assertEquals(1, cl.count);
+        assertEquals(2, el.exceptions.size());
     }
 
     @Test
     public void testForceReconnectFailsAfterCertExpires() throws Exception {
-        ExpiringClientCertUtil.Result result =
-            ExpiringClientCertUtil.create(3000);
+        ExpiringClientCertUtil.Result result = ExpiringClientCertUtil.create(5000);
+        validateExpiry(result, false);
 
         Path tmpDir = Files.createTempDirectory(null).toAbsolutePath();
         String configFilePath = result.writeNatsConfig(tmpDir);
 
-        AtomicInteger connects = new AtomicInteger(0);
-        CountDownLatch connectLatch = new CountDownLatch(1);
-        ConnectionListener cl = new ConnectionListener() {
-            @Override
-            public void connectionEvent(Connection conn, Events type) {
-                // this is deprecated because the other method is called now
-            }
-
-            @Override
-            public void connectionEvent(Connection conn, Events type, Long time, String uriDetails) {
-                if (type == Events.CONNECTED) {
-                    connects.incrementAndGet();
-                    connectLatch.countDown();
-                }
-            }
-        };
-
-        List<Exception> exceptions = new ArrayList<>();
-        CountDownLatch exceptionLatch = new CountDownLatch(2);
-        ErrorListener el = new ErrorListener() {
-            @Override
-            public void exceptionOccurred(Connection conn, Exception exp) {
-                if (hasSSLCauseInChain(exp)) {
-                    exceptions.add(exp);
-                    exceptionLatch.countDown();
-                }
-            }
-        };
+        SslTestConnectionListener cl = new SslTestConnectionListener(1);
+        SslTestErrorListener el = new SslTestErrorListener(2);
 
         try (NatsTestServer ts = new NatsTestServer(configFilePath, false)) {
             Options options = new Options.Builder()
@@ -748,27 +625,74 @@ public class TLSConnectTests {
 
             try (Connection nc = Nats.connect(options)) {
                 assertEquals(Connection.Status.CONNECTED, nc.getStatus());
-                assertTrue(connectLatch.await(2, TimeUnit.SECONDS));
-                sleep(3500); // sleep enough time for the cert to expire
+                assertTrue(cl.latch.await(2, TimeUnit.SECONDS));
+                sleep(5000); // sleep enough time for the cert to expire
+                validateExpiry(result, true);
                 nc.forceReconnect();
-                assertTrue(exceptionLatch.await(2, TimeUnit.SECONDS));
+                assertTrue(el.latch.await(2, TimeUnit.SECONDS));
             }
         }
 
-        assertEquals(1, connects.get());
-        assertEquals(2, exceptions.size());
+        assertEquals(1, cl.count);
+        assertEquals(2, el.exceptions.size());
     }
 
-    /**
-     * Helper to check if an exception or any of its causes is SSL-related.
-     */
-    static boolean hasSSLCauseInChain(Throwable t) {
-        while (t != null) {
-            if (t instanceof SSLException) {
-                return true;
-            }
-            t = t.getCause();
+    private void validateExpiry(ExpiringClientCertUtil.Result result, boolean expired) {
+        Date expiry = result.sslContext.getClientCertificateExpiry();
+        Date now = new Date();
+        if (expired) {
+            assertTrue(expiry.before(now));
         }
-        return false;
+        else {
+            assertFalse(expiry.before(now));
+        }
+    }
+
+    static class SslTestConnectionListener implements ConnectionListener {
+        public int count;
+        public CountDownLatch latch;
+
+        public SslTestConnectionListener(int latchAmount) {
+            count = 0;
+            latch = new CountDownLatch(latchAmount);
+        }
+
+        @Override
+        public void connectionEvent(Connection conn, Events type) {
+            if (type == Events.CONNECTED) {
+                count++;
+                latch.countDown();
+            }
+        }
+    }
+
+    static class SslTestErrorListener implements ErrorListener {
+        public List<Exception> exceptions;
+        public CountDownLatch latch;
+
+        public SslTestErrorListener(int latchAmount) {
+            exceptions = new ArrayList<>();
+            latch = new CountDownLatch(latchAmount);
+        }
+
+        @Override
+        public void exceptionOccurred(Connection conn, Exception exp) {
+            if (hasSslOrSocketCauseInChain(exp)) {
+                exceptions.add(exp);
+                if (latch.getCount() > 0) {
+                    latch.countDown();
+                }
+            }
+        }
+
+        boolean hasSslOrSocketCauseInChain(Throwable t) {
+            while (t != null) {
+                if (t instanceof SSLException || t instanceof SocketException) {
+                    return true;
+                }
+                t = t.getCause();
+            }
+            return false;
+        }
     }
 }

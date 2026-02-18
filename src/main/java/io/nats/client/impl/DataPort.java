@@ -25,6 +25,7 @@ import java.io.IOException;
  * the core communication code.
  */
 public interface DataPort {
+    @Deprecated
     void connect(@NonNull String serverURI, @NonNull NatsConnection conn, long timeoutNanos) throws IOException;
 
     default void connect(@NonNull NatsConnection conn, @NonNull NatsUri uri, long timeoutNanos) throws IOException {
