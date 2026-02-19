@@ -20,7 +20,7 @@ import java.util.List;
  * <p>
  * Usage:
  * <pre>
- *   DiagnosticSslContext ctx = DiagnosticSslContext.create("TLSv1.2");
+ *   DiagnosticSslContext ctx = DiagnosticSslContext.getInstance("TLSv1.2");
  *   ctx.init(km, tm, random);
  *
  *   // After SSL operations...
