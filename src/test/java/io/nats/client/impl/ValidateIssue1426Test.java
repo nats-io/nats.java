@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -50,8 +51,7 @@ public class ValidateIssue1426Test {
                 }
             };
 
-            Options options = new Options.Builder()
-                .servers(new String[]{"nats://" + "127.0.0.1:" + port})
+            Options options = optionsBuilder(port)
                 .token(new char[]{'1', '2', '3', '4'})
                 .maxMessagesInOutgoingQueue(NUMBER_OF_SUBS )
                 .reconnectBufferSize(NUMBER_OF_SUBS * 100)
@@ -114,7 +114,7 @@ public class ValidateIssue1426Test {
         }
 
         public void startServer() throws IOException {
-            server.set(new NatsTestServer(new String[]{"--auth", "1234"}, port, false));
+            server.set(new NatsTestServer(new String[]{"--auth", "1234"}, port));
         }
 
         private void restartServer() {

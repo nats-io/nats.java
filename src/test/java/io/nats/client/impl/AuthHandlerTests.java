@@ -20,9 +20,10 @@ import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 
+import static io.nats.client.utils.ResourceUtils.jwtResource;
 import static io.nats.client.utils.ResourceUtils.resourceAsString;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 public class AuthHandlerTests {
 
@@ -31,8 +32,8 @@ public class AuthHandlerTests {
 
     @Test
     public void testCredsFile() throws Exception {
-        AuthHandler auth = Nats.credentials("src/test/resources/jwt_nkey/test.creds");
-        assertTrue(auth instanceof FileAuthHandler);
+        AuthHandler auth = Nats.credentials(jwtResource("test.creds"));
+        assertInstanceOf(FileAuthHandler.class, auth);
         NKey key = NKey.fromSeed(SEED.toCharArray());
         byte[] test = "hello world".getBytes(StandardCharsets.UTF_8);
 
@@ -47,7 +48,7 @@ public class AuthHandlerTests {
         String creds = resourceAsString("jwt_nkey/test.creds");
 
         AuthHandler auth = Nats.staticCredentials(creds.getBytes(StandardCharsets.UTF_8));
-        assertTrue(auth instanceof MemoryAuthHandler);
+        assertInstanceOf(MemoryAuthHandler.class, auth);
         NKey key = NKey.fromSeed(SEED.toCharArray());
         byte[] test = "hello world".getBytes(StandardCharsets.UTF_8);
 
@@ -59,7 +60,7 @@ public class AuthHandlerTests {
 
     @Test
     public void testSeparateWrappedFiles() throws Exception {
-        AuthHandler auth = Nats.credentials("src/test/resources/jwt_nkey/test_wrapped.jwt", "src/test/resources/jwt_nkey/test_wrapped.nk");
+        AuthHandler auth = Nats.credentials(jwtResource("test_wrapped.jwt"), jwtResource("test_wrapped.nk"));
         NKey key = NKey.fromSeed(SEED.toCharArray());
         byte[] test = "hello world again".getBytes(StandardCharsets.UTF_8);
 
@@ -71,7 +72,7 @@ public class AuthHandlerTests {
 
     @Test
     public void testSeparateNKeyWrappedFile() throws Exception {
-        AuthHandler auth = Nats.credentials(null, "src/test/resources/jwt_nkey/test_wrapped.nk");
+        AuthHandler auth = Nats.credentials(null, jwtResource("test_wrapped.nk"));
         NKey key = NKey.fromSeed(SEED.toCharArray());
         byte[] test = "hello world again".getBytes(StandardCharsets.UTF_8);
 
@@ -83,7 +84,7 @@ public class AuthHandlerTests {
 
     @Test
     public void testSeparateBareFiles() throws Exception {
-        AuthHandler auth = Nats.credentials("src/test/resources/jwt_nkey/test.jwt", "src/test/resources/jwt_nkey/test.nk");
+        AuthHandler auth = Nats.credentials(jwtResource("test.jwt"), jwtResource("test.nk"));
         NKey key = NKey.fromSeed(SEED.toCharArray());
         byte[] test = "hello world and again".getBytes(StandardCharsets.UTF_8);
 

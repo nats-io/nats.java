@@ -16,6 +16,7 @@ package io.nats.client;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.impl.*;
 import io.nats.client.support.HttpRequest;
+import io.nats.client.support.Listener;
 import io.nats.client.support.NatsUri;
 import io.nats.client.support.ssl.SslTestingHelper;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
@@ -40,6 +41,7 @@ import java.util.function.Supplier;
 import static io.nats.client.Options.*;
 import static io.nats.client.support.Encoding.base64UrlEncodeToString;
 import static io.nats.client.support.NatsConstants.DEFAULT_PORT;
+import static io.nats.client.utils.ResourceUtils.jwtResource;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class OptionsTests {
@@ -223,12 +225,8 @@ public class OptionsTests {
 
     @Test
     public void testHttpRequestInterceptors() {
-        java.util.function.Consumer<HttpRequest> interceptor1 = req -> {
-            req.getHeaders().add("Test1", "Header");
-        };
-        java.util.function.Consumer<HttpRequest> interceptor2 = req -> {
-            req.getHeaders().add("Test2", "Header");
-        };
+        java.util.function.Consumer<HttpRequest> interceptor1 = req -> req.getHeaders().add("Test1", "Header");
+        java.util.function.Consumer<HttpRequest> interceptor2 = req -> req.getHeaders().add("Test2", "Header");
         Options o = new Options.Builder()
             .httpRequestInterceptor(interceptor1)
             .httpRequestInterceptor(interceptor2)
@@ -493,7 +491,7 @@ public class OptionsTests {
         props.setProperty(Options.PROP_CONNECTION_NAME, "name");
 
         // stringProperty builds an auth handler
-        props.setProperty(Options.PROP_CREDENTIAL_PATH, "src/test/resources/jwt_nkey/test.creds");
+        props.setProperty(Options.PROP_CREDENTIAL_PATH, jwtResource("test.creds"));
 
         // charArrayProperty
         props.setProperty(Options.PROP_USERNAME, "user");
@@ -733,31 +731,38 @@ public class OptionsTests {
     @Test
     public void testPropertyErrorListener() {
         Properties props = new Properties();
-        props.setProperty(Options.PROP_ERROR_LISTENER, ListenerForTesting.class.getCanonicalName());
+        props.setProperty(Options.PROP_ERROR_LISTENER, Listener.class.getCanonicalName());
 
         Options o = new Options.Builder(props).build();
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertNotNull(o.getErrorListener(), "property error listener");
 
         o.getErrorListener().errorOccurred(null, "bad subject");
-        assertEquals(1, ((ListenerForTesting) o.getErrorListener()).getCount(), "property error listener class");
+        assertEquals(0, ((Listener) o.getErrorListener()).getExceptionCount(), "property error listener class");
     }
 
     @SuppressWarnings("deprecation")
     @Test
     public void testPropertyConnectionListeners() {
         Properties props = new Properties();
-        props.setProperty(Options.PROP_CONNECTION_CB, ListenerForTesting.class.getCanonicalName());
+        props.setProperty(Options.PROP_CONNECTION_CB, Listener.class.getCanonicalName());
 
         Options o = new Options.Builder(props).build();
         assertFalse(o.isVerbose(), "default verbose"); // One from a different type
         assertNotNull(o.getConnectionListener(), "property connection listener");
 
+        Listener listener = ((Listener) o.getConnectionListener());
+        listener.queueConnectionEvent(Events.DISCONNECTED);
         o.getConnectionListener().connectionEvent(null, Events.DISCONNECTED);
-        o.getConnectionListener().connectionEvent(null, Events.RECONNECTED);
-        o.getConnectionListener().connectionEvent(null, Events.CLOSED);
+        listener.validate();
 
-        assertEquals(3, ((ListenerForTesting) o.getConnectionListener()).getCount(), "property connect listener class");
+        listener.queueConnectionEvent(Events.RECONNECTED);
+        o.getConnectionListener().connectionEvent(null, Events.RECONNECTED);
+        listener.validate();
+
+        listener.queueConnectionEvent(Events.CLOSED);
+        o.getConnectionListener().connectionEvent(null, Events.CLOSED);
+        listener.validate();
     }
 
     @Test
@@ -1110,20 +1115,16 @@ public class OptionsTests {
 
     @Test
     public void testBadClassInPropertyConnectionListeners() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            Properties props = new Properties();
-            props.setProperty(Options.PROP_CONNECTION_CB, "foo");
-            new Options.Builder(props);
-        });
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_CONNECTION_CB, "foo");
+        assertThrows(IllegalArgumentException.class, () -> new Options.Builder(props));
     }
 
     @Test
     public void testBadClassInPropertyStatisticsCollector() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            Properties props = new Properties();
-            props.setProperty(Options.PROP_STATISTICS_COLLECTOR, "foo");
-            new Options.Builder(props);
-        });
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_STATISTICS_COLLECTOR, "foo");
+        assertThrows(IllegalArgumentException.class, () -> new Options.Builder(props));
     }
 
     @Test
@@ -1140,10 +1141,8 @@ public class OptionsTests {
 
     @Test
     public void testThrowOnBadServersURI() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            String[] serverUrls = {URL_PROTO_HOST_PORT_8080, "foo:/bar\\:blammer"};
-            new Options.Builder().servers(serverUrls).build();
-        });
+        String[] serverUrls = {URL_PROTO_HOST_PORT_8080, "foo:/bar\\:blammer"};
+        assertThrows(IllegalArgumentException.class, () -> new Builder().servers(serverUrls).build());
     }
 
     @Test
@@ -1172,9 +1171,8 @@ public class OptionsTests {
         Options options = new Options.Builder()
                 .callbackThreadFactory(threadFactory)
                 .build();
-        Future<?> callbackFuture = options.getCallbackExecutor().submit(() -> {
-            assertEquals("test", Thread.currentThread().getName());
-        });
+        Future<?> callbackFuture = options.getCallbackExecutor().submit(
+            () -> assertEquals("test", Thread.currentThread().getName()));
         callbackFuture.get(5, TimeUnit.SECONDS);
     }
 
@@ -1184,9 +1182,8 @@ public class OptionsTests {
         Options options = new Options.Builder()
                 .connectThreadFactory(threadFactory)
                 .build();
-        Future<?> connectFuture = options.getConnectExecutor().submit(() -> {
-            assertEquals("test", Thread.currentThread().getName());
-        });
+        Future<?> connectFuture = options.getConnectExecutor().submit(
+            () -> assertEquals("test", Thread.currentThread().getName()));
         connectFuture.get(5, TimeUnit.SECONDS);
     }
 

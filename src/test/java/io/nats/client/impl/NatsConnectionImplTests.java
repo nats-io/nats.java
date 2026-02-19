@@ -15,24 +15,27 @@ package io.nats.client.impl;
 
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static io.nats.client.utils.TestBase.*;
+import static io.nats.client.utils.ConnectionUtils.closeAndConfirm;
+import static io.nats.client.utils.ConnectionUtils.managedConnect;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class NatsConnectionImplTests {
+public class NatsConnectionImplTests extends TestBase {
 
     @Test
     public void testConnectionClosedProperly() throws Exception {
-        try (NatsTestServer server = new NatsTestServer(true)) {
-            Options options = standardOptions(server.getNatsLocalhostUri());
+        runInSharedServer(server -> {
+            Options options = Options.builder()
+                .server(NatsTestServer.getLocalhostUri(server.getPort()))
+                .build();
             verifyInternalExecutors(options);
 
             // using options copied from options to demonstrate the executors
@@ -47,7 +50,8 @@ public class NatsConnectionImplTests {
             assertFalse(es.isShutdown());
             assertFalse(ses.isShutdown());
 
-            options = standardOptionsBuilder(server.getNatsLocalhostUri())
+            options = Options.builder()
+                .server(NatsTestServer.getLocalhostUri(server.getPort()))
                 .executor(es)
                 .scheduledExecutor(ses)
                 .callbackExecutor(callbackEs)
@@ -60,7 +64,8 @@ public class NatsConnectionImplTests {
 
             ThreadFactory callbackThreadFactory = r -> new Thread(r, "callback");
             ThreadFactory connectThreadFactory = r -> new Thread(r, "connect");
-            options = standardOptionsBuilder(server.getNatsLocalhostUri())
+            options = Options.builder()
+                .server(NatsTestServer.getLocalhostUri(server.getPort()))
                 .executor(es)
                 .scheduledExecutor(ses)
                 .callbackThreadFactory(callbackThreadFactory)
@@ -76,11 +81,11 @@ public class NatsConnectionImplTests {
             assertTrue(ses.isShutdown());
             assertTrue(callbackEs.isShutdown());
             assertTrue(connectEs.isShutdown());
-        }
+        });
     }
 
-    private static void verifyInternalExecutors(Options options) throws InterruptedException, IOException {
-        try (NatsConnection nc = (NatsConnection)standardConnection(options)) {
+    private static void verifyInternalExecutors(Options options) throws InterruptedException {
+        try (NatsConnection nc = (NatsConnection) managedConnect(options)) {
             ExecutorService es = options.getExecutor();
             ScheduledExecutorService ses = options.getScheduledExecutor();
             ExecutorService callbackEs = options.getCallbackExecutor();
@@ -120,8 +125,8 @@ public class NatsConnectionImplTests {
     private static void verifyExternalExecutors(Options options,
                                                 ExecutorService userEs, ScheduledExecutorService userSes,
                                                 ExecutorService userCallbackEs, ExecutorService userConnectEs
-    ) throws InterruptedException, IOException {
-        try (NatsConnection nc = (NatsConnection)standardConnection(options)) {
+    ) throws InterruptedException {
+        try (NatsConnection nc = (NatsConnection) managedConnect(options)) {
             ExecutorService es = options.getExecutor();
             ScheduledExecutorService ses = options.getScheduledExecutor();
             ExecutorService callbackEs = options.getCallbackExecutor();
@@ -187,15 +192,17 @@ public class NatsConnectionImplTests {
 
     @Test
     void testExecutorUseCount() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer()) {
+        runInSharedServer(server -> {
             AtomicLong count1 = new AtomicLong();
             AtomicLong count2 = new AtomicLong();
 
-            Options options = new Options.Builder().server(ts.getURI()).build();
+            Options options = Options.builder()
+                .server(NatsTestServer.getLocalhostUri(server.getPort()))
+                .build();
 
             // THESE SHARE THE EXACT SAME OPTIONS INSTANCE
-            NatsConnection nc1 = (NatsConnection)standardConnection(options);
-            NatsConnection nc2 = (NatsConnection)standardConnection(options);
+            NatsConnection nc1 = (NatsConnection) managedConnect(options);
+            NatsConnection nc2 = (NatsConnection) managedConnect(options);
 
             // Both connections live, both callbacks work
             nc1.makeCallback(count1::incrementAndGet);
@@ -205,7 +212,7 @@ public class NatsConnectionImplTests {
             assertEquals(1, count2.get());
 
             // Close first connection, second connection callback will still work
-            standardCloseConnection(nc1);
+            closeAndConfirm(nc1);
             Thread.sleep(250); // allow time for shutdownExecutors() to process
 
             nc1.makeCallback(count1::incrementAndGet);
@@ -215,7 +222,7 @@ public class NatsConnectionImplTests {
             assertEquals(2, count2.get());
 
             // Close second connection, no callbacks will work
-            standardCloseConnection(nc2);
+            closeAndConfirm(nc2);
             Thread.sleep(250); // allow time for shutdownExecutors() to process
 
             nc1.makeCallback(count1::incrementAndGet);
@@ -223,6 +230,6 @@ public class NatsConnectionImplTests {
             Thread.sleep(250); // allow time for callbacks to happen
             assertEquals(1, count1.get());
             assertEquals(2, count2.get());
-        }
+        });
     }
 }

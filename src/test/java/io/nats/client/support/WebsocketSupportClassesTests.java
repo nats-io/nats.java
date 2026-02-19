@@ -13,7 +13,7 @@
 
 package io.nats.client.support;
 
-import io.nats.client.NatsTestServer;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.io.*;
@@ -32,25 +32,24 @@ import static io.nats.client.support.WebsocketFrameHeader.OpCode;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class WebsocketSupportClassesTests {
-    private int[] testSizes = new int[] { 1, 2, 3, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 1432, // WebsocketOutputStream
-                                                                                                // buffer threshold,
-                                                                                                // will fragment after
-                                                                                                // this.
-            1433, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144 };
+public class WebsocketSupportClassesTests extends TestBase {
+    private final int[] testSizes = new int[] { 1, 2, 3, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 1432,
+        // 1432 is WebsocketOutputStream buffer threshold, will fragment after this.
+        1433, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144 };
 
     @Test
     public void testInputStreamMaskedBinaryFin() throws IOException {
-        for (int i = 0; i < testSizes.length; i++) {
-            byte[] fuzz = getFuzz(testSizes[i]);
+        for (int testSize : testSizes) {
+            byte[] fuzz = getFuzz(testSize);
             int maskingKey = new SecureRandom().nextInt();
             InputStream in = websocketInputStream(
-                    new WebsocketFrameHeader().withMask(maskingKey).withOp(OpCode.BINARY, true), fuzz);
+                new WebsocketFrameHeader().withMask(maskingKey).withOp(OpCode.BINARY, true), fuzz);
             WebsocketInputStream win = new WebsocketInputStream(in);
-            byte[] got = new byte[testSizes[i]];
+            byte[] got = new byte[testSize];
             if (fuzz.length == 1) {
                 got[0] = (byte) (win.read() & 0xFF);
-            } else {
+            }
+            else {
                 assertEquals(got.length, win.read(got));
             }
             assertArrayEquals(fuzz, got);
@@ -60,12 +59,12 @@ public class WebsocketSupportClassesTests {
 
     @Test
     public void testInputStreamUnMaskedBinaryFin() throws IOException {
-        for (int i = 0; i < testSizes.length; i++) {
-            byte[] fuzz = getFuzz(testSizes[i]);
+        for (int testSize : testSizes) {
+            byte[] fuzz = getFuzz(testSize);
             InputStream in = websocketInputStream(new WebsocketFrameHeader().withNoMask().withOp(OpCode.BINARY, true),
-                    fuzz);
+                fuzz);
             WebsocketInputStream win = new WebsocketInputStream(in);
-            byte[] got = new byte[testSizes[i]];
+            byte[] got = new byte[testSize];
             assertEquals(got.length, win.read(got));
             assertArrayEquals(fuzz, got);
             win.close();
@@ -74,13 +73,14 @@ public class WebsocketSupportClassesTests {
 
     @Test
     public void testOutputStreamMaskedBinaryFin() throws IOException {
-        for (int i = 0; i < testSizes.length; i++) {
-            byte[] fuzz = getFuzz(testSizes[i]);
+        for (int testSize : testSizes) {
+            byte[] fuzz = getFuzz(testSize);
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             WebsocketOutputStream wout = new WebsocketOutputStream(out, true);
             if (1 == fuzz.length) {
                 wout.write(fuzz[0]);
-            } else {
+            }
+            else {
                 // NOTE: this API will modify fuzz, so we need to take a copy:
                 wout.write(Arrays.copyOf(fuzz, fuzz.length));
             }
@@ -106,8 +106,8 @@ public class WebsocketSupportClassesTests {
 
     @Test
     public void testOutputStreamUnMaskedBinaryFin() throws IOException {
-        for (int i = 0; i < testSizes.length; i++) {
-            byte[] fuzz = getFuzz(testSizes[i]);
+        for (int testSize : testSizes) {
+            byte[] fuzz = getFuzz(testSize);
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             WebsocketOutputStream wout = new WebsocketOutputStream(out, false);
             wout.write(fuzz);
@@ -158,7 +158,7 @@ public class WebsocketSupportClassesTests {
     }
 
     @Test
-    public void testFrameHeaderCoverage() throws IOException {
+    public void testFrameHeaderCoverage() {
         assertEquals(OpCode.CONTINUATION, OpCode.of(0));
         assertEquals(OpCode.TEXT, OpCode.of(1));
         assertEquals(OpCode.BINARY, OpCode.of(2));
@@ -213,7 +213,7 @@ public class WebsocketSupportClassesTests {
             OutputStreamWriter writer = new OutputStreamWriter(out, UTF_8);
             writer.append("HTTP/1.1 101 Switching Protocols\r\n");
             for (int i = 0; i < 1000; i++) {
-                writer.append("a-" + i + ": Test\r\n");
+                writer.append("a-").append(String.valueOf(i)).append(": Test\r\n");
             }
             writer.close();
         }, "Exceeded max HTTP headers");
@@ -259,7 +259,7 @@ public class WebsocketSupportClassesTests {
 
     @FunctionalInterface
     interface OutputStreamWrite {
-        public void write(OutputStream out) throws IOException;
+        void write(OutputStream out) throws IOException;
     }
 
     private void testWithWriter(OutputStreamWrite writer, String msgStartsWith) throws Exception {
@@ -271,9 +271,10 @@ public class WebsocketSupportClassesTests {
                 Future<?> readFuture = executor.submit(() -> {
                     byte[] buffer = new byte[1024];
                     try {
-                        while (in.read(buffer) >= 0) {
-                        }
-                    } catch (SocketException ex) {
+                        //noinspection StatementWithEmptyBody
+                        while (in.read(buffer) >= 0) {}
+                    }
+                    catch (SocketException ex) {
                         // Expect this failure:
                         if (!"Connection reset".equals(ex.getMessage()) && !"Socket closed".equals(ex.getMessage())) {
                             throw ex;
@@ -321,8 +322,8 @@ public class WebsocketSupportClassesTests {
     @Test
     public void testWebSocketCoverage() throws Exception {
         AtomicReference<String> lastMethod = new AtomicReference<>();
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/ws.conf", false)) {
-            try (Socket tcpSocket = new Socket("localhost", ts.getPort("ws"))) {
+        runInConfiguredServer("ws.conf", ts -> {
+            try (Socket tcpSocket = new Socket("localhost", ts.getPort(WS))) {
                 WebSocket webSocket = new WebSocket(new Socket() {
                     @Override
                     public InputStream getInputStream() throws IOException {
@@ -537,7 +538,7 @@ public class WebsocketSupportClassesTests {
                 assertThrows(UnsupportedOperationException.class, () -> webSocket.connect(null));
                 assertThrows(UnsupportedOperationException.class, () -> webSocket.connect(null, 0));
                 assertThrows(UnsupportedOperationException.class, () -> webSocket.bind(null));
-                assertThrows(UnsupportedOperationException.class, () -> webSocket.getChannel());
+                assertThrows(UnsupportedOperationException.class, webSocket::getChannel);
 
                 // Delegated methods:
                 webSocket.getInetAddress();
@@ -639,7 +640,7 @@ public class WebsocketSupportClassesTests {
                 webSocket.setPerformancePreferences(1, 1, 1);
                 assertEquals("setPerformancePreferences", lastMethod.get());
             }
-        }
+        });
     }
 
     /**

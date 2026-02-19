@@ -1,0 +1,138 @@
+// Copyright 2025 The NATS Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at:
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package io.nats.client.utils;
+
+import io.nats.client.*;
+import org.jspecify.annotations.NonNull;
+
+import java.time.Duration;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/**
+ * ----------------------------------------------------------------------------------------------------
+ * THIS IS THE PREFERRED WAY TO BUILD ANY OPTIONS FOR TESTING
+ * ----------------------------------------------------------------------------------------------------
+ */
+public abstract class OptionsUtils {
+
+    private static ExecutorService EX;
+    private static ScheduledThreadPoolExecutor SC;
+
+    public static ErrorListener NOOP_EL = new ErrorListener() {};
+
+    public static Options.Builder optionsBuilder(ErrorListener el) {
+        return optionsBuilder().errorListener(el);
+    }
+
+    public static Options.Builder optionsBuilder(TestServer... tses) {
+        if (tses.length == 1) {
+            return optionsBuilder().server(tses[0].getServerUri());
+        }
+        String[] servers = new String[tses.length];
+        for (int i = 0; i < tses.length; i++) {
+            servers[i] = tses[i].getServerUri();
+        }
+        return optionsBuilder().servers(servers);
+    }
+    public static Options.Builder optionsBuilder(NatsTestServer ts, String schema) {
+        return optionsBuilder().server(ts.getLocalhostUri(schema));
+    }
+
+    public static Options.Builder optionsBuilder(int port) {
+        return optionsBuilder().server(NatsTestServer.getLocalhostUri(port));
+    }
+
+    public static Options.Builder optionsBuilder(String... servers) {
+        return optionsBuilder().servers(servers);
+    }
+
+    public static Options.Builder optionsBuilder(Connection nc) {
+        //noinspection DataFlowIssue
+        return optionsBuilder().server(nc.getConnectedUrl());
+    }
+
+    public static Options options() {
+        return optionsBuilder().build();
+    }
+
+    public static Options options(Connection nc) {
+        return optionsBuilder(nc).build();
+    }
+
+    public static Options options(int port) {
+        return optionsBuilder(port).build();
+    }
+
+    public static Options options(NatsTestServer... testServers) {
+        return optionsBuilder(testServers).build();
+    }
+
+    public static Options options(NatsServerProtocolMock... testServers) {
+        return optionsBuilder(testServers).build();
+    }
+
+    public static Options options(String... servers) {
+        return optionsBuilder().servers(servers).build();
+    }
+
+    public static Options.Builder optionsBuilder() {
+        if (EX == null) {
+            EX = new ThreadPoolExecutor(6, Integer.MAX_VALUE, 30, TimeUnit.SECONDS,
+                new SynchronousQueue<>(),
+                new TestThreadFactory("EX"));
+        }
+
+        if (SC == null) {
+            SC = new ScheduledThreadPoolExecutor(3, new TestThreadFactory("SC"));
+            SC.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+            SC.setRemoveOnCancelPolicy(true);
+        }
+
+        return Options.builder()
+            .connectionTimeout(Duration.ofSeconds(4))
+            .executor(EX)
+            .scheduledExecutor(SC)
+            .callbackExecutor(Executors.newSingleThreadExecutor(new TestThreadFactory("CB")))
+            .connectExecutor(Executors.newSingleThreadExecutor(new TestThreadFactory("CN")))
+            .errorListener(NOOP_EL)
+
+            // This forces to use the plain SocketDataPort instead of
+            // SocketDataPortWithWriteTimeout, we just don't need it for testing.
+            // This saves running the scheduled task in the SocketDataPortWithWriteTimeout
+            .socketWriteTimeout(null);
+    }
+
+    static class TestThreadFactory implements ThreadFactory {
+        final String name;
+        final AtomicInteger threadNumber;
+
+        public TestThreadFactory(String name) {
+            this.name = name;
+            this.threadNumber = new AtomicInteger(1);
+        }
+
+        public Thread newThread(@NonNull Runnable r) {
+            String threadName = "TST." + name + "." + threadNumber.incrementAndGet();
+            Thread t = new Thread(r, threadName);
+            if (t.isDaemon()) {
+                t.setDaemon(false);
+            }
+            if (t.getPriority() != Thread.NORM_PRIORITY) {
+                t.setPriority(Thread.NORM_PRIORITY);
+            }
+            return t;
+        }
+    }
+}

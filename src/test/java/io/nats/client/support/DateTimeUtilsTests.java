@@ -49,14 +49,11 @@ public final class DateTimeUtilsTests {
         Instant i = Instant.ofEpochSecond(1611186068);
         ZonedDateTime zdt1 = ZonedDateTime.ofInstant(i, ZoneId.systemDefault());
         ZonedDateTime zdt2 = ZonedDateTime.ofInstant(i, DateTimeUtils.ZONE_ID_GMT);
-        System.out.println(zdt1);
-        System.out.println(zdt2);
         assertEquals(zdt1.toEpochSecond(), zdt2.toEpochSecond());
 
         String rfc1 = DateTimeUtils.toRfc3339(zdt1);
         String rfc2 = DateTimeUtils.toRfc3339(zdt2);
         assertEquals(rfc1, rfc2);
-        System.out.println(zdt2.toEpochSecond());
 
         assertEquals("2021-01-20T23:41:08.579594000Z", DateTimeUtils.toRfc3339(DateTimeUtils.parseDateTime("2021-01-20T23:41:08.579594Z")));
         assertEquals("2021-02-02T19:18:28.347722551Z", DateTimeUtils.toRfc3339(DateTimeUtils.parseDateTime("2021-02-02T11:18:28.347722551-08:00")));

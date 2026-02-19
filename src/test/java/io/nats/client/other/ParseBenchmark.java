@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client.impl;
+package io.nats.client.other;
 
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -23,7 +23,7 @@ import java.util.regex.Pattern;
 
 import static io.nats.client.support.NatsConstants.*;
 
-public class ParseTesting {
+public class ParseBenchmark {
     static String infoJson = "{" + "\"server_id\":\"myserver\"" + "," + "\"version\":\"1.1.1\"" + ","
             + "\"go\": \"go1.9\"" + "," + "\"host\": \"host\"" + "," + "\"tls_required\": true" + ","
             + "\"auth_required\":false" + "," + "\"port\": 7777" + "," + "\"max_payload\":100000000000" + ","

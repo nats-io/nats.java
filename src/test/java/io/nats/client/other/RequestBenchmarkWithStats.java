@@ -11,7 +11,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client;
+package io.nats.client.other;
+
+import io.nats.client.*;
 
 import java.text.NumberFormat;
 import java.util.ArrayList;
@@ -52,7 +54,7 @@ public class RequestBenchmarkWithStats {
                         build();
 
             Connection handlerC = Nats.connect(o);
-            Dispatcher d = handlerC.createDispatcher((msg) -> {
+            Dispatcher d = handlerC.createDispatcher(msg -> {
                 try {
                     handlerC.publish(msg.getReplyTo(), msg.getData());
                     msgsHandled.incrementAndGet();

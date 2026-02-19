@@ -16,9 +16,9 @@ jobs:
       SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
     steps:
       - name: Setup JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
-          java-version: '8'
+          java-version: '21'
           distribution: 'temurin'
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -40,7 +40,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
       - name: Build and Test
-        run: chmod +x gradlew && ./gradlew clean test jacocoTestReport
+        run: chmod +x gradlew && ./gradlew clean test jacocoTestReport --refresh-dependencies
       - name: Verify Javadoc
         run: ./gradlew javadoc
       - name: Send coverage to Coveralls

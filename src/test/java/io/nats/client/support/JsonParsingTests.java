@@ -13,6 +13,7 @@
 
 package io.nats.client.support;
 
+import io.nats.client.utils.TestBase;
 import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
 
@@ -41,39 +42,39 @@ public final class JsonParsingTests {
         List<JsonValue> list = new ArrayList<>();
 
         int x = 0;
-        addField(key(x++), "b4\\after", oMap, list, encodeds, decodeds);
-        addField(key(x++), "b4/after", oMap, list, encodeds, decodeds);
-        addField(key(x++), "b4\"after", oMap, list, encodeds, decodeds);
-        addField(key(x++), "b4\tafter", oMap, list, encodeds, decodeds);
-        addField(key(x++), "b4\\bafter", oMap, list, encodeds, decodeds);
-        addField(key(x++), "b4\\fafter", oMap, list, encodeds, decodeds);
-        addField(key(x++), "b4\\nafter", oMap, list, encodeds, decodeds);
-        addField(key(x++), "b4\\rafter", oMap, list, encodeds, decodeds);
-        addField(key(x++), "b4\\tafter", oMap, list, encodeds, decodeds);
-        addField(key(x++), "b4" + (char) 0 + "after", oMap, list, encodeds, decodeds);
-        addField(key(x++), "b4" + (char) 1 + "after", oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), "b4\\after", oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), "b4/after", oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), "b4\"after", oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), "b4\tafter", oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), "b4\\bafter", oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), "b4\\fafter", oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), "b4\\nafter", oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), "b4\\rafter", oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), "b4\\tafter", oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), "b4" + (char) 0 + "after", oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), "b4" + (char) 1 + "after", oMap, list, encodeds, decodeds);
 
         List<String> utfs = dataAsLines("utf8-only-no-ws-test-strings.txt");
         for (String u : utfs) {
             String uu = "b4\b\f\n\r\t" + u + "after";
-            addField(key(x++), uu, oMap, list, encodeds, decodeds);
+            addField(TestBase.data(x++), uu, oMap, list, encodeds, decodeds);
         }
 
-        addField(key(x++), PLAIN, oMap, list, encodeds, decodeds);
-        addField(key(x++), HAS_SPACE, oMap, list, encodeds, decodeds);
-        addField(key(x++), HAS_PRINTABLE, oMap, list, encodeds, decodeds);
-        addField(key(x++), HAS_DOT, oMap, list, encodeds, decodeds);
-        addField(key(x++), STAR_NOT_SEGMENT, oMap, list, encodeds, decodeds);
-        addField(key(x++), GT_NOT_SEGMENT, oMap, list, encodeds, decodeds);
-        addField(key(x++), HAS_DASH, oMap, list, encodeds, decodeds);
-        addField(key(x++), HAS_UNDER, oMap, list, encodeds, decodeds);
-        addField(key(x++), HAS_DOLLAR, oMap, list, encodeds, decodeds);
-        addField(key(x++), HAS_LOW, oMap, list, encodeds, decodeds);
-        addField(key(x++), HAS_127, oMap, list, encodeds, decodeds);
-        addField(key(x++), HAS_FWD_SLASH, oMap, list, encodeds, decodeds);
-        addField(key(x++), HAS_BACK_SLASH, oMap, list, encodeds, decodeds);
-        addField(key(x++), HAS_EQUALS, oMap, list, encodeds, decodeds);
-        addField(key(x++), HAS_TIC, oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), PLAIN, oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), HAS_SPACE, oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), HAS_PRINTABLE, oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), HAS_DOT, oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), STAR_NOT_SEGMENT, oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), GT_NOT_SEGMENT, oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), HAS_DASH, oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), HAS_UNDER, oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), HAS_DOLLAR, oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), HAS_LOW, oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), HAS_127, oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), HAS_FWD_SLASH, oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), HAS_BACK_SLASH, oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x++), HAS_EQUALS, oMap, list, encodeds, decodeds);
+        addField(TestBase.data(x),   HAS_TIC, oMap, list, encodeds, decodeds);
 
         for (int i = 0; i < list.size(); i++) {
             JsonValue vi = list.get(i);

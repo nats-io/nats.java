@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.support.Listener;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -25,39 +26,39 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.nats.client.utils.ConnectionUtils.*;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.TestBase.*;
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class DrainTests {
 
-    @SuppressWarnings("resource")
     @Test
     public void testCloseOnDrainFailure() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            final Connection nc = standardConnection(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
+        try (NatsTestServer ts = new NatsTestServer()) {
+            final Connection nc = managedConnect(optionsBuilder(ts).maxReconnects(0).build());
 
-            nc.subscribe("draintest");
+            nc.subscribe(random());
             nc.flush(Duration.ofSeconds(1)); // Get the sub to the server, so drain has things to do
 
             ts.shutdown(); // shut down the server to fail drain and subsequent close
 
             assertThrows(Exception.class, () -> nc.drain(Duration.ofSeconds(1)));
+
+            closeAndConfirm(nc);
         }
     }
 
     @Test
     public void testSimpleSubDrain() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
-            assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
-
-            Subscription sub = subCon.subscribe("draintest");
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
+            String subject = random();
+            Subscription sub = subCon.subscribe(subject);
             subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-            pubCon.publish("draintest", null);
-            pubCon.publish("draintest", null); // publish 2
+            pubCon.publish(subject, null);
+            pubCon.publish(subject, null); // publish 2
             pubCon.flush(Duration.ofSeconds(1));
 
             Message msg = sub.nextMessage(Duration.ofSeconds(1)); // read 1
@@ -71,29 +72,26 @@ public class DrainTests {
 
             assertTrue(tracker.get(1, TimeUnit.SECONDS));
             assertFalse(sub.isActive());
-            assertEquals(((NatsConnection) subCon).getConsumerCount(), 0);
-        }
+            assertEquals(0, ((NatsConnection) subCon).getConsumerCount());
+        });
     }
 
     @Test
     public void testSimpleDispatchDrain() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
-            assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
-
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
             AtomicInteger count = new AtomicInteger();
-            Dispatcher d = subCon.createDispatcher((msg) -> {
+            Dispatcher d = subCon.createDispatcher(msg -> {
                 count.incrementAndGet();
                 sleep(2000); // go slow so the main app can drain us
             });
-            d.subscribe("draintest");
-            d.subscribe("draintest", (msg) -> { count.incrementAndGet(); });
+
+            String subject = random();
+            d.subscribe(subject);
+            d.subscribe(subject, msg -> count.incrementAndGet());
             subCon.flush(Duration.ofSeconds(5)); // Get the sub to the server
 
-            pubCon.publish("draintest", null);
-            pubCon.publish("draintest", null);
+            pubCon.publish(subject, null);
+            pubCon.publish(subject, null);
             pubCon.flush(Duration.ofSeconds(1));
             subCon.flush(Duration.ofSeconds(1));
 
@@ -102,32 +100,28 @@ public class DrainTests {
             CompletableFuture<Boolean> tracker = d.drain(Duration.ofSeconds(8));
 
             assertTrue(tracker.get(10, TimeUnit.SECONDS)); // wait for the drain to complete
-            assertEquals(count.get(), 4); // Should get both, two times.
+            assertEquals(4, count.get()); // Should get both, two times.
             assertFalse(d.isActive());
-            assertEquals(((NatsConnection) subCon).getConsumerCount(), 0);
-        }
+            assertEquals(0, ((NatsConnection) subCon).getConsumerCount());
+        });
     }
 
     @Test
     public void testSimpleConnectionDrain() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
-            assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
-
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
             AtomicInteger count = new AtomicInteger();
-            Dispatcher d = subCon.createDispatcher((msg) -> {
+            Dispatcher d = subCon.createDispatcher(msg -> {
                 count.incrementAndGet();
                 sleep(500); // go slow so the main app can drain us
             });
-            d.subscribe("draintest");
+            String subject = random();
+            d.subscribe(subject);
 
-            Subscription sub = subCon.subscribe("draintest");
+            Subscription sub = subCon.subscribe(subject);
             subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-            pubCon.publish("draintest", null);
-            pubCon.publish("draintest", null);
+            pubCon.publish(subject, null);
+            pubCon.publish(subject, null);
             pubCon.flush(Duration.ofSeconds(1));
 
             subCon.flush(Duration.ofSeconds(1));
@@ -142,31 +136,27 @@ public class DrainTests {
 
             assertTrue(tracker.get(2, TimeUnit.SECONDS));
             assertTrue(((NatsConnection) subCon).isDrained());
-            assertEquals(count.get(), 2); // Should get both
-            assertSame(Connection.Status.CLOSED, subCon.getStatus());
-        }
+            assertEquals(2, count.get()); // Should get both
+            assertClosed(subCon);
+        });
     }
 
     @Test
     public void testConnectionDrainWithZeroTimeout() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
-            assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
-
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
             AtomicInteger count = new AtomicInteger();
-            Dispatcher d = subCon.createDispatcher((msg) -> {
+            Dispatcher d = subCon.createDispatcher(msg -> {
                 count.incrementAndGet();
                 sleep(500); // go slow so the main app can drain us
             });
-            d.subscribe("draintest");
+            String subject = random();
+            d.subscribe(subject);
 
-            Subscription sub = subCon.subscribe("draintest");
+            Subscription sub = subCon.subscribe(subject);
             subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-            pubCon.publish("draintest", null);
-            pubCon.publish("draintest", null);
+            pubCon.publish(subject, null);
+            pubCon.publish(subject, null);
             pubCon.flush(Duration.ofSeconds(1));
 
             subCon.flush(Duration.ofSeconds(1));
@@ -181,24 +171,20 @@ public class DrainTests {
 
             assertTrue(tracker.get(2, TimeUnit.SECONDS));
             assertTrue(((NatsConnection) subCon).isDrained());
-            assertEquals(count.get(), 2); // Should get both
-            assertSame(Connection.Status.CLOSED, subCon.getStatus());
-        }
+            assertEquals(2, count.get()); // Should get both
+            assertClosed(subCon);
+        });
     }
 
     @Test
     public void testDrainWithZeroTimeout() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
-            assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
-
-            Subscription sub = subCon.subscribe("draintest");
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
+            String subject = random();
+            Subscription sub = subCon.subscribe(subject);
             subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-            pubCon.publish("draintest", null);
-            pubCon.publish("draintest", null); // publish 2
+            pubCon.publish(subject, null);
+            pubCon.publish(subject, null); // publish 2
             pubCon.flush(Duration.ofSeconds(1));
 
             Message msg = sub.nextMessage(Duration.ofSeconds(1)); // read 1
@@ -212,83 +198,63 @@ public class DrainTests {
 
             assertTrue(tracker.get(1, TimeUnit.SECONDS));
             assertFalse(sub.isActive());
-        }
-    }
-
-    @Test
-    public void testSubDuringDrainThrows() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                    Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-                assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
-                assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
-
-                subCon.subscribe("draintest");
-                subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
-
-                pubCon.publish("draintest", null);
-                pubCon.publish("draintest", null);
-                pubCon.flush(Duration.ofSeconds(1));
-
-                subCon.flush(Duration.ofSeconds(1));
-
-                CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(500));
-
-                // Try to subscribe while we are draining the sub
-                subCon.subscribe("another"); // Should throw
-                assertTrue(tracker.get(1000, TimeUnit.SECONDS));
-            }
         });
     }
 
     @Test
-    public void testCreateDispatcherDuringDrainThrows() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                    Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-                assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
-                assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
+    public void testSubDuringDrainThrows() throws Exception {
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
+            String subject = random();
+            subCon.subscribe(subject);
+            subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-                subCon.subscribe("draintest");
-                subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
+            pubCon.publish(subject, null);
+            pubCon.publish(subject, null);
+            pubCon.flush(Duration.ofSeconds(1));
+            subCon.flush(Duration.ofSeconds(1));
 
-                pubCon.publish("draintest", null);
-                pubCon.publish("draintest", null);
-                pubCon.flush(Duration.ofSeconds(1));
+            subCon.drain(Duration.ofSeconds(500));
 
-                subCon.flush(Duration.ofSeconds(1));
+            // Try to subscribe while we are draining the sub
+            assertThrows(IllegalStateException.class, () -> subCon.subscribe(random()));
+        });
+    }
 
-                CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(500));
+    @Test
+    public void testCreateDispatcherDuringDrainThrows() throws Exception {
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
+            String subject = random();
+            subCon.subscribe(subject);
+            subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-                subCon.createDispatcher((msg) -> {
-                });
-                assertTrue(tracker.get(1000, TimeUnit.SECONDS));
-            }
+            pubCon.publish(subject, null);
+            pubCon.publish(subject, null);
+            pubCon.flush(Duration.ofSeconds(1));
+
+            subCon.flush(Duration.ofSeconds(1));
+
+            subCon.drain(Duration.ofSeconds(500));
+
+            assertThrows(IllegalStateException.class, () -> subCon.createDispatcher(msg -> {}));
         });
     }
 
     @Test
     public void testUnsubDuringDrainIsNoop() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
-            assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
-
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
             AtomicInteger count = new AtomicInteger();
-            Dispatcher d = subCon.createDispatcher((msg) -> {
+            Dispatcher d = subCon.createDispatcher(msg -> {
                 count.incrementAndGet();
                 sleep(1000); // go slow so the main app can drain us
             });
-            d.subscribe("draintest");
+            String subject = random();
+            d.subscribe(subject);
 
-            Subscription sub = subCon.subscribe("draintest");
+            Subscription sub = subCon.subscribe(subject);
             subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-            pubCon.publish("draintest", null);
-            pubCon.publish("draintest", null);
+            pubCon.publish(subject, null);
+            pubCon.publish(subject, null);
             pubCon.flush(Duration.ofSeconds(1));
 
             subCon.flush(Duration.ofSeconds(1));
@@ -299,7 +265,7 @@ public class DrainTests {
             sleep(1000); // give the drain time to get started
 
             sub.unsubscribe();
-            d.unsubscribe("draintest");
+            d.unsubscribe(subject);
 
             Message msg = sub.nextMessage(Duration.ofSeconds(1));
             assertNotNull(msg);
@@ -307,64 +273,56 @@ public class DrainTests {
             assertNotNull(msg);
 
             assertTrue(tracker.get(2, TimeUnit.SECONDS));
-            assertEquals(count.get(), 2); // Should get both
-            assertSame(Connection.Status.CLOSED, subCon.getStatus());
-        }
+            assertEquals(2, count.get()); // Should get both
+            assertClosed(subCon);
+        });
     }
 
     @Test
     public void testDrainInMessageHandler() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
-            assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
-
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
             AtomicInteger count = new AtomicInteger();
             AtomicReference<Dispatcher> dispatcher = new AtomicReference<>();
             AtomicReference<CompletableFuture<Boolean>> tracker = new AtomicReference<>();
-            Dispatcher d = subCon.createDispatcher((msg) -> {
+            Dispatcher d = subCon.createDispatcher(msg -> {
                 count.incrementAndGet();
                 tracker.set(dispatcher.get().drain(Duration.ofSeconds(1)));
             });
-            d.subscribe("draintest");
+            String subject = random();
+            d.subscribe(subject);
             dispatcher.set(d);
             subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-            pubCon.publish("draintest", null);
-            pubCon.publish("draintest", null);
+            pubCon.publish(subject, null);
+            pubCon.publish(subject, null);
             pubCon.flush(Duration.ofSeconds(1));
 
             subCon.flush(Duration.ofSeconds(1));
             sleep(500); // give the msgs time to get to subCon
 
             assertTrue(tracker.get().get(5, TimeUnit.SECONDS)); // wait for the drain to complete
-            assertEquals(count.get(), 2); // Should get both
+            assertEquals(2, count.get()); // Should get both
             assertFalse(d.isActive());
-            assertEquals(((NatsConnection) subCon).getConsumerCount(), 0);
-        }
+            assertEquals(0, ((NatsConnection) subCon).getConsumerCount());
+        });
     }
 
     @Test
     public void testDrainFutureMatches() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
-            assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
-
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
             AtomicInteger count = new AtomicInteger();
-            Dispatcher d = subCon.createDispatcher((msg) -> {
+            Dispatcher d = subCon.createDispatcher(msg -> {
                 count.incrementAndGet();
                 sleep(500); // go slow so the main app can drain us
             });
-            d.subscribe("draintest");
+            String subject = random();
+            d.subscribe(subject);
 
-            Subscription sub = subCon.subscribe("draintest");
+            Subscription sub = subCon.subscribe(subject);
             subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-            pubCon.publish("draintest", null);
-            pubCon.publish("draintest", null);
+            pubCon.publish(subject, null);
+            pubCon.publish(subject, null);
             pubCon.flush(Duration.ofSeconds(1));
 
             subCon.flush(Duration.ofSeconds(1));
@@ -385,125 +343,91 @@ public class DrainTests {
             assertNotNull(msg);
 
             assertTrue(tracker.get(2, TimeUnit.SECONDS));
-            assertEquals(count.get(), 2); // Should get both
-            assertSame(Connection.Status.CLOSED, subCon.getStatus());
-        }
-    }
-
-    @Test
-    public void testFirstTimeRequestReplyDuringDrain() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                    Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-                assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
-                assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
-
-                Subscription sub = subCon.subscribe("draintest");
-                subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
-
-                Dispatcher d = pubCon.createDispatcher((msg) -> {
-                    pubCon.publish(msg.getReplyTo(), null);
-                });
-                d.subscribe("reply");
-                pubCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
-
-                pubCon.publish("draintest", null);
-                pubCon.publish("draintest", null);
-                pubCon.flush(Duration.ofSeconds(1));
-
-                CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(500));
-
-                Message msg = sub.nextMessage(Duration.ofSeconds(1)); // read 1
-                assertNotNull(msg);
-
-                CompletableFuture<Message> response = subCon.request("reply", null);
-                subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
-                assertNotNull(response.get(200, TimeUnit.SECONDS));
-
-                msg = sub.nextMessage(Duration.ofSeconds(1)); // read 1
-                assertNotNull(msg);
-
-                assertTrue(tracker.get(500, TimeUnit.SECONDS)); // wait for the drain to complete
-                assertSame(Connection.Status.CLOSED, subCon.getStatus());
-            }
+            assertEquals(2, count.get()); // Should get both
+            assertClosed(subCon);
         });
     }
 
     @Test
-    public void testRequestReplyDuringDrain() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                    Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-                assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
-                assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
+    public void testFirstTimeRequestReplyDuringDrain() throws Exception {
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
+            String subject = random();
+            Subscription sub = subCon.subscribe(subject);
+            subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-                Subscription sub = subCon.subscribe("draintest");
-                subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
+            Dispatcher d = pubCon.createDispatcher(msg -> pubCon.publish(msg.getReplyTo(), null));
+            String reply = random();
+            d.subscribe(reply);
+            pubCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-                Dispatcher d = pubCon.createDispatcher((msg) -> {
-                    pubCon.publish(msg.getReplyTo(), null);
-                });
-                d.subscribe("reply");
-                pubCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
+            pubCon.publish(subject, null);
+            pubCon.publish(subject, null);
+            pubCon.flush(Duration.ofSeconds(1));
 
-                pubCon.publish("draintest", null);
-                pubCon.publish("draintest", null);
-                pubCon.flush(Duration.ofSeconds(1));
+            subCon.drain(Duration.ofSeconds(500));
 
-                CompletableFuture<Message> response = subCon.request("reply", null);
-                subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
-                assertNotNull(response.get(1, TimeUnit.SECONDS));
+            Message msg = sub.nextMessage(Duration.ofSeconds(1)); // read 1
+            assertNotNull(msg);
 
-                CompletableFuture<Boolean> tracker = subCon.drain(Duration.ofSeconds(1));
+            assertThrows(IllegalStateException.class, () -> subCon.request(reply, null));
+        });
+    }
 
-                Message msg = sub.nextMessage(Duration.ofSeconds(1)); // read 1
-                assertNotNull(msg);
+    @Test
+    public void testRequestReplyDuringDrain() throws Exception {
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
+            String subject = random();
+            Subscription sub = subCon.subscribe(subject);
+            subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-                response = subCon.request("reply", null);
-                subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
-                assertNotNull(response.get(200, TimeUnit.SECONDS));
+            Dispatcher d = pubCon.createDispatcher(msg -> pubCon.publish(msg.getReplyTo(), null));
+            String reply = random();
+            d.subscribe(reply);
+            pubCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-                msg = sub.nextMessage(Duration.ofSeconds(1)); // read 1
-                assertNotNull(msg);
+            pubCon.publish(subject, null);
+            pubCon.publish(subject, null);
+            pubCon.flush(Duration.ofSeconds(1));
 
-                assertTrue(tracker.get(500, TimeUnit.SECONDS)); // wait for the drain to complete
-                assertSame(Connection.Status.CLOSED, subCon.getStatus());
-            }
+            CompletableFuture<Message> response = subCon.request(reply, null);
+            subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
+            assertNotNull(response.get(1, TimeUnit.SECONDS));
+
+            subCon.drain(Duration.ofSeconds(1));
+
+            Message msg = sub.nextMessage(Duration.ofSeconds(1)); // read 1
+            assertNotNull(msg);
+
+            assertThrows(IllegalStateException.class, () -> subCon.request(reply, null));
         });
     }
 
     @Test
     public void testQueueHandoffWithDrain() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
-
+        runInSharedOwnNc(optionsBuilder().maxReconnects(0), pubCon -> {
             final int total = 5_000;
-            final Duration sleepBetweenDrains = Duration.ofMillis(250);
-            final Duration sleepBetweenMessages = Duration.ofMillis(1);
-            final Duration testTimeout = Duration.ofMillis(5 * total * (sleepBetweenDrains.toMillis() + sleepBetweenMessages.toMillis()));
+            final long sleepBetweenDrains = 250;
+            final long sleepBetweenMessages = 5;
+            final Duration testTimeout = Duration.ofMillis(5 * total * (sleepBetweenDrains + sleepBetweenMessages));
             final Duration waitTimeout = testTimeout.plusSeconds(1);
             AtomicInteger count = new AtomicInteger();
             Instant start = Instant.now();
             Instant now = start;
-            Connection working = null;
-            NatsDispatcher workingD = null;
-            NatsDispatcher drainingD = null;
+            Connection working;
+            NatsDispatcher workingD;
+            NatsDispatcher drainingD;
 
-            Connection draining = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-            assertSame(Connection.Status.CONNECTED, draining.getStatus(), "Connected Status");
+            Connection draining = SharedServer.connectionForSameServer(pubCon, optionsBuilder().maxReconnects(0));
 
-            drainingD = (NatsDispatcher) draining.createDispatcher((msg) -> {
-                count.incrementAndGet();
-            }).subscribe("draintest", "queue");
+            String subject = random();
+            String queue = random();
+            drainingD = (NatsDispatcher) draining.createDispatcher(msg -> count.incrementAndGet()).subscribe(subject, queue);
             draining.flush(Duration.ofSeconds(5));
 
             Thread pubThread = new Thread(() -> {
                 for (int i = 0; i < total; i++) {
-                    pubCon.publish("draintest", null);
-                    park(sleepBetweenMessages);
+                    pubCon.publish(subject, null);
+                    sleep(sleepBetweenMessages);
                 }
                 flushConnection(pubCon, Duration.ofSeconds(5));
             });
@@ -511,15 +435,12 @@ public class DrainTests {
             pubThread.start();
 
             while (count.get() < total && Duration.between(start, now).compareTo(testTimeout) < 0) {
-
-                working = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                assertSame(Connection.Status.CONNECTED, working.getStatus(), "Connected Status");
-                workingD = (NatsDispatcher) working.createDispatcher((msg) -> {
-                    count.incrementAndGet();
-                }).subscribe("draintest", "queue");
+                working = SharedServer.connectionForSameServer(pubCon, optionsBuilder().maxReconnects(0));
+                assertConnected(working);
+                workingD = (NatsDispatcher) working.createDispatcher(msg -> count.incrementAndGet()).subscribe(subject, queue);
                 working.flush(Duration.ofSeconds(5));
 
-                park(sleepBetweenDrains);
+                sleep(sleepBetweenDrains);
 
                 CompletableFuture<Boolean> tracker = draining.drain(testTimeout);
 
@@ -537,26 +458,22 @@ public class DrainTests {
             pubThread.join();
 
             assertEquals(total, count.get());
-        }
+        });
     }
 
     @Test
     public void testDrainWithLotsOfMessages() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
-            assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
-
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
             int total = 1000;
-            Subscription sub = subCon.subscribe("draintest");
+            String subject = random();
+            Subscription sub = subCon.subscribe(subject);
 
             sub.setPendingLimits(5 * total, -1);
             subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
             // Sub should cache them in the pending queue
             for (int i = 0; i < total; i++) {
-                pubCon.publish("draintest", null);
+                pubCon.publish(subject, null);
                 sleep(1); // use a nice stead pace to avoid slow consumers
             }
             try {
@@ -576,20 +493,15 @@ public class DrainTests {
 
             assertTrue(tracker.get(5, TimeUnit.SECONDS));
             assertFalse(sub.isActive());
-            assertEquals(((NatsConnection) subCon).getConsumerCount(), 0);
-        }
+            assertEquals(0, ((NatsConnection) subCon).getConsumerCount());
+        });
     }
 
     @Test
     public void testSlowAsyncDuringDrainCanFinishIfTime() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
-            assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
-
+        runInSharedOwnNcs(optionsBuilder().maxReconnects(0), (subCon, pubCon) -> {
             AtomicInteger count = new AtomicInteger();
-            Dispatcher d = subCon.createDispatcher((msg) -> {
+            Dispatcher d = subCon.createDispatcher(msg -> {
                 try {
                     Thread.sleep(1500); // go slow so the main app can drain us
                 } catch (Exception e) {
@@ -600,11 +512,12 @@ public class DrainTests {
                     count.incrementAndGet();
                 }
             });
-            d.subscribe("draintest");
+            String subject = random();
+            d.subscribe(subject);
             subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-            pubCon.publish("draintest", null);
-            pubCon.publish("draintest", null);
+            pubCon.publish(subject, null);
+            pubCon.publish(subject, null);
             pubCon.flush(Duration.ofSeconds(1));
 
             subCon.flush(Duration.ofSeconds(1));
@@ -614,22 +527,18 @@ public class DrainTests {
 
             assertTrue(tracker.get(10, TimeUnit.SECONDS));
             assertTrue(((NatsConnection) subCon).isDrained());
-            assertEquals(count.get(), 2); // Should get both
-            assertSame(Connection.Status.CLOSED, subCon.getStatus());
-        }
+            assertEquals(2, count.get()); // Should get both
+            assertClosed(subCon);
+        });
     }
 
     @Test
     public void testSlowAsyncDuringDrainCanBeInterrupted() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).errorListener(listener).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
-            assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
-
+        Listener listener = new Listener();
+        runInSharedOwnNc(optionsBuilder().errorListener(listener).maxReconnects(0), subCon -> {
+            Connection pubCon = SharedServer.sharedConnectionForSameServer(subCon);
             AtomicInteger count = new AtomicInteger();
-            Dispatcher d = subCon.createDispatcher((msg) -> {
+            Dispatcher d = subCon.createDispatcher(msg -> {
                 try {
                     Thread.sleep(3000); // go slow so the main app can drain us
                 } catch (Exception e) {
@@ -640,11 +549,12 @@ public class DrainTests {
                     count.incrementAndGet();
                 }
             });
-            d.subscribe("draintest");
+            String subject = random();
+            d.subscribe(subject);
             subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-            pubCon.publish("draintest", null);
-            pubCon.publish("draintest", null);
+            pubCon.publish(subject, null);
+            pubCon.publish(subject, null);
             pubCon.flush(Duration.ofSeconds(1));
 
             subCon.flush(Duration.ofSeconds(1));
@@ -656,37 +566,32 @@ public class DrainTests {
             assertFalse(tracker.get(10, TimeUnit.SECONDS));
             assertFalse(((NatsConnection) subCon).isDrained());
             assertEquals(0, listener.getExceptionCount()); // Don't throw during drain from reader
-            assertSame(Connection.Status.CLOSED, subCon.getStatus());
-        }
-    }
-
-    @Test
-    public void testThrowIfCantFlush() {
-        assertThrows(TimeoutException.class, () -> {
-            ListenerForTesting listener = new ListenerForTesting();
-            try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection subCon = Nats.connect(new Options.Builder().connectionListener(listener).server(ts.getURI()).build())) {
-                assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
-                subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
-
-                listener.prepForStatusChange(Events.DISCONNECTED);
-                ts.close(); // make the drain flush fail
-                listener.waitForStatusChange(2, TimeUnit.SECONDS); // make sure the connection is down
-                subCon.drain(Duration.ofSeconds(1)); //should throw
-            }
+            assertClosed(subCon);
         });
     }
 
     @Test
-    public void testThrowIfClosing() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-                assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
+    public void testThrowIfCantFlush() throws Exception {
+        Listener listener = new Listener();
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = optionsBuilder(ts).connectionListener(listener).build();
+            try (Connection subCon = managedConnect(options)) {
+                subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
 
-                subCon.close();
-                subCon.drain(Duration.ofSeconds(1));
+                listener.queueConnectionEvent(Events.DISCONNECTED);
+                ts.close(); // make the drain flush fail
+                listener.validate();
+
+                assertThrows(TimeoutException.class, () -> subCon.drain(Duration.ofSeconds(1)));
             }
+        }
+    }
+
+    @Test
+    public void testThrowIfClosing() throws Exception {
+        runInSharedOwnNc(optionsBuilder().maxReconnects(0), subCon -> {
+            subCon.close();
+            assertThrows(IllegalStateException.class, () -> subCon.drain(Duration.ofSeconds(1)));
         });
     }
 }

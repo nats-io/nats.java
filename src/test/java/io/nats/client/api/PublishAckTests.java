@@ -69,9 +69,7 @@ public class PublishAckTests {
 
     @Test
     public void testThrowsOnGarbage() {
-        assertThrows(JetStreamApiException.class, () -> {
-            new PublishAck(getDataMessage("notjson"));
-       });
+        assertThrows(JetStreamApiException.class, () -> new PublishAck(getDataMessage("notjson")));
     }
       
     @Test

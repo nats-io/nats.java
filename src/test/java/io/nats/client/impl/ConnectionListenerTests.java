@@ -15,6 +15,8 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.support.Listener;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -22,12 +24,14 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
-import static io.nats.client.utils.TestBase.*;
+import static io.nats.client.utils.ConnectionUtils.*;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class ConnectionListenerTests {
+public class ConnectionListenerTests extends TestBase {
 
     @Test
     public void testToString() {
@@ -35,99 +39,85 @@ public class ConnectionListenerTests {
     }
     
     @Test
-    public void testCloseCount() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            ListenerForTesting listener = new ListenerForTesting();
-            Options options = new Options.Builder().
-                                server(ts.getURI()).
-                                connectionListener(listener).
-                                build();
-            Connection nc = standardConnection(options);
-            assertEquals(ts.getURI(), nc.getConnectedUrl());
-            standardCloseConnection(nc);
+    public void testCloseEvent() throws Exception {
+        Listener listener = new Listener();
+        listener.queueConnectionEvent(Events.CLOSED);
+        Options.Builder builder = optionsBuilder().connectionListener(listener);
+        runInSharedOwnNc(builder, nc -> {
+            closeAndConfirm(nc);
             assertNull(nc.getConnectedUrl());
-            assertEquals(1, listener.getEventCount(Events.CLOSED));
-        }
+        });
+        listener.validate();
     }
 
     @Test
     public void testDiscoveredServersCountAndListenerInOptions() throws Exception {
-
-        try (NatsTestServer ts = new NatsTestServer()) {
-            String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\",\"connect_urls\": [\""+ts.getURI()+"\"]}";
-            try (NatsServerProtocolMock ts2 = new NatsServerProtocolMock(null, customInfo)) {
-                ListenerForTesting listener = new ListenerForTesting();
-                Options options = new Options.Builder().
-                                    server(ts2.getURI()).
-                                    maxReconnects(0).
-                                    connectionListener(listener).
-                                    build();
-                                    
-                listener.prepForStatusChange(Events.CONNECTED);
-                standardCloseConnection( listenerConnectionWait(options, listener) );
-                assertEquals(1, listener.getEventCount(Events.DISCOVERED_SERVERS));
+        runInSharedServer(ts -> {
+            String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\",\"connect_urls\": [\""+ts.getServerUri()+"\"]}";
+            try (NatsServerProtocolMock mockTs2 = new NatsServerProtocolMock(null, customInfo)) {
+                Listener listener = new Listener();
+                Options options = optionsBuilder(mockTs2)
+                    .maxReconnects(0)
+                    .connectionListener(listener)
+                    .build();
+                listener.queueConnectionEvent(Events.DISCOVERED_SERVERS);
+                try (Connection ignore = standardConnect(options)) {
+                    listener.validate();
+                }
             }
-        }
+        });
     }
 
     @Test
     public void testDisconnectReconnectCount() throws Exception {
         int port;
         Connection nc;
-        ListenerForTesting listener = new ListenerForTesting();
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Options options = new Options.Builder().
-                    server(ts.getURI()).
-                    reconnectWait(Duration.ofMillis(100)).
-                    maxReconnects(-1).
-                    connectionListener(listener).
-                    build();
+        Listener listener = new Listener();
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = optionsBuilder(ts)
+                .reconnectWait(Duration.ofMillis(100))
+                .maxReconnects(-1)
+                .connectionListener(listener)
+                .build();
             port = ts.getPort();
-            nc = standardConnection(options);
-            assertEquals(ts.getURI(), nc.getConnectedUrl());
-            listener.prepForStatusChange(Events.DISCONNECTED);
+            nc = managedConnect(options);
+            assertEquals(ts.getServerUri(), nc.getConnectedUrl());
+            listener.queueConnectionEvent(Events.DISCONNECTED);
         }
 
         try { nc.flush(Duration.ofMillis(250)); } catch (Exception exp) { /* ignored */ }
 
-        listener.waitForStatusChange(1000, TimeUnit.MILLISECONDS);
-        assertTrue(listener.getEventCount(Events.DISCONNECTED) >= 1);
+        listener.validate();
         assertNull(nc.getConnectedUrl());
 
-        try (NatsTestServer ts = new NatsTestServer(port, false)) {
-            standardConnectionWait(nc);
-            assertEquals(1, listener.getEventCount(Events.RECONNECTED));
-            assertEquals(ts.getURI(), nc.getConnectedUrl());
-            standardCloseConnection(nc);
+        listener.queueConnectionEvent(Events.RECONNECTED);
+        try (NatsTestServer ts = new NatsTestServer(port)) {
+            confirmConnected(nc); // wait for reconnect
+            listener.validate();
+            assertEquals(ts.getServerUri(), nc.getConnectedUrl());
+            closeAndConfirm(nc);
         }
     }
 
     @Test
     public void testExceptionInConnectionListener() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            BadHandler listener = new BadHandler();
-            Options options = new Options.Builder().
-                                server(ts.getURI()).
-                                connectionListener(listener).
-                                build();
-            Connection nc = standardConnection(options);
-            standardCloseConnection(nc);
-            assertTrue(((NatsConnection)nc).getStatisticsCollector().getExceptions() > 0);
-        }
+        BadHandler badHandler = new BadHandler();
+        Options.Builder builder = optionsBuilder().connectionListener(badHandler);
+        AtomicReference<Statistics> stats = new AtomicReference<>();
+        runInSharedOwnNc(builder, nc -> stats.set(nc.getStatistics()));
+        sleep(100); // it needs time here
+        assertTrue(stats.get().getExceptions() > 0);
     }
 
     @Test
     public void testMultipleConnectionListeners() throws Exception {
         Set<String> capturedEvents = ConcurrentHashMap.newKeySet();
-
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            ListenerForTesting listener = new ListenerForTesting();
-            Options options = new Options.Builder().
-                                server(ts.getURI()).
-                                connectionListener(listener).
-                                build();
-            Connection nc = standardConnection(options);
-            assertEquals(ts.getURI(), nc.getConnectedUrl());
+        Listener listener = new Listener();
+        listener.queueConnectionEvent(Events.CLOSED);
+        AtomicReference<Statistics> stats = new AtomicReference<>();
+        Options.Builder builder = optionsBuilder().connectionListener(listener);
+        runInSharedOwnNc(builder, nc -> {
+            stats.set(nc.getStatistics());
 
             //noinspection DataFlowIssue // addConnectionListener parameter is annotated as @NonNull
             assertThrows(NullPointerException.class, () -> nc.addConnectionListener(null));
@@ -143,18 +133,18 @@ public class ConnectionListenerTests {
             nc.addConnectionListener((conn, event) -> capturedEvents.add("CL4-" + event.name()));
             nc.removeConnectionListener(removedConnectionListener);
 
-            standardCloseConnection(nc);
+            closeAndConfirm(nc);
             assertNull(nc.getConnectedUrl());
-            assertEquals(1, listener.getEventCount(Events.CLOSED));
-            assertTrue(((NatsConnection)nc).getStatisticsCollector().getExceptions() > 0);
-        }
+        });
+
+        assertTrue(stats.get().getExceptions() > 0);
+        listener.validate();
 
         Set<String> expectedEvents = new HashSet<>(Arrays.asList(
                 "CL1-CLOSED",
                 "CL2-CLOSED",
                 "CL3-CLOSED",
                 "CL4-CLOSED"));
-
         assertEquals(expectedEvents, capturedEvents);
     }
 

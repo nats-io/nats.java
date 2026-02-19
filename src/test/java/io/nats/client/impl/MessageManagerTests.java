@@ -15,21 +15,29 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.api.StorageType;
+import io.nats.client.api.StreamConfiguration;
 import io.nats.client.support.IncomingHeadersProcessor;
+import io.nats.client.support.Listener;
+import io.nats.client.support.ListenerStatusType;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 import static io.nats.client.impl.MessageManager.ManageResult;
+import static io.nats.client.impl.MessageManager.ManageResult.*;
+import static io.nats.client.support.Listener.SHORT_VALIDATE_TIMEOUT;
+import static io.nats.client.support.ListenerStatusType.PullError;
+import static io.nats.client.support.ListenerStatusType.PullWarning;
 import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
 import static io.nats.client.support.NatsJetStreamConstants.CONSUMER_STALLED_HDR;
 import static io.nats.client.support.Status.*;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SuppressWarnings("SameParameterValue")
@@ -37,8 +45,8 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void testConstruction() throws Exception {
-        runInJsServer(nc -> {
-            NatsJetStreamSubscription sub = genericPushSub(nc);
+        runInSharedCustom((nc, ctx) -> {
+            NatsJetStreamSubscription sub = genericPushSub(ctx);
             _pushConstruction(nc, true, true, push_hb_fc(), sub);
             _pushConstruction(nc, true, false, push_hb_xfc(), sub);
             _pushConstruction(nc, false, false, push_xhb_xfc(), sub);
@@ -51,9 +59,9 @@ public class MessageManagerTests extends JetStreamTestBase {
         }
     }
 
-    private void _pushConstruction(Connection conn, boolean hb, boolean fc, SubscribeOptions so, NatsJetStreamSubscription sub) {
+    private void _pushConstruction(Connection nc, boolean hb, boolean fc, SubscribeOptions so, NatsJetStreamSubscription sub) {
         tf(ordered -> tf(syncMode -> tf(queueMode -> {
-            PushMessageManager manager = getPushManager(conn, so, sub, ordered, syncMode, queueMode);
+            PushMessageManager manager = getPushManager(nc, so, sub, ordered, syncMode, queueMode);
             assertEquals(syncMode, manager.isSyncMode());
             assertEquals(queueMode, manager.isQueueMode());
             if (queueMode) {
@@ -69,84 +77,66 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void testPushBeforeQueueProcessorAndManage() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
-        runInJsServer(listener, nc -> {
-            NatsJetStreamSubscription sub = genericPushSub(nc);
-
-            PushMessageManager pushMgr = getPushManager(nc, push_hb_fc(), sub, false, true, false);
-            testPushBqpAndManage(sub, listener, pushMgr);
-
-            pushMgr = getPushManager(nc, push_hb_xfc(), sub, false, true, false);
-            testPushBqpAndManage(sub, listener, pushMgr);
-
-            pushMgr = getPushManager(nc, push_xhb_xfc(), sub, false, true, false);
-            testPushBqpAndManage(sub, listener, pushMgr);
-
-            pushMgr = getPushManager(nc, push_hb_fc(), sub, false, false, false);
-            testPushBqpAndManage(sub, listener, pushMgr);
-
-            pushMgr = getPushManager(nc, push_hb_xfc(), sub, false, false, false);
-            testPushBqpAndManage(sub, listener, pushMgr);
-
-            pushMgr = getPushManager(nc, push_xhb_xfc(), sub, false, false, false);
-            testPushBqpAndManage(sub, listener, pushMgr);
+        Listener listener = new Listener();
+        runInSharedCustom(listener, (nc, ctx) -> {
+            _testPushBqpAndManageRetriable(nc, ctx, listener, push_hb_fc(), false, true, false);
+            _testPushBqpAndManageRetriable(nc, ctx, listener, push_hb_xfc(), false, true, false);
+            _testPushBqpAndManageRetriable(nc, ctx, listener, push_xhb_xfc(), false, true, false);
+            _testPushBqpAndManageRetriable(nc, ctx, listener, push_hb_fc(), false, false, false);
+            _testPushBqpAndManageRetriable(nc, ctx, listener, push_hb_xfc(), false, false, false);
+            _testPushBqpAndManageRetriable(nc, ctx, listener, push_xhb_xfc(), false, false, false);
         });
     }
 
-    private void testPushBqpAndManage(NatsJetStreamSubscription sub, ListenerForTesting listener, PushMessageManager manager) {
+    private void _testPushBqpAndManageRetriable(Connection nc, JetStreamTestingContext ctx, Listener listener, PushSubscribeOptions pso, boolean ordered, boolean syncMode, boolean queueMode) throws JetStreamApiException, IOException {
         listener.reset();
+
+        NatsJetStreamSubscription sub = genericPushSub(ctx);
         String sid = sub.getSID();
+        PushMessageManager manager = getPushManager(nc, pso, sub, ordered, syncMode, queueMode);
 
         assertTrue(manager.beforeQueueProcessorImpl(getTestJsMessage(1, sid)));
         assertEquals(ManageResult.MESSAGE, manager.manage(getTestJsMessage(1, sid)));
 
         assertEquals(!manager.hb.get(), manager.beforeQueueProcessorImpl(getHeartbeat(sid)));
 
-        List<Integer> unhandledCodes = new ArrayList<>();
         assertTrue(manager.beforeQueueProcessorImpl(getFlowControl(1, sid)));
         assertTrue(manager.beforeQueueProcessorImpl(getFcHeartbeat(1, sid)));
         if (manager.fc) {
-            assertEquals(ManageResult.STATUS_HANDLED, manager.manage(getFlowControl(1, sid)));
-            assertEquals(ManageResult.STATUS_HANDLED, manager.manage(getFcHeartbeat(1, sid)));
+            listener.queueFlowControl(getFcSubject(1), ErrorListener.FlowControlSource.FLOW_CONTROL);
+            assertEquals(STATUS_HANDLED, manager.manage(getFlowControl(1, sid)));
+            assertEquals(STATUS_HANDLED, manager.manage(getFcHeartbeat(1, sid)));
+            listener.validate();
         }
         else {
-            assertEquals(ManageResult.STATUS_ERROR, manager.manage(getFlowControl(1, sid)));
-            assertEquals(ManageResult.STATUS_ERROR, manager.manage(getFcHeartbeat(1, sid)));
-            unhandledCodes.add(FLOW_OR_HEARTBEAT_STATUS_CODE); // fc
-            unhandledCodes.add(FLOW_OR_HEARTBEAT_STATUS_CODE); // hb
+            listener.queueStatus(ListenerStatusType.Unhandled, FLOW_OR_HEARTBEAT_STATUS_CODE);
+            assertEquals(STATUS_ERROR, manager.manage(getFlowControl(1, sid)));
+            listener.validate();
+
+            listener.queueStatus(ListenerStatusType.Unhandled, FLOW_OR_HEARTBEAT_STATUS_CODE);
+            assertEquals(STATUS_ERROR, manager.manage(getFcHeartbeat(1, sid)));
+            listener.validate();
         }
 
         assertTrue(manager.beforeQueueProcessorImpl(getUnkownStatus(sid)));
-        assertEquals(ManageResult.STATUS_ERROR, manager.manage(getUnkownStatus(sid)));
-        unhandledCodes.add(999);
-
-        sleep(100);
-        List<ListenerForTesting.StatusEvent> list = listener.getUnhandledStatuses();
-        assertEquals(unhandledCodes.size(), list.size());
-        for (int x = 0; x < list.size(); x++) {
-            ListenerForTesting.StatusEvent se = list.get(x);
-            assertSame(sub.getSID(), se.sid);
-            assertEquals(unhandledCodes.get(x), se.status.getCode());
-        }
+        listener.queueStatus(ListenerStatusType.Unhandled, 999);
+        assertEquals(STATUS_ERROR, manager.manage(getUnkownStatus(sid)));
+        listener.validate();
     }
 
     @Test
     public void testPullBeforeQueueProcessorAndManage() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
-        runInJsServer(listener, nc -> {
-            NatsJetStreamSubscription sub = genericPullSub(nc);
-
-            PullMessageManager pullMgr = getPullManager(nc, sub, true);
-            pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).build(), true, null);
-            testPullBqpAndManage(sub, listener, pullMgr);
-
-            pullMgr = getPullManager(nc, sub, true);
-            pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).expiresIn(10000).idleHeartbeat(100).build(), true, null);
-            testPullBqpAndManage(sub, listener, pullMgr);
+        Listener listener = new Listener();
+        runInSharedOwnNc(listener, (nc, ctx) -> {
+            _testPullBqpAndManage(nc, ctx, listener, PullRequestOptions.builder(1).build());
+            _testPullBqpAndManage(nc, ctx, listener,  PullRequestOptions.builder(1).expiresIn(10000).idleHeartbeat(100).build());
         });
     }
 
-    private void testPullBqpAndManage(NatsJetStreamSubscription sub, ListenerForTesting listener, PullMessageManager manager) {
+    private void _testPullBqpAndManage(Connection nc, JetStreamTestingContext ctx, Listener listener, PullRequestOptions pro) throws JetStreamApiException, IOException {
+        NatsJetStreamSubscription sub = genericPullSub(ctx);
+        PullMessageManager manager = getPullManager(nc, sub, true);
+        manager.startPullRequest(random(), pro, true, null);
         listener.reset();
         String sid = sub.getSID();
 
@@ -168,108 +158,88 @@ public class MessageManagerTests extends JetStreamTestBase {
         assertTrue(manager.beforeQueueProcessorImpl(getConflictStatus(sid, CONSUMER_IS_PUSH_BASED)));
 
         assertEquals(ManageResult.MESSAGE, manager.manage(getTestJsMessage(1, sid)));
-        assertEquals(ManageResult.STATUS_TERMINUS, manager.manage(getNotFoundStatus(sid)));
-        assertEquals(ManageResult.STATUS_TERMINUS, manager.manage(getRequestTimeoutStatus(sid)));
-        assertEquals(ManageResult.STATUS_TERMINUS, manager.manage(getConflictStatus(sid, BATCH_COMPLETED)));
-        assertEquals(ManageResult.STATUS_TERMINUS, manager.manage(getConflictStatus(sid, MESSAGE_SIZE_EXCEEDS_MAX_BYTES)));
-        assertEquals(ManageResult.STATUS_HANDLED, manager.manage(getConflictStatus(sid, EXCEEDED_MAX_WAITING)));
-        assertEquals(ManageResult.STATUS_HANDLED, manager.manage(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_BATCH)));
-        assertEquals(ManageResult.STATUS_HANDLED, manager.manage(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_EXPIRES)));
-        assertEquals(ManageResult.STATUS_HANDLED, manager.manage(getConflictStatus(sid, EXCEEDED_MAX_REQUEST_MAX_BYTES)));
 
-        assertEquals(ManageResult.STATUS_ERROR, manager.manage(getBadRequest(sid)));
-        assertEquals(ManageResult.STATUS_ERROR, manager.manage(getUnkownStatus(sid)));
-        assertEquals(ManageResult.STATUS_ERROR, manager.manage(getConflictStatus(sid, CONSUMER_DELETED)));
-        assertEquals(ManageResult.STATUS_ERROR, manager.manage(getConflictStatus(sid, CONSUMER_IS_PUSH_BASED)));
+        assertManageResult(listener, PullWarning, NOT_FOUND_CODE, STATUS_TERMINUS, manager, getNotFoundStatus(sid));
+        assertManageResult(listener, PullWarning, REQUEST_TIMEOUT_CODE, STATUS_TERMINUS, manager, getRequestTimeoutStatus(sid));
+        assertManageResult(listener, PullWarning, CONFLICT_CODE, STATUS_TERMINUS, manager, getConflictStatus(sid, BATCH_COMPLETED));
+        assertManageResult(listener, PullWarning, CONFLICT_CODE, STATUS_TERMINUS, manager, getConflictStatus(sid, MESSAGE_SIZE_EXCEEDS_MAX_BYTES));
+        assertManageResult(listener, PullWarning, CONFLICT_CODE, STATUS_HANDLED, manager, getConflictStatus(sid, EXCEEDED_MAX_WAITING));
+        assertManageResult(listener, PullWarning, CONFLICT_CODE, STATUS_HANDLED, manager, getConflictStatus(sid, EXCEEDED_MAX_REQUEST_BATCH));
+        assertManageResult(listener, PullWarning, CONFLICT_CODE, STATUS_HANDLED, manager, getConflictStatus(sid, EXCEEDED_MAX_REQUEST_EXPIRES));
+        assertManageResult(listener, PullWarning, CONFLICT_CODE, STATUS_HANDLED, manager, getConflictStatus(sid, EXCEEDED_MAX_REQUEST_MAX_BYTES));
 
-        sleep(100);
+        assertManageResult(listener, PullError, BAD_REQUEST_CODE, STATUS_ERROR, manager, getBadRequest(sid));
+        assertManageResult(listener, PullError, 999, STATUS_ERROR, manager, getUnkownStatus(sid));
+        assertManageResult(listener, PullError, CONFLICT_CODE, STATUS_ERROR, manager, getConflictStatus(sid, CONSUMER_DELETED));
+        assertManageResult(listener, PullError, CONFLICT_CODE, STATUS_ERROR, manager, getConflictStatus(sid, CONSUMER_IS_PUSH_BASED));
+    }
 
-        List<ListenerForTesting.StatusEvent> list = listener.getPullStatusWarnings();
-        int[] codes = new int[]{NOT_FOUND_CODE, REQUEST_TIMEOUT_CODE, CONFLICT_CODE, CONFLICT_CODE, CONFLICT_CODE, CONFLICT_CODE, CONFLICT_CODE, CONFLICT_CODE};
-        assertEquals(8, list.size());
-        for (int x = 0; x < list.size(); x++) {
-            ListenerForTesting.StatusEvent se = list.get(x);
-            assertSame(sub.getSID(), se.sid);
-            assertEquals(codes[x], se.status.getCode());
-        }
-
-        list = listener.getPullStatusErrors();
-        assertEquals(4, list.size());
-        codes = new int[]{BAD_REQUEST_CODE, 999, CONFLICT_CODE, CONFLICT_CODE};
-        for (int x = 0; x < list.size(); x++) {
-            ListenerForTesting.StatusEvent se = list.get(x);
-            assertSame(sub.getSID(), se.sid);
-            assertEquals(codes[x], se.status.getCode());
-        }
+    private static void assertManageResult(Listener listener, ListenerStatusType expectedType, int expectedStatusCode, ManageResult expecteManageResult, PullMessageManager manager, NatsMessage message) {
+        listener.queueStatus(expectedType, expectedStatusCode);
+        assertEquals(expecteManageResult, manager.manage(message));
+        listener.validate();
     }
 
     @Test
     public void testPushManagerHeartbeats() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
-        runInJsServer(listener, nc -> {
+        Listener listener = new Listener();
+        runInSharedOwnNc(listener, nc -> {
             PushMessageManager pushMgr = getPushManager(nc, push_xhb_xfc(), null, false, true, false);
             NatsJetStreamSubscription sub = mockSub((NatsConnection)nc, pushMgr);
 
-            listener.reset();
-            listener.prepForHeartbeatAlarm();
+            listener.queueHeartbeat(SHORT_VALIDATE_TIMEOUT);
             pushMgr.startup(sub);
-            ListenerForTesting.HeartbeatAlarmEvent event = listener.waitForHeartbeatAlarm(1000);
-            assertNull(event);
+            listener.validateNotReceived();
 
             listener.reset();
-            listener.prepForHeartbeatAlarm();
+            listener.queueHeartbeat(SHORT_VALIDATE_TIMEOUT);
             pushMgr = getPushManager(nc, push_xhb_xfc(), null, false, false, false);
             sub = mockSub((NatsConnection)nc, pushMgr);
             pushMgr.startup(sub);
-            event = listener.waitForHeartbeatAlarm(1000);
-            assertNull(event);
+            listener.validateNotReceived();
 
             listener.reset();
-            listener.prepForHeartbeatAlarm();
+            listener.queueHeartbeat(SHORT_VALIDATE_TIMEOUT);
             PushSubscribeOptions pso = ConsumerConfiguration.builder().idleHeartbeat(100).buildPushSubscribeOptions();
             pushMgr = getPushManager(nc, pso, null, false, true, false);
             sub = mockSub((NatsConnection)nc, pushMgr);
             pushMgr.startup(sub);
-            event = listener.waitForHeartbeatAlarm(1000);
-            assertNotNull(event);
+            listener.validate();
 
             listener.reset();
-            listener.prepForHeartbeatAlarm();
+            listener.queueHeartbeat(SHORT_VALIDATE_TIMEOUT);
             pushMgr = getPushManager(nc, pso, null, false, false, false);
             sub = mockSub((NatsConnection)nc, pushMgr);
             pushMgr.startup(sub);
-            event = listener.waitForHeartbeatAlarm(1000);
-            assertNotNull(event);
+            pushMgr.startup(sub);
         });
     }
 
     @Test
     public void testPullManagerHeartbeats() throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
-        runInJsServer(listener, nc -> {
+        Listener listener = new Listener();
+        runInSharedOwnNc(listener, nc -> {
+            listener.queueHeartbeat(SHORT_VALIDATE_TIMEOUT);
             PullMessageManager pullMgr = getPullManager(nc, null, true);
             NatsJetStreamSubscription sub = mockSub((NatsConnection)nc, pullMgr);
             pullMgr.startup(sub);
             pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).build(), false, null);
-            assertEquals(0, listener.getHeartbeatAlarms().size());
+            listener.validateNotReceived();
 
             listener.reset();
-            listener.prepForHeartbeatAlarm();
+            listener.queueHeartbeat(SHORT_VALIDATE_TIMEOUT);
             pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).expiresIn(10000).idleHeartbeat(100).build(), false, null);
-            ListenerForTesting.HeartbeatAlarmEvent event = listener.waitForHeartbeatAlarm(1000);
-            assertNotNull(event);
+            listener.validate();
 
             listener.reset();
-            listener.prepForHeartbeatAlarm();
+            listener.queueHeartbeat(SHORT_VALIDATE_TIMEOUT);
             pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).expiresIn(10000).idleHeartbeat(100).build(), false, null);
-            event = listener.waitForHeartbeatAlarm(1000);
-            assertNotNull(event);
+            listener.validate();
 
             listener.reset();
-            listener.prepForHeartbeatAlarm();
+            listener.queueHeartbeat(SHORT_VALIDATE_TIMEOUT);
             pullMgr.startPullRequest("pullSubject", PullRequestOptions.builder(1).build(), false, null);
-            event = listener.waitForHeartbeatAlarm(1000);
-            assertNull(event);
+            listener.validateNotReceived();
         });
     }
 
@@ -308,7 +278,7 @@ public class MessageManagerTests extends JetStreamTestBase {
         assertEquals(getFcSubject(3), mpi.fcSubject);
         assertEquals(3, mpi.pubCount);
 
-        assertEquals(ManageResult.STATUS_ERROR, pmm.manage(getHeartbeat(sid)));
+        assertEquals(STATUS_ERROR, pmm.manage(getHeartbeat(sid)));
         assertEquals(getFcSubject(3), pmm.getLastFcSubject());
         assertEquals(getFcSubject(3), mpi.fcSubject);
         assertEquals(3, mpi.pubCount);
@@ -342,12 +312,12 @@ public class MessageManagerTests extends JetStreamTestBase {
         pmm.startup(sub);
         assertNull(pmm.getLastFcSubject());
 
-        assertEquals(ManageResult.STATUS_ERROR, pmm.manage(getFlowControl(1, sid)));
+        assertEquals(STATUS_ERROR, pmm.manage(getFlowControl(1, sid)));
         assertNull(pmm.getLastFcSubject());
         assertNull(mpi.fcSubject);
         assertEquals(0, mpi.pubCount);
 
-        assertEquals(ManageResult.STATUS_ERROR, pmm.manage(getHeartbeat(sid)));
+        assertEquals(STATUS_ERROR, pmm.manage(getHeartbeat(sid)));
         assertNull(pmm.getLastFcSubject());
         assertNull(mpi.fcSubject);
         assertEquals(0, mpi.pubCount);
@@ -369,8 +339,8 @@ public class MessageManagerTests extends JetStreamTestBase {
 
         // coverage manager
         assertEquals(ManageResult.MESSAGE, pmm.manage(getTestJsMessage(1, sid)));
-        assertEquals(ManageResult.STATUS_ERROR, pmm.manage(getFlowControl(1, sid)));
-        assertEquals(ManageResult.STATUS_ERROR, pmm.manage(getFcHeartbeat(1, sid)));
+        assertEquals(STATUS_ERROR, pmm.manage(getFlowControl(1, sid)));
+        assertEquals(STATUS_ERROR, pmm.manage(getFcHeartbeat(1, sid)));
 
         // coverage beforeQueueProcessor
         assertTrue(pmm.beforeQueueProcessorImpl(getTestJsMessage(3, sid)));
@@ -386,14 +356,10 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void test_received_time() throws Exception {
-        runInJsServer(nc -> {
-            JetStream js = nc.jetStream();
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
-
-            _received_time_yes(push_hb_fc(), js, tsc.subject());
-            _received_time_yes(push_hb_xfc(), js, tsc.subject());
-            _received_time_no(js, jsm, tsc.stream, tsc.subject(), js.subscribe(tsc.subject(), push_xhb_xfc()));
+        runInShared((nc, ctx) -> {
+            _received_time_yes(push_hb_fc(), ctx.js, ctx.subject());
+            _received_time_yes(push_hb_xfc(), ctx.js, ctx.subject());
+            _received_time_no(ctx.js, ctx.jsm, ctx.stream, ctx.subject(), ctx.js.subscribe(ctx.subject(), push_xhb_xfc()));
         });
     }
 
@@ -416,7 +382,7 @@ public class MessageManagerTests extends JetStreamTestBase {
             return (PushMessageManager)mm;
         }
         return null;
-    };
+    }
 
     private void _received_time_no(JetStream js, JetStreamManagement jsm, String stream, String subject, JetStreamSubscription sub) throws IOException, JetStreamApiException, InterruptedException {
         js.publish(subject, dataBytes(0));
@@ -429,8 +395,8 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void test_hb_yes_settings() throws Exception {
-        runInJsServer(nc -> {
-            NatsJetStreamSubscription sub = genericPushSub(nc);
+        runInShared((nc, ctx) -> {
+            NatsJetStreamSubscription sub = genericPushSub(ctx);
 
             ConsumerConfiguration cc = ConsumerConfiguration.builder().idleHeartbeat(1000).build();
 
@@ -462,8 +428,8 @@ public class MessageManagerTests extends JetStreamTestBase {
 
     @Test
     public void test_hb_no_settings() throws Exception {
-        runInJsServer(nc -> {
-            NatsJetStreamSubscription sub = genericPushSub(nc);
+        runInShared((nc, ctx) -> {
+            NatsJetStreamSubscription sub = genericPushSub(ctx);
             SubscribeOptions so = push_xhb_xfc();
             PushMessageManager manager = getPushManager(nc, so, sub, false);
             assertEquals(0, manager.getIdleHeartbeatSetting());
@@ -576,7 +542,7 @@ public class MessageManagerTests extends JetStreamTestBase {
         String fcSubject;
 
         public MockPublishInternal() {
-            this(new Options.Builder().errorListener(new ErrorListener() {}).build());
+            this(optionsBuilder().build());
         }
 
         public MockPublishInternal(Options options) {
@@ -591,23 +557,26 @@ public class MessageManagerTests extends JetStreamTestBase {
     }
 
     static AtomicInteger ID = new AtomicInteger();
-    private static NatsJetStreamSubscription genericPushSub(Connection nc) throws IOException, JetStreamApiException {
-        String subject = genericSub(nc);
-        JetStream js = nc.jetStream();
-        return (NatsJetStreamSubscription) js.subscribe(subject);
+    private static NatsJetStreamSubscription genericPushSub(JetStreamTestingContext ctx) throws IOException, JetStreamApiException {
+        String subject = genericSub(ctx);
+        return (NatsJetStreamSubscription) ctx.js.subscribe(subject);
     }
 
-    private static NatsJetStreamSubscription genericPullSub(Connection nc) throws IOException, JetStreamApiException {
-        String subject = genericSub(nc);
-        JetStream js = nc.jetStream();
-        return (NatsJetStreamSubscription) js.subscribe(subject, PullSubscribeOptions.DEFAULT_PULL_OPTS);
+    private static NatsJetStreamSubscription genericPullSub(JetStreamTestingContext ctx) throws IOException, JetStreamApiException {
+        String subject = genericSub(ctx);
+        return (NatsJetStreamSubscription) ctx.js.subscribe(subject, PullSubscribeOptions.DEFAULT_PULL_OPTS);
     }
 
-    private static String genericSub(Connection nc) throws IOException, JetStreamApiException {
+    private static String genericSub(JetStreamTestingContext ctx) throws IOException, JetStreamApiException {
         String id = "-" + ID.incrementAndGet() + "-" + System.currentTimeMillis();
-        String stream = STREAM + id;
-        String subject = STREAM + id;
-        createMemoryStream(nc, stream, subject);
+        String stream = random() + id;
+        String subject = random() + id;
+        StreamConfiguration sc = StreamConfiguration.builder()
+            .name(stream)
+            .storageType(StorageType.Memory)
+            .subjects(subject)
+            .build();
+        ctx.addStream(sc);
         return subject;
     }
 
@@ -637,6 +606,7 @@ public class MessageManagerTests extends JetStreamTestBase {
     @Test
     public void testMessageManagerInterfaceDefaultImplCoverage() {
         // make a dummy connection so we can make a subscription
+        // notice we don't nc.connect
         Options options = Options.builder().build();
         NatsConnection nc = new NatsConnection(options);
 

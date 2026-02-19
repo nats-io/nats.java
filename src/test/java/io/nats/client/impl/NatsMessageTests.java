@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
 import io.nats.client.support.IncomingHeadersProcessor;
+import io.nats.client.utils.ConnectionUtils;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -24,6 +25,8 @@ import java.util.List;
 
 import static io.nats.client.support.NatsConstants.OP_PING;
 import static io.nats.client.support.NatsConstants.OP_PING_BYTES;
+import static io.nats.client.utils.OptionsUtils.options;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ResourceUtils.dataAsLines;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -110,65 +113,37 @@ public class NatsMessageTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testCustomMaxControlLine() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            byte[] body = new byte[10];
-            String subject = "subject";
-            int maxControlLine = 1024;
+    public void testCustomMaxControlLine() throws Exception {
+        byte[] body = new byte[10];
+        int maxControlLine = 1024;
 
-            while (subject.length() <= maxControlLine) {
-                subject += subject;
-            }
+        StringBuilder subject = new StringBuilder(random());
+        while (subject.length() <= maxControlLine) {
+            subject.append(subject);
+        }
 
-            try (NatsTestServer ts = new NatsTestServer()) {
-                Options options = new Options.Builder().
-                        server(ts.getURI()).
-                        maxReconnects(0).
-                        maxControlLine(maxControlLine).
-                        build();
-                Connection nc = Nats.connect(options);
-                standardConnectionWait(nc);
-                nc.request(subject, body);
-            }
-        });
+        runInSharedOwnNc(optionsBuilder().maxReconnects(0).maxControlLine(maxControlLine),
+            nc -> assertThrows(IllegalArgumentException.class, () -> nc.request(subject.toString(), body)));
     }
 
     @Test
-    public void testBigProtocolLineWithoutBody() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            String subject = "subject";
+    public void testBigProtocolLine() throws Exception {
+        StringBuilder subject = new StringBuilder(random());
+        while (subject.length() <= Options.DEFAULT_MAX_CONTROL_LINE) {
+            subject.append(subject);
+        }
+        try (NatsServerProtocolMock mockTs = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
+            try (Connection nc = ConnectionUtils.standardConnect(options(mockTs))) {
+                // Without Body
+                assertThrows(IllegalArgumentException.class, () -> nc.subscribe(subject.toString()));
 
-            while (subject.length() <= Options.DEFAULT_MAX_CONTROL_LINE) {
-                subject += subject;
+                // With Body
+                byte[] body = new byte[10];
+                String replyTo = "reply";
+                assertThrows(IllegalArgumentException.class, () -> nc.publish(subject.toString(), replyTo, body));
             }
-
-            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT);
-                 NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-                standardConnectionWait(nc);
-                nc.subscribe(subject);
-            }
-        });
+        }
     }
-
-    @Test
-    public void testBigProtocolLineWithBody() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            byte[] body = new byte[10];
-            String subject = "subject";
-            String replyTo = "reply";
-
-            while (subject.length() <= Options.DEFAULT_MAX_CONTROL_LINE) {
-                subject += subject;
-            }
-
-            try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT);
-                 NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-                standardConnectionWait(nc);
-                nc.publish(subject, replyTo, body);
-            }
-        });
-    }
-
 
     @Test
     public void notJetStream() throws Exception {
@@ -331,14 +306,14 @@ public class NatsMessageTests extends JetStreamTestBase {
 
     @Test
     public void testHeadersMutableBeforePublish() throws Exception {
-        jsServer.run(connection -> {
-            String subject = subject();
-            Subscription sub = connection.subscribe(subject);
+        runInShared(nc -> {
+            String subject = random();
+            Subscription sub = nc.subscribe(subject);
 
             Headers h = new Headers();
             h.put("one", "A");
             Message m = new NatsMessage(subject, null, h, null);
-            connection.publish(m);
+            nc.publish(m);
             Message incoming = sub.nextMessage(1000);
             assertEquals(1, incoming.getHeaders().size());
 
@@ -346,13 +321,13 @@ public class NatsMessageTests extends JetStreamTestBase {
             // so this will affect the message which is the same
             // as the local copy
             h.put("two", "B");
-            connection.publish(m);
+            nc.publish(m);
             incoming = sub.nextMessage(1000);
             assertEquals(2, incoming.getHeaders().size());
 
             // also if you get the headers from the message
             m.getHeaders().put("three", "C");
-            connection.publish(m);
+            nc.publish(m);
             incoming = sub.nextMessage(1000);
             assertEquals(3, incoming.getHeaders().size());
         });

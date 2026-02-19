@@ -186,11 +186,13 @@ public final class JsonUtilsTests {
         addRawJson(sb, "n/a", "");
         assertEquals(0, sb.length());
 
-        //noinspection UnnecessaryBoxing
-        addField(sb, "iminusone", new Integer(-1));
+        //noinspection WrapperTypeMayBePrimitive
+        Integer i = -1;
+        addField(sb, "iminusone", i);
         assertEquals(0, sb.length());
 
-        addField(sb, "lminusone", new Long(-1));
+        Long l = -1L;
+        addField(sb, "lminusone", l);
         assertEquals(0, sb.length());
 
         addFieldWhenGteMinusOne(sb, "lnull", null);
@@ -235,15 +237,15 @@ public final class JsonUtilsTests {
         addFieldWhenGtZero(sb, "longnull", (Long) null);
         assertEquals(87, sb.length());
 
-        //noinspection UnnecessaryBoxing
-        addFieldWhenGtZero(sb, "intnotgt0", new Integer(0));
+        i = 0;
+        addFieldWhenGtZero(sb, "intnotgt0", i);
         assertEquals(87, sb.length());
 
         addFieldWhenGtZero(sb, "longnotgt0", 0L);
         assertEquals(87, sb.length());
 
-        //noinspection UnnecessaryBoxing
-        addFieldWhenGtZero(sb, "intgt0", new Integer(1));
+        i = 1;
+        addFieldWhenGtZero(sb, "intgt0", i);
         assertEquals(98, sb.length());
 
         addFieldWhenGtZero(sb, "longgt0", 1L);
@@ -481,7 +483,6 @@ public final class JsonUtilsTests {
         addField(sb, "foo64", base64);
         addField(sb, "zdt", zdt);
         endJson(sb);
-        System.out.println(sb);
 
         bytes = readBase64(sb.toString(), string_pattern("foo64"));
         assertArrayEquals(byte64, bytes);

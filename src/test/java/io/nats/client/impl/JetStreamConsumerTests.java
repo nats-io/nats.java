@@ -15,18 +15,19 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
-import io.nats.client.utils.TestBase;
+import io.nats.client.support.Listener;
+import io.nats.client.utils.VersionUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static io.nats.client.support.NatsJetStreamClientError.JsSubOrderedNotAllowOnQueues;
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class JetStreamConsumerTests extends JetStreamTestBase {
@@ -59,35 +60,28 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
 
     @Test
     public void testOrderedConsumerSync() throws Exception {
-        jsServer.run(nc -> {
-            // Setup
-            JetStream js = nc.jetStream();
-            JetStreamManagement jsm = nc.jetStreamManagement();
-
-            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
-
+        runInShared((nc, ctx) -> {
             // Get this in place before any subscriptions are made
-            ((NatsJetStream)js)._pushOrderedMessageManagerFactory = OrderedTestDropSimulator::new;
+            ctx.js._pushOrderedMessageManagerFactory = OrderedTestDropSimulator::new;
 
             // Test queue exception
             IllegalArgumentException iae = assertThrows(IllegalArgumentException.class,
-                () -> js.subscribe(tsc.subject(), QUEUE, PushSubscribeOptions.builder().ordered(true).build()));
+                () -> ctx.js.subscribe(ctx.subject(), random(), PushSubscribeOptions.builder().ordered(true).build()));
             assertTrue(iae.getMessage().contains(JsSubOrderedNotAllowOnQueues.id()));
 
             // Setup sync subscription
-            _testOrderedConsumerSync(js, tsc, null, PushSubscribeOptions.builder().ordered(true).build());
+            _testOrderedConsumerSync(ctx, null, PushSubscribeOptions.builder().ordered(true).build());
 
-            String consumerName = prefix();
-            _testOrderedConsumerSync(js, tsc, consumerName, PushSubscribeOptions.builder().name(consumerName).ordered(true).build());
+            _testOrderedConsumerSync(ctx, ctx.consumerName(), PushSubscribeOptions.builder().name(ctx.consumerName()).ordered(true).build());
         });
     }
 
-    private static void _testOrderedConsumerSync(JetStream js, TestingStreamContainer tsc, String consumerNamePrefix, PushSubscribeOptions pso) throws IOException, JetStreamApiException, TimeoutException, InterruptedException {
-        JetStreamSubscription sub = js.subscribe(tsc.subject(), pso);
+    private static void _testOrderedConsumerSync(JetStreamTestingContext ctx, String consumerNamePrefix, PushSubscribeOptions pso) throws IOException, JetStreamApiException, InterruptedException {
+        JetStreamSubscription sub = ctx.js.subscribe(ctx.subject(), pso);
         String firstConsumerName = validateOrderedConsumerNamePrefix(sub, consumerNamePrefix);
 
         // Published messages will be intercepted by the OrderedTestDropSimulator
-        jsPublish(js, tsc.subject(), 101, 6);
+        jsPublish(ctx.js, ctx.subject(), 101, 6);
 
         // Loop through the messages to make sure I get stream sequence 1 to 6
         int expectedStreamSeq = 1;
@@ -122,28 +116,32 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testOrderedConsumerAsync() throws Exception {
-        jsServer.run(nc -> {
-            // Setup
-            JetStream js = nc.jetStream();
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            _testOrderedConsumerAsync(nc, jsm, js, null, PushSubscribeOptions.builder().ordered(true).build());
-            String customName = variant();
-            _testOrderedConsumerAsync(nc, jsm, js, customName, PushSubscribeOptions.builder().name(customName).ordered(true).build());
+    public void testOrderedConsumerAsyncNoName() throws Exception {
+        runInShared((nc, ctx) -> {
+            // without name (prefix)
+            _testOrderedConsumerAsync(nc, ctx, null,
+                PushSubscribeOptions.builder().ordered(true).build());
         });
     }
 
-    private static void _testOrderedConsumerAsync(Connection nc, JetStreamManagement jsm, JetStream js, String consumerNamePrefix, PushSubscribeOptions pso) throws JetStreamApiException, IOException, TimeoutException, InterruptedException {
-        TestingStreamContainer tsc = new TestingStreamContainer(jsm);
+    @Test
+    public void testOrderedConsumerAsyncWithName() throws Exception {
+        runInShared((nc, ctx) -> {
+            // with name (prefix)
+            _testOrderedConsumerAsync(nc, ctx, ctx.consumerName(),
+                PushSubscribeOptions.builder().name(ctx.consumerName()).ordered(true).build());
+        });
+    }
 
+    private static void _testOrderedConsumerAsync(Connection nc, JetStreamTestingContext ctx, String consumerNamePrefix, PushSubscribeOptions pso) throws JetStreamApiException, IOException, InterruptedException {
         // Get this in place before any subscriptions are made
-        ((NatsJetStream) js)._pushOrderedMessageManagerFactory = OrderedTestDropSimulator::new;
+        ctx.js._pushOrderedMessageManagerFactory = OrderedTestDropSimulator::new;
 
         // We'll need a dispatcher
         Dispatcher d = nc.createDispatcher();
 
         // Test queue exception
-        IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> js.subscribe(tsc.subject(), QUEUE, d, m -> {}, false, pso));
+        IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> ctx.js.subscribe(ctx.subject(), random(), d, m -> {}, false, pso));
         assertTrue(iae.getMessage().contains(JsSubOrderedNotAllowOnQueues.id()));
 
         // Set up an async subscription
@@ -158,11 +156,11 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
             msgLatch.countDown();
         };
 
-        JetStreamSubscription sub = js.subscribe(tsc.subject(), d, handler, false, pso);
+        JetStreamSubscription sub = ctx.js.subscribe(ctx.subject(), d, handler, false, pso);
         String firstConsumerName = validateOrderedConsumerNamePrefix(sub, consumerNamePrefix);
 
         // publish after sub b/c interceptor is set during sub, so before messages come in
-        jsPublish(js, tsc.subject(), 201, 6);
+        jsPublish(ctx.js, ctx.subject(), 201, 6);
 
         // wait for the messages
         awaitAndAssert(msgLatch);
@@ -257,41 +255,39 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
 
     @Test
     public void testHeartbeatError() throws Exception {
-        ListenerForTesting listenerForTesting = new ListenerForTesting();
-        runInJsServer(listenerForTesting, nc -> {
-            TestingStreamContainer tsc = new TestingStreamContainer(nc);
-
-            JetStream js = nc.jetStream();
-
+        Listener listener = new Listener();
+        runInSharedOwnNc(listener, (nc, ctx) -> {
             Dispatcher d = nc.createDispatcher();
             ConsumerConfiguration cc = ConsumerConfiguration.builder().idleHeartbeat(100).build();
-
+            JetStream js = ctx.js;
             PushSubscribeOptions pso = PushSubscribeOptions.builder().configuration(cc).build();
             SimulatorState state = setupFactory(js);
-            JetStreamSubscription sub = js.subscribe(tsc.subject(), pso);
-            validate(sub, listenerForTesting, state, null);
+            JetStreamSubscription sub = js.subscribe(ctx.subject(), pso);
+            validate(sub, listener, state, null);
 
             state = setupFactory(js);
-            sub = js.subscribe(tsc.subject(), d, m -> {}, false, pso);
-            validate(sub, listenerForTesting, state, d);
+            sub = js.subscribe(ctx.subject(), d, m -> {}, false, pso);
+            validate(sub, listener, state, d);
 
             pso = PushSubscribeOptions.builder().ordered(true).configuration(cc).build();
             state = setupOrderedFactory(js);
-            sub = js.subscribe(tsc.subject(), pso);
-            validate(sub, listenerForTesting, state, null);
+            sub = js.subscribe(ctx.subject(), pso);
+            validate(sub, listener, state, null);
 
             state = setupOrderedFactory(js);
-            sub = js.subscribe(tsc.subject(), d, m -> {}, false, pso);
-            validate(sub, listenerForTesting, state, d);
+            sub = js.subscribe(ctx.subject(), d, m -> {}, false, pso);
+            validate(sub, listener, state, d);
 
             state = setupPullFactory(js);
-            sub = js.subscribe(tsc.subject(), PullSubscribeOptions.DEFAULT_PULL_OPTS);
+            sub = js.subscribe(ctx.subject(), PullSubscribeOptions.DEFAULT_PULL_OPTS);
             sub.pull(PullRequestOptions.builder(1).idleHeartbeat(100).expiresIn(2000).build());
-            validate(sub, listenerForTesting, state, null);
+            validate(sub, listener, state, null);
         });
     }
 
-    private static void validate(JetStreamSubscription sub, ListenerForTesting listener, SimulatorState state, Dispatcher d) throws InterruptedException {
+    private static void validate(JetStreamSubscription sub, Listener listener, SimulatorState state, Dispatcher d) throws InterruptedException {
+        listener.reset();
+
         //noinspection ResultOfMethodCallIgnored
         state.latch.await(2, TimeUnit.SECONDS);
         if (d == null) {
@@ -304,14 +300,13 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
         assertTrue(state.hbCounter.get() > 0);
         boolean gotHbAlarm = false;
         for (int x = 0; x < 50; x++) {
-            gotHbAlarm = !listener.getHeartbeatAlarms().isEmpty();
+            gotHbAlarm = listener.getHeartbeatAlarmCount() > 0;
             if (gotHbAlarm) {
                 break;
             }
             sleep(10);
         }
         assertTrue(gotHbAlarm);
-        listener.reset();
     }
 
     private static SimulatorState setupFactory(JetStream js) {
@@ -332,8 +327,6 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
 
     private static SimulatorState setupPullFactory(JetStream js) {
         SimulatorState state = new SimulatorState();
-        // the expected latch count is 1 b/c pull is dead once there is a hb error
-        CountDownLatch latch = new CountDownLatch(1);
         ((NatsJetStream)js)._pullMessageManagerFactory =
             (conn, lJs, stream, so, serverCC, qmode, dispatcher) ->
                 new PullHeartbeatErrorSimulator(conn, false, state);
@@ -342,53 +335,48 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
 
     @Test
     public void testMultipleSubjectFilters() throws Exception {
-        jsServer.run(TestBase::atLeast2_10, nc -> {
-            // Setup
-            JetStream js = nc.jetStream();
-            JetStreamManagement jsm = nc.jetStreamManagement();
-
-            TestingStreamContainer tsc = new TestingStreamContainer(nc, 2);
-
-            jsPublish(js, tsc.subject(0), 10);
-            jsPublish(js, tsc.subject(1), 5);
+        runInSharedCustom(VersionUtils::atLeast2_10, (nc, ctx) -> {
+            ctx.createOrReplaceStream(2);
+            jsPublish(ctx.js, ctx.subject(0), 10);
+            jsPublish(ctx.js, ctx.subject(1), 5);
 
             // push ephemeral
-            ConsumerConfiguration cc = ConsumerConfiguration.builder().filterSubjects(tsc.subject(0), tsc.subject(1)).build();
-            JetStreamSubscription sub = js.subscribe(null, PushSubscribeOptions.builder().configuration(cc).build());
-            validateMultipleSubjectFilterSub(sub, tsc.subject(0));
+            ConsumerConfiguration cc = ConsumerConfiguration.builder().filterSubjects(ctx.subject(0), ctx.subject(1)).build();
+            JetStreamSubscription sub = ctx.js.subscribe(null, PushSubscribeOptions.builder().configuration(cc).build());
+            validateMultipleSubjectFilterSub(sub, ctx.subject(0));
 
             // pull ephemeral
-            sub = js.subscribe(null, PullSubscribeOptions.builder().configuration(cc).build());
+            sub = ctx.js.subscribe(null, PullSubscribeOptions.builder().configuration(cc).build());
             sub.pullExpiresIn(15, 1000);
-            validateMultipleSubjectFilterSub(sub, tsc.subject(0));
+            validateMultipleSubjectFilterSub(sub, ctx.subject(0));
 
             // push named
-            String name = name();
-            cc = ConsumerConfiguration.builder().filterSubjects(tsc.subject(0), tsc.subject(1)).name(name).deliverSubject(deliver()).build();
-            jsm.addOrUpdateConsumer(tsc.stream, cc);
-            sub = js.subscribe(null, PushSubscribeOptions.builder().configuration(cc).build());
-            validateMultipleSubjectFilterSub(sub, tsc.subject(0));
+            String name = random();
+            cc = ConsumerConfiguration.builder().filterSubjects(ctx.subject(0), ctx.subject(1)).name(name).deliverSubject(random()).build();
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, cc);
+            sub = ctx.js.subscribe(null, PushSubscribeOptions.builder().configuration(cc).build());
+            validateMultipleSubjectFilterSub(sub, ctx.subject(0));
 
-            name = name();
-            cc = ConsumerConfiguration.builder().filterSubjects(tsc.subject(0), tsc.subject(1)).name(name).deliverSubject(deliver()).build();
-            jsm.addOrUpdateConsumer(tsc.stream, cc);
-            sub = js.subscribe(null, PushSubscribeOptions.bind(tsc.stream, name));
-            validateMultipleSubjectFilterSub(sub, tsc.subject(0));
+            name = random();
+            cc = ConsumerConfiguration.builder().filterSubjects(ctx.subject(0), ctx.subject(1)).name(name).deliverSubject(random()).build();
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, cc);
+            sub = ctx.js.subscribe(null, PushSubscribeOptions.bind(ctx.stream, name));
+            validateMultipleSubjectFilterSub(sub, ctx.subject(0));
 
             // pull named
-            name = name();
-            cc = ConsumerConfiguration.builder().filterSubjects(tsc.subject(0), tsc.subject(1)).name(name).build();
-            jsm.addOrUpdateConsumer(tsc.stream, cc);
-            sub = js.subscribe(null, PullSubscribeOptions.builder().configuration(cc).build());
+            name = random();
+            cc = ConsumerConfiguration.builder().filterSubjects(ctx.subject(0), ctx.subject(1)).name(name).build();
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, cc);
+            sub = ctx.js.subscribe(null, PullSubscribeOptions.builder().configuration(cc).build());
             sub.pullExpiresIn(15, 1000);
-            validateMultipleSubjectFilterSub(sub, tsc.subject(0));
+            validateMultipleSubjectFilterSub(sub, ctx.subject(0));
 
-            name = name();
-            cc = ConsumerConfiguration.builder().filterSubjects(tsc.subject(0), tsc.subject(1)).name(name).build();
-            jsm.addOrUpdateConsumer(tsc.stream, cc);
-            sub = js.subscribe(null, PullSubscribeOptions.bind(tsc.stream, name));
+            name = random();
+            cc = ConsumerConfiguration.builder().filterSubjects(ctx.subject(0), ctx.subject(1)).name(name).build();
+            ctx.jsm.addOrUpdateConsumer(ctx.stream, cc);
+            sub = ctx.js.subscribe(null, PullSubscribeOptions.bind(ctx.stream, name));
             sub.pullExpiresIn(15, 1000);
-            validateMultipleSubjectFilterSub(sub, tsc.subject(0));
+            validateMultipleSubjectFilterSub(sub, ctx.subject(0));
         });
     }
 
@@ -412,15 +400,13 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
 
     @Test
     public void testRaiseStatusWarnings1194() throws Exception {
-        ListenerForTesting listenerForTesting = new ListenerForTesting(false, false);
-        runInJsServer(listenerForTesting, nc -> {
+        Listener listener = new Listener(false, false);
+        runInSharedOwnNc(listener, (nc, ctx) -> {
             // Setup
-            JetStreamManagement jsm = nc.jetStreamManagement();
-            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
-            StreamContext streamContext = nc.getStreamContext(tsc.stream);
+            StreamContext streamContext = nc.getStreamContext(ctx.stream);
 
             // Setting maxBatch=1, so we shouldn't allow fetching more messages at once.
-            ConsumerConfiguration consumerConfig = ConsumerConfiguration.builder().filterSubject(tsc.subject()).maxBatch(1).build();
+            ConsumerConfiguration consumerConfig = ConsumerConfiguration.builder().filterSubject(ctx.subject()).maxBatch(1).build();
             ConsumerContext consumerContext = streamContext.createOrUpdateConsumer(consumerConfig);
 
             int count = 0;
@@ -439,7 +425,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
                 }
             }
             assertEquals(0, count);
-            assertEquals(0, listenerForTesting.getPullStatusWarnings().size());
+            assertEquals(0, listener.getPullStatusWarningsCount());
 
             fco = FetchConsumeOptions.builder()
                 .maxMessages(100)
@@ -454,7 +440,7 @@ public class JetStreamConsumerTests extends JetStreamTestBase {
                 }
             }
             assertEquals(0, count);
-            assertEquals(1, listenerForTesting.getPullStatusWarnings().size());
+            assertEquals(1, listener.getPullStatusWarningsCount());
         });
     }
 }
