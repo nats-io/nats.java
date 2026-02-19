@@ -28,8 +28,7 @@ public class NatsTestServer extends NatsServerRunner implements TestServer {
         NatsTestServer.quiet();
         NatsRunnerUtils.setDefaultConnectValidateTries(10);
         NatsRunnerUtils.setDefaultConnectValidateTimeout(200);
-        NatsRunnerUtils.setDefaultOutputSupplier(ConsoleOutput::new);
-    }
+        NatsRunnerUtils.setDefaultOutputSupplier(ConsoleOutput::new);    }
 
     public static void quiet() {
         NatsRunnerUtils.setDefaultOutputLevel(Level.WARNING);

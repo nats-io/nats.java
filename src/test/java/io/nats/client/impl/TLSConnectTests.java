@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import io.nats.NatsServerRunner;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.support.Listener;
@@ -20,6 +21,7 @@ import io.nats.client.support.ssl.ExpiringClientCertUtil;
 import io.nats.client.support.ssl.ExpiringComponents;
 import io.nats.client.support.ssl.SslTestingHelper;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
@@ -40,10 +42,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import static io.nats.client.Options.PROP_SSL_CONTEXT_FACTORY_CLASS;
 import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
-import static io.nats.client.utils.TestBase.*;
-import static io.nats.client.utils.ThreadUtils.sleep;
 import static io.nats.client.utils.ResourceUtils.createTempDirectory;
 import static io.nats.client.utils.ResourceUtils.deleteRecursive;
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TLSConnectTests extends TestBase {
@@ -439,7 +440,7 @@ public class TLSConnectTests extends TestBase {
 
         SslTestErrorListener el = new SslTestErrorListener(1);
 
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
+        runInSharedConfiguredServer("tls.conf", 1, ts -> {
             Options options = new Options.Builder()
                 .server(ts.getNatsLocalhostUri())
                 .sslContext(sslContext)
@@ -456,7 +457,7 @@ public class TLSConnectTests extends TestBase {
             }
 
             assertTrue(el.latch.await(2, TimeUnit.SECONDS));
-        }
+        });
     }
 
     @Test
@@ -471,7 +472,8 @@ public class TLSConnectTests extends TestBase {
 
             SslTestErrorListener el = new SslTestErrorListener(1);
 
-            try (NatsTestServer ts = new NatsTestServer(configFilePath, false)) {
+            NatsServerRunner.Builder b = NatsServerRunner.builder().configFilePath(configFilePath);
+            try (NatsTestServer ts = new NatsTestServer(b)) {
                 Options options = new Options.Builder()
                     .server(ts.getNatsLocalhostUri())
                     .sslContext(expiring.sslContext)
@@ -511,8 +513,9 @@ public class TLSConnectTests extends TestBase {
             SslTestErrorListener el = new SslTestErrorListener(2);
 
             Connection nc;
-            try (NatsTestServer ts1 = new NatsTestServer(configFilePath, false)) {
-                try (NatsTestServer ts2 = new NatsTestServer(configFilePath, false)) {
+            NatsServerRunner.Builder b = NatsServerRunner.builder().configFilePath(configFilePath);
+            try (NatsTestServer ts1 = new NatsTestServer(b)) {
+                try (NatsTestServer ts2 = new NatsTestServer(b)) {
                     Options options = new Options.Builder()
                         .servers(new String[]{ts2.getNatsLocalhostUri(), ts1.getNatsLocalhostUri()})
                         .noRandomize()
@@ -551,7 +554,8 @@ public class TLSConnectTests extends TestBase {
             SslTestConnectionListener cl = new SslTestConnectionListener(1);
             SslTestErrorListener el = new SslTestErrorListener(2);
 
-            try (NatsTestServer ts = new NatsTestServer(configFilePath, false)) {
+            NatsServerRunner.Builder b = NatsServerRunner.builder().configFilePath(configFilePath);
+            try (NatsTestServer ts = new NatsTestServer(b)) {
                 Options options = new Options.Builder()
                     .server(ts.getNatsLocalhostUri())
                     .sslContext(expiring.sslContext)
