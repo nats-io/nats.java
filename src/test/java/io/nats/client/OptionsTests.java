@@ -536,10 +536,15 @@ public class OptionsTests {
         o = new Options.Builder(props).build();
         _testProperties(o);
 
-        String propertiesFilePath = createTempPropertiesFile(props);
-        System.out.println(propertiesFilePath);
-        o = new Options.Builder(propertiesFilePath).build();
-        _testProperties(o);
+        String propertiesFilePath = null;
+        try {
+            propertiesFilePath = createTempPropertiesFile(props);
+            o = new Options.Builder(propertiesFilePath).build();
+            _testProperties(o);
+        }
+        finally {
+            ResourceUtils.deleteFileOrFolder(propertiesFilePath);
+        }
 
         // intGtEqZeroProperty not gt zero gives default
         props.setProperty(Options.PROP_MAX_MESSAGES_IN_OUTGOING_QUEUE, "-1");

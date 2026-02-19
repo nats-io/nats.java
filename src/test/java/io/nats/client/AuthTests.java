@@ -749,27 +749,33 @@ public class AuthTests extends TestBase {
         String jwt = JwtUtils.issueUserJWT(nKeyAccount, accountId, publicUserKey, "jnatsTestUser", expiration);
 
         String creds = String.format(JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(nKeyUser.getSeed()));
-        String credsFile = ResourceUtils.createTempFile("nats_java_test", ".creds", creds.split("\\Q\\n\\E"));
+        String credsFile = null;
+        try {
+            credsFile = ResourceUtils.createTempFile("nats_java_test", ".creds", creds.split("\\Q\\n\\E"));
+            try (NatsTestServer ts = new NatsTestServer("src/test/resources/operatorJnatsTest.conf", false)) {
 
-        try (NatsTestServer ts = new NatsTestServer("src/test/resources/operatorJnatsTest.conf", false)) {
+                Options options = Options.builder()
+                    .server(ts.getURI())
+                    .credentialPath(credsFile)
+                    .connectionListener(cl)
+                    .errorListener(el)
+                    .maxReconnects(5)
+                    .build();
+                Connection nc = Nats.connect(options);
 
-            Options options = Options.builder()
-                .server(ts.getURI())
-                .credentialPath(credsFile)
-                .connectionListener(cl)
-                .errorListener(el)
-                .maxReconnects(5)
-                .build();
-            Connection nc = Nats.connect(options);
+                assertTrue(cdlConnected.await(wait, TimeUnit.MILLISECONDS));
+                assertTrue(cdlDisconnected.await(wait, TimeUnit.MILLISECONDS));
+                assertTrue(cdlReconnected.await(wait, TimeUnit.MILLISECONDS));
+                assertTrue(elUserAuthenticationExpired.await(wait, TimeUnit.MILLISECONDS));
+                assertTrue(elAuthorizationViolation.await(wait, TimeUnit.MILLISECONDS));
 
-            assertTrue(cdlConnected.await(wait, TimeUnit.MILLISECONDS));
-            assertTrue(cdlDisconnected.await(wait, TimeUnit.MILLISECONDS));
-            assertTrue(cdlReconnected.await(wait, TimeUnit.MILLISECONDS));
-            assertTrue(elUserAuthenticationExpired.await(wait, TimeUnit.MILLISECONDS));
-            assertTrue(elAuthorizationViolation.await(wait, TimeUnit.MILLISECONDS));
-
-            nc.close();
+                nc.close();
+            }
+            catch (Exception ignore) {
+            }
         }
-        catch (Exception ignore) {}
+        finally {
+            ResourceUtils.deleteFileOrFolder(credsFile);
+        }
     }
 }

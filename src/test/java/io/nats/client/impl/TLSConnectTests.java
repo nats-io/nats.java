@@ -19,6 +19,7 @@ import io.nats.client.support.ssl.ExpiringClientCertUtil;
 import io.nats.client.support.ssl.ExpiringComponents;
 import io.nats.client.support.ssl.SslTestingHelper;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
+import io.nats.client.utils.ResourceUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -39,7 +40,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.Options.PROP_SSL_CONTEXT_FACTORY_CLASS;
 import static io.nats.client.utils.ResourceUtils.createTempDirectory;
-import static io.nats.client.utils.ResourceUtils.deleteRecursive;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class TLSConnectTests extends TestBase {
@@ -564,7 +564,7 @@ public class TLSConnectTests extends TestBase {
             }
         }
         finally {
-            deleteRecursive(tmpDir);
+            ResourceUtils.deleteFileOrFolder(tmpDir);
         }
     }
 
@@ -607,7 +607,7 @@ public class TLSConnectTests extends TestBase {
             }
         }
         finally {
-            deleteRecursive(tmpDir);
+            ResourceUtils.deleteFileOrFolder(tmpDir);
         }
     }
 
@@ -645,7 +645,7 @@ public class TLSConnectTests extends TestBase {
             }
         }
         finally {
-            deleteRecursive(tmpDir);
+            ResourceUtils.deleteFileOrFolder(tmpDir);
         }
     }
 
