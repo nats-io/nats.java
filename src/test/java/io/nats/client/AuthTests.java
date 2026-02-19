@@ -17,6 +17,7 @@ import io.nats.client.Connection.Status;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.impl.ListenerForTesting;
 import io.nats.client.support.JwtUtils;
+import io.nats.client.support.ssl.SslTestingHelper;
 import io.nats.client.utils.ResourceUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Disabled;
