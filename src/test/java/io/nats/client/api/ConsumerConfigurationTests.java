@@ -32,6 +32,7 @@ import static io.nats.client.support.ApiConstants.FILTER_SUBJECT;
 import static io.nats.client.support.ApiConstants.FILTER_SUBJECTS;
 import static io.nats.client.support.NatsJetStreamClientError.JsConsumerNameDurableMismatch;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
+import static io.nats.client.utils.ResourceUtils.deleteFileOrFolder;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class ConsumerConfigurationTests extends TestBase {
@@ -217,14 +218,20 @@ public class ConsumerConfigurationTests extends TestBase {
     }
 
     private void _testSerializing(SerializableConsumerConfiguration scc, ZonedDateTime zdt) throws IOException, ClassNotFoundException {
-        File f = File.createTempFile("scc", null);
-        ObjectOutputStream oos = new ObjectOutputStream(Files.newOutputStream(f.toPath()));
-        oos.writeObject(scc);
-        oos.flush();
-        oos.close();
-        ObjectInputStream ois = new ObjectInputStream(Files.newInputStream(f.toPath()));
-        scc = (SerializableConsumerConfiguration) ois.readObject();
-        assertAsBuilt(scc.getConsumerConfiguration(), zdt);
+        File f = null;
+        try {
+            f = File.createTempFile("scc", null);
+            ObjectOutputStream oos = new ObjectOutputStream(Files.newOutputStream(f.toPath()));
+            oos.writeObject(scc);
+            oos.flush();
+            oos.close();
+            ObjectInputStream ois = new ObjectInputStream(Files.newInputStream(f.toPath()));
+            scc = (SerializableConsumerConfiguration) ois.readObject();
+            assertAsBuilt(scc.getConsumerConfiguration(), zdt);
+        }
+        finally {
+            deleteFileOrFolder(f);
+        }
     }
 
     private void validateDefault(ConsumerConfiguration cc) {

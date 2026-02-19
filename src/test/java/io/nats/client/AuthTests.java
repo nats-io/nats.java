@@ -18,8 +18,8 @@ import io.nats.NatsServerRunner;
 import io.nats.client.Connection.Status;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.support.JwtUtils;
-import io.nats.client.support.ssl.SslTestingHelper;
 import io.nats.client.support.Listener;
+import io.nats.client.support.ssl.SslTestingHelper;
 import io.nats.client.utils.ResourceUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
@@ -679,42 +679,47 @@ public class AuthTests extends TestBase {
         String jwt = JwtUtils.issueUserJWT(nKeyAccount, accountId, publicUserKey, "jnatsTestUser", expiration);
 
         String creds = String.format(JwtUtils.NATS_USER_JWT_FORMAT, jwt, new String(nKeyUser.getSeed()));
-        String credsFile = ResourceUtils.createTempFile("nats_java_test", ".creds", creds.split("\\Q\\n\\E"));
-
         runInConfiguredServer("operatorJnatsTest.conf", ts -> {
-            Options options = Options.builder()
-                .server(ts.getServerUri())
-                .credentialPath(credsFile)
-                .connectionListener(listener)
-                .errorListener(listener)
-                .maxReconnects(5)
-                .build();
+            String credsFile = null;
+            try {
+                credsFile = ResourceUtils.createTempFile("nats_java_test", ".creds", creds.split("\\Q\\n\\E"));
+                Options options = Options.builder()
+                    .server(ts.getServerUri())
+                    .credentialPath(credsFile)
+                    .connectionListener(listener)
+                    .errorListener(listener)
+                    .maxReconnects(5)
+                    .build();
 
-            listener.queueError("User Authentication Expired");
+                listener.queueError("User Authentication Expired");
 
-            // so these shenanigans to test this...
-            // 1. sometimes it connects and the expiration comes while connected
-            // 2. sometimes the connect exceptions right away
-            // 3. sometimes the connect happens but still exceptions
-            // this is all simply the speed and timing of the machine/server/connection
-            try (Connection ignored = Nats.connect(options)) {
-                sleep(2500); // 1. connected, so the validate() at the end verifies this
-            }
-            catch (AuthenticationException ignore) {
-                return; // 2. sometimes the connect exceptions right away
-            }
-            catch (RuntimeException e) {
+                // so these shenanigans to test this...
+                // 1. sometimes it connects and the expiration comes while connected
+                // 2. sometimes the connect exceptions right away
                 // 3. sometimes the connect happens but still exceptions
-                Throwable t = e;
-                while (t != null) {
-                    if (t instanceof AuthenticationException) {
-                        return;
-                    }
-                    t = t.getCause();
+                // this is all simply the speed and timing of the machine/server/connection
+                try (Connection ignored = Nats.connect(options)) {
+                    sleep(2500); // 1. connected, so the validate() at the end verifies this
                 }
-                fail(e);
+                catch (AuthenticationException ignore) {
+                    return; // 2. sometimes the connect exceptions right away
+                }
+                catch (RuntimeException e) {
+                    // 3. sometimes the connect happens but still exceptions
+                    Throwable t = e;
+                    while (t != null) {
+                        if (t instanceof AuthenticationException) {
+                            return;
+                        }
+                        t = t.getCause();
+                    }
+                    fail(e);
+                }
+                listener.validate(); // 1. finish
             }
-            listener.validate(); // 1. finish
+            finally {
+                ResourceUtils.deleteFileOrFolder(credsFile);
+            }
         });
     }
 }

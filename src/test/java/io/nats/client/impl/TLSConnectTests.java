@@ -43,7 +43,7 @@ import static io.nats.client.Options.PROP_SSL_CONTEXT_FACTORY_CLASS;
 import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.ResourceUtils.createTempDirectory;
-import static io.nats.client.utils.ResourceUtils.deleteRecursive;
+import static io.nats.client.utils.ResourceUtils.deleteFileOrFolder;
 import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -493,7 +493,7 @@ public class TLSConnectTests extends TestBase {
             }
         }
         finally {
-            deleteRecursive(tmpDir);
+            deleteFileOrFolder(tmpDir);
         }
     }
 
@@ -537,7 +537,7 @@ public class TLSConnectTests extends TestBase {
             }
         }
         finally {
-            deleteRecursive(tmpDir);
+            deleteFileOrFolder(tmpDir);
         }
     }
 
@@ -576,7 +576,7 @@ public class TLSConnectTests extends TestBase {
             }
         }
         finally {
-            deleteRecursive(tmpDir);
+            deleteFileOrFolder(tmpDir);
         }
     }
 

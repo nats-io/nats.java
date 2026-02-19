@@ -1,7 +1,5 @@
 package io.nats.client.utils;
 
-import org.jspecify.annotations.NonNull;
-
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -88,25 +86,33 @@ public abstract class ResourceUtils {
         return Files.createTempDirectory(null).toAbsolutePath();
     }
 
-    public static void deleteRecursive(Path path) {
+    public static void deleteFileOrFolder(String path) {
         if (path != null) {
-            deleteRecursive(path.toFile());
+            deleteFileOrFolder(new File(path));
         }
     }
 
-    public static void deleteRecursive(@NonNull File file) {
-        try {
-            if (file.isDirectory()) {
-                File[] entries = file.listFiles();
-                if (entries != null) {
-                    for (File entry : entries) {
-                        deleteRecursive(entry);
+    public static void deleteFileOrFolder(Path path) {
+        if (path != null) {
+            deleteFileOrFolder(path.toFile());
+        }
+    }
+
+    public static void deleteFileOrFolder(File file) {
+        if (file != null) {
+            try {
+                if (file.isDirectory()) {
+                    File[] entries = file.listFiles();
+                    if (entries != null) {
+                        for (File entry : entries) {
+                            deleteFileOrFolder(entry);
+                        }
                     }
                 }
+                //noinspection ResultOfMethodCallIgnored
+                file.delete();
             }
-            //noinspection ResultOfMethodCallIgnored
-            file.delete();
+            catch (Exception ignore) {}
         }
-        catch (Exception ignore) {}
     }
 }
