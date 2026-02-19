@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2015-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -16,15 +16,23 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.support.Listener;
+import io.nats.client.support.ssl.ExpiringClientCertUtil;
+import io.nats.client.support.ssl.ExpiringComponents;
+import io.nats.client.support.ssl.SslTestingHelper;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLException;
 import java.io.IOException;
+import java.net.SocketException;
+import java.nio.file.Path;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.time.Duration;
+import java.util.Date;
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -34,9 +42,11 @@ import static io.nats.client.utils.ConnectionUtils.*;
 import static io.nats.client.utils.OptionsUtils.optionsBuilder;
 import static io.nats.client.utils.TestBase.*;
 import static io.nats.client.utils.ThreadUtils.sleep;
+import static io.nats.client.utils.ResourceUtils.createTempDirectory;
+import static io.nats.client.utils.ResourceUtils.deleteRecursive;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class TLSConnectTests {
+public class TLSConnectTests extends TestBase {
 
     private static Options createTestOptionsManually(String... servers) throws Exception {
         return optionsBuilder(servers)
@@ -421,5 +431,201 @@ public class TLSConnectTests {
             connTA.connect(false);
             confirmConnectedThenClosed(connTA);
         });
+    }
+
+    @Test
+    public void testConnectFailsFromSslContext() throws Exception {
+        SSLContext sslContext = SslTestingHelper.getFailContext();
+
+        SslTestErrorListener el = new SslTestErrorListener(1);
+
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
+            Options options = new Options.Builder()
+                .server(ts.getNatsLocalhostUri())
+                .sslContext(sslContext)
+                .maxReconnects(1)
+                .connectionTimeout(Duration.ofSeconds(2))
+                .errorListener(el)
+                .build();
+
+            try (Connection nc = Nats.connect(options)) {
+                fail("Should not have connected");
+            }
+            catch (Exception e) {
+                assertTrue(e.getMessage().contains("Unable to connect to NATS servers"));
+            }
+
+            assertTrue(el.latch.await(2, TimeUnit.SECONDS));
+        }
+    }
+
+    @Test
+    public void testConnectFailsCertAlreadyExpired() throws Exception {
+        Path tmpDir = null;
+        try {
+            ExpiringComponents expiring = ExpiringClientCertUtil.createExpired();
+            validateExpiry(expiring, true);
+
+            tmpDir = createTempDirectory();
+            String configFilePath = expiring.writeNatsConfig(tmpDir);
+
+            SslTestErrorListener el = new SslTestErrorListener(1);
+
+            try (NatsTestServer ts = new NatsTestServer(configFilePath, false)) {
+                Options options = new Options.Builder()
+                    .server(ts.getNatsLocalhostUri())
+                    .sslContext(expiring.sslContext)
+                    .maxReconnects(1)
+                    .connectionTimeout(Duration.ofSeconds(5))
+                    .errorListener(el)
+                    .build();
+
+                try (Connection nc = Nats.connect(options)) {
+                    fail("should have thrown an exception");
+                }
+                catch (Exception e) {
+                    assertTrue(e.getMessage().contains("Unable to connect to NATS servers"));
+                }
+
+                assertTrue(el.latch.await(2, TimeUnit.SECONDS));
+            }
+        }
+        finally {
+            deleteRecursive(tmpDir);
+        }
+    }
+
+    static final int CLIENT_CERT_VALIDITY_MILLIS = 5000;
+
+    @Test
+    public void testReconnectFailsAfterCertExpires() throws Exception {
+        Path tmpDir = null;
+        try {
+            ExpiringComponents expiring = ExpiringClientCertUtil.create(CLIENT_CERT_VALIDITY_MILLIS);
+            validateExpiry(expiring, false);
+
+            tmpDir = createTempDirectory();
+            String configFilePath = expiring.writeNatsConfig(tmpDir);
+
+            SslTestConnectionListener cl = new SslTestConnectionListener(1);
+            SslTestErrorListener el = new SslTestErrorListener(2);
+
+            Connection nc;
+            try (NatsTestServer ts1 = new NatsTestServer(configFilePath, false)) {
+                try (NatsTestServer ts2 = new NatsTestServer(configFilePath, false)) {
+                    Options options = new Options.Builder()
+                        .servers(new String[]{ts2.getNatsLocalhostUri(), ts1.getNatsLocalhostUri()})
+                        .noRandomize()
+                        .sslContext(expiring.sslContext)
+                        .maxReconnects(1)
+                        .connectionTimeout(Duration.ofSeconds(5))
+                        .connectionListener(cl)
+                        .errorListener(el)
+                        .build();
+
+                    nc = Nats.connect(options);
+                    assertEquals(Connection.Status.CONNECTED, nc.getStatus());
+                    assertTrue(cl.latch.await(2, TimeUnit.SECONDS));
+                    sleep(CLIENT_CERT_VALIDITY_MILLIS); // sleep enough time for the cert to expire
+                    validateExpiry(expiring, true);
+                }
+                assertTrue(el.latch.await(2, TimeUnit.SECONDS));
+                nc.close();
+            }
+        }
+        finally {
+            deleteRecursive(tmpDir);
+        }
+    }
+
+    @Test
+    public void testForceReconnectFailsAfterCertExpires() throws Exception {
+        Path tmpDir = null;
+        try {
+            ExpiringComponents expiring = ExpiringClientCertUtil.create(CLIENT_CERT_VALIDITY_MILLIS);
+            validateExpiry(expiring, false);
+
+            tmpDir = createTempDirectory();
+            String configFilePath = expiring.writeNatsConfig(tmpDir);
+
+            SslTestConnectionListener cl = new SslTestConnectionListener(1);
+            SslTestErrorListener el = new SslTestErrorListener(2);
+
+            try (NatsTestServer ts = new NatsTestServer(configFilePath, false)) {
+                Options options = new Options.Builder()
+                    .server(ts.getNatsLocalhostUri())
+                    .sslContext(expiring.sslContext)
+                    .maxReconnects(1)
+                    .connectionTimeout(Duration.ofSeconds(5))
+                    .connectionListener(cl)
+                    .errorListener(el)
+                    .build();
+
+                try (Connection nc = Nats.connect(options)) {
+                    assertEquals(Connection.Status.CONNECTED, nc.getStatus());
+                    assertTrue(cl.latch.await(2, TimeUnit.SECONDS));
+                    sleep(CLIENT_CERT_VALIDITY_MILLIS); // sleep enough time for the cert to expire
+                    validateExpiry(expiring, true);
+                    nc.forceReconnect();
+                    assertTrue(el.latch.await(2, TimeUnit.SECONDS));
+                }
+            }
+        }
+        finally {
+            deleteRecursive(tmpDir);
+        }
+    }
+
+    private void validateExpiry(ExpiringComponents expiring, boolean expired) {
+        Date expiry = expiring.sslContext.getClientCertificateExpiry();
+        Date now = new Date();
+        if (expired) {
+            assertTrue(expiry.before(now));
+        }
+        else {
+            assertFalse(expiry.before(now));
+        }
+    }
+
+    static class SslTestConnectionListener implements ConnectionListener {
+        public CountDownLatch latch;
+
+        public SslTestConnectionListener(int latchAmount) {
+            latch = new CountDownLatch(latchAmount);
+        }
+
+        @Override
+        public void connectionEvent(Connection conn, Events type) {
+            if (type == Events.CONNECTED) {
+                latch.countDown();
+            }
+        }
+    }
+
+    static class SslTestErrorListener implements ErrorListener {
+        public CountDownLatch latch;
+
+        public SslTestErrorListener(int latchAmount) {
+            latch = new CountDownLatch(latchAmount);
+        }
+
+        @Override
+        public void exceptionOccurred(Connection conn, Exception exp) {
+            if (hasSslOrSocketCauseInChain(exp)) {
+                if (latch.getCount() > 0) {
+                    latch.countDown();
+                }
+            }
+        }
+
+        boolean hasSslOrSocketCauseInChain(Throwable t) {
+            while (t != null) {
+                if (t instanceof SSLException || t instanceof SocketException) {
+                    return true;
+                }
+                t = t.getCause();
+            }
+            return false;
+        }
     }
 }

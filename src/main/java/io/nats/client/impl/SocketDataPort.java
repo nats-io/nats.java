@@ -51,6 +51,7 @@ public class SocketDataPort implements DataPort {
     protected InputStream in;
     protected OutputStream out;
 
+    @Deprecated
     @Override
     public void connect(@NonNull String serverURI, @NonNull NatsConnection conn, long timeoutNanos) throws IOException {
         try {

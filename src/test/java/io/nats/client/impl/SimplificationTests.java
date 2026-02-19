@@ -18,7 +18,11 @@ import io.nats.client.api.*;
 import io.nats.client.support.*;
 import io.nats.client.utils.ConnectionUtils;
 import io.nats.client.utils.VersionUtils;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Isolated;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.io.*;
 import java.time.Duration;
@@ -231,7 +235,6 @@ public class SimplificationTests extends JetStreamTestBase {
                     _testFetch("1A", ctx, 20, 0, 20, f, true);
                     _testFetch("2A", ctx, 0, 750, 20, f, true);
                 }
-
             }
         });
     }

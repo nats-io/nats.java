@@ -31,7 +31,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import static io.nats.client.BaseConsumeOptions.DEFAULT_EXPIRES_IN_MILLIS;
 import static io.nats.client.BaseConsumeOptions.MIN_EXPIRES_MILLS;
 import static io.nats.client.ConsumeOptions.DEFAULT_CONSUME_OPTIONS;
-import static io.nats.client.impl.NatsJetStreamSubscription.EXPIRE_ADJUSTMENT;
 
 /**
  * Implementation of Consumer Context
@@ -133,24 +132,15 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
 
     private void checkState() throws IOException {
         NatsMessageConsumerBase lastCon = lastConsumer.get();
-        if (lastCon != null) {
-            if (ordered) {
-                if (!lastCon.finished.get()) {
-                    throw new IOException("The ordered consumer is already receiving messages. Ordered Consumer does not allow multiple instances at time.");
-                }
-            }
-            if (lastCon.finished.get() && !lastCon.stopped.get()) {
-                lastCon.shutdownSub(); // finished, might as well make sure the sub is closed.
-            }
+        if (lastCon != null && ordered && !lastCon.finished.get()) {
+            throw new IOException("The ordered consumer is already receiving messages. Ordered Consumer does not allow multiple instances at time.");
         }
     }
 
     private void checkNotPinned(String label) throws IOException {
         ConsumerInfo ci = cachedConsumerInfo.get();
-        if (ci != null) {
-            if (ci.getConsumerConfiguration().getPriorityPolicy() == PriorityPolicy.PinnedClient) {
-                throw new IOException("Pinned not allowed with " + label);
-            }
+        if (ci != null && ci.getConsumerConfiguration().getPriorityPolicy() == PriorityPolicy.PinnedClient) {
+            throw new IOException("Pinned not allowed with " + label);
         }
     }
 
@@ -218,28 +208,19 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             throw new IllegalArgumentException("Max wait must be at least " + MIN_EXPIRES_MILLS + " milliseconds.");
         }
 
-        NatsMessageConsumerBase nmcb = null;
+        NatsNextConsumer nnc = null;
         try {
             stateLock.lock();
             checkState();
             checkNotPinned("Next");
 
             try {
-                long inactiveThreshold = maxWaitMillis * 110 / 100; // 10% longer than the wait
-                nmcb = new NatsMessageConsumerBase(cachedConsumerInfo.get());
-                nmcb.initSub(subscribe(null, null, null, inactiveThreshold), false);
-                nmcb.setConsumerName(consumerName.get()); // the call to subscribe sets this
-                trackConsume(nmcb); // this has to be done after the nmcb is fully set up
-                nmcb.sub._pull(PullRequestOptions.builder(1)
-                    .expiresIn(maxWaitMillis - EXPIRE_ADJUSTMENT)
-                    .build(), false, null);
+                nnc = new NatsNextConsumer(this, cachedConsumerInfo.get(), maxWaitMillis);
+                trackConsume(nnc); // this has to be done after the nnc is fully set up
             }
             catch (Exception e) {
-                if (nmcb != null) {
-                    try {
-                        nmcb.close();
-                    }
-                    catch (Exception ignore) {}
+                if (nnc != null) {
+                    nnc.fullClose();
                 }
                 return null;
             }
@@ -249,18 +230,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
         }
 
         // intentionally outside the lock
-        try {
-            return nmcb.sub.nextMessage(maxWaitMillis);
-        }
-        finally {
-            try {
-                nmcb.finished.set(true);
-                nmcb.close();
-            }
-            catch (Exception e) {
-                // from close/autocloseable, but we know it doesn't actually throw
-            }
-        }
+        return nnc.getMessage();
     }
 
     /**

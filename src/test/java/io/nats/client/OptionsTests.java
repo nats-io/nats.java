@@ -18,6 +18,7 @@ import io.nats.client.impl.*;
 import io.nats.client.support.HttpRequest;
 import io.nats.client.support.Listener;
 import io.nats.client.support.NatsUri;
+import io.nats.client.support.ssl.SslTestingHelper;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
 import io.nats.client.utils.CoverageServerPool;
 import io.nats.client.utils.ResourceUtils;

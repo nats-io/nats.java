@@ -26,7 +26,6 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import static io.nats.examples.jetstream.NatsJsUtils.createOrReplaceStream;
-import static io.nats.examples.jetstream.NatsJsUtils.report;
 
 /**
  * This example will demonstrate a resilient publish
@@ -71,6 +70,10 @@ public class ResilientPublisher implements Runnable {
         }
     }
 
+    enum ReportStyle {
+        Time, Labeled, Plain
+    }
+
     private final Connection nc;
     private final JetStreamManagement jsm;
     private final JetStream js;
@@ -84,6 +87,7 @@ public class ResilientPublisher implements Runnable {
     private long delay;
     private boolean reporting;
     private long reportFrequency;
+    private ReportStyle reportStyle;
     private Function<Long, byte[]> dataProvider;
     private java.util.function.BiConsumer<Connection, Long> beforePublish;
     private java.util.function.BiConsumer<Connection, PublishAck> afterPublish;
@@ -109,6 +113,7 @@ public class ResilientPublisher implements Runnable {
         this.subject = subject;
         lastPub = new AtomicLong();
         keepGoing = new AtomicBoolean(true);
+        reportStyle = ReportStyle.Plain;
         basicDataPrefix(null);
         beforePublish(null);
         afterPublish(null);
@@ -128,6 +133,11 @@ public class ResilientPublisher implements Runnable {
 
     public ResilientPublisher delay(long delay) {
         this.delay = delay;
+        return this;
+    }
+
+    public ResilientPublisher reportStyle(ReportStyle reportStyle) {
+        this.reportStyle = reportStyle;
         return this;
     }
 
@@ -170,9 +180,21 @@ public class ResilientPublisher implements Runnable {
 
     public ResilientPublisher exceptionReporter(BiConsumer<Connection, Exception> exceptionReporter) {
         this.exceptionReporter = exceptionReporter == null
-            ? (c, e) -> { if (lastPublishOk) {report("Publish Exception: " + e); lastPublishOk = false; }}
+            ? (c, e) -> { if (lastPublishOk) { report("Publish Exception: " + e); lastPublishOk = false; }}
             : exceptionReporter;
         return this;
+    }
+
+    private void report(String message) {
+        if (reportStyle == ReportStyle.Time) {
+            NatsJsUtils.report(message);
+        }
+        else if (reportStyle == ReportStyle.Labeled) {
+            System.out.println("[Resilient Publisher] " + message);
+        }
+        else {
+            System.out.println(message);
+        }
     }
 
     public void stop() {

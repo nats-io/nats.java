@@ -19,6 +19,7 @@ import io.nats.client.ConnectionListener.Events;
 import io.nats.client.api.ServerInfo;
 import io.nats.client.support.Listener;
 import io.nats.client.utils.ConnectionUtils;
+import io.nats.client.support.ssl.SslTestingHelper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 

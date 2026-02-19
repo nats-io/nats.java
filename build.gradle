@@ -60,8 +60,7 @@ dependencies {
     else {
         testImplementation 'nl.jqno.equalsverifier:equalsverifier:4.2.2'
     }
-
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testImplementation 'org.junit.platform:junit-platform-launcher:1.14.3'
 }
 
 sourceSets {
