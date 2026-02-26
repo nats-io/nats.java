@@ -63,18 +63,31 @@ dependencies {
     testImplementation 'org.junit.platform:junit-platform-launcher:1.14.3'
 }
 
-sourceSets {
-    main {
-        java {
-            srcDirs = ['src/main/java','src/examples/java']
-        }
+def generateVersionProps = tasks.register("generateVersionProperties") {
+    def propsDir = layout.buildDirectory.dir("generated-resources/main")
+    outputs.dir(propsDir)
+    doLast {
+        def f = propsDir.get().file("io/nats/jnats/version.properties").asFile
+        f.parentFile.mkdirs()
+        f.text = "version=${version}\n"
     }
-    test {
+}
+
+sourceSets.main.resources.srcDir(generateVersionProps.map { it.outputs.files })
+
+sourceSets {
+    examples {
         java {
-            srcDirs = ['src/test/java']
+            compileClasspath += sourceSets.main.output
+            srcDirs = ['src/examples/java']
         }
     }
 }
+
+configurations {
+    examplesImplementation.extendsFrom api
+}
+
 
 tasks.register('bundle', Bundle) {
     from sourceSets.main.output
@@ -143,9 +156,7 @@ tasks.register('examplesJar', Jar) {
                 'Implementation-Version': jarVersion,
                 'Implementation-Vendor': 'nats.io')
     }
-    from(sourceSets.main.output) {
-        include "io/nats/examples/**"
-    }
+    from(sourceSets.examples.output)
 }
 
 tasks.register('javadocJar', Jar) {
@@ -156,6 +167,7 @@ tasks.register('javadocJar', Jar) {
 tasks.register('sourcesJar', Jar) {
     archiveClassifier.set('sources')
     from sourceSets.main.allSource
+    dependsOn("generateVersionProperties")
 }
 
 tasks.register('testsJar', Jar) {

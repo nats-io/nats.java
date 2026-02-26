@@ -15,10 +15,9 @@ package io.nats.client;
 
 import io.nats.client.impl.NatsImpl;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.util.List;
+import java.io.InputStream;
+import java.util.Properties;
 
 /**
  * The Nats class is the entry point into the NATS client for Java. This class
@@ -83,22 +82,16 @@ public abstract class Nats {
     public static final String CLIENT_LANGUAGE = "java";
 
     static {
-        String cv;
-        try { cv = Nats.class.getPackage().getImplementationVersion(); }
-        catch (Exception ignore) { cv = null; }
-        if (cv == null) {
-            try {
-                List<String> lines = Files.readAllLines(new File("build.gradle").toPath());
-                for (String l : lines) {
-                    if (l.startsWith("def jarVersion")) {
-                        int at = l.indexOf('"');
-                        int lat = l.lastIndexOf('"');
-                        cv = l.substring(at + 1, lat) + ".dev";
-                        break;
-                    }
-                }
+        Properties props = new Properties();
+        String cv = null;
+        try (InputStream is = Nats.class.getResourceAsStream("/io/nats/jnats/version.properties")) {
+            if (is != null) {
+                props.load(is);
+                cv = props.getProperty("version");
             }
-            catch (Exception ignore) {}
+        }
+        catch (Exception ignore) {
+            // don't fail on any exception
         }
         CLIENT_VERSION = cv == null ? "development" : cv;
     }

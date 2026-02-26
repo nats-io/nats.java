@@ -255,7 +255,23 @@ public class Options {
      */
     public static final Supplier<ExecutorService> DEFAULT_SINGLE_THREAD_EXECUTOR = Executors::newSingleThreadExecutor;
 
-    public enum SubjectValidationType {None, Lenient, Strict}
+    /**
+     * The type of subject validation to do.
+     */
+    public enum SubjectValidationType {
+        /**
+         * No Subject Validation
+         */
+        None,
+        /**
+         * Lenient Subject Validation
+         */
+        Lenient,
+        /**
+         * Strict Subject Validation
+         */
+        Strict
+    }
 
     // ----------------------------------------------------------------------------------------------------
     // ENVIRONMENT PROPERTIES
@@ -1159,6 +1175,7 @@ public class Options {
 
         /**
          * Directly set the subjectValidationType. Null sets to the default, Lenient.
+         * @param subjectValidationType an enum for SubjectValidationType indicating the type of validation, or null for default
          * @return the Builder for chaining
          */
         public Builder subjectValidationType(SubjectValidationType subjectValidationType) {
