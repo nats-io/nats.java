@@ -216,7 +216,7 @@ public class NatsServerPool implements ServerPool {
     @Override
     @Nullable
     public List<String> resolveHostToIps(@NonNull String host) {
-        // 1. if not resolve mode, return empty list
+        // 1. if not resolve mode, return null
         if (options.hostnameResolveMode() != Options.HostnameResolveMode.Resolve) {
             return null;
         }

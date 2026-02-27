@@ -1344,22 +1344,23 @@ public class OptionsTests {
     public void testHostnameResolveMode() {
         validateHostnameResolveMode(HostnameResolveMode.Resolve, false, false, new Options.Builder().build());
         validateHostnameResolveMode(HostnameResolveMode.Resolve, false, false, new Options.Builder().hostnameResolveMode(HostnameResolveMode.Resolve).build());
-        validateHostnameResolveMode(HOSTNAME_RESOLVE_MODE, "Resolve", HostnameResolveMode.Resolve, false, false);
+        validateHostnameResolveMode(HostnameResolveMode.Resolve, false, false, new Options.Builder().hostnameResolveMode(null).build());
+        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "Resolve", HostnameResolveMode.Resolve, false, false);
 
         //noinspection deprecation
         validateHostnameResolveMode(HostnameResolveMode.NoResolve, true, false, new Options.Builder().noResolveHostnames().build());
         validateHostnameResolveMode(HostnameResolveMode.NoResolve, true, false, new Options.Builder().hostnameResolveMode(HostnameResolveMode.NoResolve).build());
-        validateHostnameResolveMode(HOSTNAME_RESOLVE_MODE, "NoResolve", HostnameResolveMode.NoResolve, true, false);
+        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "NoResolve", HostnameResolveMode.NoResolve, true, false);
         //noinspection deprecation
         validateHostnameResolveMode(PROP_NO_RESOLVE_HOSTNAMES, "true", HostnameResolveMode.NoResolve, true, false);
 
         validateHostnameResolveMode(HostnameResolveMode.Unresolved, true, false, new Options.Builder().hostnameResolveMode(HostnameResolveMode.Unresolved).build());
-        validateHostnameResolveMode(HOSTNAME_RESOLVE_MODE, "Unresolved", HostnameResolveMode.Unresolved, true, false);
+        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "Unresolved", HostnameResolveMode.Unresolved, true, false);
 
         //noinspection deprecation
         validateHostnameResolveMode(HostnameResolveMode.FastFallback, true, true, new Options.Builder().enableFastFallback().build());
         validateHostnameResolveMode(HostnameResolveMode.FastFallback, true, true, new Options.Builder().hostnameResolveMode(HostnameResolveMode.FastFallback).build());
-        validateHostnameResolveMode(HOSTNAME_RESOLVE_MODE, "FastFallback", HostnameResolveMode.FastFallback, true, true);
+        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "FastFallback", HostnameResolveMode.FastFallback, true, true);
         //noinspection deprecation
         validateHostnameResolveMode(PROP_FAST_FALLBACK, "true", HostnameResolveMode.FastFallback, true, true);
     }

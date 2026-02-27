@@ -2022,7 +2022,9 @@ class NatsConnection implements Connection {
     }
 
     protected List<NatsUri> resolveHost(NatsUri nuri) {
-        // 1. If the nuri host is not already an ip address or the nuri is not for websocket or fast fallback is disabled,
+        // 1. If the nuri host is not already an ip address
+        //      -and- the nuri is not for websocket
+        //      -and- the HostnameResolveMode is Resolve
         //    let the pool resolve it.
         List<NatsUri> results = new ArrayList<>();
         if (!nuri.hostIsIpAddress()

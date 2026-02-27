@@ -441,21 +441,22 @@ public class Options {
      */
     public static final String PROP_NORANDOMIZE = PFX + "norandomize";
     /**
-     * @deprecated Prefer
+     * @deprecated Prefer to use hostname resolve mode
      * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#noResolveHostnames() noResolveHostnames}.
      */
     @Deprecated
     public static final String PROP_NO_RESOLVE_HOSTNAMES = PFX + "noResolveHostnames";
     /**
+     * @deprecated Prefer to use hostname resolve mode
      * Property used to enable fast fallback algorithm for socket connection.
      * {@link Builder#enableFastFallback() enableFastFallback}.
      */
     @Deprecated
     public static final String PROP_FAST_FALLBACK = PFX + "fast.fallback";
     /**
-     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#hostnameResolveMode() hostnameResolveMode}.
+     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#hostnameResolveMode(HostnameResolveMode) hostnameResolveMode}.
      */
-    public static final String HOSTNAME_RESOLVE_MODE = PFX + "hostnameResolveMode";
+    public static final String PROP_HOSTNAME_RESOLVE_MODE = PFX + "hostnameResolveMode";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#noSubjectValidation() noSubjectValidation}.
      */
@@ -1111,7 +1112,7 @@ public class Options {
                     hostnameResolveMode = HostnameResolveMode.FastFallback;
                 }
             });
-            stringProperty(props, HOSTNAME_RESOLVE_MODE, s -> {
+            stringProperty(props, PROP_HOSTNAME_RESOLVE_MODE, s -> {
                 HostnameResolveMode mode = HostnameResolveMode.get(s);
                 if (mode != null) {
                     hostnameResolveMode = mode;
@@ -1217,7 +1218,7 @@ public class Options {
          * @return the Builder for chaining
          */
         public Builder hostnameResolveMode(HostnameResolveMode hostnameResolveMode) {
-            this.hostnameResolveMode = hostnameResolveMode;
+            this.hostnameResolveMode = hostnameResolveMode == null ? HostnameResolveMode.Resolve : hostnameResolveMode;
             return this;
         }
 
@@ -2769,8 +2770,8 @@ public class Options {
     }
 
     /**
-     * @deprecated use getHostnameResolveMode instead
-     * @return true if HostnameResolveMode is HostnameResolveMode.NoResolve
+     * @deprecated use hostnameResolveMode instead
+     * @return true if HostnameResolveMode is not HostnameResolveMode.Resolve since only Resolve mode does resolve.
      */
     @Deprecated
     public boolean isNoResolveHostnames() {
@@ -2778,7 +2779,7 @@ public class Options {
     }
 
     /**
-     * @deprecated use getHostnameResolveMode instead
+     * @deprecated use hostnameResolveMode instead
      * Whether Fast fallback algorithm is enabled for socket connect
      * @return the flag
      */
