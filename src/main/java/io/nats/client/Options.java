@@ -414,6 +414,11 @@ public class Options {
      */
     public static final String PROP_NO_RESOLVE_HOSTNAMES = PFX + "noResolveHostnames";
     /**
+     * Property used to enable InetSocketAddress.createUnresolved for proxied connections.
+     * {@link Builder#enableInetAddressCreateUnresolved() enableInetAddressCreateUnresolved}.
+     */
+    public static final String PROP_ENABLE_INET_ADDRESS_CREATE_UNRESOLVED = PFX + "inet.address.create.unresolved";
+    /**
      * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#noSubjectValidation() noSubjectValidation}.
      */
     public static final String PROP_NO_SUBJECT_VALIDATION = PFX + "noSubjectValidation";
@@ -787,6 +792,7 @@ public class Options {
     private final List<java.util.function.Consumer<HttpRequest>> httpRequestInterceptors;
     private final Proxy proxy;
     private final boolean enableFastFallback;
+    private final boolean enableInetAddressCreateUnresolved;
 
     // STATE VARIABLES
     private int executorUseCount = 0;
@@ -945,6 +951,7 @@ public class Options {
         private String tlsAlgorithm = DEFAULT_TLS_ALGORITHM;
         private String credentialPath;
         private boolean enableFastFallback = false;
+        private boolean enableInetAddressCreateUnresolved = false;
 
         /**
          * Constructs a new Builder with the default values.
@@ -1067,6 +1074,7 @@ public class Options {
             booleanProperty(props, PROP_USE_DISPATCHER_WITH_EXECUTOR, b -> this.useDispatcherWithExecutor = b);
             booleanProperty(props, PROP_FORCE_FLUSH_ON_REQUEST, b -> this.forceFlushOnRequest = b);
             booleanProperty(props, PROP_FAST_FALLBACK, b -> this.enableFastFallback = b);
+            booleanProperty(props, PROP_ENABLE_INET_ADDRESS_CREATE_UNRESOLVED, b -> this.enableInetAddressCreateUnresolved = b);
 
             classnameProperty(props, PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, o -> this.serverPool = (ServerPool) o);
             classnameProperty(props, PROP_DISPATCHER_FACTORY_CLASS, o -> this.dispatcherFactory = (DispatcherFactory) o);
@@ -2046,6 +2054,17 @@ public class Options {
         }
 
         /**
+         * Whether to enable InetSocketAddress.createUnresolved for proxied connections.
+         * This is useful for backward compatibility and when hostname resolution should be deferred.
+         * @return the Builder for chaining
+         */
+        public Builder enableInetAddressCreateUnresolved() {
+            this.enableInetAddressCreateUnresolved = true;
+            this.noResolveHostnames = true;
+            return this;
+        }
+
+        /**
          * Build an Options object from this Builder.
          *
          * <p>If the Options builder was not provided with a server, a default one will be included
@@ -2280,6 +2299,7 @@ public class Options {
             this.serverPool = o.serverPool;
             this.dispatcherFactory = o.dispatcherFactory;
             this.enableFastFallback = o.enableFastFallback;
+            this.enableInetAddressCreateUnresolved = o.enableInetAddressCreateUnresolved;
         }
     }
 
@@ -2359,6 +2379,7 @@ public class Options {
         this.serverPool = b.serverPool;
         this.dispatcherFactory = b.dispatcherFactory;
         this.enableFastFallback = b.enableFastFallback;
+        this.enableInetAddressCreateUnresolved = b.enableInetAddressCreateUnresolved;
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -3111,6 +3132,14 @@ public class Options {
      */
     public boolean isEnableFastFallback() {
         return enableFastFallback;
+    }
+
+    /**
+     * Whether InetSocketAddress.createUnresolved is enabled for proxied connections
+     * @return the flag
+     */
+    public boolean isEnableInetAddressCreateUnresolved() {
+        return enableInetAddressCreateUnresolved;
     }
 
     /**

@@ -1346,6 +1346,13 @@ public class OptionsTests {
         assertTrue(options.isEnableFastFallback());
     }
 
+    @Test
+    public void testEnableInetAddressCreateUnresolved() {
+        Options options = new Options.Builder().enableInetAddressCreateUnresolved().build();
+        assertTrue(options.isEnableInetAddressCreateUnresolved());
+        assertTrue(options.isNoResolveHostnames());
+    }
+
 /* These next three require that no default is set anywhere, if another test
     requires SSLContext.setDefault() and runs before these, they will fail. Commenting
     out for now, this can be run manually.
