@@ -187,7 +187,7 @@ public class SocketDataPortProxyHostnameTest extends TestBase {
                 .noReconnect();
 
             if (useEnableInetAddressCreateUnresolved) {
-                optionsBuilder.enableInetAddressCreateUnresolved();
+                optionsBuilder.hostnameResolveMode(Options.HostnameResolveMode.Unresolved);
             }
 
             Options options = optionsBuilder.build();

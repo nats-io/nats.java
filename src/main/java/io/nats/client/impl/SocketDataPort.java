@@ -71,14 +71,17 @@ public class SocketDataPort implements DataPort {
         port = nuri.getPort();
 
         try {
-            if (options.isEnableFastFallback()) {
+            Options.HostnameResolveMode mode = options.hostnameResolveMode();
+            if (mode == Options.HostnameResolveMode.FastFallback) {
                 socket = connectToFastestIp(options, host, port, (int) timeout);
-            } else {
+            }
+            else {
                 socket = createSocket(options);
                 InetSocketAddress inetSocketAddress;
-                if (options.isEnableInetAddressCreateUnresolved() && !nuri.hostIsIpAddress()) {
+                if (mode == Options.HostnameResolveMode.Unresolved && !nuri.hostIsIpAddress()) {
                     inetSocketAddress = InetSocketAddress.createUnresolved(host, port);
-                } else {
+                }
+                else {
                     inetSocketAddress = new InetSocketAddress(host, port);
                 }
                 socket.connect(inetSocketAddress, (int) timeout);

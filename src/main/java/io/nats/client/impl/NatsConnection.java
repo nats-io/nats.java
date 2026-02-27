@@ -2025,7 +2025,10 @@ class NatsConnection implements Connection {
         // 1. If the nuri host is not already an ip address or the nuri is not for websocket or fast fallback is disabled,
         //    let the pool resolve it.
         List<NatsUri> results = new ArrayList<>();
-        if (!nuri.hostIsIpAddress() && !nuri.isWebsocket() && !options.isEnableFastFallback()) {
+        if (!nuri.hostIsIpAddress()
+            && !nuri.isWebsocket()
+            && options.hostnameResolveMode() == Options.HostnameResolveMode.Resolve
+        ) {
             List<String> ips = serverPool.resolveHostToIps(nuri.getHost());
             if (ips != null) {
                 for (String ip : ips) {
