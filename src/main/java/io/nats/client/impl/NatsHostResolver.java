@@ -17,6 +17,7 @@ import io.nats.client.support.NatsInetAddress;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -34,13 +35,15 @@ public final class NatsHostResolver {
      * @param maxOneResult whether to return at max one result
      * @return the list of ips addresses or null if there were no ip addresses for the host.
      */
-    public static @Nullable List<String> resolveHostToIps(@NonNull String host, boolean maxOneResult) {
+    public static @Nullable List<String> resolveHostToIps(@NonNull String host, boolean maxOneResult, boolean includeIPV6) {
         // 1. try to resolve the hostname, adding results to list
         List<String> results = new ArrayList<>();
         try {
             InetAddress[] addresses = NatsInetAddress.getAllByName(host);
             for (InetAddress a : addresses) {
-                results.add(a.getHostAddress());
+                if (includeIPV6 || a instanceof Inet4Address) {
+                    results.add(a.getHostAddress());
+                }
             }
         }
         catch (UnknownHostException ignore) {

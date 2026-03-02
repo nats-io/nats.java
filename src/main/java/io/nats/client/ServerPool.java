@@ -64,12 +64,14 @@ public interface ServerPool {
 
     /**
      * Resolve a host name to an ip address based on the instructions. Replaces resolveHostToIps(String)
+     *
      * @param host         the host to resolve
      * @param maxOneResult flag to indicate to only return one result
+     * @param includeIPV6  flag to indicate to include IPV6 ip addresses in the results.
      * @return a list of resolved hosts. Can be null if host does not resolve
      */
     @Nullable
-    default List<String> resolveHostToIps(@NonNull String host, boolean maxOneResult) {
+    default List<String> resolveHostToIps(@NonNull String host, boolean maxOneResult, boolean includeIPV6) {
         return resolveHostToIps(host);
     }
 

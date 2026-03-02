@@ -189,11 +189,21 @@ public class ServerPoolTests extends TestBase {
 
     @Test
     public void testNatsHostResolver() throws URISyntaxException {
-        List<String> resolved = NatsHostResolver.resolveHostToIps(HOST_THAT_CAN_BE_RESOLVED_TO_MULTIPLE_IPS, true);
+        List<String> resolved = NatsHostResolver.resolveHostToIps(HOST_THAT_CAN_BE_RESOLVED_TO_MULTIPLE_IPS, true, false);
         assertNotNull(resolved);
         assertEquals(1, resolved.size());
 
-        resolved = NatsHostResolver.resolveHostToIps(HOST_THAT_CAN_BE_RESOLVED_TO_MULTIPLE_IPS, false);
+        // this is coverage since I can't guarantee that any the host will be resolved to an IPV6
+        resolved = NatsHostResolver.resolveHostToIps(HOST_THAT_CAN_BE_RESOLVED_TO_MULTIPLE_IPS, true, true);
+        assertNotNull(resolved);
+        assertEquals(1, resolved.size());
+
+        resolved = NatsHostResolver.resolveHostToIps(HOST_THAT_CAN_BE_RESOLVED_TO_MULTIPLE_IPS, false, false);
+        assertNotNull(resolved);
+        assertTrue(resolved.size() > 1);
+
+        // this is coverage since I can't guarantee that any the host will be resolved to an IPV6
+        resolved = NatsHostResolver.resolveHostToIps(HOST_THAT_CAN_BE_RESOLVED_TO_MULTIPLE_IPS, false, true);
         assertNotNull(resolved);
         assertTrue(resolved.size() > 1);
 
@@ -203,15 +213,15 @@ public class ServerPoolTests extends TestBase {
             assertTrue(nuri.hostIsIpAddress());
         }
 
-        resolved = NatsHostResolver.resolveHostToIps(HOST_THAT_CAN_BE_RESOLVED_TO_ONE_IP, true);
+        resolved = NatsHostResolver.resolveHostToIps(HOST_THAT_CAN_BE_RESOLVED_TO_ONE_IP, true, false);
         assertNotNull(resolved);
         assertEquals(1, resolved.size());
 
-        resolved = NatsHostResolver.resolveHostToIps(HOST_THAT_CAN_BE_RESOLVED_TO_ONE_IP, false);
+        resolved = NatsHostResolver.resolveHostToIps(HOST_THAT_CAN_BE_RESOLVED_TO_ONE_IP, false, false);
         assertNotNull(resolved);
         assertEquals(1, resolved.size());
 
-        resolved = NatsHostResolver.resolveHostToIps(HOST_THAT_CANT_BE_RESOLVED, false);
+        resolved = NatsHostResolver.resolveHostToIps(HOST_THAT_CANT_BE_RESOLVED, false, false);
         assertNull(resolved);
     }
 }

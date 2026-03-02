@@ -1357,6 +1357,12 @@ public class OptionsTests {
         validateHostnameResolveMode(HostnameResolveMode.ResolveToAll, false, false, new Options.Builder().hostnameResolveMode(null).build());
         validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "ResolveToAll", HostnameResolveMode.ResolveToAll, false, false);
 
+        validateHostnameResolveMode(HostnameResolveMode.ResolveToAllIncludeIPV6, false, false, new Options.Builder().hostnameResolveMode(HostnameResolveMode.ResolveToAllIncludeIPV6).build());
+        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "ResolveToAllIncludeIPV6", HostnameResolveMode.ResolveToAllIncludeIPV6, false, false);
+
+        validateHostnameResolveMode(HostnameResolveMode.ResolveToFirstIncludeIPV6, false, false, new Options.Builder().hostnameResolveMode(HostnameResolveMode.ResolveToFirstIncludeIPV6).build());
+        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "ResolveToFirstIncludeIPV6", HostnameResolveMode.ResolveToFirstIncludeIPV6, false, false);
+
         //noinspection deprecation
         validateHostnameResolveMode(HostnameResolveMode.ResolveToFirst, true, false, new Options.Builder().noResolveHostnames().build());
         validateHostnameResolveMode(HostnameResolveMode.ResolveToFirst, true, false, new Options.Builder().hostnameResolveMode(HostnameResolveMode.ResolveToFirst).build());

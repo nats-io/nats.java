@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.Options.HostnameResolveMode;
 import io.nats.client.api.ServerInfo;
 import io.nats.client.support.*;
 import org.jspecify.annotations.NonNull;
@@ -2026,15 +2027,14 @@ class NatsConnection implements Connection {
         //      -and- the nuri is not for websocket
         //      -and- the HostnameResolveMode is Resolve
         //    let the pool resolve it.
+        HostnameResolveMode resolveMode = options.hostnameResolveMode();
         List<NatsUri> results = new ArrayList<>();
         if (!nuri.hostIsIpAddress()
             && !nuri.isWebsocket()
-            && options.hostnameResolveMode().resolve)
+            && resolveMode.resolve)
         {
             List<String> ips = serverPool.resolveHostToIps(
-                nuri.getHost(),
-                options.hostnameResolveMode().maxOneResult
-            );
+                nuri.getHost(), resolveMode.maxOneResult, resolveMode.includeIPV6);
             if (ips != null) {
                 for (String ip : ips) {
                     try {

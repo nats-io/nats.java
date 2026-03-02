@@ -214,13 +214,13 @@ public class NatsServerPool implements ServerPool {
     @Override
     @Nullable
     public List<String> resolveHostToIps(@NonNull String host) {
-        return NatsHostResolver.resolveHostToIps(host, false);
+        return NatsHostResolver.resolveHostToIps(host, false, false);
     }
 
     @Override
     @Nullable
-    public List<String> resolveHostToIps(@NonNull String host, boolean maxOneResult) {
-        return NatsHostResolver.resolveHostToIps(host, maxOneResult);
+    public List<String> resolveHostToIps(@NonNull String host, boolean maxOneResult, boolean includeIPV6) {
+        return NatsHostResolver.resolveHostToIps(host, maxOneResult, includeIPV6);
     }
 
     @Override
