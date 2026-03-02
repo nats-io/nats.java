@@ -273,6 +273,64 @@ public class Options {
         Strict
     }
 
+    /**
+     * The mode of hostname resolving
+     */
+    public enum HostnameResolveMode {
+        /**
+         * Resolve host to all ip addresses allowing for connection attempts to try all ip addresses for a given hostname.
+         * Default mode. Does not include IPV6 addresses.
+         */
+        ResolveToAll(true, false, false),
+
+        /**
+         * Resolve host to the first ip addresses allowing for connection attempts to try just that first ip addresses for a given hostname.
+         * Does not include IPV6 addresses.
+         */
+        ResolveToFirst(true, true, false),
+
+        /**
+         * Resolve host to all ip addresses allowing for connection attempts to try all ip addresses for a given hostname.
+         * Includes IPV6 addresses.
+         */
+        ResolveToAllIncludeIPV6(true, false, true),
+
+        /**
+         * Resolve host to the first ip addresses allowing for connection attempts to try just that first ip addresses for a given hostname.
+         * Includes IPV6 addresses.
+         */
+        ResolveToFirstIncludeIPV6(true, true, true),
+
+        /**
+         * Do not resolve, instead use InetSocketAddress.createUnresolved while creating the socket.
+         */
+        Unresolved(false, false, false),
+
+        /**
+         * Attempt to connect to the fastest ip for a host via the Happy Eyeballs algorithm as described in RFC 6555/8305
+         */
+        HappyEyeballs(false, false, false);
+
+        public final boolean resolve;
+        public final boolean maxOneResult;
+        public final boolean includeIPV6;
+
+        HostnameResolveMode(boolean resolve, boolean maxOneResult, boolean includeIPV6) {
+            this.resolve = resolve;
+            this.maxOneResult = maxOneResult;
+            this.includeIPV6 = includeIPV6;
+        }
+
+        public static HostnameResolveMode get(String value) {
+            for (HostnameResolveMode mode : HostnameResolveMode.values()) {
+                if (mode.name().equalsIgnoreCase(value)) {
+                    return mode;
+                }
+            }
+            return null;
+        }
+    }
+
     // ----------------------------------------------------------------------------------------------------
     // ENVIRONMENT PROPERTIES
     // ----------------------------------------------------------------------------------------------------
@@ -410,14 +468,23 @@ public class Options {
      */
     public static final String PROP_NORANDOMIZE = PFX + "norandomize";
     /**
+     * @deprecated Prefer to use hostname resolve mode
      * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#noResolveHostnames() noResolveHostnames}.
      */
+    @Deprecated
     public static final String PROP_NO_RESOLVE_HOSTNAMES = PFX + "noResolveHostnames";
     /**
-     * Property used to enable InetSocketAddress.createUnresolved for proxied connections.
-     * {@link Builder#enableInetAddressCreateUnresolved() enableInetAddressCreateUnresolved}.
+     * @deprecated Prefer to use hostname resolve mode
+     * Property used to enable fast fallback algorithm for socket connection.
+     * {@link Builder#enableFastFallback() enableFastFallback}.
      */
-    public static final String PROP_ENABLE_INET_ADDRESS_CREATE_UNRESOLVED = PFX + "inet.address.create.unresolved";
+    @Deprecated
+    public static final String PROP_FAST_FALLBACK = PFX + "fast.fallback";
+    /**
+     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#hostnameResolveMode(HostnameResolveMode) hostnameResolveMode}.
+     * Takes precedence over PROP_NO_RESOLVE_HOSTNAMES and PROP_FAST_FALLBACK
+     */
+    public static final String PROP_HOSTNAME_RESOLVE_MODE = PFX + "hostnameResolveMode";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#noSubjectValidation() noSubjectValidation}.
      */
@@ -613,12 +680,6 @@ public class Options {
      */
     public static final String PROP_READ_LISTENER_CLASS = "read.listener.class";
 
-    /**
-     * Property used to enable fast fallback algorithm for socket connection.
-     * {@link Builder#enableFastFallback() enableFastFallback}.
-     */
-    public static final String PROP_FAST_FALLBACK = PFX + "fast.fallback";
-
     // ----------------------------------------------------------------------------------------------------
     // PROTOCOL CONNECT OPTION CONSTANTS
     // ----------------------------------------------------------------------------------------------------
@@ -715,7 +776,7 @@ public class Options {
     private final List<NatsUri> natsServerUris;
     private final List<String> unprocessedServers;
     private final boolean noRandomize;
-    private final boolean noResolveHostnames;
+    private final HostnameResolveMode hostnameResolveMode;
     private final SubjectValidationType subjectValidationType;
     private final boolean reportNoResponders;
     private final String connectionName;
@@ -791,8 +852,6 @@ public class Options {
 
     private final List<java.util.function.Consumer<HttpRequest>> httpRequestInterceptors;
     private final Proxy proxy;
-    private final boolean enableFastFallback;
-    private final boolean enableInetAddressCreateUnresolved;
 
     // STATE VARIABLES
     private int executorUseCount = 0;
@@ -877,7 +936,7 @@ public class Options {
         private final List<NatsUri> natsServerUris = new ArrayList<>();
         private final List<String> unprocessedServers = new ArrayList<>();
         private boolean noRandomize = false;
-        private boolean noResolveHostnames = false;
+        private HostnameResolveMode hostnameResolveMode = HostnameResolveMode.ResolveToAll;
         private SubjectValidationType subjectValidationType = SubjectValidationType.Lenient;
         private boolean reportNoResponders = false;
         private String connectionName = null; // Useful for debugging -> "test: " + NatsTestServer.currentPort();
@@ -950,8 +1009,6 @@ public class Options {
         private char[] truststorePassword;
         private String tlsAlgorithm = DEFAULT_TLS_ALGORITHM;
         private String credentialPath;
-        private boolean enableFastFallback = false;
-        private boolean enableInetAddressCreateUnresolved = false;
 
         /**
          * Constructs a new Builder with the default values.
@@ -1024,7 +1081,6 @@ public class Options {
             stringProperty(props, PROP_CONNECTION_NAME, s -> this.connectionName = s);
 
             booleanProperty(props, PROP_NORANDOMIZE, b -> this.noRandomize = b);
-            booleanProperty(props, PROP_NO_RESOLVE_HOSTNAMES, b -> this.noResolveHostnames = b);
             booleanPropertyIfTrue(props, PROP_NO_SUBJECT_VALIDATION, b -> subjectValidationType = SubjectValidationType.None);
             booleanPropertyIfTrue(props, PROP_STRICT_SUBJECT_VALIDATION, b -> subjectValidationType = SubjectValidationType.Strict);
             booleanProperty(props, PROP_REPORT_NO_RESPONDERS, b -> this.reportNoResponders = b);
@@ -1073,8 +1129,23 @@ public class Options {
             booleanProperty(props, PROP_USE_TIMEOUT_EXCEPTION, b -> this.useTimeoutException = b);
             booleanProperty(props, PROP_USE_DISPATCHER_WITH_EXECUTOR, b -> this.useDispatcherWithExecutor = b);
             booleanProperty(props, PROP_FORCE_FLUSH_ON_REQUEST, b -> this.forceFlushOnRequest = b);
-            booleanProperty(props, PROP_FAST_FALLBACK, b -> this.enableFastFallback = b);
-            booleanProperty(props, PROP_ENABLE_INET_ADDRESS_CREATE_UNRESOLVED, b -> this.enableInetAddressCreateUnresolved = b);
+
+            booleanProperty(props, PROP_NO_RESOLVE_HOSTNAMES, b -> {
+                if (b) {
+                    hostnameResolveMode = HostnameResolveMode.ResolveToFirst;
+                }
+            });
+            booleanProperty(props, PROP_FAST_FALLBACK, b -> {
+                if (b) {
+                    hostnameResolveMode = HostnameResolveMode.HappyEyeballs;
+                }
+            });
+            stringProperty(props, PROP_HOSTNAME_RESOLVE_MODE, s -> {
+                HostnameResolveMode mode = HostnameResolveMode.get(s);
+                if (mode != null) {
+                    hostnameResolveMode = mode;
+                }
+            });
 
             classnameProperty(props, PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, o -> this.serverPool = (ServerPool) o);
             classnameProperty(props, PROP_DISPATCHER_FACTORY_CLASS, o -> this.dispatcherFactory = (DispatcherFactory) o);
@@ -1148,11 +1219,34 @@ public class Options {
         }
 
         /**
-         * For the default server list provider, whether to resolve hostnames when building server list.
+         * @deprecated use hostnameResolveMode()
+         * If the connection should not resolve hostnames to ip addresses.
          * @return the Builder for chaining
          */
+        @Deprecated
         public Builder noResolveHostnames() {
-            this.noResolveHostnames = true;
+            this.hostnameResolveMode = HostnameResolveMode.ResolveToFirst;
+            return this;
+        }
+
+        /**
+         * @deprecated use hostnameResolveMode()
+         * Whether to enable Fast fallback algorithm for socket connect
+         * @return the Builder for chaining
+         */
+        @Deprecated
+        public Builder enableFastFallback() {
+            this.hostnameResolveMode = HostnameResolveMode.HappyEyeballs;
+            return this;
+        }
+
+        /**
+         * Set the hostname resolve mode
+         * @param hostnameResolveMode the enum value
+         * @return the Builder for chaining
+         */
+        public Builder hostnameResolveMode(HostnameResolveMode hostnameResolveMode) {
+            this.hostnameResolveMode = hostnameResolveMode == null ? HostnameResolveMode.ResolveToAll : hostnameResolveMode;
             return this;
         }
 
@@ -2045,26 +2139,6 @@ public class Options {
         }
 
         /**
-         * Whether to enable Fast fallback algorithm for socket connect
-         * @return the Builder for chaining
-         */
-        public Builder enableFastFallback() {
-            this.enableFastFallback = true;
-            return this;
-        }
-
-        /**
-         * Whether to enable InetSocketAddress.createUnresolved for proxied connections.
-         * This is useful for backward compatibility and when hostname resolution should be deferred.
-         * @return the Builder for chaining
-         */
-        public Builder enableInetAddressCreateUnresolved() {
-            this.enableInetAddressCreateUnresolved = true;
-            this.noResolveHostnames = true;
-            return this;
-        }
-
-        /**
          * Build an Options object from this Builder.
          *
          * <p>If the Options builder was not provided with a server, a default one will be included
@@ -2231,7 +2305,7 @@ public class Options {
             this.natsServerUris.addAll(o.natsServerUris);
             this.unprocessedServers.addAll(o.unprocessedServers);
             this.noRandomize = o.noRandomize;
-            this.noResolveHostnames = o.noResolveHostnames;
+            this.hostnameResolveMode = o.hostnameResolveMode;
             this.subjectValidationType = o.subjectValidationType;
             this.reportNoResponders = o.reportNoResponders;
             this.connectionName = o.connectionName;
@@ -2298,8 +2372,6 @@ public class Options {
 
             this.serverPool = o.serverPool;
             this.dispatcherFactory = o.dispatcherFactory;
-            this.enableFastFallback = o.enableFastFallback;
-            this.enableInetAddressCreateUnresolved = o.enableInetAddressCreateUnresolved;
         }
     }
 
@@ -2310,7 +2382,7 @@ public class Options {
         this.natsServerUris = Collections.unmodifiableList(b.natsServerUris);
         this.unprocessedServers = Collections.unmodifiableList(b.unprocessedServers);  // exactly how the user gave them
         this.noRandomize = b.noRandomize;
-        this.noResolveHostnames = b.noResolveHostnames;
+        this.hostnameResolveMode = b.hostnameResolveMode;
         this.subjectValidationType = b.subjectValidationType;
         this.reportNoResponders = b.reportNoResponders;
         this.connectionName = b.connectionName;
@@ -2378,8 +2450,6 @@ public class Options {
 
         this.serverPool = b.serverPool;
         this.dispatcherFactory = b.dispatcherFactory;
-        this.enableFastFallback = b.enableFastFallback;
-        this.enableInetAddressCreateUnresolved = b.enableInetAddressCreateUnresolved;
     }
 
     // ----------------------------------------------------------------------------------------------------
@@ -2728,11 +2798,30 @@ public class Options {
     }
 
     /**
-     * should we skip resolving hostnames for server connection attempts, see {@link Builder#noResolveHostnames() noResolveHostnames()} in the builder doc
-     * @return true if we should resolve hostnames
+     * @deprecated use hostnameResolveMode instead
+     * @return true if HostnameResolveMode is HostnameResolveMode.ResolveToFirst since that mode replaces isNoResolveHostnames
      */
+    @Deprecated
     public boolean isNoResolveHostnames() {
-        return noResolveHostnames;
+        return hostnameResolveMode == HostnameResolveMode.ResolveToFirst;
+    }
+
+    /**
+     * @deprecated use hostnameResolveMode instead
+     * Whether Fast fallback algorithm is enabled for socket connect
+     * @return true if HostnameResolveMode is HostnameResolveMode.HappyEyeballs since that mode replaces isEnableFastFallback
+     */
+    @Deprecated
+    public boolean isEnableFastFallback() {
+        return hostnameResolveMode == HostnameResolveMode.HappyEyeballs;
+    }
+
+    /**
+     * Get the Hostname Resolve Mode
+     * @return the mode
+     */
+    public HostnameResolveMode hostnameResolveMode() {
+        return hostnameResolveMode;
     }
 
     /**
@@ -3124,22 +3213,6 @@ public class Options {
      */
     public DispatcherFactory getDispatcherFactory() {
         return dispatcherFactory;
-    }
-
-    /**
-     * Whether Fast fallback algorithm is enabled for socket connect
-     * @return the flag
-     */
-    public boolean isEnableFastFallback() {
-        return enableFastFallback;
-    }
-
-    /**
-     * Whether InetSocketAddress.createUnresolved is enabled for proxied connections
-     * @return the flag
-     */
-    public boolean isEnableInetAddressCreateUnresolved() {
-        return enableInetAddressCreateUnresolved;
     }
 
     /**

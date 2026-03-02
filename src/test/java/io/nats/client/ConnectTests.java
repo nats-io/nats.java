@@ -634,11 +634,12 @@ public class ConnectTests {
     }
 
     @Test
-    void testConnectWithFastFallback() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false)) {
-            Options options = new Options.Builder().server(ts.getURI()).enableFastFallback().build();
-            Connection nc = standardConnection(options);
-            standardCloseConnection(nc);
+    void testConnectWithHappyEyeballsShortCircuitCoverage() throws Exception {
+        Options options = Options.builder().server("demo.nats.io")
+            .hostnameResolveMode(Options.HostnameResolveMode.HappyEyeballs)
+            .build();
+        try (Connection nc = standardConnection(options)) {
+            assertConnected(nc);
         }
     }
 
