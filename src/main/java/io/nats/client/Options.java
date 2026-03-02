@@ -463,6 +463,7 @@ public class Options {
     public static final String PROP_FAST_FALLBACK = PFX + "fast.fallback";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#hostnameResolveMode(HostnameResolveMode) hostnameResolveMode}.
+     * Takes precedence over PROP_NO_RESOLVE_HOSTNAMES and PROP_FAST_FALLBACK
      */
     public static final String PROP_HOSTNAME_RESOLVE_MODE = PFX + "hostnameResolveMode";
     /**

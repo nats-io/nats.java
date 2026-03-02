@@ -23,9 +23,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Class to extracting resolving a host to ip addresses
+ * Class for resolving a host to IP addresses
  */
-public class NatsHostResolver {
+public final class NatsHostResolver {
+    private NatsHostResolver() {}  /* ensures cannot be constructed */
 
     /**
      * Resolve a host to ip addresses

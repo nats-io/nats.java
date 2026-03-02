@@ -1363,6 +1363,14 @@ public class OptionsTests {
         validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "HappyEyeballs", HostnameResolveMode.HappyEyeballs, true, true);
         //noinspection deprecation
         validateHostnameResolveMode(PROP_FAST_FALLBACK, "true", HostnameResolveMode.HappyEyeballs, true, true);
+
+        // these test where multiple properties. Only the PROP_HOSTNAME_RESOLVE_MODE wins
+        Properties props = new Properties();
+        //noinspection deprecation
+        props.setProperty(PROP_FAST_FALLBACK, "true");
+        props.setProperty(PROP_HOSTNAME_RESOLVE_MODE, "ResolveToAll");
+        Options options = new Options.Builder(props).build();
+        assertEquals(HostnameResolveMode.ResolveToAll, options.hostnameResolveMode());
     }
 
     @SuppressWarnings("deprecation")
