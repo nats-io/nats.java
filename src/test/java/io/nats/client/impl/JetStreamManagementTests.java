@@ -16,7 +16,6 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.DateTimeUtils;
-import io.nats.client.support.Debug;
 import io.nats.client.support.Listener;
 import io.nats.client.utils.VersionUtils;
 import org.junit.jupiter.api.Test;
@@ -276,7 +275,6 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
             // add the stream
             StreamInfo si = ctx.createOrReplaceStream(sc);
-            Debug.info("si", si);
 
             // cannot change storage type
             StreamConfiguration scMemToFile = ctx.scBuilder(2)
