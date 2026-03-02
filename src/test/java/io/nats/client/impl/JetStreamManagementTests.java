@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.Debug;
 import io.nats.client.support.Listener;
 import io.nats.client.utils.VersionUtils;
 import org.junit.jupiter.api.Test;
@@ -274,7 +275,8 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertThrows(JetStreamApiException.class, () -> ctx.jsm.updateStream(sc));
 
             // add the stream
-            ctx.createOrReplaceStream(sc);
+            StreamInfo si = ctx.createOrReplaceStream(sc);
+            Debug.info("si", si);
 
             // cannot change storage type
             StreamConfiguration scMemToFile = ctx.scBuilder(2)
@@ -282,11 +284,13 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 .build();
             assertThrows(JetStreamApiException.class, () -> ctx.jsm.updateStream(scMemToFile));
 
-            // cannot change MaxConsumers
-            StreamConfiguration scMaxCon = ctx.scBuilder(2)
-                .maxConsumers(2)
-                .build();
-            assertThrows(JetStreamApiException.class, () -> ctx.jsm.updateStream(scMaxCon));
+            if (nc.getServerInfo().isOlderThanVersion("2.14")) {
+                // cannot change MaxConsumers
+                StreamConfiguration scMaxCon = ctx.scBuilder(2)
+                    .maxConsumers(2)
+                    .build();
+                assertThrows(JetStreamApiException.class, () -> ctx.jsm.updateStream(scMaxCon));
+            }
 
             StreamConfiguration scReten = ctx.scBuilder(2)
                 .retentionPolicy(RetentionPolicy.Interest)

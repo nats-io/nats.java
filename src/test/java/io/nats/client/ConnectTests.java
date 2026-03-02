@@ -582,7 +582,7 @@ public class ConnectTests {
         Options options = Options.builder().server("demo.nats.io")
             .hostnameResolveMode(Options.HostnameResolveMode.HappyEyeballs)
             .build();
-        try (Connection nc = standardConnection(options)) {
+        try (Connection nc = Nats.connect(options)) {
             assertConnected(nc);
         }
     }
