@@ -2780,17 +2780,17 @@ public class Options {
 
     /**
      * @deprecated use hostnameResolveMode instead
-     * @return true if HostnameResolveMode is not HostnameResolveMode.Resolve since only Resolve mode does resolve.
+     * @return true if HostnameResolveMode is HostnameResolveMode.ResolveToFirst since that mode replaces isNoResolveHostnames
      */
     @Deprecated
     public boolean isNoResolveHostnames() {
-        return hostnameResolveMode != HostnameResolveMode.ResolveToAll;
+        return hostnameResolveMode == HostnameResolveMode.ResolveToFirst;
     }
 
     /**
      * @deprecated use hostnameResolveMode instead
      * Whether Fast fallback algorithm is enabled for socket connect
-     * @return the flag
+     * @return true if HostnameResolveMode is HostnameResolveMode.HappyEyeballs since that mode replaces isEnableFastFallback
      */
     @Deprecated
     public boolean isEnableFastFallback() {

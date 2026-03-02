@@ -1354,15 +1354,15 @@ public class OptionsTests {
         //noinspection deprecation
         validateHostnameResolveMode(PROP_NO_RESOLVE_HOSTNAMES, "true", HostnameResolveMode.ResolveToFirst, true, false);
 
-        validateHostnameResolveMode(HostnameResolveMode.Unresolved, true, false, new Options.Builder().hostnameResolveMode(HostnameResolveMode.Unresolved).build());
-        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "Unresolved", HostnameResolveMode.Unresolved, true, false);
+        validateHostnameResolveMode(HostnameResolveMode.Unresolved, false, false, new Options.Builder().hostnameResolveMode(HostnameResolveMode.Unresolved).build());
+        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "Unresolved", HostnameResolveMode.Unresolved, false, false);
 
         //noinspection deprecation
-        validateHostnameResolveMode(HostnameResolveMode.HappyEyeballs, true, true, new Options.Builder().enableFastFallback().build());
-        validateHostnameResolveMode(HostnameResolveMode.HappyEyeballs, true, true, new Options.Builder().hostnameResolveMode(HostnameResolveMode.HappyEyeballs).build());
-        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "HappyEyeballs", HostnameResolveMode.HappyEyeballs, true, true);
+        validateHostnameResolveMode(HostnameResolveMode.HappyEyeballs, false, true, new Options.Builder().enableFastFallback().build());
+        validateHostnameResolveMode(HostnameResolveMode.HappyEyeballs, false, true, new Options.Builder().hostnameResolveMode(HostnameResolveMode.HappyEyeballs).build());
+        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "HappyEyeballs", HostnameResolveMode.HappyEyeballs, false, true);
         //noinspection deprecation
-        validateHostnameResolveMode(PROP_FAST_FALLBACK, "true", HostnameResolveMode.HappyEyeballs, true, true);
+        validateHostnameResolveMode(PROP_FAST_FALLBACK, "true", HostnameResolveMode.HappyEyeballs, false, true);
 
         // these test where multiple properties. Only the PROP_HOSTNAME_RESOLVE_MODE wins
         Properties props = new Properties();
