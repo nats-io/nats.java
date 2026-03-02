@@ -143,8 +143,7 @@ public class SocketDataPortProxyHostnameTest extends TestBase {
     @Test
     public void testProxyReceivesDomainNameWithEnableInetAddressCreateUnresolved() throws Exception {
         testProxyHostnameResolution(
-            true,  // enableNoResolveHostnames
-            "nats://localhost:4222",
+            true,  // use unresolved mode
             false  // expectIpAddress
         );
     }
@@ -160,8 +159,7 @@ public class SocketDataPortProxyHostnameTest extends TestBase {
     @Test
     public void testProxyReceivesIpAddressWithoutEnableInetAddressCreateUnresolved() throws Exception {
         testProxyHostnameResolution(
-            false, // disableNoResolveHostnames
-            "nats://localhost:4222",
+            false, // don't use unresolved mode
             true   // expectIpAddress
         );
     }
@@ -169,12 +167,11 @@ public class SocketDataPortProxyHostnameTest extends TestBase {
     /**
      * Helper method to test proxy hostname resolution behavior.
      *
-     * @param useEnableInetAddressCreateUnresolved Whether to enable isEnableInetAddressCreateUnresolved() option
-     * @param targetUri The URI to connect to
-     * @param expectIpAddress True if expecting proxy to receive an IP, false for hostname
+     * @param useUnresolvedMode Whether to set hostnameResolveMode to Options.HostnameResolveMode.Unresolved
+     * @param expectIpAddress   True if expecting proxy to receive an IP, false for hostname
      */
-    private void testProxyHostnameResolution(boolean useEnableInetAddressCreateUnresolved, String targetUri,
-                                            boolean expectIpAddress)
+    private void testProxyHostnameResolution(boolean useUnresolvedMode,
+                                             boolean expectIpAddress)
             throws Exception {
         ExecutorService executor = Executors.newFixedThreadPool(3);
         WhitelistingProxyServer proxyServer = new WhitelistingProxyServer(executor);
@@ -186,14 +183,14 @@ public class SocketDataPortProxyHostnameTest extends TestBase {
                 .proxy(new Proxy(Proxy.Type.HTTP, new InetSocketAddress("127.0.0.1", proxyServer.getPort())))
                 .noReconnect();
 
-            if (useEnableInetAddressCreateUnresolved) {
-                optionsBuilder.enableInetAddressCreateUnresolved();
+            if (useUnresolvedMode) {
+                optionsBuilder.hostnameResolveMode(Options.HostnameResolveMode.Unresolved);
             }
 
             Options options = optionsBuilder.build();
             MockNatsConnection mockConnection = new MockNatsConnection(options);
             SocketDataPort dataPort = new SocketDataPort();
-            NatsUri nuri = new NatsUri(targetUri);
+            NatsUri nuri = new NatsUri("nats://localhost:4222");
 
             try {
                 dataPort.connect(mockConnection, nuri, 5_000_000_000L);
@@ -240,7 +237,7 @@ public class SocketDataPortProxyHostnameTest extends TestBase {
         }
         try {
             InetAddress.getByName(host);
-            // If getByName doesn't throw and we only got back an IP, it's likely an IP
+            // If getByName doesn't throw, and we only got back an IP, it's likely an IP
             // This is a simple heuristic check
             return host.matches("^\\d+\\.\\d+\\.\\d+\\.\\d+$") || host.startsWith("[");
         } catch (UnknownHostException e) {

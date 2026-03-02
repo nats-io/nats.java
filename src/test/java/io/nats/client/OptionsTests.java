@@ -1194,7 +1194,7 @@ public class OptionsTests {
     String[] schemes = new String[]   { "NATS", "unk",  "tls",  "opentls",  "ws",   "wss", "nats"};
     boolean[] secures = new boolean[] { false,  false,  true,   true,       false,  true,  false};
     boolean[] wses = new boolean[]    { false,  false,  false,  false,      true,   true,  false};
-    String[] hosts = new String[]     { "host", "1.2.3.4", "[1:2:3:4::5]", null, "nats"};
+    String[] hosts = new String[]     { "host", "1.2.3.4", "[1:2:3:4:5:6:7:8]", null, "nats"};
     boolean[] ips = new boolean[]     { false,  true,      true,           false, false};
     Integer[] ports = new Integer[]   {1122, null};
     String[] userInfos = new String[] {null, "u:p"};
@@ -1282,6 +1282,16 @@ public class OptionsTests {
         assertEquals(ip, uri.hostIsIpAddress());
     }
 
+
+    @Test
+    public void testNuriRehost() throws URISyntaxException {
+        NatsUri nuri = new NatsUri("nats://host:80");
+        assertEquals("nats://rehost:80", nuri.reHost("rehost").toString());
+        assertEquals("nats://1.2.3.4:80", nuri.reHost("1.2.3.4").toString());
+        assertEquals("nats://[1:2:3:4:5:6:7:8]:80", nuri.reHost("[1:2:3:4:5:6:7:8]").toString());
+        assertEquals("nats://[1:2:3:4:5:6:7:8]:80", nuri.reHost("1:2:3:4:5:6:7:8").toString());
+    }
+
     @Test
     public void testReconnectDelayHandler() {
         ReconnectDelayHandler rdh = l -> Duration.ofSeconds(l * 2);
@@ -1338,16 +1348,65 @@ public class OptionsTests {
     }
 
     @Test
-    public void testFastFallback() {
-        Options options = new Options.Builder().enableFastFallback().build();
-        assertTrue(options.isEnableFastFallback());
+    public void testHostnameResolveMode() {
+        validateHostnameResolveMode(HostnameResolveMode.ResolveToAll, false, false, new Options.Builder().build());
+        validateHostnameResolveMode(HostnameResolveMode.ResolveToAll, false, false, new Options.Builder().hostnameResolveMode(HostnameResolveMode.ResolveToAll).build());
+        validateHostnameResolveMode(HostnameResolveMode.ResolveToAll, false, false, new Options.Builder().hostnameResolveMode(null).build());
+        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "ResolveToAll", HostnameResolveMode.ResolveToAll, false, false);
+
+        validateHostnameResolveMode(HostnameResolveMode.ResolveToAllIncludeIPV6, false, false, new Options.Builder().hostnameResolveMode(HostnameResolveMode.ResolveToAllIncludeIPV6).build());
+        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "ResolveToAllIncludeIPV6", HostnameResolveMode.ResolveToAllIncludeIPV6, false, false);
+
+        validateHostnameResolveMode(HostnameResolveMode.ResolveToFirstIncludeIPV6, false, false, new Options.Builder().hostnameResolveMode(HostnameResolveMode.ResolveToFirstIncludeIPV6).build());
+        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "ResolveToFirstIncludeIPV6", HostnameResolveMode.ResolveToFirstIncludeIPV6, false, false);
+
+        //noinspection deprecation
+        validateHostnameResolveMode(HostnameResolveMode.ResolveToFirst, true, false, new Options.Builder().noResolveHostnames().build());
+        validateHostnameResolveMode(HostnameResolveMode.ResolveToFirst, true, false, new Options.Builder().hostnameResolveMode(HostnameResolveMode.ResolveToFirst).build());
+        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "ResolveToFirst", HostnameResolveMode.ResolveToFirst, true, false);
+        //noinspection deprecation
+        validateHostnameResolveMode(PROP_NO_RESOLVE_HOSTNAMES, "true", HostnameResolveMode.ResolveToFirst, true, false);
+
+        validateHostnameResolveMode(HostnameResolveMode.Unresolved, false, false, new Options.Builder().hostnameResolveMode(HostnameResolveMode.Unresolved).build());
+        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "Unresolved", HostnameResolveMode.Unresolved, false, false);
+
+        //noinspection deprecation
+        validateHostnameResolveMode(HostnameResolveMode.HappyEyeballs, false, true, new Options.Builder().enableFastFallback().build());
+        validateHostnameResolveMode(HostnameResolveMode.HappyEyeballs, false, true, new Options.Builder().hostnameResolveMode(HostnameResolveMode.HappyEyeballs).build());
+        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "HappyEyeballs", HostnameResolveMode.HappyEyeballs, false, true);
+        //noinspection deprecation
+        validateHostnameResolveMode(PROP_FAST_FALLBACK, "true", HostnameResolveMode.HappyEyeballs, false, true);
+
+        // these test where multiple properties. Only the PROP_HOSTNAME_RESOLVE_MODE wins
+        Properties props = new Properties();
+        //noinspection deprecation
+        props.setProperty(PROP_FAST_FALLBACK, "true");
+        props.setProperty(PROP_HOSTNAME_RESOLVE_MODE, "ResolveToAll");
+        Options options = new Options.Builder(props).build();
+        assertEquals(HostnameResolveMode.ResolveToAll, options.hostnameResolveMode());
     }
 
-    @Test
-    public void testEnableInetAddressCreateUnresolved() {
-        Options options = new Options.Builder().enableInetAddressCreateUnresolved().build();
-        assertTrue(options.isEnableInetAddressCreateUnresolved());
-        assertTrue(options.isNoResolveHostnames());
+    @SuppressWarnings("deprecation")
+    private void validateHostnameResolveMode(HostnameResolveMode expected,
+                                             boolean isNoResolveHostnames, boolean isEnableFastFallback,
+                                             Options options)
+    {
+        assertEquals(expected, options.hostnameResolveMode());
+        assertEquals(isNoResolveHostnames, options.isNoResolveHostnames());
+        assertEquals(isEnableFastFallback, options.isEnableFastFallback());
+
+        Options copy = new Options.Builder(options).build();
+        assertEquals(expected, copy.hostnameResolveMode());
+        assertEquals(isNoResolveHostnames, copy.isNoResolveHostnames());
+        assertEquals(isEnableFastFallback, copy.isEnableFastFallback());
+    }
+
+    private void validateHostnameResolveMode(String key, String value, HostnameResolveMode expected,
+                                             boolean isNoResolveHostnames, boolean isEnableFastFallback)
+    {
+        Properties props = new Properties();
+        props.setProperty(key, value);
+        validateHostnameResolveMode(expected, isNoResolveHostnames, isEnableFastFallback, new Options.Builder(props).build());
     }
 
 /* These next three require that no default is set anywhere, if another test
