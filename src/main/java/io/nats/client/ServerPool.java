@@ -53,12 +53,25 @@ public interface ServerPool {
     NatsUri nextServer();
 
     /**
+     * @deprecated NatsConnection calls resolveHostToIps(String, resolveInstruction) now
      * Resolve a host name to an ip address
      * @param host the host to resolve
      * @return a list of resolved hosts. Can be null.
      */
     @Nullable
+    @Deprecated
     List<String> resolveHostToIps(@NonNull String host);
+
+    /**
+     * Resolve a host name to an ip address based on the instructions. Replaces resolveHostToIps(String)
+     * @param host         the host to resolve
+     * @param maxOneResult flag to indicate to only return one result
+     * @return a list of resolved hosts. Can be null if host does not resolve
+     */
+    @Nullable
+    default List<String> resolveHostToIps(@NonNull String host, boolean maxOneResult) {
+        return resolveHostToIps(host);
+    }
 
     /**
      * Indicate that the connection to this NatsUri succeeded.

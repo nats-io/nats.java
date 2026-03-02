@@ -2029,9 +2029,12 @@ class NatsConnection implements Connection {
         List<NatsUri> results = new ArrayList<>();
         if (!nuri.hostIsIpAddress()
             && !nuri.isWebsocket()
-            && options.hostnameResolveMode() == Options.HostnameResolveMode.Resolve
-        ) {
-            List<String> ips = serverPool.resolveHostToIps(nuri.getHost());
+            && options.hostnameResolveMode().resolve)
+        {
+            List<String> ips = serverPool.resolveHostToIps(
+                nuri.getHost(),
+                options.hostnameResolveMode().maxOneResult
+            );
             if (ips != null) {
                 for (String ip : ips) {
                     try {
@@ -2039,16 +2042,17 @@ class NatsConnection implements Connection {
                     }
                     catch (URISyntaxException u) {
                         // ??? should never happen
+                        throw new RuntimeException(u);
                     }
                 }
             }
         }
 
         // 2. If there were no results,
-        //    - host was already an ip address or
-        //    - host was for websocket or
-        //    - fast fallback is enabled
-        //    - pool returned nothing or
+        //    - host was already an ip address
+        //    - host was for websocket
+        //    - hostnameResolveMode did not want to be resolved
+        //    - pool returned nothing
         //    - resolving failed...
         //    so the list just becomes the original host.
         if (results.isEmpty()) {

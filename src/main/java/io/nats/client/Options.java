@@ -278,21 +278,29 @@ public class Options {
      */
     public enum HostnameResolveMode {
         /**
-         * Resolve hosts to ip addresses allowing for connection attempts to try all ip addresses for a hostname
+         * Resolve host to all ip addresses allowing for connection attempts to try all ip addresses for a given hostname
          */
-        Resolve,
+        ResolveToAll(true, false),
         /**
-         * Do not resolve hosts to ip addresses allowing for connection attempts to try only 1 ip address for a hostname
+         * Resolve host to the first ip addresses allowing for connection attempts to try just that first ip addresses for a given hostname
          */
-        NoResolve,
+        ResolveToFirst(true, true),
         /**
-         * Do not resolve hosts to ip addresses and also do not resolve the host name to ip while creating the socket
+         * Do not resolve, instead use InetSocketAddress.createUnresolved while creating the socket
          */
-        Unresolved,
+        Unresolved(false, false),
         /**
-         * Do not resolve hosts to ip addresses and attempt to connect to the fastest ip
+         * Attempt to connect to the fastest ip for a host via the Happy Eyeballs algorithm as described in RFC 6555/8305
          */
-        FastFallback;
+        HappyEyeballs(false, false);
+
+        public final boolean resolve;
+        public final boolean maxOneResult;
+
+        HostnameResolveMode(boolean resolve, boolean maxOneResult) {
+            this.resolve = resolve;
+            this.maxOneResult = maxOneResult;
+        }
 
         public static HostnameResolveMode get(String value) {
             for (HostnameResolveMode mode : HostnameResolveMode.values()) {
@@ -908,7 +916,7 @@ public class Options {
         private final List<NatsUri> natsServerUris = new ArrayList<>();
         private final List<String> unprocessedServers = new ArrayList<>();
         private boolean noRandomize = false;
-        private HostnameResolveMode hostnameResolveMode = HostnameResolveMode.Resolve;
+        private HostnameResolveMode hostnameResolveMode = HostnameResolveMode.ResolveToAll;
         private SubjectValidationType subjectValidationType = SubjectValidationType.Lenient;
         private boolean reportNoResponders = false;
         private String connectionName = null; // Useful for debugging -> "test: " + NatsTestServer.currentPort();
@@ -1104,12 +1112,12 @@ public class Options {
 
             booleanProperty(props, PROP_NO_RESOLVE_HOSTNAMES, b -> {
                 if (b) {
-                    hostnameResolveMode = HostnameResolveMode.NoResolve;
+                    hostnameResolveMode = HostnameResolveMode.ResolveToFirst;
                 }
             });
             booleanProperty(props, PROP_FAST_FALLBACK, b -> {
                 if (b) {
-                    hostnameResolveMode = HostnameResolveMode.FastFallback;
+                    hostnameResolveMode = HostnameResolveMode.HappyEyeballs;
                 }
             });
             stringProperty(props, PROP_HOSTNAME_RESOLVE_MODE, s -> {
@@ -1197,7 +1205,7 @@ public class Options {
          */
         @Deprecated
         public Builder noResolveHostnames() {
-            this.hostnameResolveMode = HostnameResolveMode.NoResolve;
+            this.hostnameResolveMode = HostnameResolveMode.ResolveToFirst;
             return this;
         }
 
@@ -1208,7 +1216,7 @@ public class Options {
          */
         @Deprecated
         public Builder enableFastFallback() {
-            this.hostnameResolveMode = HostnameResolveMode.FastFallback;
+            this.hostnameResolveMode = HostnameResolveMode.HappyEyeballs;
             return this;
         }
 
@@ -1218,7 +1226,7 @@ public class Options {
          * @return the Builder for chaining
          */
         public Builder hostnameResolveMode(HostnameResolveMode hostnameResolveMode) {
-            this.hostnameResolveMode = hostnameResolveMode == null ? HostnameResolveMode.Resolve : hostnameResolveMode;
+            this.hostnameResolveMode = hostnameResolveMode == null ? HostnameResolveMode.ResolveToAll : hostnameResolveMode;
             return this;
         }
 
@@ -2775,7 +2783,7 @@ public class Options {
      */
     @Deprecated
     public boolean isNoResolveHostnames() {
-        return hostnameResolveMode != HostnameResolveMode.Resolve;
+        return hostnameResolveMode != HostnameResolveMode.ResolveToAll;
     }
 
     /**
@@ -2785,7 +2793,7 @@ public class Options {
      */
     @Deprecated
     public boolean isEnableFastFallback() {
-        return hostnameResolveMode == HostnameResolveMode.FastFallback;
+        return hostnameResolveMode == HostnameResolveMode.HappyEyeballs;
     }
 
     /**

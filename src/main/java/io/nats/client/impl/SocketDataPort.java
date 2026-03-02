@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.Options;
+import io.nats.client.Options.HostnameResolveMode;
 import io.nats.client.support.NatsInetAddress;
 import io.nats.client.support.NatsUri;
 import io.nats.client.support.WebSocket;
@@ -29,9 +30,11 @@ import java.io.OutputStream;
 import java.net.*;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import static io.nats.client.support.NatsConstants.SECURE_WEBSOCKET_PROTOCOL;
 
@@ -71,14 +74,14 @@ public class SocketDataPort implements DataPort {
         port = nuri.getPort();
 
         try {
-            Options.HostnameResolveMode mode = options.hostnameResolveMode();
-            if (mode == Options.HostnameResolveMode.FastFallback) {
+            HostnameResolveMode mode = options.hostnameResolveMode();
+            if (mode == HostnameResolveMode.HappyEyeballs) {
                 socket = connectToFastestIp(options, host, port, (int) timeout);
             }
             else {
                 socket = createSocket(options);
                 InetSocketAddress inetSocketAddress;
-                if (mode == Options.HostnameResolveMode.Unresolved && !nuri.hostIsIpAddress()) {
+                if (mode == HostnameResolveMode.Unresolved && !nuri.hostIsIpAddress()) {
                     inetSocketAddress = InetSocketAddress.createUnresolved(host, port);
                 }
                 else {
@@ -103,7 +106,7 @@ public class SocketDataPort implements DataPort {
                 socket.setSendBufferSize(options.getSendBufferSize());
             }
 
-            if (isWebsocketScheme(nuri.getScheme())) {
+            if (nuri.isWebsocket()) {
                 if (SECURE_WEBSOCKET_PROTOCOL.equalsIgnoreCase(nuri.getScheme())) {
                     upgradeToSecure();
                 }
@@ -206,29 +209,31 @@ public class SocketDataPort implements DataPort {
         out.flush();
     }
 
-    protected static boolean isWebsocketScheme(String scheme) {
-        return "ws".equalsIgnoreCase(scheme) ||
-            "wss".equalsIgnoreCase(scheme);
-    }
-
     /**
-     * Implements the "Happy Eyeballs" algorithm as described in RFC 6555,
+     * Implements the "Happy Eyeballs" algorithm as described in RFC 6555/8305,
      * which attempts to connect to multiple IP addresses in parallel to reduce
      * connection setup delays.
      */
     private Socket connectToFastestIp(Options options, String hostname, int port,
                                       int timeoutMillis) throws IOException {
         // Get all IP addresses for the hostname
-        List<InetAddress> ips = Arrays.asList(NatsInetAddress.getAllByName(hostname));
+        InetAddress[] ips = NatsInetAddress.getAllByName(hostname);
 
-        ExecutorService executor = options.getExecutor();
-        long CONNECT_DELAY_MILLIS = 250;
+        // If there is only 1 ip address, we can short circuit the algorithm
+        if (ips.length == 1) {
+            Socket socket = createSocket(options);
+            socket.connect(new InetSocketAddress(ips[0], port), timeoutMillis);
+            return socket;
+        }
+
+        long CONNECT_DELAY_MILLIS = 250; // value suggested here https://www.rfc-editor.org/rfc/rfc8305.html#section-5
+
         // Create connection tasks for each address
         // with delays for each address (0ms, 250ms, 500ms, ...)
         List<Callable<Socket>> connectionTasks = new ArrayList<>();
 
-        for (int i = 0; i < ips.size(); i++) {
-            final InetAddress ip = ips.get(i);
+        for (int i = 0; i < ips.length; i++) {
+            final InetAddress finalIp = ips[i];
             final int delayMillis = i * (int) CONNECT_DELAY_MILLIS;
 
             connectionTasks.add(() -> {
@@ -241,18 +246,20 @@ public class SocketDataPort implements DataPort {
                 }
 
                 Socket socket = createSocket(options);
-                socket.connect(new InetSocketAddress(ip, port), timeoutMillis);
+                socket.connect(new InetSocketAddress(finalIp, port), timeoutMillis);
                 return socket;
             });
         }
 
         try {
-            // Use invokeAny to return the first successful connection and cancel other tasks
-            return executor.invokeAny(connectionTasks);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        } catch (ExecutionException ignored) {
+            // invokeAny returns the first successful tasks result and cancel other tasks
+            return options.getExecutor().invokeAny(connectionTasks);
         }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        catch (ExecutionException ignored) {}
+
         // Could not connect to any IP address
         throw new IOException("No responsive IP found for " + hostname);
     }
