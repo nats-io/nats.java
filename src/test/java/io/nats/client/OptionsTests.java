@@ -1197,7 +1197,7 @@ public class OptionsTests {
     String[] schemes = new String[]   { "NATS", "unk",  "tls",  "opentls",  "ws",   "wss", "nats"};
     boolean[] secures = new boolean[] { false,  false,  true,   true,       false,  true,  false};
     boolean[] wses = new boolean[]    { false,  false,  false,  false,      true,   true,  false};
-    String[] hosts = new String[]     { "host", "1.2.3.4", "[1:2:3:4::5]", null, "nats"};
+    String[] hosts = new String[]     { "host", "1.2.3.4", "[1:2:3:4:5:6:7:8]", null, "nats"};
     boolean[] ips = new boolean[]     { false,  true,      true,           false, false};
     Integer[] ports = new Integer[]   {1122, null};
     String[] userInfos = new String[] {null, "u:p"};
@@ -1283,6 +1283,16 @@ public class OptionsTests {
             : scheme + "://" + userInfo + "@rehost:" + port;
         assertEquals(expectedUri, uri.reHost("rehost").toString());
         assertEquals(ip, uri.hostIsIpAddress());
+    }
+
+
+    @Test
+    public void testNuriRehost() throws URISyntaxException {
+        NatsUri nuri = new NatsUri("nats://host:80");
+        assertEquals("nats://rehost:80", nuri.reHost("rehost").toString());
+        assertEquals("nats://1.2.3.4:80", nuri.reHost("1.2.3.4").toString());
+        assertEquals("nats://[1:2:3:4:5:6:7:8]:80", nuri.reHost("[1:2:3:4:5:6:7:8]").toString());
+        assertEquals("nats://[1:2:3:4:5:6:7:8]:80", nuri.reHost("1:2:3:4:5:6:7:8").toString());
     }
 
     @Test
