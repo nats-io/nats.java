@@ -13,7 +13,7 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.SslTestingHelper;
+import io.nats.client.support.ssl.SslTestingHelper;
 
 import javax.net.ssl.SSLContext;
 

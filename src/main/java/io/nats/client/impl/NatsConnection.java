@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
+import io.nats.client.Options.HostnameResolveMode;
 import io.nats.client.api.ServerInfo;
 import io.nats.client.support.*;
 import org.jspecify.annotations.NonNull;
@@ -569,7 +570,7 @@ class NatsConnection implements Connection {
 
             timeoutNanos = timeCheck(end, "connecting data port");
             DataPort newDataPort = this.options.buildDataPort();
-            newDataPort.connect(resolved.toString(), this, timeoutNanos);
+            newDataPort.connect(this, resolved, timeoutNanos);
 
             // Notify any threads waiting on the sockets
             this.dataPort = newDataPort;
@@ -2022,11 +2023,18 @@ class NatsConnection implements Connection {
     }
 
     protected List<NatsUri> resolveHost(NatsUri nuri) {
-        // 1. If the nuri host is not already an ip address or the nuri is not for websocket or fast fallback is disabled,
+        // 1. If the nuri host is not already an ip address
+        //      -and- the nuri is not for websocket
+        //      -and- the HostnameResolveMode is Resolve
         //    let the pool resolve it.
+        HostnameResolveMode resolveMode = options.hostnameResolveMode();
         List<NatsUri> results = new ArrayList<>();
-        if (!nuri.hostIsIpAddress() && !nuri.isWebsocket() && !options.isEnableFastFallback()) {
-            List<String> ips = serverPool.resolveHostToIps(nuri.getHost());
+        if (!nuri.hostIsIpAddress()
+            && !nuri.isWebsocket()
+            && resolveMode.resolve)
+        {
+            List<String> ips = serverPool.resolveHostToIps(
+                nuri.getHost(), resolveMode.maxOneResult, resolveMode.includeIPV6);
             if (ips != null) {
                 for (String ip : ips) {
                     try {
@@ -2034,16 +2042,17 @@ class NatsConnection implements Connection {
                     }
                     catch (URISyntaxException u) {
                         // ??? should never happen
+                        throw new RuntimeException(u);
                     }
                 }
             }
         }
 
         // 2. If there were no results,
-        //    - host was already an ip address or
-        //    - host was for websocket or
-        //    - fast fallback is enabled
-        //    - pool returned nothing or
+        //    - host was already an ip address
+        //    - host was for websocket
+        //    - hostnameResolveMode did not want to be resolved
+        //    - pool returned nothing
         //    - resolving failed...
         //    so the list just becomes the original host.
         if (results.isEmpty()) {

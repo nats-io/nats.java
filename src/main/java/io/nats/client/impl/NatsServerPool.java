@@ -16,14 +16,11 @@ package io.nats.client.impl;
 import io.nats.client.Options;
 import io.nats.client.ServerPool;
 import io.nats.client.support.NatsConstants;
-import io.nats.client.support.NatsInetAddress;
 import io.nats.client.support.NatsUri;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-import java.net.InetAddress;
 import java.net.URISyntaxException;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -213,37 +210,17 @@ public class NatsServerPool implements ServerPool {
         }
     }
 
+    @Deprecated // this implementation has been deprecated but implemented for completeness
     @Override
     @Nullable
     public List<String> resolveHostToIps(@NonNull String host) {
-        // 1. if options.isNoResolveHostnames(), return empty list
-        if (options.isNoResolveHostnames()) {
-            return null;
-        }
+        return NatsHostResolver.resolveHostToIps(host, false, false);
+    }
 
-        // 2. else, try to resolve the hostname, adding results to list
-        List<String> results = new ArrayList<>();
-        try {
-            InetAddress[] addresses = NatsInetAddress.getAllByName(host);
-            for (InetAddress a : addresses) {
-                results.add(a.getHostAddress());
-            }
-        }
-        catch (UnknownHostException ignore) {
-            // A user might have supplied a bad host, but the server shouldn't.
-            // Either way, nothing much we can do.
-        }
-
-        // 3. no results, return null.
-        if (results.isEmpty()) {
-            return null;
-        }
-
-        // 4. if results has more than 1 and allowed to randomize, shuffle the list
-        if (results.size() > 1 && !options.isNoRandomize()) {
-            Collections.shuffle(results, ThreadLocalRandom.current());
-        }
-        return results;
+    @Override
+    @Nullable
+    public List<String> resolveHostToIps(@NonNull String host, boolean maxOneResult, boolean includeIPV6) {
+        return NatsHostResolver.resolveHostToIps(host, maxOneResult, includeIPV6);
     }
 
     @Override

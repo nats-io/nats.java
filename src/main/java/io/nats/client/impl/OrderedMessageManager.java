@@ -64,8 +64,8 @@ class OrderedMessageManager extends PushMessageManager {
                 handleErrorCondition();
                 return STATUS_HANDLED;
             }
-            trackJsMessage(msg);
             expectedExternalConsumerSeq.incrementAndGet();
+            trackJsMessage(msg);
             return MESSAGE;
         }
 

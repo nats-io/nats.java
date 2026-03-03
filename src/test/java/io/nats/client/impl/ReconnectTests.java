@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.api.ServerInfo;
+import io.nats.client.support.ssl.SslTestingHelper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 

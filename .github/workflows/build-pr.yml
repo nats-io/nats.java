@@ -44,6 +44,7 @@ jobs:
       - name: Verify Javadoc
         run: ./gradlew javadoc
       - name: Send coverage to Coveralls
+        continue-on-error: true
         uses: coverallsapp/github-action@v2
         with:
           github-token: ${{ secrets.COVERALLS_REPO_TOKEN }}

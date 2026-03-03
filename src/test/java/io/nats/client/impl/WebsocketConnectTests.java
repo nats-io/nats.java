@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.NatsServerRunner;
 import io.nats.client.*;
 import io.nats.client.support.HttpRequest;
+import io.nats.client.support.ssl.SslTestingHelper;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
 import io.nats.client.utils.RunProxy;
 import io.nats.client.utils.TestBase;

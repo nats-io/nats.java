@@ -905,7 +905,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
     @Test
     public void testExceedsMaxRequestExpiresSyncSub() throws Exception {
         testConflictStatus(409, EXCEEDED_MAX_REQUEST_EXPIRES, TYPE_WARNING, "2.9.0", (nc, jsm, js, tsc, handler) -> {
-            PullSubscribeOptions so = makePso(b -> b.maxExpires(1000));
+            PullSubscribeOptions so = makePso(b -> b.maxExpires(1000).name("foo"));
             JetStreamSubscription sub = js.subscribe(tsc.subject(), so);
             sub.pullExpiresIn(1, 2000);
             return sub;
@@ -1372,10 +1372,10 @@ public class JetStreamPullTests extends JetStreamTestBase {
             MessageConsumer mc1 = consumerContext1.consume(coP1, handler1);
             MessageConsumer mc2 = consumerContext2.consume(coP2, handler2);
 
-            AtomicBoolean pub = new AtomicBoolean(true);
+            AtomicBoolean keepPublishing = new AtomicBoolean(true);
             Thread t = new Thread(() -> {
                 int count = 0;
-                while (pub.get()) {
+                while (keepPublishing.get()) {
                     ++count;
                     try {
                         js.publish(tsc.subject(), ("x" + count).getBytes());
@@ -1401,7 +1401,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             MessageConsumer mc3 = consumerContext2.consume(coP1, handler3);
 
             Thread.sleep(200);
-            pub.set(false);
+            keepPublishing.set(false);
             t.join();
             mc2.close();
             mc3.close();

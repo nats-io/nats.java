@@ -77,6 +77,11 @@ public class NatsUri {
 
     @NonNull
     public NatsUri reHost(String newHost) throws URISyntaxException {
+        if (newHost.contains(":") && !newHost.startsWith("[")) {
+            // this fixes IPV6 where it comes in without []
+            // which it needs when making a url
+            newHost = "[" + newHost + "]";
+        }
         String newUrl = (uri.getRawUserInfo() == null)
             ? uri.getScheme() + "://" + newHost + ":" + uri.getPort()
             : uri.getScheme() + "://" + uri.getRawUserInfo() + "@" + newHost + ":" + uri.getPort();
@@ -142,10 +147,13 @@ public class NatsUri {
         x:p@host:4222    --> scheme:'x', host:'null', up:'null', port:-1, path:'null'
         x:p@1.2.3.4:4222 --> scheme:'x', host:'null', up:'null', port:-1, path:'null'
 
-        [5] has scheme, null host, non-null path, make/throw
+        [5X] has scheme, null host, non-null path, make/throw
         proto://u:p@      --> scheme:'proto', host:'null', up:'null', port:-1, path:''
         proto://:4222     --> scheme:'proto', host:'null', up:'null', port:-1, path:''
         proto://u:p@:4222 --> scheme:'proto', host:'null', up:'null', port:-1, path:''
+
+        [5V6] also IPV6 ends up here
+        proto://0:0:0:0:0:0:0:1:4222
 
         [6] has scheme and host just needs port
         proto://host        --> scheme:'proto', host:'host', up:'null', port:-1, path:''
@@ -197,7 +205,7 @@ public class NatsUri {
                 host = helper.uri.getHost();
             }
             else {
-                // [5]
+                // [5X]
                 throw new URISyntaxException(url, UNABLE_TO_PARSE);
             }
         }

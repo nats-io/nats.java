@@ -162,9 +162,10 @@ public class StreamInfoTests {
         StreamConfigurationTests.validateSubjectTransforms(mi.getSubjectTransforms(), 2, "16");
 
         assertNotNull(si.getSourceInfos());
-        assertEquals(2, si.getSourceInfos().size());
-        validateSourceInfo(si.getSourceInfos().get(0), 17);
-        validateSourceInfo(si.getSourceInfos().get(1), 18);
+        assertEquals(3, si.getSourceInfos().size());
+        validateSourceInfo(si.getSourceInfos().get(0), 17, true);
+        validateSourceInfo(si.getSourceInfos().get(1), 18, false);
+        validateSourceInfo(si.getSourceInfos().get(2), 19, false);
 
         assertNotNull(si.getAlternates());
         assertEquals(2, si.getAlternates().size());
@@ -186,11 +187,16 @@ public class StreamInfoTests {
         assertNull(Replica.optionalListOf(JsonValue.EMPTY_ARRAY));
     }
 
-    private static void validateSourceInfo(SourceInfo sourceInfo, int id) {
+    private static void validateSourceInfo(SourceInfo sourceInfo, int id, boolean hasActive) {
         assertNotNull(sourceInfo.toString()); // coverage
         assertEquals("sname" + id, sourceInfo.getName());
         assertEquals(id, sourceInfo.getLag());
-        assertEquals(Duration.ofNanos(id * 10000000000L), sourceInfo.getActive());
+        if (hasActive) {
+            assertEquals(Duration.ofNanos(id * 10000000000L), sourceInfo.getActive());
+        }
+        else {
+            assertNull(sourceInfo.getActive());
+        }
         validateExternal(sourceInfo.getExternal(), id);
         StreamConfigurationTests.validateSubjectTransforms(sourceInfo.getSubjectTransforms(), 2, "" + id);
     }

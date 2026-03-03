@@ -61,13 +61,13 @@ class PullOrderedMessageManager extends PullMessageManager {
             if (expectedExternalConsumerSeq.get() != receivedConsumerSeq) {
                 targetSid.set(null);
                 expectedExternalConsumerSeq.set(1); // consumer always starts with consumer sequence 1
-                resetTracking();
                 if (pullManagerObserver != null) {
-                    pullManagerObserver.heartbeatError();
+                    pullManagerObserver.pullTerminatedByError();
                 }
                 return STATUS_HANDLED;
             }
             trackJsMessage(msg);
+            checkForPin(msg);
             expectedExternalConsumerSeq.incrementAndGet();
             return MESSAGE;
         }
