@@ -4,8 +4,8 @@
 
 ### A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
-![2.25.1](https://img.shields.io/badge/Current_Release-2.25.1-27AAE0?style=for-the-badge)
-![2.25.2](https://img.shields.io/badge/Current_Snapshot-2.25.2--SNAPSHOT-27AAE0?style=for-the-badge)
+![2.25.2](https://img.shields.io/badge/Current_Release-2.25.2-27AAE0?style=for-the-badge)
+![2.25.3](https://img.shields.io/badge/Current_Snapshot-2.25.3--SNAPSHOT-27AAE0?style=for-the-badge)
 
 [![Build Main Badge](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml/badge.svg?event=push)](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml)
 [![Coverage Status](https://coveralls.io/repos/github/nats-io/nats.java/badge.svg?branch=main)](https://coveralls.io/github/nats-io/nats.java?branch=main)
@@ -166,9 +166,9 @@ See [Building From Source](#building-from-source) for details on building the li
 
 ### Downloading the Jar
 
-You can download the latest jar at [jnats-2.25.1.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.25.1/jnats-2.25.1.jar).
+You can download the latest jar at [jnats-2.25.2.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.25.2/jnats-2.25.2.jar).
 
-The examples are available at [jnats-2.25.1-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.25.1/jnats-2.25.1-examples.jar).
+The examples are available at [jnats-2.25.2-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.25.2/jnats-2.25.2-examples.jar).
 
 ### Using Gradle
 
@@ -176,7 +176,7 @@ The NATS client is available in the Maven central repository, and can be importe
 
 ```groovy
 dependencies {
-    implementation 'io.nats:jnats:2.25.1'
+    implementation 'io.nats:jnats:2.25.2'
 }
 ```
 
@@ -202,7 +202,7 @@ repositories {
 }
 
 dependencies {
-   implementation 'io.nats:jnats:2.25.2-SNAPSHOT'
+   implementation 'io.nats:jnats:2.25.3-SNAPSHOT'
 }
 ```
 
@@ -214,7 +214,7 @@ The NATS client is available on the Maven Central Repository and can be imported
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.25.1</version>
+    <version>2.25.2</version>
 </dependency>
 ```
 
@@ -248,7 +248,7 @@ If you need a snapshot version, you must enable snapshots and change your depend
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.25.2-SNAPSHOT</version>
+    <version>2.25.3-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -1431,7 +1431,7 @@ and the example jar is in `build/libs`
 Once the Uber jar is built, you can run a class with a main using it's fully qualified class name. As an example:
 
 ```bash
-java -cp build/libs/java-nats-2.25.2-SNAPSHOT-uber.jar io.nats.examples.NatsSub
+java -cp build/libs/java-nats-2.25.3-SNAPSHOT-uber.jar io.nats.examples.NatsSub
 ```
 
 ## License
