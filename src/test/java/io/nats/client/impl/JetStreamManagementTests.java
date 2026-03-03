@@ -316,7 +316,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertThrows(JetStreamApiException.class, () -> jsm.updateStream(scMemToFile));
 
             // cannot change MaxConsumers
-            if (nc.getServerInfo().isOlderThanVersion("2.14")) {
+            if (nc.getServerInfo().isOlderThanVersion("2.12.5")) {
                 StreamConfiguration scMaxCon = getTestStreamConfigurationBuilder(stream, subjects)
                     .maxConsumers(2)
                     .build();
