@@ -256,7 +256,8 @@ public class Options {
     public static final Supplier<ExecutorService> DEFAULT_SINGLE_THREAD_EXECUTOR = Executors::newSingleThreadExecutor;
 
     /**
-     * The type of subject validation to do.
+     * Whether subject strings should be validated against naming rules,
+     * and the level of subject validation.
      */
     public enum SubjectValidationType {
         /**
@@ -270,7 +271,7 @@ public class Options {
         /**
          * Strict Subject Validation
          */
-        Strict
+        Strict;
     }
 
     /**
@@ -865,7 +866,8 @@ public class Options {
             threadNumber = new AtomicInteger(0);
         }
 
-        public Thread newThread(@NonNull Runnable r) {
+        @Override
+		public Thread newThread(@NonNull Runnable r) {
             String threadName = name + ":" + threadNumber.incrementAndGet();
             Thread t = new Thread(r, threadName);
             if (t.isDaemon()) {
