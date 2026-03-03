@@ -135,6 +135,8 @@ public class BaseConsumeOptions implements JsonSerializable {
 
     /**
      * Get the priority group setting
+     * A group must be set if a  {@link io.nats.client.api.PriorityPolicy} has been specified.
+     * The group must be consistent with the groups specified in the ConsumerConfiguration.
      * @return the priority group
      */
     public String getGroup() {
@@ -150,7 +152,8 @@ public class BaseConsumeOptions implements JsonSerializable {
     }
 
     /**
-     * Get the min pending setting
+     * Get the min pending setting as per the overflow priority group. See {@link io.nats.client.api.PriorityPolicy}.
+     *
      * @return the min pending
      */
     public long getMinPending() {
@@ -158,7 +161,7 @@ public class BaseConsumeOptions implements JsonSerializable {
     }
 
     /**
-     * Get the min ack pending setting
+     * Get the min ack pending setting as per the overflow priority group. See {@link io.nats.client.api.PriorityPolicy}.
      * @return the min ack pending
      */
     public long getMinAckPending() {

@@ -1,5 +1,26 @@
 # Change Log
 
+## 2.25.2
+### Core
+* fix race condition in reconnect #1523 @scottf @jkraml-staffbase
+* "Payload Size" includes header bytes, not just data #1525 @scottf @francoisprunier
+* NatsConnection improvements: reader and writer replace, options executors use #1526 @scottf
+* HostnameResolveMode better organizes the 4 possible modes #1536 @scottf @bartosz822
+
+### JetStream
+* Simplification track user processed not client received. #1528 @scottf
+* New Examples for Priority Groups #1529 @roeschter
+* StreamInfo fix active to handle -1 and not supplied correctly #1531 @scottf
+
+### Testing
+* SSL Error Raising Testing #1532 @scottf
+* Cleanup temp files and folders in tests #1534 @scottf
+
+### Miscellaneous
+* Updating Badges #1521 @scottf
+* Housekeeping #1535 @scottf
+
+
 ## 2.25.1
 ### Core
 * Fix setting options via properties #1489 @scottf
