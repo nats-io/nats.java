@@ -258,8 +258,7 @@ public class Options {
     /**
      * Whether subject strings should be validated against naming rules,
      * and the level of subject validation.
-     */
-    public enum SubjectValidationType {
+            public enum SubjectValidationType {
         /**
          * No Subject Validation
          */
