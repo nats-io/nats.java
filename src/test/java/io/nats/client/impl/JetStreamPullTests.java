@@ -922,6 +922,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
                 PullSubscribeOptions so = PullSubscribeOptions.bind(ctx.stream, dur);
                 JetStreamSubscription sub = ctx.js.subscribe(null, so);
                 sub.pullExpiresIn(1, 30000);
+                nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
                 ctx.jsm.deleteConsumer(ctx.stream, dur);
                 ctx.js.publish(ctx.subject(), null);
                 return sub;
@@ -939,6 +940,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
                 PullSubscribeOptions so = PullSubscribeOptions.bind(ctx.stream, dur);
                 JetStreamSubscription sub = ctx.js.subscribe(null, d, m -> {}, so);
                 sub.pullExpiresIn(1, 30000);
+                nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
                 ctx.jsm.deleteConsumer(ctx.stream, dur);
                 ctx.js.publish(ctx.subject(), null);
                 return sub;

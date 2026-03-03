@@ -513,9 +513,10 @@ public class TLSConnectTests extends TestBase {
             SslTestErrorListener el = new SslTestErrorListener(2);
 
             Connection nc;
-            NatsServerRunner.Builder b = NatsServerRunner.builder().configFilePath(configFilePath);
-            try (NatsTestServer ts1 = new NatsTestServer(b)) {
-                try (NatsTestServer ts2 = new NatsTestServer(b)) {
+            NatsServerRunner.Builder b1 = NatsServerRunner.builder().configFilePath(configFilePath);
+            NatsServerRunner.Builder b2 = NatsServerRunner.builder().configFilePath(configFilePath);
+            try (NatsTestServer ts1 = new NatsTestServer(b1)) {
+                try (NatsTestServer ts2 = new NatsTestServer(b2)) {
                     Options options = new Options.Builder()
                         .servers(new String[]{ts2.getNatsLocalhostUri(), ts1.getNatsLocalhostUri()})
                         .noRandomize()
