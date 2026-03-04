@@ -977,6 +977,7 @@ public class JetStreamPullTests extends JetStreamTestBase {
             PullSubscribeOptions so = PullSubscribeOptions.bind(tsc.stream, durable(1));
             JetStreamSubscription sub = js.subscribe(null, d, m -> {}, so);
             sub.pullExpiresIn(1, 30000);
+            nc.flush(Duration.ofSeconds(1));
             jsm.deleteConsumer(tsc.stream, durable(1));
             js.publish(tsc.subject(), null);
             return sub;
