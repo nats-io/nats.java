@@ -23,6 +23,7 @@
 
 ## Table of Contents
 * [Simplification](#simplification)
+* [Consumer Info Calls](#consumer-info-calls)
 * [Service Framework](#service-framework)
 * [Subject Validation](#subject-validation)
 * [Recent Version Notes](#recent-version-notes)
