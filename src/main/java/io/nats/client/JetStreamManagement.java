@@ -180,7 +180,9 @@ public interface JetStreamManagement {
     boolean resumeConsumer(String streamName, String consumerName) throws IOException, JetStreamApiException;
 
     /**
-     * Gets the info for an existing consumer.
+     * Gets the info for an existing consumer. When possible, use metadata
+     * from the message since it often already contains the needed information
+     * and does not require a server call.
      * @param streamName name of the stream
      * @param consumerName the name of the consumer.
      * @return consumer information

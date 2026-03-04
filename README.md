@@ -51,6 +51,21 @@ Check out the examples:
 * [MessageConsumerExample](src/examples/java/io/nats/examples/jetstream/simple/MessageConsumerExample.java)
 * [NextExample](src/examples/java/io/nats/examples/jetstream/simple/NextExample.java)
 
+## Consumer Info Calls
+
+From JetStreamManagement:
+```java
+ConsumerInfo getConsumerInfo(String streamName, String consumerName) throws IOException, JetStreamApiException;
+```
+
+We've seen this api get used to track consumers in order to execute business logic and to understand the state of the system.
+When there are not that many consumers and the system is not that busy, this is fine, but as the number of consumers grow,
+this call become expensive in time and resources for the server to resolve.
+
+We suggest that whenever possible, use metadata from a message for that particular consumer
+since it often already contains the needed information and does not require a server call. 
+You can bubble this information up as you need.
+
 ## Service Framework
 
 The service API allows you to easily build NATS services. The Service Framework is released as of 2.16.14
