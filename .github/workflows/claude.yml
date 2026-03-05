@@ -14,6 +14,9 @@ on:
 
 jobs:
   claude:
-    uses: synadia-io/ai-workflows/.github/workflows/claude.yml@v1
+    uses: synadia-io/ai-workflows/.github/workflows/claude.yml@v2
+    with:
+      gh_app_id: ${{ vars.CLAUDE_GH_APP_ID }}
     secrets:
       claude_oauth_token: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
+      gh_app_private_key: ${{ secrets.CLAUDE_GH_APP_PRIVATE_KEY }}
