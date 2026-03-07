@@ -20,69 +20,54 @@ import io.nats.NatsServerRunner;
 import java.io.IOException;
 import java.util.logging.Level;
 
-public class NatsTestServer extends NatsServerRunner {
+import static io.nats.client.utils.ResourceUtils.configResource;
+
+public class NatsTestServer extends NatsServerRunner implements TestServer {
+
     static {
         NatsTestServer.quiet();
-        NatsServerRunner.setDefaultOutputSupplier(ConsoleOutput::new);
-        NatsServerRunner.setDefaultValidateTries(5);
-        NatsServerRunner.setDefaultInitialValidateDelay(100);
-        NatsServerRunner.setDefaultSubsequentValidateDelay(50);
-    }
+        NatsRunnerUtils.setDefaultConnectValidateTries(10);
+        NatsRunnerUtils.setDefaultConnectValidateTimeout(200);
+        NatsRunnerUtils.setDefaultOutputSupplier(ConsoleOutput::new);    }
 
     public static void quiet() {
-        NatsServerRunner.setDefaultOutputLevel(Level.WARNING);
+        NatsRunnerUtils.setDefaultOutputLevel(Level.WARNING);
     }
 
     public static void verbose() {
-        NatsServerRunner.setDefaultOutputLevel(Level.ALL);
+        NatsRunnerUtils.setDefaultOutputLevel(Level.ALL);
+    }
+
+    public static Builder configFileBuilder(String configFilePath) {
+        return NatsServerRunner.builder().configFilePath(configResource(configFilePath));
     }
 
     public NatsTestServer() throws IOException {
-        super();
+        this(builder());
     }
 
-    public NatsTestServer(boolean debug) throws IOException {
-        super(debug);
+    public NatsTestServer(int port) throws IOException {
+        this(builder().port(port));
     }
 
-    public NatsTestServer(boolean debug, boolean jetstream) throws IOException {
-        super(debug, jetstream);
+    public NatsTestServer(int port, boolean jetstream) throws IOException {
+        this(builder().port(port).jetstream(jetstream));
     }
 
-    public NatsTestServer(int port, boolean debug) throws IOException {
-        super(port, debug);
+    public NatsTestServer(String configFilePath, String[] configInserts, int port) throws IOException {
+        this(builder().configFilePath(configResource(configFilePath)).configInserts(configInserts).port(port));
     }
 
-    public NatsTestServer(int port, boolean debug, boolean jetstream) throws IOException {
-        super(port, debug, jetstream);
+    public NatsTestServer(String[] customArgs) throws IOException {
+        this(builder().customArgs(customArgs));
     }
 
-    public NatsTestServer(String configFilePath, boolean debug) throws IOException {
-        super(configFilePath, debug);
+    public NatsTestServer(String[] customArgs, int port) throws IOException {
+        this(builder().customArgs(customArgs).port(port));
     }
 
-    public NatsTestServer(String configFilePath, boolean debug, boolean jetstream) throws IOException {
-        super(configFilePath, debug, jetstream);
-    }
-
-    public NatsTestServer(String configFilePath, String[] configInserts, int port, boolean debug) throws IOException {
-        super(configFilePath, configInserts, port, debug);
-    }
-
-    public NatsTestServer(String configFilePath, int port, boolean debug) throws IOException {
-        super(configFilePath, port, debug);
-    }
-
-    public NatsTestServer(String[] customArgs, boolean debug) throws IOException {
-        super(customArgs, debug);
-    }
-
-    public NatsTestServer(String[] customArgs, int port, boolean debug) throws IOException {
-        super(customArgs, port, debug);
-    }
-
-    public NatsTestServer(int port, boolean debug, boolean jetstream, String configFilePath, String[] configInserts, String[] customArgs) throws IOException {
-        super(port, debug, jetstream, configFilePath, configInserts, customArgs);
+    public NatsTestServer(int port, boolean jetstream, String configFilePath, String[] configInserts, String[] customArgs) throws IOException {
+        this(builder().port(port).jetstream(jetstream).configFilePath(configResource(configFilePath)).configInserts(configInserts).customArgs(customArgs));
     }
 
     public NatsTestServer(Builder b) throws IOException {
@@ -97,15 +82,24 @@ public class NatsTestServer extends NatsServerRunner {
         return NatsRunnerUtils.getLocalhostUri(schema, getPort());
     }
 
-    public String getNatsLocalhostUri() {
+    @Override
+    public String getServerUri() {
         return NatsRunnerUtils.getNatsLocalhostUri(getPort());
     }
 
-    public static String getNatsLocalhostUri(int port) {
+    public static String getLocalhostUri(int port) {
         return NatsRunnerUtils.getNatsLocalhostUri(port);
     }
 
     public static String getLocalhostUri(String schema, int port) {
         return NatsRunnerUtils.getLocalhostUri(schema, port);
+    }
+
+    public static String[] getLocalhostUris(String schema, NatsTestServer... servers) {
+        String[] results = new String[servers.length];
+        for (int x = 0; x < servers.length; x++) {
+            results[x] = NatsRunnerUtils.getLocalhostUri(schema, servers[x].getPort());
+        }
+        return results;
     }
 }

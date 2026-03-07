@@ -28,9 +28,11 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Properties;
 
+import static io.nats.client.utils.ResourceUtils.configResource;
+
 public class SslTestingHelper {
-    public static String KEYSTORE_PATH = "src/test/resources/keystore.jks";
-    public static String TRUSTSTORE_PATH = "src/test/resources/truststore.jks";
+    public static String KEYSTORE_PATH = configResource("keystore.jks");
+    public static String TRUSTSTORE_PATH = configResource("truststore.jks");
     public static String PASSWORD = "password";
     public static char[] PASSWORD_CHARS = PASSWORD.toCharArray();
 

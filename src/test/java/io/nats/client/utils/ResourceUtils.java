@@ -8,6 +8,24 @@ import java.util.List;
 
 @SuppressWarnings("DataFlowIssue")
 public abstract class ResourceUtils {
+
+    public static final String CONFIG_FILE_BASE = "src/test/resources/";
+    public static final String JWT_FILE_BASE = "src/test/resources/jwt_nkey/";
+
+    public static String configResource(String configFilePath) {
+        if (configFilePath == null) {
+            return null;
+        }
+        return configFilePath.startsWith(CONFIG_FILE_BASE) ? configFilePath : CONFIG_FILE_BASE + configFilePath;
+    }
+
+    public static String jwtResource(String configFilePath) {
+        if (configFilePath == null) {
+            return null;
+        }
+        return configFilePath.startsWith(JWT_FILE_BASE) ? configFilePath : JWT_FILE_BASE + configFilePath;
+    }
+
     public static List<String> dataAsLines(String fileName) {
         return resourceAsLines("data/" + fileName);
     }
@@ -31,7 +49,7 @@ public abstract class ResourceUtils {
         }
 
     }
-
+    
     public static String resourceAsString(String fileName) {
         try {
             ClassLoader classLoader = ResourceUtils.class.getClassLoader();

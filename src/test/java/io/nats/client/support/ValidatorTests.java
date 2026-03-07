@@ -390,13 +390,16 @@ public class ValidatorTests {
     @Test
     public void testValidateRequired() {
         required("required", "label");
+        //noinspection deprecation
         required("required1", "required2", "label");
         required(new Object(), "label");
         required(Collections.singletonList("list"), "label");
         required(Collections.singletonMap("key", "value"), "label");
 
         assertThrows(IllegalArgumentException.class, () -> required((String)null, "label"));
+        //noinspection deprecation
         assertThrows(IllegalArgumentException.class, () -> required("no-second", null, "label"));
+        //noinspection deprecation
         assertThrows(IllegalArgumentException.class, () -> required(null, "no-first", "label"));
         assertThrows(IllegalArgumentException.class, () -> required(EMPTY, "label"));
         assertThrows(IllegalArgumentException.class, () -> required((Object)null, "label"));
@@ -658,50 +661,49 @@ public class ValidatorTests {
         List<String> l2 = Arrays.asList("two", "one");
         List<String> l3 = Arrays.asList("one", "not");
         List<String> l4 = Collections.singletonList("three");
-        List<String> l5 = null;
-        List<String> l6 = new ArrayList<>();
+        List<String> l5 = new ArrayList<>();
 
         assertTrue(listsAreEquivalent(l1, l1));
         assertTrue(listsAreEquivalent(l1, l2));
         assertFalse(listsAreEquivalent(l1, l3));
         assertFalse(listsAreEquivalent(l1, l4));
+        assertFalse(listsAreEquivalent(l1, null));
         assertFalse(listsAreEquivalent(l1, l5));
-        assertFalse(listsAreEquivalent(l1, l6));
 
         assertTrue(listsAreEquivalent(l2, l1));
         assertTrue(listsAreEquivalent(l2, l2));
         assertFalse(listsAreEquivalent(l2, l3));
         assertFalse(listsAreEquivalent(l2, l4));
+        assertFalse(listsAreEquivalent(l2, null));
         assertFalse(listsAreEquivalent(l2, l5));
-        assertFalse(listsAreEquivalent(l2, l6));
 
         assertFalse(listsAreEquivalent(l3, l1));
         assertFalse(listsAreEquivalent(l3, l2));
         assertTrue(listsAreEquivalent(l3, l3));
         assertFalse(listsAreEquivalent(l3, l4));
+        assertFalse(listsAreEquivalent(l3, null));
         assertFalse(listsAreEquivalent(l3, l5));
-        assertFalse(listsAreEquivalent(l3, l6));
 
         assertFalse(listsAreEquivalent(l4, l1));
         assertFalse(listsAreEquivalent(l4, l2));
         assertFalse(listsAreEquivalent(l4, l3));
         assertTrue(listsAreEquivalent(l4, l4));
+        assertFalse(listsAreEquivalent(l4, null));
         assertFalse(listsAreEquivalent(l4, l5));
-        assertFalse(listsAreEquivalent(l4, l6));
+
+        assertFalse(listsAreEquivalent(null, l1));
+        assertFalse(listsAreEquivalent(null, l2));
+        assertFalse(listsAreEquivalent(null, l3));
+        assertFalse(listsAreEquivalent(null, l4));
+        assertTrue(listsAreEquivalent(null, null));
+        assertTrue(listsAreEquivalent(null, l5));
 
         assertFalse(listsAreEquivalent(l5, l1));
         assertFalse(listsAreEquivalent(l5, l2));
         assertFalse(listsAreEquivalent(l5, l3));
         assertFalse(listsAreEquivalent(l5, l4));
+        assertTrue(listsAreEquivalent(l5, null));
         assertTrue(listsAreEquivalent(l5, l5));
-        assertTrue(listsAreEquivalent(l5, l6));
-
-        assertFalse(listsAreEquivalent(l6, l1));
-        assertFalse(listsAreEquivalent(l6, l2));
-        assertFalse(listsAreEquivalent(l6, l3));
-        assertFalse(listsAreEquivalent(l6, l4));
-        assertTrue(listsAreEquivalent(l6, l5));
-        assertTrue(listsAreEquivalent(l6, l6));
     }
 
     @Test
@@ -725,64 +727,62 @@ public class ValidatorTests {
         Map<String, String> m5 = new HashMap<>();
         m5.put("five", "5");
 
-        Map<String, String> m6 = null;
-
-        Map<String, String> m7 = new HashMap<>();
+        Map<String, String> m6 = new HashMap<>();
 
         assertTrue(mapsAreEquivalent(m1, m1));
         assertTrue(mapsAreEquivalent(m1, m2));
         assertFalse(mapsAreEquivalent(m1, m3));
         assertFalse(mapsAreEquivalent(m1, m4));
         assertFalse(mapsAreEquivalent(m1, m5));
+        assertFalse(mapsAreEquivalent(m1, null));
         assertFalse(mapsAreEquivalent(m1, m6));
-        assertFalse(mapsAreEquivalent(m1, m7));
 
         assertTrue(mapsAreEquivalent(m2, m1));
         assertTrue(mapsAreEquivalent(m2, m2));
         assertFalse(mapsAreEquivalent(m2, m3));
         assertFalse(mapsAreEquivalent(m2, m4));
         assertFalse(mapsAreEquivalent(m2, m5));
+        assertFalse(mapsAreEquivalent(m2, null));
         assertFalse(mapsAreEquivalent(m2, m6));
-        assertFalse(mapsAreEquivalent(m2, m7));
 
         assertFalse(mapsAreEquivalent(m3, m1));
         assertFalse(mapsAreEquivalent(m3, m2));
         assertTrue(mapsAreEquivalent(m3, m3));
         assertFalse(mapsAreEquivalent(m3, m4));
         assertFalse(mapsAreEquivalent(m3, m5));
+        assertFalse(mapsAreEquivalent(m3, null));
         assertFalse(mapsAreEquivalent(m3, m6));
-        assertFalse(mapsAreEquivalent(m3, m7));
 
         assertFalse(mapsAreEquivalent(m4, m1));
         assertFalse(mapsAreEquivalent(m4, m2));
         assertFalse(mapsAreEquivalent(m4, m3));
         assertTrue(mapsAreEquivalent(m4, m4));
         assertFalse(mapsAreEquivalent(m4, m5));
+        assertFalse(mapsAreEquivalent(m4, null));
         assertFalse(mapsAreEquivalent(m4, m6));
-        assertFalse(mapsAreEquivalent(m4, m7));
 
         assertFalse(mapsAreEquivalent(m5, m1));
         assertFalse(mapsAreEquivalent(m5, m2));
         assertFalse(mapsAreEquivalent(m5, m3));
         assertFalse(mapsAreEquivalent(m5, m4));
         assertTrue(mapsAreEquivalent(m5, m5));
+        assertFalse(mapsAreEquivalent(m5, null));
         assertFalse(mapsAreEquivalent(m5, m6));
-        assertFalse(mapsAreEquivalent(m5, m7));
+
+        assertFalse(mapsAreEquivalent(null, m1));
+        assertFalse(mapsAreEquivalent(null, m2));
+        assertFalse(mapsAreEquivalent(null, m3));
+        assertFalse(mapsAreEquivalent(null, m4));
+        assertFalse(mapsAreEquivalent(null, m5));
+        assertTrue(mapsAreEquivalent(null, null));
+        assertTrue(mapsAreEquivalent(null, m6));
 
         assertFalse(mapsAreEquivalent(m6, m1));
         assertFalse(mapsAreEquivalent(m6, m2));
         assertFalse(mapsAreEquivalent(m6, m3));
-        assertFalse(mapsAreEquivalent(m6, m4));
         assertFalse(mapsAreEquivalent(m6, m5));
+        assertTrue(mapsAreEquivalent(m6, null));
         assertTrue(mapsAreEquivalent(m6, m6));
-        assertTrue(mapsAreEquivalent(m6, m7));
-
-        assertFalse(mapsAreEquivalent(m7, m1));
-        assertFalse(mapsAreEquivalent(m7, m2));
-        assertFalse(mapsAreEquivalent(m7, m3));
-        assertFalse(mapsAreEquivalent(m7, m5));
-        assertTrue(mapsAreEquivalent(m7, m6));
-        assertTrue(mapsAreEquivalent(m7, m7));
     }
 
     @Test

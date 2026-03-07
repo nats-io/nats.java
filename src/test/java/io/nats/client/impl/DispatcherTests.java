@@ -14,9 +14,9 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -25,23 +25,123 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static io.nats.client.utils.TestBase.*;
+import static io.nats.client.utils.OptionsUtils.optionsBuilder;
+import static io.nats.client.utils.ThreadUtils.sleep;
 import static org.junit.jupiter.api.Assertions.*;
 
 
-
 // Some tests are a bit tricky, and depend on the fact that the dispatcher
-// uses a single queue, so the "subject" messages go through before
+// uses a single queue, so the subject messages go through before
 // the done message (or should) - wanted to note that somewhere
 
-public class DispatcherTests {
+public class DispatcherTests extends TestBase {
+
     @Test
-    public void testDispatcherMultipleSubscriptionsBySubject() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-             Connection nc = Nats.connect(ts.getURI())) {
-            standardConnectionWait(nc);
-            String subject1 = subject();
-            String subject2 = subject();
+    public void testDispatcherSubscribingExceptions() throws Exception {
+        // InvalidSubjectsAndQueueNames
+        runInShared(nc -> {
+
+            Dispatcher dx = nc.createDispatcher(m -> {
+            });
+            for (String bad : BAD_SUBJECTS_OR_QUEUES) {
+                assertThrows(IllegalArgumentException.class, () -> nc.subscribe(bad));
+                assertThrows(IllegalArgumentException.class, () -> dx.subscribe(bad));
+                assertThrows(IllegalArgumentException.class, () -> dx.subscribe(bad, m -> {
+                }));
+                assertThrows(IllegalArgumentException.class, () -> dx.subscribe(bad, "q"));
+                assertThrows(IllegalArgumentException.class, () -> dx.subscribe(bad, "q", m -> {
+                }));
+                assertThrows(IllegalArgumentException.class, () -> nc.subscribe("s", bad));
+                assertThrows(IllegalArgumentException.class, () -> dx.subscribe("s", bad));
+                assertThrows(IllegalArgumentException.class, () -> dx.subscribe("s", bad, m -> {
+                }));
+            }
+
+            String subject = random();
+            dx.subscribe(subject);
+
+            // can't subscribe to empty subject -> subject, handler
+            assertThrows(IllegalArgumentException.class, () -> dx.subscribe("", msg -> {
+            }));
+
+            // can't subscribe to null handler -> subject, handler
+            assertThrows(IllegalArgumentException.class, () -> dx.subscribe(random(), (MessageHandler) null));
+
+            // can't subscribe null subject -> subject, queue, handler
+            assertThrows(IllegalArgumentException.class, () -> dx.subscribe(null, random(), msg -> {
+            }));
+
+            // can't subscribe empty subject -> subject, queue, handler
+            assertThrows(IllegalArgumentException.class, () -> dx.subscribe("", random(), msg -> {
+            }));
+
+            // can't subscribe with null queue -> subject, queue, handler
+            assertThrows(IllegalArgumentException.class, () -> dx.subscribe(random(), null, msg -> {
+            }));
+
+            // can't subscribe with empty queue -> subject, queue, handler
+            assertThrows(IllegalArgumentException.class, () -> dx.subscribe(random(), "", msg -> {
+            }));
+
+            // can't subscribe with null handler -> subject, queue, handler
+            assertThrows(IllegalArgumentException.class, () -> dx.subscribe(random(), random(), null));
+
+            // can't unsubscribe with null subject
+            assertThrows(IllegalArgumentException.class, () -> dx.unsubscribe((String) null));
+
+            // can't unsubscribe with empty subject
+            assertThrows(IllegalArgumentException.class, () -> dx.unsubscribe(""));
+
+            nc.closeDispatcher(dx);
+
+            // can't close if already closed
+            assertThrows(IllegalArgumentException.class, () -> nc.closeDispatcher(dx));
+
+            // can't unsubscribe if dispatcher is closed
+            assertThrows(IllegalStateException.class, () -> dx.unsubscribe(subject));
+
+            // can't subscribe if dispatcher is closed
+            assertThrows(IllegalStateException.class, () -> dx.subscribe(random()));
+
+            // If dispatcher was made without a default handler,
+            // you must subscribe with a specific handler
+            Dispatcher dNoHandler = nc.createDispatcher();
+            dNoHandler.subscribe(random(), m -> {
+            }); // This is fine
+            IllegalStateException ise = assertThrows(IllegalStateException.class, () -> dNoHandler.subscribe(random()));
+            assertTrue(ise.getMessage().contains("Dispatcher was made without a default handler."));
+
+            nc.closeDispatcher(dNoHandler);
+        });
+    }
+
+    @Test
+    public void throwsOnCreateIfConnectionClosed() throws Exception {
+        runInSharedOwnNc(nc -> {
+            Dispatcher d = nc.createDispatcher(msg -> {});
+            // close connection
+            nc.close();
+
+            // can't create if connection is closed
+            assertThrows(IllegalStateException.class, () -> nc.createDispatcher(msg -> {}));
+
+            // can't subscribe if connection is closed
+            assertThrows(IllegalStateException.class, () -> d.subscribe(random()));
+
+            // can't subscribe if connection is closed
+            assertThrows(IllegalStateException.class, () -> d.subscribe(random()));
+
+            // can't close dispatcher if connection is closed
+            assertThrows(IllegalStateException.class, () -> nc.closeDispatcher(d));
+        });
+    }
+
+    @Test
+    public void testProperlyUnsubscribeBySubject() throws Exception {
+        runInShared(nc -> {
+            // MultipleSubscriptionsBySubject
+            String subject1 = random();
+            String subject2 = random();
 
             List<Integer> dflt = Collections.synchronizedList(new ArrayList<>());
             List<Integer> sub21 = Collections.synchronizedList(new ArrayList<>());
@@ -74,7 +174,7 @@ public class DispatcherTests {
             assertFalse(sub22.contains(2));
             assertTrue(sub31.contains(2));
             assertTrue(sub32.contains(2));
-        }
+        });
     }
 
     private static int getDataId(Message m) {
@@ -83,113 +183,113 @@ public class DispatcherTests {
 
     @Test
     public void testSingleMessage() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(ts.getURI())) {
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
-
+        runInShared(nc -> {
             final CompletableFuture<Message> msgFuture = new CompletableFuture<>();
-            Dispatcher d = nc.createDispatcher((msg) -> {
-                msgFuture.complete(msg);
-            });
+            Dispatcher d = nc.createDispatcher(msgFuture::complete);
 
-            d.subscribe("subject");
+            String subject = random();
+            d.subscribe(subject);
             nc.flush(Duration.ofMillis(500));// Get them all to the server
 
-            nc.publish("subject", new byte[16]);
+            nc.publish(subject, new byte[16]);
 
             Message msg = msgFuture.get(500, TimeUnit.MILLISECONDS);
 
             assertTrue(d.isActive());
-            assertEquals("subject", msg.getSubject());
+            assertEquals(subject, msg.getSubject());
             assertNotNull(msg.getSubscription());
             assertNull(msg.getReplyTo());
             assertEquals(16, msg.getData().length);
-        }
+
+            nc.closeDispatcher(d);
+        });
     }
 
     @Test
     public void testDispatcherMessageContainsConnection() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(ts.getURI())) {
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
-
+        runInShared(nc -> {
             final CompletableFuture<Message> msgFuture = new CompletableFuture<>();
             final CompletableFuture<Connection> connFuture = new CompletableFuture<>();
-            Dispatcher d = nc.createDispatcher((msg) -> {
+            Dispatcher d = nc.createDispatcher(msg -> {
                 msgFuture.complete(msg);
                 connFuture.complete(msg.getConnection());
             });
 
-            d.subscribe("subject");
+            String subject = random();
+            d.subscribe(subject);
             nc.flush(Duration.ofMillis(5000));// Get them all to the server
 
-            nc.publish("subject", new byte[16]);
+            nc.publish(subject, new byte[16]);
 
             Message msg = msgFuture.get(5000, TimeUnit.MILLISECONDS);
             Connection conn = connFuture.get(5000, TimeUnit.MILLISECONDS);
 
             assertTrue(d.isActive());
-            assertEquals("subject", msg.getSubject());
+            assertEquals(subject, msg.getSubject());
             assertNotNull(msg.getSubscription());
             assertNull(msg.getReplyTo());
             assertEquals(16, msg.getData().length);
-            assertTrue(conn == nc);
-        }
+            assertSame(conn, nc);
+
+            nc.closeDispatcher(d);
+        });
     }
 
     @Test
     public void testMultiSubject() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
-
+        runInShared(nc -> {
             final CompletableFuture<Message> one = new CompletableFuture<>();
             final CompletableFuture<Message> two = new CompletableFuture<>();
-            Dispatcher d = nc.createDispatcher((msg) -> {
-                if (msg.getSubject().equals("one")) {
+            String subject1 = random();
+            String subject2 = random();
+            Dispatcher d = nc.createDispatcher(msg -> {
+                if (msg.getSubject().equals(subject1)) {
                     one.complete(msg);
-                } else if (msg.getSubject().equals("two")) {
+                }
+                else if (msg.getSubject().equals(subject2)) {
                     two.complete(msg);
                 }
             });
 
-            d.subscribe("one");
-            d.subscribe("two");
+            d.subscribe(subject1);
+            d.subscribe(subject2);
             nc.flush(Duration.ofMillis(500));// Get them all to the server
 
-            nc.publish("one", new byte[16]);
-            nc.publish("two", new byte[16]);
+            nc.publish(subject1, new byte[16]);
+            nc.publish(subject2, new byte[16]);
 
             Message msg = one.get(500, TimeUnit.MILLISECONDS);
-            assertEquals("one", msg.getSubject());
+            assertEquals(subject1, msg.getSubject());
             msg = two.get(500, TimeUnit.MILLISECONDS);
-            assertEquals("two", msg.getSubject());
-        }
+            assertEquals(subject2, msg.getSubject());
+
+            nc.closeDispatcher(d);
+        });
     }
 
     @Test
     public void testMultiMessage() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(ts.getURI())) {
+        runInShared(nc -> {
             final CompletableFuture<Boolean> done = new CompletableFuture<>();
             int msgCount = 100;
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
 
             final ConcurrentLinkedQueue<Message> q = new ConcurrentLinkedQueue<>();
-            Dispatcher d = nc.createDispatcher((msg) -> {
+            Dispatcher d = nc.createDispatcher(msg -> {
                 if (msg.getSubject().equals("done")) {
                     done.complete(Boolean.TRUE);
-                } else {
+                }
+                else {
                     q.add(msg);
                 }
             });
 
-            d.subscribe("subject");
+            String subject = random();
+            d.subscribe(subject);
             d.subscribe("done");
             nc.flush(Duration.ofMillis(1000)); // wait for them to go through
 
             for (int i = 0; i < msgCount; i++) {
-                nc.publish("subject", new byte[16]);
+                nc.publish(subject, new byte[16]);
             }
             nc.publish("done", new byte[16]);
             nc.flush(Duration.ofMillis(1000)); // wait for them to go through
@@ -197,60 +297,59 @@ public class DispatcherTests {
             done.get(500, TimeUnit.MILLISECONDS);
 
             assertEquals(msgCount, q.size());
-        }
-    }
-
-    @Test
-    public void testClose() {
-        assertThrows(TimeoutException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection nc = Nats.connect(ts.getURI())) {
-                final CompletableFuture<Boolean> phase1 = new CompletableFuture<>();
-                final CompletableFuture<Boolean> phase2 = new CompletableFuture<>();
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
-
-                final ConcurrentLinkedQueue<Message> q = new ConcurrentLinkedQueue<>();
-                Dispatcher d = nc.createDispatcher((msg) -> {
-                    if (msg.getSubject().equals("phase1")) {
-                        phase1.complete(Boolean.TRUE);
-                    } else if (msg.getSubject().equals("phase1")) {
-                        phase2.complete(Boolean.TRUE);
-                    } else {
-                        q.add(msg);
-                    }
-                });
-
-                d.subscribe("subject");
-                d.subscribe("phase1");
-                d.subscribe("phase2");
-                nc.flush(Duration.ofMillis(500));// Get them all to the server
-
-                nc.publish("subject", new byte[16]);
-                nc.publish("phase1", null);
-
-                nc.flush(Duration.ofMillis(1000)); // wait for them to go through
-                phase1.get(200, TimeUnit.MILLISECONDS);
-
-                assertEquals(1, q.size());
-
-                nc.closeDispatcher(d);
-
-                assertFalse(d.isActive());
-
-                // This won't arrive
-                nc.publish("phase2", new byte[16]);
-
-                nc.flush(Duration.ofMillis(1000)); // wait for them to go through
-                phase2.get(200, TimeUnit.MILLISECONDS);
-            }
         });
     }
 
+    @Test
+    public void testClosedDispatcherBehavior() throws Exception {
+        runInShared(nc -> {
+            final CompletableFuture<Boolean> fPhase1 = new CompletableFuture<>();
+            final CompletableFuture<Boolean> fPhase2 = new CompletableFuture<>();
+
+            final ConcurrentLinkedQueue<Message> received = new ConcurrentLinkedQueue<>();
+            String subject = random();
+            String phase1 = random();
+            String phase2 = random();
+            Dispatcher d = nc.createDispatcher(msg -> {
+                if (msg.getSubject().equals(phase1)) {
+                    fPhase1.complete(Boolean.TRUE);
+                }
+                else if (msg.getSubject().equals(phase2)) {
+                    fPhase2.complete(Boolean.TRUE);
+                }
+                else {
+                    received.add(msg);
+                }
+            });
+
+            d.subscribe(subject);
+            d.subscribe(phase1);
+            d.subscribe(phase2);
+            nc.flush(Duration.ofMillis(500));// Get them all to the server
+
+            nc.publish(subject, new byte[16]);
+            nc.publish(phase1, null);
+
+            nc.flush(Duration.ofMillis(1000)); // wait for them to go through
+            fPhase1.get(200, TimeUnit.MILLISECONDS);
+
+            assertEquals(1, received.size());
+
+            nc.closeDispatcher(d);
+
+            assertFalse(d.isActive());
+
+            // This won't arrive
+            nc.publish(phase2, new byte[16]);
+
+            nc.flush(Duration.ofMillis(1000)); // wait for them to go through
+            assertThrows(TimeoutException.class, () -> fPhase2.get(200, TimeUnit.MILLISECONDS));
+        });
+    }
 
     @Test
     public void testQueueSubscribers() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                 Connection nc = Nats.connect(ts.getURI())) {
+        runInShared(nc -> {
             int msgs = 100;
             AtomicInteger received = new AtomicInteger();
             AtomicInteger sub1Count = new AtomicInteger();
@@ -259,37 +358,41 @@ public class DispatcherTests {
             final CompletableFuture<Boolean> done1 = new CompletableFuture<>();
             final CompletableFuture<Boolean> done2 = new CompletableFuture<>();
 
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+            String subject = random();
+            String done = random();
+            String queue = random();
 
-            Dispatcher d1 = nc.createDispatcher((msg) -> {
-                if (msg.getSubject().equals("done")) {
+            Dispatcher d1 = nc.createDispatcher(msg -> {
+                if (msg.getSubject().equals(done)) {
                     done1.complete(Boolean.TRUE);
-                } else {
+                }
+                else {
                     sub1Count.incrementAndGet();
                     received.incrementAndGet();
                 }
             });
 
-            Dispatcher d2 = nc.createDispatcher((msg) -> {
-                if (msg.getSubject().equals("done")) {
+            Dispatcher d2 = nc.createDispatcher(msg -> {
+                if (msg.getSubject().equals(done)) {
                     done2.complete(Boolean.TRUE);
-                } else {
+                }
+                else {
                     sub2Count.incrementAndGet();
                     received.incrementAndGet();
                 }
             });
 
-            d1.subscribe("subject", "queue");
-            d2.subscribe("subject", "queue");
-            d1.subscribe("done");
-            d2.subscribe("done");
+            d1.subscribe(subject, queue);
+            d2.subscribe(subject, queue);
+            d1.subscribe(done);
+            d2.subscribe(done);
             nc.flush(Duration.ofMillis(500));
 
             for (int i = 0; i < msgs; i++) {
-                nc.publish("subject", new byte[16]);
+                nc.publish(subject, new byte[16]);
             }
 
-            nc.publish("done", null);
+            nc.publish(done, null);
 
             nc.flush(Duration.ofMillis(500));
             done1.get(500, TimeUnit.MILLISECONDS);
@@ -298,692 +401,479 @@ public class DispatcherTests {
             assertEquals(msgs, received.get());
             assertEquals(msgs, sub1Count.get() + sub2Count.get());
 
-            // They won't be equal but print to make sure they are close (human testing)
-            System.out.println("### Sub 1 " + sub1Count.get());
-            System.out.println("### Sub 2 " + sub2Count.get());
-        }
-    }
-
-    @Test
-    public void testCantUnsubSubFromDispatcher() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                 Connection nc = Nats.connect(ts.getURI()))
-            {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
-
-                final CompletableFuture<Message> msgFuture = new CompletableFuture<>();
-                Dispatcher d = nc.createDispatcher((msg) -> {
-                    msgFuture.complete(msg);
-                });
-
-                d.subscribe("subject");
-                nc.flush(Duration.ofMillis(500));// Get them all to the server
-
-                nc.publish("subject", new byte[16]);
-
-                Message msg = msgFuture.get(500, TimeUnit.MILLISECONDS);
-
-                msg.getSubscription().unsubscribe(); // Should throw
-                assertFalse(true);
-            }
+            nc.closeDispatcher(d1);
+            nc.closeDispatcher(d2);
         });
     }
 
     @Test
-    public void testCantAutoUnsubSubFromDispatcher() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                 Connection nc = Nats.connect(ts.getURI()))
-            {
-                assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+    public void testCantUnsubSubFromDispatcher() throws Exception {
+        runInShared(nc -> {
+            final CompletableFuture<Message> msgFuture = new CompletableFuture<>();
+            Dispatcher d = nc.createDispatcher(msgFuture::complete);
 
-                final CompletableFuture<Message> msgFuture = new CompletableFuture<>();
-                Dispatcher d = nc.createDispatcher((msg) -> {
-                    msgFuture.complete(msg);
-                });
+            String subject = random();
+            d.subscribe(subject);
+            nc.flush(Duration.ofMillis(500));// Get them all to the server
 
-                d.subscribe("subject");
-                nc.flush(Duration.ofMillis(500));// Get them all to the server
+            nc.publish(subject, new byte[16]);
 
-                nc.publish("subject", new byte[16]);
+            Message msg = msgFuture.get(500, TimeUnit.MILLISECONDS);
 
-                Message msg = msgFuture.get(500, TimeUnit.MILLISECONDS);
+            assertThrows(IllegalStateException.class, () -> msg.getSubscription().unsubscribe());
 
-                msg.getSubscription().unsubscribe(1); // Should throw
-                assertFalse(true);
-            }
+            nc.closeDispatcher(d);
         });
     }
 
     @Test
-    public void testPublishAndFlushFromCallback()
-            throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection nc = Nats.connect(ts.getURI())) {
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+    public void testCantAutoUnsubSubFromDispatcher() throws Exception {
+        runInShared(nc -> {
+            final CompletableFuture<Message> msgFuture = new CompletableFuture<>();
+            Dispatcher d = nc.createDispatcher(msgFuture::complete);
+
+            String subject = random();
+            d.subscribe(subject);
+            nc.flush(Duration.ofMillis(500));// Get them all to the server
+
+            nc.publish(subject, new byte[16]);
+
+            Message msg = msgFuture.get(500, TimeUnit.MILLISECONDS);
+
+            assertThrows(IllegalStateException.class, () -> msg.getSubscription().unsubscribe(1));
+
+            nc.closeDispatcher(d);
+        });
+    }
+
+    @Test
+    public void testPublishAndFlushFromCallback() throws Exception {
+        runInShared(nc -> {
+            String subject = random();
+
+            long startCount = nc.getStatistics().getFlushCounter();
 
             final CompletableFuture<Message> msgFuture = new CompletableFuture<>();
-            Dispatcher d = nc.createDispatcher((msg) -> {
+            Dispatcher d = nc.createDispatcher(msg -> {
                 try {
                     nc.flush(Duration.ofMillis(1000));
-                } catch (Exception ex) {
+                }
+                catch (Exception ex) {
                     ex.printStackTrace();
                 }
                 msgFuture.complete(msg);
             });
 
-            d.subscribe("subject");
+            d.subscribe(subject);
             nc.flush(Duration.ofMillis(500));// Get them all to the server
 
-            nc.publish("subject", new byte[16]); // publish one to kick it off
+            nc.publish(subject, new byte[16]); // publish one to kick it off
 
             Message msg = msgFuture.get(500, TimeUnit.MILLISECONDS);
             assertNotNull(msg);
 
-            assertEquals(2, ((NatsStatistics)(nc.getStatistics())).getFlushCounter());
-        }
+            long diffCount = nc.getStatistics().getFlushCounter() - startCount;
+            assertEquals(2, diffCount);
+            nc.closeDispatcher(d);
+        });
     }
 
     @Test
     public void testUnsub() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(ts.getURI())) {
-            final CompletableFuture<Boolean> phase1 = new CompletableFuture<>();
-            final CompletableFuture<Boolean> phase2 = new CompletableFuture<>();
+        runInShared(nc -> {
+            final CompletableFuture<Boolean> fPhase1 = new CompletableFuture<>();
+            final CompletableFuture<Boolean> fPhase2 = new CompletableFuture<>();
             int msgCount = 10;
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+
+            String subject = random();
+            String phase1 = random();
+            String phase2 = random();
 
             final ConcurrentLinkedQueue<Message> q = new ConcurrentLinkedQueue<>();
-            Dispatcher d = nc.createDispatcher((msg) -> {
-                if (msg.getSubject().equals("phase1")) {
-                    phase1.complete(Boolean.TRUE);
-                } else if (msg.getSubject().equals("phase2")) {
-                    phase2.complete(Boolean.TRUE);
-                } else {
+            Dispatcher d = nc.createDispatcher(msg -> {
+                if (msg.getSubject().equals(phase1)) {
+                    fPhase1.complete(Boolean.TRUE);
+                }
+                else if (msg.getSubject().equals(phase2)) {
+                    fPhase2.complete(Boolean.TRUE);
+                }
+                else {
                     q.add(msg);
                 }
             });
 
-            d.subscribe("subject");
-            d.subscribe("phase1");
-            d.subscribe("phase2");
+            d.subscribe(subject);
+            d.subscribe(phase1);
+            d.subscribe(phase2);
             nc.flush(Duration.ofMillis(1000));// Get them all to the server
 
             for (int i = 0; i < msgCount; i++) {
-                nc.publish("subject", new byte[16]);
+                nc.publish(subject, new byte[16]);
             }
-            nc.publish("phase1", new byte[16]);
+            nc.publish(phase1, new byte[16]);
             nc.flush(Duration.ofMillis(1000)); // wait for them to go through
 
-            phase1.get(5000, TimeUnit.MILLISECONDS);
+            fPhase1.get(5000, TimeUnit.MILLISECONDS);
 
-            d.unsubscribe("subject");
+            d.unsubscribe(subject);
             nc.flush(Duration.ofMillis(1000));// Get them all to the server
 
             for (int i = 0; i < msgCount; i++) {
-                nc.publish("subject", new byte[16]);
+                nc.publish(subject, new byte[16]);
             }
-            nc.publish("phase2", new byte[16]);
+            nc.publish(phase2, new byte[16]);
             nc.flush(Duration.ofMillis(1000)); // wait for them to go through
 
-            phase2.get(1000, TimeUnit.MILLISECONDS); // make sure we got them
+            fPhase2.get(1000, TimeUnit.MILLISECONDS); // make sure we got them
 
             assertEquals(msgCount, q.size());
-        }
+
+            nc.closeDispatcher(d);
+        });
     }
 
     @Test
     public void testAutoUnsub() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection nc = Nats.connect(ts.getURI())) {
-            final CompletableFuture<Boolean> phase1 = new CompletableFuture<>();
-            final CompletableFuture<Boolean> phase2 = new CompletableFuture<>();
+        runInShared(nc -> {
+            final CompletableFuture<Boolean> fPhase1 = new CompletableFuture<>();
+            final CompletableFuture<Boolean> fPhase2 = new CompletableFuture<>();
             int msgCount = 100;
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+
+            String subject = random();
+            String phase1 = random();
+            String phase2 = random();
 
             final ConcurrentLinkedQueue<Message> q = new ConcurrentLinkedQueue<>();
-            NatsDispatcher d = (NatsDispatcher) nc.createDispatcher((msg) -> {
-                if (msg.getSubject().equals("phase1")) {
-                    phase1.complete(Boolean.TRUE);
-                }else if (msg.getSubject().equals("phase2")) {
-                    phase2.complete(Boolean.TRUE);
-                } else {
+            NatsDispatcher d = (NatsDispatcher) nc.createDispatcher(msg -> {
+                if (msg.getSubject().equals(phase1)) {
+                    fPhase1.complete(Boolean.TRUE);
+                }
+                else if (msg.getSubject().equals(phase2)) {
+                    fPhase2.complete(Boolean.TRUE);
+                }
+                else {
                     q.add(msg);
                 }
             });
 
-            d.subscribe("subject");
-            d.subscribe("phase1");
-            d.subscribe("phase2");
+            d.subscribe(subject);
+            d.subscribe(phase1);
+            d.subscribe(phase2);
             nc.flush(Duration.ofMillis(500));// Get them all to the server
 
             for (int i = 0; i < msgCount; i++) {
-                nc.publish("subject", new byte[16]);
+                nc.publish(subject, new byte[16]);
             }
-            nc.publish("phase1", new byte[16]);
+            nc.publish(phase1, new byte[16]);
 
             nc.flush(Duration.ofMillis(1000)); // wait for them to go through
-            phase1.get(1000, TimeUnit.MILLISECONDS); // make sure we got them
+            fPhase1.get(1000, TimeUnit.MILLISECONDS); // make sure we got them
 
             assertEquals(msgCount, q.size());
 
-            d.unsubscribe("subject", msgCount + 1);
+            d.unsubscribe(subject, msgCount + 1);
 
             for (int i = 0; i < msgCount; i++) {
-                nc.publish("subject", new byte[16]);
+                nc.publish(subject, new byte[16]);
             }
-            nc.publish("phase2", new byte[16]);
+            nc.publish(phase2, new byte[16]);
 
             nc.flush(Duration.ofMillis(1000)); // Wait for it all to get processed
-            phase2.get(1000, TimeUnit.MILLISECONDS); // make sure we got them
+            fPhase2.get(1000, TimeUnit.MILLISECONDS); // make sure we got them
 
             assertEquals(msgCount + 1, q.size());
-        }
+
+            nc.closeDispatcher(d);
+        });
     }
 
     @Test
     public void testUnsubFromCallback() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(ts.getURI())) {
-            final CompletableFuture<Boolean> done = new CompletableFuture<>();
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+        runInShared(nc -> {
+            final CompletableFuture<Boolean> fDone = new CompletableFuture<>();
+            String subject = random();
+            String done = random();
 
             final AtomicReference<Dispatcher> dispatcher = new AtomicReference<>();
             final ConcurrentLinkedQueue<Message> q = new ConcurrentLinkedQueue<>();
-            final Dispatcher d = nc.createDispatcher((msg) -> {
-                if (msg.getSubject().equals("done")) {
-                    done.complete(Boolean.TRUE);
-                } else {
+            final Dispatcher d = nc.createDispatcher(msg -> {
+                if (msg.getSubject().equals(done)) {
+                    fDone.complete(Boolean.TRUE);
+                }
+                else {
                     q.add(msg);
-                    dispatcher.get().unsubscribe("subject");
+                    dispatcher.get().unsubscribe(subject);
                 }
             });
 
             dispatcher.set(d);
 
-            d.subscribe("subject");
-            d.subscribe("done");
+            d.subscribe(subject);
+            d.subscribe(done);
             nc.flush(Duration.ofMillis(500));// Get them all to the server
 
-            nc.publish("subject", new byte[16]);
-            nc.publish("subject", new byte[16]);
-            nc.publish("done", new byte[16]); // when we get this we know the others are dispatched
+            nc.publish(subject, new byte[16]);
+            nc.publish(subject, new byte[16]);
+            nc.publish(done, new byte[16]); // when we get this we know the others are dispatched
             nc.flush(Duration.ofMillis(1000)); // Wait for the publish, or we will get multiples for sure
-            done.get(200, TimeUnit.MILLISECONDS); // make sure we got them
+            fDone.get(200, TimeUnit.MILLISECONDS); // make sure we got them
 
             assertEquals(1, q.size());
-        }
+
+            nc.closeDispatcher(d);
+        });
     }
 
     @Test
-    public void testAutoUnsubFromCallback()
-            throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(ts.getURI())) {
-            final CompletableFuture<Boolean> done = new CompletableFuture<>();
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+    public void testAutoUnsubFromCallback() throws Exception {
+        runInShared(nc -> {
+            final CompletableFuture<Boolean> fDone = new CompletableFuture<>();
 
+            String subject = random();
+            String done = random();
             final AtomicReference<Dispatcher> dispatcher = new AtomicReference<>();
             final ConcurrentLinkedQueue<Message> q = new ConcurrentLinkedQueue<>();
-            final Dispatcher d = nc.createDispatcher((msg) -> {
-                if (msg.getSubject().equals("done")) {
-                    done.complete(Boolean.TRUE);
-                } else {
+            final Dispatcher d = nc.createDispatcher(msg -> {
+                if (msg.getSubject().equals(done)) {
+                    fDone.complete(Boolean.TRUE);
+                }
+                else {
                     q.add(msg);
-                    dispatcher.get().unsubscribe("subject", 2); // get 1 more, for a total of 2
+                    dispatcher.get().unsubscribe(subject, 2); // get 1 more, for a total of 2
                 }
             });
 
             dispatcher.set(d);
 
-            d.subscribe("subject");
-            d.subscribe("done");
+            d.subscribe(subject);
+            d.subscribe(done);
             nc.flush(Duration.ofMillis(1000));// Get them all to the server
 
-            nc.publish("subject", new byte[16]);
-            nc.publish("subject", new byte[16]);
-            nc.publish("subject", new byte[16]);
-            nc.publish("done", new byte[16]); // when we get this we know the others are dispatched
+            nc.publish(subject, new byte[16]);
+            nc.publish(subject, new byte[16]);
+            nc.publish(subject, new byte[16]);
+            nc.publish(done, new byte[16]); // when we get this we know the others are dispatched
             nc.flush(Duration.ofMillis(1000)); // Wait for the publish
 
-            done.get(200, TimeUnit.MILLISECONDS); // make sure we got them
+            fDone.get(200, TimeUnit.MILLISECONDS); // make sure we got them
 
             assertEquals(2, q.size());
-        }
+
+            nc.closeDispatcher(d);
+        });
     }
 
     @Test
     public void testCloseFromCallback() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(ts.getURI())) {
-            final CompletableFuture<Boolean> done = new CompletableFuture<>();
-            assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
+        // custom connection since we must close it.
+        runInSharedOwnNc(nc -> {
+            final CompletableFuture<Boolean> fDone = new CompletableFuture<>();
 
-            final Dispatcher d = nc.createDispatcher((msg) -> {
+            String subject = random();
+            final Dispatcher d = nc.createDispatcher(msg -> {
                 try {
-                    if (msg.getSubject().equals("done")) {
+                    if (msg.getSubject().equals(subject)) {
                         nc.close();
-                        done.complete(Boolean.TRUE);
+                        fDone.complete(Boolean.TRUE);
                     }
-                } catch (InterruptedException e) {
+                }
+                catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             });
 
-            d.subscribe("done");
+            d.subscribe(subject);
             sleep(500); // Making sure the "subscribe" has been registered on the server
 
-            nc.publish("done", new byte[16]);
+            nc.publish(subject, new byte[16]);
 
-            done.get(5000, TimeUnit.MILLISECONDS);
-
-            waitUntilStatus(nc, 5000, Connection.Status.CLOSED);
-        }
+            fDone.get(5000, TimeUnit.MILLISECONDS);
+        });
     }
 
     @Test
     public void testDispatchHandlesExceptionInHandler() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                Connection nc = Nats.connect(ts.getURI())) {
-            final CompletableFuture<Boolean> done = new CompletableFuture<>();
+        runInShared(nc -> {
+            final CompletableFuture<Boolean> fDone = new CompletableFuture<>();
             int msgCount = 100;
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
 
+            String subject = random();
+            String done = random();
             final ConcurrentLinkedQueue<Message> q = new ConcurrentLinkedQueue<>();
-            Dispatcher d = nc.createDispatcher((msg) -> {
-                if (msg.getSubject().equals("done")) {
-                    done.complete(Boolean.TRUE);
-                } else {
+            Dispatcher d = nc.createDispatcher(msg -> {
+                if (msg.getSubject().equals(done)) {
+                    fDone.complete(Boolean.TRUE);
+                }
+                else {
                     q.add(msg);
                     throw new NumberFormatException();
                 }
             });
 
-            d.subscribe("subject");
-            d.subscribe("done");
+            d.subscribe(subject);
+            d.subscribe(done);
             nc.flush(Duration.ofMillis(500));// Get them all to the server
 
             for (int i = 0; i < msgCount; i++) {
-                nc.publish("subject", new byte[16]);
+                nc.publish(subject, new byte[16]);
             }
-            nc.publish("done", new byte[16]);
+            nc.publish(done, new byte[16]);
 
             nc.flush(Duration.ofMillis(1000)); // wait for them to go through
-            done.get(200, TimeUnit.MILLISECONDS);
+            fDone.get(200, TimeUnit.MILLISECONDS);
 
             assertEquals(msgCount, q.size());
-        }
-    }
 
-    @Test
-    public void testThrowOnNullSubject() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                Dispatcher d = nc.createDispatcher((msg) -> {});
-                d.subscribe(null);
-                assertFalse(true);
-            }
+            nc.closeDispatcher(d);
         });
     }
 
     @Test
-    public void testThrowOnEmptySubject() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                Dispatcher d = nc.createDispatcher((msg) -> {});
-
-                d.subscribe("");
-                assertFalse(true);
-            }
-        });
-    }
-
-    @Test
-    public void testThrowOnEmptyQueue() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                Dispatcher d = nc.createDispatcher((msg) -> {});
-                d.subscribe("subject", "");
-                assertFalse(true);
-            }
-        });
-    }
-
-    @Test
-    public void testThrowOnNullSubjectWithQueue() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                Dispatcher d = nc.createDispatcher((msg) -> {});
-                d.subscribe(null, "quque");
-                assertFalse(true);
-            }
-        });
-    }
-
-    @Test
-    public void testThrowOnEmptySubjectWithQueue() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                Dispatcher d = nc.createDispatcher((msg) -> {});
-                d.subscribe("", "quque");
-                assertFalse(true);
-            }
-        });
-    }
-
-    @Test
-    public void throwsOnCreateIfClosed() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                nc.close();
-                nc.createDispatcher((msg) -> {});
-                assertFalse(true);
-            }
-        });
-    }
-
-    @Test
-    public void throwsOnSubscribeIfClosed() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                Dispatcher d = nc.createDispatcher((msg) -> {});
-                nc.close();
-                d.subscribe("subject");
-                assertFalse(true);
-            }
-        });
-    }
-
-    @Test
-    public void testThrowOnSubscribeWhenClosed() throws IOException, InterruptedException, TimeoutException {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                Dispatcher d = nc.createDispatcher((msg) -> {});
-                nc.closeDispatcher(d);
-                d.subscribe("foo");
-                assertFalse(true);
-            }
-        });
-    }
-
-    @Test
-    public void testThrowOnUnsubscribeWhenClosed() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                Dispatcher d = nc.createDispatcher((msg) -> {});
-                d.subscribe("foo");
-                nc.closeDispatcher(d);
-                d.unsubscribe("foo");
-                assertFalse(true);
-            }
-        });
-    }
-
-    @Test
-    public void testThrowOnDoubleClose() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                Dispatcher d = nc.createDispatcher((msg) -> {});
-                nc.closeDispatcher(d);
-                nc.closeDispatcher(d);
-                assertFalse(true);
-            }
-        });
-    }
-
-    @Test
-    public void testThrowOnConnClosed() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                Dispatcher d = nc.createDispatcher((msg) -> {});
-                nc.close();
-                nc.closeDispatcher(d);
-                assertFalse(true);
-            }
+    public void testThrowOnBadInput() throws Exception {
+        runInShared(nc -> {
+            Dispatcher d = nc.createDispatcher(msg -> {
+            });
+            // Null Subject
+            assertThrows(IllegalArgumentException.class, () -> d.subscribe(null));
+            // Empty Subject
+            assertThrows(IllegalArgumentException.class, () -> d.subscribe(""));
+            // Empty Subject
+            assertThrows(IllegalArgumentException.class, () -> d.subscribe(""));
+            // Null Subject With Queue
+            assertThrows(IllegalArgumentException.class, () -> d.subscribe(null, random()));
+            // Empty Subject With Queue
+            assertThrows(IllegalArgumentException.class, () -> d.subscribe("", random()));
+            nc.closeDispatcher(d);
         });
     }
 
     @Test
     public void testDoubleSubscribe() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection nc = Nats.connect(ts.getURI())) {
-            final CompletableFuture<Boolean> done = new CompletableFuture<>();
+        runInShared(nc -> {
+            final CompletableFuture<Boolean> fDone = new CompletableFuture<>();
             int msgCount = 100;
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
+
+            String subject = random();
+            String done = random();
 
             final ConcurrentLinkedQueue<Message> q = new ConcurrentLinkedQueue<>();
-            Dispatcher d = nc.createDispatcher((msg) -> {
-                if (msg.getSubject().equals("done")) {
-                    done.complete(Boolean.TRUE);
-                } else {
+            Dispatcher d = nc.createDispatcher(msg -> {
+                if (msg.getSubject().equals(done)) {
+                    fDone.complete(Boolean.TRUE);
+                }
+                else {
                     q.add(msg);
                 }
             });
 
-            d.subscribe("subject").subscribe("subject").subscribe("subject").subscribe("done");
+            d.subscribe(subject).subscribe(subject).subscribe(subject).subscribe(done);
             nc.flush(Duration.ofSeconds(5)); // wait for them to go through
 
             for (int i = 0; i < msgCount; i++) {
-                nc.publish("subject", new byte[16]);
+                nc.publish(subject, new byte[16]);
             }
-            nc.publish("done", new byte[16]);
+            nc.publish(done, new byte[16]);
             nc.flush(Duration.ofSeconds(5)); // wait for them to go through
 
-            done.get(5, TimeUnit.SECONDS);
+            fDone.get(5, TimeUnit.SECONDS);
 
-            assertEquals(msgCount, q.size()); // Shoudl only get one since all the extra subs do nothing??
-        }
+            assertEquals(msgCount, q.size()); // Should only get one since all the extra subs do nothing??
+
+            nc.closeDispatcher(d);
+        });
     }
 
     @Test
     public void testDoubleSubscribeWithCustomHandler() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection nc = Nats.connect(ts.getURI())) {
-            final CompletableFuture<Boolean> done = new CompletableFuture<>();
+        runInShared(nc -> {
+            final CompletableFuture<Boolean> fDone = new CompletableFuture<>();
             int msgCount = 100;
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
 
             final AtomicInteger count = new AtomicInteger(0);
-            Dispatcher d = nc.createDispatcher((msg) -> {});
+            Dispatcher d = nc.createDispatcher(msg -> {
+            });
 
-            d.subscribe("subject", (msg) -> { count.incrementAndGet(); });
-            d.subscribe("subject", "queue", (msg) -> { count.incrementAndGet(); });
-            d.subscribe("done", (msg) -> { done.complete(Boolean.TRUE); });
+            String subject = random();
+            String done = random();
+            String queue = random();
+            d.subscribe(subject, msg -> count.incrementAndGet());
+            d.subscribe(subject, queue, msg -> count.incrementAndGet());
+            d.subscribe(done, msg -> fDone.complete(Boolean.TRUE));
 
             nc.flush(Duration.ofSeconds(5)); // wait for them to go through
 
             for (int i = 0; i < msgCount; i++) {
-                nc.publish("subject", new byte[16]);
+                nc.publish(subject, new byte[16]);
             }
-            nc.publish("done", new byte[16]);
+            nc.publish(done, new byte[16]);
             nc.flush(Duration.ofSeconds(5)); // wait for them to go through
 
-            done.get(5, TimeUnit.SECONDS);
+            fDone.get(5, TimeUnit.SECONDS);
 
             assertEquals(msgCount * 2, count.get()); // We should get 2x the messages because we subscribed 2 times.
-        }
+
+            nc.closeDispatcher(d);
+        });
     }
 
     @Test
     public void testDoubleSubscribeWithUnsubscribeAfterWithCustomHandler() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection nc = Nats.connect(ts.getURI())) {
-            final CompletableFuture<Boolean> done1 = new CompletableFuture<>();
-            final CompletableFuture<Boolean> done2 = new CompletableFuture<>();
+        runInShared(nc -> {
+            final CompletableFuture<Boolean> fDone1 = new CompletableFuture<>();
+            final CompletableFuture<Boolean> fDone2 = new CompletableFuture<>();
             int msgCount = 100;
-            assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
 
+            String subject = random();
+            String done = random();
             final AtomicInteger count = new AtomicInteger(0);
-            Dispatcher d = nc.createDispatcher((msg) -> {});
-            Subscription s1 = d.subscribe("subject", (msg) -> { count.incrementAndGet(); });
-            Subscription doneSub = d.subscribe("done", (msg) -> { done1.complete(Boolean.TRUE); });
-            d.subscribe("subject", (msg) -> { count.incrementAndGet(); });
+            Dispatcher d = nc.createDispatcher(msg -> {
+            });
+            Subscription s1 = d.subscribe(subject, msg -> count.incrementAndGet());
+            Subscription doneSub = d.subscribe(done, msg -> fDone1.complete(Boolean.TRUE));
+            d.subscribe(subject, msg -> count.incrementAndGet());
 
             nc.flush(Duration.ofSeconds(5)); // wait for the subs to go through
 
             for (int i = 0; i < msgCount; i++) {
-                nc.publish("subject", new byte[16]);
+                nc.publish(subject, new byte[16]);
             }
-            nc.publish("done", new byte[16]);
+            nc.publish(done, new byte[16]);
             nc.flush(Duration.ofSeconds(5)); // wait for the messages to go through
 
-            done1.get(5, TimeUnit.SECONDS);
+            fDone1.get(5, TimeUnit.SECONDS);
 
             assertEquals(msgCount * 2, count.get()); // We should get 2x the messages because we subscribed 2 times.
 
             count.set(0);
             d.unsubscribe(s1);
             d.unsubscribe(doneSub);
-            d.subscribe("done", (msg) -> { done2.complete(Boolean.TRUE); });
+            d.subscribe(done, msg -> fDone2.complete(Boolean.TRUE));
             nc.flush(Duration.ofSeconds(5)); // wait for the unsub to go through
 
             for (int i = 0; i < msgCount; i++) {
-                nc.publish("subject", new byte[16]);
+                nc.publish(subject, new byte[16]);
             }
-            nc.publish("done", new byte[16]);
+            nc.publish(done, new byte[16]);
             nc.flush(Duration.ofSeconds(5)); // wait for the messages to go through
 
-            done2.get(5, TimeUnit.SECONDS);
+            fDone2.get(5, TimeUnit.SECONDS);
 
             assertEquals(msgCount, count.get()); // We only have 1 active subscription, so we should only get msgCount.
-        }
-    }
 
-    @Test
-    public void testThrowOnEmptySubjectWithMessageHandler() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                Dispatcher d = nc.createDispatcher((msg) -> {});
-                d.subscribe("", (msg) -> {});
-                assertFalse(true);
-            }
-        });
-    }
-
-    @Test
-    public void testThrowOnNullHandler() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                Dispatcher d = nc.createDispatcher((msg) -> {});
-                d.subscribe("test", (MessageHandler)null);
-                assertFalse(true);
-            }
-        });
-    }
-
-    @Test
-    public void testThrowOnNullHandlerWithQueue() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                Dispatcher d = nc.createDispatcher((msg) -> {});
-                d.subscribe("test", "queue", (MessageHandler)null);
-                assertFalse(true);
-            }
-        });
-    }
-
-    @Test
-    public void testThrowOnEmptyQueueWithMessageHandler() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                Dispatcher d = nc.createDispatcher((msg) -> {});
-                d.subscribe("subject", "", (msg) -> {});
-                assertFalse(true);
-            }
-        });
-    }
-
-    @Test
-    public void testThrowOnNullSubjectWithQueueWithMessageHandler() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                Dispatcher d = nc.createDispatcher((msg) -> {});
-                d.subscribe(null, "quque", (msg) -> {});
-                assertFalse(true);
-            }
-        });
-    }
-
-    @Test
-    public void testThrowOnEmptySubjectWithQueueWithMessageHandler() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                Dispatcher d = nc.createDispatcher((msg) -> {});
-                d.subscribe("", "quque", (msg) -> {});
-                assertFalse(true);
-            }
-        });
-    }
-
-    @Test
-    public void testThrowOnEmptySubjectInUnsub() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                Dispatcher d = nc.createDispatcher((msg) -> {});
-                d.unsubscribe("");
-                assertFalse(true);
-            }
-        });
-    }
-
-    @Test
-    public void testThrowOnUnsubWhenClosed() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                        Connection nc = Nats.connect(ts.getURI())) {
-                Dispatcher d = nc.createDispatcher((msg) -> {});
-                Subscription sub = d.subscribe("subject", (msg) -> {});
-                nc.closeDispatcher(d);
-                d.unsubscribe(sub);
-                assertFalse(true);
-            }
-        });
-    }
-
-    @Test
-    public void testThrowOnWrongSubscription() {
-        assertThrows(IllegalStateException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                 Connection nc = Nats.connect(ts.getURI())) {
-                Dispatcher d = nc.createDispatcher((msg) -> {});
-                Subscription sub2 = nc.subscribe("test");
-                d.unsubscribe(sub2);
-                assertFalse(true);
-            }
+            nc.closeDispatcher(d);
         });
     }
 
     @Test
     public void testDispatcherFactoryCoverage() throws Exception {
-        try (NatsTestServer ts = new NatsTestServer(false);
-             Connection nc = Nats.connect(Options.builder().server(ts.getURI()).useDispatcherWithExecutor().build()))
-        {
+        runInSharedOwnNc(optionsBuilder().useDispatcherWithExecutor(), nc -> {
             CountDownLatch latch = new CountDownLatch(1);
-            Dispatcher d = nc.createDispatcher((msg) -> latch.countDown());
+            Dispatcher d = nc.createDispatcher(msg -> latch.countDown());
             assertInstanceOf(NatsDispatcherWithExecutor.class, d);
             String subject = NUID.nextGlobalSequence();
             d.subscribe(subject);
             nc.publish(subject, null);
             assertTrue(latch.await(1, TimeUnit.SECONDS));
-        }
+        });
     }
 }
