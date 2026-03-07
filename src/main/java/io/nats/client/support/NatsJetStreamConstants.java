@@ -135,9 +135,15 @@ public interface NatsJetStreamConstants {
     String KV_OPERATION_HEADER_KEY       = "KV-Operation";
     byte[] KV_OPERATION_HEADER_KEY_BYTES = KV_OPERATION_HEADER_KEY.getBytes(ISO_8859_1);
 
-    String NATS_SCHEDULE_HDR        = "Nats-Schedule";
-    String NATS_SCHEDULE_TARGET_HDR = "Nats-Schedule-Target";
-    String NATS_SCHEDULE_TTL_HDR    = "Nats-Schedule-TTL";
+    // Schedule Headers set to server
+    String NATS_SCHEDULE_HDR           = "Nats-Schedule";
+    String NATS_SCHEDULE_TARGET_HDR    = "Nats-Schedule-Target";
+    String NATS_SCHEDULE_TTL_HDR       = "Nats-Schedule-TTL";
+    String NATS_SCHEDULE_SOURCE_HDR    = "Nats-Schedule-Source";
+    String NATS_SCHEDULE_TIME_ZONE_HDR = "Nats-Schedule-Time-Zone";
+
+    String NATS_SCHEDULER_HDR          = "Nats-Scheduler";
+    String NATS_SCHEDULE_NEXT_HDR      = "Nats-Schedule-Next";
 
     String NATS_BATCH_ID_HDR        = "Nats-Batch-Id";
     String NATS_BATCH_SEQUENCE_HDR  = "Nats-Batch-Sequence";
