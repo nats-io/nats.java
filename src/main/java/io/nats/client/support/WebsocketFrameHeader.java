@@ -116,9 +116,10 @@ public class WebsocketFrameHeader {
         payloadLength -= length;
         if (mask) {
             for (int i=0; i < length; i++) {
-                int key = 0xFF & (maskingKey >> (8 * (7 - maskingKeyOffset)));
+                // RFC 6455 Section 5.3: j = i MOD 4; transformed-octet-i = original-octet-i XOR masking-key-octet-j
+                int key = 0xFF & (maskingKey >> (8 * (3 - maskingKeyOffset)));
                 buffer[offset + i] ^= key;
-                maskingKeyOffset = (maskingKeyOffset + 1) % 8;
+                maskingKeyOffset = (maskingKeyOffset + 1) % 4;
             }
         }
         return length;
