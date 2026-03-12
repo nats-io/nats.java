@@ -90,7 +90,11 @@ public class NatsUri {
 
     @Override
     public String toString() {
-        return uri.toString();
+        if (uri.getUserInfo() == null) {
+            return uri.toString();
+        }
+        // credentials replaced
+        return uri.getScheme() + "://*****:*****@" + uri.getHost() + ":" + uri.getPort();
     }
 
     @Override
