@@ -6,3 +6,5 @@ pluginManagement {
     }
 }
 rootProject.name = 'java-nats'
+
+include 'examples'

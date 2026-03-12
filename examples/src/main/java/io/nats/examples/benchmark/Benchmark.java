@@ -16,6 +16,7 @@
 package io.nats.examples.benchmark;
 
 import io.nats.client.NUID;
+
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
