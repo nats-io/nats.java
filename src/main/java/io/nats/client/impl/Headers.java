@@ -17,7 +17,6 @@ import io.nats.client.support.ByteArrayBuilder;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.BiConsumer;
 
@@ -584,12 +583,14 @@ public class Headers {
 		if (len <= HVCRLF_BYTES + 2){
 			return "";// empty map
 		}
-		for (int i = 0; i < len; i++) {
+		StringBuilder sb = new StringBuilder(len - HVCRLF_BYTES - 3);
+		for (int i = HVCRLF_BYTES; i < len - 3; i++) {
 			switch (b[i]) {
-				case CR: b[i] = ';'; break;
-				case LF: b[i] = ' '; break;
+				case CR: sb.append(';'); break;
+				case LF: sb.append(' '); break;
+				default: sb.append((char) b[i]); break;
 			}
 		}
-		return new String(b, HVCRLF_BYTES, len - HVCRLF_BYTES - 3, StandardCharsets.ISO_8859_1);// b has only US_ASCII, ISO_8859_1 is 3x faster
+		return sb.toString();
 	}
 }
