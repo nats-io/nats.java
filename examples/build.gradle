@@ -9,3 +9,5 @@ repositories {
 dependencies {
     implementation rootProject
 }
+
+javadoc.enabled = false
