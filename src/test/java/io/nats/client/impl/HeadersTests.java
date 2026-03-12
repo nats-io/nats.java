@@ -1029,6 +1029,45 @@ public class HeadersTests {
         assertEquals("\u0000 \f\b\t", h.getFirst("test1"));
     }
 
+    @Test
+    public void testToStringDoesNotCorruptSerializedCache() {
+        Headers h = new Headers();
+        h.put(KEY1, VAL1);
+        h.put(KEY2, VAL2, VAL3);
+
+        // 1. Call getSerialized() to populate the cached byte array
+        byte[] firstSerialized = h.getSerialized();
+
+        // 2. Save a copy of those bytes before calling toString()
+        byte[] savedCopy = Arrays.copyOf(firstSerialized, firstSerialized.length);
+
+        // 3. Call toString() -- this previously mutated the cached array
+        String toStringResult = h.toString();
+
+        // 4. Call getSerialized() again
+        byte[] secondSerialized = h.getSerialized();
+
+        // 5. The bytes must be identical to the saved copy
+        assertArrayEquals(savedCopy, secondSerialized,
+            "toString() must not corrupt the cached serialized byte array");
+
+        // 6. Also verify the returned array is the same object (cache was not invalidated)
+        assertSame(firstSerialized, secondSerialized,
+            "getSerialized() should return the same cached array instance");
+
+        // 7. Verify toString() output is reasonable
+        assertTrue(toStringResult.contains(KEY1 + ":" + VAL1),
+            "toString() should contain key1:val1 but was: " + toStringResult);
+        assertTrue(toStringResult.contains(KEY2 + ":" + VAL2),
+            "toString() should contain key2:val2 but was: " + toStringResult);
+        assertTrue(toStringResult.contains(KEY2 + ":" + VAL3),
+            "toString() should contain key2:val3 but was: " + toStringResult);
+        assertFalse(toStringResult.contains("\r"),
+            "toString() should not contain CR characters");
+        assertFalse(toStringResult.contains("\n"),
+            "toString() should not contain LF characters");
+    }
+
 //    @Test
 //    void benchmark_serializeToArray() {
 //        Headers h = new Headers().put("test", "aaa", "bBb", "ZZZZZZZZ")
