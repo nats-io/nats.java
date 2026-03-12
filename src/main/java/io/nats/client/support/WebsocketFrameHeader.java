@@ -118,6 +118,7 @@ public class WebsocketFrameHeader {
             for (int i=0; i < length; i++) {
                 // RFC 6455 Section 5.3: j = i MOD 4; transformed-octet-i = original-octet-i XOR masking-key-octet-j
                 int key = 0xFF & (maskingKey >> (8 * (3 - maskingKeyOffset)));
+                //noinspection lossy-conversions
                 buffer[offset + i] ^= key;
                 maskingKeyOffset = (maskingKeyOffset + 1) % 4;
             }
