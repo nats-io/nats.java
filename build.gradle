@@ -54,23 +54,8 @@ def generateVersionProps = tasks.register("generateVersionProperties") {
 
 sourceSets.main.resources.srcDir(generateVersionProps.map { it.outputs.files })
 
-sourceSets {
-    examples {
-        java {
-            compileClasspath += sourceSets.main.output
-            srcDirs = ['src/examples/java']
-        }
-    }
-}
-
-configurations {
-    examplesImplementation.extendsFrom api
-}
-
-
 tasks.register('bundle', Bundle) {
     from sourceSets.main.output
-    exclude("io/nats/examples/**")
 }
 
 jar {
@@ -110,7 +95,6 @@ javadoc {
     title = "NATS.IO Java API"
     excludes = [
             "io/nats/client/impl",
-            "io/nats/examples",
             "io/nats/client/api/ConsumerCreateRequest.java",
             "io/nats/client/api/MessageGetRequest.java",
             "io/nats/client/api/MessageDeleteRequest.java",
@@ -119,16 +103,6 @@ javadoc {
             "**/Debug**"
     ]
     classpath = sourceSets.main.runtimeClasspath
-}
-
-tasks.register('examplesJar', Jar) {
-    archiveClassifier.set('examples')
-    manifest {
-        attributes('Implementation-Title': 'Java Nats Examples',
-                'Implementation-Version': jarVersion,
-                'Implementation-Vendor': 'nats.io')
-    }
-    from(sourceSets.examples.output)
 }
 
 tasks.register('javadocJar', Jar) {
@@ -169,7 +143,7 @@ tasks.register('uberJar', Jar) {
 }
 
 artifacts {
-    archives javadocJar, sourcesJar, examplesJar, testsJar
+    archives javadocJar, sourcesJar, testsJar
 }
 
 jacoco {
@@ -184,7 +158,7 @@ jacocoTestReport {
     afterEvaluate { // only report on main library not examples
         classDirectories.setFrom(files(classDirectories.files.collect {
             fileTree(dir: it,
-                    exclude: ['**/examples/**', '**/Debug**'])
+                    exclude: ['**/Debug**'])
         }))
     }
 }
@@ -205,7 +179,6 @@ publishing {
         mavenJava(MavenPublication) {
             from components.java
             artifact sourcesJar
-            artifact examplesJar
             artifact javadocJar
             artifact testsJar
             pom {
