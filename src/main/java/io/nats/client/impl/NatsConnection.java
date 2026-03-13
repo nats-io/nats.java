@@ -50,13 +50,13 @@ class NatsConnection implements Connection {
 
     protected final StatisticsCollector statistics;
 
-    protected boolean connecting; // you can only connect in one thread
-    protected boolean disconnecting; // you can only disconnect in one thread
-    protected boolean closing; // respect a close call regardless
+    protected volatile boolean connecting; // you can only connect in one thread
+    protected volatile boolean disconnecting; // you can only disconnect in one thread
+    protected volatile boolean closing; // respect a close call regardless
     protected Exception exceptionDuringConnectChange; // exception occurred in another thread while dis/connecting
     protected final ReentrantLock closeSocketLock;
 
-    private Status status;
+    private volatile Status status;
     protected final ReentrantLock statusLock;
     protected final Condition statusChanged;
 
@@ -2108,29 +2108,29 @@ class NatsConnection implements Connection {
     }
 
     protected void updateStatus(Status newStatus, String uriDetail) {
-        Status oldStatus = this.status;
-
+        Status oldStatus;
         statusLock.lock();
         try {
+            oldStatus = this.status;
             if (oldStatus == Status.CLOSED || newStatus == oldStatus) {
                 return;
             }
             this.status = newStatus;
-        } finally {
             statusChanged.signalAll();
+        } finally {
             statusLock.unlock();
         }
 
-        if (this.status == Status.DISCONNECTED) {
+        if (newStatus == Status.DISCONNECTED) {
             processConnectionEvent(Events.DISCONNECTED, uriDetail);
         }
-        else if (this.status == Status.CLOSED) {
+        else if (newStatus == Status.CLOSED) {
             processConnectionEvent(Events.CLOSED, uriDetail);
         }
-        else if (oldStatus == Status.RECONNECTING && this.status == Status.CONNECTED) {
+        else if (oldStatus == Status.RECONNECTING && newStatus == Status.CONNECTED) {
             processConnectionEvent(Events.RECONNECTED, uriDetail);
         }
-        else if (this.status == Status.CONNECTED) {
+        else if (newStatus == Status.CONNECTED) {
             processConnectionEvent(Events.CONNECTED, uriDetail);
         }
     }
