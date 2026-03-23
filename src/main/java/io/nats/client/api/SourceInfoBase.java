@@ -58,6 +58,7 @@ abstract class SourceInfoBase {
      * The subject filter to apply to the messages
      * @return the subject filter
      */
+    @Nullable
     public String getFilterSubject() {
         return filterSubject;
     }

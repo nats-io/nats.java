@@ -21,7 +21,7 @@ import static io.nats.client.support.NatsObjectStoreUtil.*;
 import static io.nats.client.support.Validator.required;
 
 /**
- * The ObjectStoreStatus class contains information about an object store.
+ * The ObjectStoreConfiguration class contains the configuration for an object store.
  */
 public class ObjectStoreConfiguration extends FeatureConfiguration {
     ObjectStoreConfiguration(StreamConfiguration sc) {
