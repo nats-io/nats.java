@@ -62,7 +62,7 @@ public class ConsumerConfigurationTests extends TestBase {
             .flowControl(66000) // duration
             .maxPullWaiting(73)
             .maxBatch(55)
-            .maxBytes(56)
+            .maxBytes(6666666666L)
             .maxExpires(77000) // duration
             .numReplicas(5)
             .pauseUntil(zdt)
@@ -274,7 +274,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Duration.ofSeconds(66), c.getIdleHeartbeat());
         assertEquals(73, c.getMaxPullWaiting());
         assertEquals(55, c.getMaxBatch());
-        assertEquals(56, c.getMaxBytes());
+        assertEquals(6666666666L, c.getMaxBytes());
         assertEquals(Duration.ofSeconds(77), c.getMaxExpires());
         assertEquals(Duration.ofSeconds(88), c.getInactiveThreshold());
         assertEquals(5, c.getNumReplicas());
@@ -345,7 +345,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertTrue(c.isMemStorage());
         assertEquals(99, c.getStartSequence());
         assertEquals(55, c.getMaxBatch());
-        assertEquals(56, c.getMaxBytes());
+        assertEquals(6666666666L, c.getMaxBytes());
         assertEquals(5, c.getNumReplicas());
         assertEquals(Duration.ofSeconds(40), c.getMaxExpires());
         assertEquals(Duration.ofSeconds(50), c.getInactiveThreshold());
@@ -473,13 +473,11 @@ public class ConsumerConfigurationTests extends TestBase {
         Long maxAckPending = cc.getMaxAckPending();
         Long maxPullWaiting = cc.getMaxPullWaiting();
         Long maxBatch = cc.getMaxBatch();
-        Long maxBytes = cc.getMaxBytes();
 
         assertEquals(Integer.MAX_VALUE, maxDeliver);
         assertEquals(Integer.MAX_VALUE, maxAckPending);
         assertEquals(Integer.MAX_VALUE, maxPullWaiting);
         assertEquals(Integer.MAX_VALUE, maxBatch);
-        assertEquals(Integer.MAX_VALUE, maxBytes);
     }
 
     @Test

@@ -26,7 +26,7 @@ import static io.nats.client.support.NatsKeyValueUtil.*;
 import static io.nats.client.support.Validator.*;
 
 /**
- * The KeyValueConfiguration class contains the configuration for of a Key Value bucket.
+ * The KeyValueConfiguration class contains the configuration for a Key Value bucket.
  */
 public class KeyValueConfiguration extends FeatureConfiguration {
     KeyValueConfiguration(StreamConfiguration sc) {

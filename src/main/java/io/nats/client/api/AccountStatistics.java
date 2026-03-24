@@ -111,6 +111,7 @@ public class AccountStatistics extends ApiResponse<AccountStatistics> {
      * See the Account Limits for the specific tier.
      * @return the AccountLimits object
      */
+    @NonNull
     public AccountLimits getLimits() {
         return rollupTier.getLimits();
     }
