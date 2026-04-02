@@ -174,12 +174,17 @@ class NatsConnectionWriter implements Runnable {
                 stats.incrementOut(size);
 
                 if (msg.flushImmediatelyAfterPublish) {
+                    dataPort.write(sendBuffer, sendPosition);
                     dataPort.flush();
+                    stats.registerWrite(sendPosition);
+                    sendPosition = 0;
                 }
+
                 msg = msg.next;
             }
 
             // no need to write if there are no bytes
+            // if last message was flushImmediatelyAfterPublish, send position will always be 0
             if (sendPosition > 0) {
                 dataPort.write(sendBuffer, sendPosition);
                 stats.registerWrite(sendPosition);
