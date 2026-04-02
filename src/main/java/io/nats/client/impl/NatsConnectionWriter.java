@@ -171,14 +171,14 @@ class NatsConnectionWriter implements Runnable {
                     sendBuffer[sendPosition++] = LF;
                 }
 
+                stats.incrementOut(size);
+
                 if (msg.flushImmediatelyAfterPublish) {
                     dataPort.write(sendBuffer, sendPosition);
                     dataPort.flush();
                     stats.registerWrite(sendPosition);
                     sendPosition = 0;
                 }
-
-                stats.incrementOut(size);
 
                 msg = msg.next;
             }
