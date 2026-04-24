@@ -7,40 +7,43 @@ import io.nats.client.Nats;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 
 public class QueueGroupsRequestReply {
     public static void main(String[] args) {
         try (Connection nc = Nats.connect("nats://localhost:4222")) {
 
             // NATS-DOC-START
-            // Audit logger - receives all messages
-            Dispatcher dAudit = nc.createDispatcher(msg -> {
-                System.out.printf("[AUDIT] %s: %s\n", msg.getSubject(), new String(msg.getData(), StandardCharsets.UTF_8));
+            // Set up 3 instances of the service
+            Dispatcher dService1 = nc.createDispatcher(msg -> {
+                byte[] response = calculateResponse(1, msg);
+                nc.publish(msg.getReplyTo(), response);
             });
-            dAudit.subscribe("orders.>");
+            dService1.subscribe("api.calculate", "api-workers-queue");
 
-            Dispatcher dMetrics = nc.createDispatcher(msg -> {
-                System.out.printf("[METRICS] %s: %s\n", msg.getSubject(), new String(msg.getData(), StandardCharsets.UTF_8));
+            Dispatcher dService2 = nc.createDispatcher(msg -> {
+                byte[] response = calculateResponse(2, msg);
+                nc.publish(msg.getReplyTo(), response);
             });
-            dMetrics.subscribe("orders.>");
+            dService2.subscribe("api.calculate", "api-workers-queue");
 
-            Dispatcher dNewOrderWorker1 = nc.createDispatcher(msg -> {
-                System.out.printf("[WORKER 1] %s: %s\n", msg.getSubject(), new String(msg.getData(), StandardCharsets.UTF_8));
+            Dispatcher dService3 = nc.createDispatcher(msg -> {
+                byte[] response = calculateResponse(3, msg);
+                nc.publish(msg.getReplyTo(), response);
             });
-            dNewOrderWorker1.subscribe("orders.new", "new-orders-queue");
+            dService3.subscribe("api.calculate", "api-workers-queue");
 
-            Dispatcher dNewOrderWorker2 = nc.createDispatcher(msg -> {
-                System.out.printf("[WORKER 2] %s: %s\n", msg.getSubject(), new String(msg.getData(), StandardCharsets.UTF_8));
-            });
-            dNewOrderWorker2.subscribe("orders.new", "new-orders-queue");
-
-            // Publish order
-            nc.publish("orders.new", "Order 123".getBytes(StandardCharsets.UTF_8));
-            nc.publish("orders.new", "Order 124".getBytes(StandardCharsets.UTF_8));
-            // Audit and metrics see it, one worker processes it
+            // Make requests - messages are balanced among the subscribers in the queue
+            for (int x = 0; x < 10; x++) {
+                Message m = nc.request("api.calculate", null, Duration.ofMillis(500));
+                if (m == null) {
+                    System.out.println(x + ") No Response");
+                }
+                else {
+                    System.out.println(x + ") " + new String(m.getData()));
+                }
+            }
             // NATS-DOC-END
-
-            Thread.sleep(100);
         }
         catch (InterruptedException e) {
             // can be thrown by connect
@@ -49,12 +52,9 @@ public class QueueGroupsRequestReply {
         catch (IOException e) {
             // can be thrown by connect
         }
-        catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
-    private static String processNewOrder(int i, Message msg) {
-        return "Order processed by instance " + i;
+    private static byte[] calculateResponse(int i, Message msg) {
+        return ("Result from service instance " + i).getBytes(StandardCharsets.UTF_8);
     }
 }
