@@ -1412,8 +1412,8 @@ public class ConsumerConfiguration implements JsonSerializable {
                 this.backoff = new ArrayList<>();
                 for (Duration d : backoffs) {
                     if (d != null) {
-                        if (d.toNanos() < DURATION_MIN_LONG) {
-                            throw new IllegalArgumentException("Backoff cannot be less than " + DURATION_MIN_LONG);
+                        if (d.toNanos() < 0) {
+                            throw new IllegalArgumentException("Backoff cannot be less than 0");
                         }
                         this.backoff.add(d);
                     }
@@ -1438,8 +1438,8 @@ public class ConsumerConfiguration implements JsonSerializable {
             else {
                 backoff = new ArrayList<>();
                 for (long ms : backoffsMillis) {
-                    if (ms < DURATION_MIN_LONG) {
-                        throw new IllegalArgumentException("Backoff cannot be less than " + DURATION_MIN_LONG);
+                    if (ms < 0) {
+                        throw new IllegalArgumentException("Backoff cannot be less than 0");
                     }
                     this.backoff.add(Duration.ofMillis(ms));
                 }
