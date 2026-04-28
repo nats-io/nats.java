@@ -924,6 +924,7 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertValidAddOrUpdate(jsm, cc);
 
             cc = prepForUpdateTest(jsm);
+            System.out.println("\n!!!");
             cc = ConsumerConfiguration.builder(cc).maxAckPending(100).build();
             assertValidAddOrUpdate(jsm, cc);
 

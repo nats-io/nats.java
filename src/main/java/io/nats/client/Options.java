@@ -3368,7 +3368,7 @@ public class Options {
         }
     }
 
-    private static String getPropertyValue(Properties props, String key) {
+    public static String getPropertyValue(Properties props, String key) {
         String value = emptyAsNull(props.getProperty(key));
         if (value != null) {
             return value;

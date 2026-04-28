@@ -129,6 +129,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         }
 
         ConsumerCreateRequest ccr = new ConsumerCreateRequest(streamName, config, action);
+        System.out.println(subj + " -> " + ccr.toJson());
         Message resp = makeRequestResponseRequired(subj, ccr.serialize(), getTimeout());
         return new ConsumerInfo(resp).throwOnHasError();
     }
