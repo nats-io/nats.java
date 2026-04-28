@@ -7,7 +7,6 @@ import io.nats.client.Nats;
 import io.nats.client.impl.Headers;
 
 import java.io.IOException;
-import java.time.Duration;
 import java.util.concurrent.*;
 
 public class RequestReplyHeaders {
@@ -20,37 +19,28 @@ public class RequestReplyHeaders {
                 Headers hIncoming = msg.getHeaders();
                 Headers hResponse = new Headers();
                 for (String keys : hIncoming.keySet()) {
+                    hResponse.put("X-Response-ID", hIncoming.getFirst("X-Request-ID"));
                     hResponse.put(keys, hIncoming.get(keys));
                 }
-                nc.publish(msg.getReplyTo(), hResponse, null);
+                nc.publish(msg.getReplyTo(), hResponse, msg.getData());
             });
-            dService.subscribe("header.echo");
+            dService.subscribe("service");
 
             // Make a request expecting a future
-            Headers headers1 = new Headers();
-            headers1.put("X-Request-ID", "1");
-            headers1.put("X-Priority", "high");
-            CompletableFuture<Message> responseFuture = nc.request("header.echo", headers1, null);
+            Headers headers = new Headers();
+            headers.put("X-Request-ID", "123");
+            headers.put("X-Priority", "high");
+            CompletableFuture<Message> responseFuture = nc.request("service", headers, "data".getBytes());
             try {
                 Message m = responseFuture.get(500, TimeUnit.MILLISECONDS);
                 Headers hIncoming = m.getHeaders();
-                System.out.println("Response Headers: " + hIncoming);
+                byte[] data = m.getData();
+                String s = data == null ? "" : new String(data);
+                System.out.println("Response: " + s);
+                System.out.println("Response ID: " + hIncoming.getFirst("X-Response-ID"));
             }
             catch (CancellationException | ExecutionException | TimeoutException e) {
-                System.out.println("1) No Response");
-            }
-
-            // Make a request with a timeout and direct response
-            Headers headers2 = new Headers();
-            headers2.put("X-Request-ID", "2");
-            headers2.put("X-Priority", "med");
-            Message m = nc.request("header.echo", headers2, null, Duration.ofMillis(500));
-            if (m == null) {
-                System.out.println("2) No Response");
-            }
-            else {
-                Headers hIncoming = m.getHeaders();
-                System.out.println("Response Headers: " + hIncoming);
+                System.out.println("No Response");
             }
             // NATS-DOC-END
         }

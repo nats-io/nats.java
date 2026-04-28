@@ -9,7 +9,7 @@ import java.nio.charset.StandardCharsets;
 public class GettingStartedPublish {
     // NATS-DOC-START
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect("nats://localhost:4222")) {
+        try (Connection nc = Nats.connect("demo.nats.io")) {
             // Publish a message to the subject "hello"
             byte[] data = "Hello NATS!".getBytes(StandardCharsets.UTF_8);
             nc.publish("hello", data);
