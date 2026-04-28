@@ -12,8 +12,6 @@ on:
     types: [created]
   pull_request_review_comment:
     types: [created]
-  pull_request_target:
-    types: [opened, reopened]
 
 jobs:
   claude:
