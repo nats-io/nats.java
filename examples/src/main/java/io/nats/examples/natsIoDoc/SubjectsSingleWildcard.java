@@ -14,21 +14,18 @@ public class SubjectsSingleWildcard {
             // NATS-DOC-START
             // Subscribe to the shipped orders
             Dispatcher dShipped = nc.createDispatcher(msg -> {
-                String[] subjectSegments = msg.getSubject().split("\\.");
-                System.out.println("[orders.*.shipped] " + new String(msg.getData()) + ": " + subjectSegments[1] + "," + subjectSegments[2]);
+                System.out.printf("[orders.*.shipped]  %s  (%s)\n", new String(msg.getData()),  msg.getSubject());
             });
             dShipped.subscribe("orders.*.shipped");
 
             Dispatcher dPlaced = nc.createDispatcher(msg -> {
-                String[] subjectSegments = msg.getSubject().split("\\.");
-                System.out.println("[orders.*.placed]  " + new String(msg.getData()) + ": " + subjectSegments[1] + "," + subjectSegments[2]);
+                System.out.printf("[orders.*.placed]   %s  (%s)\n", new String(msg.getData()),  msg.getSubject());
             });
             dPlaced.subscribe("orders.*.placed");
 
             // Subscribe to the retail orders
             Dispatcher dRetail = nc.createDispatcher(msg -> {
-                String[] subjectSegments = msg.getSubject().split("\\.");
-                System.out.println("[orders.retail.*]  " + new String(msg.getData()) + ": " + subjectSegments[1] + "," + subjectSegments[2]);
+                System.out.printf("[orders.retail.*]   %s  (%s)\n", new String(msg.getData()),  msg.getSubject());
             });
             dRetail.subscribe("orders.retail.*");
 
