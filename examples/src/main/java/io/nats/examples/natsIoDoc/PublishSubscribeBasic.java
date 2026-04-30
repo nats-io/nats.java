@@ -9,7 +9,7 @@ import java.util.concurrent.CountDownLatch;
 public class PublishSubscribeBasic {
     // NATS-DOC-START
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect("nats://localhost:4222")) {
+        try (Connection nc = Nats.connect("demo.nats.io:4222")) {
             // Asynchronous Subscriber requires a dispatcher
             // Dispatchers can be shared
             CountDownLatch latch = new CountDownLatch(1);

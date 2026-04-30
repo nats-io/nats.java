@@ -12,7 +12,7 @@ import java.util.concurrent.*;
 
 public class RequestReplyMultipleResponders {
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect("nats://localhost:4222")) {
+        try (Connection nc = Nats.connect("demo.nats.io:4222")) {
 
             // NATS-DOC-START
             // Set up 2 instances of the service

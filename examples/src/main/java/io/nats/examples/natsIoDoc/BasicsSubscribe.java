@@ -10,7 +10,7 @@ import java.nio.charset.StandardCharsets;
 
 public class BasicsSubscribe {
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect("nats://localhost:4222")) {
+        try (Connection nc = Nats.connect("demo.nats.io:4222")) {
             // NATS-DOC-START
             // Subscribe to 'weather.updates' synchronously
             Subscription sub = nc.subscribe("weather.updates");

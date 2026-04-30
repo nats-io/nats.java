@@ -13,7 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class QueueGroupsBasic {
     // NATS-DOC-START
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect("nats://localhost:4222")) {
+        try (Connection nc = Nats.connect("demo.nats.io:4222")) {
             AtomicInteger count1 = new AtomicInteger();
             AtomicInteger count2 = new AtomicInteger();
             AtomicInteger count3 = new AtomicInteger();
