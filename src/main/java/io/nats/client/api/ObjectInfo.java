@@ -165,7 +165,7 @@ public class ObjectInfo implements JsonSerializable {
      * The object name
      * @return the object name
      */
-    @Nullable
+    @NonNull
     public String getObjectName() {
         return objectMeta.getObjectName();
     }
