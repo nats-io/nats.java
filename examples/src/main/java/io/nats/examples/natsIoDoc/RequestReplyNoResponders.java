@@ -24,7 +24,7 @@ public class RequestReplyNoResponders {
                 System.out.println("Response: " + new String(m.getData()));
             }
             catch (CancellationException | ExecutionException | TimeoutException e) {
-                System.out.println("No Response: " + e);
+                System.out.println("No services available to handle request: " + e);
             }
         }
         // NATS-DOC-END

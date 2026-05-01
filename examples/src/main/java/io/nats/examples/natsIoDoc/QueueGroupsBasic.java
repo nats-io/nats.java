@@ -8,39 +8,31 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class QueueGroupsBasic {
-    // NATS-DOC-START
     public static void main(String[] args) {
         try (Connection nc = Nats.connect("demo.nats.io:4222")) {
-            AtomicInteger count1 = new AtomicInteger();
-            AtomicInteger count2 = new AtomicInteger();
-            AtomicInteger count3 = new AtomicInteger();
-
-            // Asynchronous Subscriber 1
-            Dispatcher worker1 = nc.createDispatcher(msg -> {
-                count1.incrementAndGet();
-                System.out.println("Asynchronous Subscriber 1 Received: " +
+            // NATS-DOC-START
+            // Worker A
+            Dispatcher workerA = nc.createDispatcher(msg -> {
+                System.out.println("Worker A Received: " +
                     new String(msg.getData(), StandardCharsets.UTF_8));
             });
-            worker1.subscribe("orders.new", "new-orders-queue");
+            workerA.subscribe("orders.new", "new-orders-queue");
 
-            // Asynchronous Subscriber 2
-            Dispatcher worker2 = nc.createDispatcher(msg -> {
-                count2.incrementAndGet();
-                System.out.println("Asynchronous Subscriber 2 Received: " +
+            // Worker B
+            Dispatcher workerB = nc.createDispatcher(msg -> {
+                System.out.println("Worker B Received: " +
                     new String(msg.getData(), StandardCharsets.UTF_8));
             });
-            worker2.subscribe("orders.new", "new-orders-queue");
+            workerB.subscribe("orders.new", "new-orders-queue");
 
-            // Asynchronous Subscriber 3
-            Dispatcher worker3 = nc.createDispatcher(msg -> {
-                count3.incrementAndGet();
-                System.out.println("Asynchronous Subscriber 3 Received: " +
+            // Worker C
+            Dispatcher workerC = nc.createDispatcher(msg -> {
+                System.out.println("Worker C Received: " +
                     new String(msg.getData(), StandardCharsets.UTF_8));
             });
-            worker3.subscribe("orders.new", "new-orders-queue");
+            workerC.subscribe("orders.new", "new-orders-queue");
 
             try {
                 // flush() queues a ping message and waits for a pong
@@ -53,17 +45,12 @@ public class QueueGroupsBasic {
             }
 
             for (int i = 1; i <= 10; i++) {
-                byte[] data = ("Order Number: " + i).getBytes(StandardCharsets.UTF_8);
+                byte[] data = ("Order " + i).getBytes(StandardCharsets.UTF_8);
                 nc.publish("orders.new", data);
             }
-            System.out.println("Messages published to orders.new");
+            // NATS-DOC-END
 
             Thread.sleep(1000); // give time for all the messages to be received
-
-            System.out.println("Asynchronous Subscriber 1 received " + count1.get() + " messages.");
-            System.out.println("Asynchronous Subscriber 2 received " + count2.get() + " messages.");
-            System.out.println("Asynchronous Subscriber 3 received " + count3.get() + " messages.");
-
         }
         catch (InterruptedException e) {
             // can be thrown by connect
@@ -73,5 +60,4 @@ public class QueueGroupsBasic {
             // can be thrown by connect
         }
     }
-    // NATS-DOC-END
 }

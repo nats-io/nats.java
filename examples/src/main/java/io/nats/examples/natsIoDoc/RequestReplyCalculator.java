@@ -15,7 +15,7 @@ public class RequestReplyCalculator {
         try (Connection nc = Nats.connect("demo.nats.io:4222")) {
 
             // NATS-DOC-START
-            // Set up the calculator add service
+            // Calculator service
             Dispatcher dCalcAdd = nc.createDispatcher(msg -> {
                 // data is in the form "x y"
                 try {

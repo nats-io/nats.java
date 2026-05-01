@@ -8,39 +8,38 @@ import io.nats.client.Nats;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 public class QueueGroupsRequestReply {
     public static void main(String[] args) {
         try (Connection nc = Nats.connect("demo.nats.io:4222")) {
 
             // NATS-DOC-START
+            List<Dispatcher> dispatchers = new ArrayList<>();
             // Set up 3 instances of the service
-            Dispatcher dService1 = nc.createDispatcher(msg -> {
-                byte[] response = calculateResponse(1, msg);
-                nc.publish(msg.getReplyTo(), response);
-            });
-            dService1.subscribe("api.calculate", "api-workers-queue");
-
-            Dispatcher dService2 = nc.createDispatcher(msg -> {
-                byte[] response = calculateResponse(2, msg);
-                nc.publish(msg.getReplyTo(), response);
-            });
-            dService2.subscribe("api.calculate", "api-workers-queue");
-
-            Dispatcher dService3 = nc.createDispatcher(msg -> {
-                byte[] response = calculateResponse(3, msg);
-                nc.publish(msg.getReplyTo(), response);
-            });
-            dService3.subscribe("api.calculate", "api-workers-queue");
+            for (int i = 1; i <= 3; i++) {
+                final int instanceID = i;
+                Dispatcher d = nc.createDispatcher(msg -> {
+                    String[] data = new String(msg.getData()).split(",");
+                    int result = Integer.parseInt(data[0]) + Integer.parseInt(data[1]);
+                    String response = String.format("Result: %d, processed by: instance-%d", result, instanceID);
+                    nc.publish(msg.getReplyTo(), response.getBytes(StandardCharsets.ISO_8859_1));
+                    System.out.printf("Instance instance-%d processed request\n", instanceID);
+                });
+                d.subscribe("api.calculate", "api-workers-queue");
+                dispatchers.add(d);
+            }
 
             // Make requests - messages are balanced among the subscribers in the queue
-            for (int x = 0; x < 10; x++) {
-                Message m = nc.request("api.calculate", null, Duration.ofMillis(500));
+            for (int i = 0; i < 10; i++) {
+                String data = String.format("%d,%d", i, i * 2);
+                Message m = nc.request("api.calculate", data.getBytes(StandardCharsets.ISO_8859_1), Duration.ofMillis(500));
                 if (m == null) {
-                    System.out.println(x + ") No Response");
+                    System.out.println(i + ") No Response");
                 }
                 else {
-                    System.out.println(x + ") " + new String(m.getData()));
+                    System.out.println(new String(m.getData()));
                 }
             }
             // NATS-DOC-END

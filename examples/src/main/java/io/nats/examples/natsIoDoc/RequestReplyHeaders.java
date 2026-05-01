@@ -14,7 +14,7 @@ public class RequestReplyHeaders {
         try (Connection nc = Nats.connect("demo.nats.io:4222")) {
 
             // NATS-DOC-START
-            // Set up the header echo service
+            // Header Aware service
             Dispatcher dService = nc.createDispatcher(msg -> {
                 Headers hIncoming = msg.getHeaders();
                 Headers hResponse = new Headers();

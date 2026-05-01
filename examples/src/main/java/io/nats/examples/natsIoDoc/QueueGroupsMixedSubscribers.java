@@ -2,7 +2,6 @@ package io.nats.examples.natsIoDoc;
 
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
-import io.nats.client.Message;
 import io.nats.client.Nats;
 
 import java.io.IOException;
@@ -35,9 +34,9 @@ public class QueueGroupsMixedSubscribers {
             dNewOrderWorker2.subscribe("orders.new", "new-orders-queue");
 
             // Publish order
-            nc.publish("orders.new", "Order 123".getBytes(StandardCharsets.UTF_8));
-            nc.publish("orders.new", "Order 124".getBytes(StandardCharsets.UTF_8));
-            // Audit and metrics see it, one worker processes it
+            nc.publish("orders.new", "Order 123".getBytes(StandardCharsets.ISO_8859_1));
+            nc.publish("orders.new", "Order 124".getBytes(StandardCharsets.ISO_8859_1));
+            // Audit and metrics see them, one worker processes each
             // NATS-DOC-END
 
             Thread.sleep(100);
@@ -52,9 +51,5 @@ public class QueueGroupsMixedSubscribers {
         catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    private static String processNewOrder(int i, Message msg) {
-        return "Order processed by instance " + i;
     }
 }
