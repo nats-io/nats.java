@@ -5,8 +5,6 @@ import io.nats.client.Dispatcher;
 import io.nats.client.Nats;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.concurrent.CountDownLatch;
 
 public class SubjectsSingleWildcard {
     // NATS-DOC-START
@@ -14,45 +12,30 @@ public class SubjectsSingleWildcard {
         try (Connection nc = Nats.connect("nats://localhost:4222")) {
 
             // NATS-DOC-START
-            // Asynchronous subscribers require a dispatcher
-
-            // Subscribe to the placed orders
-            CountDownLatch latchPlaced = new CountDownLatch(2);
-            Dispatcher dPlaced = nc.createDispatcher(msg -> {
-                latchPlaced.countDown();
-                String[] split = msg.getSubject().split("\\.");
-                System.out.println("Placed | " + split[1] + " | " +
-                    new String(msg.getData(), StandardCharsets.UTF_8));
-            });
-            dPlaced.subscribe("orders.*.placed");
-
             // Subscribe to the shipped orders
-            CountDownLatch latchShipped = new CountDownLatch(2);
             Dispatcher dShipped = nc.createDispatcher(msg -> {
-                latchShipped.countDown();
-                String[] split = msg.getSubject().split("\\.");
-                System.out.println("Shipped | " + split[1] + " | " +
-                        new String(msg.getData(), StandardCharsets.UTF_8));
+                System.out.printf("[orders.*.shipped]  %s  (%s)\n", new String(msg.getData()),  msg.getSubject());
             });
             dShipped.subscribe("orders.*.shipped");
 
-            // Publish a message to the various subjects
-            byte[] data = "Order W7373".getBytes(StandardCharsets.UTF_8);
-            nc.publish("orders.Wholesale.placed", data);
+            Dispatcher dPlaced = nc.createDispatcher(msg -> {
+                System.out.printf("[orders.*.placed]   %s  (%s)\n", new String(msg.getData()),  msg.getSubject());
+            });
+            dPlaced.subscribe("orders.*.placed");
 
-            data = "Order R65432".getBytes(StandardCharsets.UTF_8);
-            nc.publish("orders.Retail.placed", data);
+            // Subscribe to the retail orders
+            Dispatcher dRetail = nc.createDispatcher(msg -> {
+                System.out.printf("[orders.retail.*]   %s  (%s)\n", new String(msg.getData()),  msg.getSubject());
+            });
+            dRetail.subscribe("orders.retail.*");
 
-            data = "Order W7300".getBytes(StandardCharsets.UTF_8);
-            nc.publish("orders.Wholesale.shipped", data);
-
-            data = "Order R65321".getBytes(StandardCharsets.UTF_8);
-            nc.publish("orders.Retail.shipped", data);
-
-            System.out.println("Waiting for messages...");
-            latchPlaced.await();
-            latchShipped.await();
+            // Publish messages to the various subjects
+            nc.publish("orders.wholesale.placed", "Order W73737".getBytes());
+            nc.publish("orders.retail.placed", "Order R65432".getBytes());
+            nc.publish("orders.wholesale.shipped", "Order W73001".getBytes());
+            nc.publish("orders.retail.shipped", "Order R65321".getBytes());
             // NATS-DOC-END
+            Thread.sleep(500);
         }
         catch (InterruptedException e) {
             // can be thrown by connect
