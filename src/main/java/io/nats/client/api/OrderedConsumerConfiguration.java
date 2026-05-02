@@ -300,6 +300,7 @@ public class OrderedConsumerConfiguration implements JsonSerializable {
      * Gets the prefix that will be used for names of underlying consumers
      * @return the prefix
      */
+    @Nullable
     public String getConsumerNamePrefix() {
         return consumerNamePrefix;
     }

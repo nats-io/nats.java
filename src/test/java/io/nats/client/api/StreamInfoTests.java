@@ -155,6 +155,7 @@ public class StreamInfoTests {
         assertNotNull(mi);
         assertNotNull(mi.toString()); // coverage
         assertEquals("mname", mi.getName());
+        assertEquals("mfs", mi.getFilterSubject());
         assertEquals(16, mi.getLag());
         assertEquals(Duration.ofNanos(160000000000L), mi.getActive());
         assertNull(mi.getError());
@@ -190,6 +191,7 @@ public class StreamInfoTests {
     private static void validateSourceInfo(SourceInfo sourceInfo, int id, boolean hasActive) {
         assertNotNull(sourceInfo.toString()); // coverage
         assertEquals("sname" + id, sourceInfo.getName());
+        assertEquals("sfs" + id, sourceInfo.getFilterSubject());
         assertEquals(id, sourceInfo.getLag());
         if (hasActive) {
             assertEquals(Duration.ofNanos(id * 10000000000L), sourceInfo.getActive());

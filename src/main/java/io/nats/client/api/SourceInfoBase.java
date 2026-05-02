@@ -26,6 +26,7 @@ import static io.nats.client.support.JsonValueUtils.*;
 abstract class SourceInfoBase {
     protected final JsonValue jv;
     protected final String name;
+    protected final String filterSubject;
     protected final long lag;
     protected final Duration active;
     protected final External external;
@@ -35,6 +36,7 @@ abstract class SourceInfoBase {
     SourceInfoBase(JsonValue vSourceInfo) {
         jv = vSourceInfo;
         name = readString(vSourceInfo, NAME);
+        filterSubject = readString(vSourceInfo, FILTER_SUBJECT);
         lag = readLong(vSourceInfo, LAG, 0);
         Long l = readLong(vSourceInfo, ACTIVE);
         active = l == null || l < 0 ? null : Duration.ofNanos(l);
@@ -50,6 +52,15 @@ abstract class SourceInfoBase {
     @NonNull
     public String getName() {
         return name;
+    }
+
+    /**
+     * The subject filter to apply to the messages
+     * @return the subject filter
+     */
+    @Nullable
+    public String getFilterSubject() {
+        return filterSubject;
     }
 
     /**

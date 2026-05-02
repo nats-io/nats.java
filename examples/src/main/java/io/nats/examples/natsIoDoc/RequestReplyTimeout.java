@@ -10,13 +10,13 @@ import java.util.concurrent.*;
 
 public class RequestReplyTimeout {
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect("nats://localhost:4222")) {
+        try (Connection nc = Nats.connect("demo.nats.io:4222")) {
 
             // NATS-DOC-START
             // Make a request expecting a future
             CompletableFuture<Message> responseFuture = nc.request("service", null);
             try {
-                Message m = responseFuture.get(500, TimeUnit.MILLISECONDS);
+                Message m = responseFuture.get(2, TimeUnit.SECONDS);
                 System.out.println("1) Response: " + new String(m.getData()));
             }
             catch (CancellationException | ExecutionException | TimeoutException e) {
@@ -24,7 +24,7 @@ public class RequestReplyTimeout {
             }
 
             // Make a request with a timeout and direct response
-            Message m = nc.request("service", null, Duration.ofMillis(500));
+            Message m = nc.request("service", null, Duration.ofSeconds(2));
             if (m == null) {
                 System.out.println("2) No Response");
             }

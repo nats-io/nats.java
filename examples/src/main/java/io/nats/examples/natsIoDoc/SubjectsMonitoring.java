@@ -8,37 +8,30 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CountDownLatch;
 
-public class SubjectsMultiWildcard {
-    // NATS-DOC-START
+public class SubjectsMonitoring {
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect("nats://localhost:4222")) {
+        try (Connection nc = Nats.connect("demo.nats.io:4222")) {
 
             // NATS-DOC-START
             // Asynchronous subscribers require a dispatcher
-
-            // Subscribe to the weather
+            // Subscribe to everything
             CountDownLatch latch = new CountDownLatch(3);
-            Dispatcher dMulti = nc.createDispatcher(msg -> {
+            Dispatcher dEverything = nc.createDispatcher(msg -> {
                 latch.countDown();
-                System.out.println("Received weather for " +
+                System.out.println("[MONITOR] " +
                     msg.getSubject() + " --> " +
                     new String(msg.getData(), StandardCharsets.UTF_8));
             });
-            dMulti.subscribe("weather.>");
+            dEverything.subscribe(">");
+            // NATS-DOC-END
 
             // Publish a message to the various subjects
-            byte[] data = "US weather update".getBytes(StandardCharsets.UTF_8);
-            nc.publish("weather.us", data);
-
-            data = "East coast update".getBytes(StandardCharsets.UTF_8);
-            nc.publish("weather.us.east", data);
-
-            data = "Finland weather".getBytes(StandardCharsets.UTF_8);
-            nc.publish("weather.eu.north.finland", data);
+            nc.publish("hello", "Hello NATS!".getBytes(StandardCharsets.UTF_8));
+            nc.publish("event.new", "click".getBytes(StandardCharsets.UTF_8));
+            nc.publish("weather.north.fr", "Temperature: 11°C".getBytes(StandardCharsets.UTF_8));
 
             System.out.println("Waiting for messages...");
             latch.await();
-            // NATS-DOC-END
         }
         catch (InterruptedException e) {
             // can be thrown by connect
@@ -48,5 +41,4 @@ public class SubjectsMultiWildcard {
             // can be thrown by connect
         }
     }
-    // NATS-DOC-END
 }

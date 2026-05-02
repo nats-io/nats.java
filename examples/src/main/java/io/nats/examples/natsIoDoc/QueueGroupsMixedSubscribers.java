@@ -2,15 +2,14 @@ package io.nats.examples.natsIoDoc;
 
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
-import io.nats.client.Message;
 import io.nats.client.Nats;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-public class QueueGroupsRequestReply {
+public class QueueGroupsMixedSubscribers {
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect("nats://localhost:4222")) {
+        try (Connection nc = Nats.connect("demo.nats.io:4222")) {
 
             // NATS-DOC-START
             // Audit logger - receives all messages
@@ -25,19 +24,19 @@ public class QueueGroupsRequestReply {
             dMetrics.subscribe("orders.>");
 
             Dispatcher dNewOrderWorker1 = nc.createDispatcher(msg -> {
-                System.out.printf("[WORKER 1] %s: %s\n", msg.getSubject(), new String(msg.getData(), StandardCharsets.UTF_8));
+                System.out.printf("[WORKER A] %s: %s\n", msg.getSubject(), new String(msg.getData(), StandardCharsets.UTF_8));
             });
             dNewOrderWorker1.subscribe("orders.new", "new-orders-queue");
 
             Dispatcher dNewOrderWorker2 = nc.createDispatcher(msg -> {
-                System.out.printf("[WORKER 2] %s: %s\n", msg.getSubject(), new String(msg.getData(), StandardCharsets.UTF_8));
+                System.out.printf("[WORKER B] %s: %s\n", msg.getSubject(), new String(msg.getData(), StandardCharsets.UTF_8));
             });
             dNewOrderWorker2.subscribe("orders.new", "new-orders-queue");
 
             // Publish order
-            nc.publish("orders.new", "Order 123".getBytes(StandardCharsets.UTF_8));
-            nc.publish("orders.new", "Order 124".getBytes(StandardCharsets.UTF_8));
-            // Audit and metrics see it, one worker processes it
+            nc.publish("orders.new", "Order 123".getBytes(StandardCharsets.ISO_8859_1));
+            nc.publish("orders.new", "Order 124".getBytes(StandardCharsets.ISO_8859_1));
+            // Audit and metrics see them, one worker processes each
             // NATS-DOC-END
 
             Thread.sleep(100);
@@ -52,9 +51,5 @@ public class QueueGroupsRequestReply {
         catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    private static String processNewOrder(int i, Message msg) {
-        return "Order processed by instance " + i;
     }
 }

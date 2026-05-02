@@ -78,6 +78,7 @@
   },
   "mirror": {
     "name": "mname",
+    "filter_subject": "mfs",
     "lag": 16,
     "active": 160000000000,
     "external": {
@@ -92,6 +93,7 @@
   "sources": [
     {
       "name": "sname17",
+      "filter_subject": "sfs17",
       "lag": 17,
       "active": 170000000000,
       "external": {
@@ -105,6 +107,7 @@
     },
     {
       "name": "sname18",
+      "filter_subject": "sfs18",
       "lag": 18,
       "active": -1,
       "external": {
@@ -118,6 +121,7 @@
     },
     {
       "name": "sname19",
+      "filter_subject": "sfs19",
       "lag": 19,
       "external": {
         "api": "api19",
