@@ -12,18 +12,19 @@ public class SubjectsMultiWildcard {
         try (Connection nc = Nats.connect("demo.nats.io:4222")) {
 
             // NATS-DOC-START
-            // Subscribe to the shipped orders
+            // Subscribe to all alarms
             Dispatcher dShipped = nc.createDispatcher(msg -> {
                 System.out.printf("[sensor.alarm.*]        %-15s (%s)\n", new String(msg.getData()),  msg.getSubject());
             });
             dShipped.subscribe("sensor.alarm.*");
 
+            // Subscribe to the all critical
             Dispatcher dPlaced = nc.createDispatcher(msg -> {
                 System.out.printf("[sensor.*.*.critical]   %-15s (%s)\n", new String(msg.getData()),  msg.getSubject());
             });
             dPlaced.subscribe("sensor.*.*.critical");
 
-            // Subscribe to the retail orders
+            // Subscribe to everything
             Dispatcher dRetail = nc.createDispatcher(msg -> {
                 System.out.printf("[sensor.>]              %-15s (%s)\n", new String(msg.getData()),  msg.getSubject());
             });
