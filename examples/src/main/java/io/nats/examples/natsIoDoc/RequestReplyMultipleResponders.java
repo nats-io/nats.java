@@ -12,39 +12,39 @@ import java.util.concurrent.*;
 
 public class RequestReplyMultipleResponders {
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect("nats://localhost:4222")) {
+        try (Connection nc = Nats.connect("demo.nats.io:4222")) {
 
             // NATS-DOC-START
             // Set up 2 instances of the service
-            Dispatcher dService1 = nc.createDispatcher(msg -> {
-                byte[] response = calculateResponse(1, msg);
+            Dispatcher dServiceA = nc.createDispatcher(msg -> {
+                byte[] response = ("calculated result from A").getBytes(StandardCharsets.ISO_8859_1);
                 nc.publish(msg.getReplyTo(), response);
             });
-            dService1.subscribe("service");
+            dServiceA.subscribe("calc.add");
 
-            Dispatcher dService2 = nc.createDispatcher(msg -> {
-                byte[] response = calculateResponse(2, msg);
+            Dispatcher dServiceB = nc.createDispatcher(msg -> {
+                byte[] response = ("calculated result from B").getBytes(StandardCharsets.ISO_8859_1);
                 nc.publish(msg.getReplyTo(), response);
             });
-            dService2.subscribe("service");
+            dServiceB.subscribe("calc.add");
 
             // Make a request expecting a future
-            CompletableFuture<Message> responseFuture = nc.request("service", null);
+            CompletableFuture<Message> responseFuture = nc.request("calc.add", null);
             try {
                 Message m = responseFuture.get(500, TimeUnit.MILLISECONDS);
-                System.out.println("1) " + new String(m.getData()));
+                System.out.println("1) Got response: " + new String(m.getData()));
             }
             catch (CancellationException | ExecutionException | TimeoutException e) {
                 System.out.println("1) No Response");
             }
 
             // Make a request with a timeout and direct response
-            Message m = nc.request("service", null, Duration.ofMillis(500));
+            Message m = nc.request("calc.add", null, Duration.ofMillis(500));
             if (m == null) {
                 System.out.println("2) No Response");
             }
             else {
-                System.out.println("2) " + new String(m.getData()));
+                System.out.println("2) Got response: " + new String(m.getData()));
             }
             // NATS-DOC-END
         }
@@ -55,9 +55,5 @@ public class RequestReplyMultipleResponders {
         catch (IOException e) {
             // can be thrown by connect
         }
-    }
-
-    private static byte[] calculateResponse(int i, Message msg) {
-        return ("Result from service instance " + i).getBytes(StandardCharsets.UTF_8);
     }
 }
