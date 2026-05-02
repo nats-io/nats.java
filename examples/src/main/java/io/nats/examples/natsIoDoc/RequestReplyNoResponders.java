@@ -13,7 +13,7 @@ public class RequestReplyNoResponders {
         // NATS-DOC-START
         // You must specify the reportNoResponders() connect option
         Options options = Options.builder()
-            .server("nats://localhost:4222")
+            .server("demo.nats.io:4222")
             .reportNoResponders()
             .build();
         try (Connection nc = Nats.connect(options)) {
@@ -24,7 +24,7 @@ public class RequestReplyNoResponders {
                 System.out.println("Response: " + new String(m.getData()));
             }
             catch (CancellationException | ExecutionException | TimeoutException e) {
-                System.out.println("No Response: " + e);
+                System.out.println("No services available to handle request: " + e);
             }
         }
         // NATS-DOC-END

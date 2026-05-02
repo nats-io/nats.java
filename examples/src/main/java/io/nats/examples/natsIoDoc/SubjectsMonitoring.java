@@ -10,7 +10,7 @@ import java.util.concurrent.CountDownLatch;
 
 public class SubjectsMonitoring {
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect("nats://localhost:4222")) {
+        try (Connection nc = Nats.connect("demo.nats.io:4222")) {
 
             // NATS-DOC-START
             // Asynchronous subscribers require a dispatcher
