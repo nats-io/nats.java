@@ -140,6 +140,7 @@ public interface NatsJetStreamConstants {
     String NATS_SCHEDULE_TARGET_HDR    = "Nats-Schedule-Target";
     String NATS_SCHEDULE_TTL_HDR       = "Nats-Schedule-TTL";
     String NATS_SCHEDULE_SOURCE_HDR    = "Nats-Schedule-Source";
+    String NATS_SCHEDULE_ROLLUP_HDR    = "Nats-Schedule-Rollup";
     String NATS_SCHEDULE_TIME_ZONE_HDR = "Nats-Schedule-Time-Zone";
 
     String NATS_SCHEDULER_HDR          = "Nats-Scheduler";

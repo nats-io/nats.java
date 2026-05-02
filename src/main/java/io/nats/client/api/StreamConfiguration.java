@@ -563,7 +563,7 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
-     * Whether Allow Batch Publish is set
+     * Whether Allow Batched is set
      * @return the flag
      */
     public boolean getAllowBatched() {
