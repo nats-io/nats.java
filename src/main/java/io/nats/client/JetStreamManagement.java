@@ -372,7 +372,7 @@ public interface JetStreamManagement {
     boolean unpinConsumer(String streamName, String consumerName, String consumerGroup) throws IOException, JetStreamApiException;
 
     /**
-     * reset a consumer
+     * Reset a consumer
      * @param streamName name of the stream
      * @param consumerName name of consumer
      * @throws IOException covers various communication issues with the NATS
@@ -383,7 +383,7 @@ public interface JetStreamManagement {
     boolean resetConsumer(String streamName, String consumerName) throws IOException, JetStreamApiException;
 
     /**
-     * reset a consumer
+     * Reset a consumer
      * @param streamName name of the stream
      * @param consumerName name of consumer
      * @param sequence ack floor stream sequence
