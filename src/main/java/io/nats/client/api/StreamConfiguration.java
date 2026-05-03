@@ -1264,7 +1264,7 @@ public class StreamConfiguration implements JsonSerializable {
         }
 
         /**
-         * Set allow batched published flag
+         * Set allow batched published flag to true
          * @return The Builder
          */
         public Builder allowBatched() {
