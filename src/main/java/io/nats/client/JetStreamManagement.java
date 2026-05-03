@@ -372,6 +372,29 @@ public interface JetStreamManagement {
     boolean unpinConsumer(String streamName, String consumerName, String consumerGroup) throws IOException, JetStreamApiException;
 
     /**
+     * reset a consumer
+     * @param streamName name of the stream
+     * @param consumerName name of consumer
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @return true if the delete succeeded
+     */
+    boolean resetConsumer(String streamName, String consumerName) throws IOException, JetStreamApiException;
+
+    /**
+     * reset a consumer
+     * @param streamName name of the stream
+     * @param consumerName name of consumer
+     * @param sequence ack floor stream sequence
+     * @throws IOException covers various communication issues with the NATS
+     *         server such as timeout or interruption
+     * @throws JetStreamApiException the request had an error related to the data
+     * @return true if the delete succeeded
+     */
+    boolean resetConsumer(String streamName, String consumerName, long sequence) throws IOException, JetStreamApiException;
+
+    /**
      * Gets a context for publishing and subscribing to subjects backed by Jetstream streams
      * and consumers, using the same connection and JetStreamOptions as the management.
      * @return a JetStream instance.
