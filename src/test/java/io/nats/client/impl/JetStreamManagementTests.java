@@ -1784,6 +1784,18 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             ci = ctx.getConsumerInfo();
             assertEquals(20, ci.getNumPending());
             assertEquals(0, ci.getNumAckPending());
+
+            seq = 1;
+            fc = ctx.fetch(FetchConsumeOptions.builder().maxMessages(20).build());
+            m = fc.nextMessage();
+            while (m != null) {
+                assertEquals(seq++, m.metaData().streamSequence());
+                m.ack();
+                m = fc.nextMessage();
+            }
+            ci = ctx.getConsumerInfo();
+            assertEquals(0, ci.getNumPending());
+            assertEquals(0, ci.getNumAckPending());
         });
     }
 }

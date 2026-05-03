@@ -378,6 +378,9 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
         return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean resetConsumer(String streamName, String consumerName) throws IOException, JetStreamApiException {
         return resetConsumer(streamName, consumerName, -1);
@@ -391,7 +394,7 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
         validateNotNull(streamName, "Stream Name");
         validateNotNull(consumerName, "Consumer Name");
         String subj = String.format(JSAPI_CONSUMER_RESET, streamName, consumerName);
-        byte[] payload = (sequence < 1 ? JsonUtils.EMPTY_JSON : String.format("{\"seq\":%d}", sequence)).getBytes();
+        byte[] payload = (sequence < 1 ? JsonUtils.EMPTY_JSON : String.format("{\"seq\":%d}", sequence)).getBytes(StandardCharsets.ISO_8859_1);
         Message resp = makeRequestResponseRequired(subj, payload, getTimeout());
         return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
     }
