@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.api.Error;
+import io.nats.client.support.JsonUtils;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
@@ -372,7 +373,28 @@ public class NatsJetStreamManagement extends NatsJetStreamImpl implements JetStr
         validateNotNull(consumerName, "Consumer Name");
         validateNotNull(consumerGroup, "Consumer Group");
         String subj = String.format(JSAPI_CONSUMER_UNPIN, streamName, consumerName);
-        byte[] payload = String.format("{\"group\": \"%s\"}", consumerGroup).getBytes();
+        byte[] payload = String.format("{\"group\":\"%s\"}", consumerGroup).getBytes();
+        Message resp = makeRequestResponseRequired(subj, payload, getTimeout());
+        return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean resetConsumer(String streamName, String consumerName) throws IOException, JetStreamApiException {
+        return resetConsumer(streamName, consumerName, -1);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean resetConsumer(String streamName, String consumerName, long sequence) throws IOException, JetStreamApiException {
+        validateNotNull(streamName, "Stream Name");
+        validateNotNull(consumerName, "Consumer Name");
+        String subj = String.format(JSAPI_CONSUMER_RESET, streamName, consumerName);
+        byte[] payload = (sequence < 1 ? JsonUtils.EMPTY_JSON : String.format("{\"seq\":%d}", sequence)).getBytes(StandardCharsets.ISO_8859_1);
         Message resp = makeRequestResponseRequired(subj, payload, getTimeout());
         return new SuccessApiResponse(resp).throwOnHasError().getSuccess();
     }

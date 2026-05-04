@@ -1723,4 +1723,79 @@ public class JetStreamManagementTests extends JetStreamTestBase {
             assertSame(PersistMode.Async, si.getConfiguration().getPersistMode());
         });
     }
+
+    @Test
+    public void testResetConsumer() throws Exception {
+        runInJsServer(TestBase::atLeast2_14, nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            JetStream js = jsm.jetStream();
+
+            String stream = stream();
+            String subject = subject();
+            String consumer = name();
+            createMemoryStream(jsm, stream, subject);
+            for (int i = 1; i <= 20; i++) {
+                js.publish(subject, null);
+            }
+
+            ConsumerInfo ci = jsm.createConsumer(stream, ConsumerConfiguration.builder()
+                    .name(consumer)
+                    .filterSubject(subject)
+                    .ackWait(Duration.ofSeconds(60))
+                    .build());
+
+            assertEquals(20, ci.getNumPending());
+            assertEquals(0, ci.getNumAckPending());
+
+            ConsumerContext ctx = js.getConsumerContext(stream, consumer);
+            FetchConsumer fc = ctx.fetch(FetchConsumeOptions.builder().maxMessages(20).build());
+            int seq = 1;
+            Message m = fc.nextMessage();
+            while (m != null) {
+                assertEquals(seq, m.metaData().streamSequence());
+                if (seq++ <= 5) {
+                    m.ack();
+                }
+
+                m = fc.nextMessage();
+            }
+            ci = ctx.getConsumerInfo();
+            assertEquals(0, ci.getNumPending());
+            assertEquals(15, ci.getNumAckPending());
+
+            jsm.resetConsumer(stream, consumer);
+
+            seq = 6;
+            fc = ctx.fetch(FetchConsumeOptions.builder().maxMessages(15).build());
+            m = fc.nextMessage();
+            while (m != null) {
+                assertEquals(seq, m.metaData().streamSequence());
+                if (seq++ <= 10) {
+                    m.ack();
+                }
+
+                m = fc.nextMessage();
+            }
+            ci = ctx.getConsumerInfo();
+            assertEquals(0, ci.getNumPending());
+            assertEquals(10, ci.getNumAckPending());
+
+            jsm.resetConsumer(stream, consumer, 1);
+            ci = ctx.getConsumerInfo();
+            assertEquals(20, ci.getNumPending());
+            assertEquals(0, ci.getNumAckPending());
+
+            seq = 1;
+            fc = ctx.fetch(FetchConsumeOptions.builder().maxMessages(20).build());
+            m = fc.nextMessage();
+            while (m != null) {
+                assertEquals(seq++, m.metaData().streamSequence());
+                m.ack();
+                m = fc.nextMessage();
+            }
+            ci = ctx.getConsumerInfo();
+            assertEquals(0, ci.getNumPending());
+            assertEquals(0, ci.getNumAckPending());
+        });
+    }
 }
