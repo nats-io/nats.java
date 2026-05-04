@@ -37,6 +37,7 @@ public class NatsJetStreamMetaData {
     public String toString() {
         return "NatsJetStreamMetaData{" +
             "prefix='" + prefix + '\'' +
+            ", metaType='" + metaType + '\'' +
             ", domain='" + domain + '\'' +
             ", stream='" + stream + '\'' +
             ", consumer='" + consumer + '\'' +
@@ -112,7 +113,7 @@ public class NatsJetStreamMetaData {
     }
 
     /**
-     * Get the meta tpe of this ack
+     * Get the meta type of this ack
      * @return the meta type, either ACK or FC
      */
     public String getMetaType() {
