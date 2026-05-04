@@ -203,6 +203,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             .allowMessageSchedules(testSc.getAllowMsgSchedules())
             .allowMessageCounter(testSc.getAllowMessageCounter())
             .allowAtomicPublish(testSc.getAllowAtomicPublish())
+            .allowBatched(testSc.getAllowBatched())
             .persistMode(testSc.getPersistMode())
             ;
         validateTestStreamConfiguration(builder.build(), false, DEFAULT_STREAM_NAME);
@@ -216,11 +217,13 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             .allowMessageSchedules(false)
             .allowMessageCounter(false)
             .allowAtomicPublish(false)
+            .allowBatched(false)
             // set the flags
             .allowMessageTtl()
             .allowMessageSchedules()
             .allowMessageCounter()
             .allowAtomicPublish()
+            .allowBatched()
         ;
 
         // COVERAGE
@@ -662,6 +665,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
             assertTrue(sc.getAllowMsgSchedules());
             assertTrue(sc.getAllowMessageCounter());
             assertTrue(sc.getAllowAtomicPublish());
+            assertTrue(sc.getAllowBatched());
             assertNotNull(sc.getPersistMode());
             assertSame(PersistMode.Async, sc.getPersistMode());
             assertSame(PersistMode.Async.getMode(), sc.getPersistMode().getMode());
