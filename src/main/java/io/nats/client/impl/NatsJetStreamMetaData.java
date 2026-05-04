@@ -23,6 +23,7 @@ import java.time.ZonedDateTime;
 public class NatsJetStreamMetaData {
 
     private final String prefix;
+    private final String metaType;
     private final String domain;
     private final String accountHash;
     private final String stream;
@@ -52,6 +53,7 @@ public class NatsJetStreamMetaData {
     v0 <prefix>.ACK.<stream name>.<consumer name>.<num delivered>.<stream sequence>.<consumer sequence>.<timestamp>
     v1 <prefix>.ACK.<stream name>.<consumer name>.<num delivered>.<stream sequence>.<consumer sequence>.<timestamp>.<num pending>
     v2 <prefix>.ACK.<domain>.<account hash>.<stream name>.<consumer name>.<num delivered>.<stream sequence>.<consumer sequence>.<timestamp>.<num pending>
+    v2 <prefix>.FC.<domain>.<account hash>.<stream name>.<consumer name>.<num delivered>.<stream sequence>.<consumer sequence>.<timestamp>.<num pending>
      */
 
     public NatsJetStreamMetaData(NatsMessage natsMessage) {
@@ -60,7 +62,12 @@ public class NatsJetStreamMetaData {
         }
 
         String[] parts = natsMessage.getReplyTo().split("\\.");
-        if (parts.length < 8 || !"ACK".equals(parts[1])) {
+        if (parts.length < 8) {
+            throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
+        }
+
+        metaType = "ACK".equals(parts[1]) || "FC".equals(parts[1]) ? parts[1] : null;
+        if (metaType == null) {
             throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
         }
 
@@ -88,7 +95,7 @@ public class NatsJetStreamMetaData {
 
         try {
             prefix = parts[0];
-            // "ack" = parts[1]
+            // metaType = parts[1], checked and set above
             domain = hasDomainAndHash ? parts[2] : null;
             accountHash = hasDomainAndHash ? parts[3] : null;
             stream = parts[streamIndex];
@@ -102,6 +109,14 @@ public class NatsJetStreamMetaData {
         catch (Exception e) {
             throw new IllegalArgumentException(notAJetStreamMessage(natsMessage.getReplyTo()));
         }
+    }
+
+    /**
+     * Get the meta tpe of this ack
+     * @return the meta type, either ACK or FC
+     */
+    public String getMetaType() {
+        return metaType;
     }
 
     /**

@@ -32,7 +32,8 @@ public class NatsJetStreamMetaDataTests extends JetStreamTestBase {
 
         validateMeta(false, false, getTestMessage(TestMetaV0));
         validateMeta(true, false, getTestMessage(TestMetaV1));
-        validateMeta(true, true, getTestMessage(TestMetaV2));
+        validateMeta(true, true, getTestMessage(TestMetaV2ACK));
+        validateMeta(true, true, getTestMessage(TestMetaV2FC));
         validateMeta(true, true, getTestMessage(TestMetaVFuture));
 
         // since I can't make a JS message directly, do it indirectly
@@ -103,5 +104,8 @@ public class NatsJetStreamMetaDataTests extends JetStreamTestBase {
 
         assertThrows(IllegalArgumentException.class,
             () -> new NatsJetStreamMetaData(getTestMessage("$JS.ACK.test-stream.test-consumer.1.2.3.1605139610113260000.invalid")));
+
+        assertThrows(IllegalArgumentException.class, () -> getTestMessage(IllegalArgumentMetaData).metaData());
+        assertThrows(IllegalStateException.class, () -> getTestMessage(IllegalStateMetaData).metaData());
     }
 }
