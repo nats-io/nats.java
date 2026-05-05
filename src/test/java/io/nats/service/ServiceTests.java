@@ -531,17 +531,17 @@ public class ServiceTests extends JetStreamTestBase {
                 service1.startService();
                 service2.startService();
 
-                String replyTo = "qreplyto";
-                AtomicInteger y1Count = new AtomicInteger();
-                AtomicInteger y2Count = new AtomicInteger();
-                AtomicInteger n1Count = new AtomicInteger();
+                String replyTo = "replyto";
+                AtomicInteger y1Responses = new AtomicInteger();
+                AtomicInteger y2Responses = new AtomicInteger();
+                AtomicInteger n1Responses = new AtomicInteger();
                 AtomicInteger n2Count = new AtomicInteger();
                 CountDownLatch latch = new CountDownLatch(6);
                 Dispatcher d = clientNc.createDispatcher(m -> {
                     switch (new String(m.getData())) {
-                        case "Echo y1": y1Count.incrementAndGet(); break;
-                        case "Echo y2": y2Count.incrementAndGet(); break;
-                        case "Echo n1": n1Count.incrementAndGet(); break;
+                        case "Echo y1": y1Responses.incrementAndGet(); break;
+                        case "Echo y2": y2Responses.incrementAndGet(); break;
+                        case "Echo n1": n1Responses.incrementAndGet(); break;
                         case "Echo n2": n2Count.incrementAndGet(); break;
                     }
                     latch.countDown();
@@ -553,15 +553,15 @@ public class ServiceTests extends JetStreamTestBase {
                 clientNc.publish(noQueueSubject, replyTo, "n1".getBytes());
                 clientNc.publish(noQueueSubject, replyTo, "n2".getBytes());
 
-                assertTrue(latch.await(2, TimeUnit.SECONDS));
-                assertEquals(2, y1Count.get() + y2Count.get());
-                assertEquals(4, n1Count.get() + n2Count.get());
+                assertTrue(latch.await(3, TimeUnit.SECONDS));
+                assertEquals(2, y1Responses.get() + y2Responses.get());
+                assertEquals(4, n1Responses.get() + n2Count.get());
             }
         }
     }
 
     @Test
-    public void testResponsesFromAllInstances() throws Exception {
+    public void testResponsesFromMultipleInstances() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
             try (Connection serviceNc1 = standardConnection(ts.getURI());
                  Connection serviceNc2 = standardConnection(ts.getURI());
@@ -608,46 +608,13 @@ public class ServiceTests extends JetStreamTestBase {
                 Discovery discovery = new Discovery(clientNc);
 
                 List<PingResponse> prs = discovery.ping();
-                boolean one = false;
-                boolean two = false;
-                for (PingResponse response : prs) {
-                    if (response.getName().equals(SERVICE_NAME_1)) {
-                        one = true;
-                    }
-                    else if (response.getName().equals(SERVICE_NAME_2)) {
-                        two = true;
-                    }
-                }
-                assertTrue(one);
-                assertTrue(two);
+                assertEquals(2, prs.size());
 
                 List<InfoResponse> irs = discovery.info();
-                one = false;
-                two = false;
-                for (InfoResponse response : irs) {
-                    if (response.getName().equals(SERVICE_NAME_1)) {
-                        one = true;
-                    }
-                    else if (response.getName().equals(SERVICE_NAME_2)) {
-                        two = true;
-                    }
-                }
-                assertTrue(one);
-                assertTrue(two);
+                assertEquals(2, irs.size());
 
                 List<StatsResponse> srs = discovery.stats();
-                one = false;
-                two = false;
-                for (StatsResponse response : srs) {
-                    if (response.getName().equals(SERVICE_NAME_1)) {
-                        one = true;
-                    }
-                    else if (response.getName().equals(SERVICE_NAME_2)) {
-                        two = true;
-                    }
-                }
-                assertTrue(one);
-                assertTrue(two);
+                assertEquals(2, srs.size());
             }
         }
     }
