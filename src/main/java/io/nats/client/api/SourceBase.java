@@ -44,6 +44,7 @@ public abstract class SourceBase implements JsonSerializable {
     private final String filterSubject;
     private final External external;
     private final List<SubjectTransform> subjectTransforms;
+    private final ConsumerSource consumerSource;
 
     SourceBase(JsonValue jv) {
         name = JsonValueUtils.readString(jv, NAME);
@@ -52,6 +53,7 @@ public abstract class SourceBase implements JsonSerializable {
         filterSubject = JsonValueUtils.readString(jv, FILTER_SUBJECT);
         external = External.optionalInstance(readValue(jv, EXTERNAL));
         subjectTransforms = SubjectTransform.optionalListOf(readValue(jv, SUBJECT_TRANSFORMS));
+        consumerSource = ConsumerSource.optionalInstance(readValue(jv, CONSUMER));
     }
 
     SourceBase(SourceBaseBuilder<?> b) {
@@ -61,11 +63,12 @@ public abstract class SourceBase implements JsonSerializable {
         this.filterSubject = b.filterSubject;
         this.external = b.external;
         this.subjectTransforms = b.subjectTransforms;
+        this.consumerSource = b.consumer;
     }
 
     /**
      * Returns a JSON representation of this mirror
-     * @return json mirror json string
+     * @return json mirror JSON string
      */
     @Override
     @NonNull
@@ -77,6 +80,7 @@ public abstract class SourceBase implements JsonSerializable {
         JsonUtils.addField(sb, FILTER_SUBJECT, filterSubject);
         JsonUtils.addField(sb, EXTERNAL, external);
         JsonUtils.addJsons(sb, SUBJECT_TRANSFORMS, subjectTransforms);
+        JsonUtils.addField(sb, CONSUMER, consumerSource);
         return endJson(sb).toString();
     }
 
@@ -142,6 +146,15 @@ public abstract class SourceBase implements JsonSerializable {
         return subjectTransforms;
     }
 
+    /**
+     * Get the consumer source for durable sourcing
+     * @return the consumer source
+     */
+    @Nullable
+    public ConsumerSource getConsumerSource() {
+        return consumerSource;
+    }
+
     @Override
     public String toString() {
         return JsonUtils.toKey(getClass()) + toJson();
@@ -158,6 +171,7 @@ public abstract class SourceBase implements JsonSerializable {
         String filterSubject;
         External external;
         List<SubjectTransform> subjectTransforms = new ArrayList<>();
+        ConsumerSource consumer;
 
         abstract T getThis();
 
@@ -177,6 +191,7 @@ public abstract class SourceBase implements JsonSerializable {
             this.filterSubject = base.filterSubject;
             this.external = base.external == null ? null : new External(base.external);
             this.subjectTransforms = base.getSubjectTransforms() == null ? null : new ArrayList<>(base.getSubjectTransforms());
+            this.consumer = base.consumerSource == null ? null : new ConsumerSource(base.consumerSource);
         }
 
         /**
@@ -288,6 +303,16 @@ public abstract class SourceBase implements JsonSerializable {
             }
             return getThis();
         }
+
+        /**
+         * Set the consumer source for durable sourcing
+         * @param consumer the consumer source
+         * @return the builder
+         */
+        public T consumerSource(ConsumerSource consumer) {
+            this.consumer = consumer;
+            return getThis();
+        }
     }
 
     @Override
@@ -303,7 +328,8 @@ public abstract class SourceBase implements JsonSerializable {
         if (!Objects.equals(filterSubject, that.filterSubject))
             return false;
         if (!Objects.equals(external, that.external)) return false;
-        return listsAreEquivalent(subjectTransforms, that.subjectTransforms);
+        if (!listsAreEquivalent(subjectTransforms, that.subjectTransforms)) return false;
+        return Objects.equals(consumerSource, that.consumerSource);
     }
 
     @Override
@@ -314,6 +340,7 @@ public abstract class SourceBase implements JsonSerializable {
         result = 31 * result + (filterSubject != null ? filterSubject.hashCode() : 0);
         result = 31 * result + (external != null ? external.hashCode() : 0);
         result = 31 * result + (subjectTransforms != null ? subjectTransforms.hashCode() : 0);
+        result = 31 * result + (consumerSource != null ? consumerSource.hashCode() : 0);
         return result;
     }
 }

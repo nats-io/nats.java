@@ -429,6 +429,9 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         mb.subjectTransforms(stList);
         assertEquals(sb.subjectTransforms, mb.subjectTransforms);
 
+        sb.consumerSource(m.getConsumerSource());
+        mb.consumerSource(m.getConsumerSource());
+
         sb.subjectTransforms(m.getSubjectTransforms());
         mb.subjectTransforms(m.getSubjectTransforms());
 
@@ -633,15 +636,14 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
             Mirror mirror = sc.getMirror();
             assertNotNull(mirror);
-            assertEquals("eman", mirror.getSourceName());
+            assertEquals("mirror_name", mirror.getSourceName());
             assertEquals(736, mirror.getStartSeq());
             assertEquals(zdt, mirror.getStartTime());
-            assertEquals("mfsub", mirror.getFilterSubject());
+            assertEquals("mirror_fsub", mirror.getFilterSubject());
 
-            assertNotNull(mirror.getExternal());
-            assertEquals("apithing", mirror.getExternal().getApi());
-            assertEquals("dlvrsub", mirror.getExternal().getDeliver());
-
+            validateExternal(mirror.getExternal(), "mirror");
+            assertNotNull(mirror.getConsumerSource());
+            validateConsumerSource(Collections.singletonList(mirror.getConsumerSource()), "mirror");
             validateSubjectTransforms(mirror.getSubjectTransforms(), 2, "m");
 
             assertNotNull(sc.getSources());
@@ -672,6 +674,14 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         }
     }
 
+    private static void validateConsumerSource(List<ConsumerSource> csList, String name) {
+        assertNotNull(csList);
+        for (ConsumerSource cs : csList) {
+            assertEquals(name + "_con_name", cs.getName());
+            assertEquals(name + "_con_deliver", cs.getDeliverSubject());
+        }
+    }
+
     private void validateSource(Source source, int index, ZonedDateTime zdt) {
         long seq = 737 + index;
         String name = "s" + index;
@@ -679,12 +689,14 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(seq, source.getStartSeq());
         assertEquals(zdt, source.getStartTime());
         assertEquals(name + "sub", source.getFilterSubject());
-
-        assertNotNull(source.getExternal());
-        assertEquals(name + "api", source.getExternal().getApi());
-        assertEquals(name + "dlvrsub", source.getExternal().getDeliver());
-
+        validateExternal(source.getExternal(), name);
         validateSubjectTransforms(source.getSubjectTransforms(), 2, name);
+    }
+
+    private static void validateExternal(External external, String name) {
+        assertNotNull(external);
+        assertEquals(name + "_ext_api", external.getApi());
+        assertEquals(name + "_ext_deliver", external.getDeliver());
     }
 
     public static void validateSubjectTransforms(List<SubjectTransform> subjectTransforms, int count, String name) {
@@ -776,6 +788,21 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals("src.>", r.getSource());
         assertEquals("dest.>", r.getDestination());
         assertTrue(r.isHeadersOnly());
+    }
+
+    @Test
+    public void testConsumerSource() {
+        ConsumerSource cs = ConsumerSource.builder().name("csname").deliverSubject("csdeliver").build();
+        assertEquals("csname", cs.getName());
+        assertEquals("csdeliver", cs.getDeliverSubject());
+
+        assertThrows(IllegalArgumentException.class, () -> ConsumerSource.builder().build());
+        assertThrows(IllegalArgumentException.class, () -> ConsumerSource.builder().deliverSubject("supplied").build());
+        assertThrows(IllegalArgumentException.class, () -> ConsumerSource.builder().name("supplied").build());
+        assertThrows(IllegalArgumentException.class, () -> ConsumerSource.builder().name(HAS_DOT).deliverSubject("supplied").build());
+        assertThrows(IllegalArgumentException.class, () -> ConsumerSource.builder().name("supplied").deliverSubject(HAS_SPACE).build());
+
+        EqualsVerifier.simple().forClass(ConsumerSource.class).verify();
     }
 
     @Test
