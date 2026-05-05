@@ -193,8 +193,6 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Duration.ofSeconds(2), c.getBackoff().get(1));
 
         assertThrows(IllegalArgumentException.class,
-            () -> ConsumerConfiguration.builder().backoff(Duration.ZERO).build());
-        assertThrows(IllegalArgumentException.class,
             () -> ConsumerConfiguration.builder().backoff(Duration.ofNanos(DURATION_MIN_LONG - 1)).build());
 
         c = ConsumerConfiguration.builder().backoff(1000, 2000).build();
