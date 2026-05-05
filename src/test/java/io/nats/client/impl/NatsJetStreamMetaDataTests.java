@@ -30,10 +30,11 @@ public class NatsJetStreamMetaDataTests extends JetStreamTestBase {
         assertNotNull(msg.metaData()); // 2nd time, coverage lazy check is not null
         assertNotNull(meta.toString()); // COVERAGE toString
 
-        validateMeta(false, false, getTestMessage(TestMetaV0));
-        validateMeta(true, false, getTestMessage(TestMetaV1));
-        validateMeta(true, true, getTestMessage(TestMetaV2));
-        validateMeta(true, true, getTestMessage(TestMetaVFuture));
+        validateMeta(false, false, "ACK", getTestMessage(TestMetaV0));
+        validateMeta(true, false, "ACK", getTestMessage(TestMetaV1));
+        validateMeta(true, true, "ACK", getTestMessage(TestMetaV2ACK));
+        validateMeta(true, true, "FC", getTestMessage(TestMetaV2FC));
+        validateMeta(true, true, "ACK", getTestMessage(TestMetaVFuture));
 
         // since I can't make a JS message directly, do it indirectly
         NatsMessage nm = getTestMessage(InvalidMetaLt8Tokens);
@@ -41,7 +42,7 @@ public class NatsJetStreamMetaDataTests extends JetStreamTestBase {
         assertThrows(IllegalArgumentException.class, nm::metaData);
     }
 
-    private void validateMeta(boolean hasPending, boolean hasDomainHashToken, Message msg) {
+    private void validateMeta(boolean hasPending, boolean hasDomainHashToken, String metaType, Message msg) {
         NatsJetStreamMetaData meta = msg.metaData();
         assertEquals("test-stream", meta.getStream());
         assertEquals("test-consumer", meta.getConsumer());
@@ -67,6 +68,8 @@ public class NatsJetStreamMetaDataTests extends JetStreamTestBase {
             assertNull(meta.getDomain());
             assertNull(meta.getAccountHash());
         }
+
+        assertEquals(metaType, meta.getMetaType());
     }
 
     @Test
@@ -103,5 +106,8 @@ public class NatsJetStreamMetaDataTests extends JetStreamTestBase {
 
         assertThrows(IllegalArgumentException.class,
             () -> new NatsJetStreamMetaData(getTestMessage("$JS.ACK.test-stream.test-consumer.1.2.3.1605139610113260000.invalid")));
+
+        assertThrows(IllegalArgumentException.class, () -> getTestMessage(IllegalArgumentMetaData).metaData());
+        assertThrows(IllegalStateException.class, () -> getTestMessage(IllegalStateMetaData).metaData());
     }
 }
