@@ -19,6 +19,8 @@ import io.nats.client.support.JsonValueUtils;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Objects;
+
 import static io.nats.client.support.ApiConstants.DELIVER_SUBJECT;
 import static io.nats.client.support.ApiConstants.NAME;
 import static io.nats.client.support.JsonUtils.*;
@@ -97,20 +99,17 @@ public class ConsumerSource implements JsonSerializable {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+    public final boolean equals(Object o) {
+        if (!(o instanceof ConsumerSource)) return false;
 
         ConsumerSource that = (ConsumerSource) o;
-
-        if (name != null ? !name.equals(that.name) : that.name != null) return false;
-        return deliverSubject != null ? deliverSubject.equals(that.deliverSubject) : that.deliverSubject == null;
+        return Objects.equals(name, that.name) && Objects.equals(deliverSubject, that.deliverSubject);
     }
 
     @Override
     public int hashCode() {
-        int result = name != null ? name.hashCode() : 0;
-        result = 31 * result + (deliverSubject != null ? deliverSubject.hashCode() : 0);
+        int result = Objects.hashCode(name);
+        result = 31 * result + Objects.hashCode(deliverSubject);
         return result;
     }
 

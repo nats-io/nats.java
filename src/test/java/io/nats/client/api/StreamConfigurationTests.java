@@ -643,7 +643,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
 
             validateExternal(mirror.getExternal(), "mirror");
             assertNotNull(mirror.getConsumerSource());
-            validateConsumerSource(Collections.singletonList(mirror.getConsumerSource()), "mirror");
+            validateConsumerSource(mirror.getConsumerSource(), "mirror");
             validateSubjectTransforms(mirror.getSubjectTransforms(), 2, "m");
 
             assertNotNull(sc.getSources());
@@ -674,15 +674,13 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         }
     }
 
-    private static void validateConsumerSource(List<ConsumerSource> csList, String name) {
-        assertNotNull(csList);
-        for (ConsumerSource cs : csList) {
-            assertEquals(name + "_con_name", cs.getName());
-            assertEquals(name + "_con_deliver", cs.getDeliverSubject());
-        }
+    private static void validateConsumerSource(ConsumerSource cs, String name) {
+        assertNotNull(cs);
+        assertEquals(name + "_con_name", cs.getName());
+        assertEquals(name + "_con_deliver", cs.getDeliverSubject());
     }
 
-    private void validateSource(Source source, int index, ZonedDateTime zdt) {
+    private static void validateSource(Source source, int index, ZonedDateTime zdt) {
         long seq = 737 + index;
         String name = "s" + index;
         assertEquals(name, source.getSourceName());
@@ -691,6 +689,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
         assertEquals(name + "sub", source.getFilterSubject());
         validateExternal(source.getExternal(), name);
         validateSubjectTransforms(source.getSubjectTransforms(), 2, name);
+        validateConsumerSource(source.getConsumerSource(), name);
     }
 
     private static void validateExternal(External external, String name) {
