@@ -166,6 +166,14 @@ public class TestBase {
         return si.isSameOrNewerThanVersion("2.11.99");
     }
 
+    public static boolean atLeast2_14() {
+        return atLeast2_14(RUN_SERVER_INFO);
+    }
+
+    public static boolean atLeast2_14(ServerInfo si) {
+        return si.isSameOrNewerThanVersion("2.13.99");
+    }
+
     public static void runInServer(InServerTest inServerTest) throws Exception {
         runInServer(false, false, null, null, inServerTest);
     }

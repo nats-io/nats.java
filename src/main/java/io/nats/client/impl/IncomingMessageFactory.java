@@ -17,6 +17,7 @@ import io.nats.client.support.IncomingHeadersProcessor;
 import io.nats.client.support.Status;
 
 import static io.nats.client.support.NatsJetStreamConstants.JS_ACK_SUBJECT_PREFIX;
+import static io.nats.client.support.NatsJetStreamConstants.JS_FC_SUBJECT_PREFIX;
 
 // ----------------------------------------------------------------------------------------------------
 // Incoming Message Factory - internal use only
@@ -58,7 +59,7 @@ class IncomingMessageFactory {
         if (status != null) {
             message = new StatusMessage(status);
         }
-        else if (replyTo != null && replyTo.startsWith(JS_ACK_SUBJECT_PREFIX)) {
+        else if (replyTo != null && (replyTo.startsWith(JS_ACK_SUBJECT_PREFIX) || replyTo.startsWith(JS_FC_SUBJECT_PREFIX))) {
             message = new NatsJetStreamMessage(data);
         }
         else {

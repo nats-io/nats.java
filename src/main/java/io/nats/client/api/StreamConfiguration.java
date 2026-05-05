@@ -74,6 +74,7 @@ public class StreamConfiguration implements JsonSerializable {
     private final boolean allowMsgSchedules;
     private final boolean allowMessageCounter;
     private final boolean allowAtomicPublish;
+    private final boolean allowBatched;
     private final PersistMode persistMode;
 
     static StreamConfiguration instance(JsonValue v) {
@@ -115,6 +116,7 @@ public class StreamConfiguration implements JsonSerializable {
             .allowMessageSchedules(readBoolean(v, ALLOW_MSG_SCHEDULES))
             .allowMessageCounter(readBoolean(v, ALLOW_MSG_COUNTER))
             .allowAtomicPublish(readBoolean(v, ALLOW_ATOMIC))
+            .allowBatched(readBoolean(v, ALLOW_BATCHED))
             .persistMode(PersistMode.get(readString(v, PERSIST_MODE)))
             .build();
     }
@@ -158,6 +160,7 @@ public class StreamConfiguration implements JsonSerializable {
         this.allowMsgSchedules = b.allowMsgSchedules;
         this.allowMessageCounter = b.allowMessageCounter;
         this.allowAtomicPublish = b.allowAtomicPublish;
+        this.allowBatched = b.allowBatched;
         this.persistMode = b.persistMode;
     }
 
@@ -223,6 +226,7 @@ public class StreamConfiguration implements JsonSerializable {
         addFldWhenTrue(sb, ALLOW_MSG_SCHEDULES, allowMsgSchedules);
         addFldWhenTrue(sb, ALLOW_MSG_COUNTER, allowMessageCounter);
         addFldWhenTrue(sb, ALLOW_ATOMIC, allowAtomicPublish);
+        addFldWhenTrue(sb, ALLOW_BATCHED, allowBatched);
         if (persistMode != null) {
             addField(sb, PERSIST_MODE, persistMode.toString());
         }
@@ -559,6 +563,14 @@ public class StreamConfiguration implements JsonSerializable {
     }
 
     /**
+     * Whether Allow Batched is set
+     * @return the flag
+     */
+    public boolean getAllowBatched() {
+        return allowBatched;
+    }
+
+    /**
      * Get the Subject Delete Marker TTL duration. May be null.
      * @return The duration
      */
@@ -644,6 +656,7 @@ public class StreamConfiguration implements JsonSerializable {
         private boolean allowMsgSchedules = false;
         private boolean allowMessageCounter = false;
         private boolean allowAtomicPublish = false;
+        private boolean allowBatched = false;
         private PersistMode persistMode = null;
 
         /**
@@ -696,6 +709,7 @@ public class StreamConfiguration implements JsonSerializable {
                 this.allowMsgSchedules = sc.allowMsgSchedules;
                 this.allowMessageCounter = sc.allowMessageCounter;
                 this.allowAtomicPublish = sc.allowAtomicPublish;
+                this.allowBatched = sc.allowBatched;
                 this.persistMode = sc.persistMode;
             }
         }
@@ -1246,6 +1260,25 @@ public class StreamConfiguration implements JsonSerializable {
          */
         public Builder allowAtomicPublish(boolean allowAtomicPublish) {
             this.allowAtomicPublish = allowAtomicPublish;
+            return this;
+        }
+
+        /**
+         * Set allow batched published flag to true
+         * @return The Builder
+         */
+        public Builder allowBatched() {
+            this.allowBatched = true;
+            return this;
+        }
+
+        /**
+         * Set allow batched published flag
+         * @param allowBatched the flag
+         * @return The Builder
+         */
+        public Builder allowBatched(boolean allowBatched) {
+            this.allowBatched = allowBatched;
             return this;
         }
 

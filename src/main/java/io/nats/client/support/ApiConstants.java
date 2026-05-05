@@ -23,6 +23,7 @@ public interface ApiConstants {
     /** action */                    String ACTION                        = "action";
     /** active */                    String ACTIVE                        = "active";
     /** allow_atomic */              String ALLOW_ATOMIC                  = "allow_atomic";
+    /** allow_batched */             String ALLOW_BATCHED                 = "allow_batched";
     /** allow_direct */              String ALLOW_DIRECT                  = "allow_direct";
     /** allow_msg_schedules */       String ALLOW_MSG_SCHEDULES           = "allow_msg_schedules";
     /** allow_msg_counter */         String ALLOW_MSG_COUNTER             = "allow_msg_counter";

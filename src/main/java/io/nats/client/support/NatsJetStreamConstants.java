@@ -22,6 +22,7 @@ public interface NatsJetStreamConstants {
     String PREFIX_API = "API";
     String DEFAULT_API_PREFIX = "$JS.API.";
     String JS_ACK_SUBJECT_PREFIX = "$JS.ACK.";
+    String JS_FC_SUBJECT_PREFIX = "$JS.FC.";
 
     // JSAPI_ACCOUNT_INFO is for obtaining general information about JetStream.
     String JSAPI_ACCOUNT_INFO = "INFO";
@@ -89,6 +90,9 @@ public interface NatsJetStreamConstants {
     // JSAPI_CONSUMER_UNPIN is the endpoint to unpin a consumer
     String JSAPI_CONSUMER_UNPIN = "CONSUMER.UNPIN.%s.%s";
 
+    // JSAPI_CONSUMER_RESET is the endpoint to reset a consumer
+    String JSAPI_CONSUMER_RESET = "CONSUMER.RESET.%s.%s";
+
     String MSG_ID_HDR = "Nats-Msg-Id";
     String EXPECTED_STREAM_HDR = "Nats-Expected-Stream";
     String EXPECTED_LAST_SEQ_HDR = "Nats-Expected-Last-Sequence";
@@ -140,6 +144,7 @@ public interface NatsJetStreamConstants {
     String NATS_SCHEDULE_TARGET_HDR    = "Nats-Schedule-Target";
     String NATS_SCHEDULE_TTL_HDR       = "Nats-Schedule-TTL";
     String NATS_SCHEDULE_SOURCE_HDR    = "Nats-Schedule-Source";
+    String NATS_SCHEDULE_ROLLUP_HDR    = "Nats-Schedule-Rollup";
     String NATS_SCHEDULE_TIME_ZONE_HDR = "Nats-Schedule-Time-Zone";
 
     String NATS_SCHEDULER_HDR          = "Nats-Scheduler";

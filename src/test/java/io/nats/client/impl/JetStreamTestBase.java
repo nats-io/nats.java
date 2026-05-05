@@ -36,12 +36,14 @@ import static org.junit.jupiter.api.Assertions.*;
 public class JetStreamTestBase extends TestBase {
     public static final String TestMetaV0 = "$JS.ACK.test-stream.test-consumer.1.2.3.1605139610113260000";
     public static final String TestMetaV1 = "$JS.ACK.test-stream.test-consumer.1.2.3.1605139610113260000.4";
-    public static final String TestMetaV2 = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.4";
+    public static final String TestMetaV2ACK = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.4";
+    public static final String TestMetaV2FC = "$JS.FC.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.4";
     public static final String TestMetaVFuture = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.4.dont.care.how.many.more";
     public static final String InvalidMetaNoAck = "$JS.nope.test-stream.test-consumer.1.2.3.1605139610113260000";
     public static final String InvalidMetaLt8Tokens = "$JS.ACK.less-than.8-tokens.1.2.3";
     public static final String InvalidMeta10Tokens = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000";
-    public static final String InvalidMetaData = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.not-a-number";
+    public static final String IllegalArgumentMetaData = "$JS.ACK.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.not-a-number";
+    public static final String IllegalStateMetaData = "$JS.zzz.v2Domain.v2Hash.test-stream.test-consumer.1.2.3.1605139610113260000.4";
 
     public static LongRunningNatsTestServer jsServer;
 
@@ -69,7 +71,7 @@ public class JetStreamTestBase extends TestBase {
     }
 
     public NatsMessage getTestJsMessage() {
-        return getTestMessage(TestMetaV2, mockSid());
+        return getTestMessage(TestMetaV2ACK, mockSid());
     }
 
     public NatsMessage getTestJsMessage(long seq) {
