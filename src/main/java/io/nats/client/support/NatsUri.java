@@ -285,7 +285,7 @@ public class NatsUri {
     }
 
     private String equivalentComparable() {
-        return uri.getHost().toLowerCase() + uri.getPort();
+        return uri.getHost().toLowerCase() + ":" + uri.getPort();
     }
 
     public boolean equivalent(@NonNull NatsUri other) {

@@ -89,7 +89,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
         }
         long timeoutNanos = timeout.toNanos();
         if (timeoutNanos <= 0) {
-            return _nextUnmanagedWaitForever(null);
+            return _nextUnmanagedWaitForever();
         }
         return _nextUnmanaged(timeoutNanos, null);
     }
@@ -97,12 +97,12 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
     @Override
     public Message nextMessage(long timeoutMillis) throws InterruptedException, IllegalStateException {
         if (timeoutMillis <= 0) {
-            return _nextUnmanagedWaitForever(null);
+            return _nextUnmanagedWaitForever();
         }
         return _nextUnmanaged(timeoutMillis * NANOS_PER_MILLI, null);
     }
 
-    protected Message _nextUnmanagedWaitForever(String expectedPullSubject) throws InterruptedException {
+    protected Message _nextUnmanagedWaitForever() throws InterruptedException {
         while (true) {
             Message msg = nextMessageInternal(Duration.ZERO);
             if (msg != null) { // null shouldn't happen, so just a code guard b/c nextMessageInternal can return null
@@ -110,11 +110,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                     case MESSAGE:
                         return msg;
                     case STATUS_ERROR:
-                        // if the status applies throw exception, otherwise it's ignored, fall through
-                        if (expectedPullSubject == null || expectedPullSubject.equals(msg.getSubject())) {
-                            throw new JetStreamStatusException(msg.getStatus(), this);
-                        }
-                        break;
+                        throw new JetStreamStatusException(msg.getStatus(), this);
                 }
                 // Check again since waiting forever when:
                 // 1. Any STATUS_HANDLED or STATUS_TERMINUS

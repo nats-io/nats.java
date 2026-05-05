@@ -129,6 +129,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         }
 
         ConsumerCreateRequest ccr = new ConsumerCreateRequest(streamName, config, action);
+        System.out.println(subj + " -> " + ccr.toJson());
         Message resp = makeRequestResponseRequired(subj, ccr.serialize(), getTimeout());
         return new ConsumerInfo(resp).throwOnHasError();
     }
@@ -203,7 +204,7 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
         if (lastStreamSeq > 0) {
             builder
                 .deliverPolicy(DeliverPolicy.ByStartSequence)
-                .startSequence(Math.max(1, lastStreamSeq + 1))
+                .startSequence(lastStreamSeq + 1)
                 .startTime(null); // clear start time in case it was originally set
         }
 
