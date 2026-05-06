@@ -1759,10 +1759,11 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
                     m = fc.nextMessage();
                 }
-                ci = ctx.getConsumerInfo();
-                assertEquals(0, ci.getNumPending());
-                assertEquals(15, ci.getNumAckPending());
             }
+
+            ci = jsm.getConsumerInfo(stream, consumer);
+            assertEquals(0, ci.getNumPending());
+            assertEquals(15, ci.getNumAckPending());
 
             jsm.resetConsumer(stream, consumer);
 
@@ -1777,10 +1778,11 @@ public class JetStreamManagementTests extends JetStreamTestBase {
 
                     m = fc.nextMessage();
                 }
-                ci = ctx.getConsumerInfo();
-                assertEquals(0, ci.getNumPending());
-                assertEquals(10, ci.getNumAckPending());
             }
+
+            ci = jsm.getConsumerInfo(stream, consumer);
+            assertEquals(0, ci.getNumPending());
+            assertEquals(10, ci.getNumAckPending());
 
             jsm.resetConsumer(stream, consumer, 1);
             ci = ctx.getConsumerInfo();
@@ -1795,10 +1797,11 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                     m.ack();
                     m = fc.nextMessage();
                 }
-                ci = ctx.getConsumerInfo();
-                assertEquals(0, ci.getNumPending());
-                assertEquals(0, ci.getNumAckPending());
             }
+
+            ci = jsm.getConsumerInfo(stream, consumer);
+            assertEquals(0, ci.getNumPending());
+            assertEquals(0, ci.getNumAckPending());
         });
     }
 }
