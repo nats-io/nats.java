@@ -17,7 +17,6 @@ import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.JsonValueUtils;
 import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 
@@ -76,7 +75,7 @@ public class ConsumerSource implements JsonSerializable {
      * The durable consumer name used for sourcing.
      * @return the consumer name
      */
-    @Nullable
+    @NonNull
     public String getName() {
         return name;
     }
@@ -85,7 +84,7 @@ public class ConsumerSource implements JsonSerializable {
      * The subject to deliver messages to.
      * @return the deliver subject
      */
-    @Nullable
+    @NonNull
     public String getDeliverSubject() {
         return deliverSubject;
     }
