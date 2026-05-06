@@ -41,7 +41,7 @@ public abstract class ApiResponse<T> {
     public static final String PARSE_ERROR_TYPE = "io.nats.client.api.parse_error";
 
     /**
-     * The json value made from creating the object from a message or that was used to directly construct the response
+     * The JSON value made from creating the object from a message or that was used to directly construct the response
      */
     protected final JsonValue jv;
 

@@ -83,7 +83,7 @@ public class PublishOptions {
     public static final String PROP_STREAM_NAME = Options.PFX + "publish.stream";
 
     /**
-     * Property used to configure a builder from a Properties object..
+     * Property used to configure a builder from a Properties object...
      */
     public static final String PROP_PUBLISH_TIMEOUT = Options.PFX + "publish.timeout";
 
@@ -197,12 +197,12 @@ public class PublishOptions {
          * @param properties properties
          */
         public Builder(Properties properties) {
-            String s = properties.getProperty(PublishOptions.PROP_PUBLISH_TIMEOUT);
+            String s = Options.getPropertyValue(properties, PublishOptions.PROP_PUBLISH_TIMEOUT);
             if (s != null) {
                 streamTimeout = Duration.parse(s);
             }
 
-            s = properties.getProperty(PublishOptions.PROP_STREAM_NAME);
+            s = Options.getPropertyValue(properties, PublishOptions.PROP_STREAM_NAME);
             if (s != null) {
                 pubAckStream = s;
             }

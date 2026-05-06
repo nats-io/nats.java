@@ -410,7 +410,7 @@ SKIPPED
 * Interrupt fine tuning #1214 @scottf
 * Run loops check the interrupted flag #1215 @scottf
 * Tuning futures used for internal tracking #1216 @scottf
-* Fix cleanResponses must handle cleaning up cancelled future #1218 @MauriceVanVeen
+* Fix cleanResponses must handle cleaning up canceled future #1218 @MauriceVanVeen
 
 ## 2.20.1
 

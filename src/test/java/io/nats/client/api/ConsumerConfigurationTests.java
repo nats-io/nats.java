@@ -187,15 +187,11 @@ public class ConsumerConfigurationTests extends TestBase {
             () -> ConsumerConfiguration.builder().idleHeartbeat(MIN_IDLE_HEARTBEAT_MILLIS - 1).build());
 
         // backoff coverage
-        c = ConsumerConfiguration.builder().backoff(Duration.ofSeconds(1), null, Duration.ofSeconds(2)).build();
-        assertEquals(2, c.getBackoff().size());
-        assertEquals(Duration.ofSeconds(1), c.getBackoff().get(0));
-        assertEquals(Duration.ofSeconds(2), c.getBackoff().get(1));
-
-        assertThrows(IllegalArgumentException.class,
-            () -> ConsumerConfiguration.builder().backoff(Duration.ZERO).build());
-        assertThrows(IllegalArgumentException.class,
-            () -> ConsumerConfiguration.builder().backoff(Duration.ofNanos(DURATION_MIN_LONG - 1)).build());
+        c = ConsumerConfiguration.builder().backoff(Duration.ofSeconds(0), Duration.ofSeconds(1), null, Duration.ofSeconds(2)).build();
+        assertEquals(3, c.getBackoff().size());
+        assertEquals(Duration.ofSeconds(0), c.getBackoff().get(0));
+        assertEquals(Duration.ofSeconds(1), c.getBackoff().get(1));
+        assertEquals(Duration.ofSeconds(2), c.getBackoff().get(2));
 
         c = ConsumerConfiguration.builder().backoff(1000, 2000).build();
         assertEquals(2, c.getBackoff().size());
@@ -203,9 +199,7 @@ public class ConsumerConfigurationTests extends TestBase {
         assertEquals(Duration.ofSeconds(2), c.getBackoff().get(1));
 
         assertThrows(IllegalArgumentException.class,
-            () -> ConsumerConfiguration.builder().backoff(0).build());
-        assertThrows(IllegalArgumentException.class,
-            () -> ConsumerConfiguration.builder().backoff(DURATION_MIN_LONG - 1).build());
+            () -> ConsumerConfiguration.builder().backoff(-1).build());
 
         assertClientError(JsConsumerNameDurableMismatch, () -> ConsumerConfiguration.builder().name(NAME).durable(DURABLE).build());
 

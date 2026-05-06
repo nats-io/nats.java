@@ -25,7 +25,6 @@ import static io.nats.client.support.ApiConstants.*;
  * Error returned from an api request.
  */
 public class Error implements JsonSerializable {
-
     /**
      * represents an error code that was not set / provided
      */

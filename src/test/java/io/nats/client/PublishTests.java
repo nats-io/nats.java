@@ -295,7 +295,7 @@ public class PublishTests {
                         .subjects(jsSubject)
                         .build());
                 JetStream jsNotSupported = ncNotSupported.jetStream();
-                JetStream jsSupported = ncNotSupported.jetStream();
+                JetStream jsSupported = ncSupported.jetStream();
 
                 Dispatcher dNotSupported = ncNotSupported.createDispatcher();
                 Dispatcher dSupported = ncSupported.createDispatcher();
