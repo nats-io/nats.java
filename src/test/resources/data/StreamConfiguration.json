@@ -50,18 +50,22 @@
     "max_ack_pending": 42
   },
   "mirror": {
-    "name": "eman",
+    "name": "mirror_name",
     "opt_start_seq": 736,
     "opt_start_time": "2020-11-05T19:33:21.163377Z",
-    "filter_subject": "mfsub",
+    "filter_subject": "mirror_fsub",
     "external": {
-      "api": "apithing",
-      "deliver": "dlvrsub"
+      "api": "mirror_ext_api",
+      "deliver": "mirror_ext_deliver"
     },
     "subject_transforms": [
       {"src":"m_st_src0","dest":"m_st_dest0"},
       {"src":"m_st_src1","dest":"m_st_dest1"}
-    ]
+    ],
+    "consumer": {
+      "name": "mirror_con_name",
+      "deliver_subject": "mirror_con_deliver"
+    }
   },
   "sources": [
     {
@@ -70,13 +74,17 @@
       "opt_start_time": "2020-11-05T19:33:21.163377Z",
       "filter_subject": "s0sub",
       "external": {
-        "api": "s0api",
-        "deliver": "s0dlvrsub"
+        "api": "s0_ext_api",
+        "deliver": "s0_ext_deliver"
       },
       "subject_transforms": [
         {"src":"s0_st_src0","dest":"s0_st_dest0"},
         {"src":"s0_st_src1","dest":"s0_st_dest1"}
-      ]
+      ],
+      "consumer": {
+        "name": "s0_con_name",
+        "deliver_subject": "s0_con_deliver"
+      }
     },
     {
       "name": "s1",
@@ -84,13 +92,17 @@
       "opt_start_time": "2020-11-05T19:33:21.163377Z",
       "filter_subject": "s1sub",
       "external": {
-        "api": "s1api",
-        "deliver": "s1dlvrsub"
+        "api": "s1_ext_api",
+        "deliver": "s1_ext_deliver"
       },
       "subject_transforms": [
         {"src":"s1_st_src0","dest":"s1_st_dest0"},
         {"src":"s1_st_src1","dest":"s1_st_dest1"}
-      ]
+      ],
+      "consumer": {
+        "name": "s1_con_name",
+        "deliver_subject": "s1_con_deliver"
+      }
     }
   ]
 }

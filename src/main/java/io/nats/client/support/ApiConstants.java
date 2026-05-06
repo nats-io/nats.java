@@ -46,6 +46,7 @@ public interface ApiConstants {
     /** compression */               String COMPRESSION                   = "compression";
     /** config */                    String CONFIG                        = "config";
     /** connect_urls */              String CONNECT_URLS                  = "connect_urls";
+    /** consumer */                  String CONSUMER                      = "consumer";
     /** consumer_count */            String CONSUMER_COUNT                = "consumer_count";
     /** consumer_seq */              String CONSUMER_SEQ                  = "consumer_seq";
     /** consumer_limits */           String CONSUMER_LIMITS               = "consumer_limits";
