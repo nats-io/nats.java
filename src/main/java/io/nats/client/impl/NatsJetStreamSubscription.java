@@ -112,9 +112,7 @@ public class NatsJetStreamSubscription extends NatsSubscription implements JetSt
                     case STATUS_ERROR:
                         throw new JetStreamStatusException(msg.getStatus(), this);
                 }
-                // Check again since waiting forever when:
-                // 1. Any STATUS_HANDLED or STATUS_TERMINUS
-                // 2. STATUS_ERRORS that aren't for expected pullSubject
+                // Check again since waiting forever for any other state
             }
         }
     }
