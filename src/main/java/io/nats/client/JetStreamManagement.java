@@ -378,9 +378,9 @@ public interface JetStreamManagement {
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
-     * @return true if the reset succeeded
+     * @return the current consumer after the reset
      */
-    boolean resetConsumer(String streamName, String consumerName) throws IOException, JetStreamApiException;
+    ConsumerInfo resetConsumer(String streamName, String consumerName) throws IOException, JetStreamApiException;
 
     /**
      * Reset a consumer
@@ -390,9 +390,9 @@ public interface JetStreamManagement {
      * @throws IOException covers various communication issues with the NATS
      *         server such as timeout or interruption
      * @throws JetStreamApiException the request had an error related to the data
-     * @return true if the reset succeeded
+     * @return the current consumer after the reset
      */
-    boolean resetConsumer(String streamName, String consumerName, long sequence) throws IOException, JetStreamApiException;
+    ConsumerInfo resetConsumer(String streamName, String consumerName, long sequence) throws IOException, JetStreamApiException;
 
     /**
      * Gets a context for publishing and subscribing to subjects backed by Jetstream streams

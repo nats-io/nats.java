@@ -1754,18 +1754,23 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 while (m != null) {
                     assertEquals(seq, m.metaData().streamSequence());
                     if (seq++ <= 5) {
-                        m.ack();
+                        m.ackSync(Duration.ofSeconds(1));
                     }
 
                     m = fc.nextMessage();
                 }
             }
 
+            sleep(200); // just give slow GitHub CI time to be in-sync
+
             ci = jsm.getConsumerInfo(stream, consumer);
             assertEquals(0, ci.getNumPending());
             assertEquals(15, ci.getNumAckPending());
 
-            jsm.resetConsumer(stream, consumer);
+            // reset just to the start of items not acked
+            ci = jsm.resetConsumer(stream, consumer);
+            assertEquals(15, ci.getNumPending());
+            assertEquals(0, ci.getNumAckPending());
 
             try (FetchConsumer fc = ctx.fetch(FetchConsumeOptions.builder().maxMessages(15).build())) {
                 int seq = 6;
@@ -1773,19 +1778,20 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 while (m != null) {
                     assertEquals(seq, m.metaData().streamSequence());
                     if (seq++ <= 10) {
-                        m.ack();
+                        m.ackSync(Duration.ofSeconds(1));
                     }
 
                     m = fc.nextMessage();
                 }
             }
 
+            sleep(200); // just give slow GitHub CI time to be in-sync
             ci = jsm.getConsumerInfo(stream, consumer);
             assertEquals(0, ci.getNumPending());
             assertEquals(10, ci.getNumAckPending());
 
-            jsm.resetConsumer(stream, consumer, 1);
-            ci = ctx.getConsumerInfo();
+            // reset all the way back to start
+            ci = jsm.resetConsumer(stream, consumer, 1);
             assertEquals(20, ci.getNumPending());
             assertEquals(0, ci.getNumAckPending());
 
@@ -1794,11 +1800,12 @@ public class JetStreamManagementTests extends JetStreamTestBase {
                 Message m = fc.nextMessage();
                 while (m != null) {
                     assertEquals(seq++, m.metaData().streamSequence());
-                    m.ack();
+                    m.ackSync(Duration.ofSeconds(1));
                     m = fc.nextMessage();
                 }
             }
 
+            sleep(200); // just give slow GitHub CI time to be in-sync
             ci = jsm.getConsumerInfo(stream, consumer);
             assertEquals(0, ci.getNumPending());
             assertEquals(0, ci.getNumAckPending());
