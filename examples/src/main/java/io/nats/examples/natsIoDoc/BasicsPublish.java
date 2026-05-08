@@ -8,7 +8,7 @@ import java.nio.charset.StandardCharsets;
 
 public class BasicsPublish {
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect("demo.nats.io:4222")) {
+        try (Connection nc = Nats.connect("demo.nats.io")) {
             // NATS-DOC-START
             // Publish a message to the subject "weather.updates"
             byte[] data = "Temperature: 72°F".getBytes(StandardCharsets.UTF_8);

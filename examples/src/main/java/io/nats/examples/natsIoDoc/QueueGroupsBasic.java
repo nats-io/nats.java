@@ -11,7 +11,7 @@ import java.util.concurrent.TimeoutException;
 
 public class QueueGroupsBasic {
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect("demo.nats.io:4222")) {
+        try (Connection nc = Nats.connect("demo.nats.io")) {
             // NATS-DOC-START
             // Worker A
             Dispatcher workerA = nc.createDispatcher(msg -> {

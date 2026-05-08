@@ -9,7 +9,7 @@ import java.io.IOException;
 public class SubjectsMultiWildcard {
     // NATS-DOC-START
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect("demo.nats.io:4222")) {
+        try (Connection nc = Nats.connect("demo.nats.io")) {
 
             // NATS-DOC-START
             // Subscribe to all alarms
