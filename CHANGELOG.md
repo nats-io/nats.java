@@ -1,5 +1,48 @@
 # Change Log
 
+## 2.25.3
+
+### Core
+* More schedule headers to match updated server implementation #1543
+* Headers object toString bug #1545
+* WebSocket masking used % 8 instead of % 4 — #1546
+* NatsConnection fine tuning variable access #1547
+* Flush Immediately After Publish Fix #1550
+* Finds while building J3 #1554
+
+### JetStream
+* Update api objects based on schema review #1549
+* ObjectInfo getObjectName() should be marked @NonNull #1559
+* 2.14 Stream Configuration #1561
+* 2.14 Reset Consumer #1562
+* Flow Control $JS.FC support #1563
+* 2.14 Stream Consumer Source support #1565
+* Reset Consumer Test Flapper #1567
+* Reset Consumer correct API response and improve test #1568
+
+### Testing
+* Fix test, server 2.12.5 allows update max consumers #1538
+
+### Miscellaneous
+* Document use of ConsumerInfo management call #1539
+* Add Readme index to Consumer Info Calls #1541
+* Move examples to subproject #1544
+
+### CI/CD
+* Setup claude to only manually trigger #1540
+* Testing claude script v2 #1542
+* Fix Claude workflow configuration #1551 @Jarema
+* Change claude to always review #1569
+
+### New Nats Docs Examples
+* Queue Group Doc Examples were switched #1553
+* \[New Nats Docs Examples] Complete Missing Examples #1556
+* \[New Nats Docs Examples] SubjectsSingleWildcard #1557
+* \[New Nats Docs Examples] Update Single and Multi Wildcard #1558
+* \[New Nats Docs Examples] Misc Examples Improvements #1560
+* \[New Nats Docs Examples] Improved Comment #1564
+* \[New Nats Docs Examples] Fix start marker #1566
+
 ## 2.25.2
 ### Core
 * fix race condition in reconnect #1523 @scottf @jkraml-staffbase
