@@ -14,7 +14,7 @@ import java.time.format.DateTimeFormatter;
 
 public class RequestReplyBasic {
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect("demo.nats.io:4222")) {
+        try (Connection nc = Nats.connect("demo.nats.io")) {
 
             // NATS-DOC-START
             // Set up a service

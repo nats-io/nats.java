@@ -13,7 +13,7 @@ public class RequestReplyNoResponders {
         // NATS-DOC-START
         // You must specify the reportNoResponders() connect option
         Options options = Options.builder()
-            .server("demo.nats.io:4222")
+            .server("demo.nats.io")
             .reportNoResponders()
             .build();
         try (Connection nc = Nats.connect(options)) {
