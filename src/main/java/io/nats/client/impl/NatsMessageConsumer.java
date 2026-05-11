@@ -160,6 +160,9 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
             rePull();
         }
         catch (JetStreamApiException | IOException e) {
+            if (first) {
+                throw e;
+            }
             resetOnException();
         }
     }
