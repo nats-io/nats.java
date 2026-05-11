@@ -19,9 +19,9 @@
 1. [**NATS by Example**](https://natsbyexample.com) is an evolving collection of runnable, cross-client reference examples for NATS.
 1. The [**examples directory**](https://github.com/nats-io/nats.java/tree/main/src/examples/java/io/nats/examples) covers basic api use.
 1. The [**Java Nats Examples**](https://github.com/nats-io/java-nats-examples) GitHub repo, a collection of simple use case examples.
-1. [**Java Orbit**](https://github.com/synadia-io/orbit.java) is a set of independent utilities or extensions for this client. 
 
 ## Table of Contents
+* [Client and Orbit](#client-and-orbit)
 * [Simplification](#simplification)
 * [Consumer Info Calls](#consumer-info-calls)
 * [Service Framework](#service-framework)
@@ -38,6 +38,74 @@
 * [Building From Source](#building-from-source)
 * [Examples](#examples)
 * [License](#license)
+
+## Client and Orbit
+
+NATS client functionality is split across two layers: the **core client**
+(`nats.java`, this repo) and **[Orbit](https://github.com/synadia-io/orbit.java)**,
+a separate set of artifacts with higher-level utilities.
+
+The split exists so the core can stay small, stable, and consistent across
+NATS clients in every language, while Orbit can iterate quickly on
+opinionated abstractions without dragging the core API along for the ride.
+
+### Core client (`nats.java`)
+
+- Direct API over Core NATS and JetStream as exposed by `nats-server`.
+- Lightweight, unopinionated, performance-oriented.
+- API surface kept in **parity** with other official NATS clients
+  (Rust, Go, .NET, JS, Python, C). A feature shipped here should look
+  the same shape everywhere.
+- Stable, conservative versioning. Breaking changes are rare and deliberate.
+
+### Orbit (`orbit.java`)
+
+- Higher-level, opinionated abstractions built **on top of** the core client.
+- Per-artifact versioning, so an experimental utility can iterate
+  without bumping every other piece.
+- Free to be language-specific: a Java-idiomatic API does not need to match
+  the equivalent in other languages.
+- May lag, omit, or extend cross-client parity items.
+
+### What goes where?
+
+| Concern                                            | Core (`nats.java`)  | Orbit |
+|----------------------------------------------------|:-------------------:|:-----:|
+| Connect, publish, subscribe, request/reply         | ✅                  |       |
+| JetStream publish, consumers, streams, KV, OS      | ✅                  |       |
+| Service API (request/reply micro-services)         | ✅                  |       |
+| Wire-protocol coverage, auth, TLS, reconnection    | ✅                  |       |
+| Cross-client parity, conservative semver           | ✅                  |       |
+| Opinionated helpers / sugar over core APIs         |                     | ✅    |
+| New experimental patterns (e.g. partitioned groups)|                     | ✅    |
+| KV codecs, distributed counters, NATS contexts     |                     | ✅    |
+| Java-idiomatic abstractions with no parity mandate |                     | ✅    |
+| Per-utility versioning, faster API churn allowed   |                     | ✅    |
+
+> **Rule of thumb:** if it is a thin mapping of something `nats-server`
+> already speaks and every official client must expose it, it belongs in
+> core. If it is a pattern, helper, or abstraction layered on top, it
+> belongs in Orbit.
+
+### Layering
+
+```text
+   ┌──────────────────────────────────────────────────────┐
+   │  Application code                                    │
+   └──────────────┬───────────────────────────┬───────────┘
+                  │                           │
+                  ▼                           ▼
+        ┌───────────────────┐       ┌───────────────────┐
+        │ Orbit artifacts   │  uses │ nats.java (core)  │
+        │ (opinionated,     │──────▶│ (parity, stable,  │
+        │  per-art semver)  │       │  protocol-level)  │
+        └───────────────────┘       └─────────┬─────────┘
+                                              │
+                                              ▼
+                                       ┌─────────────┐
+                                       │ nats-server │
+                                       └─────────────┘
+```
 
 ## Simplification
 
