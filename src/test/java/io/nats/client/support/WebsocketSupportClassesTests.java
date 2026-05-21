@@ -307,6 +307,7 @@ public class WebsocketSupportClassesTests {
                 }
             }
             catch (IllegalStateException ise) {
+                System.out.println(msgStartsWith + " | " + ise);
                 assertTrue(ise.getMessage().startsWith(msgStartsWith));
             }
             try {

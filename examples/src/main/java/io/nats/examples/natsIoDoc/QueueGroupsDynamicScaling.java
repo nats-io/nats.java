@@ -28,7 +28,7 @@ public class QueueGroupsDynamicScaling {
     }
 
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect("demo.nats.io")) {
+        try (Connection nc = Nats.connect("nats://localhost:4222")) {
             List<Worker> workers = new ArrayList<Worker>();
 
             String subject = "tasks";
