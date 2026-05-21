@@ -8,7 +8,7 @@ import java.nio.charset.StandardCharsets;
 public class GettingStartedSubscribe {
     // NATS-DOC-START
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect("demo.nats.io")) {
+        try (Connection nc = Nats.connect("nats://localhost:4222")) {
             // Asynchronous Subscriber requires a dispatcher
             // Dispatchers can be shared
             Dispatcher d = nc.createDispatcher(msg -> {

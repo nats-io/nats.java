@@ -9,7 +9,7 @@ import java.nio.charset.StandardCharsets;
 
 public class QueueGroupsMixedSubscribers {
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect("demo.nats.io")) {
+        try (Connection nc = Nats.connect("nats://localhost:4222")) {
 
             // NATS-DOC-START
             // Audit logger - receives all messages

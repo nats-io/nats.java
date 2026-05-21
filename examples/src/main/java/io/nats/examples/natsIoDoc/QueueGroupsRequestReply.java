@@ -13,7 +13,7 @@ import java.util.List;
 
 public class QueueGroupsRequestReply {
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect("demo.nats.io")) {
+        try (Connection nc = Nats.connect("nats://localhost:4222")) {
 
             // NATS-DOC-START
             List<Dispatcher> dispatchers = new ArrayList<>();

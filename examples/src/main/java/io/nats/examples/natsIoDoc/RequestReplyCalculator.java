@@ -12,7 +12,7 @@ import java.util.concurrent.*;
 
 public class RequestReplyCalculator {
     public static void main(String[] args) {
-        try (Connection nc = Nats.connect("demo.nats.io")) {
+        try (Connection nc = Nats.connect("nats://localhost:4222")) {
 
             // NATS-DOC-START
             // Calculator service
@@ -24,11 +24,14 @@ public class RequestReplyCalculator {
                         int x = Integer.parseInt(parts[0]);
                         int y = Integer.parseInt(parts[1]);
                         nc.publish(msg.getReplyTo(), ("" + (x + y)).getBytes(StandardCharsets.UTF_8));
+                        return;
                     }
+                    // fall through
                 }
                 catch (Exception e) {
-                    // you could make some other reply here
+                    // fall through
                 }
+                nc.publish(msg.getReplyTo(), "error: invalid input".getBytes(StandardCharsets.UTF_8));
             });
             dCalcAdd.subscribe("calc.add");
 
@@ -49,6 +52,15 @@ public class RequestReplyCalculator {
             }
             else {
                 System.out.printf("10 + 7 = %s\n", new String(m.getData()));
+            }
+
+            // Make a request with a timeout and direct response
+            m = nc.request("calc.add", "10 x".getBytes(StandardCharsets.UTF_8), Duration.ofMillis(500));
+            if (m == null) {
+                System.out.println("3) No Response");
+            }
+            else {
+                System.out.printf("10 + x = %s\n", new String(m.getData()));
             }
             // NATS-DOC-END
         }
