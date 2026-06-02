@@ -32,7 +32,7 @@ import static io.nats.client.support.Validator.nullOrEmpty;
  */
 public class Headers {
 
-	private static final String KEY_CANNOT_BE_EMPTY_OR_NULL = "Header key cannot be null.";
+	private static final String KEY_CANNOT_BE_EMPTY = "Header key cannot be null or empty.";
 	private static final String KEY_INVALID_CHARACTER = "Header key has invalid character: 0x";
 	private static final String VALUE_INVALID_CHARACTERS = "Header value has invalid character: 0x";
 
@@ -73,30 +73,28 @@ public class Headers {
 	 * @param keysNotToCopy an array of keys that should not be copied
 	 */
 	public Headers(@Nullable Headers headers, boolean readOnly, String @Nullable [] keysNotToCopy) {
-		Map<String, List<String>> tempValuesMap = new HashMap<>();
-		Map<String, Integer> tempLengthMap = new HashMap<>();
-		if (headers != null) {
-			tempValuesMap.putAll(headers.valuesMap);
-			tempLengthMap.putAll(headers.lengthMap);
-			dataLength = headers.dataLength;
-			if (keysNotToCopy != null) {
-				for (String key : keysNotToCopy) {
-					if (key != null) {
-						if (tempValuesMap.remove(key) != null) {
-							dataLength -= tempLengthMap.remove(key);
-						}
-					}
+		this.readOnly = readOnly;
+
+		if (headers == null) {
+			this.valuesMap = readOnly ? Collections.emptyMap() : new HashMap<>();
+			this.lengthMap = readOnly ? Collections.emptyMap() : new HashMap<>();
+			return;
+		}
+
+		// Copy-construct: pre-sizes and skips per-entry afterNodeInsertion vs new + putAll.
+		// No Collections.unmodifiableMap wrapper necessary: every public mutator
+		// (add/put/remove/clear) already short-circuits on `readOnly` before
+		// touching the map, and the map is never exposed by reference.
+		this.valuesMap = new HashMap<>(headers.valuesMap);
+		this.lengthMap = new HashMap<>(headers.lengthMap);
+		this.dataLength = headers.dataLength;
+
+		if (keysNotToCopy != null) {
+			for (String key : keysNotToCopy) {
+				if (this.valuesMap.remove(key) != null) {
+					this.dataLength -= this.lengthMap.remove(key);
 				}
 			}
-		}
-		this.readOnly = readOnly;
-		if (readOnly) {
-			valuesMap = Collections.unmodifiableMap(tempValuesMap);
-			lengthMap = Collections.unmodifiableMap(tempLengthMap);
-		}
-		else {
-			valuesMap = tempValuesMap;
-			lengthMap = tempLengthMap;
 		}
 	}
 
@@ -247,7 +245,7 @@ public class Headers {
 
 	static ValuesAndLength validateKeyAndCollect(String key, Collection<String> values) {
 		if (key == null || key.isEmpty()) {
-			throw new IllegalArgumentException(KEY_CANNOT_BE_EMPTY_OR_NULL);
+			throw new IllegalArgumentException(KEY_CANNOT_BE_EMPTY);
 		}
 		// Check the key to ensure it matches the specification for keys.
 		int keyLen = key.length();
@@ -466,6 +464,21 @@ public class Headers {
 	}
 
 	/**
+	 * Returns a read-only view of the underlying map.
+	 * Both the map and each {@code List<String>} value are unmodifiable.
+	 * @return an unmodifiable map of header keys to their list of values
+	 */
+	@NonNull
+	public Map<String, List<String>> toMap() {
+		if (valuesMap.isEmpty()) {
+			return Collections.emptyMap();
+		}
+		Map<String, List<String>> result = new HashMap<>((int)(valuesMap.size() / 0.75f) + 1);
+		valuesMap.forEach((k, v) -> result.put(k, Collections.unmodifiableList(v)));
+		return Collections.unmodifiableMap(result);
+	}
+
+	/**
 	 * Returns if the headers are dirty, which means the serialization
 	 * has not been done so also don't know the byte length
 	 * @return true if dirty
@@ -500,7 +513,7 @@ public class Headers {
 	/**
 	 * @deprecated
 	 * Used for unit testing.
-     * Appends the serialized bytes to the builder. 
+     * Appends the serialized bytes to the builder.
 	 * @param bab the ByteArrayBuilder to append
 	 * @return the builder
 	 */

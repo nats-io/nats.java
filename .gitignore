@@ -1,8 +1,10 @@
 
-# NATS stuff #
-##############
+# NATS / custom #
+#################
 gnatsd.log
 *.csv
+examples/**/Z*.java
+**/Debug*.java
 
 # Compiled source #
 ###################

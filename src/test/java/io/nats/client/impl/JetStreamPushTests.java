@@ -104,6 +104,8 @@ public class JetStreamPushTests extends JetStreamTestBase {
             messages0 = readMessagesAck(sub3, null);
             validateRedAndTotal(5, messages0.size(), 5, 5);
 
+            unsubscribeEnsureNotBound(sub3);
+
             // Subscription 4 testing timeout <= 0 duration / millis
             JetStreamSubscription sub4 = js.subscribe(tsc.subject(), options);
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
@@ -328,13 +330,22 @@ public class JetStreamPushTests extends JetStreamTestBase {
             // create the stream.
             TestingStreamContainer tsc = new TestingStreamContainer(nc);
 
-            PushSubscribeOptions pso = ConsumerConfiguration.builder().headersOnly(true).buildPushSubscribeOptions();
-            JetStreamSubscription sub = js.subscribe(tsc.subject(), pso);
+            JetStreamSubscription subHeadersRegular = js.subscribe(tsc.subject(),
+                ConsumerConfiguration.builder().buildPushSubscribeOptions());
+
+            JetStreamSubscription subHeadersOnly = js.subscribe(tsc.subject(),
+                ConsumerConfiguration.builder().headersOnly(true).buildPushSubscribeOptions());
+
             nc.flush(Duration.ofSeconds(1)); // flush outgoing communication with/to the server
 
             jsPublish(js, tsc.subject(), 5);
 
-            List<Message> messages = readMessagesAck(sub, Duration.ZERO, 5);
+            List<Message> messages = readMessagesAck(subHeadersRegular, Duration.ZERO, 5);
+            assertEquals(5, messages.size());
+            assertTrue(messages.get(0).getData().length > 0);
+            assertNull(messages.get(0).getHeaders());
+
+            messages = readMessagesAck(subHeadersOnly, Duration.ZERO, 5);
             assertEquals(5, messages.size());
             assertEquals(0, messages.get(0).getData().length);
             assertNotNull(messages.get(0).getHeaders());

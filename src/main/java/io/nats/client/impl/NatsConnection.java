@@ -123,8 +123,8 @@ class NatsConnection implements Connection {
         return subjectValidator.validate(subject, required);
     }
 
-    protected String replyValidate(String replyTo, boolean required) {
-        return replyValidator.validate(replyTo, required);
+    protected String replyValidate(String replyTo) {
+        return replyValidator.validate(replyTo, false);
     }
 
     protected NatsConnection(@NonNull Options options) {
@@ -1034,7 +1034,7 @@ class NatsConnection implements Connection {
 
     protected void publishInternal(@NonNull String subject, @Nullable String replyTo, @Nullable Headers headers, byte @Nullable [] data, boolean flushImmediatelyAfterPublish) {
         subject = subjectValidate(subject, true);
-        replyTo = replyValidate(replyTo, false);
+        replyTo = replyValidate(replyTo);
         NatsPublishableMessage npm = new NatsPublishableMessage(subject, replyTo, headers, data, flushImmediatelyAfterPublish);
         if (npm.hasHeaders && !serverInfo.get().isHeadersSupported()) {
             throw new IllegalArgumentException("Headers are not supported by the server, version: " + serverInfo.get().getVersion());
@@ -1385,6 +1385,7 @@ class NatsConnection implements Connection {
                                                      @Nullable Duration futureTimeout,
                                                      @NonNull CancelAction cancelAction,
                                                      boolean flushImmediatelyAfterPublish) {
+        subject = subjectValidate(subject, true);
         if (isClosed()) {
             throw new IllegalStateException("Connection is Closed");
         }
