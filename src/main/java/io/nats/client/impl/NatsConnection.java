@@ -1310,7 +1310,6 @@ class NatsConnection implements Connection {
                             @NonNull CancelAction cancelAction,
                             boolean flushImmediatelyAfterPublish) throws InterruptedException
     {
-        subject = subjectValidate(subject, true);
         CompletableFuture<Message> incoming = requestFutureInternal(subject, headers, data, timeout, cancelAction, flushImmediatelyAfterPublish);
         try {
             if (timeout == null) {

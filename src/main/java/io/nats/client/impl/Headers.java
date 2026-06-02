@@ -465,11 +465,17 @@ public class Headers {
 
 	/**
 	 * Returns a read-only view of the underlying map.
+	 * Both the map and each {@code List<String>} value are unmodifiable.
 	 * @return an unmodifiable map of header keys to their list of values
 	 */
 	@NonNull
 	public Map<String, List<String>> toMap() {
-		return Collections.unmodifiableMap(valuesMap);
+		if (valuesMap.isEmpty()) {
+			return Collections.emptyMap();
+		}
+		Map<String, List<String>> result = new HashMap<>((int)(valuesMap.size() / 0.75f) + 1);
+		valuesMap.forEach((k, v) -> result.put(k, Collections.unmodifiableList(v)));
+		return Collections.unmodifiableMap(result);
 	}
 
 	/**
