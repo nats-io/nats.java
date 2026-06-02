@@ -101,7 +101,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public CompletableFuture<PublishAck> publishAsync(String subject, byte[] body) {
-        return publishAsyncInternal(subject, null, body, null, true);
+        return publishAsyncInternal(subject, null, body, null);
     }
 
     /**
@@ -109,7 +109,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public CompletableFuture<PublishAck> publishAsync(String subject, Headers headers, byte[] body) {
-        return publishAsyncInternal(subject, headers, body, null, true);
+        return publishAsyncInternal(subject, headers, body, null);
     }
 
     /**
@@ -117,7 +117,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public CompletableFuture<PublishAck> publishAsync(String subject, byte[] body, PublishOptions options) {
-        return publishAsyncInternal(subject, null, body, options, true);
+        return publishAsyncInternal(subject, null, body, options);
     }
 
     /**
@@ -125,7 +125,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
      */
     @Override
     public CompletableFuture<PublishAck> publishAsync(String subject, Headers headers, byte[] body, PublishOptions options) {
-        return publishAsyncInternal(subject, headers, body, options, true);
+        return publishAsyncInternal(subject, headers, body, options);
     }
 
     /**
@@ -134,7 +134,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     @Override
     public CompletableFuture<PublishAck> publishAsync(Message message) {
         validateNotNull(message, "Message");
-        return publishAsyncInternal(message.getSubject(), message.getHeaders(), message.getData(), null, false);
+        return publishAsyncInternal(message.getSubject(), message.getHeaders(), message.getData(), null);
     }
 
     /**
@@ -143,7 +143,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
     @Override
     public CompletableFuture<PublishAck> publishAsync(Message message, PublishOptions options) {
         validateNotNull(message, "Message");
-        return publishAsyncInternal(message.getSubject(), message.getHeaders(), message.getData(), options, false);
+        return publishAsyncInternal(message.getSubject(), message.getHeaders(), message.getData(), options);
     }
 
     private PublishAck publishSyncInternal(String subject, Headers headers, byte[] data, PublishOptions options) throws IOException, JetStreamApiException {
@@ -158,7 +158,7 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
         return processPublishResponse(resp, options);
     }
 
-    private CompletableFuture<PublishAck> publishAsyncInternal(String subject, Headers headers, byte[] data, PublishOptions options, boolean validateSubjectAndReplyTo) {
+    private CompletableFuture<PublishAck> publishAsyncInternal(String subject, Headers headers, byte[] data, PublishOptions options) {
         Headers merged = mergePublishOptions(headers, options);
 
         if (jso.isPublishNoAck()) {

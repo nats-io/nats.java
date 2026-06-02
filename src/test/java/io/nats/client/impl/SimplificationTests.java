@@ -185,54 +185,73 @@ public class SimplificationTests extends JetStreamTestBase {
     static int FETCH_EPHEMERAL = 1;
     static int FETCH_DURABLE = 2;
     static int FETCH_ORDERED = 3;
+
     @Test
-    public void testFetch() throws Exception {
+    public void testFetchEphemeral() throws Exception {
         jsServer.run(TestBase::atLeast2_9_1, nc -> {
             TestingStreamContainer tsc = new TestingStreamContainer(nc);
-            JetStream js = nc.jetStream();
-            for (int x = 1; x <= 20; x++) {
-                js.publish(tsc.subject(), ("test-fetch-msg-" + x).getBytes());
-            }
-
-            for (int f = FETCH_EPHEMERAL; f <= FETCH_ORDERED; f++) {
-                // 1. Different fetch sizes demonstrate expiration behavior
-
-                // 1A. equal number of messages to the fetch size
-                _testFetch("1A", nc, tsc, 20, 0, 20, f, false);
-
-                // 1B. more messages than the fetch size
-                _testFetch("1B", nc, tsc, 10, 0, 10, f, false);
-
-                // 1C. fewer messages than the fetch size
-                _testFetch("1C", nc, tsc, 40, 0, 40, f, false);
-
-                // 1D. simple-consumer-40msgs was created in 1C and has no messages available
-                _testFetch("1D", nc, tsc, 40, 0, 40, f, false);
-
-                // 2. Different max bytes sizes demonstrate expiration behavior
-                //    - each test message is approximately 100 bytes
-
-                // 2A. max bytes are reached before message count
-                _testFetch("2A", nc, tsc, 0, 750, 20, f, false);
-
-                // 2B. fetch size is reached before byte count
-                _testFetch("2B", nc, tsc, 10, 1500, 10, f, false);
-
-                if (f == FETCH_DURABLE) {
-                    // this is long-running, so don't want to test every time
-                    // 2C. fewer bytes than the byte count
-                    _testFetch("2C", nc, tsc, 0, 3000, 40, f, false);
-                }
-                else if (f == FETCH_ORDERED) {
-                    // just to get coverage of testing with a consumer name prefix
-                    _testFetch("1A", nc, tsc, 20, 0, 20, f, true);
-                    _testFetch("2A", nc, tsc, 0, 750, 20, f, true);
-                }
-            }
+            _testFetch(nc, tsc, FETCH_EPHEMERAL);
         });
     }
 
-    private void _testFetch(String label, Connection nc, TestingStreamContainer tsc, int maxMessages, int maxBytes, int testAmount, int fetchType, boolean useConsumerPrefix) throws Exception {
+    @Test
+    public void testFetchDurable() throws Exception {
+        jsServer.run(TestBase::atLeast2_9_1, nc -> {
+            TestingStreamContainer tsc = new TestingStreamContainer(nc);
+            _testFetch(nc, tsc, FETCH_DURABLE);
+        });
+    }
+
+    @Test
+    public void testFetchOrdered() throws Exception {
+        jsServer.run(TestBase::atLeast2_9_1, nc -> {
+            TestingStreamContainer tsc = new TestingStreamContainer(nc);
+            _testFetch(nc, tsc, FETCH_ORDERED);
+        });
+    }
+
+    private void _testFetch(Connection nc, TestingStreamContainer tsc, int testType) throws Exception {
+        JetStream js = nc.jetStream();
+        for (int x = 1; x <= 20; x++) {
+            js.publish(tsc.subject(), ("test-fetch-msg-" + x).getBytes());
+        }
+
+        // 1. Different fetch sizes demonstrate expiration behavior
+
+        // 1A. equal number of messages to the fetch size
+        _testFetch("1A", nc, tsc, 20, 0, 20, testType, false);
+
+        // 1B. more messages than the fetch size
+        _testFetch("1B", nc, tsc, 10, 0, 10, testType, false);
+
+        // 1C. fewer messages than the fetch size
+        _testFetch("1C", nc, tsc, 40, 0, 40, testType, false);
+
+        // 1D. simple-consumer-40msgs was created in 1C and has no messages available
+        _testFetch("1D", nc, tsc, 40, 0, 40, testType, false);
+
+        // 2. Different max bytes sizes demonstrate expiration behavior
+        //    - each test message is approximately 100 bytes
+
+        // 2A. max bytes are reached before message count
+        _testFetch("2A", nc, tsc, 0, 750, 20, testType, false);
+
+        // 2B. fetch size is reached before byte count
+        _testFetch("2B", nc, tsc, 10, 1500, 10, testType, false);
+
+        if (testType == FETCH_DURABLE) {
+            // this is long-running, so don't want to test every time
+            // 2C. fewer bytes than the byte count
+            _testFetch("2C", nc, tsc, 0, 3000, 40, testType, false);
+        }
+        else if (testType == FETCH_ORDERED) {
+            // just to get coverage of testing with a consumer name prefix
+            _testFetch("1A", nc, tsc, 20, 0, 20, testType, true);
+            _testFetch("2A", nc, tsc, 0, 750, 20, testType, true);
+        }
+    }
+
+    private void _testFetch(String testType, Connection nc, TestingStreamContainer tsc, int maxMessages, int maxBytes, int testAmount, int fetchType, boolean useConsumerPrefix) throws Exception {
         JetStreamManagement jsm = nc.jetStreamManagement();
         JetStream js = nc.jetStream();
 
@@ -302,7 +321,7 @@ public class SimplificationTests extends JetStreamTestBase {
             elapsed = System.currentTimeMillis() - start;
         }
 
-        switch (label) {
+        switch (testType) {
             case "1A":
             case "1B":
             case "2B":
