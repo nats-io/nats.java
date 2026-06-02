@@ -69,6 +69,7 @@ public class StreamConfigurationTests extends JetStreamTestBase {
                 .sealed(false)
                 .compressionOption(compressionOption)
                 .allowMessageCounter(false)
+                .allowMessageSchedules(false)
                 .persistMode(null)
                 .build();
             JetStreamManagement jsm = nc.jetStreamManagement();
