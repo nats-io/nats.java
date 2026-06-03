@@ -293,30 +293,30 @@ public class Options {
     }
 
     /**
-     * Whether subject strings should be validated against naming rules,
-     * and the level of subject validation.
+     * Controls when the {@link ReconnectDelayHandler} is invoked during reconnect attempts.
      */
     public enum ReconnectDelayBehavior {
         /**
-         * Invoke reconnect delay behavior as has been done up until now,
-         * only after a full round of reconnect attempts has occurred and failed.
+         * Invoke the reconnect delay only before subsequent rounds, never before the first round.
+         * The first round of reconnect attempts runs immediately; the delay applies between rounds
+         * after a full round has been attempted and failed. This is the historical default.
          * {@link ReconnectDelayHandler#getWaitTime(long)} will only be called with
          * {@code totalTries} greater than or equal to 1.
          */
-        Legacy,
+        BeforeSubsequentRounds,
         /**
          * Invoke reconnect delay behavior before each full round of reconnect attempts.
          * {@link ReconnectDelayHandler#getWaitTime(long)} will be called with
          * {@code totalTries} greater than or equal to 0.
          */
-        Every;
+        BeforeAllRounds;
 
         /**
          * Resolve a {@link ReconnectDelayBehavior} from a string (case-insensitive name match).
-         * Returns {@link #Legacy} if the value is null or does not match any constant.
+         * Returns {@link #BeforeSubsequentRounds} if the value is null or does not match any constant.
          *
          * @param value the string value
-         * @return the matching behavior, or {@link #Legacy} as the default
+         * @return the matching behavior, or {@link #BeforeSubsequentRounds} as the default
          */
         public static ReconnectDelayBehavior get(String value) {
             if (value != null) {
@@ -326,7 +326,7 @@ public class Options {
                     }
                 }
             }
-            return Legacy;
+            return BeforeSubsequentRounds;
         }
     }
 
@@ -499,10 +499,10 @@ public class Options {
      * Property used to set class name for the ReconnectDelayHandler implementation
      * {@link Builder#reconnectDelayHandler(ReconnectDelayHandler) reconnectDelayHandler}.
      */
-    public static final String PROP_RECONNECT_DELAY_HANDLER_CLASS = "reconnect.delay.handler.class";
+    public static final String PROP_RECONNECT_DELAY_HANDLER_CLASS = PFX + "reconnect.delay.handler.class";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#reconnectDelayBehavior(ReconnectDelayBehavior)
-     * reconnectDelayBehavior}. Value is the name of a {@link ReconnectDelayBehavior} constant (e.g. {@code Legacy}, {@code Every}).
+     * reconnectDelayBehavior}. Value is the name of a {@link ReconnectDelayBehavior} constant (e.g. {@code BeforeSubsequentRounds}, {@code BeforeAllRounds}).
      */
     public static final String PROP_RECONNECT_DELAY_BEHAVIOR = PFX + "reconnect.delay.behavior";
     /**
@@ -1069,7 +1069,7 @@ public class Options {
 
         private AuthHandler authHandler;
         private ReconnectDelayHandler reconnectDelayHandler;
-        private ReconnectDelayBehavior reconnectDelayBehavior = ReconnectDelayBehavior.Legacy;
+        private ReconnectDelayBehavior reconnectDelayBehavior = ReconnectDelayBehavior.BeforeSubsequentRounds;
 
         private ErrorListener errorListener = null;
         private TimeTraceLogger timeTraceLogger = null;
@@ -1962,13 +1962,13 @@ public class Options {
         /**
          * Set the {@link ReconnectDelayBehavior ReconnectDelayBehavior} that controls when the
          * {@link ReconnectDelayHandler} is invoked during reconnect attempts. Defaults to
-         * {@link ReconnectDelayBehavior#Legacy}. A null value resets to {@link ReconnectDelayBehavior#Legacy}.
+         * {@link ReconnectDelayBehavior#BeforeSubsequentRounds}. A null value resets to {@link ReconnectDelayBehavior#BeforeSubsequentRounds}.
          *
          * @param reconnectDelayBehavior the behavior
          * @return the Builder for chaining
          */
         public Builder reconnectDelayBehavior(ReconnectDelayBehavior reconnectDelayBehavior) {
-            this.reconnectDelayBehavior = reconnectDelayBehavior == null ? ReconnectDelayBehavior.Legacy : reconnectDelayBehavior;
+            this.reconnectDelayBehavior = reconnectDelayBehavior == null ? ReconnectDelayBehavior.BeforeSubsequentRounds : reconnectDelayBehavior;
             return this;
         }
 
@@ -2843,7 +2843,7 @@ public class Options {
 
     /**
      * the reconnect delay behavior, see {@link Builder#reconnectDelayBehavior(ReconnectDelayBehavior) reconnectDelayBehavior()} in the builder doc
-     * @return the behavior, never null (defaults to {@link ReconnectDelayBehavior#Legacy})
+     * @return the behavior, never null (defaults to {@link ReconnectDelayBehavior#BeforeSubsequentRounds})
      */
     public ReconnectDelayBehavior reconnectDelayBehavior() {
         return this.reconnectDelayBehavior;

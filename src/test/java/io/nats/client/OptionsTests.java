@@ -795,56 +795,56 @@ public class OptionsTests {
     public void testReconnectDelayBehavior() {
         // default
         Options o = new Options.Builder().build();
-        assertEquals(ReconnectDelayBehavior.Legacy, o.reconnectDelayBehavior());
+        assertEquals(ReconnectDelayBehavior.BeforeSubsequentRounds, o.reconnectDelayBehavior());
 
         // builder set explicitly
-        o = new Options.Builder().reconnectDelayBehavior(ReconnectDelayBehavior.Legacy).build();
-        assertEquals(ReconnectDelayBehavior.Legacy, o.reconnectDelayBehavior());
+        o = new Options.Builder().reconnectDelayBehavior(ReconnectDelayBehavior.BeforeSubsequentRounds).build();
+        assertEquals(ReconnectDelayBehavior.BeforeSubsequentRounds, o.reconnectDelayBehavior());
 
-        o = new Options.Builder().reconnectDelayBehavior(ReconnectDelayBehavior.Every).build();
-        assertEquals(ReconnectDelayBehavior.Every, o.reconnectDelayBehavior());
+        o = new Options.Builder().reconnectDelayBehavior(ReconnectDelayBehavior.BeforeAllRounds).build();
+        assertEquals(ReconnectDelayBehavior.BeforeAllRounds, o.reconnectDelayBehavior());
 
-        // null resets to Legacy
-        o = new Options.Builder().reconnectDelayBehavior(ReconnectDelayBehavior.Every)
+        // null resets to BeforeSubsequentRounds (default)
+        o = new Options.Builder().reconnectDelayBehavior(ReconnectDelayBehavior.BeforeAllRounds)
             .reconnectDelayBehavior(null).build();
-        assertEquals(ReconnectDelayBehavior.Legacy, o.reconnectDelayBehavior());
+        assertEquals(ReconnectDelayBehavior.BeforeSubsequentRounds, o.reconnectDelayBehavior());
 
         // via properties — case-insensitive enum name match
         Properties props = new Properties();
         o = new Options.Builder(props).build();
-        assertEquals(ReconnectDelayBehavior.Legacy, o.reconnectDelayBehavior());
+        assertEquals(ReconnectDelayBehavior.BeforeSubsequentRounds, o.reconnectDelayBehavior());
 
         props.clear();
-        props.setProperty(Options.PROP_RECONNECT_DELAY_BEHAVIOR, "Legacy");
+        props.setProperty(Options.PROP_RECONNECT_DELAY_BEHAVIOR, "BeforeSubsequentRounds");
         o = new Options.Builder(props).build();
-        assertEquals(ReconnectDelayBehavior.Legacy, o.reconnectDelayBehavior());
+        assertEquals(ReconnectDelayBehavior.BeforeSubsequentRounds, o.reconnectDelayBehavior());
 
         props.clear();
-        props.setProperty(Options.PROP_RECONNECT_DELAY_BEHAVIOR, "Every");
+        props.setProperty(Options.PROP_RECONNECT_DELAY_BEHAVIOR, "BeforeAllRounds");
         o = new Options.Builder(props).build();
-        assertEquals(ReconnectDelayBehavior.Every, o.reconnectDelayBehavior());
+        assertEquals(ReconnectDelayBehavior.BeforeAllRounds, o.reconnectDelayBehavior());
 
         props.clear();
-        props.setProperty(Options.PROP_RECONNECT_DELAY_BEHAVIOR, "every");
+        props.setProperty(Options.PROP_RECONNECT_DELAY_BEHAVIOR, "beforeallrounds");
         o = new Options.Builder(props).build();
-        assertEquals(ReconnectDelayBehavior.Every, o.reconnectDelayBehavior());
+        assertEquals(ReconnectDelayBehavior.BeforeAllRounds, o.reconnectDelayBehavior());
 
         props.clear();
-        props.setProperty(Options.PROP_RECONNECT_DELAY_BEHAVIOR, "EVERY");
+        props.setProperty(Options.PROP_RECONNECT_DELAY_BEHAVIOR, "BEFOREALLROUNDS");
         o = new Options.Builder(props).build();
-        assertEquals(ReconnectDelayBehavior.Every, o.reconnectDelayBehavior());
+        assertEquals(ReconnectDelayBehavior.BeforeAllRounds, o.reconnectDelayBehavior());
 
-        // unrecognized value falls back to Legacy
+        // unrecognized value falls back to BeforeSubsequentRounds (default)
         props.clear();
         props.setProperty(Options.PROP_RECONNECT_DELAY_BEHAVIOR, "garbage");
         o = new Options.Builder(props).build();
-        assertEquals(ReconnectDelayBehavior.Legacy, o.reconnectDelayBehavior());
+        assertEquals(ReconnectDelayBehavior.BeforeSubsequentRounds, o.reconnectDelayBehavior());
 
         // ReconnectDelayBehavior.get direct coverage
-        assertEquals(ReconnectDelayBehavior.Legacy, ReconnectDelayBehavior.get("legacy"));
-        assertEquals(ReconnectDelayBehavior.Every, ReconnectDelayBehavior.get("EVERY"));
-        assertEquals(ReconnectDelayBehavior.Legacy, ReconnectDelayBehavior.get(null));
-        assertEquals(ReconnectDelayBehavior.Legacy, ReconnectDelayBehavior.get("garbage"));
+        assertEquals(ReconnectDelayBehavior.BeforeSubsequentRounds, ReconnectDelayBehavior.get("beforesubsequentrounds"));
+        assertEquals(ReconnectDelayBehavior.BeforeAllRounds, ReconnectDelayBehavior.get("BEFOREALLROUNDS"));
+        assertEquals(ReconnectDelayBehavior.BeforeSubsequentRounds, ReconnectDelayBehavior.get(null));
+        assertEquals(ReconnectDelayBehavior.BeforeSubsequentRounds, ReconnectDelayBehavior.get("garbage"));
     }
 
     @Test
@@ -1417,6 +1417,21 @@ public class OptionsTests {
 
         assertNotNull(rdhO);
         assertEquals(10, rdhO.getWaitTime(5).getSeconds());
+
+        // PROP_RECONNECT_DELAY_HANDLER_CLASS — instantiate by class name
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_RECONNECT_DELAY_HANDLER_CLASS,
+            "io.nats.client.utils.CoverageReconnectDelayHandler");
+        o = new Options.Builder(props).build();
+        rdhO = o.getReconnectDelayHandler();
+        assertNotNull(rdhO);
+        assertInstanceOf(io.nats.client.utils.CoverageReconnectDelayHandler.class, rdhO);
+        assertEquals(7, rdhO.getWaitTime(7).toMillis());
+
+        // bad classname surfaces as IllegalArgumentException at build time
+        Properties badProps = new Properties();
+        badProps.setProperty(Options.PROP_RECONNECT_DELAY_HANDLER_CLASS, "does.not.Exist");
+        assertThrows(IllegalArgumentException.class, () -> new Options.Builder(badProps).build());
     }
 
     @Test
