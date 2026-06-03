@@ -272,6 +272,62 @@ public class Options {
          * Strict Subject Validation
          */
         Strict;
+
+        /**
+         * Resolve a {@link SubjectValidationType} from a string (case-insensitive name match).
+         * Returns {@link #Lenient} if the value is null or does not match any constant.
+         *
+         * @param value the string value
+         * @return the matching behavior, or {@link #Lenient} as the default
+         */
+        public static SubjectValidationType get(String value) {
+            if (value != null) {
+                for (SubjectValidationType svt : SubjectValidationType.values()) {
+                    if (svt.name().equalsIgnoreCase(value)) {
+                        return svt;
+                    }
+                }
+            }
+            return Lenient;
+        }
+    }
+
+    /**
+     * Whether subject strings should be validated against naming rules,
+     * and the level of subject validation.
+     */
+    public enum ReconnectDelayBehavior {
+        /**
+         * Invoke reconnect delay behavior as has been done up until now,
+         * only after a full round of reconnect attempts has occurred and failed.
+         * {@link ReconnectDelayHandler#getWaitTime(long)} will only be called with
+         * {@code totalTries} greater than or equal to 1.
+         */
+        Legacy,
+        /**
+         * Invoke reconnect delay behavior before each full round of reconnect attempts.
+         * {@link ReconnectDelayHandler#getWaitTime(long)} will be called with
+         * {@code totalTries} greater than or equal to 0.
+         */
+        Every;
+
+        /**
+         * Resolve a {@link ReconnectDelayBehavior} from a string (case-insensitive name match).
+         * Returns {@link #Legacy} if the value is null or does not match any constant.
+         *
+         * @param value the string value
+         * @return the matching behavior, or {@link #Legacy} as the default
+         */
+        public static ReconnectDelayBehavior get(String value) {
+            if (value != null) {
+                for (ReconnectDelayBehavior rdb : ReconnectDelayBehavior.values()) {
+                    if (rdb.name().equalsIgnoreCase(value)) {
+                        return rdb;
+                    }
+                }
+            }
+            return Legacy;
+        }
     }
 
     /**
@@ -440,6 +496,16 @@ public class Options {
      */
     public static final String PROP_RECONNECT_JITTER_TLS = PFX + "reconnect.jitter.tls";
     /**
+     * Property used to set class name for the ReconnectDelayHandler implementation
+     * {@link Builder#reconnectDelayHandler(ReconnectDelayHandler) reconnectDelayHandler}.
+     */
+    public static final String PROP_RECONNECT_DELAY_HANDLER_CLASS = "reconnect.delay.handler.class";
+    /**
+     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#reconnectDelayBehavior(ReconnectDelayBehavior)
+     * reconnectDelayBehavior}. Value is the name of a {@link ReconnectDelayBehavior} constant (e.g. {@code Legacy}, {@code Every}).
+     */
+    public static final String PROP_RECONNECT_DELAY_BEHAVIOR = PFX + "reconnect.delay.behavior";
+    /**
      * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#pedantic() pedantic}.
      */
     public static final String PROP_PEDANTIC = PFX + "pedantic";
@@ -487,13 +553,28 @@ public class Options {
      */
     public static final String PROP_HOSTNAME_RESOLVE_MODE = PFX + "hostnameResolveMode";
     /**
-     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#noSubjectValidation() noSubjectValidation}.
+     * Property used to configure a builder from a Properties object. {@value}, when {@code true} sets the
+     * {@link SubjectValidationType} to {@link SubjectValidationType#None}. See {@link Builder#noSubjectValidation() noSubjectValidation}.
+     * @deprecated use {@link #PROP_SUBJECT_VALIDATION_TYPE} with value {@code None} instead
      */
+    @Deprecated
     public static final String PROP_NO_SUBJECT_VALIDATION = PFX + "noSubjectValidation";
     /**
-     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#noSubjectValidation() noSubjectValidation}.
+     * Property used to configure a builder from a Properties object. {@value}, when {@code true} sets the
+     * {@link SubjectValidationType} to {@link SubjectValidationType#Strict}. See {@link Builder#strictSubjectValidation() strictSubjectValidation}.
+     * @deprecated use {@link #PROP_SUBJECT_VALIDATION_TYPE} with value {@code Strict} instead
      */
+    @Deprecated
     public static final String PROP_STRICT_SUBJECT_VALIDATION = PFX + "strictSubjectValidation";
+    /**
+     * Property used to configure a builder from a Properties object. {@value}, sets the
+     * {@link SubjectValidationType} used to validate subjects. Value is the case-insensitive name
+     * of a {@link SubjectValidationType} constant (e.g. {@code None}, {@code Lenient}, {@code Strict}).
+     * Unrecognized or missing values fall back to {@link SubjectValidationType#Lenient}.
+     * Processed after {@link #PROP_NO_SUBJECT_VALIDATION} and {@link #PROP_STRICT_SUBJECT_VALIDATION},
+     * so when set this property takes precedence over those legacy boolean properties.
+     */
+    public static final String PROP_SUBJECT_VALIDATION_TYPE = PFX + "subjectValidationType";
     /**
      * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#reportNoResponders() reportNoResponders}.
      */
@@ -821,6 +902,7 @@ public class Options {
 
     private final AuthHandler authHandler;
     private final ReconnectDelayHandler reconnectDelayHandler;
+    private final ReconnectDelayBehavior reconnectDelayBehavior;
 
     private final ErrorListener errorListener;
     private final TimeTraceLogger timeTraceLogger;
@@ -987,6 +1069,7 @@ public class Options {
 
         private AuthHandler authHandler;
         private ReconnectDelayHandler reconnectDelayHandler;
+        private ReconnectDelayBehavior reconnectDelayBehavior = ReconnectDelayBehavior.Legacy;
 
         private ErrorListener errorListener = null;
         private TimeTraceLogger timeTraceLogger = null;
@@ -1085,6 +1168,8 @@ public class Options {
             booleanProperty(props, PROP_NORANDOMIZE, b -> this.noRandomize = b);
             booleanPropertyIfTrue(props, PROP_NO_SUBJECT_VALIDATION, b -> subjectValidationType = SubjectValidationType.None);
             booleanPropertyIfTrue(props, PROP_STRICT_SUBJECT_VALIDATION, b -> subjectValidationType = SubjectValidationType.Strict);
+            stringProperty(props, PROP_SUBJECT_VALIDATION_TYPE, s -> this.subjectValidationType = SubjectValidationType.get(s));
+
             booleanProperty(props, PROP_REPORT_NO_RESPONDERS, b -> this.reportNoResponders = b);
 
             stringProperty(props, PROP_CONNECTION_NAME, s -> this.connectionName = s);
@@ -1101,6 +1186,9 @@ public class Options {
             durationProperty(props, PROP_RECONNECT_JITTER, d -> this.reconnectJitter = d);
             durationProperty(props, PROP_RECONNECT_JITTER_TLS, d -> this.reconnectJitterTls = d);
             longProperty(props, PROP_RECONNECT_BUF_SIZE, l -> this.reconnectBufferSize = l);
+
+            classnameProperty(props, PROP_RECONNECT_DELAY_HANDLER_CLASS, o -> this.reconnectDelayHandler = (ReconnectDelayHandler) o);
+            stringProperty(props, PROP_RECONNECT_DELAY_BEHAVIOR, s -> this.reconnectDelayBehavior = ReconnectDelayBehavior.get(s));
             durationProperty(props, PROP_CONNECTION_TIMEOUT, d -> this.connectionTimeout = d);
             intProperty(props, PROP_SOCKET_READ_TIMEOUT_MS, i -> this.socketReadTimeoutMillis = i);
             durationProperty(props, PROP_SOCKET_WRITE_TIMEOUT, d -> this.socketWriteTimeout = d);
@@ -1259,7 +1347,9 @@ public class Options {
          * Fastest validation, but use with caution
          * If you know your subjects are always valid.
          * @return the Builder for chaining
+         * @deprecated use {@link #subjectValidationType(SubjectValidationType)} with {@link SubjectValidationType#None} instead
          */
+        @Deprecated
         public Builder noSubjectValidation() {
             this.subjectValidationType = SubjectValidationType.None;
             return this;
@@ -1271,7 +1361,9 @@ public class Options {
          * Slower validation, but may be useful when exposing the ability
          * of an application user to set a subject.
          * @return the Builder for chaining
+         * @deprecated use {@link #subjectValidationType(SubjectValidationType)} with {@link SubjectValidationType#Strict} instead
          */
+        @Deprecated
         public Builder strictSubjectValidation() {
             this.subjectValidationType = SubjectValidationType.Strict;
             return this;
@@ -1868,6 +1960,19 @@ public class Options {
         }
 
         /**
+         * Set the {@link ReconnectDelayBehavior ReconnectDelayBehavior} that controls when the
+         * {@link ReconnectDelayHandler} is invoked during reconnect attempts. Defaults to
+         * {@link ReconnectDelayBehavior#Legacy}. A null value resets to {@link ReconnectDelayBehavior#Legacy}.
+         *
+         * @param reconnectDelayBehavior the behavior
+         * @return the Builder for chaining
+         */
+        public Builder reconnectDelayBehavior(ReconnectDelayBehavior reconnectDelayBehavior) {
+            this.reconnectDelayBehavior = reconnectDelayBehavior == null ? ReconnectDelayBehavior.Legacy : reconnectDelayBehavior;
+            return this;
+        }
+
+        /**
          * Set the {@link ErrorListener ErrorListener} to receive asynchronous error events related to this
          * connection.
          *
@@ -2347,6 +2452,7 @@ public class Options {
 
             this.authHandler = o.authHandler;
             this.reconnectDelayHandler = o.reconnectDelayHandler;
+            this.reconnectDelayBehavior = o.reconnectDelayBehavior;
 
             this.errorListener = o.errorListener;
             this.timeTraceLogger = o.timeTraceLogger;
@@ -2424,6 +2530,7 @@ public class Options {
 
         this.authHandler = b.authHandler;
         this.reconnectDelayHandler = b.reconnectDelayHandler;
+        this.reconnectDelayBehavior = b.reconnectDelayBehavior;
 
         this.errorListener = b.errorListener;
         this.timeTraceLogger = b.timeTraceLogger;
@@ -2732,6 +2839,14 @@ public class Options {
      */
     public ReconnectDelayHandler getReconnectDelayHandler() {
         return this.reconnectDelayHandler;
+    }
+
+    /**
+     * the reconnect delay behavior, see {@link Builder#reconnectDelayBehavior(ReconnectDelayBehavior) reconnectDelayBehavior()} in the builder doc
+     * @return the behavior, never null (defaults to {@link ReconnectDelayBehavior#Legacy})
+     */
+    public ReconnectDelayBehavior reconnectDelayBehavior() {
+        return this.reconnectDelayBehavior;
     }
 
     /**

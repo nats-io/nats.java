@@ -724,6 +724,48 @@ public class OptionsTests {
         o = new Options.Builder(props).build();
         assertEquals(SubjectValidationType.Strict, o.subjectValidationType());
 
+        // PROP_SUBJECT_VALIDATION_TYPE — case-insensitive enum name match for each value
+        props.clear();
+        props.setProperty(Options.PROP_SUBJECT_VALIDATION_TYPE, "None");
+        o = new Options.Builder(props).build();
+        assertEquals(SubjectValidationType.None, o.subjectValidationType());
+
+        props.clear();
+        props.setProperty(Options.PROP_SUBJECT_VALIDATION_TYPE, "lenient");
+        o = new Options.Builder(props).build();
+        assertEquals(SubjectValidationType.Lenient, o.subjectValidationType());
+
+        props.clear();
+        props.setProperty(Options.PROP_SUBJECT_VALIDATION_TYPE, "STRICT");
+        o = new Options.Builder(props).build();
+        assertEquals(SubjectValidationType.Strict, o.subjectValidationType());
+
+        // Unrecognized value falls back to Lenient
+        props.clear();
+        props.setProperty(Options.PROP_SUBJECT_VALIDATION_TYPE, "garbage");
+        o = new Options.Builder(props).build();
+        assertEquals(SubjectValidationType.Lenient, o.subjectValidationType());
+
+        // PROP_SUBJECT_VALIDATION_TYPE is processed last, so it wins over the legacy booleans
+        props.clear();
+        props.setProperty(Options.PROP_NO_SUBJECT_VALIDATION, "true");
+        props.setProperty(Options.PROP_SUBJECT_VALIDATION_TYPE, "Strict");
+        o = new Options.Builder(props).build();
+        assertEquals(SubjectValidationType.Strict, o.subjectValidationType());
+
+        props.clear();
+        props.setProperty(Options.PROP_STRICT_SUBJECT_VALIDATION, "true");
+        props.setProperty(Options.PROP_SUBJECT_VALIDATION_TYPE, "None");
+        o = new Options.Builder(props).build();
+        assertEquals(SubjectValidationType.None, o.subjectValidationType());
+
+        // SubjectValidationType.get direct coverage
+        assertEquals(SubjectValidationType.None, SubjectValidationType.get("none"));
+        assertEquals(SubjectValidationType.Lenient, SubjectValidationType.get("Lenient"));
+        assertEquals(SubjectValidationType.Strict, SubjectValidationType.get("STRICT"));
+        assertEquals(SubjectValidationType.Lenient, SubjectValidationType.get(null));
+        assertEquals(SubjectValidationType.Lenient, SubjectValidationType.get("garbage"));
+
         o = new Options.Builder().build();
         assertEquals(SubjectValidationType.Lenient, o.subjectValidationType());
 
@@ -732,6 +774,77 @@ public class OptionsTests {
 
         o = new Options.Builder().strictSubjectValidation().build();
         assertEquals(SubjectValidationType.Strict, o.subjectValidationType());
+
+        // Builder.subjectValidationType — all three values plus null reset
+        o = new Options.Builder().subjectValidationType(SubjectValidationType.None).build();
+        assertEquals(SubjectValidationType.None, o.subjectValidationType());
+
+        o = new Options.Builder().subjectValidationType(SubjectValidationType.Lenient).build();
+        assertEquals(SubjectValidationType.Lenient, o.subjectValidationType());
+
+        o = new Options.Builder().subjectValidationType(SubjectValidationType.Strict).build();
+        assertEquals(SubjectValidationType.Strict, o.subjectValidationType());
+
+        // null resets to Lenient
+        o = new Options.Builder().subjectValidationType(SubjectValidationType.Strict)
+            .subjectValidationType(null).build();
+        assertEquals(SubjectValidationType.Lenient, o.subjectValidationType());
+    }
+
+    @Test
+    public void testReconnectDelayBehavior() {
+        // default
+        Options o = new Options.Builder().build();
+        assertEquals(ReconnectDelayBehavior.Legacy, o.reconnectDelayBehavior());
+
+        // builder set explicitly
+        o = new Options.Builder().reconnectDelayBehavior(ReconnectDelayBehavior.Legacy).build();
+        assertEquals(ReconnectDelayBehavior.Legacy, o.reconnectDelayBehavior());
+
+        o = new Options.Builder().reconnectDelayBehavior(ReconnectDelayBehavior.Every).build();
+        assertEquals(ReconnectDelayBehavior.Every, o.reconnectDelayBehavior());
+
+        // null resets to Legacy
+        o = new Options.Builder().reconnectDelayBehavior(ReconnectDelayBehavior.Every)
+            .reconnectDelayBehavior(null).build();
+        assertEquals(ReconnectDelayBehavior.Legacy, o.reconnectDelayBehavior());
+
+        // via properties — case-insensitive enum name match
+        Properties props = new Properties();
+        o = new Options.Builder(props).build();
+        assertEquals(ReconnectDelayBehavior.Legacy, o.reconnectDelayBehavior());
+
+        props.clear();
+        props.setProperty(Options.PROP_RECONNECT_DELAY_BEHAVIOR, "Legacy");
+        o = new Options.Builder(props).build();
+        assertEquals(ReconnectDelayBehavior.Legacy, o.reconnectDelayBehavior());
+
+        props.clear();
+        props.setProperty(Options.PROP_RECONNECT_DELAY_BEHAVIOR, "Every");
+        o = new Options.Builder(props).build();
+        assertEquals(ReconnectDelayBehavior.Every, o.reconnectDelayBehavior());
+
+        props.clear();
+        props.setProperty(Options.PROP_RECONNECT_DELAY_BEHAVIOR, "every");
+        o = new Options.Builder(props).build();
+        assertEquals(ReconnectDelayBehavior.Every, o.reconnectDelayBehavior());
+
+        props.clear();
+        props.setProperty(Options.PROP_RECONNECT_DELAY_BEHAVIOR, "EVERY");
+        o = new Options.Builder(props).build();
+        assertEquals(ReconnectDelayBehavior.Every, o.reconnectDelayBehavior());
+
+        // unrecognized value falls back to Legacy
+        props.clear();
+        props.setProperty(Options.PROP_RECONNECT_DELAY_BEHAVIOR, "garbage");
+        o = new Options.Builder(props).build();
+        assertEquals(ReconnectDelayBehavior.Legacy, o.reconnectDelayBehavior());
+
+        // ReconnectDelayBehavior.get direct coverage
+        assertEquals(ReconnectDelayBehavior.Legacy, ReconnectDelayBehavior.get("legacy"));
+        assertEquals(ReconnectDelayBehavior.Every, ReconnectDelayBehavior.get("EVERY"));
+        assertEquals(ReconnectDelayBehavior.Legacy, ReconnectDelayBehavior.get(null));
+        assertEquals(ReconnectDelayBehavior.Legacy, ReconnectDelayBehavior.get("garbage"));
     }
 
     @Test

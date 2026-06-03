@@ -446,6 +446,9 @@ class NatsConnection implements Connection {
         while ((cur = serverPool.nextServer()) != null) {
             if (first == null) {
                 first = cur;
+                if (options.reconnectDelayBehavior() == Options.ReconnectDelayBehavior.Every) {
+                    invokeReconnectDelayHandler(0);
+                }
             }
             else if (first.equals(cur)) {
                 // went around the pool an entire time
