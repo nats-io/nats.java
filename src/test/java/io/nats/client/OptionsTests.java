@@ -724,6 +724,48 @@ public class OptionsTests {
         o = new Options.Builder(props).build();
         assertEquals(SubjectValidationType.Strict, o.subjectValidationType());
 
+        // PROP_SUBJECT_VALIDATION_TYPE — case-insensitive enum name match for each value
+        props.clear();
+        props.setProperty(Options.PROP_SUBJECT_VALIDATION_TYPE, "None");
+        o = new Options.Builder(props).build();
+        assertEquals(SubjectValidationType.None, o.subjectValidationType());
+
+        props.clear();
+        props.setProperty(Options.PROP_SUBJECT_VALIDATION_TYPE, "lenient");
+        o = new Options.Builder(props).build();
+        assertEquals(SubjectValidationType.Lenient, o.subjectValidationType());
+
+        props.clear();
+        props.setProperty(Options.PROP_SUBJECT_VALIDATION_TYPE, "STRICT");
+        o = new Options.Builder(props).build();
+        assertEquals(SubjectValidationType.Strict, o.subjectValidationType());
+
+        // Unrecognized value falls back to Lenient
+        props.clear();
+        props.setProperty(Options.PROP_SUBJECT_VALIDATION_TYPE, "garbage");
+        o = new Options.Builder(props).build();
+        assertEquals(SubjectValidationType.Lenient, o.subjectValidationType());
+
+        // PROP_SUBJECT_VALIDATION_TYPE is processed last, so it wins over the legacy booleans
+        props.clear();
+        props.setProperty(Options.PROP_NO_SUBJECT_VALIDATION, "true");
+        props.setProperty(Options.PROP_SUBJECT_VALIDATION_TYPE, "Strict");
+        o = new Options.Builder(props).build();
+        assertEquals(SubjectValidationType.Strict, o.subjectValidationType());
+
+        props.clear();
+        props.setProperty(Options.PROP_STRICT_SUBJECT_VALIDATION, "true");
+        props.setProperty(Options.PROP_SUBJECT_VALIDATION_TYPE, "None");
+        o = new Options.Builder(props).build();
+        assertEquals(SubjectValidationType.None, o.subjectValidationType());
+
+        // SubjectValidationType.get direct coverage
+        assertEquals(SubjectValidationType.None, SubjectValidationType.get("none"));
+        assertEquals(SubjectValidationType.Lenient, SubjectValidationType.get("Lenient"));
+        assertEquals(SubjectValidationType.Strict, SubjectValidationType.get("STRICT"));
+        assertEquals(SubjectValidationType.Lenient, SubjectValidationType.get(null));
+        assertEquals(SubjectValidationType.Lenient, SubjectValidationType.get("garbage"));
+
         o = new Options.Builder().build();
         assertEquals(SubjectValidationType.Lenient, o.subjectValidationType());
 
@@ -732,6 +774,77 @@ public class OptionsTests {
 
         o = new Options.Builder().strictSubjectValidation().build();
         assertEquals(SubjectValidationType.Strict, o.subjectValidationType());
+
+        // Builder.subjectValidationType — all three values plus null reset
+        o = new Options.Builder().subjectValidationType(SubjectValidationType.None).build();
+        assertEquals(SubjectValidationType.None, o.subjectValidationType());
+
+        o = new Options.Builder().subjectValidationType(SubjectValidationType.Lenient).build();
+        assertEquals(SubjectValidationType.Lenient, o.subjectValidationType());
+
+        o = new Options.Builder().subjectValidationType(SubjectValidationType.Strict).build();
+        assertEquals(SubjectValidationType.Strict, o.subjectValidationType());
+
+        // null resets to Lenient
+        o = new Options.Builder().subjectValidationType(SubjectValidationType.Strict)
+            .subjectValidationType(null).build();
+        assertEquals(SubjectValidationType.Lenient, o.subjectValidationType());
+    }
+
+    @Test
+    public void testReconnectDelayBehavior() {
+        // default
+        Options o = new Options.Builder().build();
+        assertEquals(ReconnectDelayBehavior.BeforeSubsequentRounds, o.reconnectDelayBehavior());
+
+        // builder set explicitly
+        o = new Options.Builder().reconnectDelayBehavior(ReconnectDelayBehavior.BeforeSubsequentRounds).build();
+        assertEquals(ReconnectDelayBehavior.BeforeSubsequentRounds, o.reconnectDelayBehavior());
+
+        o = new Options.Builder().reconnectDelayBehavior(ReconnectDelayBehavior.BeforeAllRounds).build();
+        assertEquals(ReconnectDelayBehavior.BeforeAllRounds, o.reconnectDelayBehavior());
+
+        // null resets to BeforeSubsequentRounds (default)
+        o = new Options.Builder().reconnectDelayBehavior(ReconnectDelayBehavior.BeforeAllRounds)
+            .reconnectDelayBehavior(null).build();
+        assertEquals(ReconnectDelayBehavior.BeforeSubsequentRounds, o.reconnectDelayBehavior());
+
+        // via properties — case-insensitive enum name match
+        Properties props = new Properties();
+        o = new Options.Builder(props).build();
+        assertEquals(ReconnectDelayBehavior.BeforeSubsequentRounds, o.reconnectDelayBehavior());
+
+        props.clear();
+        props.setProperty(Options.PROP_RECONNECT_DELAY_BEHAVIOR, "BeforeSubsequentRounds");
+        o = new Options.Builder(props).build();
+        assertEquals(ReconnectDelayBehavior.BeforeSubsequentRounds, o.reconnectDelayBehavior());
+
+        props.clear();
+        props.setProperty(Options.PROP_RECONNECT_DELAY_BEHAVIOR, "BeforeAllRounds");
+        o = new Options.Builder(props).build();
+        assertEquals(ReconnectDelayBehavior.BeforeAllRounds, o.reconnectDelayBehavior());
+
+        props.clear();
+        props.setProperty(Options.PROP_RECONNECT_DELAY_BEHAVIOR, "beforeallrounds");
+        o = new Options.Builder(props).build();
+        assertEquals(ReconnectDelayBehavior.BeforeAllRounds, o.reconnectDelayBehavior());
+
+        props.clear();
+        props.setProperty(Options.PROP_RECONNECT_DELAY_BEHAVIOR, "BEFOREALLROUNDS");
+        o = new Options.Builder(props).build();
+        assertEquals(ReconnectDelayBehavior.BeforeAllRounds, o.reconnectDelayBehavior());
+
+        // unrecognized value falls back to BeforeSubsequentRounds (default)
+        props.clear();
+        props.setProperty(Options.PROP_RECONNECT_DELAY_BEHAVIOR, "garbage");
+        o = new Options.Builder(props).build();
+        assertEquals(ReconnectDelayBehavior.BeforeSubsequentRounds, o.reconnectDelayBehavior());
+
+        // ReconnectDelayBehavior.get direct coverage
+        assertEquals(ReconnectDelayBehavior.BeforeSubsequentRounds, ReconnectDelayBehavior.get("beforesubsequentrounds"));
+        assertEquals(ReconnectDelayBehavior.BeforeAllRounds, ReconnectDelayBehavior.get("BEFOREALLROUNDS"));
+        assertEquals(ReconnectDelayBehavior.BeforeSubsequentRounds, ReconnectDelayBehavior.get(null));
+        assertEquals(ReconnectDelayBehavior.BeforeSubsequentRounds, ReconnectDelayBehavior.get("garbage"));
     }
 
     @Test
@@ -1304,6 +1417,21 @@ public class OptionsTests {
 
         assertNotNull(rdhO);
         assertEquals(10, rdhO.getWaitTime(5).getSeconds());
+
+        // PROP_RECONNECT_DELAY_HANDLER_CLASS — instantiate by class name
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_RECONNECT_DELAY_HANDLER_CLASS,
+            "io.nats.client.utils.CoverageReconnectDelayHandler");
+        o = new Options.Builder(props).build();
+        rdhO = o.getReconnectDelayHandler();
+        assertNotNull(rdhO);
+        assertInstanceOf(io.nats.client.utils.CoverageReconnectDelayHandler.class, rdhO);
+        assertEquals(7, rdhO.getWaitTime(7).toMillis());
+
+        // bad classname surfaces as IllegalArgumentException at build time
+        Properties badProps = new Properties();
+        badProps.setProperty(Options.PROP_RECONNECT_DELAY_HANDLER_CLASS, "does.not.Exist");
+        assertThrows(IllegalArgumentException.class, () -> new Options.Builder(badProps).build());
     }
 
     @Test
