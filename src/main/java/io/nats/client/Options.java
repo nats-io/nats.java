@@ -718,6 +718,10 @@ public class Options {
      */
     public static final String PROP_USE_TIMEOUT_EXCEPTION = PFX + "use.timeout.exception";
     /**
+     * Property used to enable advanced request behavior, see {@link Builder#advancedRequestBehavior()}.
+     */
+    public static final String PROP_ADVANCED_REQUEST_BEHAVIOR = PFX + "advanced.request.behavior";
+    /**
      * Property used to a dispatcher that dispatches messages via the executor service instead of with a blocking call.
      * {@link Builder#useDispatcherWithExecutor()}.
      */
@@ -897,6 +901,7 @@ public class Options {
     private final boolean ignoreDiscoveredServers;
     private final boolean tlsFirst;
     private final boolean useTimeoutException;
+    private final boolean advancedRequestBehavior;
     private final boolean useDispatcherWithExecutor;
     private final boolean forceFlushOnRequest;
 
@@ -1062,6 +1067,7 @@ public class Options {
         private boolean ignoreDiscoveredServers = false;
         private boolean tlsFirst = false;
         private boolean useTimeoutException = false;
+        private boolean advancedRequestBehavior = false;
         private boolean useDispatcherWithExecutor = false;
         private boolean forceFlushOnRequest = true; // true since it's the original b/w compatible way
         private ServerPool serverPool = null;
@@ -1217,6 +1223,7 @@ public class Options {
             booleanProperty(props, PROP_IGNORE_DISCOVERED_SERVERS, b -> this.ignoreDiscoveredServers = b);
             booleanProperty(props, PROP_TLS_FIRST, b -> this.tlsFirst = b);
             booleanProperty(props, PROP_USE_TIMEOUT_EXCEPTION, b -> this.useTimeoutException = b);
+            booleanProperty(props, PROP_ADVANCED_REQUEST_BEHAVIOR, b -> this.advancedRequestBehavior = b);
             booleanProperty(props, PROP_USE_DISPATCHER_WITH_EXECUTOR, b -> this.useDispatcherWithExecutor = b);
             booleanProperty(props, PROP_FORCE_FLUSH_ON_REQUEST, b -> this.forceFlushOnRequest = b);
 
@@ -1701,7 +1708,7 @@ public class Options {
          * @return the Builder for chaining
          */
         public Builder connectionTimeout(Duration connectionTimeout) {
-            this.connectionTimeout = connectionTimeout;
+            this.connectionTimeout = connectionTimeout == null ? DEFAULT_CONNECTION_TIMEOUT : connectionTimeout;
             return this;
         }
 
@@ -1713,7 +1720,7 @@ public class Options {
          * @return the Builder for chaining
          */
         public Builder connectionTimeout(long connectionTimeoutMillis) {
-            this.connectionTimeout = Duration.ofMillis(connectionTimeoutMillis);
+            this.connectionTimeout = connectionTimeoutMillis < 1 ? DEFAULT_CONNECTION_TIMEOUT : Duration.ofMillis(connectionTimeoutMillis);
             return this;
         }
 
@@ -2208,6 +2215,19 @@ public class Options {
         }
 
         /**
+         * Enable advanced request behavior. When enabled, JetStream requests that return no response
+         * throw a {@link RequestFailureException} carrying a specific
+         * {@link RequestFailureReason} (timeout, connection closing, no-responders,
+         * protocol error, ...) plus the connection status and last protocol error, instead of the
+         * generic "Timeout or no response" IOException.
+         * @return the Builder for chaining
+         */
+        public Builder advancedRequestBehavior() {
+            this.advancedRequestBehavior = true;
+            return this;
+        }
+
+        /**
          * Instruct dispatchers to dispatch all messages as a task, instead of directly from dispatcher thread
          * @return the Builder for chaining
          */
@@ -2475,6 +2495,7 @@ public class Options {
             this.ignoreDiscoveredServers = o.ignoreDiscoveredServers;
             this.tlsFirst = o.tlsFirst;
             this.useTimeoutException = o.useTimeoutException;
+            this.advancedRequestBehavior = o.advancedRequestBehavior;
             this.useDispatcherWithExecutor = o.useDispatcherWithExecutor;
             this.forceFlushOnRequest = o.forceFlushOnRequest;
 
@@ -2554,6 +2575,7 @@ public class Options {
         this.ignoreDiscoveredServers = b.ignoreDiscoveredServers;
         this.tlsFirst = b.tlsFirst;
         this.useTimeoutException = b.useTimeoutException;
+        this.advancedRequestBehavior = b.advancedRequestBehavior;
         this.useDispatcherWithExecutor = b.useDispatcherWithExecutor;
         this.forceFlushOnRequest = b.forceFlushOnRequest;
 
@@ -3300,6 +3322,14 @@ public class Options {
      */
     public boolean useTimeoutException() {
         return useTimeoutException;
+    }
+
+    /**
+     * Get whether advanced request behavior is enabled.
+     * @return the flag
+     */
+    public boolean advancedRequestBehavior() {
+        return advancedRequestBehavior;
     }
 
     /**

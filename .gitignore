@@ -4,7 +4,12 @@
 gnatsd.log
 *.csv
 examples/**/Z*.java
+**/examples/z/**
+**/examples/testapp_mc/**
 **/Debug*.java
+.claude/**
+env.bat
+**/TestDebugger*
 
 # Compiled source #
 ###################

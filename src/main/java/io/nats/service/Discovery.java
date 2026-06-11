@@ -17,6 +17,7 @@ import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.NatsSystemClock;
 import io.nats.client.Subscription;
+import io.nats.client.impl.RequestFailureMessage;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -185,7 +186,8 @@ public class Discovery {
         String subject = Service.toDiscoverySubject(action, serviceName, serviceId);
         try {
             Message m = conn.request(subject, null, Duration.ofNanos(maxTimeNanos));
-            if (m != null) {
+            // with advancedRequestBehavior a no-response comes back as a RequestFailureMessage instead of null
+            if (m != null && !(m instanceof RequestFailureMessage)) {
                 return m.getData();
             }
         }

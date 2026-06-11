@@ -1313,12 +1313,29 @@ class NatsConnection implements Connection {
                             @NonNull CancelAction cancelAction,
                             boolean flushImmediatelyAfterPublish) throws InterruptedException
     {
-        CompletableFuture<Message> incoming = requestFutureInternal(subject, headers, data, timeout, cancelAction, flushImmediatelyAfterPublish);
-        try {
-            if (timeout == null) {
-                timeout = getOptions().getConnectionTimeout();
+        NatsRequestCompletableFuture incoming = requestFutureInternal(subject, headers, data, timeout, cancelAction, flushImmediatelyAfterPublish);
+
+        long timeoutNanos = timeout == null ? getOptions().getConnectionTimeout().toNanos() : timeout.toNanos();
+
+        if (options.advancedRequestBehavior()) {
+            Throwable cause;
+            try {
+                return incoming.get(timeoutNanos, TimeUnit.NANOSECONDS);
             }
-            return incoming.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
+            catch (TimeoutException | CancellationException e) {
+                // RequestFailureMessage classifies the failure (reason) from the state passed in
+                cause = e;
+            }
+            catch (ExecutionException e) {
+                // unwrap: carry the underlying cause, not the ExecutionException wrapper, so it is consistent
+                // with the TimeoutException/CancellationException caught directly above (see RequestFailureMessage.getCause)
+                cause = e;
+            }
+            return new RequestFailureMessage(incoming, cause, timeout, getStatus(), getLastError());
+        }
+
+        try {
+            return incoming.get(timeoutNanos, TimeUnit.NANOSECONDS);
         }
         catch (TimeoutException | ExecutionException | CancellationException e) {
             return null;
@@ -1382,7 +1399,7 @@ class NatsConnection implements Connection {
     }
 
     @NonNull
-    protected CompletableFuture<Message> requestFutureInternal(@NonNull String subject,
+    protected NatsRequestCompletableFuture requestFutureInternal(@NonNull String subject,
                                                      @Nullable Headers headers,
                                                      byte @Nullable [] body,
                                                      @Nullable Duration futureTimeout,

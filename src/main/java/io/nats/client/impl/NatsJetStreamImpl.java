@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.JetStreamApiException;
 import io.nats.client.JetStreamOptions;
 import io.nats.client.Message;
+import io.nats.client.RequestFailureException;
 import io.nats.client.api.*;
 import io.nats.client.support.NatsJetStreamConstants;
 
@@ -238,7 +239,8 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
     Message makeRequestResponseRequired(String subject, byte[] bytes, Duration timeout) throws IOException {
         try {
             return responseRequired(conn.request(prependPrefix(subject), bytes, timeout));
-        } catch (InterruptedException e) {
+        }
+        catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException(e);
         }
@@ -247,7 +249,8 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
     Message makeInternalRequestResponseRequired(String subject, Headers headers, byte[] data, Duration timeout, CancelAction cancelAction, boolean flushImmediatelyAfterPublish) throws IOException {
         try {
             return responseRequired(conn.requestInternal(subject, headers, data, timeout, cancelAction, flushImmediatelyAfterPublish));
-        } catch (InterruptedException e) {
+        }
+        catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException(e);
         }
@@ -256,6 +259,9 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
     Message responseRequired(Message respMessage) throws IOException {
         if (respMessage == null) {
             throw new IOException("Timeout or no response waiting for NATS JetStream server");
+        }
+        if (respMessage instanceof RequestFailureMessage) {
+            throw new RequestFailureException((RequestFailureMessage)respMessage);
         }
         return respMessage;
     }
