@@ -169,10 +169,10 @@ public class ConsumerConfigurationTests extends TestBase {
         assertNull(c.getIdleHeartbeat());
 
         c = ConsumerConfiguration.builder().idleHeartbeat(Duration.ZERO).build();
-        assertEquals(DURATION_UNSET, c.getIdleHeartbeat());
+        assertNull(c.getIdleHeartbeat());
 
         c = ConsumerConfiguration.builder().idleHeartbeat(0).build();
-        assertEquals(DURATION_UNSET, c.getIdleHeartbeat());
+        assertNull(c.getIdleHeartbeat());
 
         c = ConsumerConfiguration.builder().idleHeartbeat(Duration.ofMillis(MIN_IDLE_HEARTBEAT_MILLIS + 1)).build();
         assertEquals(Duration.ofMillis(MIN_IDLE_HEARTBEAT_MILLIS + 1), c.getIdleHeartbeat());
