@@ -1203,7 +1203,7 @@ public class ConsumerConfiguration implements JsonSerializable {
             else {
                 long nanos = idleHeartbeat.toNanos();
                 if (nanos <= DURATION_UNSET_LONG) {
-                    this.idleHeartbeat = DURATION_UNSET;
+                    this.idleHeartbeat = null;
                 }
                 else if (nanos < MIN_IDLE_HEARTBEAT_NANOS) {
                     throw new IllegalArgumentException("Duration must be greater than or equal to " + MIN_IDLE_HEARTBEAT_NANOS + " nanos.");
