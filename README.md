@@ -602,6 +602,8 @@ assertEquals(8000, o.getMaxMessagesInOutgoingQueue());
 | callback.executor.service.class   | Property used to set class name for the callback executor                            |
 | connect.thread.factory.class      | Property used to set class name for the connection executor thread factory           |              
 | callback.thread.factory.class     | Property used to set class name for the callback executor thread factory             |
+| reader.thread.factory.class       | Property used to set class name for the reader thread factory                        |
+| writer.thread.factory.class       | Property used to set class name for the writer thread factory                        |
 | read.listener.class               | Property used to set class name for the ReadListener implementation                  |
 | fast.fallback                     | Use fast fallback algorithm for socket connection                                    |
 ```

@@ -112,7 +112,7 @@ class NatsConnectionReader implements Runnable {
     void start(Future<DataPort> dataPortFuture) {
         this.dataPortFuture = dataPortFuture;
         this.running.set(true);
-        this.stopped = connection.getExecutor().submit(this, Boolean.TRUE);
+        this.stopped = connection.getReaderExecutor().submit(this, Boolean.TRUE);
     }
 
     Future<Boolean> stop() {

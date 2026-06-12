@@ -1323,6 +1323,44 @@ public class OptionsTests {
         connectFuture.get(5, TimeUnit.SECONDS);
     }
 
+    @Test
+    public void testReaderExecutor() throws ExecutionException, InterruptedException, TimeoutException {
+        ThreadFactory threadFactory = r -> new Thread(r, "test");
+        Options options = new Options.Builder()
+                .readerThreadFactory(threadFactory)
+                .build();
+        Future<?> readerFuture = options.getReaderExecutor().submit(() -> {
+            assertEquals("test", Thread.currentThread().getName());
+        });
+        readerFuture.get(5, TimeUnit.SECONDS);
+
+        // copy constructor preserves the factory
+        Options copy = new Options.Builder(options).build();
+        Future<?> copyFuture = copy.getReaderExecutor().submit(() -> {
+            assertEquals("test", Thread.currentThread().getName());
+        });
+        copyFuture.get(5, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void testWriterExecutor() throws ExecutionException, InterruptedException, TimeoutException {
+        ThreadFactory threadFactory = r -> new Thread(r, "test");
+        Options options = new Options.Builder()
+                .writerThreadFactory(threadFactory)
+                .build();
+        Future<?> writerFuture = options.getWriterExecutor().submit(() -> {
+            assertEquals("test", Thread.currentThread().getName());
+        });
+        writerFuture.get(5, TimeUnit.SECONDS);
+
+        // copy constructor preserves the factory
+        Options copy = new Options.Builder(options).build();
+        Future<?> copyFuture = copy.getWriterExecutor().submit(() -> {
+            assertEquals("test", Thread.currentThread().getName());
+        });
+        copyFuture.get(5, TimeUnit.SECONDS);
+    }
+
     String[] schemes = new String[]   { "NATS", "unk",  "tls",  "opentls",  "ws",   "wss", "nats"};
     boolean[] secures = new boolean[] { false,  false,  true,   true,       false,  true,  false};
     boolean[] wses = new boolean[]    { false,  false,  false,  false,      true,   true,  false};

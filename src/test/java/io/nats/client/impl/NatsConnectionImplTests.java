@@ -225,4 +225,50 @@ public class NatsConnectionImplTests {
             assertEquals(2, count2.get());
         }
     }
+
+    // A ThreadFactory that delegates to the default factory but records the
+    // name of every thread it creates, so the test can prove it was used.
+    static class RecordingThreadFactory implements ThreadFactory {
+        final ThreadFactory delegate = Executors.defaultThreadFactory();
+        final java.util.List<String> created = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+        final String prefix;
+
+        RecordingThreadFactory(String prefix) {
+            this.prefix = prefix;
+        }
+
+        @Override
+        public Thread newThread(Runnable r) {
+            Thread t = delegate.newThread(r);
+            t.setName(prefix + "-" + t.getName());
+            created.add(t.getName());
+            return t;
+        }
+    }
+
+    @Test
+    public void testReaderWriterThreadFactoryUsed() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer()) {
+            RecordingThreadFactory readerFactory = new RecordingThreadFactory("test-reader");
+            RecordingThreadFactory writerFactory = new RecordingThreadFactory("test-writer");
+
+            Options options = standardOptionsBuilder(ts.getNatsLocalhostUri())
+                .readerThreadFactory(readerFactory)
+                .writerThreadFactory(writerFactory)
+                .build();
+
+            try (NatsConnection nc = (NatsConnection)standardConnection(options)) {
+                // exercise the connection so the writer (and the reader, via the
+                // resulting protocol traffic) are definitely running
+                nc.publish("subject", "data".getBytes());
+                flushConnection(nc);
+
+                // the reader and writer were each submitted to executors built
+                // from the supplied factories when the connection started, so
+                // each factory must have created at least one thread
+                assertFalse(readerFactory.created.isEmpty());
+                assertFalse(writerFactory.created.isEmpty());
+            }
+        }
+    }
 }
