@@ -181,6 +181,56 @@ Behavior and Benchmark over 37 million passes...
 
 ## Recent Version Notes
 
+### Version 2.26.0 Advanced Request Behavior
+
+This release adds an opt-in connection option, `advancedRequestBehavior`, that surfaces *why* a request
+came back without a response instead of the generic timeout. The detail is a classified
+`RequestFailureReason` — one of `TIMEOUT`, `CONNECTION_CLOSING`, `NO_RESPONDERS`, `SERVER_ERROR`, or
+`CANCELLED` — plus the connection status, the last server error, and the original exception chained as
+the cause, so you can tell a real timeout apart from a reconnect, a permissions error, or no stream on
+the subject.
+
+It applies to both request styles:
+- **JetStream** requests (publish, stream/consumer management) throw a `RequestFailureException` in
+  place of the generic `IOException("Timeout or no response waiting for NATS JetStream server")`.
+- **Core** `Connection.request(...)` returns a `RequestFailureMessage` (which *is* a `Message`) instead
+  of `null`, which you can inspect for the same detail.
+
+The option is off by default; existing behavior is unchanged unless you enable in the connection options.
+
+```java
+Options options = Options.builder()
+    .server("nats://localhost:4222")
+    .advancedRequestBehavior()
+    .build();
+```
+
+For JetStream, catch the typed exception and branch on the reason:
+
+```java
+try {
+    js.publish("subject", data);
+}
+catch (RequestFailureException e) {
+    // e.getReason(), e.getConnectionStatus(), e.getLastError(), e.getCause()
+    log.warn("publish failed: {} (status={})", e.getReason(), e.getConnectionStatus());
+}
+```
+
+For a core request, the message will never be null. It will either be the response message or will be a RequestFailureMessage. You must inspect the returned message:
+
+```java
+Message m = nc.request("subject", data, Duration.ofSeconds(2));
+if (m instanceof RequestFailureMessage) {
+    RequestFailureMessage rfm = (RequestFailureMessage)m;
+    log.warn("request failed: {} (status={})", rfm.getReason(), rfm.getConnectionStatus());
+}
+```
+
+The two paths are distinct: a JetStream request **throws** `RequestFailureException` (which extends
+`IOException`, so existing `catch (IOException)` blocks keep working), while a core `request(...)`
+**returns** the `RequestFailureMessage` — it does not throw.
+
 ### Version 2.21.2
 
 Starting with 2.21.2 snapshots, the project has been migrated to Sonatype's Maven Central Repository. 
@@ -543,6 +593,7 @@ assertEquals(8000, o.getMaxMessagesInOutgoingQueue());
 | credential.path                   | Property used to set the path to a credentials file to be used in a FileAuthHandler  |
 | tls.first                         | Property used to set TLS Handshake First behavior                                    |
 | use.timeout.exception             | Instruct the client to throw TimeoutException instead of CancellationException       |
+| advanced.request.behavior         | Surface a specific RequestFailureException (reason, status, last error) on no reply |
 | use.dispatcher.with.executor      | Instruct dispatchers to dispatch all messages as a task                              |
 | force.flush.on.request            | When makeing a core request, send the message as soon as it's first in the queue     |
 | executor.service.class            | Property used to set class name for the main executor                                |

@@ -145,6 +145,22 @@ public class OptionsTests {
     }
 
     @Test
+    public void testAdvancedRequestBehavior() {
+        // default
+        assertFalse(new Options.Builder().build().advancedRequestBehavior(), "default advancedRequestBehavior");
+
+        // builder method + copy constructor
+        Options o = new Options.Builder().advancedRequestBehavior().build();
+        assertTrue(o.advancedRequestBehavior(), "chained advancedRequestBehavior");
+        assertTrue(new Options.Builder(o).build().advancedRequestBehavior(), "copied advancedRequestBehavior");
+
+        // environment property
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_ADVANCED_REQUEST_BEHAVIOR, "true");
+        assertTrue(new Options.Builder(props).build().advancedRequestBehavior(), "property advancedRequestBehavior");
+    }
+
+    @Test
     public void testChainedStringOptions() {
         Options o = new Options.Builder().userInfo("hello".toCharArray(), "world".toCharArray()).connectionName("name").build();
         _testChainedStringOptions(o);

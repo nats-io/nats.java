@@ -14,6 +14,8 @@
 package io.nats.client.impl;
 
 import io.nats.client.Connection;
+import io.nats.client.Message;
+import io.nats.client.RequestFailureMessage;
 
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
@@ -46,7 +48,9 @@ class NatsJetStreamMessage extends IncomingMessage {
         if (ackHasntBeenTermed()) {
             validateDurationRequired(d);
             Connection nc = getJetStreamValidatedConnection();
-            if (nc.request(replyTo, AckAck.bytes, d) == null) {
+            Message ackResp = nc.request(replyTo, AckAck.bytes, d);
+            // with advancedRequestBehavior a no-response comes back as a RequestFailureMessage instead of null
+            if (ackResp == null || ackResp instanceof RequestFailureMessage) {
                 throw new TimeoutException("Ack response timed out.");
             }
             lastAck = AckAck;
