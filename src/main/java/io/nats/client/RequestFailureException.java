@@ -13,10 +13,7 @@
 
 package io.nats.client;
 
-import io.nats.client.impl.RequestFailureMessage;
-
 import java.io.IOException;
-import java.time.Duration;
 
 /**
  * Carries the detail of a request that came back without a response, but only when
@@ -35,6 +32,7 @@ import java.time.Duration;
  * inspect or wrap in this exception.
  */
 public class RequestFailureException extends IOException {
+    private static final long serialVersionUID = 1L;
 
     private final RequestFailureMessage rfm;
 
@@ -45,8 +43,7 @@ public class RequestFailureException extends IOException {
 
     private static String buildMessage(RequestFailureMessage rfm) {
         StringBuilder sb = new StringBuilder("Request failed [reason=").append(rfm.getReason())
-            .append(", connectionStatus=").append(rfm.getConnectionStatus())
-            .append(", waited=").append(rfm.getWaited());
+            .append(", connectionStatus=").append(rfm.getConnectionStatus());
         String lastError = rfm.getLastError();
         if (lastError != null && !lastError.isEmpty()) {
             sb.append(", lastError=").append(lastError);
@@ -73,12 +70,5 @@ public class RequestFailureException extends IOException {
      */
     public String getLastError() {
         return rfm.getLastError();
-    }
-
-    /**
-     * @return how long the request waited before failing
-     */
-    public Duration getWaited() {
-        return rfm.getWaited();
     }
 }

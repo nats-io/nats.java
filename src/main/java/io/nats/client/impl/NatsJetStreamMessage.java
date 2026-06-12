@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.Connection;
 import io.nats.client.Message;
+import io.nats.client.RequestFailureMessage;
 
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;

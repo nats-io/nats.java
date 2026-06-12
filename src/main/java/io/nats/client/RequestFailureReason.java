@@ -15,8 +15,8 @@ package io.nats.client;
 
 /**
  * The classified reason a request returned no response, surfaced on a {@link RequestFailureException}
- * (JetStream requests) or carried by a {@link io.nats.client.impl.RequestFailureMessage} (core
- * requests) when {@link Options.Builder#advancedRequestBehavior()} is enabled.
+ * (JetStream requests) or carried by a {@link RequestFailureMessage} (core requests) when
+ * {@link Options.Builder#advancedRequestBehavior()} is enabled.
  */
 public enum RequestFailureReason {
     /** The request deadline elapsed with no reply (real server slowness or a short timeout). */
@@ -25,8 +25,8 @@ public enum RequestFailureReason {
     CONNECTION_CLOSING,
     /** A 503 No Responders - nothing was subscribed to the subject (e.g. no stream covers it). */
     NO_RESPONDERS,
-    /** The server sent a protocol -ERR (permissions violation, max payload, ...); see lastError. */
-    PROTOCOL_ERROR,
+    /** The server reported an error via -ERR (permissions violation, max payload, ...); see lastError. */
+    SERVER_ERROR,
     /** The request was cancelled for an unclassified reason. */
     CANCELLED
 }

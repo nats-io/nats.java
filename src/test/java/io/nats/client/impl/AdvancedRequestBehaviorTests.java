@@ -53,7 +53,6 @@ public class AdvancedRequestBehaviorTests extends TestBase {
 
             assertEquals(RequestFailureReason.NO_RESPONDERS, e.getReason());
             assertEquals(Connection.Status.CONNECTED, e.getConnectionStatus());
-            assertNotNull(e.getWaited());
             // no protocol -ERR was involved
             assertTrue(e.getLastError() == null || e.getLastError().isEmpty());
         });
@@ -101,7 +100,6 @@ public class AdvancedRequestBehaviorTests extends TestBase {
 
             assertEquals(RequestFailureReason.TIMEOUT, e.getReason());
             assertEquals(Connection.Status.CONNECTED, e.getConnectionStatus());
-            assertNotNull(e.getWaited());
             assertTrue(e.getLastError() == null || e.getLastError().isEmpty());
         });
     }
@@ -119,7 +117,6 @@ public class AdvancedRequestBehaviorTests extends TestBase {
             RequestFailureMessage rfm = (RequestFailureMessage) m;
             assertEquals(RequestFailureReason.NO_RESPONDERS, rfm.getReason());
             assertEquals(Connection.Status.CONNECTED, rfm.getConnectionStatus());
-            assertNotNull(rfm.getWaited());
         });
     }
 
@@ -182,7 +179,6 @@ public class AdvancedRequestBehaviorTests extends TestBase {
             RequestFailureException e = (RequestFailureException) t;
             assertEquals(RequestFailureReason.CONNECTION_CLOSING, e.getReason(),
                 "expected CONNECTION_CLOSING, message was: " + e.getMessage());
-            assertNotNull(e.getWaited());
         }
         finally {
             ts.close(); // idempotent; ensure cleanup even if assertions above threw
@@ -190,7 +186,7 @@ public class AdvancedRequestBehaviorTests extends TestBase {
     }
 
     // ----------------------------------------------------------------------------------------------------
-    // PROTOCOL_ERROR is NOT covered here. To deterministically populate the connection's lastError with a
+    // SERVER_ERROR is NOT covered here. To deterministically populate the connection's lastError with a
     // server -ERR at the exact moment a JetStream request fails, you need a server configured with
     // restricted permissions (e.g. a user without subscribe permission on its own inbox) so the inbox
     // subscription draws a permissions violation, and then time a JetStream request to observe a non-empty
@@ -198,8 +194,8 @@ public class AdvancedRequestBehaviorTests extends TestBase {
     // when the -ERR lands relative to the request future completing. It is too involved / timing-sensitive
     // to make reliable at this integration level, so it is intentionally omitted rather than flaky.
     //
-    // CANCELLED is a fallback bucket in the classifier that is not reachable through any deterministic
-    // server scenario (cancellations route to NO_RESPONDERS or CONNECTION_CLOSING first), so it is also
-    // not covered here.
+    // CANCELLED has a dedicated branch (a cancellation that is not a 503 no-responders, not connection
+    // closing, and not a cleanup-timeout), but it represents a genuine/unmodeled cancel that no normal
+    // server scenario produces deterministically, so it is not covered here.
     // ----------------------------------------------------------------------------------------------------
 }

@@ -39,6 +39,7 @@ import java.util.function.Predicate;
 
 import static io.nats.client.support.NatsConstants.*;
 import static io.nats.client.support.NatsRequestCompletableFuture.CancelAction;
+import static io.nats.client.support.Validator.emptyAsNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 class NatsConnection implements Connection {
@@ -235,7 +236,7 @@ class NatsConnection implements Connection {
         boolean trace = options.isTraceConnection();
         long start = NatsSystemClock.nanoTime();
 
-        this.lastError.set("");
+        this.lastError.set(null);
 
         timeTraceLogger.trace("starting connect loop");
 
@@ -259,7 +260,7 @@ class NatsConnection implements Connection {
                     keepGoing = false;
                     break;
                 }
-                connectError.set(""); // new on each attempt
+                connectError.set(null); // new on each attempt
 
                 timeTraceLogger.trace("setting status to connecting");
                 updateStatus(Status.CONNECTING, resolved, cur);
@@ -462,7 +463,7 @@ class NatsConnection implements Connection {
                 if (isClosed()) {
                     return;
                 }
-                connectError.set(""); // reset on each loop
+                connectError.set(null); // reset on each loop
                 if (isDisconnectingOrClosed() || this.isClosing()) {
                     return;
                 }
@@ -1318,20 +1319,24 @@ class NatsConnection implements Connection {
         long timeoutNanos = timeout == null ? getOptions().getConnectionTimeout().toNanos() : timeout.toNanos();
 
         if (options.advancedRequestBehavior()) {
+            // getLastError() is connection-level and persists; capture it before the request and attribute
+            // a server error to this failure only if it changed (a new -ERR arrived during the request).
+            String lastErrorBefore = getLastError();
             Throwable cause;
             try {
                 return incoming.get(timeoutNanos, TimeUnit.NANOSECONDS);
             }
             catch (TimeoutException | CancellationException e) {
-                // RequestFailureMessage classifies the failure (reason) from the state passed in
                 cause = e;
             }
             catch (ExecutionException e) {
                 // unwrap: carry the underlying cause, not the ExecutionException wrapper, so it is consistent
                 // with the TimeoutException/CancellationException caught directly above (see RequestFailureMessage.getCause)
-                cause = e;
+                cause = e.getCause();
             }
-            return new RequestFailureMessage(incoming, cause, timeout, getStatus(), getLastError());
+            String lastErrorNow = getLastError();
+            String serverError = lastErrorNow != null && !lastErrorNow.equals(lastErrorBefore) ? lastErrorNow : null;
+            return new RequestFailureMessage(incoming, cause, getStatus(), serverError);
         }
 
         try {
@@ -1920,8 +1925,9 @@ class NatsConnection implements Connection {
     protected void processError(String errorText) {
         this.statistics.incrementErrCount();
 
-        this.lastError.set(errorText);
-        this.connectError.set(errorText); // even if this isn't during connection, save it just in case
+        String err = emptyAsNull(errorText);
+        this.lastError.set(err);
+        this.connectError.set(err); // even if this isn't during connection, save it just in case
 
         // If we get an authentication error, save it
         if (this.isAuthenticationError(errorText) && currentServer != null) {

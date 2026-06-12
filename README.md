@@ -185,10 +185,10 @@ Behavior and Benchmark over 37 million passes...
 
 This release adds an opt-in connection option, `advancedRequestBehavior`, that surfaces *why* a request
 came back without a response instead of the generic timeout. The detail is a classified
-`RequestFailureReason` — one of `TIMEOUT`, `CONNECTION_CLOSING`, `NO_RESPONDERS`, `PROTOCOL_ERROR`, or
-`CANCELLED` — plus the connection status, the last protocol error, how long the request waited, and the
-original exception chained as the cause, so you can tell a real timeout apart from a reconnect, a
-permissions error, or no stream on the subject.
+`RequestFailureReason` — one of `TIMEOUT`, `CONNECTION_CLOSING`, `NO_RESPONDERS`, `SERVER_ERROR`, or
+`CANCELLED` — plus the connection status, the last server error, and the original exception chained as
+the cause, so you can tell a real timeout apart from a reconnect, a permissions error, or no stream on
+the subject.
 
 It applies to both request styles:
 - **JetStream** requests (publish, stream/consumer management) throw a `RequestFailureException` in
@@ -212,9 +212,8 @@ try {
     js.publish("subject", data);
 }
 catch (RequestFailureException e) {
-    // e.getReason(), e.getConnectionStatus(), e.getWaited(), e.getLastError(), e.getCause()
-    log.warn("publish failed: {} (status={}, waited={})",
-        e.getReason(), e.getConnectionStatus(), e.getWaited());
+    // e.getReason(), e.getConnectionStatus(), e.getLastError(), e.getCause()
+    log.warn("publish failed: {} (status={})", e.getReason(), e.getConnectionStatus());
 }
 ```
 

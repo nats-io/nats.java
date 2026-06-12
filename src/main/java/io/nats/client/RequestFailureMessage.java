@@ -11,41 +11,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package io.nats.client.impl;
+package io.nats.client;
 
-import io.nats.client.Connection;
-import io.nats.client.RequestFailureException;
-import io.nats.client.RequestFailureReason;
+import io.nats.client.impl.NatsMessage;
 import io.nats.client.support.NatsRequestCompletableFuture;
 
-import java.time.Duration;
 import java.util.concurrent.CancellationException;
 
 /**
- * Internal carrier returned by {@link NatsConnection#requestInternal} in place of a null when a
- * request comes back without a response and {@link io.nats.client.Options#advancedRequestBehavior()}
- * is enabled. Construction classifies why the request came back empty (the {@link RequestFailureReason})
- * from the state captured at failure time, and carries enough detail for the JetStream layer to throw a
- * specific {@link RequestFailureException}. It is never published and never travels over the wire; the
- * public {@code Connection.request(...)} methods strip it back to null to preserve their null-on-timeout
- * contract.
+ * Carrier returned by the connection in place of a null when a request comes back without a response and
+ * {@link Options.Builder#advancedRequestBehavior()} is enabled. Construction classifies why the request
+ * came back empty (the {@link RequestFailureReason}) from the state captured at failure time, and carries
+ * enough detail for the JetStream layer to throw a specific {@link RequestFailureException}. It is never
+ * published and never travels over the wire. With the flag off it is never produced
+ * ({@code Connection.request(...)} returns null on no-response as before); with it on, core
+ * {@code request(...)} returns this carrier and JetStream wraps it in a {@link RequestFailureException}.
  */
 public class RequestFailureMessage extends NatsMessage {
 
     private final RequestFailureReason reason;
     private final Connection.Status connectionStatus;
     private final String lastError;
-    private final Duration waited;
     private final Throwable cause;
 
-    RequestFailureMessage(NatsRequestCompletableFuture future,
-                                    Throwable cause,
-                                    Duration waited,
-                                    Connection.Status connectionStatus,
-                                    String lastError) {
+    public RequestFailureMessage(NatsRequestCompletableFuture future,
+                                 Throwable cause,
+                                 Connection.Status connectionStatus,
+                                 String lastError) {
         super();
         this.cause = cause;
-        this.waited = waited;
         this.connectionStatus = connectionStatus;
         this.lastError = lastError;
         this.reason = classify(future, cause, connectionStatus, lastError);
@@ -60,13 +54,15 @@ public class RequestFailureMessage extends NatsMessage {
                 || connectionStatus == Connection.Status.DISCONNECTED) {
             return RequestFailureReason.CONNECTION_CLOSING;
         }
-        if (lastError != null && !lastError.isEmpty()) {
-            return RequestFailureReason.PROTOCOL_ERROR;
+        if (lastError != null) {
+            return RequestFailureReason.SERVER_ERROR;
         }
-        if (cause instanceof CancellationException
-                && !future.wasCancelledTimedOut()
-                && future.getCancelAction() == NatsRequestCompletableFuture.CancelAction.CANCEL) {
-            return RequestFailureReason.NO_RESPONDERS;
+        // a cancellation that is not a cleanup-timeout: NO_RESPONDERS for the 503 CANCEL path, otherwise a
+        // genuine (unmodeled) cancellation. A cleanup-timeout (wasCancelledTimedOut) falls through to TIMEOUT.
+        if (cause instanceof CancellationException && !future.wasCancelledTimedOut()) {
+            return future.getCancelAction() == NatsRequestCompletableFuture.CancelAction.CANCEL
+                ? RequestFailureReason.NO_RESPONDERS
+                : RequestFailureReason.CANCELLED;
         }
         return RequestFailureReason.TIMEOUT;
     }
@@ -81,10 +77,6 @@ public class RequestFailureMessage extends NatsMessage {
 
     public String getLastError() {
         return lastError;
-    }
-
-    public Duration getWaited() {
-        return waited;
     }
 
     /**

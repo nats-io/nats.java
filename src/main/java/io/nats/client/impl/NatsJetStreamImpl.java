@@ -13,10 +13,7 @@
 
 package io.nats.client.impl;
 
-import io.nats.client.JetStreamApiException;
-import io.nats.client.JetStreamOptions;
-import io.nats.client.Message;
-import io.nats.client.RequestFailureException;
+import io.nats.client.*;
 import io.nats.client.api.*;
 import io.nats.client.support.NatsJetStreamConstants;
 

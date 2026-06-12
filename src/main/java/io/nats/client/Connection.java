@@ -309,7 +309,10 @@ public interface Connection extends AutoCloseable {
      * @param subject the subject for the service that will handle the request
      * @param body the content of the message
      * @param timeout the time to wait for a response
-     * @return the reply message or null if the timeout is reached
+     * @return the reply message; or {@code null} if no response is received before the timeout. When
+     *         {@link Options.Builder#advancedRequestBehavior() advancedRequestBehavior} is enabled a
+     *         no-response instead returns a {@link RequestFailureMessage} (which is a {@code Message})
+     *         describing why the request failed, rather than {@code null}.
      * @throws InterruptedException if one is thrown while waiting, in order to propagate it up
      */
     @Nullable
@@ -324,7 +327,10 @@ public interface Connection extends AutoCloseable {
      * @param headers Optional headers to publish with the message.
      * @param body the content of the message
      * @param timeout the time to wait for a response
-     * @return the reply message or null if the timeout is reached
+     * @return the reply message; or {@code null} if no response is received before the timeout. When
+     *         {@link Options.Builder#advancedRequestBehavior() advancedRequestBehavior} is enabled a
+     *         no-response instead returns a {@link RequestFailureMessage} (which is a {@code Message})
+     *         describing why the request failed, rather than {@code null}.
      * @throws InterruptedException if one is thrown while waiting, in order to propagate it up
      */
     @Nullable
@@ -341,7 +347,10 @@ public interface Connection extends AutoCloseable {
      *
      * @param message the message
      * @param timeout the time to wait for a response
-     * @return the reply message or null if the timeout is reached
+     * @return the reply message; or {@code null} if no response is received before the timeout. When
+     *         {@link Options.Builder#advancedRequestBehavior() advancedRequestBehavior} is enabled a
+     *         no-response instead returns a {@link RequestFailureMessage} (which is a {@code Message})
+     *         describing why the request failed, rather than {@code null}.
      * @throws InterruptedException if one is thrown while waiting, in order to propagate it up
      */
     @Nullable

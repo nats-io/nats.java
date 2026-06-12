@@ -13,11 +13,7 @@
 
 package io.nats.service;
 
-import io.nats.client.Connection;
-import io.nats.client.Message;
-import io.nats.client.NatsSystemClock;
-import io.nats.client.Subscription;
-import io.nats.client.impl.RequestFailureMessage;
+import io.nats.client.*;
 
 import java.time.Duration;
 import java.util.ArrayList;
