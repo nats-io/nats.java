@@ -1202,8 +1202,8 @@ public class ConsumerConfiguration implements JsonSerializable {
             }
             else {
                 long nanos = idleHeartbeat.toNanos();
-                if (nanos <= DURATION_UNSET_LONG) {
-                    this.idleHeartbeat = DURATION_UNSET;
+                if (nanos < 1) {
+                    this.idleHeartbeat = null;
                 }
                 else if (nanos < MIN_IDLE_HEARTBEAT_NANOS) {
                     throw new IllegalArgumentException("Duration must be greater than or equal to " + MIN_IDLE_HEARTBEAT_NANOS + " nanos.");
@@ -1221,8 +1221,8 @@ public class ConsumerConfiguration implements JsonSerializable {
          * @return Builder
          */
         public Builder idleHeartbeat(long idleHeartbeatMillis) {
-            if (idleHeartbeatMillis <= DURATION_UNSET_LONG) {
-                this.idleHeartbeat = DURATION_UNSET;
+            if (idleHeartbeatMillis < 1) {
+                this.idleHeartbeat = null;
             }
             else if (idleHeartbeatMillis < MIN_IDLE_HEARTBEAT_MILLIS) {
                 throw new IllegalArgumentException("Duration must be greater than or equal to " + MIN_IDLE_HEARTBEAT_MILLIS + " milliseconds.");
