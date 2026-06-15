@@ -44,6 +44,8 @@ public class NatsConnectionImplTests {
             ScheduledExecutorService ses = Executors.newScheduledThreadPool(3);
             ExecutorService callbackEs = Executors.newSingleThreadExecutor();
             ExecutorService connectEs = Executors.newSingleThreadExecutor();
+            ExecutorService readerEs = Executors.newCachedThreadPool();
+            ExecutorService writerEs = Executors.newCachedThreadPool();
             assertFalse(es.isShutdown());
             assertFalse(ses.isShutdown());
 
@@ -52,11 +54,13 @@ public class NatsConnectionImplTests {
                 .scheduledExecutor(ses)
                 .callbackExecutor(callbackEs)
                 .connectExecutor(connectEs)
+                .readerExecutor(readerEs)
+                .writerExecutor(writerEs)
                 .build();
-            verifyExternalExecutors(options, es, ses, callbackEs, connectEs);
+            verifyExternalExecutors(options, es, ses, callbackEs, connectEs, readerEs, writerEs);
 
             // also shows the executors where not shutdown
-            verifyExternalExecutors(options, es, ses, callbackEs, connectEs);
+            verifyExternalExecutors(options, es, ses, callbackEs, connectEs, readerEs, writerEs);
 
             ThreadFactory callbackThreadFactory = r -> new Thread(r, "callback");
             ThreadFactory connectThreadFactory = r -> new Thread(r, "connect");
@@ -66,16 +70,20 @@ public class NatsConnectionImplTests {
                 .callbackThreadFactory(callbackThreadFactory)
                 .connectThreadFactory(connectThreadFactory)
                 .build();
-            verifyExternalExecutors(options, es, ses, null, null);
+            verifyExternalExecutors(options, es, ses, null, null, null, null);
 
             es.shutdownNow();
             ses.shutdownNow();
             callbackEs.shutdownNow();
             connectEs.shutdownNow();
+            readerEs.shutdownNow();
+            writerEs.shutdownNow();
             assertTrue(es.isShutdown());
             assertTrue(ses.isShutdown());
             assertTrue(callbackEs.isShutdown());
             assertTrue(connectEs.isShutdown());
+            assertTrue(readerEs.isShutdown());
+            assertTrue(writerEs.isShutdown());
         }
     }
 
@@ -119,7 +127,8 @@ public class NatsConnectionImplTests {
 
     private static void verifyExternalExecutors(Options options,
                                                 ExecutorService userEs, ScheduledExecutorService userSes,
-                                                ExecutorService userCallbackEs, ExecutorService userConnectEs
+                                                ExecutorService userCallbackEs, ExecutorService userConnectEs,
+                                                ExecutorService userReaderEs, ExecutorService userWriterEs
     ) throws InterruptedException, IOException {
         try (NatsConnection nc = (NatsConnection)standardConnection(options)) {
             ExecutorService es = options.getExecutor();
@@ -134,6 +143,14 @@ public class NatsConnectionImplTests {
             }
             if (userConnectEs != null) {
                 assertEquals(connectEs, userConnectEs);
+            }
+            if (userReaderEs != null) {
+                assertEquals(options.getReaderExecutor(), userReaderEs);
+                assertFalse(options.readerExecutorIsInternal());
+            }
+            if (userWriterEs != null) {
+                assertEquals(options.getWriterExecutor(), userWriterEs);
+                assertFalse(options.writerExecutorIsInternal());
             }
 
             assertFalse(options.executorIsInternal());
@@ -159,6 +176,12 @@ public class NatsConnectionImplTests {
             if (userConnectEs != null) {
                 assertFalse(userConnectEs.isShutdown());
             }
+            if (userReaderEs != null) {
+                assertFalse(userReaderEs.isShutdown());
+            }
+            if (userWriterEs != null) {
+                assertFalse(userWriterEs.isShutdown());
+            }
 
             nc.subscribe("*");
             Thread.sleep(1000);
@@ -181,6 +204,13 @@ public class NatsConnectionImplTests {
             }
             if (userConnectEs != null) {
                 assertFalse(userConnectEs.isShutdown());
+            }
+            // user supplied reader/writer executors must NOT be shut down by the connection (caller owns them)
+            if (userReaderEs != null) {
+                assertFalse(userReaderEs.isShutdown());
+            }
+            if (userWriterEs != null) {
+                assertFalse(userWriterEs.isShutdown());
             }
         }
     }
