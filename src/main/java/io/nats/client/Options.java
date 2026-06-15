@@ -751,6 +751,16 @@ public class Options {
      */
     public static final String PROP_CALLBACK_EXECUTOR_SERVICE_CLASS = "callback.executor.service.class";
     /**
+     * Property used to set class name for the Reader Executor Service (executor) class
+     * {@link Builder#readerExecutor(ExecutorService) readerExecutor}.
+     */
+    public static final String PROP_READER_EXECUTOR_SERVICE_CLASS = "reader.executor.service.class";
+    /**
+     * Property used to set class name for the Writer Executor Service (executor) class
+     * {@link Builder#writerExecutor(ExecutorService) writerExecutor}.
+     */
+    public static final String PROP_WRITER_EXECUTOR_SERVICE_CLASS = "writer.executor.service.class";
+    /**
      * Property used to set class name for the Connect Thread Factory
      * {@link Builder#connectThreadFactory(ThreadFactory) connectThreadFactory}.
      */
@@ -939,6 +949,8 @@ public class Options {
     private final ThreadFactory userWriterThreadFactory;
     private final ExecutorService userConnectExecutor;
     private final ExecutorService userCallbackExecutor;
+    private final ExecutorService userReaderExecutor;
+    private final ExecutorService userWriterExecutor;
 
     // these are not final b/c they are lazy initialized
     // and nulled during shutdownInternalExecutors
@@ -1105,6 +1117,8 @@ public class Options {
         private ThreadFactory userCallbackThreadFactory;
         private ThreadFactory userReaderThreadFactory;
         private ThreadFactory userWriterThreadFactory;
+        private ExecutorService userReaderExecutor;
+        private ExecutorService userWriterExecutor;
         private List<java.util.function.Consumer<HttpRequest>> httpRequestInterceptors;
         private Proxy proxy;
 
@@ -1270,6 +1284,8 @@ public class Options {
             classnameProperty(props, PROP_CALLBACK_THREAD_FACTORY_CLASS, o -> this.userCallbackThreadFactory = (ThreadFactory) o);
             classnameProperty(props, PROP_READER_THREAD_FACTORY_CLASS, o -> this.userReaderThreadFactory = (ThreadFactory) o);
             classnameProperty(props, PROP_WRITER_THREAD_FACTORY_CLASS, o -> this.userWriterThreadFactory = (ThreadFactory) o);
+            classnameProperty(props, PROP_READER_EXECUTOR_SERVICE_CLASS, o -> this.userReaderExecutor = (ExecutorService) o);
+            classnameProperty(props, PROP_WRITER_EXECUTOR_SERVICE_CLASS, o -> this.userWriterExecutor = (ExecutorService) o);
             return this;
         }
 
@@ -2064,6 +2080,15 @@ public class Options {
          * effect in mind, executors can block for their keepalive time. The default executor also marks threads
          * with priority normal and as non-daemon.
          *
+         * <p><b>Important:</b> the reader, the writer, and every {@link Dispatcher} run as concurrent,
+         * long-lived tasks on this executor, so it must be able to run several tasks at the same time. Do
+         * <b>not</b> supply a single-thread (or otherwise tightly bounded) executor: the reader's loop runs
+         * for the life of the connection and would starve the writer, effectively deadlocking the
+         * connection. If you need to constrain threads, isolate the protocol I/O with
+         * {@link #readerExecutor(ExecutorService) readerExecutor}/{@link #writerExecutor(ExecutorService) writerExecutor}
+         * (or {@link #readerThreadFactory(ThreadFactory) readerThreadFactory}/{@link #writerThreadFactory(ThreadFactory) writerThreadFactory})
+         * rather than shrinking this one.
+         *
          * @param executor The ExecutorService to use for connections built with these options.
          * @return the Builder for chaining
          */
@@ -2086,9 +2111,11 @@ public class Options {
         }
 
         /**
-         * Set the {@link ExecutorService} used to make connections.
-         * The default is a Single Thread Executor
-         * @param connectExecutor The ExecutorService to make connections with.
+         * Sets a custom ExecutorService used to make connections. Takes precedence over
+         * {@link #connectThreadFactory(ThreadFactory) connectThreadFactory}; the caller owns this
+         * executor's lifecycle (it is not shut down by the connection). When neither is set, an internal
+         * single-thread executor is used.
+         * @param connectExecutor the executor service to make connections with
          * @return the Builder for chaining
          */
         public Builder connectExecutor(ExecutorService connectExecutor) {
@@ -2097,9 +2124,11 @@ public class Options {
         }
 
         /**
-         * Set the {@link ExecutorService} used to make event callbacks with.
-         * The default is a Single Thread Executor
-         * @param callbackExecutor The ExecutorService to make event callbacks with.
+         * Sets a custom ExecutorService used to make event callbacks. Takes precedence over
+         * {@link #callbackThreadFactory(ThreadFactory) callbackThreadFactory}; the caller owns this
+         * executor's lifecycle (it is not shut down by the connection). When neither is set, an internal
+         * single-thread executor is used.
+         * @param callbackExecutor the executor service to make event callbacks with
          * @return the Builder for chaining
          */
         public Builder callbackExecutor(ExecutorService callbackExecutor) {
@@ -2130,10 +2159,7 @@ public class Options {
         }
 
         /**
-         * Sets a custom thread factory used to run the connection's reader. When set, the reader runs on a
-         * dedicated single-thread executor built from this factory (restarted across reconnects), letting
-         * you name the thread, set daemon/priority, or use virtual threads. When not set, the reader uses
-         * the shared connection executor as before.
+         * Sets a custom thread factory used to run the connection's reader.
          * @param threadFactory the thread factory to use for the reader
          * @return the Builder for chaining
          */
@@ -2143,15 +2169,38 @@ public class Options {
         }
 
         /**
-         * Sets a custom thread factory used to run the connection's writer. When set, the writer runs on a
-         * dedicated single-thread executor built from this factory (restarted across reconnects), letting
-         * you name the thread, set daemon/priority, or use virtual threads. When not set, the writer uses
-         * the shared connection executor as before.
+         * Sets a custom thread factory used to run the connection's writer.
          * @param threadFactory the thread factory to use for the writer
          * @return the Builder for chaining
          */
         public Builder writerThreadFactory(ThreadFactory threadFactory) {
             this.userWriterThreadFactory = threadFactory;
+            return this;
+        }
+
+        /**
+         * Sets a custom ExecutorService used to run the connection's reader. Takes precedence over
+         * {@link #readerThreadFactory(ThreadFactory) readerThreadFactory}; the caller owns this executor's
+         * lifecycle (it is not shut down by the connection). When neither is set, the reader uses the
+         * shared connection executor as before.
+         * @param readerExecutor the executor service to run the reader
+         * @return the Builder for chaining
+         */
+        public Builder readerExecutor(ExecutorService readerExecutor) {
+            this.userReaderExecutor = readerExecutor;
+            return this;
+        }
+
+        /**
+         * Sets a custom ExecutorService used to run the connection's writer. Takes precedence over
+         * {@link #writerThreadFactory(ThreadFactory) writerThreadFactory}; the caller owns this executor's
+         * lifecycle (it is not shut down by the connection). When neither is set, the writer uses the
+         * shared connection executor as before.
+         * @param writerExecutor the executor service to run the writer
+         * @return the Builder for chaining
+         */
+        public Builder writerExecutor(ExecutorService writerExecutor) {
+            this.userWriterExecutor = writerExecutor;
             return this;
         }
 
@@ -2534,6 +2583,8 @@ public class Options {
             this.userConnectThreadFactory = o.userConnectThreadFactory;
             this.userReaderThreadFactory = o.userReaderThreadFactory;
             this.userWriterThreadFactory = o.userWriterThreadFactory;
+            this.userReaderExecutor = o.userReaderExecutor;
+            this.userWriterExecutor = o.userWriterExecutor;
 
             this.httpRequestInterceptors = o.httpRequestInterceptors;
             this.proxy = o.proxy;
@@ -2616,6 +2667,8 @@ public class Options {
         this.userConnectThreadFactory = b.userConnectThreadFactory;
         this.userReaderThreadFactory = b.userReaderThreadFactory;
         this.userWriterThreadFactory = b.userWriterThreadFactory;
+        this.userReaderExecutor = b.userReaderExecutor;
+        this.userWriterExecutor = b.userWriterExecutor;
 
         this.httpRequestInterceptors = b.httpRequestInterceptors;
         this.proxy = b.proxy;
@@ -2653,10 +2706,16 @@ public class Options {
 
     private ExecutorService _getInternalExecutor() {
         String threadPrefix = nullOrEmpty(this.connectionName) ? DEFAULT_THREAD_NAME_PREFIX : this.connectionName;
+        return _getInternalExecutor(new DefaultThreadFactory(threadPrefix));
+    }
+
+    // a cached pool that creates a thread per task from the given factory (so each submitted task — e.g.
+    // a reader/writer loop — gets its own thread, even when an Options is shared across connections)
+    private ExecutorService _getInternalExecutor(ThreadFactory threadFactory) {
         return new ThreadPoolExecutor(0, Integer.MAX_VALUE,
             500L, TimeUnit.MILLISECONDS,
             new SynchronousQueue<>(),
-            new DefaultThreadFactory(threadPrefix));
+            threadFactory);
     }
 
     /**
@@ -2740,20 +2799,19 @@ public class Options {
     }
 
     /**
-     * the reader executor, see {@link Builder#readerThreadFactory(ThreadFactory) readerThreadFactory()}
-     * in the builder doc. When a reader thread factory is supplied this is a dedicated single-thread
-     * executor built from it (and owned/shut down by this Options); otherwise it is the shared connection
-     * executor ({@link #getExecutor()}), unchanged from prior behavior.
+     * the reader executor, used to run the connection's reader.
      * @return the executor
      */
     public ExecutorService getReaderExecutor() {
-        if (userReaderThreadFactory == null) {
+        if (userReaderExecutor == null && userReaderThreadFactory == null) {
             return getExecutor();
         }
         executorsLock.lock();
         try {
             if (resolvedReaderExecutor == null || resolvedReaderExecutor.isShutdown()) {
-                resolvedReaderExecutor = Executors.newSingleThreadExecutor(userReaderThreadFactory);
+                resolvedReaderExecutor = userReaderExecutor != null
+                    ? userReaderExecutor
+                    : _getInternalExecutor(userReaderThreadFactory);
             }
             return resolvedReaderExecutor;
         }
@@ -2763,20 +2821,19 @@ public class Options {
     }
 
     /**
-     * the writer executor, see {@link Builder#writerThreadFactory(ThreadFactory) writerThreadFactory()}
-     * in the builder doc. When a writer thread factory is supplied this is a dedicated single-thread
-     * executor built from it (and owned/shut down by this Options); otherwise it is the shared connection
-     * executor ({@link #getExecutor()}), unchanged from prior behavior.
+     * the writer executor, used to run the connection's writer.
      * @return the executor
      */
     public ExecutorService getWriterExecutor() {
-        if (userWriterThreadFactory == null) {
+        if (userWriterExecutor == null && userWriterThreadFactory == null) {
             return getExecutor();
         }
         executorsLock.lock();
         try {
             if (resolvedWriterExecutor == null || resolvedWriterExecutor.isShutdown()) {
-                resolvedWriterExecutor = Executors.newSingleThreadExecutor(userWriterThreadFactory);
+                resolvedWriterExecutor = userWriterExecutor != null
+                    ? userWriterExecutor
+                    : _getInternalExecutor(userWriterThreadFactory);
             }
             return resolvedWriterExecutor;
         }
@@ -2819,22 +2876,22 @@ public class Options {
 
     /**
      * whether the reader executor is an internal, dedicated one this Options created (from a supplied
-     * reader thread factory) and shuts down, versus the shared connection executor used when no reader
-     * thread factory is supplied
+     * reader thread factory) and shuts down — as opposed to a user-supplied executor (caller owns it) or
+     * the shared connection executor used when neither is supplied
      * @return true if the reader executor is internal/dedicated
      */
     public boolean readerExecutorIsInternal() {
-        return userReaderThreadFactory != null;
+        return userReaderExecutor == null && userReaderThreadFactory != null;
     }
 
     /**
      * whether the writer executor is an internal, dedicated one this Options created (from a supplied
-     * writer thread factory) and shuts down, versus the shared connection executor used when no writer
-     * thread factory is supplied
+     * writer thread factory) and shuts down — as opposed to a user-supplied executor (caller owns it) or
+     * the shared connection executor used when neither is supplied
      * @return true if the writer executor is internal/dedicated
      */
     public boolean writerExecutorIsInternal() {
-        return userWriterThreadFactory != null;
+        return userWriterExecutor == null && userWriterThreadFactory != null;
     }
 
     /**

@@ -5,7 +5,7 @@
 ### A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
 ![2.25.3](https://img.shields.io/badge/Current_Release-2.25.3-27AAE0?style=for-the-badge)
-![2.25.4](https://img.shields.io/badge/Current_Snapshot-2.25.4--SNAPSHOT-27AAE0?style=for-the-badge)
+![2.26.0](https://img.shields.io/badge/Current_Snapshot-2.26.0--SNAPSHOT-27AAE0?style=for-the-badge)
 
 [![Build Main Badge](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml/badge.svg?event=push)](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml)
 [![Coverage Status](https://coveralls.io/repos/github/nats-io/nats.java/badge.svg?branch=main)](https://coveralls.io/github/nats-io/nats.java?branch=main)
@@ -26,6 +26,7 @@
 * [Consumer Info Calls](#consumer-info-calls)
 * [Service Framework](#service-framework)
 * [Subject Validation](#subject-validation)
+* [Connection Options Executors](#connection-options-executors)
 * [Recent Version Notes](#recent-version-notes)
 * [Installation](#installation)
 * [Basic Usage](#basic-usage)
@@ -178,6 +179,28 @@ Behavior and Benchmark over 37 million passes...
 | Strict   |      `15272` |  `413.76` | Lenient plus check for improper formation of segments or wildcard use       |
 | None     |       `2155` |   `58.24` | Only checks for string not being null or empty when the subject is required |
 
+
+## Connection Options Executors
+
+An `Options` instance resolves the executors it uses once and **caches them on the `Options` instance**,
+so if you reuse a single `Options` to create more than one `Connection`, those connections **share** the
+same executors rather than each getting their own.
+
+Executors the client creates for you — the defaults, or ones built from a supplied `ThreadFactory` —
+create threads on demand and are owned and shut down by the client, so sharing an `Options` across
+connections does not starve them of threads. If instead you supply your own `ExecutorService` (e.g. via
+`executor`, `connectExecutor`, `callbackExecutor`, `readerExecutor`, or `writerExecutor`), the client
+uses it **as-is and never shuts it down — you own its lifecycle** — and because a shared `Options` routes
+every connection through that one executor, make sure it can run them concurrently (don't, for example,
+share a single-thread executor across many connections). When in doubt, give each connection its own
+`Options` instance (the builder makes this cheap).
+
+One sharp edge to be aware of with the general `executor`: the reader, the writer, and every `Dispatcher`
+run as concurrent, long-lived tasks on it, so it **must be able to run several tasks at once**. Do **not**
+supply a single-thread (or tightly bounded) `executor` — the reader's loop runs for the life of the
+connection and would starve the writer, effectively deadlocking it. If you need to limit threads, isolate
+the protocol I/O with `readerExecutor`/`writerExecutor` (or `readerThreadFactory`/`writerThreadFactory`)
+rather than shrinking the general `executor`.
 
 ## Recent Version Notes
 
@@ -600,6 +623,8 @@ assertEquals(8000, o.getMaxMessagesInOutgoingQueue());
 | scheduled.executor.service.class  | Property used to set class name for the scheduled executor                           |
 | connect.executor.service.class    | Property used to set class name for the connection executor                          |
 | callback.executor.service.class   | Property used to set class name for the callback executor                            |
+| reader.executor.service.class     | Property used to set class name for the reader executor                              |
+| writer.executor.service.class     | Property used to set class name for the writer executor                              |
 | connect.thread.factory.class      | Property used to set class name for the connection executor thread factory           |              
 | callback.thread.factory.class     | Property used to set class name for the callback executor thread factory             |
 | reader.thread.factory.class       | Property used to set class name for the reader thread factory                        |
