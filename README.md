@@ -113,12 +113,12 @@ There is a new simplified api that makes working with streams and consumers well
 
 Check out the examples:
 
-* [ContextExample](src/examples/java/io/nats/examples/jetstream/simple/ContextExample.java)
-* [FetchBytesExample](src/examples/java/io/nats/examples/jetstream/simple/FetchBytesExample.java)
-* [FetchMessagesExample](src/examples/java/io/nats/examples/jetstream/simple/FetchMessagesExample.java)
-* [IterableConsumerExample](src/examples/java/io/nats/examples/jetstream/simple/IterableConsumerExample.java)
-* [MessageConsumerExample](src/examples/java/io/nats/examples/jetstream/simple/MessageConsumerExample.java)
-* [NextExample](src/examples/java/io/nats/examples/jetstream/simple/NextExample.java)
+* [ContextExample](examples/src/main/java/io/nats/examples/jetstream/simple/ContextExample.java)
+* [FetchBytesExample](examples/src/main/java/io/nats/examples/jetstream/simple/FetchBytesExample.java)
+* [FetchMessagesExample](examples/src/main/java/io/nats/examples/jetstream/simple/FetchMessagesExample.java)
+* [IterableConsumerExample](examples/src/main/java/io/nats/examples/jetstream/simple/IterableConsumerExample.java)
+* [MessageConsumerExample](examples/src/main/java/io/nats/examples/jetstream/simple/MessageConsumerExample.java)
+* [NextExample](examples/src/main/java/io/nats/examples/jetstream/simple/NextExample.java)
 
 ## Consumer Info Calls
 
