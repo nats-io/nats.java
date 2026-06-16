@@ -13,6 +13,7 @@
 package io.nats.client.api;
 
 import io.nats.client.impl.JetStreamTestBase;
+import io.nats.client.support.JsonParseException;
 import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonValue;
 import org.junit.jupiter.api.Test;
@@ -25,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class KeyValueConfigurationTests extends JetStreamTestBase {
 
     @Test
-    public void testConstruction() {
+    public void testConstruction() throws JsonParseException {
         Placement p = Placement.builder().cluster("cluster").tags("a", "b").build();
         Republish r = Republish.builder().source("src").destination("dest").headersOnly(true).build();
 
@@ -52,6 +53,10 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
 
         JsonValue jvSc = JsonParser.parseUnchecked(bc.getBackingConfig().toJson());
         validate(new KeyValueConfiguration(StreamConfiguration.instance(jvSc)));
+
+        // public instance(String) builds from the backing stream-config JSON, same as above
+        validate(KeyValueConfiguration.instance(bc.getBackingConfig().toJson()));
+        assertThrows(JsonParseException.class, () -> KeyValueConfiguration.instance("not json"));
 
         bc = KeyValueConfiguration.builder()
                 .name("bucketName")

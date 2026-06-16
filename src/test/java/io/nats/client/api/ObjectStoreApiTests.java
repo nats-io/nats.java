@@ -15,6 +15,7 @@ package io.nats.client.api;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.JsonParseException;
 import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonValue;
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class ObjectStoreApiTests extends JetStreamTestBase {
 
     @Test
-    public void testConfigurationConstruction() {
+    public void testConfigurationConstruction() throws JsonParseException {
         Placement p = Placement.builder().cluster("cluster").tags("a", "b").build();
 
         // builder
@@ -64,6 +65,10 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
 
         JsonValue jvSc = JsonParser.parseUnchecked(osc.getBackingConfig().toJson());
         validate(new ObjectStoreConfiguration(StreamConfiguration.instance(jvSc)));
+
+        // public instance(String) builds from the backing stream-config JSON, same as above
+        validate(ObjectStoreConfiguration.instance(osc.getBackingConfig().toJson()));
+        assertThrows(JsonParseException.class, () -> ObjectStoreConfiguration.instance("not json"));
     }
 
     private void validate(ObjectStoreConfiguration osc) {

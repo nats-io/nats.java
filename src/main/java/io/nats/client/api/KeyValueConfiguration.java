@@ -12,15 +12,15 @@
 // limitations under the License.
 package io.nats.client.api;
 
-import io.nats.client.support.JsonValue;
-import io.nats.client.support.JsonValueUtils;
-import io.nats.client.support.NatsKeyValueUtil;
+import io.nats.client.support.*;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
 import java.util.*;
 
+import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonValueUtils.*;
 import static io.nats.client.support.NatsJetStreamConstants.SERVER_DEFAULT_DUPLICATE_WINDOW_MS;
 import static io.nats.client.support.NatsKeyValueUtil.*;
 import static io.nats.client.support.Validator.*;
@@ -113,6 +113,39 @@ public class KeyValueConfiguration extends FeatureConfiguration {
         mb.put("limitMarkerTtl", getLimitMarkerTtl());
         mb.jv.mapOrder.add("metaData");
         return mb.toJsonValue();
+    }
+
+    /**
+     * Returns a KeyValueConfiguration deserialized from the JSON form of its backing stream configuration,
+     * for example {@code KeyValueConfiguration.instance(kvc.getBackingConfig().toJson())} or the JSON of
+     * the bucket's backing stream from the server.
+     *
+     * @see FeatureConfiguration#getBackingConfig()
+     * @param json the json representing the (backing stream) Key Value Configuration
+     * @return KeyValueConfiguration for the given json
+     * @throws JsonParseException if there is a problem parsing the json
+     */
+    public static KeyValueConfiguration instance(String json) throws JsonParseException {
+        JsonValue v = JsonParser.parse(json);
+        // read each field that has a builder setter, then build() so KV validation/derivation runs.
+        // (do not assume a valid backing stream config is a valid KV config)
+        return new Builder()
+            .name(extractBucketName(readString(v, NAME)))
+            .description(readString(v, DESCRIPTION))
+            .maxHistoryPerKey(readInteger(v, MAX_MSGS_PER_SUB, 1))
+            .maxBucketSize(readLong(v, MAX_BYTES, -1))
+            .maximumValueSize(readInteger(v, MAX_MSG_SIZE, -1))
+            .ttl(readNanos(v, MAX_AGE))
+            .storageType(StorageType.get(readString(v, STORAGE)))
+            .replicas(readInteger(v, NUM_REPLICAS, 1))
+            .placement(Placement.optionalInstance(readValue(v, PLACEMENT)))
+            .republish(Republish.optionalInstance(readValue(v, REPUBLISH)))
+            .mirror(Mirror.optionalInstance(readValue(v, MIRROR)))
+            .sources(Source.optionalListOf(readValue(v, SOURCES)))
+            .compression(CompressionOption.get(readString(v, COMPRESSION)) == CompressionOption.S2)
+            .metadata(readStringStringMap(v, METADATA))
+            .limitMarker(readNanos(v, SUBJECT_DELETE_MARKER_TTL))
+            .build();
     }
 
     /**

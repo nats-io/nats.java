@@ -12,11 +12,16 @@
 // limitations under the License.
 package io.nats.client.api;
 
+import io.nats.client.support.JsonParseException;
+import io.nats.client.support.JsonParser;
+import io.nats.client.support.JsonValue;
 import io.nats.client.support.NatsObjectStoreUtil;
 
 import java.time.Duration;
 import java.util.Map;
 
+import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonValueUtils.*;
 import static io.nats.client.support.NatsObjectStoreUtil.*;
 import static io.nats.client.support.Validator.required;
 
@@ -39,6 +44,33 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
      */
     public boolean isSealed() {
         return sc.getSealed();
+    }
+
+    /**
+     * Returns an ObjectStoreConfiguration deserialized from the JSON form of its backing stream
+     * configuration, for example {@code ObjectStoreConfiguration.instance(osc.getBackingConfig().toJson())}
+     * or the JSON of the bucket's backing stream from the server.
+     *
+     * @see FeatureConfiguration#getBackingConfig()
+     * @param json the json representing the (backing stream) Object Store Configuration
+     * @return ObjectStoreConfiguration for the given json
+     * @throws JsonParseException if there is a problem parsing the json
+     */
+    public static ObjectStoreConfiguration instance(String json) throws JsonParseException {
+        JsonValue v = JsonParser.parse(json);
+        // read each field that has a builder setter, then build() so OS validation/derivation runs.
+        // (do not assume a valid backing stream config is a valid Object Store config)
+        return new Builder()
+            .name(extractBucketName(readString(v, NAME)))
+            .description(readString(v, DESCRIPTION))
+            .maxBucketSize(readLong(v, MAX_BYTES, -1))
+            .ttl(readNanos(v, MAX_AGE))
+            .storageType(StorageType.get(readString(v, STORAGE)))
+            .replicas(readInteger(v, NUM_REPLICAS, 1))
+            .placement(Placement.optionalInstance(readValue(v, PLACEMENT)))
+            .compression(CompressionOption.get(readString(v, COMPRESSION)) == CompressionOption.S2)
+            .metadata(readStringStringMap(v, METADATA))
+            .build();
     }
 
     /**
