@@ -17,6 +17,8 @@ import io.nats.client.support.JsonParseException;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 import static io.nats.client.support.NatsConstants.EMPTY;
 import static io.nats.client.utils.ResourceUtils.dataAsString;
@@ -28,6 +30,9 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
     public void testConstruction() throws JsonParseException {
         Placement p = Placement.builder().cluster("cluster").tags("a", "b").build();
         Republish r = Republish.builder().source("src").destination("dest").headersOnly(true).build();
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("meta-key", "meta-value");
+        metadata.put("meta-key2", "meta-value2");
 
         // builder
         //noinspection deprecation
@@ -44,6 +49,7 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
             .placement(p)
             .republish(r)
             .compression(true)
+            .metadata(metadata)
             .limitMarker(8888)
             .build();
         validate(bc);
@@ -89,8 +95,46 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
         assertTrue(kvc.isCompressed());
         assertNotNull(kvc.getLimitMarkerTtl());
         assertEquals(8888, kvc.getLimitMarkerTtl().toMillis());
+        assertNotNull(kvc.getMetadata());
+        assertEquals(2, kvc.getMetadata().size());
+        assertEquals("meta-value", kvc.getMetadata().get("meta-key"));
+        assertEquals("meta-value2", kvc.getMetadata().get("meta-key2"));
 
         assertTrue(kvc.toString().contains("bucketName"));
+    }
+
+    @Test
+    public void testInstanceMirrorAndSources() throws JsonParseException {
+        // mirror and sources are mutually exclusive, so exercise each on its own config.
+        // Both the builder-config instance(...) and the stream-config instanceViaStreamConfig(...)
+        // paths must deserialize them.
+        KeyValueConfiguration src = KeyValueConfiguration.builder()
+            .name("bucketName")
+            .sources(Source.builder().name("KV_sourceBucket").build())
+            .build();
+        validateSources(src);
+        validateSources(KeyValueConfiguration.instance(dataAsString("KeyValueConfigSources.json")));
+        validateSources(KeyValueConfiguration.instanceViaStreamConfig(src.getBackingConfig().toJson()));
+
+        KeyValueConfiguration mir = KeyValueConfiguration.builder()
+            .name("bucketName")
+            .mirror(Mirror.builder().name("KV_mirrorBucket").build())
+            .build();
+        validateMirror(mir);
+        validateMirror(KeyValueConfiguration.instance(dataAsString("KeyValueConfigMirror.json")));
+        validateMirror(KeyValueConfiguration.instanceViaStreamConfig(mir.getBackingConfig().toJson()));
+    }
+
+    private void validateSources(KeyValueConfiguration kvc) {
+        assertNull(kvc.getMirror());
+        assertNotNull(kvc.getSources());
+        assertEquals(1, kvc.getSources().size());
+        assertEquals("KV_sourceBucket", kvc.getSources().get(0).getName());
+    }
+
+    private void validateMirror(KeyValueConfiguration kvc) {
+        assertNotNull(kvc.getMirror());
+        assertEquals("KV_mirrorBucket", kvc.getMirror().getName());
     }
 
     @Test

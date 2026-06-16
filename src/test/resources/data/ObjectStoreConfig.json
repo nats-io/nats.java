@@ -9,5 +9,9 @@
     "cluster": "cluster",
     "tags": ["a", "b"]
   },
-  "compression": true
+  "compression": true,
+  "metadata": {
+    "meta-key": "meta-value",
+    "meta-key2": "meta-value2"
+  }
 }

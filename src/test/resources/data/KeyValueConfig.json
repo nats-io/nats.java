@@ -17,5 +17,9 @@
     "headers_only": true
   },
   "compression": true,
-  "limit_marker_ttl": 8888000000
+  "limit_marker_ttl": 8888000000,
+  "metadata": {
+    "meta-key": "meta-value",
+    "meta-key2": "meta-value2"
+  }
 }

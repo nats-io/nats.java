@@ -34,6 +34,9 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
     @Test
     public void testConfigurationConstruction() throws JsonParseException {
         Placement p = Placement.builder().cluster("cluster").tags("a", "b").build();
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("meta-key", "meta-value");
+        metadata.put("meta-key2", "meta-value2");
 
         // builder
         ObjectStoreConfiguration osc = ObjectStoreConfiguration.builder("bucketName")
@@ -44,6 +47,7 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
             .replicas(2)
             .placement(p)
             .compression(true)
+            .metadata(metadata)
             .build();
         validate(osc);
 
@@ -56,6 +60,7 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
             .replicas(2)
             .placement(p)
             .compression(true)
+            .metadata(metadata)
             .build();
         validate(osc);
 
@@ -84,6 +89,10 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
         assertNotNull(osc.getPlacement().getTags());
         assertEquals(2, osc.getPlacement().getTags().size());
         assertTrue(osc.isCompressed());
+        assertNotNull(osc.getMetadata());
+        assertEquals(2, osc.getMetadata().size());
+        assertEquals("meta-value", osc.getMetadata().get("meta-key"));
+        assertEquals("meta-value2", osc.getMetadata().get("meta-key2"));
 
         assertTrue(osc.toString().contains("bucketName"));
     }
