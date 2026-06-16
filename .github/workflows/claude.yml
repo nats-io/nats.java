@@ -28,6 +28,10 @@ jobs:
         - Exception handling patterns (checked vs unchecked, proper resource cleanup with try-with-resources)
         - JetStream API correctness (subscription semantics, ack/nak behavior, consumer configuration)
         - API compatibility with existing public interfaces
+
+        Do NOT comment on import style. Wildcard imports (e.g. `io.nats.client.support.*`, and static
+        wildcards) are an accepted convention in this project — never suggest converting wildcard imports
+        to specific imports, or flag them as inconsistent.
     secrets:
       claude_oauth_token: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
       gh_app_private_key: ${{ secrets.CLAUDE_GH_APP_PRIVATE_KEY }}

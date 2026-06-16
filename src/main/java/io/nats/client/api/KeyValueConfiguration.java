@@ -116,36 +116,59 @@ public class KeyValueConfiguration extends FeatureConfiguration {
     }
 
     /**
-     * Returns a KeyValueConfiguration deserialized from the JSON form of its backing stream configuration,
-     * for example {@code KeyValueConfiguration.instance(kvc.getBackingConfig().toJson())} or the JSON of
-     * the bucket's backing stream from the server.
+     * Returns a KeyValueConfiguration deserialized from a JSON representation of a Key Value
+     * <b>builder</b> configuration, i.e. the values you would supply to the {@link Builder}.
+     * This is <b>not</b> the backing stream configuration, and it is <b>not</b> the JSON emitted
+     * by {@link #toJson()}. Accordingly, {@code name} is the bucket (simple) name, not the stream
+     * name, and the field names use the Key Value domain (for example {@code max_history_per_key},
+     * not the stream's {@code max_msgs_per_subject}).
      *
-     * @see FeatureConfiguration#getBackingConfig()
-     * @param json the json representing the (backing stream) Key Value Configuration
+     * <p>If you instead have the full backing stream configuration JSON (for example as returned
+     * by the server), use {@link #instanceViaStreamConfig(String)} — at your own risk, since it
+     * bypasses the Key Value validation and field derivation performed here.
+     *
+     * @param json the json representing the Key Value builder configuration
      * @return KeyValueConfiguration for the given json
      * @throws JsonParseException if there is a problem parsing the json
+     * @see #instanceViaStreamConfig(String)
      */
     public static KeyValueConfiguration instance(String json) throws JsonParseException {
         JsonValue v = JsonParser.parse(json);
         // read each field that has a builder setter, then build() so KV validation/derivation runs.
-        // (do not assume a valid backing stream config is a valid KV config)
         return new Builder()
-            .name(extractBucketName(readString(v, NAME)))
+            .name(readString(v, NAME))
             .description(readString(v, DESCRIPTION))
-            .maxHistoryPerKey(readInteger(v, MAX_MSGS_PER_SUB, 1))
-            .maxBucketSize(readLong(v, MAX_BYTES, -1))
-            .maximumValueSize(readInteger(v, MAX_MSG_SIZE, -1))
-            .ttl(readNanos(v, MAX_AGE))
+            .maxHistoryPerKey(readInteger(v, MAX_HISTORY_PER_KEY, 1))
+            .maxBucketSize(readLong(v, MAX_BUCKET_SIZE, -1))
+            .maximumValueSize(readInteger(v, MAX_VALUE_SIZE, -1))
+            .ttl(readNanos(v, TTL))
             .storageType(StorageType.get(readString(v, STORAGE)))
-            .replicas(readInteger(v, NUM_REPLICAS, 1))
+            .replicas(readInteger(v, REPLICAS, 1))
             .placement(Placement.optionalInstance(readValue(v, PLACEMENT)))
             .republish(Republish.optionalInstance(readValue(v, REPUBLISH)))
             .mirror(Mirror.optionalInstance(readValue(v, MIRROR)))
             .sources(Source.optionalListOf(readValue(v, SOURCES)))
-            .compression(CompressionOption.get(readString(v, COMPRESSION)) == CompressionOption.S2)
+            .compression(readBoolean(v, COMPRESSION))
             .metadata(readStringStringMap(v, METADATA))
-            .limitMarker(readNanos(v, SUBJECT_DELETE_MARKER_TTL))
+            .limitMarker(readNanos(v, LIMIT_MARKER_TTL))
             .build();
+    }
+
+    /**
+     * Returns a KeyValueConfiguration built from the full backing stream configuration JSON,
+     * for example the JSON of the bucket's backing stream as returned by the server. Here
+     * {@code name} is the stream name (such as {@code KV_bucketName}) and the field names are the
+     * stream's (for example {@code max_msgs_per_subject}). Use at your own risk: this trusts the
+     * supplied stream and bypasses the Key Value validation and field derivation that
+     * {@link #instance(String)} performs.
+     *
+     * @param json the json representing the backing stream configuration
+     * @return KeyValueConfiguration for the given backing stream json
+     * @throws JsonParseException if there is a problem parsing the json
+     * @see #instance(String)
+     */
+    public static KeyValueConfiguration instanceViaStreamConfig(String json) throws JsonParseException {
+        return new KeyValueConfiguration(StreamConfiguration.instance(json));
     }
 
     /**

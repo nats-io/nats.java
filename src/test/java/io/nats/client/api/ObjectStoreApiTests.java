@@ -16,8 +16,6 @@ import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.support.DateTimeUtils;
 import io.nats.client.support.JsonParseException;
-import io.nats.client.support.JsonParser;
-import io.nats.client.support.JsonValue;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -63,12 +61,15 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
 
         validate(ObjectStoreConfiguration.builder(osc).build());
 
-        JsonValue jvSc = JsonParser.parseUnchecked(osc.getBackingConfig().toJson());
-        validate(new ObjectStoreConfiguration(StreamConfiguration.instance(jvSc)));
-
-        // public instance(String) builds from the backing stream-config JSON, same as above
-        validate(ObjectStoreConfiguration.instance(osc.getBackingConfig().toJson()));
+        // instance(String) parses a JSON representation of the OS builder configuration:
+        // the bucket (simple) name and OS-domain field names, NOT the backing stream.
+        validate(ObjectStoreConfiguration.instance(dataAsString("ObjectStoreConfig.json")));
         assertThrows(JsonParseException.class, () -> ObjectStoreConfiguration.instance("not json"));
+        // valid json with no name -> clean validation error
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.instance("{}"));
+
+        // instanceViaStreamConfig(String) builds from the full backing stream configuration JSON
+        validate(ObjectStoreConfiguration.instanceViaStreamConfig(osc.getBackingConfig().toJson()));
     }
 
     private void validate(ObjectStoreConfiguration osc) {

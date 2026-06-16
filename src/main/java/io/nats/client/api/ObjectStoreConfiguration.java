@@ -47,30 +47,51 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
     }
 
     /**
-     * Returns an ObjectStoreConfiguration deserialized from the JSON form of its backing stream
-     * configuration, for example {@code ObjectStoreConfiguration.instance(osc.getBackingConfig().toJson())}
-     * or the JSON of the bucket's backing stream from the server.
+     * Returns an ObjectStoreConfiguration deserialized from a JSON representation of an Object Store
+     * <b>builder</b> configuration, i.e. the values you would supply to the {@link Builder}.
+     * This is <b>not</b> the backing stream configuration, and it is <b>not</b> the JSON emitted
+     * by {@link #toJson()}. Accordingly, {@code name} is the bucket (simple) name, not the stream
+     * name, and the field names use the Object Store domain.
      *
-     * @see FeatureConfiguration#getBackingConfig()
-     * @param json the json representing the (backing stream) Object Store Configuration
+     * <p>If you instead have the full backing stream configuration JSON (for example as returned
+     * by the server), use {@link #instanceViaStreamConfig(String)} — at your own risk, since it
+     * bypasses the Object Store validation and field derivation performed here.
+     *
+     * @param json the json representing the Object Store builder configuration
      * @return ObjectStoreConfiguration for the given json
      * @throws JsonParseException if there is a problem parsing the json
+     * @see #instanceViaStreamConfig(String)
      */
     public static ObjectStoreConfiguration instance(String json) throws JsonParseException {
         JsonValue v = JsonParser.parse(json);
         // read each field that has a builder setter, then build() so OS validation/derivation runs.
-        // (do not assume a valid backing stream config is a valid Object Store config)
         return new Builder()
-            .name(extractBucketName(readString(v, NAME)))
+            .name(readString(v, NAME))
             .description(readString(v, DESCRIPTION))
-            .maxBucketSize(readLong(v, MAX_BYTES, -1))
-            .ttl(readNanos(v, MAX_AGE))
+            .maxBucketSize(readLong(v, MAX_BUCKET_SIZE, -1))
+            .ttl(readNanos(v, TTL))
             .storageType(StorageType.get(readString(v, STORAGE)))
-            .replicas(readInteger(v, NUM_REPLICAS, 1))
+            .replicas(readInteger(v, REPLICAS, 1))
             .placement(Placement.optionalInstance(readValue(v, PLACEMENT)))
-            .compression(CompressionOption.get(readString(v, COMPRESSION)) == CompressionOption.S2)
+            .compression(readBoolean(v, COMPRESSION))
             .metadata(readStringStringMap(v, METADATA))
             .build();
+    }
+
+    /**
+     * Returns an ObjectStoreConfiguration built from the full backing stream configuration JSON,
+     * for example the JSON of the bucket's backing stream as returned by the server. Here
+     * {@code name} is the stream name (such as {@code OBJ_bucketName}) and the field names are the
+     * stream's. Use at your own risk: this trusts the supplied stream and bypasses the Object Store
+     * validation and field derivation that {@link #instance(String)} performs.
+     *
+     * @param json the json representing the backing stream configuration
+     * @return ObjectStoreConfiguration for the given backing stream json
+     * @throws JsonParseException if there is a problem parsing the json
+     * @see #instance(String)
+     */
+    public static ObjectStoreConfiguration instanceViaStreamConfig(String json) throws JsonParseException {
+        return new ObjectStoreConfiguration(StreamConfiguration.instance(json));
     }
 
     /**

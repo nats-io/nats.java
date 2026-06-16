@@ -14,13 +14,12 @@ package io.nats.client.api;
 
 import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.support.JsonParseException;
-import io.nats.client.support.JsonParser;
-import io.nats.client.support.JsonValue;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
 import static io.nats.client.support.NatsConstants.EMPTY;
+import static io.nats.client.utils.ResourceUtils.dataAsString;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class KeyValueConfigurationTests extends JetStreamTestBase {
@@ -51,12 +50,15 @@ public class KeyValueConfigurationTests extends JetStreamTestBase {
 
         validate(KeyValueConfiguration.builder(bc).build());
 
-        JsonValue jvSc = JsonParser.parseUnchecked(bc.getBackingConfig().toJson());
-        validate(new KeyValueConfiguration(StreamConfiguration.instance(jvSc)));
-
-        // public instance(String) builds from the backing stream-config JSON, same as above
-        validate(KeyValueConfiguration.instance(bc.getBackingConfig().toJson()));
+        // instance(String) parses a JSON representation of the KV builder configuration:
+        // the bucket (simple) name and KV-domain field names, NOT the backing stream.
+        validate(KeyValueConfiguration.instance(dataAsString("KeyValueConfig.json")));
         assertThrows(JsonParseException.class, () -> KeyValueConfiguration.instance("not json"));
+        // valid json with no name -> clean validation error
+        assertThrows(IllegalArgumentException.class, () -> KeyValueConfiguration.instance("{}"));
+
+        // instanceViaStreamConfig(String) builds from the full backing stream configuration JSON
+        validate(KeyValueConfiguration.instanceViaStreamConfig(bc.getBackingConfig().toJson()));
 
         bc = KeyValueConfiguration.builder()
                 .name("bucketName")
