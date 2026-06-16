@@ -95,7 +95,7 @@ class NatsConnectionWriter implements Runnable {
             this.running.set(true);
             this.normalOutgoing.resume();
             this.reconnectOutgoing.resume();
-            this.stopped = connection.getExecutor().submit(this, Boolean.TRUE);
+            this.stopped = connection.getWriterExecutor().submit(this, Boolean.TRUE);
         } finally {
             this.startStopLock.unlock();
         }

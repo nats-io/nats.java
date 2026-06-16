@@ -101,6 +101,8 @@ class NatsConnection implements Connection {
     protected ExecutorService callbackExecutor;
     protected ExecutorService executor;
     protected ExecutorService connectExecutor;
+    protected ExecutorService readerExecutor;
+    protected ExecutorService writerExecutor;
     protected ScheduledExecutorService scheduledExecutor;
 
     protected final boolean advancedTracking;
@@ -180,6 +182,8 @@ class NatsConnection implements Connection {
         this.executor = options.getExecutor();
         this.callbackExecutor = options.getCallbackExecutor();
         this.connectExecutor = options.getConnectExecutor();
+        this.readerExecutor = options.getReaderExecutor();
+        this.writerExecutor = options.getWriterExecutor();
         this.scheduledExecutor = options.getScheduledExecutor();
 
         timeTraceLogger.trace("creating reader and writer");
@@ -910,6 +914,8 @@ class NatsConnection implements Connection {
         callbackExecutor = null;
         executor = null;
         connectExecutor = null;
+        readerExecutor = null;
+        writerExecutor = null;
         scheduledExecutor = null;
         options.shutdownExecutors();
 
@@ -927,6 +933,8 @@ class NatsConnection implements Connection {
     protected boolean callbackExecutorIsClosed() { return callbackExecutor == null; }
     protected boolean executorIsClosed() { return executor == null; }
     protected boolean connectExecutorIsClosed() { return connectExecutor == null; }
+    protected boolean readerExecutorIsClosed() { return readerExecutor == null; }
+    protected boolean writerExecutorIsClosed() { return writerExecutor == null; }
     protected boolean scheduledExecutorIsClosed() { return scheduledExecutor == null; }
 
     // Should only be called from closeSocket or close
@@ -2120,6 +2128,14 @@ class NatsConnection implements Connection {
 
     protected ExecutorService getExecutor() {
         return executor;
+    }
+
+    protected ExecutorService getReaderExecutor() {
+        return readerExecutor;
+    }
+
+    protected ExecutorService getWriterExecutor() {
+        return writerExecutor;
     }
 
     protected ScheduledExecutorService getScheduledExecutor() {

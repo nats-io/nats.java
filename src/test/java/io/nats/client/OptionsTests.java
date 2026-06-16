@@ -1323,6 +1323,82 @@ public class OptionsTests {
         connectFuture.get(5, TimeUnit.SECONDS);
     }
 
+    @Test
+    public void testReaderExecutor() throws ExecutionException, InterruptedException, TimeoutException {
+        ThreadFactory threadFactory = r -> new Thread(r, "test");
+        Options options = new Options.Builder()
+                .readerThreadFactory(threadFactory)
+                .build();
+        Future<?> readerFuture = options.getReaderExecutor().submit(() -> {
+            assertEquals("test", Thread.currentThread().getName());
+        });
+        readerFuture.get(5, TimeUnit.SECONDS);
+
+        // copy constructor preserves the factory
+        Options copy = new Options.Builder(options).build();
+        Future<?> copyFuture = copy.getReaderExecutor().submit(() -> {
+            assertEquals("test", Thread.currentThread().getName());
+        });
+        copyFuture.get(5, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void testWriterExecutor() throws ExecutionException, InterruptedException, TimeoutException {
+        ThreadFactory threadFactory = r -> new Thread(r, "test");
+        Options options = new Options.Builder()
+                .writerThreadFactory(threadFactory)
+                .build();
+        Future<?> writerFuture = options.getWriterExecutor().submit(() -> {
+            assertEquals("test", Thread.currentThread().getName());
+        });
+        writerFuture.get(5, TimeUnit.SECONDS);
+
+        // copy constructor preserves the factory
+        Options copy = new Options.Builder(options).build();
+        Future<?> copyFuture = copy.getWriterExecutor().submit(() -> {
+            assertEquals("test", Thread.currentThread().getName());
+        });
+        copyFuture.get(5, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void testReaderExecutorService() {
+        ExecutorService es = Executors.newCachedThreadPool(r -> new Thread(r, "test"));
+        try {
+            Options options = new Options.Builder().readerExecutor(es).build();
+            // a user supplied executor is used as-is and is not internal (the caller owns its lifecycle)
+            assertSame(es, options.getReaderExecutor());
+            assertFalse(options.readerExecutorIsInternal());
+
+            // copy constructor preserves the user supplied executor
+            Options copy = new Options.Builder(options).build();
+            assertSame(es, copy.getReaderExecutor());
+            assertFalse(copy.readerExecutorIsInternal());
+        }
+        finally {
+            es.shutdownNow();
+        }
+    }
+
+    @Test
+    public void testWriterExecutorService() {
+        ExecutorService es = Executors.newCachedThreadPool(r -> new Thread(r, "test"));
+        try {
+            Options options = new Options.Builder().writerExecutor(es).build();
+            // a user supplied executor is used as-is and is not internal (the caller owns its lifecycle)
+            assertSame(es, options.getWriterExecutor());
+            assertFalse(options.writerExecutorIsInternal());
+
+            // copy constructor preserves the user supplied executor
+            Options copy = new Options.Builder(options).build();
+            assertSame(es, copy.getWriterExecutor());
+            assertFalse(copy.writerExecutorIsInternal());
+        }
+        finally {
+            es.shutdownNow();
+        }
+    }
+
     String[] schemes = new String[]   { "NATS", "unk",  "tls",  "opentls",  "ws",   "wss", "nats"};
     boolean[] secures = new boolean[] { false,  false,  true,   true,       false,  true,  false};
     boolean[] wses = new boolean[]    { false,  false,  false,  false,      true,   true,  false};
