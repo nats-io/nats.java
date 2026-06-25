@@ -11,12 +11,12 @@ public class LearnJetStreamReadingBackCreate {
 
             // NATS-DOC-START
             // Create a durable consumer that delivers every stored message.
-            // AckPolicy.None means the server does not expect acknowledgements.
+            // AckPolicy.Explicit means each message must be acknowledged.
             ConsumerContext cc = sc.createOrUpdateConsumer(
                 ConsumerConfiguration.builder()
                     .durable("orders-reader")
                     .deliverPolicy(DeliverPolicy.All)
-                    .ackPolicy(AckPolicy.None)
+                    .ackPolicy(AckPolicy.Explicit)
                     .build());
 
             System.out.println("Created durable consumer: " + cc.getConsumerName());

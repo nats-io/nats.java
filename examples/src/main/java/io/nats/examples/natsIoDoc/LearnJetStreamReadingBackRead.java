@@ -29,9 +29,10 @@ public class LearnJetStreamReadingBackRead {
                         m.metaData().streamSequence(),
                         m.metaData().consumerSequence(),
                         new String(m.getData(), StandardCharsets.UTF_8));
+                    // Acknowledge each message so the server advances the consumer.
+                    m.ack();
                 }
             }
-            // Ack policy is None, so there is nothing to acknowledge.
             // NATS-DOC-END
         }
         catch (Exception e) {
