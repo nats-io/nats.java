@@ -10,7 +10,7 @@ public class LearnJetStreamReadingBackRead {
         try (Connection nc = Nats.connect("nats://localhost:4222")) {
 
             StreamContext sc = nc.getStreamContext("ORDERS");
-            ConsumerContext cc = sc.getConsumerContext("orders-reader");
+            ConsumerContext cc = sc.getConsumerContext("billing");
 
             // NATS-DOC-START
             // Ask the consumer how many messages are still waiting, then fetch

@@ -14,7 +14,7 @@ public class LearnJetStreamReadingBackCreate {
             // AckPolicy.Explicit means each message must be acknowledged.
             ConsumerContext cc = sc.createOrUpdateConsumer(
                 ConsumerConfiguration.builder()
-                    .durable("orders-reader")
+                    .durable("billing")
                     .deliverPolicy(DeliverPolicy.All)
                     .ackPolicy(AckPolicy.Explicit)
                     .build());
