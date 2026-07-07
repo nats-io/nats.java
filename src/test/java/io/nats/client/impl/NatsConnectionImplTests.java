@@ -277,8 +277,10 @@ public class NatsConnectionImplTests {
     }
 
     @Test
-    public void testReaderWriterThreadFactoryUsed() throws Exception {
+    public void testReaderWriterThreadFactories() throws Exception {
         try (NatsTestServer ts = new NatsTestServer()) {
+            // record the names of the threads the factories create, so we can prove the reader/writer
+            // actually ran on threads from OUR factories rather than the shared general executor
             RecordingThreadFactory readerFactory = new RecordingThreadFactory("test-reader");
             RecordingThreadFactory writerFactory = new RecordingThreadFactory("test-writer");
 
@@ -287,18 +289,38 @@ public class NatsConnectionImplTests {
                 .writerThreadFactory(writerFactory)
                 .build();
 
+            assertTrue(options.readerExecutorIsInternal());
+            assertTrue(options.writerExecutorIsInternal());
+
+            // dedicated executors, distinct from the shared general executor
+            ExecutorService readerEs = options.getReaderExecutor();
+            ExecutorService writerEs = options.getWriterExecutor();
+            assertNotSame(options.getExecutor(), readerEs);
+            assertNotSame(options.getExecutor(), writerEs);
+
             try (NatsConnection nc = (NatsConnection)standardConnection(options)) {
+                assertFalse(nc.readerExecutorIsClosed());
+                assertFalse(nc.writerExecutorIsClosed());
+
                 // exercise the connection so the writer (and the reader, via the
                 // resulting protocol traffic) are definitely running
+                nc.subscribe("*");
                 nc.publish("subject", "data".getBytes());
                 flushConnection(nc);
+                nc.close();
 
-                // the reader and writer were each submitted to executors built
-                // from the supplied factories when the connection started, so
-                // each factory must have created at least one thread
-                assertFalse(readerFactory.created.isEmpty());
-                assertFalse(writerFactory.created.isEmpty());
+                assertTrue(nc.readerExecutorIsClosed());
+                assertTrue(nc.writerExecutorIsClosed());
+                // dedicated (factory-built) executors are shut down by the connection
+                assertTrue(readerEs.isShutdown());
+                assertTrue(writerEs.isShutdown());
             }
+
+            // the reader and writer were each submitted to executors built
+            // from the supplied factories when the connection started, so
+            // each factory must have created at least one thread
+            assertFalse(readerFactory.created.isEmpty());
+            assertFalse(writerFactory.created.isEmpty());
         }
     }
 }

@@ -215,7 +215,7 @@ public class NatsConsumerContext implements ConsumerContext, SimplifiedSubscript
             checkNotPinned("Next");
 
             try {
-                nnc = new NatsNextConsumer(this, cachedConsumerInfo.get(), maxWaitMillis);
+                nnc = new NatsNextConsumer(this, ordered ? null : cachedConsumerInfo.get(), maxWaitMillis);
                 trackConsume(nnc); // this has to be done after the nnc is fully set up
             }
             catch (Exception e) {
