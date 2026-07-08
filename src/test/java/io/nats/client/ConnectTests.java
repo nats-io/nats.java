@@ -665,8 +665,13 @@ public class ConnectTests {
             t.start();
 
             String subject = subject();
-            byte[] data = new byte[8 * 1024];
-            for (int x = 0; x < 5000; x++) {
+            // Keep the total queued bytes below the reconnect buffer size (default 8MB).
+            // This test only needs the outgoing-pending counters to report a backlog;
+            // flooding past the reconnect buffer would (correctly) throw if the connection
+            // briefly reconnects under load on a slow/contended machine, which is not what
+            // this test targets.
+            byte[] data = new byte[2 * 1024];
+            for (int x = 0; x < 3000; x++) {
                 nc.publish(subject, data);
             }
             tKeepGoing.set(false);

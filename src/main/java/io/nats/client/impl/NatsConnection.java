@@ -929,7 +929,7 @@ class NatsConnection implements Connection {
         }
     }
 
-    // these four *ExecutorIsClosed() are only used for tests
+    // these *ExecutorIsClosed() are only used for tests
     protected boolean callbackExecutorIsClosed() { return callbackExecutor == null; }
     protected boolean executorIsClosed() { return executor == null; }
     protected boolean connectExecutorIsClosed() { return connectExecutor == null; }
