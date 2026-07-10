@@ -4,8 +4,8 @@
 
 ### A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
-![2.25.3](https://img.shields.io/badge/Current_Release-2.25.3-27AAE0?style=for-the-badge)
-![2.26.0](https://img.shields.io/badge/Current_Snapshot-2.26.0--SNAPSHOT-27AAE0?style=for-the-badge)
+![2.26.0](https://img.shields.io/badge/Current_Release-2.25.3-27AAE0?style=for-the-badge)
+![2.26.1](https://img.shields.io/badge/Current_Snapshot-2.26.0--SNAPSHOT-27AAE0?style=for-the-badge)
 
 [![Build Main Badge](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml/badge.svg?event=push)](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml)
 [![Coverage Status](https://coveralls.io/repos/github/nats-io/nats.java/badge.svg?branch=main)](https://coveralls.io/github/nats-io/nats.java?branch=main)
