@@ -6,7 +6,7 @@
 Reconnect Delay Behavior and options cleanup #1578 @scottf
 Advanced Request Behavior Option #1582 @scottf
 Optional individual thread factories for reader and writer #1583 @scottf
-Tidy executor options and addtional testing #1590 @scottf
+Tidy executor options and additional testing #1590 @scottf
 
 ### JetStream
 Handle consume initial subscription failure. #1573 @scottf
@@ -17,7 +17,7 @@ Consumer Source Field Nullability #1587 @scottf
 ### Misc
 Add Client and Orbit section, drop duplicate Orbit link #1572 @Jarema
 Change optional skip claude target #1574 @scottf
-Update README.md - Fix example links #1584 @github-pawo  @scottf
+Update README.md - Fix example links #1584 @github-pawo
 
 ### New Nats Docs
 [New Nats Docs Examples] fixed missing marker #1571 @scottf
