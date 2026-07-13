@@ -501,7 +501,7 @@ public class Options {
      */
     public static final String PROP_RECONNECT_DELAY_HANDLER_CLASS = PFX + "reconnect.delay.handler.class";
     /**
-     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#reconnectDelayBehavior(ReconnectDelayBehavior)
+     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#reconnectDelayBehavior(Options.ReconnectDelayBehavior)
      * reconnectDelayBehavior}. Value is the name of a {@link ReconnectDelayBehavior} constant (e.g. {@code BeforeSubsequentRounds}, {@code BeforeAllRounds}).
      */
     public static final String PROP_RECONNECT_DELAY_BEHAVIOR = PFX + "reconnect.delay.behavior";
@@ -548,7 +548,7 @@ public class Options {
     @Deprecated
     public static final String PROP_FAST_FALLBACK = PFX + "fast.fallback";
     /**
-     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#hostnameResolveMode(HostnameResolveMode) hostnameResolveMode}.
+     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#hostnameResolveMode(Options.HostnameResolveMode) hostnameResolveMode}.
      * Takes precedence over PROP_NO_RESOLVE_HOSTNAMES and PROP_FAST_FALLBACK
      */
     public static final String PROP_HOSTNAME_RESOLVE_MODE = PFX + "hostnameResolveMode";
@@ -1390,7 +1390,7 @@ public class Options {
          * Fastest validation, but use with caution
          * If you know your subjects are always valid.
          * @return the Builder for chaining
-         * @deprecated use {@link #subjectValidationType(SubjectValidationType)} with {@link SubjectValidationType#None} instead
+         * @deprecated use {@link #subjectValidationType(Options.SubjectValidationType)} with {@link SubjectValidationType#None} instead
          */
         @Deprecated
         public Builder noSubjectValidation() {
@@ -1404,7 +1404,7 @@ public class Options {
          * Slower validation, but may be useful when exposing the ability
          * of an application user to set a subject.
          * @return the Builder for chaining
-         * @deprecated use {@link #subjectValidationType(SubjectValidationType)} with {@link SubjectValidationType#Strict} instead
+         * @deprecated use {@link #subjectValidationType(Options.SubjectValidationType)} with {@link SubjectValidationType#Strict} instead
          */
         @Deprecated
         public Builder strictSubjectValidation() {
@@ -3052,7 +3052,7 @@ public class Options {
     }
 
     /**
-     * the reconnect delay behavior, see {@link Builder#reconnectDelayBehavior(ReconnectDelayBehavior) reconnectDelayBehavior()} in the builder doc
+     * the reconnect delay behavior, see {@link Builder#reconnectDelayBehavior(Options.ReconnectDelayBehavior) reconnectDelayBehavior()} in the builder doc
      * @return the behavior, never null (defaults to {@link ReconnectDelayBehavior#BeforeSubsequentRounds})
      */
     public ReconnectDelayBehavior reconnectDelayBehavior() {
