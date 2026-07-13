@@ -937,6 +937,11 @@ class NatsConnection implements Connection {
     protected boolean writerExecutorIsClosed() { return writerExecutor == null; }
     protected boolean scheduledExecutorIsClosed() { return scheduledExecutor == null; }
 
+    // Repoint this connection's reader at the given connection
+    protected void setReaderConnection(NatsConnection connection) {
+        reader.setConnection(connection);
+    }
+
     // Should only be called from closeSocket or close
     protected void closeSocketImpl(boolean forceClose) {
         clearCurrentServer();

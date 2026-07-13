@@ -40,7 +40,11 @@ class NatsConnectionReader implements Runnable {
         GATHER_DATA
     }
 
-    private final NatsConnection connection;
+    // volatile (was final) so a live reader can be repointed at a different connection - the reader
+    // thread reads this on every delivered message and must see the new target. Repointing is done
+    // through setConnection(...) rather than direct field access, so the field stays private; see
+    // NatsConnection.setReaderConnection(...) for the entry point
+    private volatile NatsConnection connection;
 
     private ByteBuffer protocolBuffer; // use a byte buffer to assist character decoding
 
@@ -104,6 +108,12 @@ class NatsConnectionReader implements Runnable {
                 }
             };
         }
+    }
+
+    // Repoint this reader at a different connection. The field is volatile so the reader thread
+    // picks up the change on its next delivery.
+    protected void setConnection(NatsConnection connection) {
+        this.connection = connection;
     }
 
     // Should only be called if the current thread has exited.
