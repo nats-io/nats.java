@@ -937,14 +937,6 @@ class NatsConnection implements Connection {
     protected boolean writerExecutorIsClosed() { return writerExecutor == null; }
     protected boolean scheduledExecutorIsClosed() { return scheduledExecutor == null; }
 
-    // Repoint this connection's reader at the given connection, without exposing the reader's private
-    // connection field. Pass 'this' to (re)bind the reader to this connection. The repoint is a single
-    // volatile write - visible to the reader thread but not atomic with respect to an in-flight message
-    // parse; see NatsConnectionReader.setConnection for the invariant.
-    protected void setReaderConnection(NatsConnection connection) {
-        reader.setConnection(connection);
-    }
-
     // Should only be called from closeSocket or close
     protected void closeSocketImpl(boolean forceClose) {
         clearCurrentServer();
