@@ -145,12 +145,11 @@ class NatsConnectionReader implements Runnable {
     //
     // What follows the repoint: everything read from the connection field on use - message delivery,
     // statistics, protocol handling (OK/ERR/PONG/INFO), and the re-derived ReadListener. What does NOT
-    // follow: the wire-parse parameters fixed at construction - the read buffer size, the max-control-line
-    // buffers (msgLineChars / protocolBuffer), and utf8 subject mode. Those hold in-flight parse state and
-    // are used in tight loops by the reader thread; swapping them from another thread mid-parse would
-    // corrupt the message being decoded, so they are intentionally left as constructed. A repoint is
-    // therefore only fully safe across connections whose parse-affecting Options (buffer size, max control
-    // line, utf8 subjects) match; otherwise the reader keeps parsing per its original Options.
+    // follow: the wire-parse buffers fixed at construction - the read buffer size and the max-control-line
+    // buffers (msgLineChars / protocolBuffer). Those hold in-flight parse state and are used in tight loops
+    // by the reader thread; swapping them from another thread mid-parse would corrupt the message being
+    // decoded, so they are intentionally left as constructed. A repoint is therefore only fully safe across
+    // connections whose buffer-size Options match; otherwise the reader keeps parsing per its original Options.
     //
     // INVARIANT: volatile gives visibility, NOT atomicity across a multi-step message parse. This method
     // does NOT require the reader to be stopped first - a caller may repoint a running reader - so if a
