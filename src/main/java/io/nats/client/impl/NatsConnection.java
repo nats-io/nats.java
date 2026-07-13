@@ -281,14 +281,16 @@ class NatsConnection implements Connection {
                 timeTraceLogger.trace("setting status to disconnected");
                 updateStatus(Status.DISCONNECTED, resolved, cur);
 
-                failList.add(cur);
-                serverPool.connectFailed(cur);
-
                 String err = connectError.get();
 
                 if (this.isAuthenticationError(err)) {
                     this.serverAuthErrors.put(resolved, err);
                 }
+            }
+
+            if (!isConnected() && !isClosed()) {
+                failList.add(cur);
+                serverPool.connectFailed(cur);
             }
         }
 
@@ -482,7 +484,6 @@ class NatsConnection implements Connection {
                     return;
                 }
 
-                serverPool.connectFailed(cur);
                 String err = connectError.get();
                 if (this.isAuthenticationError(err)) {
                     if (err.equals(this.serverAuthErrors.get(resolved))) {
@@ -490,6 +491,10 @@ class NatsConnection implements Connection {
                     }
                     serverAuthErrors.put(resolved, err);
                 }
+            }
+
+            if (!isConnected() && !isClosed()) {
+                serverPool.connectFailed(cur);
             }
         }
     }
