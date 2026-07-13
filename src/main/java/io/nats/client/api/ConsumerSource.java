@@ -48,16 +48,16 @@ public class ConsumerSource implements JsonSerializable {
      * @param name the consumer name
      * @param deliverSubject the deliver subject
      */
-    public ConsumerSource(String name, String deliverSubject) {
-        this.name = name;
-        this.deliverSubject = deliverSubject;
+    public ConsumerSource(@NonNull String name, @NonNull String deliverSubject) {
+        this.name = validateConsumerName(name, true);
+        this.deliverSubject = validateSubject(deliverSubject, true);
     }
 
     /**
      * Construct a ConsumerSource configuration copying the information from another ConsumerSource
      * @param consumerSource the source configuration
      */
-    public ConsumerSource(ConsumerSource consumerSource) {
+    public ConsumerSource(@NonNull ConsumerSource consumerSource) {
         this.name = consumerSource.name;
         this.deliverSubject = consumerSource.deliverSubject;
     }
@@ -157,8 +157,6 @@ public class ConsumerSource implements JsonSerializable {
          * @return the ConsumerSource object
          */
         public ConsumerSource build() {
-            validateConsumerName(name, true);
-            validateSubject(deliverSubject, true);
             return new ConsumerSource(name, deliverSubject);
         }
     }
