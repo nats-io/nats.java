@@ -40,7 +40,11 @@ class NatsConnectionReader implements Runnable {
         GATHER_DATA
     }
 
-    private final NatsConnection connection;
+    // volatile (was final) so a live reader can be repointed at a different connection - the reader
+    // thread reads this on every delivered message and must see the new target. Repointing is done
+    // through setConnection(...) rather than direct field access, so the field stays private; see
+    // NatsConnection.setReaderConnection(...) for the entry point
+    private volatile NatsConnection connection;
 
     private ByteBuffer protocolBuffer; // use a byte buffer to assist character decoding
 
@@ -70,7 +74,14 @@ class NatsConnectionReader implements Runnable {
     private final AtomicBoolean running;
 
     private final boolean utf8Mode;
-    private final ReadListener readListener;
+    // The listener the reader thread invokes: either a no-op (no ReadListener configured) or a wrapper
+    // that dispatches on the CURRENT connection (read from the volatile connection field at call time).
+    // volatile because the reader thread reads it and the setConnection caller thread may replace it.
+    private volatile ReadListener readListener;
+    // The raw ReadListener (from Options) the current wrapper was built from - null when the no-op is in
+    // place. Used by refreshReadListener to skip a needless rebuild when a repoint doesn't change it.
+    // Only touched by the constructing / repointing thread, never the reader thread.
+    private ReadListener currentUserRl;
 
     NatsConnectionReader(NatsConnection connection) {
         this.connection = connection;
@@ -87,23 +98,68 @@ class NatsConnectionReader implements Runnable {
 
         this.utf8Mode = connection.getOptions().supportUTF8Subjects();
 
-        final ReadListener rl = connection.getOptions().getReadListener();
-        if (rl == null) {
+        refreshReadListener(connection);
+    }
+
+    // (Re)derive the readListener from the connection's Options, but replace it ONLY when the configured
+    // ReadListener actually changed - so a repoint that doesn't change it costs nothing. The wrapper reads
+    // the current connection from the volatile field at dispatch time (not a captured reference), so when
+    // the source listener is unchanged the existing wrapper (or no-op) is already correct for the new
+    // connection and is kept as-is.
+    //   - first call (construction): readListener is still null, so we always build.
+    //   - repoint, old null + new null: same (no-op already installed) - keep it.
+    //   - repoint, old == new (same instance): the wrapper is fine - keep it.
+    //   - otherwise: build the matching wrapper (or no-op) and remember the new source.
+    private void refreshReadListener(NatsConnection connection) {
+        final ReadListener newSuppliedUserRl = connection.getOptions().getReadListener();
+        if (readListener != null && newSuppliedUserRl == currentUserRl) {
+            return;
+        }
+        currentUserRl = newSuppliedUserRl;
+        if (newSuppliedUserRl == null) {
             readListener = new ReadListener() {};
         }
         else {
             readListener = new ReadListener() {
                 @Override
                 public void protocol(String op, String text) {
-                    connection.makeCallback(() -> rl.protocol(op, text));
+                    NatsConnectionReader.this.connection.makeCallback(() -> newSuppliedUserRl.protocol(op, text));
                 }
 
                 @Override
                 public void message(String op, Message message) {
-                    connection.makeCallback(() -> rl.message(op, message));
+                    NatsConnectionReader.this.connection.makeCallback(() -> newSuppliedUserRl.message(op, message));
                 }
             };
         }
+    }
+
+    // test access only - the listener the reader thread would invoke (no-op or wrapper)
+    ReadListener readListenerForTesting() {
+        return readListener;
+    }
+
+    // Repoint this reader at a different connection. The connection field is volatile, so the reader
+    // thread sees the new target the next time it reads it, and the ReadListener is re-derived from the
+    // new connection's Options only when it actually changed (see refreshReadListener).
+    //
+    // What follows the repoint: everything read from the connection field on use - message delivery,
+    // statistics, protocol handling (OK/ERR/PONG/INFO), and the re-derived ReadListener. What does NOT
+    // follow: the wire-parse buffers fixed at construction - the read buffer size and the max-control-line
+    // buffers (msgLineChars / protocolBuffer). Those hold in-flight parse state and are used in tight loops
+    // by the reader thread; swapping them from another thread mid-parse would corrupt the message being
+    // decoded, so they are intentionally left as constructed. A repoint is therefore only fully safe across
+    // connections whose buffer-size Options match; otherwise the reader keeps parsing per its original Options.
+    //
+    // INVARIANT: volatile gives visibility, NOT atomicity across a multi-step message parse. This method
+    // does NOT require the reader to be stopped first - a caller may repoint a running reader - so if a
+    // repoint lands mid-message it can straddle both connections (e.g. read stats registered on the
+    // previous connection, delivery on the new one). A caller needing a clean handoff must ensure the
+    // reader is between messages, or accept the split. When the two connections share the same underlying
+    // socket, delivering to the new connection is correct and only a read-byte stat is split.
+    protected void setConnection(NatsConnection connection) {
+        this.connection = connection;
+        refreshReadListener(connection);
     }
 
     // Should only be called if the current thread has exited.

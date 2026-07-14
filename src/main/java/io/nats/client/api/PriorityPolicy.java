@@ -19,12 +19,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Represents the Priority Policy of a consumer
- * @see <a href="https://github.com/nats-io/nats-architecture-and-design/blob/main/adr/ADR-42.md">nats-io ADR-42</a>
+ * Represents the Priority Policy of a consumer.
  * Setting a priority policy will also require setting a Priority group. <BR>
  * When a priority policy and priority group are set, client instances making pull request need to specify the priority group
  * and optionally other ConsumerOptions See {@link io.nats.client.BaseConsumeOptions}
  *
+ * @see <a href="https://github.com/nats-io/nats-architecture-and-design/blob/main/adr/ADR-42.md">nats-io ADR-42</a>
  */
 public enum PriorityPolicy {
     /** Standard consumer. All client instances are load balance fairly. */

@@ -501,7 +501,7 @@ public class Options {
      */
     public static final String PROP_RECONNECT_DELAY_HANDLER_CLASS = PFX + "reconnect.delay.handler.class";
     /**
-     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#reconnectDelayBehavior(ReconnectDelayBehavior)
+     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#reconnectDelayBehavior(Options.ReconnectDelayBehavior)
      * reconnectDelayBehavior}. Value is the name of a {@link ReconnectDelayBehavior} constant (e.g. {@code BeforeSubsequentRounds}, {@code BeforeAllRounds}).
      */
     public static final String PROP_RECONNECT_DELAY_BEHAVIOR = PFX + "reconnect.delay.behavior";
@@ -548,7 +548,7 @@ public class Options {
     @Deprecated
     public static final String PROP_FAST_FALLBACK = PFX + "fast.fallback";
     /**
-     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#hostnameResolveMode(HostnameResolveMode) hostnameResolveMode}.
+     * Property used to configure a builder from a Properties object. {@value}, see {@link Builder#hostnameResolveMode(Options.HostnameResolveMode) hostnameResolveMode}.
      * Takes precedence over PROP_NO_RESOLVE_HOSTNAMES and PROP_FAST_FALLBACK
      */
     public static final String PROP_HOSTNAME_RESOLVE_MODE = PFX + "hostnameResolveMode";
@@ -941,12 +941,12 @@ public class Options {
 
     private final ReentrantLock executorsLock;
 
-    private final ExecutorService userExecutor;
-    private final ScheduledExecutorService userScheduledExecutor;
     private final ThreadFactory userConnectThreadFactory;
     private final ThreadFactory userCallbackThreadFactory;
     private final ThreadFactory userReaderThreadFactory;
     private final ThreadFactory userWriterThreadFactory;
+    private final ScheduledExecutorService userScheduledExecutor;
+    private final ExecutorService userExecutor;
     private final ExecutorService userConnectExecutor;
     private final ExecutorService userCallbackExecutor;
     private final ExecutorService userReaderExecutor;
@@ -954,8 +954,8 @@ public class Options {
 
     // these are not final b/c they are lazy initialized
     // and nulled during shutdownInternalExecutors
-    private ExecutorService resolvedExecutor;
     private ScheduledExecutorService resolvedScheduledExecutor;
+    private ExecutorService resolvedExecutor;
     private ExecutorService resolvedConnectExecutor;
     private ExecutorService resolvedCallbackExecutor;
     private ExecutorService resolvedReaderExecutor;
@@ -1109,14 +1109,14 @@ public class Options {
         private ReadListener readListener = null;
         private StatisticsCollector statisticsCollector = null;
         private String dataPortType = DEFAULT_DATA_PORT_TYPE;
-        private ExecutorService userExecutor;
-        private ScheduledExecutorService userScheduledExecutor;
-        private ExecutorService userConnectExecutor;
-        private ExecutorService userCallbackExecutor;
         private ThreadFactory userConnectThreadFactory;
         private ThreadFactory userCallbackThreadFactory;
         private ThreadFactory userReaderThreadFactory;
         private ThreadFactory userWriterThreadFactory;
+        private ScheduledExecutorService userScheduledExecutor;
+        private ExecutorService userExecutor;
+        private ExecutorService userConnectExecutor;
+        private ExecutorService userCallbackExecutor;
         private ExecutorService userReaderExecutor;
         private ExecutorService userWriterExecutor;
         private List<java.util.function.Consumer<HttpRequest>> httpRequestInterceptors;
@@ -1276,14 +1276,16 @@ public class Options {
 
             classnameProperty(props, PROP_SERVERS_POOL_IMPLEMENTATION_CLASS, o -> this.serverPool = (ServerPool) o);
             classnameProperty(props, PROP_DISPATCHER_FACTORY_CLASS, o -> this.dispatcherFactory = (DispatcherFactory) o);
-            classnameProperty(props, PROP_EXECUTOR_SERVICE_CLASS, o -> this.userExecutor = (ExecutorService) o);
-            classnameProperty(props, PROP_CONNECT_EXECUTOR_SERVICE_CLASS, o -> this.userConnectExecutor = (ExecutorService) o);
-            classnameProperty(props, PROP_CALLBACK_EXECUTOR_SERVICE_CLASS, o -> this.userCallbackExecutor = (ExecutorService) o);
-            classnameProperty(props, PROP_SCHEDULED_EXECUTOR_SERVICE_CLASS, o -> this.userScheduledExecutor = (ScheduledExecutorService) o);
+
             classnameProperty(props, PROP_CONNECT_THREAD_FACTORY_CLASS, o -> this.userConnectThreadFactory = (ThreadFactory) o);
             classnameProperty(props, PROP_CALLBACK_THREAD_FACTORY_CLASS, o -> this.userCallbackThreadFactory = (ThreadFactory) o);
             classnameProperty(props, PROP_READER_THREAD_FACTORY_CLASS, o -> this.userReaderThreadFactory = (ThreadFactory) o);
             classnameProperty(props, PROP_WRITER_THREAD_FACTORY_CLASS, o -> this.userWriterThreadFactory = (ThreadFactory) o);
+
+            classnameProperty(props, PROP_SCHEDULED_EXECUTOR_SERVICE_CLASS, o -> this.userScheduledExecutor = (ScheduledExecutorService) o);
+            classnameProperty(props, PROP_EXECUTOR_SERVICE_CLASS, o -> this.userExecutor = (ExecutorService) o);
+            classnameProperty(props, PROP_CONNECT_EXECUTOR_SERVICE_CLASS, o -> this.userConnectExecutor = (ExecutorService) o);
+            classnameProperty(props, PROP_CALLBACK_EXECUTOR_SERVICE_CLASS, o -> this.userCallbackExecutor = (ExecutorService) o);
             classnameProperty(props, PROP_READER_EXECUTOR_SERVICE_CLASS, o -> this.userReaderExecutor = (ExecutorService) o);
             classnameProperty(props, PROP_WRITER_EXECUTOR_SERVICE_CLASS, o -> this.userWriterExecutor = (ExecutorService) o);
             return this;
@@ -1388,7 +1390,7 @@ public class Options {
          * Fastest validation, but use with caution
          * If you know your subjects are always valid.
          * @return the Builder for chaining
-         * @deprecated use {@link #subjectValidationType(SubjectValidationType)} with {@link SubjectValidationType#None} instead
+         * @deprecated use {@link #subjectValidationType(Options.SubjectValidationType)} with {@link SubjectValidationType#None} instead
          */
         @Deprecated
         public Builder noSubjectValidation() {
@@ -1402,7 +1404,7 @@ public class Options {
          * Slower validation, but may be useful when exposing the ability
          * of an application user to set a subject.
          * @return the Builder for chaining
-         * @deprecated use {@link #subjectValidationType(SubjectValidationType)} with {@link SubjectValidationType#Strict} instead
+         * @deprecated use {@link #subjectValidationType(Options.SubjectValidationType)} with {@link SubjectValidationType#Strict} instead
          */
         @Deprecated
         public Builder strictSubjectValidation() {
@@ -2659,14 +2661,14 @@ public class Options {
         this.trackAdvancedStats = b.trackAdvancedStats;
 
         executorsLock = new ReentrantLock();
-        this.userExecutor = b.userExecutor;
-        this.userScheduledExecutor = b.userScheduledExecutor;
-        this.userConnectExecutor = b.userConnectExecutor;
-        this.userCallbackExecutor = b.userCallbackExecutor;
-        this.userCallbackThreadFactory = b.userCallbackThreadFactory;
         this.userConnectThreadFactory = b.userConnectThreadFactory;
+        this.userCallbackThreadFactory = b.userCallbackThreadFactory;
         this.userReaderThreadFactory = b.userReaderThreadFactory;
         this.userWriterThreadFactory = b.userWriterThreadFactory;
+        this.userScheduledExecutor = b.userScheduledExecutor;
+        this.userExecutor = b.userExecutor;
+        this.userConnectExecutor = b.userConnectExecutor;
+        this.userCallbackExecutor = b.userCallbackExecutor;
         this.userReaderExecutor = b.userReaderExecutor;
         this.userWriterExecutor = b.userWriterExecutor;
 
@@ -2920,6 +2922,9 @@ public class Options {
         executorsLock.lock();
         try {
             if (--executorUseCount == 0) {
+                // internal here means a dedicated executor built from a user-supplied factory (the no-factory
+                // case uses the shared executor handled above); we created those, so we shut them down
+
                 if (resolvedCallbackExecutor != null && callbackExecutorIsInternal()) {
                     // we don't just shutdownNow to give any callbacks a chance to finish
                     ExecutorService es = resolvedCallbackExecutor;
@@ -2946,8 +2951,6 @@ public class Options {
                     es.shutdownNow(); // There's no need to wait...
                 }
 
-                // internal here means a dedicated executor built from a user-supplied factory (the no-factory
-                // case uses the shared executor handled above); we created those, so we shut them down
                 if (resolvedReaderExecutor != null && readerExecutorIsInternal()) {
                     ExecutorService es = resolvedReaderExecutor;
                     resolvedReaderExecutor = null;
@@ -3049,7 +3052,7 @@ public class Options {
     }
 
     /**
-     * the reconnect delay behavior, see {@link Builder#reconnectDelayBehavior(ReconnectDelayBehavior) reconnectDelayBehavior()} in the builder doc
+     * the reconnect delay behavior, see {@link Builder#reconnectDelayBehavior(Options.ReconnectDelayBehavior) reconnectDelayBehavior()} in the builder doc
      * @return the behavior, never null (defaults to {@link ReconnectDelayBehavior#BeforeSubsequentRounds})
      */
     public ReconnectDelayBehavior reconnectDelayBehavior() {
