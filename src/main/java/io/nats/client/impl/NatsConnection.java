@@ -648,13 +648,14 @@ class NatsConnection implements Connection {
                                 // it's running in a thread, there is no point throwing here
                             }
                         }
-                    });
+                    }, this::reportScheduledTaskException);
                 }
 
                 long cleanMillis = this.options.getRequestCleanupInterval().toMillis();
 
                 if (cleanMillis > 0) {
-                    cleanupTask = new ScheduledTask(scheduledExecutor, cleanMillis, () -> cleanResponses(false));
+                    cleanupTask = new ScheduledTask(scheduledExecutor, cleanMillis,
+                        () -> cleanResponses(false), this::reportScheduledTaskException);
                 }
             }
 
@@ -1928,6 +1929,10 @@ class NatsConnection implements Connection {
     protected void processException(Exception exp) {
         this.statistics.incrementExceptionCount();
         makeCallback(() -> options.getErrorListener().exceptionOccurred(this, exp));
+    }
+
+    void reportScheduledTaskException(Throwable t) {
+        processException(t instanceof Exception ? (Exception) t : new RuntimeException(t));
     }
 
     protected void processError(String errorText) {

@@ -155,7 +155,8 @@ abstract class MessageManager {
                         if (sinceLast > alarmPeriodSettingNanos.get()) {
                             handleHeartbeatError();
                         }
-                    })
+                    },
+                    conn::reportScheduledTaskException)
             );
 
             // since we just scheduled, reset this otherwise it may alarm too soon

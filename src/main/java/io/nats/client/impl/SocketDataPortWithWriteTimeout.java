@@ -68,7 +68,8 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
                         // This task is going to re-run anyway, so no point in throwing
                     }
                 }
-            });
+            },
+            conn::reportScheduledTaskException);
     }
 
     public void write(byte[] src, int toWrite) throws IOException {

@@ -19,6 +19,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 
 /**
@@ -32,6 +33,7 @@ public class ScheduledTask implements Runnable {
 
     private final String id;
     private final Runnable runnable;
+    private final Consumer<Throwable> reporter;
     protected final AtomicReference<ScheduledFuture<?>> scheduledFutureRef;
 
     protected final AtomicBoolean notShutdown;
@@ -40,28 +42,41 @@ public class ScheduledTask implements Runnable {
     protected final long periodNanos;
 
     public ScheduledTask(ScheduledExecutorService ses, long initialAndPeriodMillis, Runnable runnable) {
-        this(null, ses, initialAndPeriodMillis, initialAndPeriodMillis, TimeUnit.MILLISECONDS, runnable);
+        this(null, ses, initialAndPeriodMillis, initialAndPeriodMillis, TimeUnit.MILLISECONDS, runnable, null);
+    }
+
+    public ScheduledTask(ScheduledExecutorService ses, long initialAndPeriodMillis, Runnable runnable, Consumer<Throwable> reporter) {
+        this(null, ses, initialAndPeriodMillis, initialAndPeriodMillis, TimeUnit.MILLISECONDS, runnable, reporter);
     }
 
     public ScheduledTask(String id, ScheduledExecutorService ses, long initialAndPeriodMillis, Runnable runnable) {
-        this(id, ses, initialAndPeriodMillis, initialAndPeriodMillis, TimeUnit.MILLISECONDS, runnable);
+        this(id, ses, initialAndPeriodMillis, initialAndPeriodMillis, TimeUnit.MILLISECONDS, runnable, null);
     }
 
     public ScheduledTask(ScheduledExecutorService ses, long initialAndPeriod, TimeUnit unit, Runnable runnable) {
-        this(null, ses, initialAndPeriod, initialAndPeriod, unit, runnable);
+        this(null, ses, initialAndPeriod, initialAndPeriod, unit, runnable, null);
+    }
+
+    public ScheduledTask(ScheduledExecutorService ses, long initialAndPeriod, TimeUnit unit, Runnable runnable, Consumer<Throwable> reporter) {
+        this(null, ses, initialAndPeriod, initialAndPeriod, unit, runnable, reporter);
     }
 
     public ScheduledTask(String id, ScheduledExecutorService ses, long initialAndPeriod, TimeUnit unit, Runnable runnable) {
-        this(id, ses, initialAndPeriod, initialAndPeriod, unit, runnable);
+        this(id, ses, initialAndPeriod, initialAndPeriod, unit, runnable, null);
     }
 
     public ScheduledTask(ScheduledExecutorService ses, long initialDelay, long period, TimeUnit unit, Runnable runnable) {
-        this(null, ses, initialDelay, period, unit, runnable);
+        this(null, ses, initialDelay, period, unit, runnable, null);
     }
 
     public ScheduledTask(String id, ScheduledExecutorService ses, long initialDelay, long period, TimeUnit unit, Runnable runnable) {
+        this(id, ses, initialDelay, period, unit, runnable, null);
+    }
+
+    public ScheduledTask(String id, ScheduledExecutorService ses, long initialDelay, long period, TimeUnit unit, Runnable runnable, Consumer<Throwable> reporter) {
         this.id = id == null || id.isEmpty() ? "st-" + ID_GENERATOR.getAndIncrement() : id;
         this.runnable = runnable;
+        this.reporter = reporter;
         notShutdown = new AtomicBoolean(true);
         executing = new AtomicBoolean(false);
         this.initialDelayNanos = unit.toNanos(initialDelay);
@@ -78,6 +93,11 @@ public class ScheduledTask implements Runnable {
         return periodNanos;
     }
 
+    // A throw that escapes run() permanently cancels the fixed-rate schedule
+    // (see ScheduledExecutorService.scheduleAtFixedRate), so recoverable problems
+    // are caught and reported, keeping the schedule alive. VirtualMachineError
+    // (OutOfMemoryError, StackOverflowError, ...) is reported then rethrown,
+    // deliberately letting the schedule die.
     @Override
     public void run() {
         try {
@@ -86,8 +106,25 @@ public class ScheduledTask implements Runnable {
                 runnable.run();
             }
         }
+        catch (Throwable t) {
+            report(t);
+            if (t instanceof VirtualMachineError) {
+                throw (VirtualMachineError) t;
+            }
+        }
         finally {
             executing.set(false);
+        }
+    }
+
+    private void report(Throwable t) {
+        if (reporter != null) {
+            try {
+                reporter.accept(t);
+            }
+            catch (Throwable ignore) {
+                // a throwing reporter must not affect the schedule
+            }
         }
     }
 

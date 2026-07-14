@@ -2,12 +2,16 @@ package io.nats.client.support;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.utils.TestBase.variant;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ScheduledTaskTests {
@@ -71,6 +75,96 @@ public class ScheduledTaskTests {
         assertEquals(count, sttr400.counter.get());
         assertTrue(task400.toString().contains("shutdown"));
         assertTrue(task400.toString().contains("/done"));
+    }
+
+    @Test
+    public void testThrowingTickIsReportedAndScheduleSurvives() throws InterruptedException {
+        ScheduledThreadPoolExecutor stpe = testExecutor();
+        try {
+            AtomicInteger ticks = new AtomicInteger();
+            List<Throwable> reported = new CopyOnWriteArrayList<>();
+            ScheduledTask task = new ScheduledTask(stpe, 50, TimeUnit.MILLISECONDS,
+                () -> { throw new RuntimeException("tick " + ticks.incrementAndGet()); },
+                reported::add);
+
+            Thread.sleep(500);
+            assertFalse(task.isDone());
+            task.shutdown();
+            assertTrue(task.isDone());
+            Thread.sleep(100); // let any in-flight tick finish reporting
+
+            assertTrue(ticks.get() >= 3, "ticks must keep firing after a tick throws, saw " + ticks.get());
+            assertEquals(ticks.get(), reported.size());
+            assertInstanceOf(RuntimeException.class, reported.get(0));
+        }
+        finally {
+            stpe.shutdownNow();
+        }
+    }
+
+    @Test
+    public void testThrowingTickWithoutReporterScheduleStillSurvives() throws InterruptedException {
+        ScheduledThreadPoolExecutor stpe = testExecutor();
+        try {
+            AtomicInteger ticks = new AtomicInteger();
+            ScheduledTask task = new ScheduledTask(stpe, 50, TimeUnit.MILLISECONDS,
+                () -> { throw new RuntimeException("tick " + ticks.incrementAndGet()); });
+
+            Thread.sleep(500);
+            assertTrue(ticks.get() >= 3, "ticks must keep firing without a reporter, saw " + ticks.get());
+            assertFalse(task.isDone());
+            task.shutdown();
+        }
+        finally {
+            stpe.shutdownNow();
+        }
+    }
+
+    @Test
+    public void testThrowingReporterDoesNotKillSchedule() throws InterruptedException {
+        ScheduledThreadPoolExecutor stpe = testExecutor();
+        try {
+            AtomicInteger ticks = new AtomicInteger();
+            ScheduledTask task = new ScheduledTask(stpe, 50, TimeUnit.MILLISECONDS,
+                () -> { throw new RuntimeException("tick " + ticks.incrementAndGet()); },
+                t -> { throw new IllegalStateException("reporter is broken too"); });
+
+            Thread.sleep(500);
+            assertTrue(ticks.get() >= 3, "ticks must keep firing when the reporter throws, saw " + ticks.get());
+            assertFalse(task.isDone());
+            task.shutdown();
+        }
+        finally {
+            stpe.shutdownNow();
+        }
+    }
+
+    @Test
+    public void testFatalErrorIsReportedAndScheduleDies() throws InterruptedException {
+        ScheduledThreadPoolExecutor stpe = testExecutor();
+        try {
+            AtomicInteger ticks = new AtomicInteger();
+            List<Throwable> reported = new CopyOnWriteArrayList<>();
+            ScheduledTask task = new ScheduledTask(stpe, 50, TimeUnit.MILLISECONDS,
+                () -> { ticks.incrementAndGet(); throw new OutOfMemoryError("simulated"); },
+                reported::add);
+
+            Thread.sleep(500);
+            assertEquals(1, ticks.get(), "a fatal error must end the schedule after the first tick");
+            assertEquals(1, reported.size());
+            assertInstanceOf(OutOfMemoryError.class, reported.get(0));
+            assertTrue(task.isDone());
+        }
+        finally {
+            stpe.shutdownNow();
+        }
+    }
+
+    private static ScheduledThreadPoolExecutor testExecutor() {
+        ScheduledThreadPoolExecutor stpe = new ScheduledThreadPoolExecutor(1);
+        stpe.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+        stpe.setRemoveOnCancelPolicy(true);
+        return stpe;
     }
 
     @SuppressWarnings("SameParameterValue")
