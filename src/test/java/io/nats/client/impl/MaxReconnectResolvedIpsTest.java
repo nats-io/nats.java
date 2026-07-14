@@ -19,6 +19,7 @@ import io.nats.client.Options;
 import io.nats.client.utils.TestBase;
 import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.ResourceLock;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -42,6 +43,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class MaxReconnectResolvedIpsTest extends TestBase {
 
     private static final AtomicInteger CONNECT_ATTEMPTS = new AtomicInteger(0);
+    private static final String CONNECT_ATTEMPTS_LOCK = "MaxReconnectResolvedIpsTest.CONNECT_ATTEMPTS";
 
     // A DataPort that never connects and simply counts how many connect attempts were made.
     // Must be public: Options.buildDataPort() instantiates it reflectively from another package.
@@ -74,6 +76,7 @@ public class MaxReconnectResolvedIpsTest extends TestBase {
     }
 
     @Test
+    @ResourceLock(CONNECT_ATTEMPTS_LOCK)
     public void testMaxReconnectNotDividedByResolvedIpCount() throws Exception {
         int maxReconnects = 4;
         List<String> resolvedIps = Arrays.asList("192.0.2.1", "192.0.2.2", "192.0.2.3"); // TEST-NET-1, never routable
@@ -105,6 +108,7 @@ public class MaxReconnectResolvedIpsTest extends TestBase {
     }
 
     @Test
+    @ResourceLock(CONNECT_ATTEMPTS_LOCK)
     public void testSingleIpBaselineUnchanged() throws Exception {
         // Same scenario with a single resolved IP: the attempt count must match the multi-IP case
         // scaled by IP count, confirming the budget itself is unchanged (numIps * (maxReconnects + 1)).
