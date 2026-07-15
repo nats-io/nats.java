@@ -137,12 +137,18 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
             sub.setConsumerName(ci.getName());
         }
         catch (IOException | JetStreamApiException e) {
-            // create consumer can fail, unsubscribe and then throw the exception to the user
-            if (sub.getDispatcher() == null) {
-                sub.unsubscribe();
+            try {
+                // create consumer can fail, unsubscribe and then throw the exception to the user
+                if (sub.getDispatcher() == null) {
+                    sub.unsubscribe();
+                }
+                else {
+                    sub.getDispatcher().unsubscribe(sub);
+                }
             }
-            else {
-                sub.getDispatcher().unsubscribe(sub);
+            catch (Exception eUnSub) {
+                // this exception is from the unsubscribe and isn't very useful.
+                // capture this so we can return the original
             }
             throw e;
         }
