@@ -361,7 +361,7 @@ repositories {
 }
 
 dependencies {
-   implementation 'io.nats:jnats:2.25.4-SNAPSHOT'
+   implementation 'io.nats:jnats:2.26.1-SNAPSHOT'
 }
 ```
 
@@ -407,7 +407,7 @@ If you need a snapshot version, you must enable snapshots and change your depend
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.25.4-SNAPSHOT</version>
+    <version>2.26.1-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -1595,7 +1595,7 @@ and the example jar is in `build/libs`
 Once the Uber jar is built, you can run a class with a main using it's fully qualified class name. As an example:
 
 ```bash
-java -cp build/libs/java-nats-2.25.4-SNAPSHOT-uber.jar io.nats.examples.NatsSub
+java -cp build/libs/java-nats-2.26.1-SNAPSHOT-uber.jar io.nats.examples.NatsSub
 ```
 
 ## License
