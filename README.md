@@ -4,8 +4,8 @@
 
 ### A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
-![2.26.0](https://img.shields.io/badge/Current_Release-2.25.3-27AAE0?style=for-the-badge)
-![2.26.1](https://img.shields.io/badge/Current_Snapshot-2.26.0--SNAPSHOT-27AAE0?style=for-the-badge)
+![2.26.0](https://img.shields.io/badge/Current_Release-2.26.0-27AAE0?style=for-the-badge)
+![2.26.1](https://img.shields.io/badge/Current_Snapshot-2.26.1--SNAPSHOT-27AAE0?style=for-the-badge)
 
 [![Build Main Badge](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml/badge.svg?event=push)](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml)
 [![Coverage Status](https://coveralls.io/repos/github/nats-io/nats.java/badge.svg?branch=main)](https://coveralls.io/github/nats-io/nats.java?branch=main)
@@ -321,11 +321,13 @@ See [Version Notes](#version-notes)
 The java-nats client is provided in a single jar file, with a single external dependency for the encryption in NKey support. 
 See [Building From Source](#building-from-source) for details on building the library.
 
+> **Note on crypto provider:** That external dependency is BouncyCastle (`org.bouncycastle:bcprov-lts8on`), declared as an `api` dependency so it is exported transitively. Maven and Gradle resolve it onto your classpath automatically. Two things to watch for when you assemble the classpath yourself: with plain `java`/`javac` you must add the BouncyCastle jar manually (no dependency resolution happens); and because `bcprov-lts8on` is a *signed* jar, bundling it into a fat/uber jar invalidates its signature and the JVM rejects it with `SecurityException: Invalid signature file digest` — strip the `META-INF/*.SF`, `*.DSA`, and `*.RSA` entries when shading, or run from the classpath instead.
+
 ### Downloading the Jar
 
-You can download the latest jar at [jnats-2.25.3.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.25.3/jnats-2.25.3.jar).
+You can download the latest jar at [jnats-2.26.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.26.0/jnats-2.26.0.jar).
 
-The examples are available at [jnats-2.25.3-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.25.3/jnats-2.25.3-examples.jar).
+The examples are available at [jnats-2.26.0-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.26.0/jnats-2.26.0-examples.jar).
 
 ### Using Gradle
 
@@ -333,7 +335,7 @@ The NATS client is available in the Maven central repository, and can be importe
 
 ```groovy
 dependencies {
-    implementation 'io.nats:jnats:2.25.3'
+    implementation 'io.nats:jnats:2.26.0'
 }
 ```
 
@@ -371,7 +373,7 @@ The NATS client is available on the Maven Central Repository and can be imported
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.25.3</version>
+    <version>2.26.0</version>
 </dependency>
 ```
 
