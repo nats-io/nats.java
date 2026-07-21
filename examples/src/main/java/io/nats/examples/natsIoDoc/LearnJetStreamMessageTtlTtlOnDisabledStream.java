@@ -29,8 +29,8 @@ public class LearnJetStreamMessageTtlTtlOnDisabledStream {
             headers.add("Nats-TTL", "60s");
 
             try {
-                js.publish("no-ttl.cancelled", headers,
-                        "order 4242 cancelled".getBytes(StandardCharsets.UTF_8));
+                js.publish("no-ttl.canceled", headers,
+                        "order 4242 canceled".getBytes(StandardCharsets.UTF_8));
             }
             catch (JetStreamApiException e) {
                 // Error 10166: "per-message TTL is disabled". Enabling

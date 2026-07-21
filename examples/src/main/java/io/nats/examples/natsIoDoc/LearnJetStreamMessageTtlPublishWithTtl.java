@@ -29,8 +29,8 @@ public class LearnJetStreamMessageTtlPublishWithTtl {
             Headers headers = new Headers();
             headers.add("Nats-TTL", "60s");
 
-            PublishAck ack = js.publish("orders.cancelled", headers,
-                    "order 4242 cancelled".getBytes(StandardCharsets.UTF_8));
+            PublishAck ack = js.publish("orders.canceled", headers,
+                    "order 4242 canceled".getBytes(StandardCharsets.UTF_8));
 
             System.out.println("Stored in stream: " + ack.getStream());
             System.out.println("At sequence: " + ack.getSeqno());

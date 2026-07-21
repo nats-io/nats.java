@@ -33,7 +33,7 @@ public class LearnCoreNatsRequestReplyRequest {
 
             // NATS-DOC-START
             // Ask the inventory service whether an order's item is in stock. A missing
-            // service surfaces immediately as a cancelled request; a slow one as a
+            // service surfaces immediately as a canceled request; a slow one as a
             // timeout.
             byte[] order = ("{\"order_id\":\"ord_8w2k\",\"customer\":\"acme-co\","
                 + "\"total_cents\":4200,\"ts\":\"2026-05-22T10:14:22Z\"}").getBytes(StandardCharsets.UTF_8);
