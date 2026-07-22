@@ -350,6 +350,13 @@ class NatsConnection implements Connection {
         try {
             updateStatus(Status.DISCONNECTED);
 
+            // Stop the reader and writer BEFORE the port is closed below. stop(false) sets running=false
+            // without shutdownInput, so when the close unblocks a socket-blocked read the reader treats
+            // the resulting IOException as an expected shutdown rather than a communication issue that
+            // would spawn another reconnect. Capture the stopped-futures so we can join them below.
+            Future<Boolean> readerStopped = reader.isRunning() ? reader.stop(false) : null;
+            Future<Boolean> writerStopped = writer.isRunning() ? writer.stop() : null;
+
             // Close and reset the current data port and future
             if (dataPortFuture != null) {
                 dataPortFuture.cancel(true);
@@ -375,15 +382,29 @@ class NatsConnection implements Connection {
                 });
             }
 
-            // stop i/o
+            // Join the reader and writer with the full connection timeout, NOT a fixed 100ms. The port
+            // close above is what actually unblocks a socket-blocked reader, and it runs asynchronously,
+            // so a 100ms budget can expire before the reader thread has terminated. That matters because
+            // stop(false) has already cleared running, so the downstream reconnect (tryToConnect) re-joins
+            // the reader only when reader.isRunning() - now false - and will NOT wait for it. A reader
+            // still alive at that point can later throw, see running flipped back true by the new reader's
+            // start(), call handleCommunicationIssue on the now-healthy connection, and stomp the shared
+            // running flag. Waiting the real budget here guarantees the old threads are dead before their
+            // reader/writer instances are reused. In the common case the close lands in well under a
+            // millisecond and these joins return immediately, so no latency is added to a normal failover.
+            long timeoutNanos = options.getConnectionTimeout().toNanos();
             try {
-                this.reader.stop(false).get(100, TimeUnit.MILLISECONDS);
+                if (readerStopped != null) {
+                    readerStopped.get(timeoutNanos, TimeUnit.NANOSECONDS);
+                }
             }
             catch (Exception ex) {
                 processException(ex);
             }
             try {
-                this.writer.stop().get(100, TimeUnit.MILLISECONDS);
+                if (writerStopped != null) {
+                    writerStopped.get(timeoutNanos, TimeUnit.NANOSECONDS);
+                }
             }
             catch (Exception ex) {
                 processException(ex);
