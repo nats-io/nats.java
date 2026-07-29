@@ -140,6 +140,8 @@ jobs:
         run: ./gradlew --refresh-dependencies clean test
 ```
 
+`TARGET_COMPATIBILITY` here is just an example, not a GitHub Actions built-in: it's an environment variable that `java-active-passive`'s own `build.gradle` reads to set the Java target for each matrix leg. Drive your matrix with whatever env var(s) *your* build understands - the point is only that the matrix value reaches Gradle.
+
 ## Notes
 
 - **No token, no credentials.** It reads jnats main and resolves the snapshot over public HTTP, and uses only the automatic `GITHUB_TOKEN` for checkout.
