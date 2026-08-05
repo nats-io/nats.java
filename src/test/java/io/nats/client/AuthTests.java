@@ -104,7 +104,6 @@ public class AuthTests extends TestBase {
         assertUserPassWithSpecialCharacters("\r");
         assertUserPassWithSpecialCharacters("\t");
         assertUserPassWithSpecialCharacters("/");
-        assertUserPassWithSpecialCharacters("" + (char)9);
         assertUserPassWithSpecialCharacters("\\");
     }
 
