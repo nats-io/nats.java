@@ -4,9 +4,9 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
-@SuppressWarnings("DataFlowIssue")
 public abstract class ResourceUtils {
     public static List<String> dataAsLines(String fileName) {
         return resourceAsLines("data/" + fileName);
@@ -21,35 +21,47 @@ public abstract class ResourceUtils {
     }
 
     public static List<String> resourceAsLines(String fileName) {
-        try {
-            ClassLoader classLoader = ResourceUtils.class.getClassLoader();
-            File file = new File(classLoader.getResource(fileName).getFile());
-            return Files.readAllLines(file.toPath());
+        try (BufferedReader r = new BufferedReader(
+                new InputStreamReader(open(fileName), StandardCharsets.UTF_8))) {
+            List<String> lines = new ArrayList<>();
+            for (String l; (l = r.readLine()) != null; ) lines.add(l);
+            return lines;
         }
-        catch (Exception e) {
+        catch (IOException e) {
             throw new RuntimeException(e);
         }
-
     }
 
     public static String resourceAsString(String fileName) {
-        try {
-            ClassLoader classLoader = ResourceUtils.class.getClassLoader();
-            File file = new File(classLoader.getResource(fileName).getFile());
-            return new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+        try (InputStream in = open(fileName)) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buffer = new byte[8192];
+            int len;
+            while ((len = in.read(buffer)) != -1) {
+                out.write(buffer, 0, len);
+            }
+            return new String(out.toByteArray(), StandardCharsets.UTF_8);
         }
-        catch (Exception e) {
+        catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
     public static InputStream resourceAsInputStream(String fileName) {
         try {
-            return ResourceUtils.class.getClassLoader().getResourceAsStream(fileName);
+            return open(fileName);
         }
-        catch (Exception e) {
+        catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static InputStream open(String fileName) throws FileNotFoundException {
+        InputStream in = ResourceUtils.class.getClassLoader().getResourceAsStream(fileName);
+        if (in == null) {
+            throw new FileNotFoundException(fileName);
+        }
+        return in;
     }
 
     public static String createTempFile(String prefix, String suffix, String[] lines) throws IOException {

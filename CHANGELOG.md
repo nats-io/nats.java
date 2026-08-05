@@ -1,27 +1,44 @@
 # Change Log
 
+## 2.26.1
+
+### Core
+* Reset Reader Connection #1592 @scottf
+* Simplify set reader connection #1594 @scottf
+* Count connect failure once per server, not once per resolved IP #1595 @stasimus
+* Address forceReconnectImpl reader/writer stop race #1601 @scottf
+
+### JetStream
+* Better exception raising on create consumer #1598 @scottf
+
+### Miscellaneous
+* Additional tests for reader repoint #1593 @scottf
+* Add provider dependency note to readme #1599 @scottf
+* Add docs.nats.io examples to main #1600 @scottf
+* Instructions for Building a Canary #1602 @scottf
+
 ## 2.26.0
 
 ### Core
-Reconnect Delay Behavior and options cleanup #1578 @scottf
-Advanced Request Behavior Option #1582 @scottf
-Optional individual thread factories for reader and writer #1583 @scottf
-Tidy executor options and additional testing #1590 @scottf
+* Reconnect Delay Behavior and options cleanup #1578 @scottf
+* Advanced Request Behavior Option #1582 @scottf
+* Optional individual thread factories for reader and writer #1583 @scottf
+* Tidy executor options and additional testing #1590 @scottf
 
 ### JetStream
-Handle consume initial subscription failure. #1573 @scottf
-Miscellaneous Improvements based on V3 work #1577 @scottf
-Properly default idle heartbeat during setter. #1580 @scottf
-Consumer Source Field Nullability #1587 @scottf
+* Handle consume initial subscription failure. #1573 @scottf
+* Miscellaneous Improvements based on V3 work #1577 @scottf
+* Properly default idle heartbeat during setter. #1580 @scottf
+* Consumer Source Field Nullability #1587 @scottf
 
 ### Misc
-Add Client and Orbit section, drop duplicate Orbit link #1572 @Jarema
-Change optional skip claude target #1574 @scottf
-Update README.md - Fix example links #1584 @github-pawo
+* Add Client and Orbit section, drop duplicate Orbit link #1572 @Jarema
+* Change optional skip claude target #1574 @scottf
+* Update README.md - Fix example links #1584 @github-pawo
 
 ### New Nats Docs
-[New Nats Docs Examples] fixed missing marker #1571 @scottf
-[New Nats Docs Examples] Normalize examples host #1575 @scottf
+* \[New Nats Docs Examples] fixed missing marker #1571 @scottf
+* \[New Nats Docs Examples] Normalize examples host #1575 @scottf
 
 ## 2.25.3
 
