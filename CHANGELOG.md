@@ -11,7 +11,7 @@
 ### JetStream
 * Better exception raising on create consumer #1598 @scottf
 
-## Miscellaneous
+### Miscellaneous
 * Additional tests for reader repoint #1593 @scottf
 * Add provider dependency note to readme #1599 @scottf
 * Add docs.nats.io examples to main #1600 @scottf
