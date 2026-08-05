@@ -21,12 +21,10 @@ public abstract class ResourceUtils {
     }
 
     public static List<String> resourceAsLines(String fileName) {
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(open(fileName), StandardCharsets.UTF_8))) {
+        try (BufferedReader r = new BufferedReader(
+                new InputStreamReader(open(fileName), StandardCharsets.UTF_8))) {
             List<String> lines = new ArrayList<>();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                lines.add(line);
-            }
+            for (String l; (l = r.readLine()) != null; ) lines.add(l);
             return lines;
         }
         catch (IOException e) {
