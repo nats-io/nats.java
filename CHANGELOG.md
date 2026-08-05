@@ -1,5 +1,22 @@
 # Change Log
 
+## 2.26.1
+
+### Core
+* Reset Reader Connection #1592 @scottf
+* Simplify set reader connection #1594 @scottf
+* Count connect failure once per server, not once per resolved IP #1595 @stasimus
+* Address forceReconnectImpl reader/writer stop race #1601 @scottf
+
+### JetStream
+* Better exception raising on create consumer #1598 @scottf
+
+## Miscellaneous
+* Additional tests for reader repoint #1593 @scottf
+* Add provider dependency note to readme #1599 @scottf
+* Add docs.nats.io examples to main #1600 @scottf
+* Instructions for Building a Canary #1602 @scottf
+
 ## 2.26.0
 
 ### Core
