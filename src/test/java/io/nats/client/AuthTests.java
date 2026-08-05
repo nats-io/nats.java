@@ -13,6 +13,7 @@
 
 package io.nats.client;
 
+import io.nats.NatsServerRunner;
 import io.nats.client.Connection.Status;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.impl.ListenerForTesting;
@@ -22,7 +23,6 @@ import io.nats.client.utils.ResourceUtils;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledOnOs;
 
 import javax.net.ssl.SSLContext;
 import java.io.BufferedWriter;
@@ -91,28 +91,42 @@ public class AuthTests extends TestBase {
         c.close();
     }
 
+    // A user or password may contain characters that cannot travel literally in the CONNECT frame. The
+    // frame is a JSON object and NATS is line oriented, so a raw newline would both break the JSON and
+    // truncate the protocol message. The client escapes them on the way out; this asserts the round trip
+    // still authenticates. The set below is every character the encoder treats specially: the low ASCII
+    // controls, plus forward slash and backslash, which are printable but still escaped.
     @Test
-    @EnabledOnOs({ WINDOWS })
-    public void testNeedsJsonEncoding() throws Exception {
-        assertNeedsJsonEncoding("\n");
-        assertNeedsJsonEncoding("\b");
-        assertNeedsJsonEncoding("\f");
-        assertNeedsJsonEncoding("\r");
-        assertNeedsJsonEncoding("\t");
-        assertNeedsJsonEncoding("/");
-        assertNeedsJsonEncoding("" + (char)9);
-        assertNeedsJsonEncoding("\\");
+    public void testUserPassWithSpecialCharacters() throws Exception {
+        assertUserPassWithSpecialCharacters("\n");
+        assertUserPassWithSpecialCharacters("\b");
+        assertUserPassWithSpecialCharacters("\f");
+        assertUserPassWithSpecialCharacters("\r");
+        assertUserPassWithSpecialCharacters("\t");
+        assertUserPassWithSpecialCharacters("/");
+        assertUserPassWithSpecialCharacters("" + (char)9);
+        assertUserPassWithSpecialCharacters("\\");
     }
 
-    private static void assertNeedsJsonEncoding(String test) throws Exception {
+    // The credential is handed to the server as a command line argument, and that is the one part of this
+    // test that is not portable. NatsServerRunner spawns with ProcessBuilder(List): on unix that argv list
+    // goes straight to exec with no shell, so a wrapping quote would become part of the credential itself;
+    // on Windows ProcessBuilder must flatten the list into a single command line, where the wrapping quote
+    // is what stops the value being re-split and is stripped before the server sees it. Quote on Windows
+    // only. What is under test - that a credential containing these characters still authenticates - is
+    // identical on both platforms.
+    private static String quoteCredentialForOs(String credential) {
+        return WINDOWS.isCurrentOs() ? "\"" + credential + "\"" : credential;
+    }
+
+    private static void assertUserPassWithSpecialCharacters(String test) throws Exception {
         String user = "u" + test + "u";
         String pass = "p" + test + "p";
-        String[] customArgs = {"--user", "\"" + user + "\"", "--pass", "\"" + pass + "\""};
-        try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
-            // See config file for user/pass
+        String[] customArgs = {"--user", quoteCredentialForOs(user), "--pass", quoteCredentialForOs(pass)};
+        try (NatsTestServer ts = new NatsTestServer(
+            NatsServerRunner.builder().customArgs(customArgs))) {
             Options options = new Options.Builder().server("nats://localhost:" + ts.getPort())
-                .userInfo(user, pass)
-                .maxReconnects(0).build();
+                .maxReconnects(0).userInfo(user, pass).build();
             assertCanConnect(options);
         }
     }
