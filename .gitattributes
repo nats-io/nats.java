@@ -1,1 +1,16 @@
-gradlew text eol=lf
+# Normalize all text files to LF in the repository (checkout follows the platform).
+* text=auto
+
+# Scripts that must keep a specific line ending regardless of platform.
+gradlew   text eol=lf
+*.sh      text eol=lf
+*.bat     text eol=crlf
+*.cmd     text eol=crlf
+
+# Binary assets — never touch line endings.
+*.rar binary
+*.jar binary
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary

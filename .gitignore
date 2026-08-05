@@ -7,9 +7,10 @@ examples/**/Z*.java
 **/examples/z/**
 **/examples/testapp_mc/**
 **/Debug*.java
-.claude/**
-env.bat
 **/TestDebugger*
+.claude/**
+.editorconfig
+env.bat
 
 # Compiled source #
 ###################
