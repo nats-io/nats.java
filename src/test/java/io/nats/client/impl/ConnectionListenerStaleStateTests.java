@@ -132,7 +132,7 @@ public class ConnectionListenerStaleStateTests {
             // here is correct, the server really is gone by the time this callback runs.
             assertNull(listener.urlWhenCallbackRan.get(),
                 "getConnectedUrl() inside a callback is a live read");
-            assertTrue(listener.statusWhenCallbackRan.get() != Connection.Status.CONNECTED,
+            assertNotEquals(Connection.Status.CONNECTED, listener.statusWhenCallbackRan.get(),
                 "getStatus() inside a callback is a live read");
 
             // The event carries its own detail, captured when it was raised, so a listener
@@ -244,6 +244,7 @@ public class ConnectionListenerStaleStateTests {
                     seen = listener.eventsSeen.get();
                     Thread.sleep(listener.workMs + 100);
                 }
+                assertEquals(seen, listener.eventsSeen.get(), "callback queue did not drain within timeout");
 
                 assertEquals(nc.getStatus(), listener.belief.get(),
                     "event derived state after " + listener.eventsSeen.get() + " events, of which "
