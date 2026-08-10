@@ -827,6 +827,14 @@ class NatsConnection implements Connection {
                 this.disconnecting = true;
                 this.exceptionDuringConnectChange = null;
                 wasConnected = (this.status == Status.CONNECTED);
+
+                // Update the status before tearing the socket down, not after. closeSocketImpl
+                // clears the current server as its first act and can then block for as long as
+                // the reader and writer stop timeouts allow, so updating afterwards leaves a
+                // window where the connection reports CONNECTED with a null connected url.
+                // This is also the order forceReconnectImpl already uses.
+                updateStatus(Status.DISCONNECTED);
+
                 statusChanged.signalAll();
             }
             finally {
@@ -837,7 +845,6 @@ class NatsConnection implements Connection {
 
             statusLock.lock();
             try {
-                updateStatus(Status.DISCONNECTED);
                 this.exceptionDuringConnectChange = null; // Ignore IOExceptions during closeSocketImpl()
                 this.disconnecting = false;
                 statusChanged.signalAll();
