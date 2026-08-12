@@ -18,10 +18,7 @@ import io.nats.client.Options;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static io.nats.client.utils.TestBase.*;
@@ -322,5 +319,28 @@ public class NatsConnectionImplTests {
             assertFalse(readerFactory.created.isEmpty());
             assertFalse(writerFactory.created.isEmpty());
         }
+    }
+
+    @Test
+    public void testOutgoingPendingCountCoverage() throws Exception {
+        runInServer(nc -> {
+            NatsConnection conn = (NatsConnection)nc;
+
+            // Stop the writer so nothing drains the outgoing queue, giving a deterministic backlog
+            // to exercise the pending-count getters against. Reading them while the writer is live
+            // is an unwinnable race (a fast machine drains to 0; a slow machine backs up past the
+            // reconnect buffer and the publish throws), and they can't be read during reconnect at
+            // all because that path holds closeSocketLock for the whole reconnect.
+            conn.getWriter().stop().get(LONG_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+
+            String subject = subject();
+            byte[] data = new byte[2 * 1024]; // > 1000 bytes so pending bytes > count * 1000
+            for (int x = 0; x < 20; x++) {
+                conn.publish(subject, data);
+            }
+
+            assertTrue(conn.outgoingPendingMessageCount() > 0);
+            assertTrue(conn.outgoingPendingBytes() > conn.outgoingPendingMessageCount() * 1000);
+        });
     }
 }
