@@ -1,5 +1,18 @@
 # Change Log
 
+## 2.26.2
+
+### Core
+* Update the status before tearing the socket down in closeSocket #1609 @scottf
+
+### JetStream
+* Fix regression of PublishOptions getStreamTimeout #1611 @utamas @scottf
+
+### Miscellaneous
+* test user pass with special characters fixed to run on all platforms #1605 @scottf
+* Connection Listener Stale State Tests #1607 @scottf
+* Fix Test Flappers #1612 @scottf
+
 ## 2.26.1
 
 ### Core
