@@ -21,6 +21,7 @@ import io.nats.client.api.PublishAck;
 import io.nats.client.support.Validator;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -154,7 +155,8 @@ public class NatsJetStream extends NatsJetStreamImpl implements JetStream {
             return null;
         }
 
-        Message resp = makeInternalRequestResponseRequired(subject, merged, data, getTimeout(), CancelAction.COMPLETE, conn.forceFlushOnRequest);
+        Duration timeout = options == null || options.getStreamTimeout() == null ? getTimeout() : options.getStreamTimeout();
+        Message resp = makeInternalRequestResponseRequired(subject, merged, data, timeout, CancelAction.COMPLETE, conn.forceFlushOnRequest);
         return processPublishResponse(resp, options);
     }
 

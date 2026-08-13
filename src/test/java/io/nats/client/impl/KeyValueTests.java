@@ -2035,14 +2035,17 @@ public class KeyValueTests extends JetStreamTestBase {
             StreamInfo si = jsm.getStreamInfo(rawStream);
             assertEquals(1, si.getStreamState().getMsgCount());
 
-            long safety = 0;
+            // Bound the wait by time, not by a poll count. How much wall time a fixed number
+            // of unthrottled getStreamInfo round trips buys depends entirely on the machine.
+            long timeoutAt = System.currentTimeMillis() + 10_000;
             long gotZero = -1;
-            while (++safety < 10000 && errorLatch.getCount() > 0) {
+            while (System.currentTimeMillis() < timeoutAt && errorLatch.getCount() > 0) {
                 si = jsm.getStreamInfo(rawStream);
                 if (si.getStreamState().getMsgCount() == 0) {
                     gotZero = System.currentTimeMillis();
                     break;
                 }
+                sleep(10);
             }
             assertEquals(1, errorLatch.getCount(), error.get());
             assertEquals(2, messages.get());
@@ -2058,14 +2061,15 @@ public class KeyValueTests extends JetStreamTestBase {
             si = jsm.getStreamInfo(rawStream);
             assertEquals(1, si.getStreamState().getMsgCount());
 
-            safety = 0;
+            timeoutAt = System.currentTimeMillis() + 10_000;
             gotZero = -1;
-            while (++safety < 10000 && errorLatch.getCount() > 0) {
+            while (System.currentTimeMillis() < timeoutAt && errorLatch.getCount() > 0) {
                 si = jsm.getStreamInfo(rawStream);
                 if (si.getStreamState().getMsgCount() == 0) {
                     gotZero = System.currentTimeMillis();
                     break;
                 }
+                sleep(10);
             }
             assertEquals(1, errorLatch.getCount(), error.get());
             assertEquals(4, messages.get());
@@ -2141,19 +2145,22 @@ public class KeyValueTests extends JetStreamTestBase {
             StreamInfo si = jsm.getStreamInfo(rawStream);
             assertEquals(1, si.getStreamState().getMsgCount());
 
-            kv.delete(key);
             long mark = System.currentTimeMillis();
+            kv.delete(key);
             si = jsm.getStreamInfo(rawStream);
             assertEquals(1, si.getStreamState().getMsgCount());
 
-            long safety = 0;
+            // Bound the wait by time, not by a poll count. How much wall time a fixed number
+            // of unthrottled getStreamInfo round trips buys depends entirely on the machine.
+            long timeoutAt = System.currentTimeMillis() + 10_000;
             long gotZero = -1;
-            while (++safety < 10000 && errorLatch.getCount() > 0) {
+            while (System.currentTimeMillis() < timeoutAt && errorLatch.getCount() > 0) {
                 si = jsm.getStreamInfo(rawStream);
                 if (si.getStreamState().getMsgCount() == 0) {
                     gotZero = System.currentTimeMillis();
                     break;
                 }
+                sleep(10);
             }
             assertEquals(1, errorLatch.getCount(), error.get());
             assertEquals(2, messages.get());
@@ -2165,14 +2172,15 @@ public class KeyValueTests extends JetStreamTestBase {
             mark = System.currentTimeMillis();
             kv.purge(key);
 
-            safety = 0;
+            timeoutAt = System.currentTimeMillis() + 10_000;
             gotZero = -1;
-            while (++safety < 10000 && errorLatch.getCount() > 0) {
+            while (System.currentTimeMillis() < timeoutAt && errorLatch.getCount() > 0) {
                 si = jsm.getStreamInfo(rawStream);
                 if (si.getStreamState().getMsgCount() == 0) {
                     gotZero = System.currentTimeMillis();
                     break;
                 }
+                sleep(10);
             }
             assertEquals(1, errorLatch.getCount(), error.get());
             assertEquals(4, messages.get());

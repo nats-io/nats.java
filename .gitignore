@@ -11,6 +11,8 @@ examples/**/Z*.java
 .claude/**
 .editorconfig
 env.bat
+*.zip
+*.rar
 
 # Compiled source #
 ###################
