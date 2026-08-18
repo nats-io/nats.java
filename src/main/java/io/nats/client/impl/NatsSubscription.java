@@ -160,10 +160,12 @@ class NatsSubscription extends NatsConsumer implements Subscription {
 
         NatsMessage msg = copy.pop(timeout);
 
-        // deliberately a fresh read rather than the copy above - the whole point of this
-        // check is to notice that we were invalidated while blocked in pop
-        ConsumerMessageQueue copyAfterPop = this.incoming;
-        if (copyAfterPop == null || !copyAfterPop.isRunning()) { // We were unsubscribed while waiting
+        // the field read catches invalidate() nulling it, the isRunning() catches pause().
+        // Both are needed: invalidate() pauses before nulling, but the pause is a CAS from
+        // RUNNING, so a queue that was already DRAINING stays DRAINING and isRunning() alone
+        // would miss it. Reading the field is only a null comparison - copy is what gets
+        // dereferenced, and copy cannot be null here.
+        if (this.incoming == null || !copy.isRunning()) { // We were unsubscribed while waiting
             throw new IllegalStateException("This subscription became inactive.");
         }
 

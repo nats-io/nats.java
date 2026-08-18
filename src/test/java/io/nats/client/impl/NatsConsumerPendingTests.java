@@ -163,7 +163,12 @@ public class NatsConsumerPendingTests {
             assertFalse(t instanceof NullPointerException,
                 "unsubscribe raced nextMessage and produced an NPE: " + t);
             assertTrue(t instanceof IllegalStateException, "expected IllegalStateException, got " + t);
-            assertEquals("This subscription became inactive.", t.getMessage());
+            // either message is correct - which one depends on whether the waiter reached the
+            // blocking pop before the unsubscribe landed, and that is not something the test
+            // can pin down. What matters is that it is this pair and never an NPE.
+            assertTrue("This subscription became inactive.".equals(t.getMessage())
+                    || "This subscription is inactive.".equals(t.getMessage()),
+                "unexpected message: " + t.getMessage());
         }
     }
 
