@@ -21,10 +21,17 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class SlowConsumerTests {
+
+    @Test
+    public void testPendingCountsUseSingleQueueLookup() {
+        assertEquals(0, new QueueInvalidatingConsumer().getPendingMessageCount());
+        assertEquals(0, new QueueInvalidatingConsumer().getPendingByteCount());
+    }
 
     @Test
     public void testDefaultPendingLimits() throws Exception {
@@ -232,6 +239,32 @@ public class SlowConsumerTests {
 
             assertEquals(1, slow.size()); // should only appear once
             assertEquals(sub, slow.get(0));
+        }
+    }
+
+    private static class QueueInvalidatingConsumer extends NatsConsumer {
+        private final AtomicInteger queueLookups = new AtomicInteger();
+
+        QueueInvalidatingConsumer() {
+            super(null);
+        }
+
+        @Override
+        public boolean isActive() {
+            return true;
+        }
+
+        @Override
+        ConsumerMessageQueue getMessageQueue() {
+            return queueLookups.getAndIncrement() == 0 ? new ConsumerMessageQueue() : null;
+        }
+
+        @Override
+        void sendUnsubForDrain() {
+        }
+
+        @Override
+        void cleanUpAfterDrain() {
         }
     }
 }
