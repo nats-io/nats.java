@@ -79,9 +79,9 @@ abstract class NatsConsumer implements Consumer {
     }
 
     /**
-     * The number of messages currently in the queue. -1 if the queue is not available.
-     * @return the number of messages
+     * The number of messages currently in the queue, subject to the limits set by
      * {@link #setPendingLimits(long, long) setPendingLimits}.
+     * @return the number of messages, or -1 if the queue is not available
      */
     public long getPendingMessageCount() {
         ConsumerMessageQueue copy = getMessageQueue();
@@ -89,9 +89,9 @@ abstract class NatsConsumer implements Consumer {
     }
 
     /**
-     * The cumulative size of the message currently in the queue. -1 if the queue is not available.
-     * @return the number of bytes
-     * {@link #setPendingLimits(long, long) setPendingLimits}.
+     * The cumulative size of the messages currently in the queue, subject to the limits set
+     * by {@link #setPendingLimits(long, long) setPendingLimits}.
+     * @return the number of bytes, or -1 if the queue is not available
      */
     public long getPendingByteCount() {
         ConsumerMessageQueue copy = getMessageQueue();

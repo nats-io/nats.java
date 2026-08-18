@@ -30,6 +30,9 @@ public class SlowConsumerTests {
     // From PR #1614 (zileongggg), kept verbatim so nothing from that PR is lost by not
     // merging it. The stronger form of this coverage - seeded queue, split assertions, the
     // -1 contract, DeliverabilityState - lives in NatsConsumerPendingTests.
+    //
+    // 0 and not -1 is correct here: the first lookup hands back a live but empty queue, so
+    // these read a real 0. -1 is only for a consumer with no queue at all.
     @Test
     public void testPendingCountsUseSingleQueueLookup() {
         assertEquals(0, new QueueInvalidatingConsumer().getPendingMessageCount());
