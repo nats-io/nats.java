@@ -72,14 +72,16 @@ public interface Consumer {
     long getPendingByteLimit();
 
     /**
-     * the number of messages waiting to be delivered/popped, {@link #setPendingLimits(long, long) setPendingLimits}
-     * @return the pending messages
+     * The number of messages currently in the queue. -1 if the queue is not available.
+     * @return the number of messages
+     * {@link #setPendingLimits(long, long) setPendingLimits}.
      */
     long getPendingMessageCount();
 
     /**
-     * the cumulative size of the messages waiting to be delivered/popped, {@link #setPendingLimits(long, long) setPendingLimits}
+     * The cumulative size of the message currently in the queue. -1 if the queue is not available.
      * @return the number of bytes
+     * {@link #setPendingLimits(long, long) setPendingLimits}.
      */
     long getPendingByteCount();
 

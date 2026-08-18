@@ -1903,28 +1903,36 @@ class NatsConnection implements Connection {
 
             NatsDispatcher d = sub.getNatsDispatcher();
             NatsConsumer c = (d == null) ? sub : d;
+            // the only read of the queue reference on this path - q is what is judged below
+            // and q is what is pushed to, so nothing can change underneath the decision
             ConsumerMessageQueue q = ((d == null) ? sub.getMessageQueue() : d.getMessageQueue());
+            NatsConsumer.DeliverabilityState ds = c.getDeliverabilityState(q);
 
-            if (c.hasReachedPendingLimits()) {
-                // Drop the message and count it
-                this.statistics.incrementDroppedCount();
-                c.incrementDroppedCount();
+            switch (ds) {
+                case AVAILABLE:
+                    c.markNotSlow();
+                    // beforeQueueProcessor returns true if the message is allowed to be queued
+                    if (sub.getBeforeQueueProcessor().apply(msg)) {
+                        q.push(msg);
+                    }
+                    break;
+                case FULL:
+                    // Drop the message and count it
+                    this.statistics.incrementDroppedCount();
+                    c.incrementDroppedCount();
 
-                // Notify the first time
-                if (!c.isMarkedSlow()) {
-                    c.markSlow();
-                    processSlowConsumer(c);
-                }
+                    // Notify the first time
+                    if (!c.isMarkedSlow()) {
+                        c.markSlow();
+                        processSlowConsumer(c);
+                    }
+                    break;
+                case NOT_AVAILABLE:
+                    // not marking slow, but message is dropped
+                    this.statistics.incrementDroppedCount();
+                    c.incrementDroppedCount();
+                    break;
             }
-            else if (q != null) {
-                c.markNotSlow();
-
-                // beforeQueueProcessor returns true if the message is allowed to be queued
-                if (sub.getBeforeQueueProcessor().apply(msg)) {
-                    q.push(msg);
-                }
-            }
-
         }
 //        else {
 //            // Drop messages we don't have a subscriber for (could be extras on an

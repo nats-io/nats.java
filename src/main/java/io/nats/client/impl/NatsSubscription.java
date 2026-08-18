@@ -77,8 +77,9 @@ class NatsSubscription extends NatsConsumer implements Subscription {
     }
 
     void invalidate() {
-        if (this.incoming != null) {
-            this.incoming.pause();
+        ConsumerMessageQueue copy = this.incoming;
+        if (copy != null) {
+            copy.pause();
         }
         this.dispatcher = null;
         this.incoming = null;
@@ -150,13 +151,19 @@ class NatsSubscription extends NatsConsumer implements Subscription {
         if (this.dispatcher != null) {
             throw new IllegalStateException(
                     "Subscriptions that belong to a dispatcher cannot respond to nextMessage directly.");
-        } else if (this.incoming == null) {
+        }
+
+        ConsumerMessageQueue copy = this.incoming;
+        if (copy == null) {
             throw new IllegalStateException("This subscription is inactive.");
         }
 
-        NatsMessage msg = incoming.pop(timeout);
+        NatsMessage msg = copy.pop(timeout);
 
-        if (this.incoming == null || !this.incoming.isRunning()) { // We were unsubscribed while waiting
+        // deliberately a fresh read rather than the copy above - the whole point of this
+        // check is to notice that we were invalidated while blocked in pop
+        ConsumerMessageQueue copyAfterPop = this.incoming;
+        if (copyAfterPop == null || !copyAfterPop.isRunning()) { // We were unsubscribed while waiting
             throw new IllegalStateException("This subscription became inactive.");
         }
 
