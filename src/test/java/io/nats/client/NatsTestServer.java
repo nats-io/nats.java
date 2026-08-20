@@ -23,18 +23,17 @@ import java.util.logging.Level;
 public class NatsTestServer extends NatsServerRunner {
     static {
         NatsTestServer.quiet();
-        NatsServerRunner.setDefaultOutputSupplier(ConsoleOutput::new);
-        NatsServerRunner.setDefaultValidateTries(5);
-        NatsServerRunner.setDefaultInitialValidateDelay(100);
-        NatsServerRunner.setDefaultSubsequentValidateDelay(50);
+        NatsRunnerUtils.setDefaultConnectValidateTries(10);
+        NatsRunnerUtils.setDefaultConnectValidateTimeout(200);
+        NatsRunnerUtils.setDefaultOutputSupplier(ConsoleOutput::new);
     }
 
     public static void quiet() {
-        NatsServerRunner.setDefaultOutputLevel(Level.WARNING);
+        NatsRunnerUtils.setDefaultOutputLevel(Level.WARNING);
     }
 
     public static void verbose() {
-        NatsServerRunner.setDefaultOutputLevel(Level.ALL);
+        NatsRunnerUtils.setDefaultOutputLevel(Level.ALL);
     }
 
     public NatsTestServer() throws IOException {
@@ -93,12 +92,12 @@ public class NatsTestServer extends NatsServerRunner {
         return NatsRunnerUtils.nextPort();
     }
 
-    public String getLocalhostUri(String schema) {
-        return NatsRunnerUtils.getLocalhostUri(schema, getPort());
+    public String getURI() {
+        return NatsRunnerUtils.getNatsLocalhostUri(getNatsPort());
     }
 
-    public String getNatsLocalhostUri() {
-        return NatsRunnerUtils.getNatsLocalhostUri(getPort());
+    public String getLocalhostUri(String schema) {
+        return NatsRunnerUtils.getLocalhostUri(schema, getNatsPort());
     }
 
     public static String getNatsLocalhostUri(int port) {

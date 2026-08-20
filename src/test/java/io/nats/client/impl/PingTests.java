@@ -56,7 +56,7 @@ public class PingTests {
         };
 
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(pingPongCustomizer)) {
-            Connection  nc = Nats.connect(ts.getURI());
+            Connection  nc = Nats.connect(ts.getNatsLocalhostUri());
             try {
                 assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
                 assertTrue(gotPong.get(), "Got pong.");
@@ -92,7 +92,7 @@ public class PingTests {
     public void testPingFailsWhenClosed() throws Exception {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
             Options options = new Options.Builder().
-                                            server(ts.getURI()).
+                                            server(ts.getNatsLocalhostUri()).
                                             pingInterval(Duration.ofMillis(10)).
                                             maxPingsOut(5).
                                             maxReconnects(0).
@@ -115,7 +115,7 @@ public class PingTests {
     public void testMaxPingsOut() throws Exception {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
             Options options = new Options.Builder().
-                                            server(ts.getURI()).
+                                            server(ts.getNatsLocalhostUri()).
                                             pingInterval(Duration.ofSeconds(10)). // Avoid auto pings
                                             maxPingsOut(2).
                                             maxReconnects(0).
@@ -139,7 +139,7 @@ public class PingTests {
         assertThrows(TimeoutException.class, () -> {
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
                 Options options = new Options.Builder().
-                                                server(ts.getURI()).
+                                                server(ts.getNatsLocalhostUri()).
                                                 maxReconnects(0).
                                                 build();
                 NatsConnection nc = (NatsConnection) Nats.connect(options);

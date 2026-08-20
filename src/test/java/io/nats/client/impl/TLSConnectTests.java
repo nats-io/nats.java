@@ -50,7 +50,7 @@ public class TLSConnectTests extends TestBase {
             if (x > 0) {
                 sb.append(",");
             }
-            sb.append(proto).append("://localhost:").append(servers[x].getPort());
+            sb.append(proto).append("://localhost:").append(servers[x].getNatsPort());
         }
         return sb.toString();
     }
@@ -108,7 +108,7 @@ public class TLSConnectTests extends TestBase {
             try (NatsTestServer ts = new NatsTestServer(
                 NatsTestServer.builder()
                     .configFilePath("src/test/resources/tls_first.conf")
-                    .connectValidateTlsFirstMode())
+                    .skipConnectValidate())
             ) {
                 String servers = ts.getURI();
                 Options options = new Options.Builder()
@@ -152,7 +152,7 @@ public class TLSConnectTests extends TestBase {
     public void testSimpleIPTLSConnection() throws Exception {
         //System.setProperty("javax.net.debug", "all");
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
-            String servers = "127.0.0.1:" + ts.getPort();
+            String servers = "127.0.0.1:" + ts.getNatsPort();
             assertCanConnectAndPubSub(createTestOptionsManually(servers));
             assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
             assertCanConnectAndPubSub(createTestOptionsViaFactoryInstance(servers));
@@ -193,7 +193,7 @@ public class TLSConnectTests extends TestBase {
     @Test
     public void testURISchemeTLSConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
-            String servers = "tls://localhost:"+ts.getPort();
+            String servers = "tls://localhost:"+ts.getNatsPort();
             assertCanConnectAndPubSub(createTestOptionsManually(servers));
             assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
             assertCanConnectAndPubSub(createTestOptionsViaFactoryInstance(servers));
@@ -204,7 +204,7 @@ public class TLSConnectTests extends TestBase {
     @Test
     public void testURISchemeIPTLSConnection() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tlsverify.conf", false)) {
-            String servers = "tls://127.0.0.1:"+ts.getPort();
+            String servers = "tls://127.0.0.1:"+ts.getNatsPort();
             assertCanConnectAndPubSub(createTestOptionsManually(servers));
             assertCanConnectAndPubSub(createTestOptionsViaProperties(servers));
             assertCanConnectAndPubSub(createTestOptionsViaFactoryInstance(servers));
@@ -464,7 +464,7 @@ public class TLSConnectTests extends TestBase {
             try (NatsTestServer ts = new NatsTestServer(
                 NatsTestServer.builder()
                     .configFilePath("src/test/resources/tls_first.conf")
-                    .connectValidateTlsFirstMode())
+                    .skipConnectValidate())
             ) {
                 // 1. client tls first | secure proxy | server insecure -> connects
                 ProxyConnection connTI = new ProxyConnection(ts.getURI(), true, null, SERVER_INSECURE);
@@ -514,7 +514,7 @@ public class TLSConnectTests extends TestBase {
 
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
             Options options = new Options.Builder()
-                .server(ts.getNatsLocalhostUri())
+                .server(ts.getURI())
                 .sslContext(sslContext)
                 .maxReconnects(1)
                 .connectionTimeout(Duration.ofSeconds(2))
@@ -546,7 +546,7 @@ public class TLSConnectTests extends TestBase {
 
             try (NatsTestServer ts = new NatsTestServer(configFilePath, false)) {
                 Options options = new Options.Builder()
-                    .server(ts.getNatsLocalhostUri())
+                    .server(ts.getURI())
                     .sslContext(expiring.sslContext)
                     .maxReconnects(1)
                     .connectionTimeout(Duration.ofSeconds(5))
@@ -587,7 +587,7 @@ public class TLSConnectTests extends TestBase {
             try (NatsTestServer ts1 = new NatsTestServer(configFilePath, false)) {
                 try (NatsTestServer ts2 = new NatsTestServer(configFilePath, false)) {
                     Options options = new Options.Builder()
-                        .servers(new String[]{ts2.getNatsLocalhostUri(), ts1.getNatsLocalhostUri()})
+                        .servers(new String[]{ts2.getURI(), ts1.getURI()})
                         .noRandomize()
                         .sslContext(expiring.sslContext)
                         .maxReconnects(1)
@@ -626,7 +626,7 @@ public class TLSConnectTests extends TestBase {
 
             try (NatsTestServer ts = new NatsTestServer(configFilePath, false)) {
                 Options options = new Options.Builder()
-                    .server(ts.getNatsLocalhostUri())
+                    .server(ts.getURI())
                     .sslContext(expiring.sslContext)
                     .maxReconnects(1)
                     .connectionTimeout(Duration.ofSeconds(5))

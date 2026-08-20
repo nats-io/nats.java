@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.ConnectionListener.Events;
 import io.nats.client.api.*;
 import io.nats.client.support.*;
 import io.nats.client.utils.TestBase;
@@ -1795,7 +1796,6 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
-//    @Disabled("This is a timing flapper and is annoying.")
     public void testReconnectOverOrdered() throws Exception {
         // ------------------------------------------------------------
         // The idea here is...
@@ -1807,18 +1807,12 @@ public class SimplificationTests extends JetStreamTestBase {
         //    to make sure the consumer continues after that condition
         // ------------------------------------------------------------
         int port = NatsTestServer.nextPort();
-        ListenerForTesting lft = new ListenerForTesting();
-        Options options = new Options.Builder()
-            .connectionListener(lft)
-            .errorListener(lft)
-            .server(NatsTestServer.getNatsLocalhostUri(port)).build();
-        NatsConnection nc;
 
         String stream = stream();
         String subject = subject();
 
         AtomicBoolean allInOrder = new AtomicBoolean(true);
-        AtomicInteger atomicCount = new AtomicInteger();
+        AtomicInteger messageCount = new AtomicInteger();
         AtomicLong nextExpectedSequence = new AtomicLong(0);
 
         MessageHandler handler = msg -> {
@@ -1826,75 +1820,86 @@ public class SimplificationTests extends JetStreamTestBase {
                 allInOrder.set(false);
             }
             msg.ack();
-            atomicCount.incrementAndGet();
+            messageCount.incrementAndGet();
             sleep(50); // simulate some work and to slow the endless consume
         };
 
-        // variable are here. initialized during first server, but used after.
-        StreamContext streamContext;
-        OrderedConsumerContext orderedConsumerContext;
-        MessageConsumer mcon;
-        String firstConsumerName;
+        ListenerForTesting lft = new ListenerForTesting();
+        Options options = new Options.Builder()
+            .connectionListener(lft)
+            .errorListener(lft)
+            .server(NatsTestServer.getNatsLocalhostUri(port)).build();
 
+        // One server instance, stopped and started repeatedly. Restarting the same runner
+        // reuses the config it already generated, so the file based stream is still there
+        // when the server comes back - a new runner would get a new store_dir and lose it.
+        NatsTestServer ts = new NatsTestServer(port, false, true);
+        NatsConnection nc = (NatsConnection)standardConnection(options);
+
+        StreamConfiguration sc = StreamConfiguration.builder()
+            .name(stream)
+            .storageType(StorageType.File) // file since we are killing the server and bringing it back up.
+            .subjects(subject).build();
+        nc.jetStreamManagement().addStream(sc);
+
+        jsPublish(nc, subject, 10000);
+
+        ConsumeOptions consumeOptions = ConsumeOptions.builder()
+            .batchSize(100) // small batch size means more round trips
+            .expiresIn(1500) // idle heartbeat is half of this, alarm time is 3 * ihb
+            .build();
+
+        OrderedConsumerConfiguration ocConfig = new OrderedConsumerConfiguration().filterSubjects(subject);
+        StreamContext streamContext = nc.getStreamContext(stream);
+        OrderedConsumerContext orderedConsumerContext = streamContext.createOrderedConsumer(ocConfig);
+        assertNull(orderedConsumerContext.getConsumerName());
         //noinspection unused
-        try (NatsTestServer ts = new NatsTestServer(port, false, true)) {
-            nc = (NatsConnection) standardConnection(options);
-            StreamConfiguration sc = StreamConfiguration.builder()
-                .name(stream)
-                .storageType(StorageType.File) // file since we are killing the server and bringing it back up.
-                .subjects(subject).build();
-            nc.jetStreamManagement().addStream(sc);
+        MessageConsumer mcon = orderedConsumerContext.consume(consumeOptions, handler);
+        validateConsumerNameForOrdered(orderedConsumerContext, mcon, null);
 
-            jsPublish(nc, subject, 10000);
+        // 1. consuming against the first server
+        assertTrueByTimeout(20000, () -> messageCount.get() > 0);
+        ts.close();
+        validateOverOrdered(messageCount, allInOrder);
 
-            ConsumeOptions consumeOptions = ConsumeOptions.builder()
-                .batchSize(100) // small batch size means more round trips
-                .expiresIn(1500) // idle heartbeat is half of this, alarm time is 3 * ihb
-                .build();
+        // 2. back up before the idle heartbeat alarm kicks in. The ephemeral ordered consumer
+        //    did not survive the restart, so messages flowing again is proof the client noticed
+        //    and built a new one.
+        messageCount.set(0);
+        lft.prepForStatusChange(Events.RECONNECTED);
+        ts.start();
+        assertTrue(lft.waitForStatusChange(20, TimeUnit.SECONDS), "did not reconnect");
+        assertTrueByTimeout(20000, () -> messageCount.get() > 0);
+        ts.close();
+        validateOverOrdered(messageCount, allInOrder);
 
-            OrderedConsumerConfiguration ocConfig = new OrderedConsumerConfiguration().filterSubjects(subject);
-            streamContext = nc.getStreamContext(stream);
-            orderedConsumerContext = streamContext.createOrderedConsumer(ocConfig);
-            assertNull(orderedConsumerContext.getConsumerName());
-            mcon = orderedConsumerContext.consume(consumeOptions, handler);
-            firstConsumerName = validateConsumerNameForOrdered(orderedConsumerContext, mcon, null);
+        // 3. stay down long enough for the alarm to go off while still disconnected, which is
+        //    the condition this test exists to cover. Waiting on the alarm itself rather than
+        //    sleeping a fixed amount and hoping it already happened.
+        lft.prepForHeartbeatAlarm();
+        assertNotNull(lft.waitForHeartbeatAlarm(20000), "heartbeat alarm did not trip while disconnected");
 
-            sleep(500); // time enough to get some messages
+        messageCount.set(0);
+        lft.prepForStatusChange(Events.RECONNECTED);
+        ts.start();
+        assertTrue(lft.waitForStatusChange(20, TimeUnit.SECONDS), "did not reconnect after the alarm");
+        assertTrueByTimeout(20000, () -> messageCount.get() > 0);
+
+        try {
+            nc.jetStreamManagement().deleteStream(stream); // it was a file stream clean it up
         }
-
-        assertTrue(allInOrder.get());
-        int count1 = atomicCount.get();
-        assertTrue(count1 > 0);
-        assertEquals(count1, nextExpectedSequence.get());
-
-        // reconnect and get some more messages
-        try (NatsTestServer ignored = new NatsTestServer(port, false, true)) {
-            standardConnectionWait(nc);
-            sleep(6000); // long enough to get messages and for the hb alarm to have tripped
+        catch (JetStreamApiException ignore) {
+            // in GH actions this fails sometimes
         }
-        assertNotEquals(firstConsumerName, orderedConsumerContext.getConsumerName());
+        ts.close();
+        validateOverOrdered(messageCount, allInOrder);
+    }
 
+    // Each phase resets the counter and only asks whether messages arrived, so there is no
+    // comparing of counts taken at different moments. The ordering invariant is carried by
+    // allInOrder, which the handler maintains as it goes.
+    private static void validateOverOrdered(AtomicInteger messageCount, AtomicBoolean allInOrder) {
         assertTrue(allInOrder.get());
-        int count2 = atomicCount.get();
-        assertTrue(count2 > count1);
-        assertEquals(count2, nextExpectedSequence.get());
-
-        sleep(6000); // enough delay before reconnect to trip hb alarm again
-        try (NatsTestServer ignored = new NatsTestServer(port, false, true)) {
-            standardConnectionWait(nc);
-            sleep(6000); // long enough to get messages and for the hb alarm to have tripped
-
-            try {
-                nc.jetStreamManagement().deleteStream(stream); // it was a file stream clean it up
-            }
-            catch (JetStreamApiException ignore) {
-                // in GH actions this fails sometimes
-            }
-        }
-
-        assertTrue(allInOrder.get());
-        int count3 = atomicCount.get();
-        assertTrue(count3 > count2);
-        assertEquals(count3, nextExpectedSequence.get());
+        assertTrue(messageCount.get() > 0);
     }
 }

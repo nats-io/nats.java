@@ -29,7 +29,7 @@ public class NatsConnectionImplTests {
     @Test
     public void testConnectionClosedProperly() throws Exception {
         try (NatsTestServer server = new NatsTestServer(true)) {
-            Options options = standardOptions(server.getNatsLocalhostUri());
+            Options options = standardOptions(server.getURI());
             verifyInternalExecutors(options);
 
             // using options copied from options to demonstrate the executors
@@ -46,7 +46,7 @@ public class NatsConnectionImplTests {
             assertFalse(es.isShutdown());
             assertFalse(ses.isShutdown());
 
-            options = standardOptionsBuilder(server.getNatsLocalhostUri())
+            options = standardOptionsBuilder(server.getURI())
                 .executor(es)
                 .scheduledExecutor(ses)
                 .callbackExecutor(callbackEs)
@@ -61,7 +61,7 @@ public class NatsConnectionImplTests {
 
             ThreadFactory callbackThreadFactory = r -> new Thread(r, "callback");
             ThreadFactory connectThreadFactory = r -> new Thread(r, "connect");
-            options = standardOptionsBuilder(server.getNatsLocalhostUri())
+            options = standardOptionsBuilder(server.getURI())
                 .executor(es)
                 .scheduledExecutor(ses)
                 .callbackThreadFactory(callbackThreadFactory)
@@ -281,7 +281,7 @@ public class NatsConnectionImplTests {
             RecordingThreadFactory readerFactory = new RecordingThreadFactory("test-reader");
             RecordingThreadFactory writerFactory = new RecordingThreadFactory("test-writer");
 
-            Options options = standardOptionsBuilder(ts.getNatsLocalhostUri())
+            Options options = standardOptionsBuilder(ts.getURI())
                 .readerThreadFactory(readerFactory)
                 .writerThreadFactory(writerFactory)
                 .build();

@@ -143,7 +143,7 @@ public class NatsMessageTests extends JetStreamTestBase {
             }
 
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT);
-                 NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+                 NatsConnection nc = (NatsConnection) Nats.connect(ts.getNatsLocalhostUri())) {
                 standardConnectionWait(nc);
                 nc.subscribe(subject);
             }
@@ -162,7 +162,7 @@ public class NatsMessageTests extends JetStreamTestBase {
             }
 
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT);
-                 NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+                 NatsConnection nc = (NatsConnection) Nats.connect(ts.getNatsLocalhostUri())) {
                 standardConnectionWait(nc);
                 nc.publish(subject, replyTo, body);
             }

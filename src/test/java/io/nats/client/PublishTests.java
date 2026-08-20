@@ -119,7 +119,7 @@ public class PublishTests {
             String customInfo = "{\"server_id\":\"test\", \"version\":\"9.9.99\"}";
 
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo);
-                 Connection nc = Nats.connect(ts.getURI())) {
+                 Connection nc = Nats.connect(ts.getNatsLocalhostUri())) {
                 assertSame(Connection.Status.CONNECTED, nc.getStatus(), "Connected Status");
 
                 nc.publish(NatsMessage.builder()
@@ -197,7 +197,7 @@ public class PublishTests {
         };
 
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(receiveMessageCustomizer);
-             Connection nc = standardConnection(ts.getURI())) {
+             Connection nc = standardConnection(ts.getNatsLocalhostUri())) {
 
             byte[] bodyBytes;
             if (bodyString == null || bodyString.isEmpty()) {

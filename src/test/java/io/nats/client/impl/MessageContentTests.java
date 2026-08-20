@@ -203,7 +203,7 @@ public class MessageContentTests {
 
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(badServer, null)) {
             Options options = new Options.Builder().
-                                server(ts.getURI()).
+                                server(ts.getNatsLocalhostUri()).
                                 maxReconnects(0).
                                 errorListener(listener).
                                 connectionListener(listener).
