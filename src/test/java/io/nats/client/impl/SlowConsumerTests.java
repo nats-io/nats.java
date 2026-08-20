@@ -205,8 +205,12 @@ public class SlowConsumerTests {
     public void testSlowSubscriberNotification() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
         try (NatsTestServer ts = new NatsTestServer(false);
-                NatsConnection nc = (NatsConnection) Nats.connect(new Options.Builder().
-                                                                    server(ts.getURI()).errorListener(listener).build())) {
+                NatsConnection nc = (NatsConnection) Nats.connect(
+                    new Options.Builder().
+                        server(ts.getURI())
+                        .errorListener(listener)
+                        .build()))
+        {
             
             Subscription sub = nc.subscribe("subject");
             sub.setPendingLimits(1, -1);

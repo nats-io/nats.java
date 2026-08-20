@@ -13,17 +13,13 @@
 
 package io.nats.client;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import io.nats.client.NatsServerProtocolMock.ExitAt;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
 
-import org.junit.jupiter.api.Test;
-
-import io.nats.client.NatsServerProtocolMock.ExitAt;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class EchoTests {
     @Test
@@ -31,7 +27,7 @@ public class EchoTests {
         assertThrows(IOException.class, () -> {
             Connection nc = null;
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-                Options opt = new Options.Builder().server(ts.getURI()).noEcho().noReconnect().build();
+                Options opt = new Options.Builder().server(ts.getNatsLocalhostUri()).noEcho().noReconnect().build();
                 try {
                     nc = Nats.connect(opt); // Should fail
                 } finally {
@@ -48,7 +44,7 @@ public class EchoTests {
     public void testConnectToOldServerWithEcho() throws Exception {
         Connection nc = null;
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.NO_EXIT)) {
-            Options opt = new Options.Builder().server(ts.getURI()).noReconnect().build();
+            Options opt = new Options.Builder().server(ts.getNatsLocalhostUri()).noReconnect().build();
             try {
                 nc = Nats.connect(opt);
             } finally {

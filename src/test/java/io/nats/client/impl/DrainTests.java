@@ -48,8 +48,8 @@ public class DrainTests {
     @Test
     public void testSimpleSubDrain() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+             Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
+             Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
             assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
             assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
 
@@ -78,8 +78,8 @@ public class DrainTests {
     @Test
     public void testSimpleDispatchDrain() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+             Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
+             Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
             assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
             assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
 
@@ -111,8 +111,8 @@ public class DrainTests {
     @Test
     public void testSimpleConnectionDrain() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+             Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
+             Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
             assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
             assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
 
@@ -150,8 +150,8 @@ public class DrainTests {
     @Test
     public void testConnectionDrainWithZeroTimeout() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+             Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
+             Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
             assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
             assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
 
@@ -189,8 +189,8 @@ public class DrainTests {
     @Test
     public void testDrainWithZeroTimeout() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+             Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
+             Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
             assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
             assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
 
@@ -219,8 +219,8 @@ public class DrainTests {
     public void testSubDuringDrainThrows() {
         assertThrows(IllegalStateException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                    Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+                 Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
+                 Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
                 assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
                 assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
 
@@ -246,8 +246,8 @@ public class DrainTests {
     public void testCreateDispatcherDuringDrainThrows() {
         assertThrows(IllegalStateException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                    Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+                 Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
+                 Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
                 assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
                 assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
 
@@ -272,8 +272,8 @@ public class DrainTests {
     @Test
     public void testUnsubDuringDrainIsNoop() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+             Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
+             Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
             assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
             assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
 
@@ -315,8 +315,8 @@ public class DrainTests {
     @Test
     public void testDrainInMessageHandler() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+             Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
+             Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
             assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
             assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
 
@@ -348,8 +348,8 @@ public class DrainTests {
     @Test
     public void testDrainFutureMatches() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+             Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
+             Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
             assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
             assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
 
@@ -394,8 +394,8 @@ public class DrainTests {
     public void testFirstTimeRequestReplyDuringDrain() {
         assertThrows(IllegalStateException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                    Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+                 Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
+                 Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
                 assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
                 assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
 
@@ -434,8 +434,8 @@ public class DrainTests {
     public void testRequestReplyDuringDrain() {
         assertThrows(IllegalStateException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
-                    Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                    Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+                 Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
+                 Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
                 assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
                 assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
 
@@ -543,8 +543,8 @@ public class DrainTests {
     @Test
     public void testDrainWithLotsOfMessages() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+             Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
+             Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
             assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
             assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
 
@@ -583,8 +583,8 @@ public class DrainTests {
     @Test
     public void testSlowAsyncDuringDrainCanFinishIfTime() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+             Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
+             Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
             assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
             assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
 
@@ -623,8 +623,8 @@ public class DrainTests {
     public void testSlowAsyncDuringDrainCanBeInterrupted() throws Exception {
         ListenerForTesting listener = new ListenerForTesting();
         try (NatsTestServer ts = new NatsTestServer(false);
-                Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).errorListener(listener).maxReconnects(0).build());
-                Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+             Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).errorListener(listener).maxReconnects(0).build());
+             Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
             assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
             assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
 

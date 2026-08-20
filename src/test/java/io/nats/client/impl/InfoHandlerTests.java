@@ -31,7 +31,7 @@ public class InfoHandlerTests {
         String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\"}";
 
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, customInfo)) {
-            Connection nc = Nats.connect(ts.getURI());
+            Connection nc = Nats.connect(ts.getNatsLocalhostUri());
             try {
                 assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
                 assertEquals("myid", nc.getServerInfo().getServerId(), "got custom info");
@@ -89,7 +89,7 @@ public class InfoHandlerTests {
         };
 
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(infoCustomizer, customInfo)) {
-            Connection nc = Nats.connect(ts.getURI());
+            Connection nc = Nats.connect(ts.getNatsLocalhostUri());
             try {
                 assertTrue(Connection.Status.CONNECTED == nc.getStatus(), "Connected Status");
                 assertEquals("myid", nc.getServerInfo().getServerId(), "got custom info");
@@ -153,7 +153,7 @@ public class InfoHandlerTests {
 
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(infoCustomizer, customInfo)) {
 
-            Options options = new Options.Builder().server(ts.getURI()).connectionListener(new ConnectionListener() {
+            Options options = new Options.Builder().server(ts.getNatsLocalhostUri()).connectionListener(new ConnectionListener() {
                 @Override
                 public void connectionEvent(Connection conn, Events type) {
                     if (type.equals(Events.LAME_DUCK)) connectLDM.complete(type);

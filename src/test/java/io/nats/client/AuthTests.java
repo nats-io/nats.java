@@ -54,7 +54,7 @@ public class AuthTests extends TestBase {
     @Test
     public void testEncodedPassword() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/encoded_pass.conf", false)) {
-            int port = ts.getPort();
+            int port = ts.getNatsPort();
             assertEncoded("space%20space", port);
             assertEncoded("colon%3Acolon", port);
             assertEncoded("colon%3acolon", port); // just making sure lower case hex
@@ -124,7 +124,7 @@ public class AuthTests extends TestBase {
         String[] customArgs = {"--user", quoteCredentialForOs(user), "--pass", quoteCredentialForOs(pass)};
         try (NatsTestServer ts = new NatsTestServer(
             NatsServerRunner.builder().customArgs(customArgs))) {
-            Options options = new Options.Builder().server("nats://localhost:" + ts.getPort())
+            Options options = new Options.Builder().server("nats://localhost:" + ts.getNatsPort())
                 .maxReconnects(0).userInfo(user, pass).build();
             assertCanConnect(options);
         }
@@ -139,7 +139,7 @@ public class AuthTests extends TestBase {
         int port;
 
         try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
-            port = ts.getPort();
+            port = ts.getNatsPort();
             // See config file for user/pass
             Options options = new Options.Builder().server(ts.getURI()).maxReconnects(-1)
                     .userInfo("stephen".toCharArray(), "password".toCharArray()).connectionListener(listener).build();
@@ -193,7 +193,7 @@ public class AuthTests extends TestBase {
         String[] customArgs = { "--user", "stephen", "--pass", "password" };
         try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
             // See config file for user/pass
-            Options options = new Options.Builder().server("nats://stephen:password@localhost:" + ts.getPort())
+            Options options = new Options.Builder().server("nats://stephen:password@localhost:" + ts.getNatsPort())
                     .maxReconnects(0).build();
             assertCanConnect(options);
         }
@@ -208,9 +208,9 @@ public class AuthTests extends TestBase {
         String[] customArgs = { "--user", "stephen", "--pass", "password" };
 
         try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
-            port = ts.getPort();
+            port = ts.getNatsPort();
             // See config file for user/pass
-            Options options = new Options.Builder().server("nats://stephen:password@localhost:" + ts.getPort())
+            Options options = new Options.Builder().server("nats://stephen:password@localhost:" + ts.getNatsPort())
                     .maxReconnects(-1).connectionListener(listener).build();
             nc = standardConnection(options);
 
@@ -249,16 +249,16 @@ public class AuthTests extends TestBase {
         try (NatsTestServer ts1 = new NatsTestServer(customArgs1, false);
                 NatsTestServer ts2 = new NatsTestServer(customArgs2, false)) {
             // See config file for user/pass
-            Options options = new Options.Builder().server("nats://stephen:password@localhost:" + ts1.getPort())
-                    .server("nats://alberto:casadecampo@localhost:" + ts2.getPort()).maxReconnects(4).noRandomize()
+            Options options = new Options.Builder().server("nats://stephen:password@localhost:" + ts1.getNatsPort())
+                    .server("nats://alberto:casadecampo@localhost:" + ts2.getNatsPort()).maxReconnects(4).noRandomize()
                     .connectionListener(listener).pingInterval(Duration.ofMillis(100)).build();
             Connection nc = standardConnection(options);
-            assertEquals(nc.getConnectedUrl(), "nats://stephen:password@localhost:" + ts1.getPort());
+            assertEquals(nc.getConnectedUrl(), "nats://stephen:password@localhost:" + ts1.getNatsPort());
 
             listener.prepForStatusChange(Events.RESUBSCRIBED);
             ts1.close();
             listenerConnectionWait(nc, listener);
-            assertEquals(nc.getConnectedUrl(), "nats://alberto:casadecampo@localhost:" + ts2.getPort());
+            assertEquals(nc.getConnectedUrl(), "nats://alberto:casadecampo@localhost:" + ts2.getNatsPort());
             standardCloseConnection(nc);
         }
     }
@@ -271,18 +271,18 @@ public class AuthTests extends TestBase {
         try (NatsTestServer ts1 = new NatsTestServer(customArgs1, false);
                 NatsTestServer ts2 = new NatsTestServer(customArgs2, false)) {
             // See config file for user/pass
-            Options options = new Options.Builder().server("nats://stephen:password@localhost:" + ts1.getPort())
-                    .server("nats://localhost:" + ts2.getPort()).noRandomize()
+            Options options = new Options.Builder().server("nats://stephen:password@localhost:" + ts1.getNatsPort())
+                    .server("nats://localhost:" + ts2.getNatsPort()).noRandomize()
                     .userInfo("alberto".toCharArray(), "casadecampo".toCharArray()).maxReconnects(4).noRandomize()
                     .connectionListener(listener).pingInterval(Duration.ofMillis(100)).build();
             Connection nc = standardConnection(options);
-            assertEquals(nc.getConnectedUrl(), "nats://stephen:password@localhost:" + ts1.getPort());
+            assertEquals(nc.getConnectedUrl(), "nats://stephen:password@localhost:" + ts1.getNatsPort());
 
             listener.prepForStatusChange(Events.RESUBSCRIBED);
             ts1.close();
             listener.waitForStatusChange(10, TimeUnit.SECONDS);
             assertConnected(nc);
-            assertEquals(nc.getConnectedUrl(), "nats://localhost:" + ts2.getPort());
+            assertEquals(nc.getConnectedUrl(), "nats://localhost:" + ts2.getNatsPort());
             standardCloseConnection(nc);
         }
     }
@@ -295,18 +295,18 @@ public class AuthTests extends TestBase {
         try (NatsTestServer ts1 = new NatsTestServer(customArgs1, false);
                 NatsTestServer ts2 = new NatsTestServer(customArgs2, false)) {
             // See config file for user/pass
-            Options options = new Options.Builder().server("nats://token_one@localhost:" + ts1.getPort())
-                    .server("nats://token_two@localhost:" + ts2.getPort()).maxReconnects(4).noRandomize()
+            Options options = new Options.Builder().server("nats://token_one@localhost:" + ts1.getNatsPort())
+                    .server("nats://token_two@localhost:" + ts2.getNatsPort()).maxReconnects(4).noRandomize()
                     .connectionListener(listener).pingInterval(Duration.ofMillis(100)).build();
             Connection nc = standardConnection(options);
-            assertEquals(nc.getConnectedUrl(), "nats://token_one@localhost:" + ts1.getPort());
+            assertEquals(nc.getConnectedUrl(), "nats://token_one@localhost:" + ts1.getNatsPort());
 
             listener.prepForStatusChange(Events.RESUBSCRIBED);
             ts1.close();
             listener.waitForStatusChange(2, TimeUnit.SECONDS);
 
             standardConnectionWait(nc);
-            assertEquals(nc.getConnectedUrl(), "nats://token_two@localhost:" + ts2.getPort());
+            assertEquals(nc.getConnectedUrl(), "nats://token_two@localhost:" + ts2.getNatsPort());
             standardCloseConnection(nc);
         }
     }
@@ -320,18 +320,18 @@ public class AuthTests extends TestBase {
         try (NatsTestServer ts1 = new NatsTestServer(customArgs1, false);
                 NatsTestServer ts2 = new NatsTestServer(customArgs2, false)) {
             // See config file for user/pass
-            Options options = new Options.Builder().server("nats://token_one@localhost:" + ts1.getPort())
-                    .server("nats://localhost:" + ts2.getPort()).token("token_two".toCharArray()).maxReconnects(4)
+            Options options = new Options.Builder().server("nats://token_one@localhost:" + ts1.getNatsPort())
+                    .server("nats://localhost:" + ts2.getNatsPort()).token("token_two".toCharArray()).maxReconnects(4)
                     .noRandomize().connectionListener(listener).pingInterval(Duration.ofMillis(100)).build();
             nc = standardConnection(options);
-            assertEquals(nc.getConnectedUrl(), "nats://token_one@localhost:" + ts1.getPort());
+            assertEquals(nc.getConnectedUrl(), "nats://token_one@localhost:" + ts1.getNatsPort());
 
             listener.prepForStatusChange(Events.RESUBSCRIBED);
             ts1.close();
 
             listener.waitForStatusChange(STANDARD_CONNECTION_WAIT_MS, TimeUnit.MILLISECONDS);
             listenerConnectionWait(nc, listener);
-            assertEquals(nc.getConnectedUrl(), "nats://localhost:" + ts2.getPort());
+            assertEquals(nc.getConnectedUrl(), "nats://localhost:" + ts2.getNatsPort());
             standardCloseConnection(nc);
         }
     }
@@ -352,7 +352,7 @@ public class AuthTests extends TestBase {
         String[] customArgs = { "--auth", "alberto" };
         try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
             // See config file for user/pass
-            Options options = new Options.Builder().server("nats://alberto@localhost:" + ts.getPort()).maxReconnects(0)
+            Options options = new Options.Builder().server("nats://alberto@localhost:" + ts.getNatsPort()).maxReconnects(0)
                     .build();
             assertCanConnect(options);
         }
@@ -503,7 +503,7 @@ public class AuthTests extends TestBase {
     @Test
     public void testWsJWTAuthWithCredsFile() throws Exception {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/ws_operator.conf", false)) {
-            String uri = ts.getLocalhostUri("ws");
+            String uri = NatsTestServer.getLocalhostUri("ws", ts.getNonNatsPort());
             Options options = new Options.Builder().server(uri).maxReconnects(0)
                 .authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds")).build();
             assertCanConnect(options);
@@ -511,7 +511,7 @@ public class AuthTests extends TestBase {
 
         //test Nats.connect method
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/ws_operator.conf", false)) {
-            String uri = ts.getLocalhostUri("ws");
+            String uri = NatsTestServer.getLocalhostUri("ws", ts.getNonNatsPort());
             Connection nc = Nats.connect(uri, Nats.credentials("src/test/resources/jwt_nkey/user.creds"));
             standardConnectionWait(nc);
             standardCloseConnection(nc);
@@ -522,7 +522,7 @@ public class AuthTests extends TestBase {
     public void testWssJWTAuthWithCredsFile() throws Exception {
         SSLContext ctx = SslTestingHelper.createTestSSLContext();
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/wss_operator.conf", false)) {
-            String uri = ts.getLocalhostUri("wss");
+            String uri = NatsTestServer.getLocalhostUri("wss", ts.getNonNatsPort());
             Options options = new Options.Builder().server(uri).maxReconnects(0).sslContext(ctx)
                 .authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds")).build();
             assertCanConnect(options);
@@ -625,8 +625,8 @@ public class AuthTests extends TestBase {
             assertEquals(ts2.getURI(), nc.getConnectedUrl());
 
             String tsURI = ts1.getURI();
-            int port1 = ts1.getPort();
-            int port2 = ts2.getPort();
+            int port1 = ts1.getNatsPort();
+            int port2 = ts2.getNatsPort();
 
             ts1.close();
 
@@ -694,7 +694,7 @@ public class AuthTests extends TestBase {
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(timeoutCustomizer, port, true);
              NatsTestServer ts2 = new NatsTestServer("src/test/resources/operator.conf", false)) {
             Options options = new Options.Builder()
-                .servers(new String[]{ts.getURI(), ts2.getURI()})
+                .servers(new String[]{ts.getNatsLocalhostUri(), ts2.getURI()})
                 .maxReconnects(-1)
                 .noRandomize()
                 .authHandler(Nats.credentials("src/test/resources/jwt_nkey/user.creds"))
@@ -702,7 +702,7 @@ public class AuthTests extends TestBase {
                 .build();
 
             Connection nc = standardConnection(options);
-            assertEquals(ts.getURI(), nc.getConnectedUrl());
+            assertEquals(ts.getNatsLocalhostUri(), nc.getConnectedUrl());
 
             listener.prepForStatusChange(Events.RECONNECTED);
 

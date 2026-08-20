@@ -13,6 +13,7 @@
 
 package io.nats.client.utils;
 
+import io.nats.NatsServerRunner;
 import io.nats.client.*;
 import io.nats.client.api.ServerInfo;
 import io.nats.client.impl.ListenerForTesting;
@@ -278,8 +279,7 @@ public class TestBase {
             super(builder()
                 .debug(debug)
                 .jetstream(jetstream)
-                .connectValidateInitialDelay(100L)
-                .connectValidateSubsequentDelay(25L)
+                .connectValidateTimeout(200L)
                 .connectValidateTries(15)
             );
             this.jetstream = jetstream;
@@ -386,6 +386,7 @@ public class TestBase {
         int leafPort = NatsTestServer.nextPort();
 
         String[] hubInserts = new String[] {
+            "port: " + hubPort,
             "server_name: " + HUB_DOMAIN,
             "jetstream {",
             "    store_dir: " + tempJsStoreDir(),
@@ -397,6 +398,7 @@ public class TestBase {
         };
 
         String[] leafInserts = new String[] {
+            "port: " + leafPort,
             "server_name: " + LEAF_DOMAIN,
             "jetstream {",
             "    store_dir: " + tempJsStoreDir(),
@@ -407,10 +409,13 @@ public class TestBase {
             "}"
         };
 
-        try (NatsTestServer hub = new NatsTestServer(hubPort, false, true, null, hubInserts, null);
-             Connection nchub = standardConnection(hub.getURI());
-             NatsTestServer leaf = new NatsTestServer(leafPort, false, true, null, leafInserts, null);
-             Connection ncleaf = standardConnection(leaf.getURI())
+        NatsServerRunner.Builder hubBuilder = new NatsServerRunner.Builder().port(hubPort).configInserts(hubInserts).jetstream();
+        NatsServerRunner.Builder leafBuilder = new NatsServerRunner.Builder().port(leafPort).configInserts(leafInserts).jetstream();
+        try (
+            NatsTestServer hub = new NatsTestServer(hubBuilder);
+            Connection nchub = standardConnection(hub.getURI());
+            NatsTestServer leaf = new NatsTestServer(leafBuilder);
+            Connection ncleaf = standardConnection(leaf.getURI())
         ) {
             try {
                 twoServerTest.test(nchub, ncleaf);
@@ -516,7 +521,7 @@ public class TestBase {
         return b.build();
     }
 
-    private static String tempJsStoreDir() throws IOException {
+    public static String tempJsStoreDir() throws IOException {
         return Files.createTempDirectory(variant()).toString().replace("\\", "\\\\");  // when on windows this is necessary. unix doesn't have backslash
     }
 
@@ -772,7 +777,7 @@ public class TestBase {
             }
             sb.append(o);
         }
-        System.out.println(sb.toString());
+        System.out.println(sb);
     }
 
     // ----------------------------------------------------------------------------------------------------
