@@ -319,6 +319,25 @@ public class NatsMessageTests extends JetStreamTestBase {
         assertNotNull(sm.toString());
     }
 
+    @Test
+    public void testNoRespondersStatusIsDeliveredToASubscription() throws Exception {
+        jsServer.run(connection -> {
+            // A request routes a no responders 503 through the response future, where it turns
+            // into an exception. A plain publish with a reply to has no future behind it, so the
+            // status is delivered to the reply subscription like any other message, carrying no
+            // payload. Anything reading such a subscription has to expect a status message.
+            String replyTo = connection.createInbox();
+            Subscription sub = connection.subscribe(replyTo);
+            connection.publish(subject(), replyTo, null);
+
+            Message m = sub.nextMessage(1000);
+            assertNotNull(m);
+            assertTrue(m.isStatusMessage());
+            assertEquals(503, m.getStatus().getCode());
+            assertEquals(0, m.getData().length);
+        });
+    }
+
     private NatsMessage testMessage() {
         Headers h = new Headers();
         h.add("key", "value");

@@ -1537,13 +1537,9 @@ public class ServiceTests extends JetStreamTestBase {
             Discovery discovery = new Discovery(nc, 100, 1);
             TestInboxSupplier supplier = new TestInboxSupplier();
             discovery.setInboxSupplier(supplier);
-            try {
-                discovery.ping("servicename");
-            }
-            catch (Exception e) {
-                // we know it will throw exception b/c there is no service
-                // running, we just care about it make the call
-            }
+            // No service is running, so the server answers the discovery publish with a 503 no
+            // responders status, which means no results rather than an error.
+            assertTrue(discovery.ping("servicename").isEmpty());
             assertTrue(supplier.wasCalled);
         });
     }
