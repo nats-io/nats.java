@@ -5,6 +5,11 @@ name: Build Windows
 # environment - in the client, in the test harness, or in the server itself, which
 # is built here from the tip of nats-server main.
 
+# Nothing here writes: checkout reads the repo, and upload-artifact uses the runtime
+# token rather than GITHUB_TOKEN.
+permissions:
+  contents: read
+
 on:
   push:
     branches:
