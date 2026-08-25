@@ -24,23 +24,8 @@ jobs:
         uses: gradle/actions/setup-gradle@v5
         with:
           gradle-version: '8.14' # Quotes required to prevent YAML converting to number
-      - name: Setup GO
-        uses: actions/setup-go@v6
-        with:
-          go-version: stable
       - name: Install Nats Server
-        env:
-          # setup-go@v6 exports GOTOOLCHAIN=local. Allow the nats-server build to
-          # fetch a newer toolchain if its go.mod ever requires one.
-          GOTOOLCHAIN: auto
-        run: |
-          pkill -9 nats-server 2>/dev/null || true
-          mkdir -p ~/.local/bin
-          cd $GITHUB_WORKSPACE
-          git clone https://github.com/nats-io/nats-server.git
-          cd nats-server
-          go build -o ~/.local/bin/nats-server
-          nats-server -v
+        uses: synadia-io/workflows/.github/actions/install_nats_server@main
       - name: Check out code
         uses: actions/checkout@v5
       - name: Build and Test
