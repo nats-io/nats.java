@@ -1,0 +1,74 @@
+name: Build Windows
+
+# Windows coverage for the client. The Linux workflows gate pull requests; this one
+# runs after a merge to main to catch problems that only appear in the Windows
+# environment - in the client, in the test harness, or in the server itself, which
+# is built here from the tip of nats-server main.
+
+# Nothing here writes: checkout reads the repo, and upload-artifact uses the runtime
+# token rather than GITHUB_TOKEN.
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# A burst of merges should test the resulting state once rather than rebuild and
+# retest the same server several times over.
+concurrency:
+  group: build-windows
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.repository == 'nats-io/nats.java'
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      BUILD_EVENT: ${{ github.event_name }}
+    steps:
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          java-version: '8'
+          distribution: 'temurin'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          gradle-version: '8.14' # Quotes required to prevent YAML converting to number
+      - name: Install Nats Server
+        shell: pwsh
+        # The shared synadia-io/workflows install action is bash and unix-only, so
+        # Windows builds its own. Go is preinstalled on the runner image, and
+        # GOTOOLCHAIN is left at its default of 'auto' so the build can fetch the
+        # toolchain that nats-server's go.mod asks for.
+        run: |
+          git clone --depth 1 https://github.com/nats-io/nats-server.git "$env:RUNNER_TEMP\nats-server-src"
+          Set-Location "$env:RUNNER_TEMP\nats-server-src"
+          go build -o "$env:RUNNER_TEMP\nats-server.exe"
+          & "$env:RUNNER_TEMP\nats-server.exe" -v
+          # NatsRunnerUtils.getResolvedServerPath() reads this environment variable.
+          # An absolute path keeps PATH and PATHEXT out of the picture entirely.
+          "nats_server_path=$env:RUNNER_TEMP\nats-server.exe" >> $env:GITHUB_ENV
+      - name: Check out code
+        uses: actions/checkout@v5
+      - name: Build and Test
+        run: .\gradlew.bat clean test
+      - name: Upload test reports
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-test-reports
+          path: |
+            build/reports/tests/test
+            build/test-results/test
+          retention-days: 14
+      - name: Clean up
+        if: always()
+        shell: pwsh
+        run: |
+          Get-Process nats-server -ErrorAction SilentlyContinue | Stop-Process -Force
+          exit 0
