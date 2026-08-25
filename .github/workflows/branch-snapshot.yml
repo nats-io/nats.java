@@ -30,6 +30,10 @@ jobs:
         with:
           go-version: stable
       - name: Install Nats Server
+        env:
+          # setup-go@v6 exports GOTOOLCHAIN=local. Allow the nats-server build to
+          # fetch a newer toolchain if its go.mod ever requires one.
+          GOTOOLCHAIN: auto
         run: |
           pkill -9 nats-server 2>/dev/null || true
           mkdir -p ~/.local/bin
