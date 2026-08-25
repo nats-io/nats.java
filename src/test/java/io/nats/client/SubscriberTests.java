@@ -114,7 +114,7 @@ public class SubscriberTests {
         };
 
         try (NatsServerProtocolMock ts = new NatsServerProtocolMock(receiveMessageCustomizer);
-                    Connection  nc = Nats.connect(ts.getURI())) {
+                    Connection  nc = Nats.connect(ts.getNatsLocalhostUri())) {
             standardConnectionWait(nc);
 
             Subscription sub = nc.subscribe("subject");

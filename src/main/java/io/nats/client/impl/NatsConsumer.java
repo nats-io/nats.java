@@ -79,19 +79,23 @@ abstract class NatsConsumer implements Consumer {
     }
 
     /**
-     * @return the number of messages waiting to be delivered/popped,
-     *         {@link #setPendingLimits(long, long) setPendingLimits}.
+     * The number of messages currently in the queue, subject to the limits set by
+     * {@link #setPendingLimits(long, long) setPendingLimits}.
+     * @return the number of messages, or -1 if the queue is not available
      */
     public long getPendingMessageCount() {
-        return this.getMessageQueue() != null ? this.getMessageQueue().length() : 0;
+        ConsumerMessageQueue copy = getMessageQueue();
+        return copy == null ? -1 : copy.length();
     }
 
     /**
-     * @return the cumulative size of the messages waiting to be delivered/popped,
-     *         {@link #setPendingLimits(long, long) setPendingLimits}.
+     * The cumulative size of the messages currently in the queue, subject to the limits set
+     * by {@link #setPendingLimits(long, long) setPendingLimits}.
+     * @return the number of bytes, or -1 if the queue is not available
      */
     public long getPendingByteCount() {
-        return this.getMessageQueue() != null ? this.getMessageQueue().sizeInBytes() : 0;
+        ConsumerMessageQueue copy = getMessageQueue();
+        return copy == null ? -1 : copy.sizeInBytes();
     }
 
     /**
@@ -137,13 +141,32 @@ abstract class NatsConsumer implements Consumer {
         return this.slow.get();
     }
 
-    boolean hasReachedPendingLimits() {
-        long ml = maxMessages.get();
-        if (ml > 0 && getPendingMessageCount() >= ml) {
-            return true;
+    enum DeliverabilityState {
+        AVAILABLE,
+        FULL,
+        NOT_AVAILABLE
+    }
+
+    // The queue is supplied by the caller rather than looked up here, so the caller's single
+    // read of the reference is the only read on the delivery path - the queue this judges is
+    // provably the same object the caller then pushes to. Looking it up again in here would
+    // let an invalidate() on another thread come between the verdict and the push.
+    DeliverabilityState getDeliverabilityState(ConsumerMessageQueue queue) {
+        if (queue == null) {
+            return DeliverabilityState.NOT_AVAILABLE;
         }
+
+        long ml = maxMessages.get();
+        if (ml > 0 && queue.length() >= ml) {
+            return DeliverabilityState.FULL;
+        }
+
         long bl = maxBytes.get();
-        return bl > 0 && getPendingByteCount() >= bl;
+        if (bl > 0 && queue.sizeInBytes() >= bl) {
+            return DeliverabilityState.FULL;
+        }
+
+        return DeliverabilityState.AVAILABLE;
     }
 
     void markDraining(CompletableFuture<Boolean> future) {
@@ -151,8 +174,9 @@ abstract class NatsConsumer implements Consumer {
     }
 
     void markUnsubedForDrain() {
-        if (this.getMessageQueue() != null) {
-            this.getMessageQueue().drain();
+        ConsumerMessageQueue copy = getMessageQueue();
+        if (copy != null) {
+            copy.drain();
         }
     }
 
@@ -165,7 +189,10 @@ abstract class NatsConsumer implements Consumer {
     }
 
     boolean isDrained() {
-        return isDraining() && this.getPendingMessageCount() == 0;
+        // <= 0 not == 0: the count is -1 once the queue is gone, and a consumer with no
+        // queue has nothing left to drain. cleanUpAfterDrain() invalidates before drain()
+        // completes its future, so this is read in that state on every drain.
+        return isDraining() && this.getPendingMessageCount() <= 0;
     }
 
     /**

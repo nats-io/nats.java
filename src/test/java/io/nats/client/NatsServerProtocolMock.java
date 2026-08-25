@@ -126,7 +126,7 @@ public class NatsServerProtocolMock implements Closeable{
         return port;
     }
 
-    public String getURI() {
+    public String getNatsLocalhostUri() {
         return "nats://localhost:" + this.getPort();
     }
 

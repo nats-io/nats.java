@@ -33,7 +33,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class WebsocketSupportClassesTests {
-    private int[] testSizes = new int[] { 1, 2, 3, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 1432, // WebsocketOutputStream
+    private final int[] testSizes = new int[] { 1, 2, 3, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 1432, // WebsocketOutputStream
                                                                                                 // buffer threshold,
                                                                                                 // will fragment after
                                                                                                 // this.
@@ -323,7 +323,7 @@ public class WebsocketSupportClassesTests {
     public void testWebSocketCoverage() throws Exception {
         AtomicReference<String> lastMethod = new AtomicReference<>();
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/ws.conf", false)) {
-            try (Socket tcpSocket = new Socket("localhost", ts.getPort("ws"))) {
+            try (Socket tcpSocket = new Socket("localhost", ts.getNonNatsPort())) {
                 WebSocket webSocket = new WebSocket(new Socket() {
                     @Override
                     public InputStream getInputStream() throws IOException {

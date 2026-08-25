@@ -58,7 +58,7 @@ public class ConnectionListenerTests {
             try (NatsServerProtocolMock ts2 = new NatsServerProtocolMock(null, customInfo)) {
                 ListenerForTesting listener = new ListenerForTesting();
                 Options options = new Options.Builder().
-                                    server(ts2.getURI()).
+                                    server(ts2.getNatsLocalhostUri()).
                                     maxReconnects(0).
                                     connectionListener(listener).
                                     build();
@@ -82,7 +82,7 @@ public class ConnectionListenerTests {
                     maxReconnects(-1).
                     connectionListener(listener).
                     build();
-            port = ts.getPort();
+            port = ts.getNatsPort();
             nc = standardConnection(options);
             assertEquals(ts.getURI(), nc.getConnectedUrl());
             listener.prepForStatusChange(Events.DISCONNECTED);

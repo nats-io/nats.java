@@ -209,7 +209,12 @@ public class Discovery {
             long timeLeft = maxTimeNanos;
             while (resultsLeft > 0 && timeLeft > 0) {
                 Message msg = sub.nextMessage(Duration.ofNanos(timeLeft));
-                if (msg == null) {
+                // A status message here is no responders, which is no results, the same outcome as
+                // the wait expiring. discoverMany publishes rather than requests, so there is no
+                // response future for the 503 to fail - it arrives on this subscription as an
+                // ordinary message with no payload. See NatsMessageTests
+                // .testNoRespondersStatusIsDeliveredToASubscription.
+                if (msg == null || msg.isStatusMessage()) {
                     return;
                 }
                 dataConsumer.accept(msg.getData());
