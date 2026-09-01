@@ -18,6 +18,7 @@ import io.nats.client.NatsServerProtocolMock.ExitAt;
 import io.nats.client.api.ServerInfo;
 import io.nats.client.impl.ListenerForTesting;
 import io.nats.client.impl.SimulateSocketDataPortException;
+import io.nats.client.support.SSLUtils;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -634,6 +635,8 @@ public class ConnectTests {
     @Test
     void testConnectWithHappyEyeballsShortCircuitCoverage() throws Exception {
         Options options = Options.builder().server("demo.nats.io")
+            .server("tls://demo.nats.io")
+            .sslContext(SSLUtils.createTrustAllTlsContext())
             .hostnameResolveMode(Options.HostnameResolveMode.HappyEyeballs)
             .build();
         try (Connection nc = standardConnection(options)) {
