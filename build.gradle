@@ -33,7 +33,7 @@ repositories {
 }
 
 dependencies {
-    api 'org.bouncycastle:bcprov-lts8on:2.73.10'
+    api 'org.bouncycastle:bcprov-lts8on:2.73.12.1'
     api 'org.jspecify:jspecify:1.0.0'
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.14.1'
