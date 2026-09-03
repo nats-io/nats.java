@@ -33,7 +33,13 @@ public enum AckPolicy {
     /**
      * Each message must be acknowledged individually. Message can be acked out of sequence and create gaps of unacknowledged messages in the consumer.
      */
-    Explicit("explicit");
+    Explicit("explicit"),
+    /**
+     * Used by server-managed durable sourcing/mirroring consumers (ADR-60).
+     * Behaves like [`AckPolicy::All`] but acknowledgements are driven by
+     * flow-control responses from the receiving server.
+     */
+    FlowControl("flow_control");
 
     private final String policy;
 
