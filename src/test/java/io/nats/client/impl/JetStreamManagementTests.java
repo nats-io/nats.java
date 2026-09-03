@@ -1083,16 +1083,24 @@ public class JetStreamManagementTests extends JetStreamTestBase {
     @Test
     public void testGetConsumers() throws Exception {
         jsServer.run(nc -> {
+            String stream = stream();
+            String subject = subject();
             JetStreamManagement jsm = nc.jetStreamManagement();
-            TestingStreamContainer tsc = new TestingStreamContainer(jsm);
+            StreamConfiguration sc = StreamConfiguration.builder()
+                .name(stream)
+                .subjects(subject)
+                .storageType(StorageType.Memory)
+                .maxConsumers(10000)
+                .build();
+            jsm.addStream(sc);
 
-            addConsumers(jsm, tsc.stream, 600, "A"); // getConsumers pages at 256
+            addConsumers(jsm, stream, 600, "A"); // getConsumers pages at 256
 
-            List<ConsumerInfo> list = jsm.getConsumers(tsc.stream);
+            List<ConsumerInfo> list = jsm.getConsumers(stream);
             assertEquals(600, list.size());
 
-            addConsumers(jsm, tsc.stream, 500, "B"); // getConsumerNames pages at 1024
-            List<String> names = jsm.getConsumerNames(tsc.stream);
+            addConsumers(jsm, stream, 500, "B"); // getConsumerNames pages at 1024
+            List<String> names = jsm.getConsumerNames(stream);
             assertEquals(1100, names.size());
         });
     }
