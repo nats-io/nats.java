@@ -1,0 +1,25 @@
+{
+  "name": "bucketName",
+  "description": "bucketDesc",
+  "max_history_per_key": 44,
+  "max_bucket_size": 555,
+  "max_value_size": 666,
+  "ttl": 777000000,
+  "storage": "memory",
+  "replicas": 2,
+  "placement": {
+    "cluster": "cluster",
+    "tags": ["a", "b"]
+  },
+  "republish": {
+    "src": "src",
+    "dest": "dest",
+    "headers_only": true
+  },
+  "compression": true,
+  "limit_marker_ttl": 8888000000,
+  "metadata": {
+    "meta-key": "meta-value",
+    "meta-key2": "meta-value2"
+  }
+}

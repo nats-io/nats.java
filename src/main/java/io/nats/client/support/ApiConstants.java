@@ -110,18 +110,21 @@ public interface ApiConstants {
     /** leader_since */              String LEADER_SINCE                  = "leader_since";
     /** level */                     String LEVEL                         = "level";
     /** limit */                     String LIMIT                         = "limit";
+    /** limit_marker_ttl */          String LIMIT_MARKER_TTL              = "limit_marker_ttl";
     /** limits */                    String LIMITS                        = "limits";
     /** link */                      String LINK                          = "link";
     /** lost */                      String LOST                          = "lost";
     /** max_ack_pending */           String MAX_ACK_PENDING               = "max_ack_pending";
     /** max_age */                   String MAX_AGE                       = "max_age";
     /** max_batch */                 String MAX_BATCH                     = "max_batch";
+    /** max_bucket_size */           String MAX_BUCKET_SIZE               = "max_bucket_size";
     /** max_bytes */                 String MAX_BYTES                     = "max_bytes";
     /** max_bytes_required */        String MAX_BYTES_REQUIRED            = "max_bytes_required";
     /** max_consumers */             String MAX_CONSUMERS                 = "max_consumers";
     /** max_chunk_size */            String MAX_CHUNK_SIZE                = "max_chunk_size";
     /** max_deliver */               String MAX_DELIVER                   = "max_deliver";
     /** max_expires */               String MAX_EXPIRES                   = "max_expires";
+    /** max_history_per_key */       String MAX_HISTORY_PER_KEY           = "max_history_per_key";
     /** max_memory */                String MAX_MEMORY                    = "max_memory";
     /** max_msg_size */              String MAX_MSG_SIZE                  = "max_msg_size";
     /** max_msgs */                  String MAX_MSGS                      = "max_msgs";
@@ -129,6 +132,7 @@ public interface ApiConstants {
     /** max_payload */               String MAX_PAYLOAD                   = "max_payload";
     /** max_storage */               String MAX_STORAGE                   = "max_storage";
     /** max_streams */               String MAX_STREAMS                   = "max_streams";
+    /** max_value_size */            String MAX_VALUE_SIZE                = "max_value_size";
     /** max_waiting */               String MAX_WAITING                   = "max_waiting"; // this is correct! the meaning name is different than the field name
     /** min_pending */               String MIN_PENDING                   = "min_pending";
     /** min_ack_pending */           String MIN_ACK_PENDING               = "min_ack_pending";
@@ -231,6 +235,7 @@ public interface ApiConstants {
     /** tls_available */             String TLS_AVAILABLE                 = "tls_available";
     /** total */                     String TOTAL                         = "total";
     /** traffic_account */           String TRAFFIC_ACCOUNT               = "traffic_account";
+    /** ttl */                       String TTL                           = "ttl";
     /** type */                      String TYPE                          = "type";
     /** up_to_seq */                 String UP_TO_SEQ                     = "up_to_seq";
     /** up_to_time */                String UP_TO_TIME                    = "up_to_time";
