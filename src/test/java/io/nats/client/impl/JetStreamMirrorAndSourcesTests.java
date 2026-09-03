@@ -357,4 +357,58 @@ public class JetStreamMirrorAndSourcesTests extends JetStreamTestBase {
             assertNull(si.getSourceInfos());
         });
     }
+
+    @Test
+    public void testSourceConsumer() throws Exception {
+        jsServer.run(si -> atLeast2_14(), nc -> {
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            String originStream = "org-" + variant();
+            String originStreamSubject = "orgsub-" + variant() + ".>";
+            StreamConfiguration scOrigin = StreamConfiguration.builder()
+                .name(originStream)
+                .subjects(originStreamSubject)
+                .build();
+            jsm.addStream(scOrigin);
+
+            String aggregateStream = "agg-" + variant();
+            String aggregateConsumerName = "aggcon-" + variant();
+            String aggregateDeliverSubject = "aggdel-" + variant();
+
+            StreamConfiguration scAggregate = StreamConfiguration.builder()
+                .name(aggregateStream)
+                .sources(Source.builder()
+                    .sourceName(originStream)
+                    .consumerSource(ConsumerSource.builder()
+                        .name(aggregateConsumerName)
+                        .deliverSubject(aggregateDeliverSubject).build())
+                    .build())
+                .build();
+            StreamInfo siAggregate = jsm.addStream(scAggregate);
+
+            StreamConfiguration scAggregateServer = siAggregate.getConfiguration();
+            assertNotNull(scAggregateServer);
+            List<Source> sources = scAggregateServer.getSources();
+            assertNotNull(sources);
+            assertEquals(1, sources.size());
+            Source source = sources.get(0);
+            ConsumerSource csServer = source.getConsumerSource();
+            assertNotNull(csServer);
+            assertEquals(aggregateConsumerName, csServer.getName());
+            assertEquals(aggregateDeliverSubject, csServer.getDeliverSubject());
+
+            // Fresh fetch — confirm the server actually persisted `consumer`.
+            StreamInfo siServer = jsm.getStreamInfo(aggregateStream);
+            assertNotNull(siServer);
+            scAggregateServer = siServer.getConfiguration();
+            assertNotNull(scAggregateServer);
+            sources = scAggregateServer.getSources();
+            assertNotNull(sources);
+            assertEquals(1, sources.size());
+            source = sources.get(0);
+            csServer = source.getConsumerSource();
+            assertNotNull(csServer);
+            assertEquals(aggregateConsumerName, csServer.getName());
+            assertEquals(aggregateDeliverSubject, csServer.getDeliverSubject());
+        });
+    }
 }
