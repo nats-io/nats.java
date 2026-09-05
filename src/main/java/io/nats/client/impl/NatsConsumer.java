@@ -190,8 +190,7 @@ abstract class NatsConsumer implements Consumer {
 
     boolean isDrained() {
         // <= 0 not == 0: the count is -1 once the queue is gone, and a consumer with no
-        // queue has nothing left to drain. cleanUpAfterDrain() invalidates before drain()
-        // completes its future, so this is read in that state on every drain.
+        // queue has nothing left to drain.
         return isDraining() && this.getPendingMessageCount() <= 0;
     }
 
@@ -230,6 +229,7 @@ abstract class NatsConsumer implements Consumer {
         // Wait for the timeout or consumer is drained
         // Skipped if conn is draining
         connection.getExecutor().submit(() -> {
+            boolean drained = false;
             try {
                 long timeoutNanos = (timeout == null || timeout.toNanos() <= 0)
                     ? Long.MAX_VALUE : timeout.toNanos();
@@ -242,12 +242,15 @@ abstract class NatsConsumer implements Consumer {
                     Thread.sleep(1); // Sleep 1 milli
                 }
 
+                // Capture before cleanup: invalidate() nulls the queue, so isDrained()
+                // would then be true even if the wait timed out with messages still queued.
+                drained = this.isDrained();
                 this.cleanUpAfterDrain();
             } catch (InterruptedException e) {
                 this.connection.processException(e);
                 Thread.currentThread().interrupt();
             } finally {
-                tracker.complete(this.isDrained());
+                tracker.complete(drained);
             }
        });
 

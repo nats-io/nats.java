@@ -76,6 +76,32 @@ public class DrainTests {
     }
 
     @Test
+    public void testSubDrainTimeoutWithQueuedMessagesCompletesFalse() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false);
+             Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
+             Connection pubCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build())) {
+            assertSame(Connection.Status.CONNECTED, subCon.getStatus(), "Connected Status");
+            assertSame(Connection.Status.CONNECTED, pubCon.getStatus(), "Connected Status");
+
+            Subscription sub = subCon.subscribe("draintest");
+            subCon.flush(Duration.ofSeconds(1)); // Get the sub to the server
+
+            pubCon.publish("draintest", null);
+            pubCon.publish("draintest", null);
+            pubCon.flush(Duration.ofSeconds(1));
+            subCon.flush(Duration.ofSeconds(1));
+
+            // Leave both messages in the pending queue so drain cannot finish before the timeout.
+            assertTrue(sub.getPendingMessageCount() > 0);
+
+            CompletableFuture<Boolean> tracker = sub.drain(Duration.ofSeconds(1));
+
+            assertFalse(tracker.get(3, TimeUnit.SECONDS));
+            assertFalse(sub.isActive());
+        }
+    }
+
+    @Test
     public void testSimpleDispatchDrain() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
              Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
