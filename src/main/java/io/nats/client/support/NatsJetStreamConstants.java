@@ -155,7 +155,8 @@ public interface NatsJetStreamConstants {
     String NATS_BATCH_COMMIT_HDR    = "Nats-Batch-Commit";
 
     // Values for NATS_BATCH_COMMIT_HDR.
-    // STORE commits the batch and stores the final message.
+    // Presence of the header marks the commit message, the value selects the mode.
+    // STORE is the original 2.12 value, a boolean true, and stores the final message.
     // EOB commits the batch without storing the final message. Server 2.14+
     String NATS_BATCH_COMMIT_STORE = "1";
     String NATS_BATCH_COMMIT_EOB = "eob";
@@ -194,6 +195,7 @@ public interface NatsJetStreamConstants {
     int JS_ATOMIC_PUBLISH_INCOMPLETE_BATCH     = 10176;
     int JS_ATOMIC_PUBLISH_UNSUPPORTED_HEADER   = 10177;
     int JS_ATOMIC_PUBLISH_INVALID_BATCH_ID     = 10179;
+    int JS_MIRROR_WITH_ATOMIC_PUBLISH          = 10198;
     int JS_ATOMIC_PUBLISH_TOO_LARGE_BATCH      = 10199;
     int JS_ATOMIC_PUBLISH_INVALID_BATCH_COMMIT = 10200;
     int JS_ATOMIC_PUBLISH_DUPLICATE_MESSAGE    = 10201;
@@ -204,5 +206,6 @@ public interface NatsJetStreamConstants {
     int JS_BATCH_PUBLISH_INVALID_PATTERN    = 10206;
     int JS_BATCH_PUBLISH_INVALID_BATCH_ID   = 10207;
     int JS_BATCH_PUBLISH_UNKNOWN_BATCH_ID   = 10208;
+    int JS_MIRROR_WITH_BATCH_PUBLISH        = 10209;
     int JS_BATCH_PUBLISH_TOO_MANY_INFLIGHT  = 10211;
 }
