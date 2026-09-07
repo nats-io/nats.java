@@ -86,6 +86,8 @@ public class Headers {
 		// (add/put/remove/clear) already short-circuits on `readOnly` before
 		// touching the map, and the map is never exposed by reference.
 		this.valuesMap = new HashMap<>(headers.valuesMap);
+		// Keep values independent so mutations cannot invalidate another Headers' length bookkeeping.
+		this.valuesMap.replaceAll((key, values) -> new ArrayList<>(values));
 		this.lengthMap = new HashMap<>(headers.lengthMap);
 		this.dataLength = headers.dataLength;
 

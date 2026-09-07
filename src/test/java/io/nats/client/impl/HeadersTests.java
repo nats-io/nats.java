@@ -2,6 +2,8 @@ package io.nats.client.impl;
 
 import io.nats.client.support.*;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -25,6 +27,32 @@ public class HeadersTests {
     private static final String VAL5 = "val5";
     private static final String VAL6 = "val6";
     private static final String EMPTY = "";
+
+    @Test
+    public void testAddingToCopyDoesNotChangeOriginal() {
+        Headers original = new Headers().add(KEY1, VAL1);
+        Headers copy = new Headers(original);
+        copy.add(KEY1, VAL2);
+
+        assertEquals(Collections.singletonList(VAL1), original.get(KEY1));
+        assertEquals(Arrays.asList(VAL1, VAL2), copy.get(KEY1));
+        validateDirtyAndLength(original);
+        validateDirtyAndLength(copy);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    public void testAddingToOriginalDoesNotChangeCopy(boolean readOnly) {
+        Headers original = new Headers().add(KEY1, VAL1).add(KEY2, VAL2);
+        Headers copy = new Headers(original, readOnly, new String[] {KEY2});
+        original.add(KEY1, VAL3);
+
+        assertEquals(Collections.singletonList(VAL1), copy.get(KEY1));
+        assertFalse(copy.containsKey(KEY2));
+        assertEquals(Arrays.asList(VAL1, VAL3), original.get(KEY1));
+        validateDirtyAndLength(original);
+        validateDirtyAndLength(copy);
+    }
 
     @Test
     public void add_key_strings_works() {

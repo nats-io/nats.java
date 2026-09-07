@@ -20,6 +20,8 @@ import org.junit.jupiter.api.Test;
 
 import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -33,6 +35,30 @@ import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class PublishTests {
+    @Test
+    public void testPublishWithIndependentlyModifiedHeaderCopy() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false);
+             Connection nc = Nats.connect(ts.getURI())) {
+            Subscription sub = nc.subscribe("header.copy");
+            Headers template = new Headers().add("Trace", "base");
+            Headers extended = new Headers(template).add("Trace", "derived");
+            byte[] body = "payload".getBytes(StandardCharsets.UTF_8);
+
+            nc.publish("header.copy", template, body);
+            nc.publish("header.copy", extended, body);
+
+            Message first = sub.nextMessage(2000);
+            assertNotNull(first, "Publishing the original headers must still deliver the message");
+            assertEquals(Collections.singletonList("base"), first.getHeaders().get("Trace"));
+            assertArrayEquals(body, first.getData());
+
+            Message second = sub.nextMessage(2000);
+            assertNotNull(second, "Publishing the extended copy must deliver the message");
+            assertEquals(Arrays.asList("base", "derived"), second.getHeaders().get("Trace"));
+            assertArrayEquals(body, second.getData());
+        }
+    }
+
     @Test
     public void throwsIfClosedOnPublish() {
         assertThrows(IllegalStateException.class, () -> {
