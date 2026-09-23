@@ -1105,15 +1105,26 @@ public class JetStreamPullTests extends JetStreamTestBase {
             PullSubscribeOptions so = PullSubscribeOptions.bind(stream, durable);
             JetStreamSubscription sub = js.subscribe(subject, so);
 
-            // 159 + 180 + 661 = 1000
-            // subject 7 + reply 52 + bytes 100 = 159
-            // subject 7 + reply 52 + bytes 100 + headers 21 = 180
-            // subject 7 + reply 52 + bytes 602 = 661
+            // Each message's wire size includes its ack reply subject, whose length depends on the
+            // server's ack format. v1 is $JS.ACK.<stream>.<consumer>.<4 numbers>.<timestamp>, which is
+            // 52 for these name lengths. v2, the default from 2.16.0, inserts <domain>.<account hash>
+            // ahead of the stream name - "_" and an 8 character hash, plus their two dots - so every
+            // reply is 11 bytes longer. Sizing max bytes off the wrong one changes what the server sends.
+            // The format is really the js_ack_fc_v2 feature flag, which a config can set either way from
+            // 2.14.0 on, so the version only decides the default. Gating on the version is correct here
+            // because these tests always run a default configured server.
+            int reply = atLeast2_16(nc.getServerInfo()) ? 63 : 52;
+
+            // v1 sizes: 159 + 180 + 661 = 1000, the exact byte budget for all three
+            int one   = 7 + reply + 100;       // subject 7 + reply + bytes 100
+            int two   = 7 + reply + 100 + 21;  // plus headers 21
+            int three = 7 + reply + 602;
+
             js.publish(subject, new byte[100]);
             js.publish(subject, new Headers().add("foo", "bar"), new byte[100]);
             js.publish(subject, new byte[602]);
 
-            sub.pull(PullRequestOptions.builder(10).maxBytes(1000).expiresIn(1000).build());
+            sub.pull(PullRequestOptions.builder(10).maxBytes(one + two + three).expiresIn(1000).build());
             assertNotNull(sub.nextMessage(500));
             assertNotNull(sub.nextMessage(500));
             assertNotNull(sub.nextMessage(500));
