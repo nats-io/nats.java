@@ -175,6 +175,22 @@ public class TestBase {
         return si.isSameOrNewerThanVersion("2.13.99");
     }
 
+    public static boolean atLeast2_15() {
+        return atLeast2_15(RUN_SERVER_INFO);
+    }
+
+    public static boolean atLeast2_15(ServerInfo si) {
+        return si.isSameOrNewerThanVersion("2.14.99");
+    }
+
+    public static boolean atLeast2_16() {
+        return atLeast2_16(RUN_SERVER_INFO);
+    }
+
+    public static boolean atLeast2_16(ServerInfo si) {
+        return si.isSameOrNewerThanVersion("2.15.99");
+    }
+
     public static void runInServer(InServerTest inServerTest) throws Exception {
         runInServer(false, false, null, null, inServerTest);
     }
