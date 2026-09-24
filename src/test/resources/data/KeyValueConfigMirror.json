@@ -1,0 +1,6 @@
+{
+  "name": "bucketName",
+  "mirror": {
+    "name": "KV_mirrorBucket"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "bucketName",
+  "sources": [
+    {
+      "name": "KV_sourceBucket"
+    }
+  ]
+}

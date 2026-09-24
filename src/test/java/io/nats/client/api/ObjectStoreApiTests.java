@@ -15,8 +15,7 @@ package io.nats.client.api;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.support.DateTimeUtils;
-import io.nats.client.support.JsonParser;
-import io.nats.client.support.JsonValue;
+import io.nats.client.support.JsonParseException;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -33,8 +32,11 @@ import static org.junit.jupiter.api.Assertions.*;
 public class ObjectStoreApiTests extends JetStreamTestBase {
 
     @Test
-    public void testConfigurationConstruction() {
+    public void testConfigurationConstruction() throws JsonParseException {
         Placement p = Placement.builder().cluster("cluster").tags("a", "b").build();
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("meta-key", "meta-value");
+        metadata.put("meta-key2", "meta-value2");
 
         // builder
         ObjectStoreConfiguration osc = ObjectStoreConfiguration.builder("bucketName")
@@ -45,6 +47,7 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
             .replicas(2)
             .placement(p)
             .compression(true)
+            .metadata(metadata)
             .build();
         validate(osc);
 
@@ -57,13 +60,21 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
             .replicas(2)
             .placement(p)
             .compression(true)
+            .metadata(metadata)
             .build();
         validate(osc);
 
         validate(ObjectStoreConfiguration.builder(osc).build());
 
-        JsonValue jvSc = JsonParser.parseUnchecked(osc.getBackingConfig().toJson());
-        validate(new ObjectStoreConfiguration(StreamConfiguration.instance(jvSc)));
+        // instance(String) parses a JSON representation of the OS builder configuration:
+        // the bucket (simple) name and OS-domain field names, NOT the backing stream.
+        validate(ObjectStoreConfiguration.instance(dataAsString("ObjectStoreConfig.json")));
+        assertThrows(JsonParseException.class, () -> ObjectStoreConfiguration.instance("not json"));
+        // valid json with no name -> clean validation error
+        assertThrows(IllegalArgumentException.class, () -> ObjectStoreConfiguration.instance("{}"));
+
+        // instanceViaStreamConfig(String) builds from the full backing stream configuration JSON
+        validate(ObjectStoreConfiguration.instanceViaStreamConfig(osc.getBackingConfig().toJson()));
     }
 
     private void validate(ObjectStoreConfiguration osc) {
@@ -78,6 +89,10 @@ public class ObjectStoreApiTests extends JetStreamTestBase {
         assertNotNull(osc.getPlacement().getTags());
         assertEquals(2, osc.getPlacement().getTags().size());
         assertTrue(osc.isCompressed());
+        assertNotNull(osc.getMetadata());
+        assertEquals(2, osc.getMetadata().size());
+        assertEquals("meta-value", osc.getMetadata().get("meta-key"));
+        assertEquals("meta-value2", osc.getMetadata().get("meta-key2"));
 
         assertTrue(osc.toString().contains("bucketName"));
     }

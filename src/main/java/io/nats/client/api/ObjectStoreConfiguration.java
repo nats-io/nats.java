@@ -12,11 +12,16 @@
 // limitations under the License.
 package io.nats.client.api;
 
+import io.nats.client.support.JsonParseException;
+import io.nats.client.support.JsonParser;
+import io.nats.client.support.JsonValue;
 import io.nats.client.support.NatsObjectStoreUtil;
 
 import java.time.Duration;
 import java.util.Map;
 
+import static io.nats.client.support.ApiConstants.*;
+import static io.nats.client.support.JsonValueUtils.*;
 import static io.nats.client.support.NatsObjectStoreUtil.*;
 import static io.nats.client.support.Validator.required;
 
@@ -39,6 +44,54 @@ public class ObjectStoreConfiguration extends FeatureConfiguration {
      */
     public boolean isSealed() {
         return sc.getSealed();
+    }
+
+    /**
+     * Returns an ObjectStoreConfiguration deserialized from a JSON representation of an Object Store
+     * <b>builder</b> configuration, i.e. the values you would supply to the {@link Builder}.
+     * This is <b>not</b> the backing stream configuration, and it is <b>not</b> the JSON emitted
+     * by {@link #toJson()}. Accordingly, {@code name} is the bucket (simple) name, not the stream
+     * name, and the field names use the Object Store domain.
+     *
+     * <p>If you instead have the full backing stream configuration JSON (for example as returned
+     * by the server), use {@link #instanceViaStreamConfig(String)} — at your own risk, since it
+     * bypasses the Object Store validation and field derivation performed here.
+     *
+     * @param json the json representing the Object Store builder configuration
+     * @return ObjectStoreConfiguration for the given json
+     * @throws JsonParseException if there is a problem parsing the json
+     * @see #instanceViaStreamConfig(String)
+     */
+    public static ObjectStoreConfiguration instance(String json) throws JsonParseException {
+        JsonValue v = JsonParser.parse(json);
+        // read each field that has a builder setter, then build() so OS validation/derivation runs.
+        return new Builder()
+            .name(readString(v, NAME))
+            .description(readString(v, DESCRIPTION))
+            .maxBucketSize(readLong(v, MAX_BUCKET_SIZE, -1))
+            .ttl(readNanos(v, TTL))
+            .storageType(StorageType.get(readString(v, STORAGE)))
+            .replicas(readInteger(v, REPLICAS, 1))
+            .placement(Placement.optionalInstance(readValue(v, PLACEMENT)))
+            .compression(readBoolean(v, COMPRESSION))
+            .metadata(readStringStringMap(v, METADATA))
+            .build();
+    }
+
+    /**
+     * Returns an ObjectStoreConfiguration built from the full backing stream configuration JSON,
+     * for example the JSON of the bucket's backing stream as returned by the server. Here
+     * {@code name} is the stream name (such as {@code OBJ_bucketName}) and the field names are the
+     * stream's. Use at your own risk: this trusts the supplied stream and bypasses the Object Store
+     * validation and field derivation that {@link #instance(String)} performs.
+     *
+     * @param json the json representing the backing stream configuration
+     * @return ObjectStoreConfiguration for the given backing stream json
+     * @throws JsonParseException if there is a problem parsing the json
+     * @see #instance(String)
+     */
+    public static ObjectStoreConfiguration instanceViaStreamConfig(String json) throws JsonParseException {
+        return new ObjectStoreConfiguration(StreamConfiguration.instance(json));
     }
 
     /**
