@@ -1,4 +1,4 @@
-// Copyright 20125 The NATS Authors
+// Copyright 2025-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -329,8 +329,7 @@ public class NatsConnectionImplTests {
             // Stop the writer so nothing drains the outgoing queue, giving a deterministic backlog
             // to exercise the pending-count getters against. Reading them while the writer is live
             // is an unwinnable race (a fast machine drains to 0; a slow machine backs up past the
-            // reconnect buffer and the publish throws), and they can't be read during reconnect at
-            // all because that path holds closeSocketLock for the whole reconnect.
+            // reconnect buffer and the publish throws).
             conn.getWriter().stop().get(LONG_TIMEOUT_MS, TimeUnit.MILLISECONDS);
 
             String subject = subject();
@@ -341,6 +340,31 @@ public class NatsConnectionImplTests {
 
             assertTrue(conn.outgoingPendingMessageCount() > 0);
             assertTrue(conn.outgoingPendingBytes() > conn.outgoingPendingMessageCount() * 1000);
+        });
+    }
+
+    @Test
+    public void testOutgoingPendingGettersDoNotBlockOnCloseSocketLock() throws Exception {
+        runInServer(nc -> {
+            NatsConnection conn = (NatsConnection)nc;
+            ExecutorService executor = Executors.newSingleThreadExecutor();
+            try {
+                // closeSocket holds closeSocketLock for the entire reconnect. The getters are
+                // observability reads of atomics and must return while another thread holds it.
+                conn.closeSocketLock.lock();
+                try {
+                    Callable<Long> readCount = conn::outgoingPendingMessageCount;
+                    Callable<Long> readBytes = conn::outgoingPendingBytes;
+                    assertTrue(executor.submit(readCount).get(LONG_TIMEOUT_MS, TimeUnit.MILLISECONDS) >= 0);
+                    assertTrue(executor.submit(readBytes).get(LONG_TIMEOUT_MS, TimeUnit.MILLISECONDS) >= 0);
+                }
+                finally {
+                    conn.closeSocketLock.unlock();
+                }
+            }
+            finally {
+                executor.shutdownNow();
+            }
         });
     }
 }

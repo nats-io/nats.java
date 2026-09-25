@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2015-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -2669,13 +2669,10 @@ class NatsConnection implements Connection {
      */
     @Override
     public long outgoingPendingMessageCount() {
-        closeSocketLock.lock();
-        try {
-            return writer == null ? -1 : writer.outgoingPendingMessageCount();
-        }
-        finally {
-            closeSocketLock.unlock();
-        }
+        // Deliberately not under closeSocketLock: that lock is held for the whole reconnect.
+        // writer is assigned once, in the constructor, and nothing reassigns it (it is protected,
+        // not final, for custom Connection implementations), so there is no reference to guard.
+        return writer.outgoingPendingMessageCount();
     }
 
     /**
@@ -2683,12 +2680,7 @@ class NatsConnection implements Connection {
      */
     @Override
     public long outgoingPendingBytes() {
-        closeSocketLock.lock();
-        try {
-            return writer == null ? -1 : writer.outgoingPendingBytes();
-        }
-        finally {
-            closeSocketLock.unlock();
-        }
+        // Deliberately not under closeSocketLock, see outgoingPendingMessageCount.
+        return writer.outgoingPendingBytes();
     }
 }
