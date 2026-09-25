@@ -2669,8 +2669,9 @@ class NatsConnection implements Connection {
      */
     @Override
     public long outgoingPendingMessageCount() {
-        // Deliberately not under closeSocketLock: that lock is held for the whole reconnect,
-        // and the writer is created once in the constructor so the reference cannot change.
+        // Deliberately not under closeSocketLock: that lock is held for the whole reconnect.
+        // writer is assigned once, in the constructor, and nothing reassigns it (it is protected,
+        // not final, for custom Connection implementations), so there is no reference to guard.
         return writer.outgoingPendingMessageCount();
     }
 
