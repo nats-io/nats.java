@@ -1,4 +1,4 @@
-// Copyright 2020-2023 The NATS Authors
+// Copyright 2020-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -53,8 +53,13 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
         long bb = consumeOpts.getBatchBytes();
         int rePullMessages = Math.max(1, bm * consumeOpts.getThresholdPercent() / 100);
         long rePullBytes = bb == 0 ? 0 : Math.max(1, bb * consumeOpts.getThresholdPercent() / 100);
-        thresholdMessages = bm - rePullMessages;
-        thresholdBytes = bb == 0 ? Integer.MIN_VALUE : bb - rePullBytes;
+        // The threshold is what the pending count has to drop below for the next pull. A batch of 1
+        // gives a re-pull size of 1 and so a threshold of 0, which pending can never go below, so the
+        // consumer pulled once and then stopped. Never let the threshold fall under 1.
+        int thresholdM = bm - rePullMessages;
+        thresholdMessages = thresholdM < 1 ? 1 : thresholdM;
+        long thresholdB = bb - rePullBytes;
+        thresholdBytes = bb == 0 ? Integer.MIN_VALUE : (thresholdB < 1 ? 1 : thresholdB);
         isTrackingBytes = rePullBytes > 0;
         doSub(true);
     }
