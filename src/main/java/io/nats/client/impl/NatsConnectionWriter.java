@@ -1,5 +1,5 @@
 
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2015-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -275,23 +275,14 @@ class NatsConnectionWriter implements Runnable {
         }
     }
 
+    // The pending getters are deliberately lock-free. length and sizeInBytes are atomics, and
+    // writerLock does not serialize with the code that changes them (push, accumulate, filter),
+    // so taking it here adds nothing except parking the caller behind an in-flight socket write.
     long outgoingPendingMessageCount() {
-        writerLock.lock();
-        try {
-            return normalOutgoing == null ? -1 : normalOutgoing.length();
-        }
-        finally {
-            writerLock.unlock();
-        }
+        return normalOutgoing.length();
     }
 
     long outgoingPendingBytes() {
-        writerLock.lock();
-        try {
-            return normalOutgoing == null ? -1 : normalOutgoing.sizeInBytes();
-        }
-        finally {
-            writerLock.unlock();
-        }
+        return normalOutgoing.sizeInBytes();
     }
 }
