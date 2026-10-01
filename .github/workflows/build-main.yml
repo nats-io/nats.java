@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       BUILD_EVENT: ${{ github.event_name }}
+      # a manual run on a branch other than main publishes a branch-specific snapshot
+      BRANCH_REF_NAME: ${{ github.ref_name != 'main' && github.ref_name || '' }}
       OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
       OSSRH_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
       SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}

@@ -16,7 +16,7 @@ group = 'io.nats'
 
 def isRelease = System.getenv("BUILD_EVENT") == "release"
 def brn = System.getenv("BRANCH_REF_NAME")
-def snap = brn == null || brn.equals("") ? "-SNAPSHOT" : "." + brn + "-SNAPSHOT"
+def snap = brn == null || brn.equals("") ? "-SNAPSHOT" : "." + brn.replace("/", "-") + "-SNAPSHOT" // a / in a branch name is not valid in a version
 
 version = isRelease ? jarVersion : jarVersion + snap // version is the variable the build actually uses.
 
