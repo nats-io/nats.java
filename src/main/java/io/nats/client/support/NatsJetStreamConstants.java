@@ -154,10 +154,58 @@ public interface NatsJetStreamConstants {
     String NATS_BATCH_SEQUENCE_HDR  = "Nats-Batch-Sequence";
     String NATS_BATCH_COMMIT_HDR    = "Nats-Batch-Commit";
 
+    // Values for NATS_BATCH_COMMIT_HDR.
+    // Presence of the header marks the commit message, the value selects the mode.
+    // STORE is the original 2.12 value, a boolean true, and stores the final message.
+    // EOB commits the batch without storing the final message. Server 2.14+
+    String NATS_BATCH_COMMIT_STORE = "1";
+    String NATS_BATCH_COMMIT_EOB = "eob";
+
+    // Fast ingest batch publish reply subject, which carries the batch control state.
+    // <prefix>.<batch-id>.<initial-flow>.<gap-mode>.<batch-sequence>.<operation>.$FI
+    // The server parses this right to left, so the prefix may itself contain dots.
+    String FAST_BATCH_SUFFIX   = "$FI";
+    String FAST_BATCH_GAP_OK   = "ok";
+    String FAST_BATCH_GAP_FAIL = "fail";
+
+    // Fast ingest batch publish operations, the subject token just before FAST_BATCH_SUFFIX.
+    // These are subject tokens, not header values, so they are strings on the wire.
+    String FAST_BATCH_OP_START      = "0";
+    String FAST_BATCH_OP_APPEND     = "1";
+    String FAST_BATCH_OP_COMMIT     = "2";
+    String FAST_BATCH_OP_COMMIT_EOB = "3";
+    String FAST_BATCH_OP_PING       = "4";
+
+    // Fast ingest flow control message types, the value of the "type" field.
+    // A publish ack has no "type" field, which is what tells the two apart.
+    String FAST_BATCH_TYPE_ACK = "ack";
+    String FAST_BATCH_TYPE_GAP = "gap";
+    String FAST_BATCH_TYPE_ERR = "err";
+
     String NATS_PIN_ID_HDR = "Nats-Pin-Id";
 
     int JS_CONSUMER_NOT_FOUND_ERR = 10014;
     int JS_NO_MESSAGE_FOUND_ERR = 10037;
     int JS_WRONG_LAST_SEQUENCE = 10071;
     int JS_SEQUENCE_TEMPORARILY_UNKNOWN = 10164;
+
+    // Atomic batch publish server errors
+    int JS_ATOMIC_PUBLISH_DISABLED             = 10174;
+    int JS_ATOMIC_PUBLISH_MISSING_SEQ          = 10175;
+    int JS_ATOMIC_PUBLISH_INCOMPLETE_BATCH     = 10176;
+    int JS_ATOMIC_PUBLISH_UNSUPPORTED_HEADER   = 10177;
+    int JS_ATOMIC_PUBLISH_INVALID_BATCH_ID     = 10179;
+    int JS_MIRROR_WITH_ATOMIC_PUBLISH          = 10198;
+    int JS_ATOMIC_PUBLISH_TOO_LARGE_BATCH      = 10199;
+    int JS_ATOMIC_PUBLISH_INVALID_BATCH_COMMIT = 10200;
+    int JS_ATOMIC_PUBLISH_DUPLICATE_MESSAGE    = 10201;
+    int JS_ATOMIC_PUBLISH_TOO_MANY_INFLIGHT    = 10210;
+
+    // Fast ingest batch publish server errors
+    int JS_BATCH_PUBLISH_DISABLED           = 10205;
+    int JS_BATCH_PUBLISH_INVALID_PATTERN    = 10206;
+    int JS_BATCH_PUBLISH_INVALID_BATCH_ID   = 10207;
+    int JS_BATCH_PUBLISH_UNKNOWN_BATCH_ID   = 10208;
+    int JS_MIRROR_WITH_BATCH_PUBLISH        = 10209;
+    int JS_BATCH_PUBLISH_TOO_MANY_INFLIGHT  = 10211;
 }

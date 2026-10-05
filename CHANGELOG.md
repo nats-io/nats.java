@@ -1,5 +1,26 @@
 # Change Log
 
+## 2.26.3
+
+### Core
+* Fix pending queue lookup race in message delivery #1615 @scottf
+
+### JetStream
+* Support ADR 60 Ack Policy Flow Control #1624 @scottf
+* Support ADR 50 Fast Ingest with constants #1628 @scottf
+
+### Service
+* Fix discoverMany handling of a no responders status #1620 @scottf
+
+### Test
+* Update Test Server Runner (Major Version) #1617 @scottf
+* Fix test to respect server 2.15 change to max_consumers behavior #1623 @scottf
+
+### CI/CD
+* Update GitHub Actions to Node 24 majors, install nats-server via shared action #1618 @scottf
+* Add a Windows build workflow #1619 @scottf
+* Update org.bouncycastle:bcprov-lts8on  #1622 @bugada @scottf
+
 ## 2.26.2
 
 ### Core
