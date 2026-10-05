@@ -1,0 +1,17 @@
+{
+  "name": "bucketName",
+  "description": "bucketDesc",
+  "max_bucket_size": 555,
+  "ttl": 777000000,
+  "storage": "memory",
+  "replicas": 2,
+  "placement": {
+    "cluster": "cluster",
+    "tags": ["a", "b"]
+  },
+  "compression": true,
+  "metadata": {
+    "meta-key": "meta-value",
+    "meta-key2": "meta-value2"
+  }
+}
