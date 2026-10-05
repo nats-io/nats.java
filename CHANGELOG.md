@@ -8,8 +8,6 @@
 ### JetStream
 * Fix consume with batch size 1 stopping after one message #1633 @scottf
 
-### Service
-
 ### Test
 * Fix max bytes tests to respect the server 2.16 default ack format v2 #1630 @scottf
 
