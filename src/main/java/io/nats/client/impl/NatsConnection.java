@@ -1760,11 +1760,19 @@ class NatsConnection implements Connection {
         CompletableFuture<Boolean> pongFuture = new CompletableFuture<>();
         pongQueue.add(pongFuture);
 
-        if (treatAsInternal) {
-            queueInternalOutgoing(new ProtocolMessage(PING_PROTO));
+        try {
+            if (treatAsInternal) {
+                queueInternalOutgoing(new ProtocolMessage(PING_PROTO));
+            }
+            else {
+                queueOutgoing(new ProtocolMessage(PING_PROTO));
+            }
         }
-        else {
-            queueOutgoing(new ProtocolMessage(PING_PROTO));
+        catch (RuntimeException e) {
+            // a future left in the queue would be completed by the next PONG,
+            // consuming the one a live waiter (a flush) is owed
+            pongQueue.remove(pongFuture);
+            throw e;
         }
 
         this.needPing.set(true);
