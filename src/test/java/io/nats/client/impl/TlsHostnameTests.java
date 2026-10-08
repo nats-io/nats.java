@@ -50,6 +50,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -60,8 +61,9 @@ import static org.junit.jupiter.api.Assertions.*;
  * before connecting. An endpoint that selects its certificate by SNI, like a TLS terminating proxy
  * or ingress, otherwise serves its default certificate.
  * <p>
- * {@link HostnameResolveMode#Unresolved} connects through an HTTP CONNECT proxy, which is the only way that mode
- * connects, so the matrix runs it through a loopback tunnel and also checks that the proxy received the hostname.
+ * The matrix runs every mode on a direct connection, and {@link HostnameResolveMode#Unresolved} additionally
+ * through a loopback HTTP CONNECT tunnel, where it also checks that the proxy received the hostname and not an ip.
+ * Each execution also checks whether the server pool was asked to resolve, which only the resolving modes do.
  */
 public class TlsHostnameTests {
     private static final String SINGLE_LABEL_HOST = "nats";
@@ -101,17 +103,27 @@ public class TlsHostnameTests {
         return InetAddress.getByAddress(host, new byte[]{127, 0, 0, 1});
     }
 
+    /** every mode direct, plus Unresolved through a proxy: (mode, tlsFirst, proxied) */
     static Stream<Arguments> allModes() {
-        return Stream.of(HostnameResolveMode.values())
-            .flatMap(mode -> Stream.of(Arguments.of(mode, false), Arguments.of(mode, true)));
+        Stream<Arguments> direct = Stream.of(HostnameResolveMode.values())
+            .flatMap(mode -> Stream.of(Arguments.of(mode, false, false), Arguments.of(mode, true, false)));
+        Stream<Arguments> proxied = Stream.of(
+            Arguments.of(HostnameResolveMode.Unresolved, false, true),
+            Arguments.of(HostnameResolveMode.Unresolved, true, true));
+        return Stream.concat(direct, proxied);
     }
 
     private static Options.Builder options(SniTestServer server, String host, DiagnosticSslContext context, HostnameResolveMode mode, boolean tlsFirst) {
+        return options(server, host, context, mode, tlsFirst, new AtomicBoolean());
+    }
+
+    private static Options.Builder options(SniTestServer server, String host, DiagnosticSslContext context, HostnameResolveMode mode, boolean tlsFirst, AtomicBoolean poolAsked) {
         Options.Builder builder = new Options.Builder()
             .server("tls://" + host + ":" + server.port())
             .serverPool(new NatsServerPool() {
                 @Override
                 public List<String> resolveHostToIps(String hostToResolve, boolean maxOneResult, boolean includeIPV6) {
+                    poolAsked.set(true);
                     assertEquals(host, hostToResolve);
                     return Collections.singletonList("127.0.0.1");
                 }
@@ -138,29 +150,32 @@ public class TlsHostnameTests {
 
     @ParameterizedTest
     @MethodSource("allModes")
-    public void hostnameIsSentAsSniInEveryMode(HostnameResolveMode mode, boolean tlsFirst) throws Exception {
-        connectAndVerify(dottedCertificates, mode, tlsFirst);
+    public void hostnameIsSentAsSniInEveryMode(HostnameResolveMode mode, boolean tlsFirst, boolean proxied) throws Exception {
+        connectAndVerify(dottedCertificates, mode, tlsFirst, proxied);
     }
 
     @ParameterizedTest
     @MethodSource("allModes")
-    public void singleLabelHostnameIsSentAsSniInEveryMode(HostnameResolveMode mode, boolean tlsFirst) throws Exception {
+    public void singleLabelHostnameIsSentAsSniInEveryMode(HostnameResolveMode mode, boolean tlsFirst, boolean proxied) throws Exception {
         // The JSSE does not derive SNI from a single label peer host on its own, so this
         // only passes because the data port sets the server name explicitly.
-        connectAndVerify(singleLabelCertificates, mode, tlsFirst);
+        connectAndVerify(singleLabelCertificates, mode, tlsFirst, proxied);
     }
 
-    private static void connectAndVerify(SniTestServer.Certificates certificates, HostnameResolveMode mode, boolean tlsFirst) throws Exception {
+    private static void connectAndVerify(SniTestServer.Certificates certificates, HostnameResolveMode mode, boolean tlsFirst, boolean proxied) throws Exception {
         DiagnosticSslContext context = certificates.clientContext();
+        AtomicBoolean poolAsked = new AtomicBoolean();
         try (SniTestServer server = new SniTestServer(certificates, tlsFirst, 0);
-             LoopbackConnectProxy proxy = mode == HostnameResolveMode.Unresolved ? new LoopbackConnectProxy() : null) {
-            Options.Builder builder = options(server, certificates.host, context, mode, tlsFirst);
+             LoopbackConnectProxy proxy = proxied ? new LoopbackConnectProxy() : null) {
+            Options.Builder builder = options(server, certificates.host, context, mode, tlsFirst, poolAsked);
             if (proxy != null) {
                 builder.proxy(new Proxy(Proxy.Type.HTTP, new InetSocketAddress("127.0.0.1", proxy.port())));
             }
             try (Connection nc = Nats.connect(builder.build())) {
                 nc.flush(Duration.ofSeconds(2));
                 assertValidCertificateSelected(server, certificates, context);
+                // only the resolving modes ask the pool; Unresolved and HappyEyeballs must not
+                assertEquals(mode.resolve, poolAsked.get());
                 if (proxy != null) {
                     // Unresolved means the client did not resolve: the proxy must have received the name, not an ip
                     assertEquals(Collections.singletonList(certificates.host + ":" + server.port()), proxy.receivedTargets);

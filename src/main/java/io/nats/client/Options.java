@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2015-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -359,7 +359,10 @@ public class Options {
         ResolveToFirstIncludeIPV6(true, true, true),
 
         /**
-         * Do not resolve, instead use InetSocketAddress.createUnresolved while creating the socket.
+         * Do not resolve the hostname in the client. When a proxy is configured, the socket is connected with
+         * InetSocketAddress.createUnresolved so the proxy receives the hostname and resolves it. Without a proxy,
+         * one address is resolved at connect time through NatsInetAddress, as the client did before hostname
+         * resolution was added. In both cases the hostname is kept and is the TLS server name.
          */
         Unresolved(false, false, false),
 
@@ -1259,7 +1262,7 @@ public class Options {
 
             booleanProperty(props, PROP_NO_RESOLVE_HOSTNAMES, b -> {
                 if (b) {
-                    hostnameResolveMode = HostnameResolveMode.ResolveToFirst;
+                    hostnameResolveMode = HostnameResolveMode.Unresolved;
                 }
             });
             booleanProperty(props, PROP_FAST_FALLBACK, b -> {
@@ -1352,13 +1355,13 @@ public class Options {
         }
 
         /**
-         * @deprecated use hostnameResolveMode()
-         * If the connection should not resolve hostnames to ip addresses.
+         * @deprecated use hostnameResolveMode(HostnameResolveMode.Unresolved)
+         * If the connection should not resolve hostnames to ip addresses. Sets HostnameResolveMode.Unresolved.
          * @return the Builder for chaining
          */
         @Deprecated
         public Builder noResolveHostnames() {
-            this.hostnameResolveMode = HostnameResolveMode.ResolveToFirst;
+            this.hostnameResolveMode = HostnameResolveMode.Unresolved;
             return this;
         }
 
@@ -3126,11 +3129,11 @@ public class Options {
 
     /**
      * @deprecated use hostnameResolveMode instead
-     * @return true if HostnameResolveMode is HostnameResolveMode.ResolveToFirst since that mode replaces isNoResolveHostnames
+     * @return true if HostnameResolveMode is HostnameResolveMode.Unresolved, the mode that replaces noResolveHostnames
      */
     @Deprecated
     public boolean isNoResolveHostnames() {
-        return hostnameResolveMode == HostnameResolveMode.ResolveToFirst;
+        return hostnameResolveMode == HostnameResolveMode.Unresolved;
     }
 
     /**

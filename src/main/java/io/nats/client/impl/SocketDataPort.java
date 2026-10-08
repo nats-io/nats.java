@@ -16,6 +16,7 @@ package io.nats.client.impl;
 import io.nats.client.Options;
 import io.nats.client.Options.HostnameResolveMode;
 import io.nats.client.support.HappyEyeballsConnector;
+import io.nats.client.support.NatsInetAddress;
 import io.nats.client.support.NatsUri;
 import io.nats.client.support.WebSocket;
 import org.jspecify.annotations.NonNull;
@@ -105,7 +106,16 @@ public class SocketDataPort implements DataPort {
                 socket = createSocket(options);
                 InetSocketAddress inetSocketAddress;
                 if (mode == HostnameResolveMode.Unresolved && !nuri.hostIsIpAddress()) {
-                    inetSocketAddress = InetSocketAddress.createUnresolved(host, port);
+                    if (options.getProxy() == null) {
+                        // There is no proxy to hand the hostname to, and a plain socket rejects an unresolved
+                        // address. Resolve one address here, at connect time, through NatsInetAddress, the way
+                        // InetSocketAddress(String, int) would have. host and tlsHost keep the hostname.
+                        inetSocketAddress = new InetSocketAddress(NatsInetAddress.getByName(host), port);
+                    }
+                    else {
+                        // The proxy receives the hostname and resolves it.
+                        inetSocketAddress = InetSocketAddress.createUnresolved(host, port);
+                    }
                 }
                 else {
                     inetSocketAddress = new InetSocketAddress(host, port);

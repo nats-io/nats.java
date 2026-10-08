@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2015-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -1583,15 +1583,15 @@ public class OptionsTests {
         validateHostnameResolveMode(HostnameResolveMode.ResolveToFirstIncludeIPV6, false, false, new Options.Builder().hostnameResolveMode(HostnameResolveMode.ResolveToFirstIncludeIPV6).build());
         validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "ResolveToFirstIncludeIPV6", HostnameResolveMode.ResolveToFirstIncludeIPV6, false, false);
 
-        //noinspection deprecation
-        validateHostnameResolveMode(HostnameResolveMode.ResolveToFirst, true, false, new Options.Builder().noResolveHostnames().build());
-        validateHostnameResolveMode(HostnameResolveMode.ResolveToFirst, true, false, new Options.Builder().hostnameResolveMode(HostnameResolveMode.ResolveToFirst).build());
-        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "ResolveToFirst", HostnameResolveMode.ResolveToFirst, true, false);
-        //noinspection deprecation
-        validateHostnameResolveMode(PROP_NO_RESOLVE_HOSTNAMES, "true", HostnameResolveMode.ResolveToFirst, true, false);
+        validateHostnameResolveMode(HostnameResolveMode.ResolveToFirst, false, false, new Options.Builder().hostnameResolveMode(HostnameResolveMode.ResolveToFirst).build());
+        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "ResolveToFirst", HostnameResolveMode.ResolveToFirst, false, false);
 
-        validateHostnameResolveMode(HostnameResolveMode.Unresolved, false, false, new Options.Builder().hostnameResolveMode(HostnameResolveMode.Unresolved).build());
-        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "Unresolved", HostnameResolveMode.Unresolved, false, false);
+        //noinspection deprecation
+        validateHostnameResolveMode(HostnameResolveMode.Unresolved, true, false, new Options.Builder().noResolveHostnames().build());
+        validateHostnameResolveMode(HostnameResolveMode.Unresolved, true, false, new Options.Builder().hostnameResolveMode(HostnameResolveMode.Unresolved).build());
+        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "Unresolved", HostnameResolveMode.Unresolved, true, false);
+        //noinspection deprecation
+        validateHostnameResolveMode(PROP_NO_RESOLVE_HOSTNAMES, "true", HostnameResolveMode.Unresolved, true, false);
 
         //noinspection deprecation
         validateHostnameResolveMode(HostnameResolveMode.HappyEyeballs, false, true, new Options.Builder().enableFastFallback().build());
