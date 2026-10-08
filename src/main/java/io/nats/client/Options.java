@@ -359,7 +359,10 @@ public class Options {
         ResolveToFirstIncludeIPV6(true, true, true),
 
         /**
-         * Do not resolve, instead use InetSocketAddress.createUnresolved while creating the socket.
+         * Do not resolve the hostname in the client. When a proxy is configured, the socket is connected with
+         * InetSocketAddress.createUnresolved so the proxy receives the hostname and resolves it. Without a proxy,
+         * one address is resolved at connect time through NatsInetAddress, as the client did before hostname
+         * resolution was added. In both cases the hostname is kept and is the TLS server name.
          */
         Unresolved(false, false, false),
 
@@ -709,6 +712,13 @@ public class Options {
      */
     public static final String PROP_TLS_FIRST = PFX + "tls.first";
     /**
+     * Property used to configure tls hostname verification.
+     * This property is a boolean flag, telling connections whether
+     * to verify that the certificate the server presents is issued for the server name,
+     * see {@link Builder#tlsVerifyHostname() tlsVerifyHostname}.
+     */
+    public static final String PROP_TLS_VERIFY_HOSTNAME = PFX + "tls.verify.hostname";
+    /**
      * This property is used to enable support for UTF8 subjects. See {@link Builder#supportUTF8Subjects() supportUTF8Subjects()}
      */
     public static final String PROP_UTF8_SUBJECTS = "allow.utf8.subjects";
@@ -920,6 +930,7 @@ public class Options {
     private final boolean discardMessagesWhenOutgoingQueueFull;
     private final boolean ignoreDiscoveredServers;
     private final boolean tlsFirst;
+    private final boolean tlsVerifyHostname;
     private final boolean useTimeoutException;
     private final boolean advancedRequestBehavior;
     private final boolean useDispatcherWithExecutor;
@@ -1092,6 +1103,7 @@ public class Options {
         private boolean discardMessagesWhenOutgoingQueueFull = DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL;
         private boolean ignoreDiscoveredServers = false;
         private boolean tlsFirst = false;
+        private boolean tlsVerifyHostname = false;
         private boolean useTimeoutException = false;
         private boolean advancedRequestBehavior = false;
         private boolean useDispatcherWithExecutor = false;
@@ -1252,6 +1264,7 @@ public class Options {
 
             booleanProperty(props, PROP_IGNORE_DISCOVERED_SERVERS, b -> this.ignoreDiscoveredServers = b);
             booleanProperty(props, PROP_TLS_FIRST, b -> this.tlsFirst = b);
+            booleanProperty(props, PROP_TLS_VERIFY_HOSTNAME, b -> this.tlsVerifyHostname = b);
             booleanProperty(props, PROP_USE_TIMEOUT_EXCEPTION, b -> this.useTimeoutException = b);
             booleanProperty(props, PROP_ADVANCED_REQUEST_BEHAVIOR, b -> this.advancedRequestBehavior = b);
             booleanProperty(props, PROP_USE_DISPATCHER_WITH_EXECUTOR, b -> this.useDispatcherWithExecutor = b);
@@ -1259,7 +1272,7 @@ public class Options {
 
             booleanProperty(props, PROP_NO_RESOLVE_HOSTNAMES, b -> {
                 if (b) {
-                    hostnameResolveMode = HostnameResolveMode.ResolveToFirst;
+                    hostnameResolveMode = HostnameResolveMode.Unresolved;
                 }
             });
             booleanProperty(props, PROP_FAST_FALLBACK, b -> {
@@ -1352,13 +1365,13 @@ public class Options {
         }
 
         /**
-         * @deprecated use hostnameResolveMode()
-         * If the connection should not resolve hostnames to ip addresses.
+         * @deprecated use hostnameResolveMode(HostnameResolveMode.Unresolved)
+         * If the connection should not resolve hostnames to ip addresses. Sets HostnameResolveMode.Unresolved.
          * @return the Builder for chaining
          */
         @Deprecated
         public Builder noResolveHostnames() {
-            this.hostnameResolveMode = HostnameResolveMode.ResolveToFirst;
+            this.hostnameResolveMode = HostnameResolveMode.Unresolved;
             return this;
         }
 
@@ -2301,6 +2314,26 @@ public class Options {
         }
 
         /**
+         * Set TLS hostname verification on. Default is off.
+         * When on, the certificate the server presents must be issued for the server name the
+         * connection was made with: the configured hostname, in every {@link HostnameResolveMode},
+         * or the ip address when the server was configured or discovered by ip address.
+         * The check is the one the JDK performs for HTTPS, against the certificate's
+         * subject alternative names. A server discovered from connect_urls as a bare ip address
+         * is checked as an ip address, so its certificate must carry that address.
+         * The check is performed by the trust manager in use. The JDK performs it for its own
+         * trust managers, which an SSLContext built from a keystore and truststore or the default
+         * SSLContext has, and for any plain X509TrustManager, which it wraps, including the
+         * trust-all manager of {@link #opentls() opentls}. A custom X509ExtendedTrustManager
+         * is responsible for its own identity check.
+         * @return the Builder for chaining
+         */
+        public Builder tlsVerifyHostname() {
+            this.tlsVerifyHostname = true;
+            return this;
+        }
+
+        /**
          * Throw {@link java.util.concurrent.TimeoutException} on timeout instead of {@link java.util.concurrent.CancellationException}?
          * @return the Builder for chaining
          */
@@ -2598,6 +2631,7 @@ public class Options {
 
             this.ignoreDiscoveredServers = o.ignoreDiscoveredServers;
             this.tlsFirst = o.tlsFirst;
+            this.tlsVerifyHostname = o.tlsVerifyHostname;
             this.useTimeoutException = o.useTimeoutException;
             this.advancedRequestBehavior = o.advancedRequestBehavior;
             this.useDispatcherWithExecutor = o.useDispatcherWithExecutor;
@@ -2682,6 +2716,7 @@ public class Options {
 
         this.ignoreDiscoveredServers = b.ignoreDiscoveredServers;
         this.tlsFirst = b.tlsFirst;
+        this.tlsVerifyHostname = b.tlsVerifyHostname;
         this.useTimeoutException = b.useTimeoutException;
         this.advancedRequestBehavior = b.advancedRequestBehavior;
         this.useDispatcherWithExecutor = b.useDispatcherWithExecutor;
@@ -3131,11 +3166,11 @@ public class Options {
 
     /**
      * @deprecated use hostnameResolveMode instead
-     * @return true if HostnameResolveMode is HostnameResolveMode.ResolveToFirst since that mode replaces isNoResolveHostnames
+     * @return true if HostnameResolveMode is HostnameResolveMode.Unresolved, the mode that replaces noResolveHostnames
      */
     @Deprecated
     public boolean isNoResolveHostnames() {
-        return hostnameResolveMode == HostnameResolveMode.ResolveToFirst;
+        return hostnameResolveMode == HostnameResolveMode.Unresolved;
     }
 
     /**
@@ -3507,6 +3542,15 @@ public class Options {
      */
     public boolean isTlsFirst() {
         return tlsFirst;
+    }
+
+    /**
+     * Get whether to verify that the certificate the server presents is issued for the server name,
+     * see {@link Builder#tlsVerifyHostname() tlsVerifyHostname()} in the builder doc
+     * @return the flag
+     */
+    public boolean isTlsVerifyHostname() {
+        return tlsVerifyHostname;
     }
 
     /**

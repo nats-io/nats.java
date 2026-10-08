@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2015-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -16,12 +16,16 @@ package io.nats.client.impl;
 import io.nats.client.Options;
 import io.nats.client.Options.HostnameResolveMode;
 import io.nats.client.support.HappyEyeballsConnector;
+import io.nats.client.support.NatsInetAddress;
 import io.nats.client.support.NatsUri;
 import io.nats.client.support.WebSocket;
 import org.jspecify.annotations.NonNull;
 
 import javax.net.ssl.HandshakeCompletedListener;
+import javax.net.ssl.SNIHostName;
+import javax.net.ssl.SNIServerName;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import java.io.IOException;
@@ -32,6 +36,7 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.URISyntaxException;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -47,6 +52,7 @@ public class SocketDataPort implements DataPort {
 
     protected String host;
     protected int port;
+    protected String tlsHost;
     protected Socket socket;
     protected boolean isSecure = false;
 
@@ -65,12 +71,29 @@ public class SocketDataPort implements DataPort {
     }
 
     @Override
+    public void connect(@NonNull NatsConnection conn, @NonNull NatsUri nuri, @NonNull NatsUri unresolvedUri, long timeoutNanos) throws IOException {
+        // The unresolved uri is the server as configured or discovered, before any hostname resolution.
+        // Its tls host is its hostname, or the hostname saved on it when it was discovered as a bare
+        // ip address from a server that had one. That is the server name to present during the TLS
+        // handshake, whatever the hostname resolution mode turned the host of nuri into.
+        String name = unresolvedUri.getTlsHost();
+        if (!unresolvedUri.hostIsIpAddress() || !name.equals(unresolvedUri.getHost())) {
+            tlsHost = name;
+        }
+        connect(conn, nuri, timeoutNanos);
+    }
+
+    @Override
     public void connect(@NonNull NatsConnection conn, @NonNull NatsUri nuri, long timeoutNanos) throws IOException {
         connection = conn;
         Options options = connection.getOptions();
         long timeout = timeoutNanos / 1_000_000; // convert to millis
         host = nuri.getHost();
         port = nuri.getPort();
+        if (tlsHost == null && !nuri.hostIsIpAddress()) {
+            // connect was called without the unresolved uri, or the host was not resolved.
+            tlsHost = host;
+        }
 
         try {
             HostnameResolveMode mode = options.hostnameResolveMode();
@@ -85,7 +108,16 @@ public class SocketDataPort implements DataPort {
                 socket = createSocket(options);
                 InetSocketAddress inetSocketAddress;
                 if (mode == HostnameResolveMode.Unresolved && !nuri.hostIsIpAddress()) {
-                    inetSocketAddress = InetSocketAddress.createUnresolved(host, port);
+                    if (options.getProxy() == null) {
+                        // There is no proxy to hand the hostname to, and a plain socket rejects an unresolved
+                        // address. Resolve one address here, at connect time, through NatsInetAddress, the way
+                        // InetSocketAddress(String, int) would have. host and tlsHost keep the hostname.
+                        inetSocketAddress = new InetSocketAddress(NatsInetAddress.getByName(host), port);
+                    }
+                    else {
+                        // The proxy receives the hostname and resolves it.
+                        inetSocketAddress = InetSocketAddress.createUnresolved(host, port);
+                    }
                 }
                 else {
                     inetSocketAddress = new InetSocketAddress(host, port);
@@ -146,8 +178,31 @@ public class SocketDataPort implements DataPort {
         SSLSocketFactory factory = context.getSocketFactory();
         Duration timeout = options.getConnectionTimeout();
 
-        SSLSocket sslSocket = (SSLSocket) factory.createSocket(socket, host, port, true);
+        String peerHost = tlsHost == null ? host : tlsHost;
+        SSLSocket sslSocket = (SSLSocket) factory.createSocket(socket, peerHost, port, true);
         sslSocket.setUseClientMode(true);
+
+        boolean verifyHostname = options.isTlsVerifyHostname();
+        if (tlsHost != null || verifyHostname) {
+            SSLParameters sslParameters = sslSocket.getSSLParameters();
+            if (tlsHost != null) {
+                // Present the hostname to the server as the TLS server name (SNI) in every hostname resolution mode.
+                // Setting it explicitly also covers names the provider would not derive from the peer host on its own,
+                // for instance a single label hostname like a kubernetes service name.
+                try {
+                    sslParameters.setServerNames(Collections.<SNIServerName>singletonList(new SNIHostName(tlsHost)));
+                }
+                catch (IllegalArgumentException e) {
+                    // not a legal SNI host name, for instance it has a trailing dot.
+                    // Leave the server name to the provider's default behavior for the peer host.
+                }
+            }
+            if (verifyHostname) {
+                // The trust manager checks the certificate against the server name, or the peer host when there is none.
+                sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
+            }
+            sslSocket.setSSLParameters(sslParameters);
+        }
 
         final CompletableFuture<Void> waitForHandshake = new CompletableFuture<>();
         final HandshakeCompletedListener hcl = (evt) -> waitForHandshake.complete(null);

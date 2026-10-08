@@ -1607,15 +1607,15 @@ public class OptionsTests {
         validateHostnameResolveMode(HostnameResolveMode.ResolveToFirstIncludeIPV6, false, false, new Options.Builder().hostnameResolveMode(HostnameResolveMode.ResolveToFirstIncludeIPV6).build());
         validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "ResolveToFirstIncludeIPV6", HostnameResolveMode.ResolveToFirstIncludeIPV6, false, false);
 
-        //noinspection deprecation
-        validateHostnameResolveMode(HostnameResolveMode.ResolveToFirst, true, false, new Options.Builder().noResolveHostnames().build());
-        validateHostnameResolveMode(HostnameResolveMode.ResolveToFirst, true, false, new Options.Builder().hostnameResolveMode(HostnameResolveMode.ResolveToFirst).build());
-        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "ResolveToFirst", HostnameResolveMode.ResolveToFirst, true, false);
-        //noinspection deprecation
-        validateHostnameResolveMode(PROP_NO_RESOLVE_HOSTNAMES, "true", HostnameResolveMode.ResolveToFirst, true, false);
+        validateHostnameResolveMode(HostnameResolveMode.ResolveToFirst, false, false, new Options.Builder().hostnameResolveMode(HostnameResolveMode.ResolveToFirst).build());
+        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "ResolveToFirst", HostnameResolveMode.ResolveToFirst, false, false);
 
-        validateHostnameResolveMode(HostnameResolveMode.Unresolved, false, false, new Options.Builder().hostnameResolveMode(HostnameResolveMode.Unresolved).build());
-        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "Unresolved", HostnameResolveMode.Unresolved, false, false);
+        //noinspection deprecation
+        validateHostnameResolveMode(HostnameResolveMode.Unresolved, true, false, new Options.Builder().noResolveHostnames().build());
+        validateHostnameResolveMode(HostnameResolveMode.Unresolved, true, false, new Options.Builder().hostnameResolveMode(HostnameResolveMode.Unresolved).build());
+        validateHostnameResolveMode(PROP_HOSTNAME_RESOLVE_MODE, "Unresolved", HostnameResolveMode.Unresolved, true, false);
+        //noinspection deprecation
+        validateHostnameResolveMode(PROP_NO_RESOLVE_HOSTNAMES, "true", HostnameResolveMode.Unresolved, true, false);
 
         //noinspection deprecation
         validateHostnameResolveMode(HostnameResolveMode.HappyEyeballs, false, true, new Options.Builder().enableFastFallback().build());
@@ -1631,6 +1631,19 @@ public class OptionsTests {
         props.setProperty(PROP_HOSTNAME_RESOLVE_MODE, "ResolveToAll");
         Options options = new Options.Builder(props).build();
         assertEquals(HostnameResolveMode.ResolveToAll, options.hostnameResolveMode());
+    }
+
+    @Test
+    public void testTlsVerifyHostname() {
+        assertFalse(new Options.Builder().build().isTlsVerifyHostname());
+        Options options = new Options.Builder().tlsVerifyHostname().build();
+        assertTrue(options.isTlsVerifyHostname());
+        assertTrue(new Options.Builder(options).build().isTlsVerifyHostname());
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_TLS_VERIFY_HOSTNAME, "true");
+        assertTrue(new Options.Builder(props).build().isTlsVerifyHostname());
+        props.setProperty(Options.PROP_TLS_VERIFY_HOSTNAME, "false");
+        assertFalse(new Options.Builder(props).build().isTlsVerifyHostname());
     }
 
     @SuppressWarnings("deprecation")

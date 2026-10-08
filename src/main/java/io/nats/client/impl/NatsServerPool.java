@@ -1,4 +1,4 @@
-// Copyright 2023 The NATS Authors
+// Copyright 2023-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -93,6 +93,14 @@ public class NatsServerPool implements ServerPool {
      */
     @Override
     public boolean acceptDiscoveredUrls(@NonNull List<@NonNull String> discoveredServers) {
+        return acceptDiscoveredUrls(discoveredServers, null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean acceptDiscoveredUrls(@NonNull List<@NonNull String> discoveredServers, @Nullable NatsUri origin) {
         // 1. If ignored discovered servers, don't do anything b/c never want
         //    anything but the explicit, which is already loaded.
         // 2. return false == no new servers discovered
@@ -133,10 +141,17 @@ public class NatsServerPool implements ServerPool {
             }
 
             // 4. Add all left over from the new discovered list
+            //    - a discovered server given as a bare ip address gets the hostname of the origin
+            //      to present during the TLS handshake, when the origin was configured with a hostname.
+            //      One hop only: an origin that is itself an ip address supplies nothing.
             boolean discoveryContainedUnknowns = false;
             if (!discovered.isEmpty()) {
                 discoveryContainedUnknowns = true;
+                String originHost = origin == null || origin.hostIsIpAddress() ? null : origin.getHost();
                 for (NatsUri d : discovered) {
+                    if (originHost != null && d.hostIsIpAddress()) {
+                        d = d.withTlsHost(originHost);
+                    }
                     newEntryList.add(new ServerPoolEntry(d, true));
                 }
             }

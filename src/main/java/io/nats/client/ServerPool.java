@@ -1,4 +1,4 @@
-// Copyright 2023 The NATS Authors
+// Copyright 2023-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -37,6 +37,20 @@ public interface ServerPool {
      * @return true if there were any unknown servers provided
      */
     boolean acceptDiscoveredUrls(@NonNull List<@NonNull String> discoveredServers);
+
+    /**
+     * When the connection received discovered servers (ServerInfo.getConnectURLs)
+     * it passes them on to the provider for later use, together with the server whose INFO supplied them.
+     * A discovered server given as a bare ip address has no hostname to present to the server
+     * during the TLS handshake; the pool may save the origin's hostname on it for that purpose.
+     * The default implementation ignores the origin and calls {@link #acceptDiscoveredUrls(List)}.
+     * @param discoveredServers the list of discovered servers.
+     * @param origin the server whose INFO supplied the list, or null when it is not known
+     * @return true if there were any unknown servers provided
+     */
+    default boolean acceptDiscoveredUrls(@NonNull List<@NonNull String> discoveredServers, @Nullable NatsUri origin) {
+        return acceptDiscoveredUrls(discoveredServers);
+    }
 
     /**
      * Just take a peek at the next server without doing any processing.

@@ -23,15 +23,37 @@ Rules 4 and 5 look at the bootstrap servers only when neither `opentls` nor `sec
 
 So `tls://` works out of the box against a server whose certificate chains to a public CA, and against a private CA once that CA is in the JVM trust store or supplied through the `truststore` properties, an `SSLContextFactory`, or an `SSLContext` you build.
 
-## 3. The trust-all context: `opentls`
+## 3. The trust-all context: `opentls`, or one supplied by hand
 
-`opentls` builds a context whose trust manager accepts any server certificate chain, valid or not, from any issuer, expired or not, and presents no client certificate. The server must have client verification off for it to connect.
+`opentls` builds a context whose trust manager accepts any server certificate chain: self-signed, expired, revoked, issued by anyone, for any name. It presents no client certificate, so the server must have client verification off for it to connect.
 
-What that means: the connection is encrypted, and nothing checks who is on the other end. A server presenting any certificate at all is accepted, including one presented by something standing between the client and the real server. `opentls` gives confidentiality against a passive observer and no protection against an impersonated server. Every NATS client has a switch like it, under names such as `InsecureSkipVerify`, and all of them document it as unsuitable for production. Use it during development, or on a network where the server is trusted for other reasons, and nowhere else.
+The same context can be supplied by hand, and the client treats it identically: `sslContext(SSLUtils.createTrustAllTlsContext())`, `sslContext(SSLUtils.createOpenTLSContext())`, or any `SSLContext` initialized with a trust manager whose `checkServerTrusted` does not throw. `opentls` without a context and a hand-supplied trust-all context are the same thing. Nothing in the client detects a trust-all context, warns about it, or treats it differently from one that verifies.
 
-It is never selected unless asked for, by one of three routes: the `opentls()` builder method, the `io.nats.client.opentls=true` property, or an `opentls://` scheme on a bootstrap server. The third route means a configuration value alone can select it; review server URLs that come from configuration with that in mind.
+### What that removes
 
-Because the context is per connection, `opentls` applies to every server the connection reaches, including discovered ones.
+TLS gives two things: encryption of the bytes, and proof of who is at the other end. The second comes entirely from checking the server's certificate against something the client already trusts. A trust-all context keeps the encryption and discards the proof. The connection is encrypted to whoever answered.
+
+### What an impersonated server can do
+
+With a trust-all context, anything on the network path that can answer the TCP connection can present its own certificate and the client completes the handshake with it: a compromised router or host on the same network, a wrongly configured proxy or load balancer, a DNS answer that points at the wrong machine, a container or pod that took over an address. The client then sends its CONNECT with the credentials the options hold.
+
+- A username and password, or a token, are sent inside the TLS session and are captured outright.
+- NKey and credentials-file authentication sign a nonce the server sends. An impersonator that relays to the real server passes the real nonce through and forwards the signature, so it authenticates to the real server as the client. Signed authentication does not prevent this; only server verification does.
+- From then on the impersonator reads every message the client publishes, delivers any message it likes to the client's subscriptions, and can relay everything to the real server so that nothing looks wrong to either side.
+
+The client cannot notice. The handshake succeeded, the connection reports as secure, and no error, event or log line says that the certificate was not checked. This is the same for the equivalent switch in every other client, which is why Go's documentation says `InsecureSkipVerify` "should NOT be used in a production setting".
+
+Separately from the chain check, the client does not check the server's hostname against the certificate in any configuration. With the default context or a truststore, the chain check still ties the certificate to an issuer you trust. A trust-all context removes that last check too, so no property of the certificate is tested at all.
+
+### When it is acceptable, and what to use otherwise
+
+`opentls` and a hand-supplied trust-all context are for development and tests, where the server is on the developer's own machine or the certificate is known to be throwaway. Outside that, do not use either. For a server with a private CA, put the CA in the JVM trust store, or in a truststore given to the client through the `truststore` properties, or build an `SSLContext` from it; sections 2 and 5. The effort is one `keytool` import, and the connection then proves who it is talking to.
+
+### How it is selected
+
+`opentls` is never selected unless asked for, by one of three routes: the `opentls()` builder method, the `io.nats.client.opentls=true` property, or an `opentls://` scheme on a bootstrap server. The third route means a configuration value alone can select it; review server URLs that come from configuration with that in mind. A hand-supplied context is selected by `sslContext(ctx)` and is used whatever the flags and schemes say.
+
+Because the context is per connection, either form applies to every server the connection reaches, including discovered ones.
 
 ## 4. Asking for both contexts is rejected
 
