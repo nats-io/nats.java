@@ -250,13 +250,11 @@ class NatsConnectionWriter implements Runnable {
         return this.normalOutgoing.push(msg);
     }
 
-    void queueInternalMessage(NatsMessage msg) {
+    boolean queueInternalMessage(NatsMessage msg) {
         if (mode.get() == Mode.Reconnect) {
-            reconnectOutgoing.push(msg);
+            return reconnectOutgoing.push(msg);
         }
-        else {
-            normalOutgoing.push(msg, true);
-        }
+        return normalOutgoing.push(msg, true);
     }
 
     void flushBuffer() {

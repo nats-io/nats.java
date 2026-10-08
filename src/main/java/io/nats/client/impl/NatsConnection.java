@@ -1716,7 +1716,18 @@ class NatsConnection implements Connection {
         pongQueue.add(pongFuture);
         try {
             long time = NatsSystemClock.nanoTime();
-            writer.queue(new ProtocolMessage(PING_PROTO));
+            boolean queued;
+            try {
+                queued = writer.queue(new ProtocolMessage(PING_PROTO));
+            }
+            catch (RuntimeException e) {
+                pongQueue.remove(pongFuture);
+                throw e;
+            }
+            if (!queued) {
+                pongQueue.remove(pongFuture);
+                throw new IOException("RTT PING was not queued.");
+            }
             pongFuture.get(timeout, TimeUnit.MILLISECONDS);
             return Duration.ofNanos(NatsSystemClock.nanoTime() - time);
         }
@@ -1760,11 +1771,25 @@ class NatsConnection implements Connection {
         CompletableFuture<Boolean> pongFuture = new CompletableFuture<>();
         pongQueue.add(pongFuture);
 
-        if (treatAsInternal) {
-            queueInternalOutgoing(new ProtocolMessage(PING_PROTO));
+        // a future left in the queue without its PING sent would be completed by the next PONG,
+        // consuming the one a live waiter (a flush) is owed, so it is removed if the PING is not queued
+        ProtocolMessage ping = new ProtocolMessage(PING_PROTO);
+        boolean queued;
+        try {
+            queued = treatAsInternal ? writer.queueInternalMessage(ping) : writer.queue(ping);
         }
-        else {
-            queueOutgoing(new ProtocolMessage(PING_PROTO));
+        catch (RuntimeException e) {
+            pongQueue.remove(pongFuture);
+            throw e;
+        }
+        if (!queued) {
+            // interrupted, or discarded because the outgoing queue is full
+            pongQueue.remove(pongFuture);
+            if (!treatAsInternal) {
+                makeCallback(() -> options.getErrorListener().messageDiscarded(this, ping));
+            }
+            pongFuture.completeExceptionally(new IllegalStateException("PING was not queued."));
+            return pongFuture;
         }
 
         this.needPing.set(true);
