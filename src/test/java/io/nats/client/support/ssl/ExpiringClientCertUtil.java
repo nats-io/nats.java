@@ -129,13 +129,13 @@ public class ExpiringClientCertUtil {
     // Certificate generation using Bouncy Castle ASN.1
     // -------------------------------------------------------------------
 
-    private static KeyPair generateKeyPair() throws NoSuchAlgorithmException {
+    static KeyPair generateKeyPair() throws NoSuchAlgorithmException {
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
         kpg.initialize(2048, new SecureRandom());
         return kpg.generateKeyPair();
     }
 
-    private static X509Certificate generateCertificate(
+    static X509Certificate generateCertificate(
         X500Name subject, X500Name issuer,
         PublicKey publicKey, PrivateKey signingKey,
         Date notBefore, Date notAfter,
