@@ -18,6 +18,7 @@ import io.nats.client.Options;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -365,6 +366,82 @@ public class NatsConnectionImplTests {
             finally {
                 executor.shutdownNow();
             }
+        });
+    }
+
+    @Test
+    public void testSendPingDoesNotLeavePongFutureWhenQueueingFails() throws Exception {
+        Options.Builder builder = new Options.Builder()
+            .maxMessagesInOutgoingQueue(1)
+            .writeQueuePushTimeout(Duration.ofMillis(50))
+            .pingInterval(Duration.ofSeconds(100)); // no timer pings during the test
+        runInServer(builder, nc -> {
+            NatsConnection conn = (NatsConnection)nc;
+            conn.flush(Duration.ofSeconds(2));
+
+            // stop the writer so the outgoing queue cannot drain, then fill it
+            conn.getWriter().stop().get(LONG_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            conn.publish(subject(), null);
+            int before = conn.pongQueue.size();
+
+            assertThrows(IllegalStateException.class, conn::sendPing);
+            assertEquals(before, conn.pongQueue.size());
+
+            // RTT queues its PING through the same queue
+            assertThrows(IllegalStateException.class, conn::RTT);
+            assertEquals(before, conn.pongQueue.size());
+
+            conn.getWriter().start(conn.getDataPortFuture());
+        });
+    }
+
+    @Test
+    public void testSendPingDoesNotLeavePongFutureWhenInterrupted() throws Exception {
+        runInServer(nc -> {
+            NatsConnection conn = (NatsConnection)nc;
+            conn.flush(Duration.ofSeconds(2));
+            int before = conn.pongQueue.size();
+
+            CompletableFuture<Boolean> f;
+            Thread.currentThread().interrupt();
+            try {
+                f = conn.sendPing();
+            }
+            finally {
+                assertTrue(Thread.interrupted()); // also clears the flag
+            }
+            assertNotNull(f);
+            assertTrue(f.isCompletedExceptionally());
+            assertEquals(before, conn.pongQueue.size());
+            conn.flush(Duration.ofSeconds(2));
+        });
+    }
+
+    @Test
+    public void testPingDoesNotLeavePongFutureWhenDiscarded() throws Exception {
+        Options.Builder builder = new Options.Builder()
+            .maxMessagesInOutgoingQueue(1)
+            .discardMessagesWhenOutgoingQueueFull()
+            .pingInterval(Duration.ofSeconds(100)); // no timer pings during the test
+        runInServer(builder, nc -> {
+            NatsConnection conn = (NatsConnection)nc;
+            conn.flush(Duration.ofSeconds(2));
+
+            // stop the writer so the outgoing queue cannot drain, then fill it
+            conn.getWriter().stop().get(LONG_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            conn.publish(subject(), null);
+            int before = conn.pongQueue.size();
+
+            // the timer's ping
+            CompletableFuture<Boolean> f = conn.sendPing(false);
+            assertNotNull(f);
+            assertTrue(f.isCompletedExceptionally());
+            assertEquals(before, conn.pongQueue.size());
+
+            assertThrows(IOException.class, conn::RTT);
+            assertEquals(before, conn.pongQueue.size());
+
+            conn.getWriter().start(conn.getDataPortFuture());
         });
     }
 }
