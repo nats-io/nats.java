@@ -38,6 +38,7 @@ public class NatsUri {
     private boolean isSecure;
     private boolean isWebsocket;
     private boolean hostIsIpAddress;
+    private String tlsHost;
 
     @NonNull
     public URI getUri() {
@@ -52,6 +53,36 @@ public class NatsUri {
     @NonNull
     public String getHost() {
         return uri.getHost();
+    }
+
+    /**
+     * The peer hostname to use for TLS, which may differ from the dial address.
+     * @return the saved hostname, or the URI host when none has been saved
+     */
+    @NonNull
+    public String getTlsHost() {
+        return tlsHost == null ? getHost() : tlsHost;
+    }
+
+    /**
+     * Copy this URI with a TLS peer hostname. This metadata does not change the
+     * dial address, URI equality, or its string representation.
+     * @param tlsHost the TLS peer hostname
+     * @return a copy with the supplied TLS hostname
+     */
+    @NonNull
+    public NatsUri withTlsHost(@NonNull String tlsHost) {
+        NatsUri copy = new NatsUri(this);
+        copy.tlsHost = tlsHost;
+        return copy;
+    }
+
+    private NatsUri(NatsUri source) {
+        uri = source.uri;
+        isSecure = source.isSecure;
+        isWebsocket = source.isWebsocket;
+        hostIsIpAddress = source.hostIsIpAddress;
+        tlsHost = source.tlsHost;
     }
 
     public int getPort() {
@@ -85,7 +116,11 @@ public class NatsUri {
         String newUrl = (uri.getRawUserInfo() == null)
             ? uri.getScheme() + "://" + newHost + ":" + uri.getPort()
             : uri.getScheme() + "://" + uri.getRawUserInfo() + "@" + newHost + ":" + uri.getPort();
-        return new NatsUri(newUrl, uri.getScheme());
+        NatsUri rehosted = new NatsUri(newUrl, uri.getScheme());
+        if (rehosted.hostIsIpAddress() && (tlsHost != null || !hostIsIpAddress)) {
+            rehosted.tlsHost = getTlsHost();
+        }
+        return rehosted;
     }
 
     @Override

@@ -35,6 +35,9 @@ public class NatsServerPool implements ServerPool {
     protected int maxConnectAttempts;
     protected boolean hasSecureServer;
     protected NatsUri lastConnected;
+    // Initial INFO can arrive before connectSucceeded, so lastConnected is not
+    // sufficient to identify the hostname that supplied discovered servers.
+    protected NatsUri lastAttempted;
     protected String defaultScheme;
 
     public NatsServerPool() {
@@ -137,6 +140,9 @@ public class NatsServerPool implements ServerPool {
             if (!discovered.isEmpty()) {
                 discoveryContainedUnknowns = true;
                 for (NatsUri d : discovered) {
+                    if (d.hostIsIpAddress() && lastAttempted != null && !lastAttempted.hostIsIpAddress()) {
+                        d = d.withTlsHost(lastAttempted.getTlsHost());
+                    }
                     newEntryList.add(new ServerPoolEntry(d, true));
                 }
             }
@@ -201,6 +207,7 @@ public class NatsServerPool implements ServerPool {
                 ServerPoolEntry entry = entryList.remove(0);
                 entry.lastAttempt = System.currentTimeMillis();
                 entryList.add(entry);
+                lastAttempted = entry.nuri;
                 return entry.nuri;
             }
             return null;

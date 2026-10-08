@@ -46,6 +46,7 @@ public class SocketDataPort implements DataPort {
     protected NatsConnection connection;
 
     protected String host;
+    protected String tlsHost;
     protected int port;
     protected Socket socket;
     protected boolean isSecure = false;
@@ -70,6 +71,7 @@ public class SocketDataPort implements DataPort {
         Options options = connection.getOptions();
         long timeout = timeoutNanos / 1_000_000; // convert to millis
         host = nuri.getHost();
+        tlsHost = nuri.getTlsHost();
         port = nuri.getPort();
 
         try {
@@ -146,7 +148,8 @@ public class SocketDataPort implements DataPort {
         SSLSocketFactory factory = context.getSocketFactory();
         Duration timeout = options.getConnectionTimeout();
 
-        SSLSocket sslSocket = (SSLSocket) factory.createSocket(socket, host, port, true);
+        String peerHost = tlsHost == null ? host : tlsHost;
+        SSLSocket sslSocket = (SSLSocket) factory.createSocket(socket, peerHost, port, true);
         sslSocket.setUseClientMode(true);
 
         final CompletableFuture<Void> waitForHandshake = new CompletableFuture<>();
