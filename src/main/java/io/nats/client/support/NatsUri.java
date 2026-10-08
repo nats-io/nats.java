@@ -1,4 +1,4 @@
-// Copyright 2023 The NATS Authors
+// Copyright 2023-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -38,6 +38,7 @@ public class NatsUri {
     private boolean isSecure;
     private boolean isWebsocket;
     private boolean hostIsIpAddress;
+    private String tlsHost;
 
     @NonNull
     public URI getUri() {
@@ -75,6 +76,30 @@ public class NatsUri {
         return hostIsIpAddress;
     }
 
+    /**
+     * The hostname to present to the server during the TLS handshake. It differs from the host
+     * when this uri was rehosted to an ip address by hostname resolution, or when it was discovered
+     * as a bare ip address from a server that had a hostname.
+     * @return the saved hostname, or the host when none has been saved
+     */
+    @NonNull
+    public String getTlsHost() {
+        return tlsHost == null ? getHost() : tlsHost;
+    }
+
+    /**
+     * Copy this uri with a hostname to present to the server during the TLS handshake.
+     * This does not change the host, the port, equality, the hash code or the string form.
+     * @param tlsHost the hostname
+     * @return a copy with the hostname
+     */
+    @NonNull
+    public NatsUri withTlsHost(@NonNull String tlsHost) {
+        NatsUri copy = new NatsUri(this);
+        copy.tlsHost = tlsHost;
+        return copy;
+    }
+
     @NonNull
     public NatsUri reHost(String newHost) throws URISyntaxException {
         if (newHost.contains(":") && !newHost.startsWith("[")) {
@@ -85,7 +110,12 @@ public class NatsUri {
         String newUrl = (uri.getRawUserInfo() == null)
             ? uri.getScheme() + "://" + newHost + ":" + uri.getPort()
             : uri.getScheme() + "://" + uri.getRawUserInfo() + "@" + newHost + ":" + uri.getPort();
-        return new NatsUri(newUrl, uri.getScheme());
+        NatsUri rehosted = new NatsUri(newUrl, uri.getScheme());
+        // keep the hostname for the TLS handshake when rehosting to an ip address
+        if (rehosted.hostIsIpAddress() && (tlsHost != null || !hostIsIpAddress)) {
+            rehosted.tlsHost = getTlsHost();
+        }
+        return rehosted;
     }
 
     @Override
@@ -120,6 +150,14 @@ public class NatsUri {
 
     public NatsUri(@NonNull URI uri) throws URISyntaxException {
         this(uri.toString(), null);
+    }
+
+    private NatsUri(NatsUri source) {
+        uri = source.uri;
+        isSecure = source.isSecure;
+        isWebsocket = source.isWebsocket;
+        hostIsIpAddress = source.hostIsIpAddress;
+        tlsHost = source.tlsHost;
     }
 
     public NatsUri(@NonNull String url) throws URISyntaxException {

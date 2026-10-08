@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.Connection;
+import io.nats.client.ConnectionListener;
 import io.nats.client.ErrorListener;
 import io.nats.client.Nats;
 import io.nats.client.Options;
@@ -48,9 +49,11 @@ import java.nio.charset.StandardCharsets;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateExpiredException;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -68,6 +71,10 @@ import static org.junit.jupiter.api.Assertions.*;
  * The matrix runs every mode on a direct connection, and {@link HostnameResolveMode#Unresolved} additionally
  * through a loopback HTTP CONNECT tunnel, where it also checks that the proxy received the hostname and not an ip.
  * Each execution also checks whether the server pool was asked to resolve, which only the resolving modes do.
+ * <p>
+ * A server discovered from connect_urls as a bare ip address presents the hostname of the server that
+ * supplied it, as nats.go does; and with {@link Options.Builder#tlsVerifyHostname()} the certificate is
+ * checked against the server name.
  */
 public class TlsHostnameTests {
     private static final String SINGLE_LABEL_HOST = "nats";
@@ -356,6 +363,147 @@ public class TlsHostnameTests {
                 throw new IOException("Loopback CONNECT proxy did not stop");
             }
         }
+    }
+
+    // ---- discovered bare ip addresses ----
+
+    private static Options.Builder reconnecting(SniTestServer first, DiagnosticSslContext context, boolean tlsFirst, CountDownLatch reconnected) {
+        // options() sets noReconnect; maxReconnects after it allows the reconnect that is the point here
+        Options.Builder builder = options(first, SniTestServer.HOST, context, HostnameResolveMode.ResolveToAll, tlsFirst)
+            .maxReconnects(2)
+            .reconnectWait(Duration.ofMillis(10))
+            .connectionListener((conn, event) -> {
+                if (event == ConnectionListener.Events.RECONNECTED) {
+                    reconnected.countDown();
+                }
+            });
+        return builder;
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    public void discoveredIpRetainsHostnameOnReconnect(boolean tlsFirst) throws Exception {
+        // the first server gossips the second as a bare ip; after the first closes, the reconnect
+        // to the bare ip must present the first server's hostname
+        DiagnosticSslContext context = dottedCertificates.clientContext();
+        CountDownLatch reconnected = new CountDownLatch(1);
+        try (SniTestServer second = new SniTestServer(dottedCertificates, tlsFirst, 0);
+             SniTestServer first = new SniTestServer(dottedCertificates, tlsFirst, second.port());
+             Connection nc = Nats.connect(reconnecting(first, context, tlsFirst, reconnected).build())) {
+            nc.flush(Duration.ofSeconds(2));
+            assertEquals(SniTestServer.HOST, first.requestedName.get(2, TimeUnit.SECONDS));
+            first.close();
+            assertTrue(reconnected.await(10, TimeUnit.SECONDS), "Did not reconnect to the discovered ip");
+            nc.flush(Duration.ofSeconds(2));
+            assertEquals("tls://127.0.0.1:" + second.port(), nc.getConnectedUrl());
+            assertEquals(SniTestServer.HOST, second.requestedName.get(2, TimeUnit.SECONDS));
+            assertEquals(dottedCertificates.valid, second.selectedCertificate.get(2, TimeUnit.SECONDS));
+            assertEquals(2, context.getTrustCheckEvents().size());
+            for (TrustCheckEvent event : context.getTrustCheckEvents()) {
+                assertTrue(event.trusted);
+            }
+        }
+    }
+
+    @Test
+    public void discoveredIpIsVerifiedByTheGossipingServersName() throws Exception {
+        // with verification on, the certificate of the discovered bare ip has a DNS name and no ip SAN,
+        // so the reconnect only passes because it is verified against the gossiping server's hostname
+        DiagnosticSslContext context = dottedCertificates.clientContext();
+        CountDownLatch reconnected = new CountDownLatch(1);
+        try (SniTestServer second = new SniTestServer(dottedCertificates, false, 0);
+             SniTestServer first = new SniTestServer(dottedCertificates, false, second.port());
+             Connection nc = Nats.connect(reconnecting(first, context, false, reconnected).tlsVerifyHostname().build())) {
+            nc.flush(Duration.ofSeconds(2));
+            first.close();
+            assertTrue(reconnected.await(10, TimeUnit.SECONDS), "Did not reconnect to the discovered ip");
+            nc.flush(Duration.ofSeconds(2));
+            assertEquals(Connection.Status.CONNECTED, nc.getStatus());
+            assertEquals("tls://127.0.0.1:" + second.port(), nc.getConnectedUrl());
+            assertEquals(SniTestServer.HOST, second.requestedName.get(2, TimeUnit.SECONDS));
+            assertEquals(dottedCertificates.valid, second.selectedCertificate.get(2, TimeUnit.SECONDS));
+        }
+    }
+
+    @Test
+    public void tlsHostnameSurvivesResolutionWithoutChangingUriIdentity() throws Exception {
+        NatsUri original = new NatsUri("tls://user:pass@nats.test:4222");
+        for (String ip : Arrays.asList("127.0.0.1", "::1")) {
+            NatsUri resolved = original.reHost(ip);
+            assertEquals(SniTestServer.HOST, resolved.getTlsHost());
+            assertEquals("user:pass", resolved.getUserInfo());
+            assertTrue(resolved.hostIsIpAddress());
+            NatsUri plain = new NatsUri(resolved.toString());
+            assertEquals(plain, resolved);
+            assertEquals(plain.hashCode(), resolved.hashCode());
+            assertEquals(plain.toString(), resolved.toString());
+            assertEquals(SniTestServer.HOST, resolved.reHost("127.0.0.2").getTlsHost());
+            assertEquals("other.test", resolved.reHost("other.test").getTlsHost());
+        }
+        assertEquals("127.0.0.2", new NatsUri("tls://127.0.0.1:4222").reHost("127.0.0.2").getTlsHost());
+        NatsUri discovered = new NatsUri("tls://127.0.0.1:4222").withTlsHost("one.test");
+        assertEquals("one.test", discovered.getTlsHost());
+        assertEquals("127.0.0.1", discovered.getHost());
+        assertEquals(new NatsUri("tls://127.0.0.1:4222"), discovered);
+        assertEquals("one.test", discovered.reHost("127.0.0.2").getTlsHost());
+    }
+
+    @Test
+    public void discoverySavesTheOriginHostnameAndHonorsIgnoreDiscoveredServers() throws Exception {
+        NatsUri origin = new NatsUri("nats://one.test:4222");
+        for (boolean ignore : new boolean[]{false, true}) {
+            NatsServerPool pool = new NatsServerPool();
+            Options.Builder builder = new Options.Builder().server(origin.toString());
+            if (ignore) {
+                builder.ignoreDiscoveredServers();
+            }
+            pool.initialize(builder.build());
+            assertEquals(!ignore, pool.acceptDiscoveredUrls(Collections.singletonList("127.0.0.1:4222"), origin));
+            if (ignore) {
+                assertEquals(1, pool.getServerList().size());
+            }
+            else {
+                assertEquals("one.test", entry(pool, "127.0.0.1").getTlsHost());
+                // the overload without an origin saves nothing
+                pool.acceptDiscoveredUrls(Arrays.asList("127.0.0.1:4222", "127.0.0.2:4222"));
+                assertEquals("one.test", entry(pool, "127.0.0.1").getTlsHost());
+                assertEquals("127.0.0.2", entry(pool, "127.0.0.2").getTlsHost());
+            }
+        }
+    }
+
+    @Test
+    public void discoveryKeepsTlsNamesPerEntryAndDoesNotOverrideExplicitServers() throws Exception {
+        NatsServerPool pool = new NatsServerPool();
+        pool.initialize(new Options.Builder().noRandomize()
+            .servers(new String[]{"tls://one.test:4222", "tls://two.test:4222", "tls://127.0.0.9:4222"}).build());
+        NatsUri one = new NatsUri("tls://one.test:4222");
+        NatsUri two = new NatsUri("tls://two.test:4222");
+        NatsUri nine = new NatsUri("tls://127.0.0.9:4222");
+        pool.acceptDiscoveredUrls(Arrays.asList("127.0.0.1:4222", "[::1]:4222", "other.test:4222", "127.0.0.9:4222"), one);
+        assertEquals("one.test", entry(pool, "127.0.0.1").getTlsHost());
+        assertEquals("one.test", entry(pool, "[::1]").getTlsHost());
+        assertEquals("other.test", entry(pool, "other.test").getTlsHost());
+        assertEquals("127.0.0.9", entry(pool, "127.0.0.9").getTlsHost()); // explicit server, not overridden
+        pool.acceptDiscoveredUrls(Arrays.asList("127.0.0.1:4222", "127.0.0.2:4222"), two);
+        assertEquals("one.test", entry(pool, "127.0.0.1").getTlsHost()); // already known, keeps its name
+        assertEquals("two.test", entry(pool, "127.0.0.2").getTlsHost());
+        // one hop only: an origin that is an ip address supplies nothing
+        pool.acceptDiscoveredUrls(Collections.singletonList("127.0.0.3:4222"), nine);
+        assertEquals("127.0.0.3", entry(pool, "127.0.0.3").getTlsHost());
+        // nor does an origin that is a discovered ip carrying a name
+        NatsUri discoveredWithName = new NatsUri("tls://127.0.0.1:4222").withTlsHost("one.test");
+        pool.acceptDiscoveredUrls(Collections.singletonList("127.0.0.4:4222"), discoveredWithName);
+        assertEquals("127.0.0.4", entry(pool, "127.0.0.4").getTlsHost());
+    }
+
+    private static NatsUri entry(NatsServerPool pool, String host) {
+        for (ServerPoolEntry e : pool.entryList) {
+            if (e.nuri.getHost().equals(host)) {
+                return e.nuri;
+            }
+        }
+        throw new AssertionError("Missing server " + host);
     }
 
     // ---- tls hostname verification ----

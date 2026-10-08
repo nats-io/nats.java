@@ -64,6 +64,7 @@ class NatsConnection implements Connection {
     protected CompletableFuture<DataPort> dataPortFuture;
     protected DataPort dataPort;
     protected NatsUri currentServer;
+    protected NatsUri connectingServer;
     protected NatsUri lastServer;
     protected CompletableFuture<Boolean> reconnectWaiter;
     protected final ConcurrentHashMap<NatsUri, String> serverAuthErrors;
@@ -563,6 +564,7 @@ class NatsConnection implements Connection {
     // writer.stop
     protected void tryToConnect(NatsUri cur, NatsUri resolved, long now) {
         clearCurrentServer();
+        connectingServer = cur; // the origin of discovered servers in the initial INFO, before currentServer is set
 
         try {
             Duration connectTimeout = options.getConnectionTimeout();
@@ -1883,7 +1885,8 @@ class NatsConnection implements Connection {
 
         List<String> urls = this.serverInfo.get().getConnectURLs();
         if (!urls.isEmpty()) {
-            if (serverPool.acceptDiscoveredUrls(urls)) {
+            NatsUri origin = currentServer == null ? connectingServer : currentServer;
+            if (serverPool.acceptDiscoveredUrls(urls, origin)) {
                 processConnectionEvent(Events.DISCOVERED_SERVERS, urls.toString());
             }
         }

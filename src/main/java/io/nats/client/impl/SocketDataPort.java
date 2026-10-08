@@ -73,10 +73,12 @@ public class SocketDataPort implements DataPort {
     @Override
     public void connect(@NonNull NatsConnection conn, @NonNull NatsUri nuri, @NonNull NatsUri unresolvedUri, long timeoutNanos) throws IOException {
         // The unresolved uri is the server as configured or discovered, before any hostname resolution.
-        // When it has a hostname, that hostname is the server name to present during the TLS handshake,
-        // whatever the hostname resolution mode turned the host of nuri into.
-        if (!unresolvedUri.hostIsIpAddress()) {
-            tlsHost = unresolvedUri.getHost();
+        // Its tls host is its hostname, or the hostname saved on it when it was discovered as a bare
+        // ip address from a server that had one. That is the server name to present during the TLS
+        // handshake, whatever the hostname resolution mode turned the host of nuri into.
+        String name = unresolvedUri.getTlsHost();
+        if (!unresolvedUri.hostIsIpAddress() || !name.equals(unresolvedUri.getHost())) {
+            tlsHost = name;
         }
         connect(conn, nuri, timeoutNanos);
     }
