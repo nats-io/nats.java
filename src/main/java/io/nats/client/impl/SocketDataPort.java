@@ -180,19 +180,26 @@ public class SocketDataPort implements DataPort {
         SSLSocket sslSocket = (SSLSocket) factory.createSocket(socket, peerHost, port, true);
         sslSocket.setUseClientMode(true);
 
-        if (tlsHost != null) {
-            // Present the hostname to the server as the TLS server name (SNI) in every hostname resolution mode.
-            // Setting it explicitly also covers names the provider would not derive from the peer host on its own,
-            // for instance a single label hostname like a kubernetes service name.
-            try {
-                SSLParameters sslParameters = sslSocket.getSSLParameters();
-                sslParameters.setServerNames(Collections.<SNIServerName>singletonList(new SNIHostName(tlsHost)));
-                sslSocket.setSSLParameters(sslParameters);
+        boolean verifyHostname = options.isTlsVerifyHostname();
+        if (tlsHost != null || verifyHostname) {
+            SSLParameters sslParameters = sslSocket.getSSLParameters();
+            if (tlsHost != null) {
+                // Present the hostname to the server as the TLS server name (SNI) in every hostname resolution mode.
+                // Setting it explicitly also covers names the provider would not derive from the peer host on its own,
+                // for instance a single label hostname like a kubernetes service name.
+                try {
+                    sslParameters.setServerNames(Collections.<SNIServerName>singletonList(new SNIHostName(tlsHost)));
+                }
+                catch (IllegalArgumentException e) {
+                    // not a legal SNI host name, for instance it has a trailing dot.
+                    // Leave the server name to the provider's default behavior for the peer host.
+                }
             }
-            catch (IllegalArgumentException e) {
-                // not a legal SNI host name, for instance it has a trailing dot.
-                // Leave the server name to the provider's default behavior for the peer host.
+            if (verifyHostname) {
+                // The trust manager checks the certificate against the server name, or the peer host when there is none.
+                sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
             }
+            sslSocket.setSSLParameters(sslParameters);
         }
 
         final CompletableFuture<Void> waitForHandshake = new CompletableFuture<>();

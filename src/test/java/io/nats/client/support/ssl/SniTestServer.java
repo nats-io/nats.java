@@ -14,6 +14,8 @@
 package io.nats.client.support.ssl;
 
 import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.asn1.x509.GeneralNames;
 
 import javax.net.ssl.ExtendedSSLSession;
 import javax.net.ssl.KeyManager;
@@ -63,10 +65,18 @@ public class SniTestServer implements AutoCloseable {
         private final KeyPair serverKey;
 
         public Certificates() throws Exception {
-            this(HOST);
+            this(HOST, false);
         }
 
         public Certificates(String host) throws Exception {
+            this(host, false);
+        }
+
+        /**
+         * @param host the name of the valid certificate, as its Common Name and as a DNS subject alternative name
+         * @param withLoopbackIpSan whether the valid certificate also carries 127.0.0.1 as an ip subject alternative name
+         */
+        public Certificates(String host, boolean withLoopbackIpSan) throws Exception {
             this.host = host;
             long now = System.currentTimeMillis();
             KeyPair caKey = ExpiringClientCertUtil.generateKeyPair();
@@ -75,9 +85,12 @@ public class SniTestServer implements AutoCloseable {
                 caKey.getPublic(), caKey.getPrivate(), new Date(now - 7_200_000),
                 new Date(now + 86_400_000), true);
             serverKey = ExpiringClientCertUtil.generateKeyPair();
+            GeneralName[] names = withLoopbackIpSan
+                ? new GeneralName[]{new GeneralName(GeneralName.dNSName, host), new GeneralName(GeneralName.iPAddress, "127.0.0.1")}
+                : new GeneralName[]{new GeneralName(GeneralName.dNSName, host)};
             valid = ExpiringClientCertUtil.generateCertificate(new X500Name("CN=" + host), issuer,
                 serverKey.getPublic(), caKey.getPrivate(), new Date(now - 3_600_000),
-                new Date(now + 86_400_000), false);
+                new Date(now + 86_400_000), false, new GeneralNames(names));
             expired = ExpiringClientCertUtil.generateCertificate(new X500Name("CN=expired.default"), issuer,
                 serverKey.getPublic(), caKey.getPrivate(), new Date(now - 7_200_000),
                 new Date(now - 3_600_000), false);
@@ -106,6 +119,14 @@ public class SniTestServer implements AutoCloseable {
     private volatile boolean closed;
 
     public SniTestServer(Certificates certificates, boolean tlsFirst, int discoveredPort) throws Exception {
+        this(certificates, tlsFirst, discoveredPort, false);
+    }
+
+    /**
+     * @param alwaysServeValid serve the valid certificate whatever name was requested, or none;
+     *                         for tests about what the client does with a certificate rather than how the server selects it
+     */
+    public SniTestServer(Certificates certificates, boolean tlsFirst, int discoveredPort, boolean alwaysServeValid) throws Exception {
         listener = new ServerSocket(0, 10, InetAddress.getByName("127.0.0.1"));
         SSLContext context = SSLContext.getInstance("TLSv1.2");
         context.init(new KeyManager[]{new X509ExtendedKeyManager() {
@@ -122,7 +143,7 @@ public class SniTestServer implements AutoCloseable {
                     }
                 }
                 requestedName.complete(name);
-                boolean matches = certificates.host.equals(name);
+                boolean matches = alwaysServeValid || certificates.host.equals(name);
                 selectedCertificate.complete(matches ? certificates.valid : certificates.expired);
                 return matches ? "valid" : "expired";
             }

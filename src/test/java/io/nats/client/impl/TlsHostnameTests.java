@@ -14,12 +14,14 @@
 package io.nats.client.impl;
 
 import io.nats.client.Connection;
+import io.nats.client.ErrorListener;
 import io.nats.client.Nats;
 import io.nats.client.Options;
 import io.nats.client.Options.HostnameResolveMode;
 import io.nats.client.support.NatsInetAddress;
 import io.nats.client.support.NatsInetAddressProvider;
 import io.nats.client.support.NatsUri;
+import io.nats.client.support.SSLUtils;
 import io.nats.client.support.ssl.DiagnosticSslContext;
 import io.nats.client.support.ssl.SniTestServer;
 import io.nats.client.support.ssl.TrustCheckEvent;
@@ -32,6 +34,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import javax.net.ssl.SSLContext;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -42,6 +45,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
+import java.security.cert.CertificateException;
 import java.security.cert.CertificateExpiredException;
 import java.time.Duration;
 import java.util.Collections;
@@ -351,6 +355,115 @@ public class TlsHostnameTests {
             if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
                 throw new IOException("Loopback CONNECT proxy did not stop");
             }
+        }
+    }
+
+    // ---- tls hostname verification ----
+
+    private static Options.Builder verifying(SniTestServer server, String host, SSLContext context, boolean tlsFirst, List<Throwable> errors) {
+        Options.Builder builder = new Options.Builder()
+            .server("tls://" + host + ":" + server.port())
+            .serverPool(new NatsServerPool() {
+                @Override
+                public List<String> resolveHostToIps(String hostToResolve, boolean maxOneResult, boolean includeIPV6) {
+                    return Collections.singletonList("127.0.0.1");
+                }
+            })
+            .sslContext(context)
+            .tlsVerifyHostname()
+            .noRandomize()
+            .noReconnect()
+            .connectionTimeout(Duration.ofSeconds(2))
+            .errorListener(new ErrorListener() {
+                @Override
+                public void exceptionOccurred(Connection conn, Exception exp) {
+                    errors.add(exp);
+                }
+            });
+        if (tlsFirst) {
+            builder.tlsFirst();
+        }
+        return builder;
+    }
+
+    private static void assertIdentityFailure(List<Throwable> errors, String expectedInMessage) {
+        assertFalse(errors.isEmpty(), "expected a connect failure to be reported");
+        boolean found = false;
+        for (Throwable t : errors) {
+            for (Throwable c = t; c != null; c = c.getCause()) {
+                if (c instanceof CertificateException && !(c instanceof CertificateExpiredException)
+                    && c.getMessage() != null && c.getMessage().contains(expectedInMessage)) {
+                    found = true;
+                }
+            }
+        }
+        assertTrue(found, "expected a CertificateException mentioning '" + expectedInMessage + "' in " + errors);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    public void verifyHostnameAcceptsACertificateForTheHostname(boolean tlsFirst) throws Exception {
+        // default mode: the hostname was resolved to 127.0.0.1, the check is against the hostname, not the ip
+        DiagnosticSslContext context = dottedCertificates.clientContext();
+        List<Throwable> errors = new CopyOnWriteArrayList<>();
+        try (SniTestServer server = new SniTestServer(dottedCertificates, tlsFirst, 0);
+             Connection nc = Nats.connect(verifying(server, SniTestServer.HOST, context, tlsFirst, errors).build())) {
+            nc.flush(Duration.ofSeconds(2));
+            assertValidCertificateSelected(server, dottedCertificates, context);
+            assertTrue(errors.isEmpty(), errors.toString());
+        }
+    }
+
+    @Test
+    public void verifyHostnameRejectsACertificateForAnotherName() throws Exception {
+        // the server always presents a valid, trusted certificate, but for other.test
+        SniTestServer.Certificates otherName = new SniTestServer.Certificates("other.test");
+        List<Throwable> errors = new CopyOnWriteArrayList<>();
+        try (SniTestServer server = new SniTestServer(otherName, false, 0, true)) {
+            Options verifying = verifying(server, SniTestServer.HOST, otherName.clientContext(), false, errors).build();
+            assertThrows(IOException.class, () -> Nats.connect(verifying));
+            assertEquals(SniTestServer.HOST, server.requestedName.get(2, TimeUnit.SECONDS));
+            assertIdentityFailure(errors, SniTestServer.HOST);
+        }
+        // the same server and certificate are accepted when verification is off
+        try (SniTestServer server = new SniTestServer(otherName, false, 0, true);
+             Connection nc = Nats.connect(options(server, SniTestServer.HOST, otherName.clientContext(), HostnameResolveMode.ResolveToAll, false).build())) {
+            nc.flush(Duration.ofSeconds(2));
+            assertEquals(otherName.valid, server.selectedCertificate.get(2, TimeUnit.SECONDS));
+        }
+    }
+
+    @Test
+    public void verifyHostnameChecksAnIpLiteralAgainstIpSubjectAlternativeNames() throws Exception {
+        // with an ip SAN for 127.0.0.1 the connection is accepted
+        SniTestServer.Certificates withIpSan = new SniTestServer.Certificates(SniTestServer.HOST, true);
+        List<Throwable> errors = new CopyOnWriteArrayList<>();
+        try (SniTestServer server = new SniTestServer(withIpSan, false, 0, true);
+             Connection nc = Nats.connect(verifying(server, "127.0.0.1", withIpSan.clientContext(), false, errors).build())) {
+            nc.flush(Duration.ofSeconds(2));
+            assertEquals("", server.requestedName.get(2, TimeUnit.SECONDS));
+            assertEquals(withIpSan.valid, server.selectedCertificate.get(2, TimeUnit.SECONDS));
+            assertTrue(errors.isEmpty(), errors.toString());
+        }
+        // without it the connection is rejected
+        SniTestServer.Certificates withoutIpSan = new SniTestServer.Certificates(SniTestServer.HOST, false);
+        errors.clear();
+        try (SniTestServer server = new SniTestServer(withoutIpSan, false, 0, true)) {
+            Options verifying = verifying(server, "127.0.0.1", withoutIpSan.clientContext(), false, errors).build();
+            assertThrows(IOException.class, () -> Nats.connect(verifying));
+            assertIdentityFailure(errors, "127.0.0.1");
+        }
+    }
+
+    @Test
+    public void verifyHostnameAppliesUnderTheTrustAllContext() throws Exception {
+        // opentls trusts any chain; the JDK wraps its plain X509TrustManager and still checks the name
+        SniTestServer.Certificates otherName = new SniTestServer.Certificates("other.test");
+        List<Throwable> errors = new CopyOnWriteArrayList<>();
+        try (SniTestServer server = new SniTestServer(otherName, false, 0, true)) {
+            Options verifying = verifying(server, SniTestServer.HOST, SSLUtils.createTrustAllTlsContext(), false, errors).build();
+            assertThrows(IOException.class, () -> Nats.connect(verifying));
+            assertIdentityFailure(errors, SniTestServer.HOST);
         }
     }
 

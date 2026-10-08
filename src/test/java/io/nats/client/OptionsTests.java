@@ -1609,6 +1609,19 @@ public class OptionsTests {
         assertEquals(HostnameResolveMode.ResolveToAll, options.hostnameResolveMode());
     }
 
+    @Test
+    public void testTlsVerifyHostname() {
+        assertFalse(new Options.Builder().build().isTlsVerifyHostname());
+        Options options = new Options.Builder().tlsVerifyHostname().build();
+        assertTrue(options.isTlsVerifyHostname());
+        assertTrue(new Options.Builder(options).build().isTlsVerifyHostname());
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_TLS_VERIFY_HOSTNAME, "true");
+        assertTrue(new Options.Builder(props).build().isTlsVerifyHostname());
+        props.setProperty(Options.PROP_TLS_VERIFY_HOSTNAME, "false");
+        assertFalse(new Options.Builder(props).build().isTlsVerifyHostname());
+    }
+
     @SuppressWarnings("deprecation")
     private void validateHostnameResolveMode(HostnameResolveMode expected,
                                              boolean isNoResolveHostnames, boolean isEnableFastFallback,
