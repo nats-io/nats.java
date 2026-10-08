@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2015-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -2424,8 +2424,7 @@ public class Options {
                         // and the server isn't the default url, check to see if the server uris
                         // suggest we need the ssl context.
                         if (!useDefaultTls && !useTrustAllTls && checkUrisForSecure) {
-                            for (int i = 0; sslContext == null && i < natsServerUris.size(); i++) {
-                                NatsUri natsUri = natsServerUris.get(i);
+                            for (NatsUri natsUri : natsServerUris) {
                                 switch (natsUri.getScheme()) {
                                     case TLS_PROTOCOL:
                                     case SECURE_WEBSOCKET_PROTOCOL:
@@ -2438,8 +2437,14 @@ public class Options {
                             }
                         }
 
-                        // check trust all (open) first, in case they provided both
-                        // PROP_SECURE (secure) and PROP_OPENTLS (opentls)
+                        // One SSL context serves every server of a connection, so it cannot both verify
+                        // certificates (secure, tls, wss) and trust all of them (opentls). Asking for both,
+                        // by the builder, by properties or by a server list that mixes the schemes, is an
+                        // error rather than letting opentls win, which silently removed the verification.
+                        if (useDefaultTls && useTrustAllTls) {
+                            throw new IllegalStateException("Options ask for both the default SSL context (secure, or a tls or wss server url) and the trust-all SSL context (opentls, or an opentls server url). One SSL context serves every server, so a connection cannot both verify certificates and trust all of them. Choose one, or provide an SSLContext.");
+                        }
+
                         if (useTrustAllTls) {
                             try {
                                 this.sslContext = SSLUtils.createTrustAllTlsContext();
