@@ -1535,7 +1535,7 @@ public class OptionsTests {
     }
 
     @Test
-    public void testSslContextIsProvided() {
+    public void testSslContextIsProvided() throws Exception {
         Options o = new Options.Builder().server("localhost").build();
         assertNull(o.getSslContext());
         o = new Options.Builder().server("ws://localhost").build();
@@ -1550,6 +1550,30 @@ public class OptionsTests {
         assertNotNull(o.getSslContext());
         o = new Options.Builder().server("nats://localhost,tls://localhost").build();
         assertNotNull(o.getSslContext());
+        o = new Options.Builder().server("nats://localhost,opentls://localhost").build();
+        assertNotNull(o.getSslContext());
+        o = new Options.Builder().server("opentls://one,opentls://two").build();
+        assertNotNull(o.getSslContext());
+
+        // a bootstrap list cannot mix opentls with tls or wss: one context serves every server
+        assertThrows(IllegalStateException.class, () -> new Options.Builder().server("tls://localhost,opentls://localhost").build());
+        assertThrows(IllegalStateException.class, () -> new Options.Builder().server("opentls://localhost,tls://localhost").build());
+        assertThrows(IllegalStateException.class, () -> new Options.Builder().server("wss://localhost,opentls://localhost").build());
+        assertThrows(IllegalStateException.class, () -> new Options.Builder().servers(new String[]{"nats://a", "tls://b", "opentls://c"}).build());
+
+        // both explicit flags are a mix too, by builder or by properties
+        assertThrows(IllegalStateException.class, () -> new Options.Builder().server("localhost").secure().opentls().build());
+        Properties both = new Properties();
+        both.setProperty(Options.PROP_SECURE, "true");
+        both.setProperty(Options.PROP_OPENTLS, "true");
+        assertThrows(IllegalStateException.class, () -> new Options.Builder(both).build());
+
+        // one explicit choice is not a mix: opentls() with tls urls, secure() with opentls urls, or a provided context
+        assertNotNull(new Options.Builder().server("tls://localhost").opentls().build().getSslContext());
+        assertNotNull(new Options.Builder().server("opentls://localhost").secure().build().getSslContext());
+        assertNotNull(new Options.Builder().server("tls://localhost,opentls://localhost").opentls().build().getSslContext());
+        SSLContext ctx = SslTestingHelper.createTestSSLContext();
+        assertEquals(ctx, new Options.Builder().server("tls://localhost,opentls://localhost").sslContext(ctx).build().getSslContext());
     }
 
     @SuppressWarnings("deprecation")

@@ -701,7 +701,7 @@ io.nats.client.tls.algorithm=SunX509
 When options are built, the SSLContext will be accepted or created in the following order.
 1. If it's directly provided via the builder `sslContext(SSLContext ctx)` method.
 2. If `keyStore` is provided, an SSLContext will be created using all custom properties. If not supplied, the tls algorithm is `SunX509`
-3. If `opentls` is true or any of the bootstrap servers has `opentls` as their scheme, a generic SSLContext will be created that **"trusts all certs"**.
+3. If `opentls` is true or any of the bootstrap servers has `opentls` as their scheme, a generic SSLContext will be created that **"trusts all certs"**. Asking for both, by setting `secure` and `opentls`, or with a bootstrap list that mixes `opentls` with `tls` or `wss`, is rejected; see [TLS configuration](docs/TLS_CONFIGURATION.md).
 4. If `secure` is true or any of the bootstrap servers has `tls` or `wss` as their scheme, the `javax.net.ssl.SSLContext.getDefault()` will be used.
 
 ### Publishing
