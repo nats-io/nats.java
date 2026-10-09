@@ -73,8 +73,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * Each execution also checks whether the server pool was asked to resolve, which only the resolving modes do.
  * <p>
  * A server discovered from connect_urls as a bare ip address presents the hostname of the server that
- * supplied it, as nats.go does; and with {@link Options.Builder#tlsVerifyHostname()} the certificate is
- * checked against the server name.
+ * supplied it, as nats.go does. Hostname verification is on by default, so the certificate is checked
+ * against the server name; {@link Options.Builder#tlsVerifyHostname(boolean) tlsVerifyHostname(false)} turns it off.
  */
 public class TlsHostnameTests {
     private static final String SINGLE_LABEL_HOST = "nats";
@@ -384,7 +384,9 @@ public class TlsHostnameTests {
     @ValueSource(booleans = {false, true})
     public void discoveredIpRetainsHostnameOnReconnect(boolean tlsFirst) throws Exception {
         // the first server gossips the second as a bare ip; after the first closes, the reconnect
-        // to the bare ip must present the first server's hostname
+        // to the bare ip must present the first server's hostname. Verification is on by default and the
+        // certificate has a DNS name and no ip SAN, so the reconnect also only passes because it is
+        // verified against that hostname
         DiagnosticSslContext context = dottedCertificates.clientContext();
         CountDownLatch reconnected = new CountDownLatch(1);
         try (SniTestServer second = new SniTestServer(dottedCertificates, tlsFirst, 0);
@@ -406,14 +408,13 @@ public class TlsHostnameTests {
     }
 
     @Test
-    public void discoveredIpIsVerifiedByTheGossipingServersName() throws Exception {
-        // with verification on, the certificate of the discovered bare ip has a DNS name and no ip SAN,
-        // so the reconnect only passes because it is verified against the gossiping server's hostname
+    public void discoveredIpRetainsHostnameWithVerificationOff() throws Exception {
+        // with verification off, SNI alone carries the gossiping server's hostname to the discovered bare ip
         DiagnosticSslContext context = dottedCertificates.clientContext();
         CountDownLatch reconnected = new CountDownLatch(1);
         try (SniTestServer second = new SniTestServer(dottedCertificates, false, 0);
              SniTestServer first = new SniTestServer(dottedCertificates, false, second.port());
-             Connection nc = Nats.connect(reconnecting(first, context, false, reconnected).tlsVerifyHostname().build())) {
+             Connection nc = Nats.connect(reconnecting(first, context, false, reconnected).tlsVerifyHostname(false).build())) {
             nc.flush(Duration.ofSeconds(2));
             first.close();
             assertTrue(reconnected.await(10, TimeUnit.SECONDS), "Did not reconnect to the discovered ip");
@@ -518,7 +519,6 @@ public class TlsHostnameTests {
                 }
             })
             .sslContext(context)
-            .tlsVerifyHostname()
             .noRandomize()
             .noReconnect()
             .connectionTimeout(Duration.ofSeconds(2))
@@ -551,7 +551,7 @@ public class TlsHostnameTests {
     @ParameterizedTest
     @ValueSource(booleans = {false, true})
     public void verifyHostnameAcceptsACertificateForTheHostname(boolean tlsFirst) throws Exception {
-        // default mode: the hostname was resolved to 127.0.0.1, the check is against the hostname, not the ip
+        // verification on by default: the hostname was resolved to 127.0.0.1, the check is against the hostname, not the ip
         DiagnosticSslContext context = dottedCertificates.clientContext();
         List<Throwable> errors = new CopyOnWriteArrayList<>();
         try (SniTestServer server = new SniTestServer(dottedCertificates, tlsFirst, 0);
@@ -573,9 +573,9 @@ public class TlsHostnameTests {
             assertEquals(SniTestServer.HOST, server.requestedName.get(2, TimeUnit.SECONDS));
             assertIdentityFailure(errors, SniTestServer.HOST);
         }
-        // the same server and certificate are accepted when verification is off
+        // the same server and certificate are accepted when verification is turned off
         try (SniTestServer server = new SniTestServer(otherName, false, 0, true);
-             Connection nc = Nats.connect(options(server, SniTestServer.HOST, otherName.clientContext(), HostnameResolveMode.ResolveToAll, false).build())) {
+             Connection nc = Nats.connect(options(server, SniTestServer.HOST, otherName.clientContext(), HostnameResolveMode.ResolveToAll, false).tlsVerifyHostname(false).build())) {
             nc.flush(Duration.ofSeconds(2));
             assertEquals(otherName.valid, server.selectedCertificate.get(2, TimeUnit.SECONDS));
         }
@@ -605,7 +605,7 @@ public class TlsHostnameTests {
 
     @Test
     public void verifyHostnameAppliesUnderTheTrustAllContext() throws Exception {
-        // opentls trusts any chain; the JDK wraps its plain X509TrustManager and still checks the name
+        // opentls trusts any chain; the JDK wraps its plain X509TrustManager and the default verification still checks the name
         SniTestServer.Certificates otherName = new SniTestServer.Certificates("other.test");
         List<Throwable> errors = new CopyOnWriteArrayList<>();
         try (SniTestServer server = new SniTestServer(otherName, false, 0, true)) {
