@@ -712,10 +712,10 @@ public class Options {
      */
     public static final String PROP_TLS_FIRST = PFX + "tls.first";
     /**
-     * Property used to configure tls hostname verification.
+     * Property used to configure tls hostname verification, which is on by default.
      * This property is a boolean flag, telling connections whether
      * to verify that the certificate the server presents is issued for the server name,
-     * see {@link Builder#tlsVerifyHostname() tlsVerifyHostname}.
+     * see {@link Builder#tlsVerifyHostname(boolean) tlsVerifyHostname}.
      */
     public static final String PROP_TLS_VERIFY_HOSTNAME = PFX + "tls.verify.hostname";
     /**
@@ -1103,7 +1103,7 @@ public class Options {
         private boolean discardMessagesWhenOutgoingQueueFull = DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL;
         private boolean ignoreDiscoveredServers = false;
         private boolean tlsFirst = false;
-        private boolean tlsVerifyHostname = false;
+        private boolean tlsVerifyHostname = true;
         private boolean useTimeoutException = false;
         private boolean advancedRequestBehavior = false;
         private boolean useDispatcherWithExecutor = false;
@@ -2314,22 +2314,31 @@ public class Options {
         }
 
         /**
-         * Set TLS hostname verification on. Default is off.
+         * Set whether to verify that the certificate the server presents is issued for the server name.
+         * On by default; pass false to turn it off.
+         * <p>
          * When on, the certificate the server presents must be issued for the server name the
          * connection was made with: the configured hostname, in every {@link HostnameResolveMode},
-         * or the ip address when the server was configured or discovered by ip address.
+         * or the ip address when the server was configured by ip address, in which case the
+         * certificate must carry that address as a subject alternative name.
          * The check is the one the JDK performs for HTTPS, against the certificate's
          * subject alternative names. A server discovered from connect_urls as a bare ip address
-         * is checked as an ip address, so its certificate must carry that address.
+         * is checked against the hostname of the server that supplied it, when that server was
+         * configured by hostname; otherwise it is checked as an ip address.
          * The check is performed by the trust manager in use. The JDK performs it for its own
          * trust managers, which an SSLContext built from a keystore and truststore or the default
          * SSLContext has, and for any plain X509TrustManager, which it wraps, including the
          * trust-all manager of {@link #opentls() opentls}. A custom X509ExtendedTrustManager
          * is responsible for its own identity check.
+         * <p>
+         * Turning it off removes the proof that the server is the one named in the url.
+         * Do that only where the certificate is known not to name the server, such as development
+         * against a self-signed certificate, and prefer reissuing the certificate for the name.
+         * @param tlsVerifyHostname true to verify, false to skip the check
          * @return the Builder for chaining
          */
-        public Builder tlsVerifyHostname() {
-            this.tlsVerifyHostname = true;
+        public Builder tlsVerifyHostname(boolean tlsVerifyHostname) {
+            this.tlsVerifyHostname = tlsVerifyHostname;
             return this;
         }
 
@@ -3546,7 +3555,7 @@ public class Options {
 
     /**
      * Get whether to verify that the certificate the server presents is issued for the server name,
-     * see {@link Builder#tlsVerifyHostname() tlsVerifyHostname()} in the builder doc
+     * which is on by default, see {@link Builder#tlsVerifyHostname(boolean) tlsVerifyHostname(boolean)} in the builder doc
      * @return the flag
      */
     public boolean isTlsVerifyHostname() {
