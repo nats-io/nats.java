@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import io.nats.NatsRunnerUtils;
 import io.nats.NatsServerRunner;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
@@ -560,7 +561,9 @@ public class ReconnectTests {
               NatsTestServer ts2 = new NatsTestServer("src/test/resources/tls_noip.conf", ts2Inserts, ts2Port, false) ) {
 
             SslTestingHelper.setKeystoreSystemParameters();
-            String tsUri = "nats://localhost:" + tsPort;
+            // the host must be the name localhost: the localhost uri helpers give 127.0.0.1 on Java 9 and later,
+            // which the certificate does not name
+            String tsUri = NatsRunnerUtils.getUri("nats", "localhost", tsPort);
             Options options = new Options.Builder()
                 .server(tsUri)
                 .secure()
@@ -595,8 +598,9 @@ public class ReconnectTests {
         SslTestingHelper.setKeystoreSystemParameters();
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls_noip.conf", false)) {
             Options options = new Options.Builder()
-                // the certificate names localhost only, so connect by that name; the default verification checks it
-                .server("tls://localhost:" + ts.getNatsPort())
+                // the certificate names localhost only, so connect by that name; the default verification checks it.
+                // the host must be the name localhost: the localhost uri helpers give 127.0.0.1 on Java 9 and later
+                .server(NatsRunnerUtils.getUri("tls", "localhost", ts.getNatsPort()))
                 .connectionTimeout(Duration.ofSeconds(5))
                 .maxReconnects(0)
                 .build();
