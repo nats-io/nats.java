@@ -21,6 +21,7 @@
 1. The [**Java Nats Examples**](https://github.com/nats-io/java-nats-examples) GitHub repo, a collection of simple use case examples.
 
 ## Table of Contents
+* [Important](#important)
 * [Client and Orbit](#client-and-orbit)
 * [Simplification](#simplification)
 * [Consumer Info Calls](#consumer-info-calls)
@@ -39,6 +40,10 @@
 * [Building From Source](#building-from-source)
 * [Examples](#examples)
 * [License](#license)
+
+## Important
+
+Version 2.26.5 turns TLS hostname verification on by default, so a connection to a server whose certificate does not name the host in the url now fails. See [Version 2.26.5 Hostname Verification On By Default](#version-2265-hostname-verification-on-by-default) for who is affected and how to opt out.
 
 ## Client and Orbit
 
@@ -203,6 +208,32 @@ the protocol I/O with `readerExecutor`/`writerExecutor` (or `readerThreadFactory
 rather than shrinking the general `executor`.
 
 ## Recent Version Notes
+
+### Version 2.26.5 Hostname Verification On By Default
+
+Starting with 2.26.5, the client checks that the certificate a server presents was issued for the host in the url you connect with. Before 2.26.5 it did not: any certificate your trust store accepted was accepted for any host, and `opentls` accepted any certificate at all. The check applies to every TLS connection, including `opentls`, and to servers the client discovers from the cluster, not only the ones in your options.
+
+When the certificate does not name the host, the connection fails and the error names the host it was looking for, for example `No subject alternative names matching IP address 10.0.0.5 found`.
+
+You are not affected if you do not use TLS, or if you connect by a name, such as `tls://nats.example.com:4222`, and the certificate was issued for that name. This is the normal case with a certificate from a public or private CA.
+
+You are affected if:
+
+1. You connect by ip address, such as `tls://10.0.0.5:4222`, and the certificate does not list that ip address as a subject alternative name. Certificates issued for a hostname usually do not.
+2. You connect by a name the certificate does not carry: a load balancer or proxy address, an internal alias, or a Kubernetes service name, in front of servers whose certificate names something else.
+3. You use `opentls` or a trust-all context against a certificate that does not name the host you connect with. The common case is development against a self-signed certificate for `localhost` while connecting by `127.0.0.1`, or the other way round.
+4. Your cluster advertises its servers by ip address and each server has its own certificate for its own name. Reconnects to the advertised ips are checked against the name you connected with.
+5. You supply your own `SSLContext`. The check applies to it too, unless your trust manager is an `X509ExtendedTrustManager`, which is left to do its own identity check.
+
+To check a certificate, list its subject alternative names and compare them with the host in your url:
+
+```
+openssl x509 -in server.pem -noout -ext subjectAltName
+```
+
+If you are affected, connect by a name the certificate carries, or reissue the certificate with the names and ip addresses you connect with. For a cluster that advertises ips, set `client_advertise` on the servers so they advertise hostnames instead.
+
+To keep the old behavior, call `tlsVerifyHostname(false)` on the options builder, or set the property `io.nats.client.tls.verify.hostname=false`. This removes the proof that the server is the one named in the url, so treat it as a development setting, not a fix. The full rules are in [TLS configuration](docs/TLS_CONFIGURATION.md).
 
 ### Version 2.26.0 Advanced Request Behavior
 
@@ -704,6 +735,8 @@ When options are built, the SSLContext will be accepted or created in the follow
 2. If `keyStore` is provided, an SSLContext will be created using all custom properties. If not supplied, the tls algorithm is `SunX509`
 3. If `opentls` is true or any of the bootstrap servers has `opentls` as their scheme, a generic SSLContext will be created that **"trusts all certs"**. Asking for both, by setting `secure` and `opentls`, or with a bootstrap list that mixes `opentls` with `tls` or `wss`, is rejected; see [TLS configuration](docs/TLS_CONFIGURATION.md).
 4. If `secure` is true or any of the bootstrap servers has `tls` or `wss` as their scheme, the `javax.net.ssl.SSLContext.getDefault()` will be used.
+
+When the options end up with an SSLContext by any of these routes, a bootstrap server with the `ws` scheme is rejected when the options are built, because a `ws` connection is never upgraded to TLS. Use `wss` for that server; see [TLS configuration](docs/TLS_CONFIGURATION.md).
 
 ### Publishing
 
