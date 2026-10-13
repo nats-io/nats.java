@@ -115,12 +115,14 @@ public class NatsServerPool implements ServerPool {
             // 2. Build a list for discovered
             //    - since we'll need the NatsUris later
             //    - and to have a list to use to prune removed gossiped servers
-            //    - a server the connection rejected is never supplied again, so it is left out here
+            //    - a server the connection rejected is never supplied again, so it is left out here.
+            //      The match is the exact uri: the scheme is what made it unusable, so the same
+            //      host and port under another scheme is still a candidate
             List<NatsUri> discovered = new ArrayList<>();
             for (String d : discoveredServers) {
                 try {
                     NatsUri nuri = new NatsUri(d, defaultScheme);
-                    if (findEquivalent(rejected, nuri) == -1) {
+                    if (!rejected.contains(nuri)) {
                         discovered.add(nuri);
                     }
                 } catch (URISyntaxException ignore) {
@@ -296,11 +298,11 @@ public class NatsServerPool implements ServerPool {
      */
     @Override
     public void serverRejected(@NonNull NatsUri nuri) {
-        // 1. Remember it so a later discovery does not bring it back
+        // 1. Remember the exact uri so a later discovery does not bring it back
         // 2. Remove it from the list. Work from the end because nextServer moved the one being tried to the end
         listLock.lock();
         try {
-            if (findEquivalent(rejected, nuri) == -1) {
+            if (!rejected.contains(nuri)) {
                 rejected.add(nuri);
             }
             for (int x = entryList.size() - 1; x >= 0; x--) {

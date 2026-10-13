@@ -144,6 +144,14 @@ public class ServerPoolTests extends TestBase {
         nsp.serverRejected(new NatsUri("nats://d4"));
         assertFalse(nsp.acceptDiscoveredUrls(Collections.singletonList("nats://d4")));
         validateNslp(nsp, null, true, BOOT_ONE, BOOT_TWO);
+
+        // the memory is the exact uri: the scheme is what made the server unusable, so the same host and port
+        // under another scheme is still accepted while the rejected uri itself is not
+        nsp.serverRejected(new NatsUri("ws://d9"));
+        assertTrue(nsp.acceptDiscoveredUrls(Collections.singletonList("nats://d9")));
+        validateNslp(nsp, null, true, BOOT_ONE, BOOT_TWO, "nats://d9");
+        assertFalse(nsp.acceptDiscoveredUrls(Arrays.asList("ws://d9", "nats://d9")));
+        validateNslp(nsp, null, true, BOOT_ONE, BOOT_TWO, "nats://d9");
     }
 
     private static NatsServerPool newNatsServerPool(Options o, NatsUri last, List<String> discoveredServers) {
