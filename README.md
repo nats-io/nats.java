@@ -736,7 +736,7 @@ When options are built, the SSLContext will be accepted or created in the follow
 3. If `opentls` is true or any of the bootstrap servers has `opentls` as their scheme, a generic SSLContext will be created that **"trusts all certs"**. Asking for both, by setting `secure` and `opentls`, or with a bootstrap list that mixes `opentls` with `tls` or `wss`, is rejected; see [TLS configuration](docs/TLS_CONFIGURATION.md).
 4. If `secure` is true or any of the bootstrap servers has `tls` or `wss` as their scheme, the `javax.net.ssl.SSLContext.getDefault()` will be used.
 
-When the options end up with an SSLContext by any of these routes, a bootstrap server with the `ws` scheme is rejected when the options are built, because a `ws` connection is never upgraded to TLS. Use `wss` for that server; see [TLS configuration](docs/TLS_CONFIGURATION.md).
+When the options end up with an SSLContext by any of these routes, a bootstrap server with the `ws` scheme is rejected when the options are built, because a `ws` connection is never upgraded to TLS. Use `wss` for that server. A `ws` server the cluster advertises in `connect_urls` is skipped when the pool hands it out, reported through the error listener's `serverRejected`, and dropped from the pool; see [TLS configuration](docs/TLS_CONFIGURATION.md).
 
 ### Publishing
 

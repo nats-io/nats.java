@@ -102,6 +102,16 @@ public interface ServerPool {
     void connectFailed(@NonNull NatsUri nuri);
 
     /**
+     * The connection will never attempt the server, because it cannot be used with the options:
+     * for example a plain ws:// server when the options carry an SSL context, since a plain websocket
+     * is never upgraded to TLS. The connection has already taken the server from the pool and goes on
+     * to the next one. The pool should stop supplying the server, including when it is discovered again.
+     * The default implementation does nothing.
+     * @param nuri the server that was rejected
+     */
+    default void serverRejected(@NonNull NatsUri nuri) {}
+
+    /**
      * Get the list of servers known to the pool. Purely informational
      * @return the list of servers
      */

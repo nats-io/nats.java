@@ -36,10 +36,12 @@ public class NatsServerPool implements ServerPool {
     protected boolean hasSecureServer;
     protected NatsUri lastConnected;
     protected String defaultScheme;
+    protected final List<NatsUri> rejected;
 
     public NatsServerPool() {
         listLock = new ReentrantLock();
         entryList = new ArrayList<>(); // this gets updated occasionally
+        rejected = new ArrayList<>();
         options = Options.builder().build(); // this will get updated when initialize is called
     }
 
@@ -113,10 +115,14 @@ public class NatsServerPool implements ServerPool {
             // 2. Build a list for discovered
             //    - since we'll need the NatsUris later
             //    - and to have a list to use to prune removed gossiped servers
+            //    - a server the connection rejected is never supplied again, so it is left out here
             List<NatsUri> discovered = new ArrayList<>();
             for (String d : discoveredServers) {
                 try {
-                    discovered.add(new NatsUri(d, defaultScheme));
+                    NatsUri nuri = new NatsUri(d, defaultScheme);
+                    if (findEquivalent(rejected, nuri) == -1) {
+                        discovered.add(nuri);
+                    }
                 } catch (URISyntaxException ignore) {
                     // should never actually happen
                 }
@@ -276,6 +282,30 @@ public class NatsServerPool implements ServerPool {
                     if (++entry.failedAttempts < maxConnectAttempts) {
                         entryList.add(entry);
                     }
+                    return;
+                }
+            }
+        }
+        finally {
+            listLock.unlock();
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void serverRejected(@NonNull NatsUri nuri) {
+        // 1. Remember it so a later discovery does not bring it back
+        // 2. Remove it from the list. Work from the end because nextServer moved the one being tried to the end
+        listLock.lock();
+        try {
+            if (findEquivalent(rejected, nuri) == -1) {
+                rejected.add(nuri);
+            }
+            for (int x = entryList.size() - 1; x >= 0; x--) {
+                if (entryList.get(x).nuri.equals(nuri)) {
+                    entryList.remove(x);
                     return;
                 }
             }

@@ -250,6 +250,13 @@ class NatsConnection implements Connection {
         NatsUri first = null;
         NatsUri cur;
         while (keepGoing && (cur = serverPool.peekNextServer()) != null) {
+            String rejection = rejectionReason(cur);
+            if (rejection != null) {
+                serverPool.nextServer(); // b/c we only peeked, and the pool must have handed it out before it is told
+                rejectServer(cur, rejection);
+                failList.add(cur);
+                continue; // before first is set: a rejected server leaves the pool and never comes around again
+            }
             if (first == null) {
                 first = cur;
             }
@@ -473,6 +480,11 @@ class NatsConnection implements Connection {
         NatsUri first = null;
         NatsUri cur;
         while ((cur = serverPool.nextServer()) != null) {
+            String rejection = rejectionReason(cur);
+            if (rejection != null) {
+                rejectServer(cur, rejection);
+                continue; // before first is set: a rejected server leaves the pool and never comes around again
+            }
             if (first == null) {
                 first = cur;
                 if (options.reconnectDelayBehavior() == Options.ReconnectDelayBehavior.BeforeAllRounds) {
@@ -562,6 +574,23 @@ class NatsConnection implements Connection {
     // is called from reconnect and connect
     // will wait for any previous attempt to complete, using the reader.stop and
     // writer.stop
+    // A server the connection will never attempt because it cannot be used with the options: a ws:// server is
+    // a plain websocket that is never upgraded to TLS, so with an SSL context it would be reached without TLS.
+    // Both connect loops ask this when the pool hands a server out, before anything is sent to it. The bootstrap
+    // list cannot hold such a server, so one comes from connect_urls or from a custom ServerPool.
+    protected String rejectionReason(NatsUri nuri) {
+        if (options.isTLSRequired() && WEBSOCKET_PROTOCOL.equals(nuri.getScheme())) {
+            return "the options require TLS and a ws:// server is never upgraded to TLS";
+        }
+        return null;
+    }
+
+    // The pool has already handed the server out. Tell it so it stops supplying the server, and report it.
+    protected void rejectServer(NatsUri nuri, String reason) {
+        serverPool.serverRejected(nuri);
+        makeCallback(() -> options.getErrorListener().serverRejected(this, nuri.toString(), reason));
+    }
+
     protected void tryToConnect(NatsUri cur, NatsUri resolved, long now) {
         clearCurrentServer();
         connectingServer = cur; // the origin of discovered servers in the initial INFO, before currentServer is set
