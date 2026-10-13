@@ -1,6 +1,6 @@
 # TLS configuration
 
-How the client decides whether a connection uses TLS, which `SSLContext` it uses, what `opentls` does and does not do, and the rule for server lists that mix schemes. This is the detail behind the SSLContext and Connection Security sections of the [README](../README.md).
+How the client decides whether a connection uses TLS, which `SSLContext` it uses, what `opentls` does and does not do, how the server's name is checked against its certificate, and the rule for server lists that mix schemes. This is the detail behind the SSLContext and Connection Security sections of the [README](../README.md).
 
 ## 1. One SSLContext per connection
 
@@ -15,7 +15,7 @@ The context is accepted or created once, when `Options.Builder.build()` runs, in
 5. `secure()` was called, the `io.nats.client.secure` property is true, or any bootstrap server has the `tls://` or `wss://` scheme: `SSLContext.getDefault()`, described in section 2.
 6. Otherwise no context, and the connection is plain TCP. A server that requires TLS then fails the connect with "SSL required by server."
 
-Rules 4 and 5 look at the bootstrap servers only when neither `opentls` nor `secure` was set explicitly. Asking for both is an error, section 4.
+Rules 4 and 5 look at the bootstrap servers only when neither `opentls` nor `secure` was set explicitly. Asking for both is an error, section 5.
 
 ## 2. The default context: `tls://`, `wss://`, `secure()`
 
@@ -43,11 +43,11 @@ With a trust-all context, anything on the network path that can answer the TCP c
 
 The client cannot notice. The handshake succeeded, the connection reports as secure, and no error, event or log line says that the certificate was not checked. This is the same for the equivalent switch in every other client, which is why Go's documentation says `InsecureSkipVerify` "should NOT be used in a production setting".
 
-Separately from the chain check, the client does not check the server's hostname against the certificate in any configuration. With the default context or a truststore, the chain check still ties the certificate to an issuer you trust. A trust-all context removes that last check too, so no property of the certificate is tested at all.
+Separately from the chain check, the client checks the server's name against the certificate, section 4, and does so under a trust-all context too. That check only proves that the certificate names the host, and with a trust-all context anyone can present a certificate that names the host, so it does not restore the proof the chain check gave. With `tlsVerifyHostname(false)` as well, no property of the certificate is tested at all.
 
 ### When it is acceptable, and what to use otherwise
 
-`opentls` and a hand-supplied trust-all context are for development and tests, where the server is on the developer's own machine or the certificate is known to be throwaway. Outside that, do not use either. For a server with a private CA, put the CA in the JVM trust store, or in a truststore given to the client through the `truststore` properties, or build an `SSLContext` from it; sections 2 and 5. The effort is one `keytool` import, and the connection then proves who it is talking to.
+`opentls` and a hand-supplied trust-all context are for development and tests, where the server is on the developer's own machine or the certificate is known to be throwaway. Outside that, do not use either. For a server with a private CA, put the CA in the JVM trust store, or in a truststore given to the client through the `truststore` properties, or build an `SSLContext` from it; sections 2 and 6. The effort is one `keytool` import, and the connection then proves who it is talking to.
 
 ### How it is selected
 
@@ -55,7 +55,17 @@ Separately from the chain check, the client does not check the server's hostname
 
 Because the context is per connection, either form applies to every server the connection reaches, including discovered ones.
 
-## 4. Asking for both contexts is rejected
+## 4. Hostname verification
+
+After the chain check, the client checks that the certificate is issued for the server name the connection was made with. The check is the one the JDK performs for HTTPS: the name is matched against the certificate's subject alternative names, a DNS entry for a hostname, an ip address entry for an ip literal. It is on by default and applies under every context, including the trust-all context of section 3.
+
+The name checked is the hostname in the server url, in every `HostnameResolveMode`, including the modes that resolve the hostname to ip addresses before connecting. The same name is sent as the TLS server name (SNI), so a server or proxy that selects its certificate by name selects the right one. A server given by ip address in the url is checked as an ip address, so its certificate must carry that address as a subject alternative name. A server discovered from `connect_urls` as a bare ip address is checked against the hostname of the server that supplied it, when that server was configured by hostname, as nats.go does; otherwise it is checked as an ip address.
+
+The check is performed by the trust manager in use. The JDK performs it for its own trust managers, which the default context and a context built from a keystore and truststore have, and for any plain `X509TrustManager`, which it wraps; the trust-all manager of `opentls` is one of those. A custom `X509ExtendedTrustManager` is responsible for its own identity check, so a context built with one is only checked if the manager does it.
+
+A connection to a server whose certificate does not name it fails with a `CertificateException` that names the expected host. Fix it by reissuing the certificate for the name, or by using the name the certificate carries in the url. `tlsVerifyHostname(false)` on the builder, or the `io.nats.client.tls.verify.hostname=false` property, turns the check off; that removes the proof that the server is the one named in the url, section 3, so keep it for development against a certificate that is known not to name the server.
+
+## 5. Asking for both contexts is rejected
 
 Options that ask for the default context and the trust-all context at the same time are rejected when they are built, with `IllegalStateException`:
 
@@ -69,16 +79,16 @@ One explicit choice is not a conflict: `opentls()` with `tls://` servers builds 
 
 To fix rejected options, choose one of the two, or supply the context you want with `sslContext(ctx)`.
 
-## 5. Client certificates
+## 6. Client certificates
 
 A server configured with `verify: true` requires a client certificate. Supply it through the `keystore` and `keystorePassword` properties together with `truststore` and `truststorePassword`, through an `SSLContextFactory`, through an `SSLContext` built with key managers, or through the `javax.net.ssl.keyStore` system properties when using the default context. `opentls` presents no client certificate and cannot be used against such a server.
 
 The README's TLS Certs section shows how the test keystore and truststore are produced from the PEM files in `src/test/resources/certs`.
 
-## 6. TLS handshake first
+## 7. TLS handshake first
 
 `tlsFirst()` performs the TLS handshake before reading the server's INFO, for servers configured with `handshake_first`. It requires a context: building options with `tlsFirst()` and no context from the rules above fails with "SSL context required for tls handshake first".
 
-## 7. What the server and client expect of each other
+## 8. What the server and client expect of each other
 
 Whether the client attempts the TLS upgrade is decided by whether it has a context; whether the server requires or offers TLS comes from its INFO. The README's "TLS client versus server checks" table lists the six combinations and the two that fail with an `IOException`.

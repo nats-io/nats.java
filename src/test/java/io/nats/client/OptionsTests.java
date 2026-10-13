@@ -1635,10 +1635,11 @@ public class OptionsTests {
 
     @Test
     public void testTlsVerifyHostname() {
-        assertFalse(new Options.Builder().build().isTlsVerifyHostname());
-        Options options = new Options.Builder().tlsVerifyHostname().build();
-        assertTrue(options.isTlsVerifyHostname());
-        assertTrue(new Options.Builder(options).build().isTlsVerifyHostname());
+        assertTrue(new Options.Builder().build().isTlsVerifyHostname());
+        assertTrue(new Options.Builder().tlsVerifyHostname(true).build().isTlsVerifyHostname());
+        Options options = new Options.Builder().tlsVerifyHostname(false).build();
+        assertFalse(options.isTlsVerifyHostname());
+        assertFalse(new Options.Builder(options).build().isTlsVerifyHostname());
         Properties props = new Properties();
         props.setProperty(Options.PROP_TLS_VERIFY_HOSTNAME, "true");
         assertTrue(new Options.Builder(props).build().isTlsVerifyHostname());

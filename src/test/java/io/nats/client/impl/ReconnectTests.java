@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2015-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import io.nats.NatsRunnerUtils;
 import io.nats.NatsServerRunner;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
@@ -553,13 +554,18 @@ public class ReconnectTests {
                 "}"
         };
 
-        // Regular tls for first connection, then no ip for second
+        // Both servers present the certificate that names localhost and carries no ip address. Connect by that
+        // name; the servers gossip each other by ip, and the reconnect to the gossiped ip is verified against
+        // the name of the server that gossiped it.
         try ( NatsTestServer ts = new NatsTestServer("src/test/resources/tls_noip.conf", tsInserts, tsPort, false);
               NatsTestServer ts2 = new NatsTestServer("src/test/resources/tls_noip.conf", ts2Inserts, ts2Port, false) ) {
 
             SslTestingHelper.setKeystoreSystemParameters();
+            // the host must be the name localhost: the localhost uri helpers give 127.0.0.1 on Java 9 and later,
+            // which the certificate does not name
+            String tsUri = NatsRunnerUtils.getUri("nats", "localhost", tsPort);
             Options options = new Options.Builder()
-                .server(ts.getURI())
+                .server(tsUri)
                 .secure()
                 .connectionListener(listener)
                 .maxReconnects(20) // we get multiples for some, so need enough
@@ -570,7 +576,7 @@ public class ReconnectTests {
 
             listener.prepForStatusChange(Events.DISCOVERED_SERVERS);
             nc = (NatsConnection) longConnectionWait(options);
-            assertEquals(nc.getConnectedUrl(), ts.getURI());
+            assertEquals(nc.getConnectedUrl(), tsUri);
 
             flushAndWaitLong(nc, listener); // make sure we get the new server via info
 
@@ -592,7 +598,9 @@ public class ReconnectTests {
         SslTestingHelper.setKeystoreSystemParameters();
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls_noip.conf", false)) {
             Options options = new Options.Builder()
-                .server(ts.getLocalhostUri("tls"))
+                // the certificate names localhost only, so connect by that name; the default verification checks it.
+                // the host must be the name localhost: the localhost uri helpers give 127.0.0.1 on Java 9 and later
+                .server(NatsRunnerUtils.getUri("tls", "localhost", ts.getNatsPort()))
                 .connectionTimeout(Duration.ofSeconds(5))
                 .maxReconnects(0)
                 .build();
@@ -607,6 +615,9 @@ public class ReconnectTests {
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls_noip.conf", false)) {
             Options options = new Options.Builder()
                 .server(ts.getLocalhostUri("opentls"))
+                // the certificate names localhost only and the url is the ip. opentls trusts any chain,
+                // but the name is still checked by default, so the check is turned off here.
+                .tlsVerifyHostname(false)
                 .maxReconnects(0)
                 .build();
             assertCanConnect(options);
