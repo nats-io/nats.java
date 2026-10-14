@@ -1,4 +1,4 @@
-// Copyright 2021 The NATS Authors
+// Copyright 2021-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -1031,6 +1031,27 @@ public class KeyValueTests extends JetStreamTestBase {
                 _testWatch(nc, multipleFullWatcher, allExpecteds, -1, kv -> kv.watch(allKeys, multipleFullWatcher, multipleFullWatcher.watchOptions));
                 _testWatch(nc, multipleMetaWatcher, allExpecteds, -1, kv -> kv.watch(allKeys, multipleMetaWatcher, multipleMetaWatcher.watchOptions));
             }
+        });
+    }
+
+    @Test
+    public void testWatchThatFailsToStartReleasesItsDispatcher() throws Exception {
+        jsServer.run(nc -> {
+            KeyValueManagement kvm = nc.keyValueManagement();
+            String bucket = bucket();
+            kvm.create(KeyValueConfiguration.builder(bucket).storageType(StorageType.Memory).build());
+            KeyValue kv = nc.keyValue(bucket);
+            kvm.delete(bucket); // the stream is gone, so every watch fails in its subscribe
+
+            TestKeyValueWatcher watcher = new TestKeyValueWatcher("failsToStart", true);
+            Map<String, Dispatcher> dispatchers = ((NatsConnection) nc).getDispatchers();
+            int before = dispatchers.size();
+            for (int x = 1; x <= 5; x++) {
+                JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> kv.watch("some.>", watcher));
+                assertEquals(10059, e.getApiErrorCode()); // stream not found
+                assertEquals(before, dispatchers.size(), "dispatchers after failed watch " + x);
+            }
+            assertEquals(0, watcher.endOfDataReceived);
         });
     }
 
