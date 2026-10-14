@@ -1,4 +1,4 @@
-// Copyright 2022 The NATS Authors
+// Copyright 2022-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -66,12 +66,26 @@ public class NatsWatchSubscription<T> implements AutoCloseable {
             .build();
 
         dispatcher = (NatsDispatcher) ((NatsJetStream) js).conn.createDispatcher();
-        sub = js.subscribe(null, dispatcher, handler, false, pso);
-        if (!handler.endOfDataSent) {
-            long pending = sub.getConsumerInfo().getCalculatedPending();
-            if (pending == 0) {
-                handler.sendEndOfData();
+        try {
+            sub = js.subscribe(null, dispatcher, handler, false, pso);
+            if (!handler.endOfDataSent) {
+                long pending = sub.getConsumerInfo().getCalculatedPending();
+                if (pending == 0) {
+                    handler.sendEndOfData();
+                }
             }
+        }
+        catch (IOException | JetStreamApiException | RuntimeException e) {
+            // The exception leaves the constructor, so the caller never gets an object to unsubscribe.
+            // Close the dispatcher made above; closing it also unsubscribes anything subscribed on it.
+            try {
+                dispatcher.connection.closeDispatcher(dispatcher);
+            }
+            catch (RuntimeException ce) {
+                e.addSuppressed(ce);
+            }
+            dispatcher = null;
+            throw e;
         }
     }
 

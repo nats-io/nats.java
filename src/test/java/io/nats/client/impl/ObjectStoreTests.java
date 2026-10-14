@@ -1,4 +1,4 @@
-// Copyright 2022 The NATS Authors
+// Copyright 2022-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -600,6 +600,27 @@ public class ObjectStoreTests extends JetStreamTestBase {
             _testWatch(nc, delB4Watcher, new Object[]{"A", "B"}, os -> os.watch(delB4Watcher, delB4Watcher.watchOptions));
             _testWatch(nc, fullAfterWatcher, new Object[]{"B", null}, os -> os.watch(fullAfterWatcher, fullAfterWatcher.watchOptions));
             _testWatch(nc, delAfterWatcher, new Object[]{"B"}, os -> os.watch(delAfterWatcher, delAfterWatcher.watchOptions));
+        });
+    }
+
+    @Test
+    public void testWatchThatFailsToStartReleasesItsDispatcher() throws Exception {
+        runInJsServer(nc -> {
+            ObjectStoreManagement osm = nc.objectStoreManagement();
+            String bucket = bucket();
+            osm.create(ObjectStoreConfiguration.builder(bucket).storageType(StorageType.Memory).build());
+            ObjectStore os = nc.objectStore(bucket);
+            osm.delete(bucket); // the stream is gone, so every watch fails in its subscribe
+
+            TestObjectStoreWatcher watcher = new TestObjectStoreWatcher("failsToStart", true);
+            Map<String, Dispatcher> dispatchers = ((NatsConnection) nc).getDispatchers();
+            int before = dispatchers.size();
+            for (int x = 1; x <= 5; x++) {
+                JetStreamApiException e = assertThrows(JetStreamApiException.class, () -> os.watch(watcher));
+                assertEquals(10059, e.getApiErrorCode()); // stream not found
+                assertEquals(before, dispatchers.size(), "dispatchers after failed watch " + x);
+            }
+            assertEquals(0, watcher.endOfDataReceived);
         });
     }
 
