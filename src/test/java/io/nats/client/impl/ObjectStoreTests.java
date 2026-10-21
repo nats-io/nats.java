@@ -14,6 +14,7 @@ package io.nats.client.impl;
 
 import io.nats.client.*;
 import io.nats.client.api.*;
+import io.nats.client.support.NatsObjectStoreUtil;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
@@ -489,6 +490,57 @@ public class ObjectStoreTests extends JetStreamTestBase {
 
             ObjectMeta meta = ObjectMeta.builder("change").build();
             assertThrows(JetStreamApiException.class, () -> os.updateMeta("name", meta));
+        });
+    }
+
+    @Test
+    public void testEmptyObject() throws Exception {
+        jsServer.run(nc -> {
+            String bucket = bucket();
+            ObjectStoreManagement osm = nc.objectStoreManagement();
+            osm.create(ObjectStoreConfiguration.builder(bucket)
+                .storageType(StorageType.Memory)
+                .build());
+
+            ObjectStore os = nc.objectStore(bucket);
+            ObjectInfo info = os.put("empty", new byte[0]);
+            assertEquals(0, info.getSize());
+            assertEquals(0, info.getChunks());
+
+            // an empty object has no chunks to read, so get must not wait for the JetStream timeout
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            long start = System.currentTimeMillis();
+            ObjectInfo got = os.get("empty", out);
+            long elapsed = System.currentTimeMillis() - start;
+            assertTrue(elapsed < JetStreamOptions.DEFAULT_TIMEOUT.toMillis(), "get took " + elapsed + " ms");
+            assertEquals(0, out.size());
+            assertEquals(0, got.getSize());
+            assertEquals(0, got.getChunks());
+        });
+    }
+
+    @Test
+    public void testSingleChunkWithNoData() throws Exception {
+        jsServer.run(nc -> {
+            String bucket = bucket();
+            ObjectStoreManagement osm = nc.objectStoreManagement();
+            osm.create(ObjectStoreConfiguration.builder(bucket)
+                .storageType(StorageType.Memory)
+                .build());
+
+            ObjectInfo info = nc.objectStore(bucket).put("one-chunk", "data".getBytes());
+            assertEquals(1, info.getChunks());
+
+            // without direct get, a chunk message with no payload comes back with null data
+            JetStreamManagement jsm = nc.jetStreamManagement();
+            String streamName = "OBJ_" + bucket;
+            StreamConfiguration sc = jsm.getStreamInfo(streamName).getConfiguration();
+            jsm.updateStream(StreamConfiguration.builder(sc).allowDirect(false).build());
+            nc.jetStream().publish(NatsObjectStoreUtil.toChunkPrefix(bucket) + info.getNuid(), new byte[0]);
+
+            ObjectStore os = nc.objectStore(bucket); // a new store, so it sees the stream without direct get
+            RuntimeException e = assertThrows(RuntimeException.class, () -> os.get("one-chunk", new ByteArrayOutputStream()));
+            assertTrue(e.getMessage().contains(OsGetSizeMismatch.message()), e.toString());
         });
     }
 
