@@ -1300,6 +1300,20 @@ public class ServiceTests extends JetStreamTestBase {
             () -> ServiceEndpoint.builder().endpoint(e1).build());
         assertTrue(iae.getMessage().contains("Handler"));
 
+        // $SRV is reserved for service discovery, with or without a group
+        for (String reserved : new String[]{"$SRV", "$SRV.custom", "$SRV.PING.orders"}) {
+            iae = assertThrows(IllegalArgumentException.class,
+                () -> ServiceEndpoint.builder().endpointName(name(300)).endpointSubject(reserved).handler(smh).build());
+            assertTrue(iae.getMessage().contains("$SRV"));
+        }
+        iae = assertThrows(IllegalArgumentException.class,
+            () -> ServiceEndpoint.builder().group(new Group("$SRV")).endpoint(e1).handler(smh).build());
+        assertTrue(iae.getMessage().contains("$SRV"));
+
+        // only the exact $SRV token is reserved
+        assertEquals("$SRVX.custom", ServiceEndpoint.builder().endpointName(name(300)).endpointSubject("$SRVX.custom").handler(smh).build().getSubject());
+        assertEquals("custom.$SRV", ServiceEndpoint.builder().endpointName(name(300)).endpointSubject("custom.$SRV").handler(smh).build().getSubject());
+
         se = ServiceEndpoint.builder()
             .endpointName("directName")
             .endpointQueueGroup("directQ")

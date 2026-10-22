@@ -52,9 +52,14 @@ public class Service {
      */
     public static final String SRV_STATS = "STATS";
     /**
+     * the reserved SERVICE PREFIX TOKEN
+     */
+    public static final String RESERVED_SERVICE_PREFIX_TOKEN = "$SRV";
+
+    /**
      * Constant of the service prefix
      */
-    public static final String DEFAULT_SERVICE_PREFIX = "$SRV.";
+    public static final String DEFAULT_SERVICE_PREFIX = RESERVED_SERVICE_PREFIX_TOKEN + ".";
 
     private final Connection conn;
     private final Duration drainTimeout;
