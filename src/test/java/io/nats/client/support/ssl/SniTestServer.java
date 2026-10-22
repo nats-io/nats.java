@@ -39,6 +39,7 @@ import java.security.KeyStore;
 import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -127,6 +128,13 @@ public class SniTestServer implements AutoCloseable {
      *                         for tests about what the client does with a certificate rather than how the server selects it
      */
     public SniTestServer(Certificates certificates, boolean tlsFirst, int discoveredPort, boolean alwaysServeValid) throws Exception {
+        this(certificates, tlsFirst, discoveredPort == 0 ? Collections.emptyList() : Collections.singletonList("127.0.0.1:" + discoveredPort), alwaysServeValid);
+    }
+
+    /**
+     * @param discovered the connect_urls entries to send in INFO, exactly as given; empty sends no connect_urls
+     */
+    public SniTestServer(Certificates certificates, boolean tlsFirst, List<String> discovered, boolean alwaysServeValid) throws Exception {
         listener = new ServerSocket(0, 10, InetAddress.getByName("127.0.0.1"));
         SSLContext context = SSLContext.getInstance("TLSv1.2");
         context.init(new KeyManager[]{new X509ExtendedKeyManager() {
@@ -167,7 +175,7 @@ public class SniTestServer implements AutoCloseable {
                 while (!closed) {
                     Socket raw = listener.accept();
                     sockets.add(raw);
-                    executor.submit(() -> serve(raw, context, tlsFirst, discoveredPort));
+                    executor.submit(() -> serve(raw, context, tlsFirst, discovered));
                 }
             }
             catch (IOException e) {
@@ -180,8 +188,8 @@ public class SniTestServer implements AutoCloseable {
 
     public int port() { return listener.getLocalPort(); }
 
-    private void serve(Socket raw, SSLContext context, boolean tlsFirst, int discoveredPort) {
-        String urls = discoveredPort == 0 ? "" : ",\"connect_urls\":[\"127.0.0.1:" + discoveredPort + "\"]";
+    private void serve(Socket raw, SSLContext context, boolean tlsFirst, List<String> discovered) {
+        String urls = discovered.isEmpty() ? "" : ",\"connect_urls\":[\"" + String.join("\",\"", discovered) + "\"]";
         String info = "INFO {\"server_id\":\"sni-test\",\"version\":\"2.11.0\",\"proto\":1,"
             + "\"max_payload\":1048576,\"tls_required\":true" + urls + "}\r\n";
         try (Socket ignored = raw) {

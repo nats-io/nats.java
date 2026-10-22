@@ -1,4 +1,4 @@
-// Copyright 2022 The NATS Authors
+// Copyright 2022-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -124,6 +124,34 @@ public class ServerPoolTests extends TestBase {
         nsp.connectSucceeded(new NatsUri(DISC_TWO));
         nsp.acceptDiscoveredUrls(Collections.singletonList(DISC_ONE));
         validateNslp(nsp, null, false, BOOT_ONE, BOOT_TWO, DISC_ONE, DISC_TWO);
+    }
+
+    @Test
+    public void testServerRejected() throws URISyntaxException {
+        // a rejected server leaves the pool and does not come back when it is discovered again
+        Options o = new Options.Builder().noRandomize().servers(bootstrap).build();
+        NatsServerPool nsp = newNatsServerPool(o, null, discoveredServers);
+        validateNslp(nsp, null, true, combined);
+
+        nsp.serverRejected(new NatsUri(DISC_ONE));
+        validateNslp(nsp, null, true, BOOT_ONE, BOOT_TWO, DISC_TWO, DISC_THREE);
+
+        // discovered again: not taken back, and not counted as an unknown server
+        assertFalse(nsp.acceptDiscoveredUrls(discoveredServers));
+        validateNslp(nsp, null, true, BOOT_ONE, BOOT_TWO, DISC_TWO, DISC_THREE);
+
+        // a server the pool does not hold is remembered all the same; the empty result prunes the gossiped servers as usual
+        nsp.serverRejected(new NatsUri("nats://d4"));
+        assertFalse(nsp.acceptDiscoveredUrls(Collections.singletonList("nats://d4")));
+        validateNslp(nsp, null, true, BOOT_ONE, BOOT_TWO);
+
+        // the memory is the exact uri: the scheme is what made the server unusable, so the same host and port
+        // under another scheme is still accepted while the rejected uri itself is not
+        nsp.serverRejected(new NatsUri("ws://d9"));
+        assertTrue(nsp.acceptDiscoveredUrls(Collections.singletonList("nats://d9")));
+        validateNslp(nsp, null, true, BOOT_ONE, BOOT_TWO, "nats://d9");
+        assertFalse(nsp.acceptDiscoveredUrls(Arrays.asList("ws://d9", "nats://d9")));
+        validateNslp(nsp, null, true, BOOT_ONE, BOOT_TWO, "nats://d9");
     }
 
     private static NatsServerPool newNatsServerPool(Options o, NatsUri last, List<String> discoveredServers) {

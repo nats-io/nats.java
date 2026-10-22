@@ -17,6 +17,8 @@ The context is accepted or created once, when `Options.Builder.build()` runs, in
 
 Rules 4 and 5 look at the bootstrap servers only when neither `opentls` nor `secure` was set explicitly. Asking for both is an error, section 5.
 
+When the options end up with a context, by any of rules 1 to 5, a `ws://` server in the list is an error at `build()`: `ws://` is a plain websocket and is never upgraded to TLS, so that server would be reached without it. Use `wss://` for it. A `nats://` server is allowed, because it is upgraded to TLS like every other server of the connection. A `ws://` server that reaches the connection another way, advertised by the cluster in `connect_urls` or supplied by a custom `ServerPool`, is never dialed: when the pool hands it out, the connection skips it and goes on to the next server, reports it through `ErrorListener.serverRejected`, and tells the pool through `ServerPool.serverRejected`, so the default pool drops it and does not take it back from a later `connect_urls`.
+
 ## 2. The default context: `tls://`, `wss://`, `secure()`
 
 `SSLContext.getDefault()` is the JVM's default: it verifies the server's certificate chain against the JVM trust store, `cacerts` in the JDK's `lib/security`, or whatever the `javax.net.ssl.trustStore` system properties point at. It presents the client certificate from `javax.net.ssl.keyStore` when a server asks for one. It does not read the operating system's certificate store; a CA installed in Windows or macOS is not trusted by the JVM unless it is also in the JVM trust store or the JVM is configured to use the system store.
