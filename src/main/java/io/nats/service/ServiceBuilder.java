@@ -81,12 +81,18 @@ public class ServiceBuilder {
     }
 
     /**
-     * Any meta information about this service
+     * Any meta information about this service. The map is copied, so changing it
+     * afterward does not change the service's metadata.
      * @param metadata the meta
      * @return the ServiceBuilder
      */
     public ServiceBuilder metadata(Map<String, String> metadata) {
-        this.metadata = metadata;
+        if (metadata == null || metadata.isEmpty()) {
+            this.metadata = null;
+        }
+        else {
+            this.metadata = new HashMap<>(metadata);
+        }
         return this;
     }
 

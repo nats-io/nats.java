@@ -1,4 +1,4 @@
-// Copyright 2022 The NATS Authors
+// Copyright 2022-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -753,6 +753,14 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(Duration.ofSeconds(1), service.getDrainTimeout());
         assertTrue(service.getPingResponse().toJson().contains("\"foo\""));
         assertNotNull(service.getPingResponse().getMetadata());
+
+        // metadata is immutable once set: changing the map given to the builder changes nothing
+        meta.put("foo", "changed");
+        meta.put("added", "value");
+        assertEquals(1, service.getPingResponse().getMetadata().size());
+        assertEquals("bar", service.getPingResponse().getMetadata().get("foo"));
+        assertEquals("bar", service.getInfoResponse().getMetadata().get("foo"));
+        assertEquals("bar", service.getStatsResponse().getMetadata().get("foo"));
 
         // more coverage
         service = Service.builder().connection(conn).name(NAME).version("1.0.0").addServiceEndpoint(se)
