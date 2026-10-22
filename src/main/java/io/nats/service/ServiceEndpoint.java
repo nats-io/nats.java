@@ -1,4 +1,4 @@
-// Copyright 2023 The NATS Authors
+// Copyright 2023-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -21,6 +21,8 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 import static io.nats.client.support.NatsConstants.DOT;
+import static io.nats.service.Service.DEFAULT_SERVICE_PREFIX;
+import static io.nats.service.Service.RESERVED_SERVICE_PREFIX_TOKEN;
 
 /**
  * The ServiceEndpoint represents the working {@link Endpoint}
@@ -35,6 +37,7 @@ import static io.nats.client.support.NatsConstants.DOT;
  * </p>
  */
 public class ServiceEndpoint {
+
     private final Group group;
     private final Endpoint endpoint;
     private final ServiceMessageHandler handler;
@@ -234,11 +237,17 @@ public class ServiceEndpoint {
 
         /**
          * Build the ServiceEndpoint instance.
+         * The subject, including any group prefix, cannot be under the $SRV prefix,
+         * which is reserved for the service's discovery endpoints.
          * @return the ServiceEndpoint instance
          */
         public ServiceEndpoint build() {
             Endpoint endpoint = endpointBuilder.build();
             Validator.required(handler, "Message Handler");
+            String subject = group == null ? endpoint.getSubject() : group.getSubject() + DOT + endpoint.getSubject();
+            if (subject.equals(RESERVED_SERVICE_PREFIX_TOKEN) || subject.startsWith(DEFAULT_SERVICE_PREFIX)) {
+                throw new IllegalArgumentException("Service Endpoint Subject cannot be under " + RESERVED_SERVICE_PREFIX_TOKEN + ", which is reserved for service discovery.");
+            }
             return new ServiceEndpoint(this, endpoint);
         }
     }
