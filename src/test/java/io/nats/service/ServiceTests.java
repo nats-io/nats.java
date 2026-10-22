@@ -289,12 +289,16 @@ public class ServiceTests extends JetStreamTestBase {
                 }
                 assertTrue(found);
 
-                // test reset
-                ZonedDateTime zdt = DateTimeUtils.gmtNow();
+                // test reset: counters are zeroed, start times are not changed
+                StatsResponse beforeReset = service1.getStatsResponse();
+                Map<String, ZonedDateTime> endpointStarted = new HashMap<>();
+                for (EndpointStats es : beforeReset.getEndpointStatsList()) {
+                    endpointStarted.put(es.getName(), es.getStarted());
+                }
                 sleep(1);
                 service1.reset();
                 StatsResponse sr = service1.getStatsResponse();
-                assertTrue(zdt.isBefore(sr.getStarted()));
+                assertEquals(beforeReset.getStarted(), sr.getStarted());
                 for (int x = 0; x < 3; x++) {
                     EndpointStats er = sr.getEndpointStatsList().get(x);
                     assertEquals(0, er.getNumRequests());
@@ -310,7 +314,7 @@ public class ServiceTests extends JetStreamTestBase {
                         assertNull(er.getData());
                         assertNull(er.getDataAsJson());
                     }
-                    assertTrue(zdt.isBefore(er.getStarted()));
+                    assertEquals(endpointStarted.get(er.getName()), er.getStarted());
                 }
 
                 // shutdown

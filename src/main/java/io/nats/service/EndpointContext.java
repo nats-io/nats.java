@@ -114,7 +114,6 @@ class EndpointContext {
         numErrors.set(0);
         processingTime.set(0);
         lastError = null;
-        started = DateTimeUtils.gmtNow();
     }
 
     boolean isNotInternalDispatcher() {

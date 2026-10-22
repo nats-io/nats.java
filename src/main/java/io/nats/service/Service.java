@@ -324,26 +324,15 @@ public class Service {
     }
 
     /**
-     * Reset the statistics for the endpoints
+     * Reset the statistics for the endpoints.
+     * The start time of the service and of its endpoints is not changed.
      */
     public void reset() {
-        // the lock keeps a reset from landing in the middle of startService,
-        // where the endpoints would be reset but the service start time would not
-        startStopLock.lock();
-        try {
-            if (isStarted()) {
-                // has actually been started if the ref has been set
-                startTimeRef.set(DateTimeUtils.gmtNow());
-            }
-            for (EndpointContext c : discoveryContexts) {
-                c.reset();
-            }
-            for (EndpointContext c : serviceContexts.values()) {
-                c.reset();
-            }
+        for (EndpointContext c : discoveryContexts) {
+            c.reset();
         }
-        finally {
-            startStopLock.unlock();
+        for (EndpointContext c : serviceContexts.values()) {
+            c.reset();
         }
     }
 
