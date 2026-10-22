@@ -1,4 +1,4 @@
-// Copyright 2023 The NATS Authors
+// Copyright 2023-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -324,13 +324,10 @@ public class Service {
     }
 
     /**
-     * Reset the statistics for the endpoints
+     * Reset the statistics for the endpoints.
+     * The start time of the service and of its endpoints is not changed.
      */
     public void reset() {
-        if (isStarted()) {
-            // has actually been started if the ref has been set
-            startTimeRef.set(DateTimeUtils.gmtNow());
-        }
         for (EndpointContext c : discoveryContexts) {
             c.reset();
         }
