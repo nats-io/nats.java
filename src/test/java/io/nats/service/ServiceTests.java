@@ -909,6 +909,52 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testHandlerStandardError() throws Exception {
+        runInServer(nc -> {
+            ServiceEndpoint seEndpoint = ServiceEndpoint.builder()
+                .endpointName("seEndpoint")
+                .endpointSubject("seSubject")
+                .handler(m -> {
+                    if (new String(m.getData()).equals("fail")) {
+                        m.respondStandardError(nc, "failed", 400);
+                    }
+                    else {
+                        m.respond(nc, "ok");
+                    }
+                })
+                .build();
+
+            Service seService = new ServiceBuilder()
+                .connection(nc)
+                .name("StandardErrorService")
+                .version("0.0.1")
+                .addServiceEndpoint(seEndpoint)
+                .build();
+            seService.startService();
+
+            assertEquals("ok", new String(nc.request("seSubject", "pass".getBytes()).get().getData()));
+            Message m = nc.request("seSubject", "fail".getBytes()).get();
+            assertEquals("failed", m.getHeaders().getFirst(NATS_SERVICE_ERROR));
+            assertEquals("400", m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
+
+            // the error is counted when the handler returns, which can be just after the reply arrives
+            EndpointStats er = seService.getEndpointStats("seEndpoint");
+            for (int i = 0; i < 100 && er.getNumErrors() == 0; i++) {
+                Thread.sleep(10);
+                er = seService.getEndpointStats("seEndpoint");
+            }
+            assertEquals(2, er.getNumRequests());
+            assertEquals(1, er.getNumErrors());
+            assertEquals("failed", er.getLastError());
+
+            seService.reset();
+            er = seService.getEndpointStats("seEndpoint");
+            assertEquals(0, er.getNumErrors());
+            assertNull(er.getLastError());
+        });
+    }
+
+    @Test
     public void testServiceMessage() throws Exception {
         runInServer(nc -> {
             AtomicInteger which = new AtomicInteger();

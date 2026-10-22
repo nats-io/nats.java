@@ -1,4 +1,4 @@
-// Copyright 2023 The NATS Authors
+// Copyright 2023-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -37,6 +37,7 @@ public class ServiceMessage {
     public static final String NATS_SERVICE_ERROR_CODE = "Nats-Service-Error-Code";
 
     private final Message message;
+    private String standardError;
 
     ServiceMessage(Message message) {
         this.message = message;
@@ -101,6 +102,8 @@ public class ServiceMessage {
 
     /**
      * Respond to a service request message with a standard error.
+     * If this is sent before the handler returns, it is counted in the endpoint's
+     * num_errors and the error text becomes the endpoint's last_error.
      * @param conn the NATS connection
      * @param errorText the error message text
      * @param errorCode the error message code
@@ -112,6 +115,15 @@ public class ServiceMessage {
                 .put(NATS_SERVICE_ERROR, errorText)
                 .put(NATS_SERVICE_ERROR_CODE, "" + errorCode))
             .build());
+        standardError = errorText;
+    }
+
+    /**
+     * The text of the last standard error sent in response to this message
+     * @return the error text or null if no standard error was sent
+     */
+    String getStandardError() {
+        return standardError;
     }
 
     /**
