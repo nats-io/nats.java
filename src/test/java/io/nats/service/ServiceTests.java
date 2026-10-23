@@ -1101,6 +1101,13 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals("qg", new Endpoint(NAME, SUBJECT, " qg ", null).getQueueGroup());
         assertNull(new Endpoint(JsonParser.parseUnchecked("{\"name\":\"" + NAME + "\",\"queue_group\":\"\"}")).getQueueGroup());
 
+        // a queue group is an ADR-6 queue-name, so it cannot hold '.', '*' or '>'
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, SUBJECT, "q.dot", null));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, SUBJECT, "q*", null));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, SUBJECT, "q>", null));
+        assertThrows(IllegalArgumentException.class, () -> Endpoint.builder().name(NAME).queueGroup("q.dot").build());
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(JsonParser.parseUnchecked("{\"name\":\"" + NAME + "\",\"queue_group\":\"q.dot\"}")));
+
         metadata.put("k", "v");
 
         e = new Endpoint(NAME, SUBJECT, metadata);
