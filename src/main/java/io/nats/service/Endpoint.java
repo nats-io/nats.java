@@ -1,4 +1,4 @@
-// Copyright 2023 The NATS Authors
+// Copyright 2023-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -16,8 +16,8 @@ package io.nats.service;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
-import io.nats.client.support.Validator;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,7 +27,9 @@ import static io.nats.client.support.ApiConstants.*;
 import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonValueUtils.readString;
 import static io.nats.client.support.JsonValueUtils.readStringStringMap;
+import static io.nats.client.support.Validator.nullOrEmpty;
 import static io.nats.client.support.Validator.validateIsRestrictedTerm;
+import static io.nats.client.support.Validator.validateSubjectTermStrict;
 
 /**
  * Endpoint encapsulates the name, subject and metadata for a {@link ServiceEndpoint}.
@@ -52,7 +54,7 @@ public class Endpoint implements JsonSerializable {
      * Directly construct an Endpoint with a name, which becomes the subject
      * @param name the name
      */
-    public Endpoint(String name) {
+    public Endpoint(@NonNull String name) {
         this(name, null, DEFAULT_QGROUP, null, true);
     }
 
@@ -61,7 +63,7 @@ public class Endpoint implements JsonSerializable {
      * @param name the name
      * @param metadata the metadata
      */
-    public Endpoint(String name, Map<String, String> metadata) {
+    public Endpoint(@NonNull String name, @Nullable Map<String, String> metadata) {
         this(name, null, DEFAULT_QGROUP, metadata, true);
     }
 
@@ -70,7 +72,7 @@ public class Endpoint implements JsonSerializable {
      * @param name the name
      * @param subject the subject
      */
-    public Endpoint(String name, String subject) {
+    public Endpoint(@NonNull String name, @Nullable String subject) {
         this(name, subject, DEFAULT_QGROUP, null, true);
     }
 
@@ -80,7 +82,7 @@ public class Endpoint implements JsonSerializable {
      * @param subject the subject
      * @param metadata the metadata
      */
-    public Endpoint(String name, String subject, Map<String, String> metadata) {
+    public Endpoint(@NonNull String name, @Nullable String subject, @Nullable Map<String, String> metadata) {
         this(name, subject, DEFAULT_QGROUP, metadata, true);
     }
 
@@ -91,7 +93,7 @@ public class Endpoint implements JsonSerializable {
      * @param queueGroup the queueGroup
      * @param metadata the metadata
      */
-    public Endpoint(String name, String subject, String queueGroup, Map<String, String> metadata) {
+    public Endpoint(@NonNull String name, @Nullable String subject, @Nullable String queueGroup, @Nullable Map<String, String> metadata) {
         this(name, subject, queueGroup, metadata, true);
     }
 
@@ -99,13 +101,8 @@ public class Endpoint implements JsonSerializable {
     Endpoint(String name, String subject, String queueGroup, Map<String, String> metadata, boolean validate) {
         if (validate) {
             this.name = validateIsRestrictedTerm(name, "Endpoint Name", true);
-            if (subject == null) {
-                this.subject = this.name;
-            }
-            else {
-                this.subject = Validator.validateSubjectTermStrict(subject, "Endpoint Subject", false);
-            }
-            this.queueGroup = queueGroup == null ? null : Validator.validateSubjectTermStrict(queueGroup, "Endpoint Queue Group", true);
+            this.subject = calculateSubject(this.name, subject);
+            this.queueGroup = calculateQueueGroup(queueGroup);
         }
         else {
             this.name = name;
@@ -116,10 +113,21 @@ public class Endpoint implements JsonSerializable {
     }
 
     Endpoint(JsonValue vEndpoint) {
-        name = readString(vEndpoint, NAME);
-        subject = readString(vEndpoint, SUBJECT);
-        queueGroup = readString(vEndpoint, QUEUE_GROUP);
+        name = validateIsRestrictedTerm(readString(vEndpoint, NAME), "Endpoint Name", true);
+        subject = calculateSubject(this.name, readString(vEndpoint, SUBJECT));
+        queueGroup = calculateQueueGroup(readString(vEndpoint, QUEUE_GROUP));
         metadata = readStringStringMap(vEndpoint, METADATA);
+    }
+
+    private static String calculateSubject(@NonNull String name, @Nullable String subject) {
+        // a null or empty subject means the name is the subject
+        String validSubject = validateSubjectTermStrict(subject, "Endpoint Subject", false);
+        return validSubject == null ? name : validSubject;
+    }
+
+    @Nullable
+    private static String calculateQueueGroup(@Nullable String queueGroup) {
+        return nullOrEmpty(queueGroup) ? null : validateSubjectTermStrict(queueGroup.trim(), "Endpoint Queue Group", true);
     }
 
     Endpoint(Builder b) {
@@ -138,6 +146,7 @@ public class Endpoint implements JsonSerializable {
     }
 
     @Override
+    @NonNull
     public String toString() {
         return JsonUtils.toKey(getClass()) + toJson();
     }
@@ -146,6 +155,7 @@ public class Endpoint implements JsonSerializable {
      * Get the name of the Endpoint
      * @return the name
      */
+    @NonNull
     public String getName() {
         return name;
     }
@@ -154,22 +164,25 @@ public class Endpoint implements JsonSerializable {
      * Get the subject of the Endpoint
      * @return the subject
      */
+    @NonNull
     public String getSubject() {
         return subject;
     }
 
     /**
      * Get the queueGroup for the Endpoint
-     * @return the queueGroup
+     * @return the queueGroup or null if the endpoint does not use a queue group
      */
+    @Nullable
     public String getQueueGroup() {
         return queueGroup;
     }
 
     /**
      * Get a copy of the metadata of the Endpoint
-     * @return the copy of metadata
+     * @return the copy of metadata or null if there is no metadata
      */
+    @Nullable
     public Map<String, String> getMetadata() {
         return metadata == null ? null : new HashMap<>(metadata);
     }
@@ -178,6 +191,7 @@ public class Endpoint implements JsonSerializable {
      * Get an instance of an Endpoint builder.
      * @return the instance
      */
+    @NonNull
     public static Builder builder() {
         return new Builder();
     }
@@ -201,7 +215,8 @@ public class Endpoint implements JsonSerializable {
          * @param endpoint the endpoint to copy
          * @return the Endpoint.Builder
          */
-        public Builder endpoint(Endpoint endpoint) {
+        @NonNull
+        public Builder endpoint(@NonNull Endpoint endpoint) {
             name(endpoint.getName())
                 .subject(endpoint.getSubject())
                 .metadata(endpoint.getMetadata());
@@ -218,7 +233,8 @@ public class Endpoint implements JsonSerializable {
          * @param name the endpoint name
          * @return the Endpoint.Builder
          */
-        public Builder name(String name) {
+        @NonNull
+        public Builder name(@NonNull String name) {
             this.name = name;
             return this;
         }
@@ -230,7 +246,8 @@ public class Endpoint implements JsonSerializable {
          * @param queueGroup the queueGroup
          * @return the Endpoint.Builder
          */
-        public Builder queueGroup(String queueGroup) {
+        @NonNull
+        public Builder queueGroup(@Nullable String queueGroup) {
             this.queueGroup = queueGroup == null ? DEFAULT_QGROUP : queueGroup;
             return this;
         }
@@ -239,6 +256,7 @@ public class Endpoint implements JsonSerializable {
          * Set to not use a queueGroup for this endpoint
          * @return the Endpoint.Builder
          */
+        @NonNull
         public Builder noQueueGroup() {
             this.queueGroup = null;
             return this;
@@ -249,7 +267,8 @@ public class Endpoint implements JsonSerializable {
          * @param subject the subject
          * @return the Endpoint.Builder
          */
-        public Builder subject(String subject) {
+        @NonNull
+        public Builder subject(@Nullable String subject) {
             this.subject = subject;
             return this;
         }
@@ -259,7 +278,8 @@ public class Endpoint implements JsonSerializable {
          * @param metadata the metadata
          * @return the Endpoint.Builder
          */
-        public Builder metadata(Map<String, String> metadata) {
+        @NonNull
+        public Builder metadata(@Nullable Map<String, String> metadata) {
             if (metadata == null || metadata.isEmpty()) {
                 this.metadata = null;
             }
@@ -273,6 +293,7 @@ public class Endpoint implements JsonSerializable {
          * Build the Endpoint instance.
          * @return the Endpoint instance
          */
+        @NonNull
         public Endpoint build() {
             return new Endpoint(this);
         }
