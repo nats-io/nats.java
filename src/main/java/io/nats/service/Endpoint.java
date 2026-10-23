@@ -28,7 +28,6 @@ import static io.nats.client.support.JsonUtils.endJson;
 import static io.nats.client.support.JsonValueUtils.readString;
 import static io.nats.client.support.JsonValueUtils.readStringStringMap;
 import static io.nats.client.support.Validator.nullOrEmpty;
-import static io.nats.client.support.Validator.required;
 import static io.nats.client.support.Validator.validateIsRestrictedTerm;
 import static io.nats.client.support.Validator.validateSubjectTermStrict;
 
@@ -114,7 +113,7 @@ public class Endpoint implements JsonSerializable {
     }
 
     Endpoint(JsonValue vEndpoint) {
-        name = required(readString(vEndpoint, NAME), "Endpoint Name");
+        name = validateIsRestrictedTerm(readString(vEndpoint, NAME), "Endpoint Name", true);
         subject = calculateSubject(this.name, readString(vEndpoint, SUBJECT));
         queueGroup = calculateQueueGroup(readString(vEndpoint, QUEUE_GROUP));
         metadata = readStringStringMap(vEndpoint, METADATA);

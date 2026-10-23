@@ -1134,6 +1134,7 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(NAME, new Endpoint(JsonParser.parseUnchecked("{\"name\":\"" + NAME + "\",\"subject\":\"\"}")).getSubject());
         assertThrows(IllegalArgumentException.class, () -> new Endpoint(JsonParser.parseUnchecked("{\"subject\":\"" + SUBJECT + "\"}")));
         assertThrows(IllegalArgumentException.class, () -> new Endpoint(JsonParser.parseUnchecked("{\"name\":\"\",\"subject\":\"" + SUBJECT + "\"}")));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(JsonParser.parseUnchecked("{\"name\":\"" + HAS_SPACE + "\",\"subject\":\"" + SUBJECT + "\"}")));
 
         // coverage
         e = new Endpoint(NAME, SUBJECT, metadata);
