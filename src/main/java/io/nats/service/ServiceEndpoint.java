@@ -16,6 +16,8 @@ package io.nats.service;
 import io.nats.client.Dispatcher;
 import io.nats.client.support.JsonValue;
 import io.nats.client.support.Validator;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Map;
 import java.util.function.Supplier;
@@ -73,8 +75,10 @@ public class ServiceEndpoint {
      * Get the subject of the ServiceEndpoint which takes into account the group path and the {@link Endpoint} subject
      * @return the endpoint subject
      */
+    @NonNull
     public String getSubject() {
-        return group == null ? endpoint.getSubject() : group.getSubject() + DOT + endpoint.getSubject();
+        String groupSubject = group == null ? null : group.getSubject();
+        return groupSubject == null ? endpoint.getSubject() : groupSubject + DOT + endpoint.getSubject();
     }
 
     /**
@@ -87,8 +91,9 @@ public class ServiceEndpoint {
 
     /**
      * Get the name of the {@link Group}
-     * @return the group name or null if there is no group
+     * @return the group name or null if there is no group or the group has no name
      */
+    @Nullable
     public String getGroupName() {
         return group == null ? null : group.getName();
     }
@@ -244,7 +249,8 @@ public class ServiceEndpoint {
         public ServiceEndpoint build() {
             Endpoint endpoint = endpointBuilder.build();
             Validator.required(handler, "Message Handler");
-            String subject = group == null ? endpoint.getSubject() : group.getSubject() + DOT + endpoint.getSubject();
+            String groupSubject = group == null ? null : group.getSubject();
+            String subject = groupSubject == null ? endpoint.getSubject() : groupSubject + DOT + endpoint.getSubject();
             if (subject.equals(RESERVED_SERVICE_PREFIX_TOKEN) || subject.startsWith(DEFAULT_SERVICE_PREFIX)) {
                 throw new IllegalArgumentException("Service Endpoint Subject cannot be under " + RESERVED_SERVICE_PREFIX_TOKEN + ", which is reserved for service discovery.");
             }

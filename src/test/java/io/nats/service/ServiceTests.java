@@ -19,6 +19,7 @@ import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.impl.MockNatsConnection;
 import io.nats.client.impl.NatsMessage;
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
@@ -1093,6 +1094,13 @@ public class ServiceTests extends JetStreamTestBase {
         assertNull(e.getMetadata());
         assertEquals("qg", e.getQueueGroup());
 
+        // an empty or blank queue group means no queue group, and the queue group is trimmed
+        assertNull(new Endpoint(NAME, SUBJECT, EMPTY, null).getQueueGroup());
+        assertNull(new Endpoint(NAME, SUBJECT, " ", null).getQueueGroup());
+        assertNull(Endpoint.builder().name(NAME).queueGroup(EMPTY).build().getQueueGroup());
+        assertEquals("qg", new Endpoint(NAME, SUBJECT, " qg ", null).getQueueGroup());
+        assertNull(new Endpoint(JsonParser.parseUnchecked("{\"name\":\"" + NAME + "\",\"queue_group\":\"\"}")).getQueueGroup());
+
         metadata.put("k", "v");
 
         e = new Endpoint(NAME, SUBJECT, metadata);
@@ -1115,6 +1123,17 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals("foo.>", e.getSubject());
         e = new Endpoint(NAME, "foo.*");
         assertEquals("foo.*", e.getSubject());
+
+        // an empty subject means the name is the subject
+        assertEpNameSubQ(new Endpoint(NAME, EMPTY), NAME);
+        assertEpNameSubQ(Endpoint.builder().name(NAME).subject(EMPTY).build(), NAME);
+
+        // from json, the name is required and a null or empty subject means the name is the subject
+        assertEquals(SUBJECT, new Endpoint(JsonParser.parseUnchecked("{\"name\":\"" + NAME + "\",\"subject\":\"" + SUBJECT + "\"}")).getSubject());
+        assertEquals(NAME, new Endpoint(JsonParser.parseUnchecked("{\"name\":\"" + NAME + "\"}")).getSubject());
+        assertEquals(NAME, new Endpoint(JsonParser.parseUnchecked("{\"name\":\"" + NAME + "\",\"subject\":\"\"}")).getSubject());
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(JsonParser.parseUnchecked("{\"subject\":\"" + SUBJECT + "\"}")));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(JsonParser.parseUnchecked("{\"name\":\"\",\"subject\":\"" + SUBJECT + "\"}")));
 
         // coverage
         e = new Endpoint(NAME, SUBJECT, metadata);
@@ -1240,8 +1259,18 @@ public class ServiceTests extends JetStreamTestBase {
         g1 = new Group("foo.*");
         assertEquals("foo.*", g1.getName());
 
-        assertThrows(IllegalArgumentException.class, () -> new Group(null));
-        assertThrows(IllegalArgumentException.class, () -> new Group(EMPTY));
+        // null, empty and blank names are allowed, stored as null and add nothing to the subject
+        assertNull(new Group(null).getName());
+        assertNull(new Group(EMPTY).getName());
+        assertNull(new Group(" ").getName());
+        assertNull(new Group(null).getSubject());
+        assertEquals("Group []", new Group(null).toString());
+        assertEquals("foo", new Group(" foo ").getName());
+        assertEquals(subject(1), new Group(null).appendGroup(new Group(subject(1))).getSubject());
+        assertEquals(subject(1), new Group(subject(1)).appendGroup(new Group(EMPTY)).getSubject());
+        assertEquals(subject(1) + DOT + subject(2), new Group(subject(1)).appendGroup(new Group(EMPTY)).appendGroup(new Group(subject(2))).getSubject());
+        assertNull(new Group(EMPTY).appendGroup(new Group(null)).getSubject());
+
         assertThrows(IllegalArgumentException.class, () -> new Group(HAS_SPACE));
         assertThrows(IllegalArgumentException.class, () -> new Group(STAR_NOT_SEGMENT)); // invalid in the middle
         assertThrows(IllegalArgumentException.class, () -> new Group("foo.>")); // GT invalid everywhere
@@ -1296,6 +1325,15 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(e1, se.getEndpoint());
         assertEquals(e1.getName(), se.getName());
         assertEquals(g2.getSubject() + DOT + e1.getSubject(), se.getSubject());
+
+        // a group with no name adds no prefix
+        se = ServiceEndpoint.builder()
+            .group(new Group(EMPTY))
+            .endpoint(e1)
+            .handler(smh)
+            .build();
+        assertNull(se.getGroupName());
+        assertEquals(e1.getSubject(), se.getSubject());
 
         se = ServiceEndpoint.builder()
             .endpoint(e1)
