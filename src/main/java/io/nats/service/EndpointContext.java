@@ -40,7 +40,7 @@ class EndpointContext {
     private final Dispatcher dispatcher;
 
     private ZonedDateTime started;
-    private String lastError;
+    private volatile String lastError;
     private final AtomicLong numRequests;
     private final AtomicLong numErrors;
     private final AtomicLong processingTime;
