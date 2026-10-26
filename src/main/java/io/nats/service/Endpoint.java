@@ -29,6 +29,7 @@ import static io.nats.client.support.JsonValueUtils.readString;
 import static io.nats.client.support.JsonValueUtils.readStringStringMap;
 import static io.nats.client.support.Validator.nullOrEmpty;
 import static io.nats.client.support.Validator.validateIsRestrictedTerm;
+import static io.nats.client.support.Validator.validateQueueName;
 import static io.nats.client.support.Validator.validateSubjectTermStrict;
 
 /**
@@ -127,7 +128,7 @@ public class Endpoint implements JsonSerializable {
 
     @Nullable
     private static String calculateQueueGroup(@Nullable String queueGroup) {
-        return nullOrEmpty(queueGroup) ? null : validateSubjectTermStrict(queueGroup.trim(), "Endpoint Queue Group", true);
+        return nullOrEmpty(queueGroup) ? null : validateQueueName(queueGroup.trim(), true);
     }
 
     Endpoint(Builder b) {
