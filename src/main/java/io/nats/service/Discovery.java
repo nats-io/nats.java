@@ -1,4 +1,4 @@
-// Copyright 2023 The NATS Authors
+// Copyright 2023-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -41,6 +41,7 @@ public class Discovery {
     private final Connection conn;
     private final long maxTimeNanos;
     private final int maxResults;
+    private final String prefix;
 
     private Supplier<String> inboxSupplier;
 
@@ -49,7 +50,16 @@ public class Discovery {
      * @param conn the NATS Connection
      */
     public Discovery(Connection conn) {
-        this(conn, 0, 0);
+        this(conn, 0, 0, null);
+    }
+
+    /**
+     * Construct a Discovery instance with a connection, a prefix and default maxTimeMillis / maxResults
+     * @param conn the NATS Connection
+     * @param prefix the prefix of the discovery subjects, see {@link #Discovery(Connection, long, int, String)}
+     */
+    public Discovery(Connection conn, String prefix) {
+        this(conn, 0, 0, prefix);
     }
 
     /**
@@ -59,9 +69,23 @@ public class Discovery {
      * @param maxResults the maximum number of results to wait for or any number less than 1 to use the default
      */
     public Discovery(Connection conn, long maxTimeMillis, int maxResults) {
+        this(conn, maxTimeMillis, maxResults, null);
+    }
+
+    /**
+     * Construct a Discovery instance
+     * @param conn the NATS Connection
+     * @param maxTimeMillis the maximum time to wait for discovery requests to complete or any number less than 1 to use the default
+     * @param maxResults the maximum number of results to wait for or any number less than 1 to use the default
+     * @param prefix the prefix of the discovery subjects, in place of {@code $SRV}. It is trimmed and a trailing dot is dropped;
+     *               null or empty means {@code $SRV}. It is not otherwise validated. It must match the prefix the services
+     *               were built with, otherwise the requests find no services.
+     */
+    public Discovery(Connection conn, long maxTimeMillis, int maxResults, String prefix) {
         this.conn = conn;
         this.maxTimeNanos = (maxTimeMillis < 1 ? DEFAULT_DISCOVERY_MAX_TIME_MILLIS : maxTimeMillis) * NANOS_PER_MILLI;
         this.maxResults = maxResults < 1 ? DEFAULT_DISCOVERY_MAX_RESULTS : maxResults;
+        this.prefix = normalizePrefix(prefix);
         setInboxSupplier(null);
     }
 
@@ -179,7 +203,7 @@ public class Discovery {
     // workers
     // ----------------------------------------------------------------------------------------------------
     private byte[] discoverOne(String action, String serviceName, String serviceId) {
-        String subject = Service.toDiscoverySubject(action, serviceName, serviceId);
+        String subject = toDiscoverySubject(prefix, action, serviceName, serviceId);
         try {
             Message m = conn.request(subject, null, Duration.ofNanos(maxTimeNanos));
             // with advancedRequestBehavior a no-response comes back as a RequestFailureMessage instead of null
@@ -201,7 +225,7 @@ public class Discovery {
             String replyTo = inboxSupplier.get();
             sub = conn.subscribe(replyTo);
 
-            String subject = toDiscoverySubject(action, serviceName, null);
+            String subject = toDiscoverySubject(prefix, action, serviceName, null);
             conn.publish(subject, replyTo, null);
 
             int resultsLeft = maxResults;

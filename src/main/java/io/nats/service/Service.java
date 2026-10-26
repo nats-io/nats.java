@@ -62,6 +62,7 @@ public class Service {
     public static final String DEFAULT_SERVICE_PREFIX = RESERVED_SERVICE_PREFIX_TOKEN + ".";
 
     private final Connection conn;
+    private final String prefix;
     private final Duration drainTimeout;
     private final ConcurrentHashMap<String, EndpointContext> serviceContexts;
     private final List<EndpointContext> discoveryContexts;
@@ -77,6 +78,7 @@ public class Service {
     Service(ServiceBuilder b) {
         String id = new io.nats.client.NUID().next();
         conn = b.conn;
+        prefix = b.prefix; // before adding endpoints, which are checked against it
         drainTimeout = b.drainTimeout;
         dInternals = new ArrayList<>();
         startStopLock = new ReentrantLock();
@@ -107,6 +109,8 @@ public class Service {
     /**
      * Adds one or more service endpoint to the list of service contexts and starts it if the service is running.
      * @param serviceEndpoints one or more service endpoints to be added
+     * @throws IllegalArgumentException if a service endpoint subject is the service prefix or under it,
+     * in which case none of the service endpoints are added
      */
     public void addServiceEndpoints(ServiceEndpoint... serviceEndpoints) {
         if (!nullOrEmpty(serviceEndpoints)) {
@@ -117,6 +121,8 @@ public class Service {
     /**
      * Adds all service endpoints to the list of service contexts and starts it if the service is running.
      * @param serviceEndpoints service endpoints to be added
+     * @throws IllegalArgumentException if a service endpoint subject is the service prefix or under it,
+     * in which case none of the service endpoints are added
      */
     public void addServiceEndpoints(Collection<ServiceEndpoint> serviceEndpoints) {
         if (!nullOrEmpty(serviceEndpoints)) {
@@ -125,6 +131,17 @@ public class Service {
     }
 
     private void _addServiceEndpoints(Collection<ServiceEndpoint> serviceEndpoints) {
+        // check all first so a refused endpoint means none are added
+        String prefixDot = prefix + ".";
+        for (ServiceEndpoint se : serviceEndpoints) {
+            if (se != null) {
+                String subject = se.getSubject();
+                if (subject.equals(prefix) || subject.startsWith(prefixDot)) {
+                    throw new IllegalArgumentException("Service Endpoint Subject cannot be under " + prefix + ", which is reserved for service discovery.");
+                }
+            }
+        }
+
         startStopLock.lock();
         try {
             for (ServiceEndpoint se : serviceEndpoints) {
@@ -189,18 +206,30 @@ public class Service {
     }
 
     private Endpoint internalEndpoint(String discoveryName, String optionalServiceNameSegment, String optionalServiceIdSegment) {
-        String subject = toDiscoverySubject(discoveryName, optionalServiceNameSegment, optionalServiceIdSegment);
+        String subject = toDiscoverySubject(prefix, discoveryName, optionalServiceNameSegment, optionalServiceIdSegment);
         return new Endpoint(subject, subject, null, null, false);
     }
 
-    static String toDiscoverySubject(String discoveryName, String optionalServiceNameSegment, String optionalServiceIdSegment) {
+    static String toDiscoverySubject(String prefix, String discoveryName, String optionalServiceNameSegment, String optionalServiceIdSegment) {
         if (nullOrEmpty(optionalServiceIdSegment)) {
             if (nullOrEmpty(optionalServiceNameSegment)) {
-                return DEFAULT_SERVICE_PREFIX + discoveryName;
+                return prefix + "." + discoveryName;
             }
-            return DEFAULT_SERVICE_PREFIX + discoveryName + "." + optionalServiceNameSegment;
+            return prefix + "." + discoveryName + "." + optionalServiceNameSegment;
         }
-        return DEFAULT_SERVICE_PREFIX + discoveryName + "." + optionalServiceNameSegment + "." + optionalServiceIdSegment;
+        return prefix + "." + discoveryName + "." + optionalServiceNameSegment + "." + optionalServiceIdSegment;
+    }
+
+    // trimmed, one trailing dot dropped, null or empty is the default
+    static String normalizePrefix(String prefix) {
+        if (prefix == null) {
+            return RESERVED_SERVICE_PREFIX_TOKEN;
+        }
+        String p = prefix.trim();
+        if (p.endsWith(".")) {
+            p = p.substring(0, p.length() - 1);
+        }
+        return p.isEmpty() ? RESERVED_SERVICE_PREFIX_TOKEN : p;
     }
 
     /**
@@ -355,6 +384,14 @@ public class Service {
      */
     public String getName() {
         return infoResponse.getName();
+    }
+
+    /**
+     * Get the discovery prefix of the service, without a trailing dot, for instance {@code $SRV}
+     * @return the prefix
+     */
+    public String getPrefix() {
+        return prefix;
     }
 
     /**
