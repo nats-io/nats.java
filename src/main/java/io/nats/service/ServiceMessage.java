@@ -38,6 +38,7 @@ public class ServiceMessage {
 
     private final Message message;
     private String standardError;
+    private int standardErrorCode;
 
     ServiceMessage(Message message) {
         this.message = message;
@@ -116,6 +117,65 @@ public class ServiceMessage {
                 .put(NATS_SERVICE_ERROR_CODE, "" + errorCode))
             .build());
         standardError = errorText;
+        standardErrorCode = errorCode;
+    }
+
+    /**
+     * Respond to a service request message with an error that has a code and no description.
+     * Only the {@value #NATS_SERVICE_ERROR_CODE} header is sent.
+     * If this is sent before the handler returns, it is counted in the endpoint's
+     * num_errors and the code becomes the endpoint's last_error.
+     * @param conn the NATS connection
+     * @param code the error code
+     */
+    public void respondError(Connection conn, int code) {
+        _respondError(conn, code, null);
+    }
+
+    /**
+     * Respond to a service request message with an error that has a code and a description.
+     * If this is sent before the handler returns, it is counted in the endpoint's
+     * num_errors and the description becomes the endpoint's last_error.
+     * @param conn the NATS connection
+     * @param code the error code
+     * @param description the error description
+     */
+    public void respondError(Connection conn, int code, String description) {
+        _respondError(conn, code, description);
+    }
+
+    /**
+     * Respond to a service request message with an error that has a description and no code.
+     * Only the {@value #NATS_SERVICE_ERROR} header is sent.
+     * If this is sent before the handler returns, it is counted in the endpoint's
+     * num_errors and the description becomes the endpoint's last_error.
+     * @param conn the NATS connection
+     * @param description the error description
+     */
+    public void respondError(Connection conn, String description) {
+        _respondError(conn, null, description);
+    }
+
+    // a header is sent only for a value the user gave
+    private void _respondError(Connection conn, Integer code, String description) {
+        Headers headers = new Headers();
+        if (description != null) {
+            headers.put(NATS_SERVICE_ERROR, description);
+        }
+        if (code != null) {
+            headers.put(NATS_SERVICE_ERROR_CODE, code.toString());
+        }
+        conn.publish(NatsMessage.builder()
+            .subject(message.getReplyTo())
+            .headers(headers)
+            .build());
+        if (description != null) {
+            standardError = description;
+        }
+        else if (code != null) {
+            standardError = code.toString();
+        }
+        standardErrorCode = code == null ? 0 : code;
     }
 
     /**
@@ -124,6 +184,14 @@ public class ServiceMessage {
      */
     String getStandardError() {
         return standardError;
+    }
+
+    /**
+     * The code of the last standard error sent in response to this message
+     * @return the error code or 0 if no standard error was sent or it had no code
+     */
+    int getStandardErrorCode() {
+        return standardErrorCode;
     }
 
     /**

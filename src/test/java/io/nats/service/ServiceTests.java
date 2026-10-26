@@ -1069,6 +1069,142 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testHandlerRespondError() throws Exception {
+        runInServer(nc -> {
+            AtomicInteger lastCode = new AtomicInteger(-1);
+            ServiceEndpoint seEndpoint = ServiceEndpoint.builder()
+                .endpointName("reEndpoint")
+                .endpointSubject("reSubject")
+                .handler(m -> {
+                    switch (new String(m.getData())) {
+                        case "code": m.respondError(nc, 503); break;
+                        case "both": m.respondError(nc, 400, "bad order"); break;
+                        case "desc": m.respondError(nc, "no code"); break;
+                        case "empty": m.respondError(nc, 500, EMPTY); break;
+                        case "standard": m.respondStandardError(nc, "standard", 404); break;
+                        default: m.respond(nc, "ok");
+                    }
+                    lastCode.set(m.getStandardErrorCode());
+                })
+                .build();
+
+            Service reService = new ServiceBuilder()
+                .connection(nc)
+                .name("RespondErrorService")
+                .version("0.0.1")
+                .addServiceEndpoint(seEndpoint)
+                .build();
+            reService.startService();
+
+            // a header is sent only for a value given, and there is no body
+            Message m = nc.request("reSubject", "code".getBytes()).get();
+            assertNull(m.getHeaders().getFirst(NATS_SERVICE_ERROR));
+            assertEquals("503", m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
+            assertEquals(0, m.getData().length);
+            assertLastError(reService, 1, "503");
+            assertEquals(503, lastCode.get());
+
+            m = nc.request("reSubject", "both".getBytes()).get();
+            assertEquals("bad order", m.getHeaders().getFirst(NATS_SERVICE_ERROR));
+            assertEquals("400", m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
+            assertEquals(0, m.getData().length);
+            assertLastError(reService, 2, "bad order");
+            assertEquals(400, lastCode.get());
+
+            m = nc.request("reSubject", "desc".getBytes()).get();
+            assertEquals("no code", m.getHeaders().getFirst(NATS_SERVICE_ERROR));
+            assertNull(m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
+            assertEquals(0, m.getData().length);
+            assertLastError(reService, 3, "no code");
+            assertEquals(0, lastCode.get()); // no code was given
+
+            // an empty description is sent as given
+            m = nc.request("reSubject", "empty".getBytes()).get();
+            assertEquals(EMPTY, m.getHeaders().getFirst(NATS_SERVICE_ERROR));
+            assertEquals("500", m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
+            assertLastError(reService, 4, EMPTY);
+            assertEquals(500, lastCode.get());
+
+            m = nc.request("reSubject", "standard".getBytes()).get();
+            assertEquals("standard", m.getHeaders().getFirst(NATS_SERVICE_ERROR));
+            assertEquals("404", m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
+            assertLastError(reService, 5, "standard");
+            assertEquals(404, lastCode.get());
+
+            assertEquals("ok", new String(nc.request("reSubject", "pass".getBytes()).get().getData()));
+            // the handler sets lastCode before it returns, which can be just after the reply arrives
+            for (int i = 0; i < 100 && reService.getEndpointStats("reEndpoint").getNumRequests() < 6; i++) {
+                Thread.sleep(10);
+            }
+            assertEquals(6, reService.getEndpointStats("reEndpoint").getNumRequests());
+            assertEquals(5, reService.getEndpointStats("reEndpoint").getNumErrors());
+            assertEquals(0, lastCode.get()); // no error was sent for this message
+        });
+    }
+
+    @Test
+    public void testServiceReplyMessage() {
+        // no headers, no data
+        ServiceReplyMessage t = new ServiceReplyMessage(NatsMessage.builder().subject("sub").build());
+        assertEquals("sub", t.getSubject());
+        assertNull(t.getHeaders());
+        assertNotNull(t.getData());
+        assertEquals(0, t.getData().length);
+        assertFalse(t.isError());
+        assertNull(t.getErrorDescription());
+        assertNull(t.getErrorCode());
+
+        // data, headers that are not error headers
+        t = new ServiceReplyMessage(NatsMessage.builder().subject("sub").data("payload")
+            .headers(new Headers().put("X-Order", "7")).build());
+        assertEquals("payload", new String(t.getData(), StandardCharsets.UTF_8));
+        assertNotNull(t.getHeaders());
+        assertEquals("7", t.getHeaders().getFirst("X-Order"));
+        assertFalse(t.isError());
+        assertNull(t.getErrorDescription());
+        assertNull(t.getErrorCode());
+
+        // both error headers
+        t = new ServiceReplyMessage(NatsMessage.builder().subject("sub")
+            .headers(new Headers().put(NATS_SERVICE_ERROR, "bad order").put(NATS_SERVICE_ERROR_CODE, "400")).build());
+        assertTrue(t.isError());
+        assertEquals("bad order", t.getErrorDescription());
+        assertEquals(400, t.getErrorCode());
+
+        // code only
+        t = new ServiceReplyMessage(NatsMessage.builder().subject("sub")
+            .headers(new Headers().put(NATS_SERVICE_ERROR_CODE, "503")).build());
+        assertTrue(t.isError());
+        assertNull(t.getErrorDescription());
+        assertEquals(503, t.getErrorCode());
+
+        // description only
+        t = new ServiceReplyMessage(NatsMessage.builder().subject("sub")
+            .headers(new Headers().put(NATS_SERVICE_ERROR, "no code")).build());
+        assertTrue(t.isError());
+        assertEquals("no code", t.getErrorDescription());
+        assertNull(t.getErrorCode());
+
+        // an empty description only is not an error
+        t = new ServiceReplyMessage(NatsMessage.builder().subject("sub")
+            .headers(new Headers().put(NATS_SERVICE_ERROR, EMPTY)).build());
+        assertFalse(t.isError());
+        assertNull(t.getErrorDescription());
+        assertNull(t.getErrorCode());
+    }
+
+    // the error is counted when the handler returns, which can be just after the reply arrives
+    private static void assertLastError(Service service, long numErrors, String lastError) throws InterruptedException {
+        EndpointStats es = service.getEndpointStats("reEndpoint");
+        for (int i = 0; i < 100 && es.getNumErrors() < numErrors; i++) {
+            Thread.sleep(10);
+            es = service.getEndpointStats("reEndpoint");
+        }
+        assertEquals(numErrors, es.getNumErrors());
+        assertEquals(lastError, es.getLastError());
+    }
+
+    @Test
     public void testServiceMessage() throws Exception {
         runInServer(nc -> {
             AtomicInteger which = new AtomicInteger();
