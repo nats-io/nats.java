@@ -1,3 +1,16 @@
+// Copyright 2022-2026 The NATS Authors
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at:
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package io.nats.service;
 
 import io.nats.client.Connection;
@@ -8,6 +21,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static io.nats.client.support.Validator.*;
+import static io.nats.service.Service.RESERVED_SERVICE_PREFIX_TOKEN;
+import static io.nats.service.Service.normalizePrefix;
 
 /**
  * Build a Service using a fluent builder.
@@ -25,6 +40,7 @@ public class ServiceBuilder {
     public static final Duration DEFAULT_DRAIN_TIMEOUT = Duration.ofMillis(DEFAULT_DRAIN_TIMEOUT_MILLIS);
 
     Connection conn;
+    String prefix = RESERVED_SERVICE_PREFIX_TOKEN;
     String name;
     String description;
     String version;
@@ -47,6 +63,33 @@ public class ServiceBuilder {
      */
     public ServiceBuilder connection(Connection conn) {
         this.conn = conn;
+        return this;
+    }
+
+    /**
+     * The prefix of the discovery subjects, in place of {@code $SRV}, for instance {@code ACME}
+     * gives {@code ACME.PING}, {@code ACME.INFO} and {@code ACME.STATS}.
+     * The prefix is trimmed and a trailing dot is dropped; null or empty means {@code $SRV}.
+     * It can have more than one token, its case is kept, and it cannot contain whitespace,
+     * wildcards, empty tokens or a token that is {@code $SRV} (case-sensitive).
+     * A service endpoint subject cannot be the prefix or under it.
+     * @param prefix the prefix
+     * @return the ServiceBuilder
+     */
+    public ServiceBuilder prefix(String prefix) {
+        String p = normalizePrefix(prefix);
+        if (!p.equals(RESERVED_SERVICE_PREFIX_TOKEN)) {
+            validateSubjectTermStrict(p, "Service Prefix", true);
+            if (notPrintableOrHasWildGt(p)) {
+                throw new IllegalArgumentException("Service Prefix must be in the printable ASCII range and cannot include '*', '>' [" + p + "]");
+            }
+            for (String token : p.split("\\.")) {
+                if (token.equals(RESERVED_SERVICE_PREFIX_TOKEN)) {
+                    throw new IllegalArgumentException("Service Prefix cannot contain the token " + RESERVED_SERVICE_PREFIX_TOKEN + " [" + p + "]");
+                }
+            }
+        }
+        this.prefix = p;
         return this;
     }
 

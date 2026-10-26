@@ -879,6 +879,119 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testServiceBuilderPrefix() {
+        Options options = new Options.Builder().build();
+        Connection conn = new MockNatsConnection(options);
+        Supplier<ServiceBuilder> sb = () -> Service.builder().connection(conn).name(NAME).version("1.0.0");
+
+        // default and normalized
+        assertEquals("$SRV", sb.get().build().getPrefix());
+        assertEquals("$SRV", sb.get().prefix(null).build().getPrefix());
+        assertEquals("$SRV", sb.get().prefix(EMPTY).build().getPrefix());
+        assertEquals("$SRV", sb.get().prefix(" ").build().getPrefix());
+        assertEquals("$SRV", sb.get().prefix(".").build().getPrefix());
+        assertEquals("$SRV", sb.get().prefix("$SRV").build().getPrefix());
+        assertEquals("$SRV", sb.get().prefix("$SRV.").build().getPrefix());
+        assertEquals("ACME", sb.get().prefix("ACME").build().getPrefix());
+        assertEquals("ACME", sb.get().prefix(" ACME. ").build().getPrefix());
+        assertEquals("ACME.SRV", sb.get().prefix("ACME.SRV").build().getPrefix());
+        assertEquals("AcMe", sb.get().prefix("AcMe").build().getPrefix());
+        assertEquals("acme", sb.get().prefix("acme").build().getPrefix());
+        assertEquals("$srv", sb.get().prefix("$srv").build().getPrefix()); // $SRV is case-sensitive
+        assertEquals("ACME.$srv", sb.get().prefix("ACME.$srv").build().getPrefix());
+
+        // refused
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("A..B"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("ACME.."));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix(".ACME"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("A B"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("A\tB"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("A\u0007B"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("*"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix(">"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("A.*"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("A.>"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("A*"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("$SRV.ACME"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("ACME.$SRV"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("A.$SRV.B"));
+
+        // an endpoint cannot be the prefix or under it, nor under $SRV
+        Function<String, ServiceEndpoint> se = subject -> ServiceEndpoint.builder()
+            .endpoint(Endpoint.builder().name(name(0)).subject(subject).build())
+            .handler(m -> {})
+            .build();
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("ACME").addServiceEndpoint(se.apply("ACME")).build());
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("ACME").addServiceEndpoint(se.apply("ACME.PING")).build());
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("ACME.SRV").addServiceEndpoint(se.apply("ACME.SRV.foo")).build());
+        assertThrows(IllegalArgumentException.class, () -> sb.get().addServiceEndpoint(se.apply("$SRV.foo")).build());
+        assertThrows(IllegalArgumentException.class, () -> se.apply("$SRV.foo")); // $SRV is refused by the endpoint builder for any prefix
+        assertDoesNotThrow(() -> sb.get().prefix("ACME").addServiceEndpoint(se.apply("ACMEX.foo")).build());
+        assertDoesNotThrow(() -> sb.get().prefix("ACME").addServiceEndpoint(se.apply("acme.foo")).build());
+        assertDoesNotThrow(() -> sb.get().prefix("ACME.SRV").addServiceEndpoint(se.apply("ACME.foo")).build());
+
+        // the same check when adding after build, and a refused endpoint means none are added
+        Service service = sb.get().prefix("ACME").build();
+        assertThrows(IllegalArgumentException.class, () -> service.addServiceEndpoints(se.apply("ACME.PING")));
+        ServiceEndpoint ok = ServiceEndpoint.builder()
+            .endpoint(Endpoint.builder().name("ok").subject("ok").build())
+            .handler(m -> {})
+            .build();
+        assertThrows(IllegalArgumentException.class, () -> service.addServiceEndpoints(ok, se.apply("ACME.INFO")));
+        assertNull(service.getEndpointStats("ok"));
+        assertThrows(IllegalArgumentException.class, () -> service.addServiceEndpoints(Collections.singletonList(se.apply("ACME"))));
+        service.addServiceEndpoints(ok);
+        assertNotNull(service.getEndpointStats("ok"));
+    }
+
+    @Test
+    public void testServicePrefix() throws Exception {
+        runInServer(nc -> {
+            for (String prefix : new String[]{"ACME", "ACME.SRV", "AcMe", "acme"}) {
+                ServiceEndpoint se = ServiceEndpoint.builder()
+                    .endpointName("add")
+                    .handler(m -> m.respond(nc, "added"))
+                    .build();
+
+                Service service = new ServiceBuilder()
+                    .connection(nc)
+                    .name("orders")
+                    .version("1.0.0")
+                    .prefix(prefix)
+                    .addServiceEndpoint(se)
+                    .build();
+                service.startService();
+                assertTrue(service.isStarted(1, TimeUnit.SECONDS));
+                String id = service.getId();
+
+                // all nine discovery subjects are under the prefix, exactly as cased
+                for (String verb : new String[]{"PING", "INFO", "STATS"}) {
+                    for (String subject : new String[]{prefix + DOT + verb, prefix + DOT + verb + ".orders", prefix + DOT + verb + ".orders." + id}) {
+                        Message m = nc.request(subject, null, Duration.ofSeconds(2));
+                        assertNotNull(m, subject);
+                        assertFalse(m.isStatusMessage(), subject);
+                        assertTrue(new String(m.getData(), StandardCharsets.UTF_8).contains(id), subject);
+                    }
+                }
+
+                // discovery with the prefix finds the service, the default does not
+                Discovery discovery = new Discovery(nc, prefix);
+                assertEquals(1, discovery.ping().size());
+                assertEquals(1, discovery.info("orders").size());
+                assertEquals(1, discovery.stats("orders").size());
+                assertNotNull(discovery.ping("orders", id));
+                assertNotNull(new Discovery(nc, 500, 5, " " + prefix + ". ").ping("orders", id));
+
+                Discovery defaultDiscovery = new Discovery(nc, 500, 5);
+                assertEquals(0, defaultDiscovery.ping().size());
+                assertNull(defaultDiscovery.ping("orders", id));
+
+                service.stop();
+            }
+        });
+    }
+
+    @Test
     public void testHandlerException() throws Exception {
         runInServer(nc -> {
             ServiceEndpoint exServiceEndpoint = ServiceEndpoint.builder()
@@ -1443,9 +1556,10 @@ public class ServiceTests extends JetStreamTestBase {
 
     @Test
     public void testUtilToDiscoverySubject() {
-        assertEquals("$SRV.PING", Service.toDiscoverySubject(SRV_PING, null, null));
-        assertEquals("$SRV.PING.myservice", Service.toDiscoverySubject(SRV_PING, "myservice", null));
-        assertEquals("$SRV.PING.myservice.123", Service.toDiscoverySubject(SRV_PING, "myservice", "123"));
+        assertEquals("$SRV.PING", Service.toDiscoverySubject("$SRV", SRV_PING, null, null));
+        assertEquals("$SRV.PING.myservice", Service.toDiscoverySubject("$SRV", SRV_PING, "myservice", null));
+        assertEquals("$SRV.PING.myservice.123", Service.toDiscoverySubject("$SRV", SRV_PING, "myservice", "123"));
+        assertEquals("ACME.SRV.PING.myservice.123", Service.toDiscoverySubject("ACME.SRV", SRV_PING, "myservice", "123"));
     }
 
     static class TestServiceResponses extends ServiceResponse {
