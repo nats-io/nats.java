@@ -28,6 +28,10 @@ jobs:
         - Exception handling patterns (checked vs unchecked, proper resource cleanup with try-with-resources)
         - JetStream API correctness (subscription semantics, ack/nak behavior, consumer configuration)
         - API compatibility with existing public interfaces
+
+        Review by reading the code only. Do not try to build, compile, or run tests
+        (no ./gradlew or other build commands): the CI workflows do that, and it is not
+        part of this review. Do not comment on whether the code was compiled or tested.
     secrets:
       claude_oauth_token: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
       gh_app_private_key: ${{ secrets.CLAUDE_GH_APP_PRIVATE_KEY }}
