@@ -58,8 +58,9 @@ public class ServiceErrorMessageExample {
                 Message reply = nc.request("divide", request.getBytes(StandardCharsets.UTF_8)).get(1, TimeUnit.SECONDS);
                 ServiceReplyMessage srm = new ServiceReplyMessage(reply);
                 if (srm.isError()) {
-                    System.out.printf("Request: %-9s isError: %-5s Code: %-4s Description: %s%n",
-                        request, srm.isError(), srm.getErrorCode(), srm.getErrorDescription());
+                    System.out.printf("Request: %-9s isError: %-5s Code: %-4s Description: %-44s Data: %s%n",
+                        request, srm.isError(), srm.getErrorCode(), srm.getErrorDescription(),
+                        new String(srm.getData(), StandardCharsets.UTF_8));
                 }
                 else {
                     System.out.printf("Request: %-9s isError: %-5s Result: %s%n",
@@ -85,8 +86,12 @@ public class ServiceErrorMessageExample {
         String request = new String(smsg.getData(), StandardCharsets.UTF_8);
         String[] parts = request.split("/");
         if (parts.length != 2) {
-            // a code and a description
-            smsg.respondError(nc, 400, "Request must be in the form dividend/divisor");
+            // a code and a description, with the request as the data
+            smsg.getResponseBuilder(nc)
+                .errorCode(1001)
+                .errorDescription("Request must be in the form dividend/divisor")
+                .data(request)
+                .respond();
             return;
         }
 
@@ -95,8 +100,12 @@ public class ServiceErrorMessageExample {
             dividend = Long.parseLong(parts[0]);
         }
         catch (NumberFormatException e) {
-            // a description only, no code header is sent
-            smsg.respondError(nc, "Dividend is not a number");
+            // a code and a description, with the request as the data
+            smsg.getResponseBuilder(nc)
+                .errorCode(1002)
+                .errorDescription("Dividend is not a number")
+                .data(request)
+                .respond();
             return;
         }
 
@@ -105,13 +114,22 @@ public class ServiceErrorMessageExample {
             divisor = Long.parseLong(parts[1]);
         }
         catch (NumberFormatException e) {
-            // a code only, no description header is sent
-            smsg.respondError(nc, 422);
+            // a code and a description, with the request as the data
+            smsg.getResponseBuilder(nc)
+                .errorCode(1003)
+                .errorDescription("Divisor is not a number")
+                .data(request)
+                .respond();
             return;
         }
 
         if (divisor == 0) {
-            smsg.respondError(nc, 400, "Cannot divide by zero");
+            // a code and a description, with the request as the data
+            smsg.getResponseBuilder(nc)
+                .errorCode(1004)
+                .errorDescription("Cannot divide by zero")
+                .data(request)
+                .respond();
             return;
         }
 

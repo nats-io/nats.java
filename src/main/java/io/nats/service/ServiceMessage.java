@@ -18,6 +18,8 @@ import io.nats.client.Message;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.NatsMessage;
 import io.nats.client.support.JsonSerializable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.nio.charset.StandardCharsets;
 
@@ -37,20 +39,22 @@ public class ServiceMessage {
     public static final String NATS_SERVICE_ERROR_CODE = "Nats-Service-Error-Code";
 
     private final Message message;
-    private String standardError;
-    private int standardErrorCode;
+    private byte[] responseData;
+    private Headers responseHeaders;
+    private String responseErrorDescription;
+    private Integer responseErrorCode;
 
-    ServiceMessage(Message message) {
+    ServiceMessage(@NonNull Message message) {
         this.message = message;
     }
 
     /**
      * Respond to a service request message.
      * @param conn the NATS connection
-     * @param response the response payload in the form of a byte array 
+     * @param response the response payload in the form of a byte array
      */
-    public void respond(Connection conn, byte[] response) {
-        conn.publish(message.getReplyTo(), response);
+    public void respond(@NonNull Connection conn, byte @Nullable [] response) {
+        getResponseBuilder(conn).data(response).respond();
     }
 
     /**
@@ -58,8 +62,8 @@ public class ServiceMessage {
      * @param conn the NATS connection
      * @param response the response payload in the form of a string
      */
-    public void respond(Connection conn, String response) {
-        conn.publish(message.getReplyTo(), response.getBytes(StandardCharsets.UTF_8));
+    public void respond(@NonNull Connection conn, @Nullable String response) {
+        getResponseBuilder(conn).data(response).respond();
     }
 
     /**
@@ -67,38 +71,38 @@ public class ServiceMessage {
      * @param conn the NATS connection
      * @param response the response payload in the form of a {@link JsonSerializable} object
      */
-    public void respond(Connection conn, JsonSerializable response) {
-        conn.publish(message.getReplyTo(), response.serialize());
+    public void respond(@NonNull Connection conn, @Nullable JsonSerializable response) {
+        getResponseBuilder(conn).data(response).respond();
     }
 
     /**
      * Respond to a service request message with a response and custom headers.
      * @param conn the NATS connection
      * @param response the response payload in the form of a byte array
-     * @param headers the custom headers                 
+     * @param headers the custom headers
      */
-    public void respond(Connection conn, byte[] response, Headers headers) {
-        conn.publish(NatsMessage.builder().subject(message.getReplyTo()).data(response).headers(headers).build());
+    public void respond(@NonNull Connection conn, byte @Nullable [] response, @Nullable Headers headers) {
+        getResponseBuilder(conn).data(response).headers(headers).respond();
     }
 
     /**
      * Respond to a service request message with a response and custom headers.
      * @param conn the NATS connection
      * @param response the response payload in the form of a string
-     * @param headers the custom headers                 
+     * @param headers the custom headers
      */
-    public void respond(Connection conn, String response, Headers headers) {
-        conn.publish(NatsMessage.builder().subject(message.getReplyTo()).data(response).headers(headers).build());
+    public void respond(@NonNull Connection conn, @Nullable String response, @Nullable Headers headers) {
+        getResponseBuilder(conn).data(response).headers(headers).respond();
     }
 
     /**
      * Respond to a service request message.
      * @param conn the NATS connection
      * @param response the response payload in the form of a {@link JsonSerializable} object
-     * @param headers the custom headers                 
+     * @param headers the custom headers
      */
-    public void respond(Connection conn, JsonSerializable response, Headers headers) {
-        conn.publish(NatsMessage.builder().subject(message.getReplyTo()).data(response.serialize()).headers(headers).build());
+    public void respond(@NonNull Connection conn, @Nullable JsonSerializable response, @Nullable Headers headers) {
+        getResponseBuilder(conn).data(response).headers(headers).respond();
     }
 
     /**
@@ -109,95 +113,182 @@ public class ServiceMessage {
      * @param errorText the error message text
      * @param errorCode the error message code
      */
-    public void respondStandardError(Connection conn, String errorText, int errorCode) {
-        conn.publish(NatsMessage.builder()
-            .subject(message.getReplyTo())
-            .headers(new Headers()
-                .put(NATS_SERVICE_ERROR, errorText)
-                .put(NATS_SERVICE_ERROR_CODE, "" + errorCode))
-            .build());
-        standardError = errorText;
-        standardErrorCode = errorCode;
+    public void respondStandardError(@NonNull Connection conn, @Nullable String errorText, int errorCode) {
+        getResponseBuilder(conn).errorDescription(errorText).errorCode(errorCode).respond();
     }
 
     /**
-     * Respond to a service request message with an error that has a code and no description.
-     * Only the {@value #NATS_SERVICE_ERROR_CODE} header is sent.
-     * If this is sent before the handler returns, it is counted in the endpoint's
-     * num_errors and the code becomes the endpoint's last_error.
+     * Get a builder for a response to this service request message,
+     * which can have data, custom headers, an error description and an error code.
      * @param conn the NATS connection
-     * @param code the error code
+     * @return the response builder
      */
-    public void respondError(Connection conn, int code) {
-        _respondError(conn, code, null);
+    @NonNull
+    public ResponseBuilder getResponseBuilder(@NonNull Connection conn) {
+        return new ResponseBuilder(conn);
     }
 
     /**
-     * Respond to a service request message with an error that has a code and a description.
-     * If this is sent before the handler returns, it is counted in the endpoint's
-     * num_errors and the description becomes the endpoint's last_error.
-     * @param conn the NATS connection
-     * @param code the error code
-     * @param description the error description
+     * Builds and sends a response to the service request message.
+     * An error header is sent only for an error description or error code that was given.
+     * A response with either is an error: if it is sent before the handler returns, it is counted
+     * in the endpoint's num_errors and the description, or the code when there is no description,
+     * becomes the endpoint's last_error.
      */
-    public void respondError(Connection conn, int code, String description) {
-        _respondError(conn, code, description);
-    }
+    public class ResponseBuilder {
+        private final Connection conn;
+        private byte[] data;
+        private Headers headers;
+        private String errorDescription;
+        private Integer errorCode;
 
-    /**
-     * Respond to a service request message with an error that has a description and no code.
-     * Only the {@value #NATS_SERVICE_ERROR} header is sent.
-     * If this is sent before the handler returns, it is counted in the endpoint's
-     * num_errors and the description becomes the endpoint's last_error.
-     * @param conn the NATS connection
-     * @param description the error description
-     */
-    public void respondError(Connection conn, String description) {
-        _respondError(conn, null, description);
-    }
+        private ResponseBuilder(@NonNull Connection conn) {
+            this.conn = conn;
+        }
 
-    // a header is sent only for a value the user gave
-    private void _respondError(Connection conn, Integer code, String description) {
-        Headers headers = new Headers();
-        if (description != null) {
-            headers.put(NATS_SERVICE_ERROR, description);
+        /**
+         * Set the response payload
+         * @param data the payload in the form of a byte array
+         * @return the builder
+         */
+        @NonNull
+        public ResponseBuilder data(byte @Nullable [] data) {
+            this.data = data;
+            return this;
         }
-        if (code != null) {
-            headers.put(NATS_SERVICE_ERROR_CODE, code.toString());
+
+        /**
+         * Set the response payload
+         * @param data the payload in the form of a string
+         * @return the builder
+         */
+        @NonNull
+        public ResponseBuilder data(@Nullable String data) {
+            this.data = data == null ? null : data.getBytes(StandardCharsets.UTF_8);
+            return this;
         }
-        conn.publish(NatsMessage.builder()
-            .subject(message.getReplyTo())
-            .headers(headers)
-            .build());
-        if (description != null) {
-            standardError = description;
+
+        /**
+         * Set the response payload
+         * @param data the payload in the form of a {@link JsonSerializable} object
+         * @return the builder
+         */
+        @NonNull
+        public ResponseBuilder data(@Nullable JsonSerializable data) {
+            this.data = data == null ? null : data.serialize();
+            return this;
         }
-        else if (code != null) {
-            standardError = code.toString();
+
+        /**
+         * Set the custom headers. They are copied when the error headers are added to them.
+         * @param headers the custom headers
+         * @return the builder
+         */
+        @NonNull
+        public ResponseBuilder headers(@Nullable Headers headers) {
+            this.headers = headers;
+            return this;
         }
-        standardErrorCode = code == null ? 0 : code;
+
+        /**
+         * Set the error description, sent as the {@value #NATS_SERVICE_ERROR} header
+         * @param errorDescription the error description
+         * @return the builder
+         */
+        @NonNull
+        public ResponseBuilder errorDescription(@Nullable String errorDescription) {
+            this.errorDescription = errorDescription;
+            return this;
+        }
+
+        /**
+         * Set the error code, sent as the {@value #NATS_SERVICE_ERROR_CODE} header
+         * @param errorCode the error code
+         * @return the builder
+         */
+        @NonNull
+        public ResponseBuilder errorCode(int errorCode) {
+            this.errorCode = errorCode;
+            return this;
+        }
+
+        /**
+         * Send the response
+         */
+        public void respond() {
+            boolean error = errorDescription != null || errorCode != null;
+            Headers h = headers;
+            if (error) {
+                h = new Headers(headers);
+                if (errorDescription != null) {
+                    h.put(NATS_SERVICE_ERROR, errorDescription);
+                }
+                if (errorCode != null) {
+                    h.put(NATS_SERVICE_ERROR_CODE, errorCode.toString());
+                }
+            }
+            conn.publish(NatsMessage.builder().subject(message.getReplyTo()).data(data).headers(h).build());
+            responseData = data;
+            responseHeaders = h;
+            responseErrorDescription = errorDescription;
+            responseErrorCode = errorCode;
+        }
     }
 
     /**
      * The text of the last standard error sent in response to this message
      * @return the error text or null if no standard error was sent
+     * @deprecated use {@link #getResponseErrorDescription()} and {@link #getResponseErrorCode()}
      */
+    @Deprecated
+    @Nullable
     String getStandardError() {
-        return standardError;
+        if (responseErrorDescription != null) {
+            return responseErrorDescription;
+        }
+        return responseErrorCode == null ? null : responseErrorCode.toString();
     }
 
     /**
-     * The code of the last standard error sent in response to this message
-     * @return the error code or 0 if no standard error was sent or it had no code
+     * The data of the last response sent to this message
+     * @return the data or null if no response was sent or it had no data
      */
-    int getStandardErrorCode() {
-        return standardErrorCode;
+    byte @Nullable [] getResponseData() {
+        return responseData;
+    }
+
+    /**
+     * The headers of the last response sent to this message, including any error headers
+     * @return the headers or null if no response was sent or it had no headers
+     */
+    @Nullable
+    Headers getResponseHeaders() {
+        return responseHeaders;
+    }
+
+    /**
+     * The error description of the last response sent to this message
+     * @return the error description or null if no response was sent or it had no error description
+     */
+    @Nullable
+    String getResponseErrorDescription() {
+        return responseErrorDescription;
+    }
+
+    /**
+     * The error code of the last response sent to this message
+     * @return the error code or null if no response was sent or it had no error code
+     */
+    @Nullable
+    Integer getResponseErrorCode() {
+        return responseErrorCode;
     }
 
     /**
      * the subject that this message was sent to
      * @return the subject that this message was sent to
      */
+    @NonNull
     public String getSubject() {
         return message.getSubject();
     }
@@ -206,6 +297,7 @@ public class ServiceMessage {
      * the subject the application is expected to send a reply message on
      * @return the subject the application is expected to send a reply message on
      */
+    @Nullable
     public String getReplyTo() {
         return message.getReplyTo();
     }
@@ -222,6 +314,7 @@ public class ServiceMessage {
      * the headers object for the message
      * @return the headers object for the message
      */
+    @Nullable
     public Headers getHeaders() {
         return message.getHeaders();
     }
@@ -230,7 +323,7 @@ public class ServiceMessage {
      * the data from the message
      * @return the data from the message
      */
-    public byte[] getData() {
+    public byte @NonNull [] getData() {
         return message.getData();
     }
 }

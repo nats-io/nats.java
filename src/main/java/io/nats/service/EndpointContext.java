@@ -93,10 +93,14 @@ class EndpointContext {
             }
             handler.onMessage(smsg);
 
-            // a standard error the handler responded with before returning counts as an error
-            if (recordStats && smsg.getStandardError() != null) {
-                numErrors.incrementAndGet();
-                lastError = smsg.getStandardError();
+            // an error the handler responded with before returning counts as an error
+            if (recordStats) {
+                String description = smsg.getResponseErrorDescription();
+                Integer code = smsg.getResponseErrorCode();
+                if (description != null || code != null) {
+                    numErrors.incrementAndGet();
+                    lastError = description != null ? description : code.toString();
+                }
             }
         }
         catch (Throwable t) {
