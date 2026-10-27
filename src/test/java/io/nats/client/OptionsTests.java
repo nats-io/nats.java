@@ -1574,6 +1574,17 @@ public class OptionsTests {
         assertNotNull(new Options.Builder().server("tls://localhost,opentls://localhost").opentls().build().getSslContext());
         SSLContext ctx = SslTestingHelper.createTestSSLContext();
         assertEquals(ctx, new Options.Builder().server("tls://localhost,opentls://localhost").sslContext(ctx).build().getSslContext());
+
+        // with TLS required, a ws:// server would be reached without TLS: a builder error. nats:// servers are upgraded.
+        assertThrows(IllegalStateException.class, () -> new Options.Builder().server("wss://a,ws://b").build());
+        assertThrows(IllegalStateException.class, () -> new Options.Builder().server("tls://a,ws://b").build());
+        assertThrows(IllegalStateException.class, () -> new Options.Builder().server("opentls://a,ws://b").build());
+        assertThrows(IllegalStateException.class, () -> new Options.Builder().server("ws://a").secure().build());
+        assertThrows(IllegalStateException.class, () -> new Options.Builder().server("ws://a").opentls().build());
+        assertThrows(IllegalStateException.class, () -> new Options.Builder().server("ws://a").sslContext(ctx).build());
+        assertNotNull(new Options.Builder().server("nats://a,tls://b").build().getSslContext());
+        assertNotNull(new Options.Builder().server("nats://a").secure().build().getSslContext());
+        assertNull(new Options.Builder().server("ws://a,nats://b").build().getSslContext());
     }
 
     @SuppressWarnings("deprecation")

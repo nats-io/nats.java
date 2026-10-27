@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2015-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -60,6 +60,7 @@ public class ListenerForTesting implements ErrorListener, ConnectionListener {
     private final List<StatusEvent> pullStatusErrors = new ArrayList<>();
     private final List<HeartbeatAlarmEvent> heartbeatAlarms = new ArrayList<>();
     private final List<FlowControlProcessedEvent> flowControlProcessedEvents = new ArrayList<>();
+    private final List<ServerRejectedEvent> serverRejectedEvents = new ArrayList<>();
     public final AtomicInteger socketWriteTimeoutCount = new AtomicInteger();
 
     private final boolean printExceptions;
@@ -100,6 +101,7 @@ public class ListenerForTesting implements ErrorListener, ConnectionListener {
         pullStatusErrors.clear();
         heartbeatAlarms.clear();
         flowControlProcessedEvents.clear();
+        serverRejectedEvents.clear();
         socketWriteTimeoutCount.set(0);
     }
 
@@ -378,6 +380,10 @@ public class ListenerForTesting implements ErrorListener, ConnectionListener {
         return flowControlProcessedEvents;
     }
 
+    public List<ServerRejectedEvent> getServerRejectedEvents() {
+        return serverRejectedEvents;
+    }
+
     public int getSocketWriteTimeoutCount() {
         return socketWriteTimeoutCount.get();
     }
@@ -556,6 +562,11 @@ public class ListenerForTesting implements ErrorListener, ConnectionListener {
         socketWriteTimeoutCount.incrementAndGet();
     }
 
+    @Override
+    public void serverRejected(Connection conn, String server, String reason) {
+        serverRejectedEvents.add(new ServerRejectedEvent(server, reason));
+    }
+
     public static class StatusEvent {
         String sid;
         Status status;
@@ -612,6 +623,24 @@ public class ListenerForTesting implements ErrorListener, ConnectionListener {
                 "sid='" + sid + '\'' +
                 ", subject='" + subject + '\'' +
                 ", source=" + source +
+                '}';
+        }
+    }
+
+    public static class ServerRejectedEvent {
+        final String server;
+        final String reason;
+
+        public ServerRejectedEvent(String server, String reason) {
+            this.server = server;
+            this.reason = reason;
+        }
+
+        @Override
+        public String toString() {
+            return "ServerRejectedEvent{" +
+                "server='" + server + '\'' +
+                ", reason='" + reason + '\'' +
                 '}';
         }
     }

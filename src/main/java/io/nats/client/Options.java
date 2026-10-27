@@ -2507,6 +2507,16 @@ public class Options {
                 }
             }
 
+            // A connection with an SSL context requires TLS to every server, but a ws:// server is a plain
+            // websocket and is never upgraded, so it would be reached without TLS. nats:// servers are upgraded.
+            if (sslContext != null) {
+                for (NatsUri natsUri : natsServerUris) {
+                    if (WEBSOCKET_PROTOCOL.equals(natsUri.getScheme())) {
+                        throw new IllegalStateException("Options require TLS (secure, opentls, an SSL context, keystore or truststore, an SSL context factory, or a tls, wss or opentls server url), but the server list has a ws:// server, which is never upgraded to TLS. Use wss:// for that server.");
+                    }
+                }
+            }
+
             if (tlsFirst && sslContext == null) {
                 throw new IllegalStateException("SSL context required for tls handshake first");
             }

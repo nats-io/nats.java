@@ -1,4 +1,4 @@
-// Copyright 2024 The NATS Authors
+// Copyright 2024-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -97,5 +97,13 @@ public class ErrorListenerConsoleImpl implements ErrorListener {
     @Override
     public void socketWriteTimeout(Connection conn) {
         System.out.println(supplyMessage("[SEVERE] socketWriteTimeout", conn, null, null));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void serverRejected(Connection conn, String server, String reason) {
+        System.out.println(supplyMessage("[WARNING] serverRejected", conn, null, null, "Server: ", server, "Reason: ", reason));
     }
 }

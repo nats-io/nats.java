@@ -249,7 +249,25 @@ class NatsConnection implements Connection {
         boolean keepGoing = true;
         NatsUri first = null;
         NatsUri cur;
+        // A rejected server, mapped to the count of usable servers handed out when it was last supplied.
+        // The pool is told to drop a rejected server; if it supplies one again with nothing usable in between, it has nothing else.
+        Map<NatsUri, Long> rejected = new HashMap<>();
+        long usableCount = 0;
         while (keepGoing && (cur = serverPool.peekNextServer()) != null) {
+            String rejection = rejectionReason(cur);
+            if (rejection != null) {
+                serverPool.nextServer(); // b/c we only peeked, and the pool must have handed it out before it is told
+                Long usableAtLastRejection = rejected.put(cur, usableCount);
+                if (usableAtLastRejection == null) {
+                    rejectServer(cur, rejection);
+                    failList.add(cur);
+                }
+                else if (usableAtLastRejection == usableCount) {
+                    break; // the pool kept a rejected server and handed out nothing usable since it last supplied it
+                }
+                continue; // before first is set: a rejected server must not end the pass
+            }
+            usableCount++;
             if (first == null) {
                 first = cur;
             }
@@ -472,7 +490,22 @@ class NatsConnection implements Connection {
         int totalRounds = 0;
         NatsUri first = null;
         NatsUri cur;
+        // see connect: a rejected server, mapped to the count of usable servers handed out when it was last supplied
+        Map<NatsUri, Long> rejected = new HashMap<>();
+        long usableCount = 0;
         while ((cur = serverPool.nextServer()) != null) {
+            String rejection = rejectionReason(cur);
+            if (rejection != null) {
+                Long usableAtLastRejection = rejected.put(cur, usableCount);
+                if (usableAtLastRejection == null) {
+                    rejectServer(cur, rejection);
+                }
+                else if (usableAtLastRejection == usableCount) {
+                    return; // the pool kept a rejected server and handed out nothing usable since it last supplied it
+                }
+                continue; // before first is set and before the delay: a rejected server is not an attempt
+            }
+            usableCount++;
             if (first == null) {
                 first = cur;
                 if (options.reconnectDelayBehavior() == Options.ReconnectDelayBehavior.BeforeAllRounds) {
@@ -562,6 +595,23 @@ class NatsConnection implements Connection {
     // is called from reconnect and connect
     // will wait for any previous attempt to complete, using the reader.stop and
     // writer.stop
+    // A server the connection will never attempt because it cannot be used with the options: a ws:// server is
+    // a plain websocket that is never upgraded to TLS, so with an SSL context it would be reached without TLS.
+    // Both connect loops ask this when the pool hands a server out, before anything is sent to it. The bootstrap
+    // list cannot hold such a server, so one comes from connect_urls or from a custom ServerPool.
+    protected String rejectionReason(NatsUri nuri) {
+        if (options.isTLSRequired() && WEBSOCKET_PROTOCOL.equals(nuri.getScheme())) {
+            return "the options require TLS and a ws:// server is never upgraded to TLS";
+        }
+        return null;
+    }
+
+    // The pool has already handed the server out. Tell it so it stops supplying the server, and report it.
+    protected void rejectServer(NatsUri nuri, String reason) {
+        serverPool.serverRejected(nuri);
+        makeCallback(() -> options.getErrorListener().serverRejected(this, nuri.toString(), reason));
+    }
+
     protected void tryToConnect(NatsUri cur, NatsUri resolved, long now) {
         clearCurrentServer();
         connectingServer = cur; // the origin of discovered servers in the initial INFO, before currentServer is set
