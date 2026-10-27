@@ -87,11 +87,7 @@ public class ServiceErrorMessageExample {
         String[] parts = request.split("/");
         if (parts.length != 2) {
             // a code and a description, with the request as the data
-            smsg.getResponseBuilder(nc)
-                .errorCode(1001)
-                .errorDescription("Request must be in the form dividend/divisor")
-                .data(request)
-                .respond();
+            smsg.respondError(nc, 1001, "Request must be in the form dividend/divisor", request);
             return;
         }
 
@@ -101,11 +97,7 @@ public class ServiceErrorMessageExample {
         }
         catch (NumberFormatException e) {
             // a code and a description, with the request as the data
-            smsg.getResponseBuilder(nc)
-                .errorCode(1002)
-                .errorDescription("Dividend is not a number")
-                .data(request)
-                .respond();
+            smsg.respondError(nc, 1002, "Dividend is not a number", request);
             return;
         }
 
@@ -115,21 +107,13 @@ public class ServiceErrorMessageExample {
         }
         catch (NumberFormatException e) {
             // a code and a description, with the request as the data
-            smsg.getResponseBuilder(nc)
-                .errorCode(1003)
-                .errorDescription("Divisor is not a number")
-                .data(request)
-                .respond();
+            smsg.respondError(nc, 1003, "Divisor is not a number", request);
             return;
         }
 
         if (divisor == 0) {
             // a code and a description, with the request as the data
-            smsg.getResponseBuilder(nc)
-                .errorCode(1004)
-                .errorDescription("Cannot divide by zero")
-                .data(request)
-                .respond();
+            smsg.respondError(nc, 1004, "Cannot divide by zero", request);
             return;
         }
 
