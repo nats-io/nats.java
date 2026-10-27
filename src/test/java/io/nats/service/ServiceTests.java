@@ -1070,22 +1070,33 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     @Test
-    public void testResponseBuilder() throws Exception {
+    public void testRespondError() throws Exception {
         runInServer(nc -> {
             AtomicReference<ServiceMessage> lastMsg = new AtomicReference<>();
+            Headers customHeaders = new Headers().put("X-Order", "7");
+            byte[] bytes = "payload".getBytes();
+            JsonValue json = new JsonValue("payload");
             ServiceEndpoint seEndpoint = ServiceEndpoint.builder()
                 .endpointName("reEndpoint")
                 .endpointSubject("reSubject")
                 .handler(m -> {
                     switch (new String(m.getData())) {
-                        case "code": m.getResponseBuilder(nc).errorCode(503).respond(); break;
-                        case "both": m.getResponseBuilder(nc).errorCode(400).errorDescription("bad order").respond(); break;
-                        case "desc": m.getResponseBuilder(nc).errorDescription("no code").respond(); break;
-                        case "empty": m.getResponseBuilder(nc).errorCode(500).errorDescription(EMPTY).respond(); break;
+                        case "plain": m.respondError(nc, 400, "bad order"); break;
+                        case "empty": m.respondError(nc, 500, EMPTY); break;
+                        case "headers": m.respondError(nc, 1000, "headers", customHeaders); break;
+                        case "bytes": m.respondError(nc, 1001, "bytes", bytes); break;
+                        case "string": m.respondError(nc, 1002, "string", "payload"); break;
+                        case "json": m.respondError(nc, 1003, "json", json); break;
+                        case "bytesHeaders": m.respondError(nc, 1004, "bytesHeaders", bytes, customHeaders); break;
+                        case "stringHeaders": m.respondError(nc, 1005, "stringHeaders", "payload", customHeaders); break;
+                        case "jsonHeaders": m.respondError(nc, 1006, "jsonHeaders", json, customHeaders); break;
                         case "standard": m.respondStandardError(nc, "standard", 404); break;
-                        case "full": m.getResponseBuilder(nc).data("payload").headers(new Headers().put("X-Order", "7"))
-                            .errorCode(400).errorDescription("bad order").respond(); break;
-                        case "data": m.getResponseBuilder(nc).data("payload").headers(new Headers().put("X-Order", "7")).respond(); break;
+                        case "standardNull": m.respondStandardError(nc, null, 405); break;
+                        case "nullString": m.respond(nc, (String) null); break;
+                        case "nullJson": m.respond(nc, (JsonSerializable) null); break;
+                        case "nullCode": m.respondError(nc, null, "no code"); break;
+                        case "nulls": m.respondError(nc, null, "nulls", (byte[]) null, null); break;
+                        case "nullRespond": m.respond(nc, (byte[]) null, null); break;
                         default: m.respond(nc, "ok");
                     }
                     lastMsg.set(m);
@@ -1100,80 +1111,117 @@ public class ServiceTests extends JetStreamTestBase {
                 .build();
             reService.startService();
 
-            // a header is sent only for a value given, and there is no body
-            Message m = nc.request("reSubject", "code".getBytes()).get();
-            assertNull(m.getHeaders().getFirst(NATS_SERVICE_ERROR));
-            assertEquals("503", m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
-            assertEquals(0, m.getData().length);
-            assertLastError(reService, 1, "503");
-            assertNull(lastMsg.get().getResponseErrorDescription());
-            assertEquals(503, lastMsg.get().getResponseErrorCode());
-            assertNull(lastMsg.get().getResponseData());
-
-            m = nc.request("reSubject", "both".getBytes()).get();
-            assertEquals("bad order", m.getHeaders().getFirst(NATS_SERVICE_ERROR));
-            assertEquals("400", m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
-            assertEquals(0, m.getData().length);
-            assertLastError(reService, 2, "bad order");
+            // code and description, no body
+            Message m = nc.request("reSubject", "plain".getBytes()).get();
+            assertErrorReply(m, "bad order", "400", "", false);
+            assertLastError(reService, 1, "bad order");
             assertEquals("bad order", lastMsg.get().getResponseErrorDescription());
             assertEquals(400, lastMsg.get().getResponseErrorCode());
-
-            m = nc.request("reSubject", "desc".getBytes()).get();
-            assertEquals("no code", m.getHeaders().getFirst(NATS_SERVICE_ERROR));
-            assertNull(m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
-            assertEquals(0, m.getData().length);
-            assertLastError(reService, 3, "no code");
-            assertEquals("no code", lastMsg.get().getResponseErrorDescription());
-            assertNull(lastMsg.get().getResponseErrorCode()); // no code was given
+            assertNull(lastMsg.get().getResponseData());
+            assertEquals("bad order", lastMsg.get().getStandardError());
 
             // an empty description is sent as given
             m = nc.request("reSubject", "empty".getBytes()).get();
-            assertEquals(EMPTY, m.getHeaders().getFirst(NATS_SERVICE_ERROR));
-            assertEquals("500", m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
-            assertLastError(reService, 4, EMPTY);
-            assertEquals(EMPTY, lastMsg.get().getResponseErrorDescription());
-            assertEquals(500, lastMsg.get().getResponseErrorCode());
+            assertErrorReply(m, EMPTY, "500", "", false);
+            assertLastError(reService, 2, EMPTY);
+
+            // custom headers, no data
+            m = nc.request("reSubject", "headers".getBytes()).get();
+            assertErrorReply(m, "headers", "1000", "", true);
+            assertLastError(reService, 3, "headers");
+            assertNull(lastMsg.get().getResponseData());
+
+            // data, each type
+            m = nc.request("reSubject", "bytes".getBytes()).get();
+            assertErrorReply(m, "bytes", "1001", "payload", false);
+            assertLastError(reService, 4, "bytes");
+            assertEquals("payload", new String(lastMsg.get().getResponseData()));
+
+            m = nc.request("reSubject", "string".getBytes()).get();
+            assertErrorReply(m, "string", "1002", "payload", false);
+            assertLastError(reService, 5, "string");
+
+            m = nc.request("reSubject", "json".getBytes()).get();
+            assertErrorReply(m, "json", "1003", "\"payload\"", false);
+            assertLastError(reService, 6, "json");
+
+            // data and custom headers, each type
+            m = nc.request("reSubject", "bytesHeaders".getBytes()).get();
+            assertErrorReply(m, "bytesHeaders", "1004", "payload", true);
+            assertLastError(reService, 7, "bytesHeaders");
+            assertEquals("7", lastMsg.get().getResponseHeaders().getFirst("X-Order"));
+            assertEquals("1004", lastMsg.get().getResponseHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
+
+            m = nc.request("reSubject", "stringHeaders".getBytes()).get();
+            assertErrorReply(m, "stringHeaders", "1005", "payload", true);
+            assertLastError(reService, 8, "stringHeaders");
+
+            m = nc.request("reSubject", "jsonHeaders".getBytes()).get();
+            assertErrorReply(m, "jsonHeaders", "1006", "\"payload\"", true);
+            assertLastError(reService, 9, "jsonHeaders");
+
+            // the error headers were added to a copy of the custom headers
+            assertNull(customHeaders.getFirst(NATS_SERVICE_ERROR));
+            assertNull(customHeaders.getFirst(NATS_SERVICE_ERROR_CODE));
 
             m = nc.request("reSubject", "standard".getBytes()).get();
-            assertEquals("standard", m.getHeaders().getFirst(NATS_SERVICE_ERROR));
-            assertEquals("404", m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
-            assertLastError(reService, 5, "standard");
-            assertEquals("standard", lastMsg.get().getResponseErrorDescription());
-            assertEquals(404, lastMsg.get().getResponseErrorCode());
+            assertErrorReply(m, "standard", "404", "", false);
+            assertLastError(reService, 10, "standard");
 
-            // data and custom headers are sent with the error headers
-            m = nc.request("reSubject", "full".getBytes()).get();
-            assertEquals("bad order", m.getHeaders().getFirst(NATS_SERVICE_ERROR));
-            assertEquals("400", m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
-            assertEquals("7", m.getHeaders().getFirst("X-Order"));
-            assertEquals("payload", new String(m.getData()));
-            assertLastError(reService, 6, "bad order");
-            assertEquals("bad order", lastMsg.get().getResponseErrorDescription());
-            assertEquals(400, lastMsg.get().getResponseErrorCode());
-            assertEquals("payload", new String(lastMsg.get().getResponseData()));
-            assertEquals("7", lastMsg.get().getResponseHeaders().getFirst("X-Order"));
-            assertEquals("400", lastMsg.get().getResponseHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
-
-            // without an error description or code, the response is not an error
-            m = nc.request("reSubject", "data".getBytes()).get();
+            // a null standard error text sends only the code, which becomes the last error
+            m = nc.request("reSubject", "standardNull".getBytes()).get();
             assertNull(m.getHeaders().getFirst(NATS_SERVICE_ERROR));
-            assertNull(m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
-            assertEquals("7", m.getHeaders().getFirst("X-Order"));
-            assertEquals("payload", new String(m.getData()));
-            waitForRequests(reService, 7);
+            assertEquals("405", m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
+            assertLastError(reService, 11, "405");
             assertNull(lastMsg.get().getResponseErrorDescription());
+            assertEquals(405, lastMsg.get().getResponseErrorCode());
+            assertEquals("405", lastMsg.get().getStandardError());
+
+            // null data is sent as an empty body
+            m = nc.request("reSubject", "nullString".getBytes()).get();
+            assertEquals(0, m.getData().length);
+            waitForRequests(reService, 12);
+            assertNull(lastMsg.get().getResponseData());
+
+            m = nc.request("reSubject", "nullJson".getBytes()).get();
+            assertEquals(0, m.getData().length);
+            waitForRequests(reService, 13);
+            assertNull(lastMsg.get().getResponseData());
+
+            // a null code sends only the description
+            m = nc.request("reSubject", "nullCode".getBytes()).get();
+            assertEquals("no code", m.getHeaders().getFirst(NATS_SERVICE_ERROR));
+            assertNull(m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
+            assertLastError(reService, 12, "no code");
+            assertEquals("no code", lastMsg.get().getResponseErrorDescription());
             assertNull(lastMsg.get().getResponseErrorCode());
-            assertEquals("payload", new String(lastMsg.get().getResponseData()));
-            assertEquals("7", lastMsg.get().getResponseHeaders().getFirst("X-Order"));
+
+            // a null code, data and custom headers
+            m = nc.request("reSubject", "nulls".getBytes()).get();
+            assertEquals("nulls", m.getHeaders().getFirst(NATS_SERVICE_ERROR));
+            assertNull(m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
+            assertEquals(0, m.getData().length);
+            assertLastError(reService, 13, "nulls");
+            assertNull(lastMsg.get().getResponseData());
+            assertNull(lastMsg.get().getResponseHeaders().getFirst("X-Order"));
+
+            // null data and null custom headers, not an error
+            m = nc.request("reSubject", "nullRespond".getBytes()).get();
+            assertFalse(m.hasHeaders());
+            assertEquals(0, m.getData().length);
+            waitForRequests(reService, 16);
+            assertNull(lastMsg.get().getResponseData());
+            assertNull(lastMsg.get().getResponseHeaders());
 
             assertEquals("ok", new String(nc.request("reSubject", "pass".getBytes()).get().getData()));
-            waitForRequests(reService, 8);
-            assertEquals(6, reService.getEndpointStats("reEndpoint").getNumErrors());
-            assertEquals("bad order", reService.getEndpointStats("reEndpoint").getLastError());
+            waitForRequests(reService, 17);
+            assertEquals(13, reService.getEndpointStats("reEndpoint").getNumErrors());
+            assertEquals("nulls", reService.getEndpointStats("reEndpoint").getLastError());
             assertNull(lastMsg.get().getResponseErrorDescription());
             assertNull(lastMsg.get().getResponseErrorCode());
             assertEquals("ok", new String(lastMsg.get().getResponseData()));
             assertNull(lastMsg.get().getResponseHeaders());
+            assertNull(lastMsg.get().getStandardError()); // no error was sent
         });
     }
 
@@ -1226,6 +1274,13 @@ public class ServiceTests extends JetStreamTestBase {
         assertFalse(t.isError());
         assertNull(t.getErrorDescription());
         assertNull(t.getErrorCode());
+    }
+
+    private static void assertErrorReply(Message m, String description, String code, String data, boolean customHeader) {
+        assertEquals(description, m.getHeaders().getFirst(NATS_SERVICE_ERROR));
+        assertEquals(code, m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
+        assertEquals(data, new String(m.getData()));
+        assertEquals(customHeader ? "7" : null, m.getHeaders().getFirst("X-Order"));
     }
 
     // the handler sets lastMsg before it returns, which can be just after the reply arrives
