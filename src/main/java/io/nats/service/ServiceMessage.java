@@ -112,7 +112,7 @@ public class ServiceMessage {
      * @param conn the NATS connection
      * @param errorText the error message text
      * @param errorCode the error message code
-     * @deprecated use {@link #respondError(Connection, int, String)}
+     * @deprecated use {@link #respondError(Connection, Integer, String)}
      */
     @Deprecated
     public void respondStandardError(@NonNull Connection conn, @Nullable String errorText, int errorCode) {
