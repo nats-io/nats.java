@@ -2,6 +2,8 @@ package io.nats.client.impl;
 
 import io.nats.client.support.*;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -1011,6 +1013,57 @@ public class HeadersTests {
             assertContainsExactly(v, "a", "b", "c");
             assertThrows(UnsupportedOperationException.class, ()->v.add("z"));
         });
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void testEntrySetRejectsReplacingValues(boolean readOnly) {
+        Headers headers = new Headers(new Headers().put(KEY1, VAL1), readOnly);
+        Map.Entry<String, List<String>> entry = headers.entrySet().iterator().next();
+
+        assertThrows(UnsupportedOperationException.class,
+            () -> entry.setValue(Collections.singletonList(VAL2)));
+        assertEquals(Collections.singletonList(VAL1), headers.get(KEY1));
+        assertEquals("NATS/1.0\r\n" + KEY1 + ":" + VAL1 + "\r\n\r\n",
+            new String(headers.getSerialized(), StandardCharsets.US_ASCII));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void testEntrySetRejectsMutatingValues(boolean readOnly) {
+        Headers headers = new Headers(new Headers().put(KEY1, VAL1), readOnly);
+        byte[] serialized = headers.getSerialized();
+        Map.Entry<String, List<String>> entry = headers.entrySet().iterator().next();
+
+        assertThrows(UnsupportedOperationException.class, () -> entry.getValue().add(VAL2));
+        assertEquals(Collections.singletonList(VAL1), headers.get(KEY1));
+        byte[] fresh = new byte[headers.serializedLength()];
+        headers.serializeToArray(0, fresh);
+        assertArrayEquals(serialized, fresh);
+    }
+
+    @Test
+    void testEntrySetIsAnUnmodifiableLiveView() {
+        Headers headers = new Headers().put(KEY1, VAL1);
+        Set<Map.Entry<String, List<String>>> entries = headers.entrySet();
+        Map.Entry<String, List<String>> expected =
+            new AbstractMap.SimpleImmutableEntry<>(KEY1, Collections.singletonList(VAL1));
+        assertEquals(Collections.singleton(expected), entries);
+        assertEquals(Collections.singleton(expected).hashCode(), entries.hashCode());
+        assertThrows(UnsupportedOperationException.class, entries::clear);
+        assertThrows(UnsupportedOperationException.class, () -> entries.remove(expected));
+        Iterator<Map.Entry<String, List<String>>> iterator = entries.iterator();
+        iterator.next();
+        assertThrows(UnsupportedOperationException.class, iterator::remove);
+
+        headers.put(KEY2, VAL2);
+        assertEquals(2, entries.size());
+        headers.put(KEY1, VAL3);
+        assertTrue(entries.contains(new AbstractMap.SimpleImmutableEntry<>(KEY1, Collections.singletonList(VAL3))));
+        headers.remove(KEY2);
+        assertEquals(1, entries.size());
+        headers.clear();
+        assertTrue(entries.isEmpty());
     }
 
     @Test
