@@ -1,5 +1,10 @@
 # Change Log
 
+## Unreleased
+
+### Core
+* Return `false` from subscription drain futures when unread messages remain at timeout, instead of reporting success after cleanup removes the queue. #1616
+
 ## 2.26.4
 
 ### Core
