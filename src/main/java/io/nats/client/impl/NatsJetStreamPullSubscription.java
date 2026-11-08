@@ -19,6 +19,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static io.nats.client.support.NatsConstants.NANOS_PER_MILLI;
@@ -251,6 +252,9 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
 
                 @Override
                 public Message next() {
+                    if (!hasNext()) {
+                        throw new NoSuchElementException();
+                    }
                     return buffered.remove(0);
                 }
             };
@@ -303,6 +307,9 @@ public class NatsJetStreamPullSubscription extends NatsJetStreamSubscription {
 
             @Override
             public Message next() {
+                if (!hasNext()) {
+                    throw new NoSuchElementException();
+                }
                 Message next = msg;
                 msg = null;
                 return next;
