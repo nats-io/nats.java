@@ -172,7 +172,9 @@ public interface JetStreamSubscription extends Subscription {
      * @param batchSize the size of the batch
      * @param maxWait the maximum time to wait for the first message.
      *
-     * @return the message iterator
+     * @return the message iterator. Its {@link Iterator#next()} method can be called
+     * without a preceding {@link Iterator#hasNext()} call and throws
+     * {@link java.util.NoSuchElementException} when exhausted.
      * @throws IllegalStateException if not a pull subscription.
      */
     Iterator<Message> iterate(int batchSize, Duration maxWait);
@@ -188,7 +190,9 @@ public interface JetStreamSubscription extends Subscription {
      * @param batchSize the size of the batch
      * @param maxWaitMillis the maximum time to wait for the first message, in milliseconds.
      *
-     * @return the message iterator
+     * @return the message iterator. Its {@link Iterator#next()} method can be called
+     * without a preceding {@link Iterator#hasNext()} call and throws
+     * {@link java.util.NoSuchElementException} when exhausted.
      * @throws IllegalStateException if not a pull subscription.
      */
     Iterator<Message> iterate(int batchSize, long maxWaitMillis);
