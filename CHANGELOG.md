@@ -1,5 +1,10 @@
 # Change Log
 
+## 2.26.5
+
+### JetStream
+* Fix pull subscription iterators to support direct next() calls and throw NoSuchElementException when exhausted #1662 @yangjj-iso
+
 ## 2.26.4
 
 ### Core
