@@ -1144,21 +1144,20 @@ However, the java client also needs a keystore and truststore.jks files for crea
 ### TLS client versus server checks
 
 When creating a connection, client TLS behavior is set while creating options.
-The client assumes TLS is requested if there is an SSLContext instance in the options. 
-There are two ways one exists:
-1. The user directly supplied one 
-2. A default one was created since one was not supplied, but a supplied server url has a secure protocol such as `tls`, `wss` or `opentls`
+The client assumes TLS is requested if there is an SSLContext instance in the options. There are two ways one exists:
+1. The user directly supplied one, or supplied the keystore and truststore it is built from
+2. A default one was created because `secure()` or `tlsFirst()` was called, or because a supplied server url has a secure protocol such as `tls`, `wss` or `opentls`
 
-If there is a mismatch, an IOException will be thrown while connecting.
+If there is a mismatch, an IOException will be thrown while connecting and the next server is tried, since a single server can be misconfigured. The options decide for every server of a connection, so when every server of one round over the server list fails with the mismatch, retrying cannot help: the connection is closed without reconnecting, and the initial connect throws.
 
 | server config | client options    | result                                       |
 |---------------|-------------------|----------------------------------------------|
-| required      | tls not requested | mismatch, "SSL required by server."          | 
-| available     | tls not requested | ok                                           |    
-| neither       | tls not requested | ok                                           |   
+| required      | tls not requested | mismatch, "SSL required by server."          |
+| available     | tls not requested | ok                                           |
+| neither       | tls not requested | ok                                           |
 | required      | tls requested     | ok                                           |
 | available     | tls requested     | ok                                           |
-| neither       | tls requested     | mismatch, "SSL connection wanted by client." |     
+| neither       | tls requested     | mismatch, "SSL connection wanted by client." |
 
 
 ### TLS Handshake First

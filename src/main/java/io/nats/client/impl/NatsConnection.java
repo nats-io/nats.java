@@ -63,6 +63,8 @@ class NatsConnection implements Connection {
 
     protected CompletableFuture<DataPort> dataPortFuture;
     protected DataPort dataPort;
+    // the TLS mismatch the current attempt failed with, null when it did not; see upgradeToSecureIfNeeded
+    private volatile String attemptTlsMismatch;
     protected NatsUri currentServer;
     protected NatsUri connectingServer;
     protected NatsUri lastServer;
@@ -247,6 +249,8 @@ class NatsConnection implements Connection {
 
         Set<NatsUri> failList = new HashSet<>();
         boolean keepGoing = true;
+        String tlsMismatch = null;               // the mismatch of the last attempt that failed with one
+        boolean everyAttemptTlsMismatch = true;  // false once an attempt failed for another reason
         NatsUri first = null;
         NatsUri cur;
         while (keepGoing && (cur = serverPool.peekNextServer()) != null) {
@@ -266,6 +270,7 @@ class NatsConnection implements Connection {
                     break;
                 }
                 connectError.set(null); // new on each attempt
+                attemptTlsMismatch = null;
 
                 timeTraceLogger.trace("setting status to connecting");
                 updateStatus(Status.CONNECTING, resolved, cur);
@@ -287,6 +292,13 @@ class NatsConnection implements Connection {
                 if (this.isAuthenticationError(err)) {
                     this.serverAuthErrors.put(resolved, err);
                 }
+
+                if (attemptTlsMismatch == null) {
+                    everyAttemptTlsMismatch = false;
+                }
+                else {
+                    tlsMismatch = attemptTlsMismatch;
+                }
             }
 
             if (!isConnected() && !isClosed()) {
@@ -296,6 +308,13 @@ class NatsConnection implements Connection {
         }
 
         if (!isConnected() && !isClosed()) {
+            if (tlsMismatch != null && everyAttemptTlsMismatch) {
+                // One round over the whole server list, and every attempt failed with the TLS mismatch between the
+                // options and the server. The options are the same for every server, so retrying cannot help.
+                timeTraceLogger.trace("every server failed with a TLS mismatch, closing");
+                close();
+                throw new IOException(tlsMismatch + " Every server of the connection failed with this TLS mismatch, so the connection was closed without retrying: " + failList);
+            }
             if (reconnectOnConnect) {
                 timeTraceLogger.trace("trying to reconnect on connect");
                 reconnectImpl(); // call the impl here otherwise the tryingToConnect guard will block the behavior
@@ -470,6 +489,8 @@ class NatsConnection implements Connection {
 
     protected void reconnectImplConnect() throws InterruptedException {
         int totalRounds = 0;
+        int roundAttempts = 0;                  // attempts made in the current round over the pool
+        boolean roundAllTlsMismatch = true;     // false once an attempt of the round failed for another reason
         NatsUri first = null;
         NatsUri cur;
         while ((cur = serverPool.nextServer()) != null) {
@@ -481,6 +502,13 @@ class NatsConnection implements Connection {
             }
             else if (first.equals(cur)) {
                 // went around the pool an entire time
+                if (roundAttempts > 0 && roundAllTlsMismatch) {
+                    // every server failed with the TLS mismatch between the options and the server,
+                    // retrying cannot help; the caller closes the connection
+                    return;
+                }
+                roundAttempts = 0;
+                roundAllTlsMismatch = true;
                 invokeReconnectDelayHandler(++totalRounds);
             }
 
@@ -492,6 +520,7 @@ class NatsConnection implements Connection {
                     return;
                 }
                 connectError.set(null); // reset on each loop
+                attemptTlsMismatch = null;
                 if (isDisconnectingOrClosed() || this.isClosing()) {
                     return;
                 }
@@ -512,6 +541,11 @@ class NatsConnection implements Connection {
                         return; // double auth error
                     }
                     serverAuthErrors.put(resolved, err);
+                }
+
+                roundAttempts++;
+                if (attemptTlsMismatch == null) {
+                    roundAllTlsMismatch = false;
                 }
             }
 
@@ -760,15 +794,21 @@ class NatsConnection implements Connection {
                 // required  | isTLSRequired()     | ok
                 // available | isTLSRequired()     | ok
                 // neither   | isTLSRequired()     | mismatch
+                // A mismatch fails the attempt and the next server is tried, since a single server can be
+                // misconfigured. The options decide TLS for every server, so once every server of one round
+                // over the list has failed with the mismatch, retrying cannot help and the connect and
+                // reconnect loops close the connection instead. See connectImpl and reconnectImplConnect.
                 ServerInfo serverInfo = getServerInfo();
                 if (options.isTLSRequired()) {
                     if (!serverInfo.isTLSRequired() && !serverInfo.isTLSAvailable()) {
-                        throw new IOException("SSL connection wanted by client.");
+                        attemptTlsMismatch = "SSL connection wanted by client.";
+                        throw new IOException(attemptTlsMismatch);
                     }
                     dataPort.upgradeToSecure();
                 }
                 else if (serverInfo.isTLSRequired()) {
-                    throw new IOException("SSL required by server.");
+                    attemptTlsMismatch = "SSL required by server.";
+                    throw new IOException(attemptTlsMismatch);
                 }
             }
         }
