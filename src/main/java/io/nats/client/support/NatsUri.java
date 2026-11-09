@@ -39,6 +39,7 @@ public class NatsUri {
     private boolean isWebsocket;
     private boolean hostIsIpAddress;
     private String tlsHost;
+    private String inheritedUserInfo;
 
     @NonNull
     public URI getUri() {
@@ -100,6 +101,40 @@ public class NatsUri {
         return copy;
     }
 
+    /**
+     * The raw user info this server inherited from the server it was learned through, so that CONNECT
+     * to a discovered server uses the credentials used for the server that reported it. It is never part
+     * of the uri itself: not of its string form, its equality or its hash code.
+     * @return the inherited raw user info, as it appears in a uri, or null when there is none
+     */
+    @Nullable
+    public String getInheritedUserInfo() {
+        return inheritedUserInfo;
+    }
+
+    /**
+     * Copy this uri with raw user info to use for CONNECT when the uri itself has none.
+     * This does not change the host, the port, the uri's own user info, equality, the hash code or the string form.
+     * @param inheritedUserInfo the raw user info, as it appears in a uri, or null for none
+     * @return a copy with the inherited user info
+     */
+    @NonNull
+    public NatsUri withInheritedUserInfo(@Nullable String inheritedUserInfo) {
+        NatsUri copy = new NatsUri(this);
+        copy.inheritedUserInfo = inheritedUserInfo;
+        return copy;
+    }
+
+    /**
+     * The raw user info CONNECT uses for this server: the uri's own user info, or else the inherited user info.
+     * @return the raw user info, or null when there is none
+     */
+    @Nullable
+    public String getConnectUserInfo() {
+        String own = uri.getRawUserInfo();
+        return own == null ? inheritedUserInfo : own;
+    }
+
     @NonNull
     public NatsUri reHost(String newHost) throws URISyntaxException {
         if (newHost.contains(":") && !newHost.startsWith("[")) {
@@ -115,6 +150,7 @@ public class NatsUri {
         if (rehosted.hostIsIpAddress() && (tlsHost != null || !hostIsIpAddress)) {
             rehosted.tlsHost = getTlsHost();
         }
+        rehosted.inheritedUserInfo = inheritedUserInfo;
         return rehosted;
     }
 
@@ -158,6 +194,7 @@ public class NatsUri {
         isWebsocket = source.isWebsocket;
         hostIsIpAddress = source.hostIsIpAddress;
         tlsHost = source.tlsHost;
+        inheritedUserInfo = source.inheritedUserInfo;
     }
 
     public NatsUri(@NonNull String url) throws URISyntaxException {
@@ -257,8 +294,9 @@ public class NatsUri {
         if (!KNOWN_PROTOCOLS.contains(lower)) {
             throw new URISyntaxException(url, UNSUPPORTED_SCHEME);
         }
-        if (!lower.equals(scheme)) {
-            helper.url = helper.url.replace(scheme, lower);
+        if (!lower.equals(scheme) && helper.url.regionMatches(true, 0, scheme, 0, scheme.length())) {
+            // lower case the scheme only; a replace over the whole url would also rewrite user info or a host
+            helper.url = lower + helper.url.substring(scheme.length());
         }
 
         if (helper.uri.getPort() == NO_PORT) {

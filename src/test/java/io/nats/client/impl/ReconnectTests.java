@@ -526,6 +526,65 @@ public class ReconnectTests {
     }
 
     @Test
+    public void testUrlCredentialsReachDiscoveredServers() throws Exception {
+        ListenerForTesting listener = new ListenerForTesting();
+
+        int tsPort = NatsTestServer.nextPort();
+        int ts2Port = NatsTestServer.nextPort();
+        int tsCPort = NatsTestServer.nextPort();
+        int ts2CPort = NatsTestServer.nextPort();
+
+        String[] tsInserts = {
+                "cluster {",
+                "name: testClusterName",
+                "listen: localhost:" + tsCPort,
+                "routes = [",
+                "nats-route://localhost:" + ts2CPort,
+                "]",
+                "}"
+        };
+        String[] ts2Inserts = {
+                "cluster {",
+                "name: testClusterName",
+                "listen: localhost:" + ts2CPort,
+                "routes = [",
+                "nats-route://localhost:" + tsCPort,
+                "]",
+                "}"
+        };
+
+        // Both servers require the same user and password, which the client has only in its configured url.
+        // The reconnect to the discovered server must send them; without them the authorization error
+        // would close the connection for good.
+        try ( NatsTestServer ts = new NatsTestServer("src/test/resources/cluster_auth.conf", tsInserts, tsPort, false);
+              NatsTestServer ts2 = new NatsTestServer("src/test/resources/cluster_auth.conf", ts2Inserts, ts2Port, false) ) {
+
+            Options options = new Options.Builder()
+                .server("nats://rcuser:rcpass@localhost:" + tsPort)
+                .connectionListener(listener)
+                .maxReconnects(20)
+                .reconnectWait(Duration.ofMillis(100))
+                .connectionTimeout(Duration.ofSeconds(5))
+                .noRandomize()
+                .build();
+
+            listener.prepForStatusChange(Events.DISCOVERED_SERVERS);
+            NatsConnection nc = (NatsConnection) longConnectionWait(options);
+            flushAndWaitLong(nc, listener); // the discovered server arrives through INFO
+
+            listener.prepForStatusChange(Events.RECONNECTED);
+            ts.close();
+            flushAndWaitLong(nc, listener);
+            assertConnected(nc);
+
+            URI uri = options.createURIForServer(nc.getConnectedUrl());
+            assertEquals(ts2.getNatsPort(), uri.getPort());
+            assertNull(uri.getUserInfo()); // the credentials are sent, not written into the discovered server's url
+            standardCloseConnection(nc);
+        }
+    }
+
+    @Test
     public void testReconnectNoIPTLSConnection() throws Exception {
         NatsConnection nc;
         ListenerForTesting listener = new ListenerForTesting();

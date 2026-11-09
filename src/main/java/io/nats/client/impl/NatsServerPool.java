@@ -144,13 +144,20 @@ public class NatsServerPool implements ServerPool {
             //    - a discovered server given as a bare ip address gets the hostname of the origin
             //      to present during the TLS handshake, when the origin was configured with a hostname.
             //      One hop only: an origin that is itself an ip address supplies nothing.
+            //    - a discovered server is sent the credentials used for the server that reported it:
+            //      the origin's own url user info, or the user info the origin itself inherited.
+            //      The options are the fallback, so there is nothing to carry when the origin has neither.
             boolean discoveryContainedUnknowns = false;
             if (!discovered.isEmpty()) {
                 discoveryContainedUnknowns = true;
                 String originHost = origin == null || origin.hostIsIpAddress() ? null : origin.getHost();
+                String originUserInfo = origin == null ? null : origin.getConnectUserInfo();
                 for (NatsUri d : discovered) {
                     if (originHost != null && d.hostIsIpAddress()) {
                         d = d.withTlsHost(originHost);
+                    }
+                    if (originUserInfo != null && d.getUserInfo() == null) {
+                        d = d.withInheritedUserInfo(originUserInfo);
                     }
                     newEntryList.add(new ServerPoolEntry(d, true));
                 }

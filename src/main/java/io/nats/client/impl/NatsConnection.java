@@ -1683,8 +1683,7 @@ class NatsConnection implements Connection {
             ServerInfo info = this.serverInfo.get();
             // This is changed - we used to use info.isAuthRequired(), but are changing it to
             // better match older versions of the server. It may change again in the future.
-            CharBuffer connectOptions = options.buildProtocolConnectOptionsString(
-                nuri.toString(), true, info.getNonce());
+            CharBuffer connectOptions = options.buildProtocolConnectOptionsString(nuri, true, info.getNonce());
             ByteArrayBuilder bab =
                 new ByteArrayBuilder(OP_CONNECT_SP_LEN + connectOptions.limit(), UTF_8)
                     .append(CONNECT_SP_BYTES).append(connectOptions);

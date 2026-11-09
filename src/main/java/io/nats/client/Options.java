@@ -16,6 +16,7 @@ package io.nats.client;
 import io.nats.client.impl.*;
 import io.nats.client.support.*;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import javax.net.ssl.SSLContext;
 import java.io.File;
@@ -2411,6 +2412,8 @@ public class Options {
          * <ul>
          * <li>If there is no user/password is set but the URI has them, {@code nats://user:password@server:port}, they will be used.
          * <li>If there is no token is set but the URI has one, {@code nats://token@server:port}, it will be used.
+         * <li>A server discovered from connect_urls is sent the credentials used for the server that reported it:
+         *     the user info of that server's url when it has any, otherwise the userInfo or token of the options.
          * <li>If the URI is of the form tls:// and no SSL context was assigned, one is created, see {@link Options.Builder#secure() secure()}.
          * <li>If the URI is of the form opentls:// and no SSL context was assigned one will be created
          * that does not check the servers certificate for validity. This is not secure and only provided
@@ -3621,13 +3624,39 @@ public class Options {
     /**
      * Create the options string sent with the connect message.
      * If includeAuth is true the auth information is included:
-     * If the server URIs have auth info it is used. Otherwise, the userInfo is used.
+     * If the server URI has user info it is used. Otherwise, the userInfo or token of the options is used.
      * @param serverURI the current server uri
      * @param includeAuth tells the options to build a connection string that includes auth information
      * @param nonce if the client is supposed to sign the nonce for authentication
      * @return the options String, basically JSON
      */
     public CharBuffer buildProtocolConnectOptionsString(String serverURI, boolean includeAuth, byte[] nonce) {
+        String rawUserInfo = null;
+        try {
+            rawUserInfo = this.createURIForServer(serverURI).getRawUserInfo();
+        }
+        catch (URISyntaxException e) {
+            // a uri that does not parse supplies no user info
+        }
+        return buildConnectOptionsString(rawUserInfo, includeAuth, nonce);
+    }
+
+    /**
+     * Create the options string sent with the connect message for a server.
+     * If includeAuth is true the auth information is included, with the credentials chosen in this order:
+     * the user info of the server's own uri, then the user info the server inherited from the configured
+     * server it was learned through ({@link NatsUri#getInheritedUserInfo()}), then the userInfo or token of
+     * the options. Credentials from the uri replace an nkey set in the options; a JWT is still sent.
+     * @param serverUri the server being connected to
+     * @param includeAuth tells the options to build a connection string that includes auth information
+     * @param nonce if the client is supposed to sign the nonce for authentication
+     * @return the options String, basically JSON
+     */
+    public CharBuffer buildProtocolConnectOptionsString(@NonNull NatsUri serverUri, boolean includeAuth, byte[] nonce) {
+        return buildConnectOptionsString(serverUri.getConnectUserInfo(), includeAuth, nonce);
+    }
+
+    private CharBuffer buildConnectOptionsString(@Nullable String rawUserInfo, boolean includeAuth, byte[] nonce) {
         CharBuffer connectString = CharBuffer.allocate(this.maxControlLine);
         connectString.append("{");
 
@@ -3648,52 +3677,49 @@ public class Options {
         appendOption(connectString, Options.OPTION_NORESPONDERS, String.valueOf(!this.isNoNoResponders()), false, true);
 
         if (includeAuth) {
-            if (nonce != null && this.getAuthHandler() != null) {
-                char[] nkey = this.getAuthHandler().getID();
-                byte[] sig = this.getAuthHandler().sign(nonce);
-                char[] jwt = this.getAuthHandler().getJWT();
-
-                if (sig == null) {
-                    sig = new byte[0];
-                }
-
-                if (jwt == null) {
-                    jwt = new char[0];
-                }
-
-                if (nkey == null) {
-                    nkey = new char[0];
-                }
-
-                String encodedSig = base64UrlEncodeToString(sig);
-
-                appendOption(connectString, Options.OPTION_NKEY, nkey, true);
-                appendOption(connectString, Options.OPTION_SIG, encodedSig, true, true);
-                appendOption(connectString, Options.OPTION_JWT, jwt, true);
-            }
-
+            // Values from the uri override options
             String uriUser = null;
             String uriPass = null;
             String uriToken = null;
-
-            // Values from URI override options
-            try {
-                URI uri = this.createURIForServer(serverURI);
-                String userInfo = uri.getRawUserInfo();
-                if (userInfo != null) {
-                    int at = userInfo.indexOf(":");
-                    if (at == -1) {
-                        uriToken = uriDecode(userInfo);
-                    }
-                    else {
-                        uriUser = uriDecode(userInfo.substring(0, at));
-                        uriPass = uriDecode(userInfo.substring(at + 1));
-                    }
+            if (rawUserInfo != null) {
+                int at = rawUserInfo.indexOf(":");
+                if (at == -1) {
+                    uriToken = uriDecode(rawUserInfo);
+                }
+                else {
+                    uriUser = uriDecode(rawUserInfo.substring(0, at));
+                    uriPass = uriDecode(rawUserInfo.substring(at + 1));
                 }
             }
-            catch (URISyntaxException e) {
-                // the createURIForServer call is the one that potentially throws this
-                // uriUser, uriPass and uriToken will already be null
+            boolean uriHasCredentials = uriUser != null || uriToken != null;
+
+            if (nonce != null && this.getAuthHandler() != null) {
+                char[] jwt = this.getAuthHandler().getJWT();
+                // Credentials in the uri replace an nkey set in the options, as nats.go does.
+                // A JWT is still sent, with the nkey and signature that go with it.
+                boolean hasJwt = jwt != null && jwt.length > 0;
+                if (hasJwt || !uriHasCredentials) {
+                    char[] nkey = this.getAuthHandler().getID();
+                    byte[] sig = this.getAuthHandler().sign(nonce);
+
+                    if (sig == null) {
+                        sig = new byte[0];
+                    }
+
+                    if (jwt == null) {
+                        jwt = new char[0];
+                    }
+
+                    if (nkey == null) {
+                        nkey = new char[0];
+                    }
+
+                    String encodedSig = base64UrlEncodeToString(sig);
+
+                    appendOption(connectString, Options.OPTION_NKEY, nkey, true);
+                    appendOption(connectString, Options.OPTION_SIG, encodedSig, true, true);
+                    appendOption(connectString, Options.OPTION_JWT, jwt, true);
+                }
             }
 
             if (uriUser != null) {
@@ -3710,13 +3736,14 @@ public class Options {
                 appendOption(connectString, Options.OPTION_PASSWORD, jsonEncode(this.password), true, true);
             }
 
+            // every credential is JSON encoded, the token included
             if (uriToken != null) {
-                appendOption(connectString, Options.OPTION_AUTH_TOKEN, uriToken, true, true);
+                appendOption(connectString, Options.OPTION_AUTH_TOKEN, jsonEncode(uriToken), true, true);
             }
             else {
                 char[] token = this.tokenSupplier.get();
                 if (token != null) {
-                    appendOption(connectString, Options.OPTION_AUTH_TOKEN, token, true);
+                    appendOption(connectString, Options.OPTION_AUTH_TOKEN, jsonEncode(token), true, true);
                 }
             }
         }
