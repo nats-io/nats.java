@@ -1,5 +1,10 @@
 # Change Log
 
+## 2.26.5
+
+### Core
+* Fix subscription drain futures reporting success after timing out with unread messages #1660 @yangjj-iso
+
 ## 2.26.4
 
 ### Core

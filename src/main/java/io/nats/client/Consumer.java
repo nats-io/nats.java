@@ -120,7 +120,7 @@ public interface Consumer {
      * @param timeout The time to wait for the drain to succeed, pass 0 to wait
      *                    forever. Drain involves moving messages to and from the server
      *                    so a very short timeout is not recommended.
-     * @return A future that can be used to check if the drain has completed
+     * @return A future containing true if draining succeeded, or false if it timed out or was interrupted
      * @throws InterruptedException if the thread is interrupted
      */
     CompletableFuture<Boolean> drain(Duration timeout) throws InterruptedException;

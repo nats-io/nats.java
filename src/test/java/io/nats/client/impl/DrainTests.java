@@ -76,6 +76,39 @@ public class DrainTests {
     }
 
     @Test
+    public void testSubDrainTimeoutReportsFailureAfterCleanup() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false);
+             NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+            Subscription sub = nc.subscribe("draintest");
+            nc.publish("draintest", null);
+            nc.flush(Duration.ofSeconds(5));
+            assertEquals(1, sub.getPendingMessageCount());
+
+            CompletableFuture<Boolean> tracker = sub.drain(Duration.ofMillis(100));
+
+            assertFalse(tracker.get(5, TimeUnit.SECONDS), "An unread message must make the drain time out");
+            assertFalse(sub.isActive());
+            assertEquals(-1, sub.getPendingMessageCount(), "Cleanup must still invalidate the queue");
+            assertEquals(0, nc.getConsumerCount());
+        }
+    }
+
+    @Test
+    public void testEmptySubDrainReportsSuccessAfterCleanup() throws Exception {
+        try (NatsTestServer ts = new NatsTestServer(false);
+             NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+            Subscription sub = nc.subscribe("draintest");
+
+            CompletableFuture<Boolean> tracker = sub.drain(Duration.ofSeconds(5));
+
+            assertTrue(tracker.get(5, TimeUnit.SECONDS));
+            assertFalse(sub.isActive());
+            assertEquals(-1, sub.getPendingMessageCount());
+            assertEquals(0, nc.getConsumerCount());
+        }
+    }
+
+    @Test
     public void testSimpleDispatchDrain() throws Exception {
         try (NatsTestServer ts = new NatsTestServer(false);
              Connection subCon = Nats.connect(new Options.Builder().server(ts.getURI()).maxReconnects(0).build());
