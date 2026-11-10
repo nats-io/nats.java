@@ -456,11 +456,38 @@ public class Headers {
 	/**
 	 * Returns a {@link Set} read only view of the mappings contained in the header (case-sensitive keys).
 	 * The set is not modifiable and any attempt to modify will throw an exception.
+	 * Entries and their value lists are also unmodifiable.
 	 * @return a set view of the mappings contained in this map or Collections.emptySet() if there are no entries
 	 */
 	@NonNull
 	public Set<Map.Entry<String, List<String>>> entrySet() {
-		return valuesMap.isEmpty() ? Collections.emptySet() : Collections.unmodifiableSet(valuesMap.entrySet());
+		if (valuesMap.isEmpty()) {
+			return Collections.emptySet();
+		}
+		return Collections.unmodifiableSet(new AbstractSet<Map.Entry<String, List<String>>>() {
+			@Override
+			public Iterator<Map.Entry<String, List<String>>> iterator() {
+				Iterator<Map.Entry<String, List<String>>> iterator = valuesMap.entrySet().iterator();
+				return new Iterator<Map.Entry<String, List<String>>>() {
+					@Override
+					public boolean hasNext() {
+						return iterator.hasNext();
+					}
+
+					@Override
+					public Map.Entry<String, List<String>> next() {
+						Map.Entry<String, List<String>> entry = iterator.next();
+						return new AbstractMap.SimpleImmutableEntry<>(entry.getKey(),
+							Collections.unmodifiableList(entry.getValue()));
+					}
+				};
+			}
+
+			@Override
+			public int size() {
+				return valuesMap.size();
+			}
+		});
 	}
 
 	/**

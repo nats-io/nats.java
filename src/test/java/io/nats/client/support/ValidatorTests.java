@@ -1,4 +1,4 @@
-// Copyright 2020 The NATS Authors
+// Copyright 2020-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -77,9 +77,10 @@ public class ValidatorTests {
     @Test
     public void testValidateQueueName() {
         // validateQueueName(String s, boolean required)
-        allowedRequired(Validator::validateQueueName, Arrays.asList(PLAIN, HAS_PRINTABLE, HAS_DOLLAR, HAS_DOT, HAS_LOW, HAS_127));
-        notAllowedRequired(Validator::validateQueueName, Arrays.asList(null, EMPTY, HAS_SPACE, STAR_NOT_SEGMENT, GT_NOT_SEGMENT));
-        allowedRequired(Validator::validateQueueName, UTF_ONLY_STRINGS);
+        allowedRequired(Validator::validateQueueName, Arrays.asList(PLAIN, HAS_PRINTABLE, HAS_DOLLAR, HAS_DASH, HAS_UNDER, HAS_FWD_SLASH, HAS_EQUALS));
+        notAllowedRequired(Validator::validateQueueName, Arrays.asList(null, EMPTY, HAS_SPACE, HAS_CR, HAS_LF, HAS_TAB, HAS_DOT, HAS_LOW, HAS_127));
+        notAllowedRequired(Validator::validateQueueName, Arrays.asList(STAR_SEGMENT, GT_LAST_SEGMENT, STAR_NOT_SEGMENT, GT_NOT_SEGMENT, "*", ">"));
+        notAllowedRequired(Validator::validateQueueName, UTF_ONLY_STRINGS);
         allowedNotRequiredEmptyAsNull(Validator::validateQueueName, Arrays.asList(null, EMPTY));
     }
 

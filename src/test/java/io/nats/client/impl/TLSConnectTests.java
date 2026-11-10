@@ -353,6 +353,333 @@ public class TLSConnectTests extends TestBase {
     }
 
     @Test
+    public void testTlsMismatchWithEveryServerClosesWithoutRetrying() throws Exception {
+        // The options decide whether the client uses TLS, for every server of the connection. When every server of
+        // one round over the list fails with a TLS mismatch, retrying cannot help: the connect closes the connection
+        // and throws, without reconnecting on connect.
+        try (NatsTestServer tls = new NatsTestServer("src/test/resources/tls.conf", false);
+             NatsTestServer tls2 = new NatsTestServer("src/test/resources/tls.conf", false);
+             NatsTestServer plain = new NatsTestServer();
+             NatsTestServer plain2 = new NatsTestServer()) {
+            // the servers require TLS, the options have no context
+            _testTlsMismatchWithEveryServer(new Options.Builder(), tls, tls2, "SSL required by server.");
+            // the servers have no TLS, the options have a context
+            _testTlsMismatchWithEveryServer(new Options.Builder().sslContext(SslTestingHelper.createTestSSLContext()), plain, plain2, "SSL connection wanted by client.");
+        }
+    }
+
+    private static void _testTlsMismatchWithEveryServer(Options.Builder builder, NatsTestServer s1, NatsTestServer s2, String mismatch) {
+        ListenerForTesting listener = new ListenerForTesting();
+        Options options = builder
+            .servers(new String[]{s1.getURI(), s2.getURI()})
+            .noRandomize()
+            .maxReconnects(3)
+            .reconnectWait(Duration.ofSeconds(1))
+            .connectionListener(listener)
+            .errorListener(listener)
+            .build();
+
+        long start = System.nanoTime();
+        IOException e = assertThrows(IOException.class, () -> Nats.connectReconnectOnConnect(options));
+        long elapsedMillis = (System.nanoTime() - start) / 1_000_000;
+        assertTrue(e.getMessage().startsWith(mismatch), e.getMessage());
+        assertTrue(elapsedMillis < 1000, "closed after one round, not after a reconnect wait: " + elapsedMillis + " ms");
+        // one attempt per server and no reconnect round
+        assertEquals(2, countMismatches(listener, mismatch), listener.getExceptions().toString());
+    }
+
+    private static long countMismatches(ListenerForTesting listener, String mismatch) {
+        return listener.getExceptions().stream().filter(x -> String.valueOf(x.getMessage()).contains(mismatch)).count();
+    }
+
+    @Test
+    public void testTlsMismatchWithOneServerDoesNotStopTheConnect() throws Exception {
+        // A single server can be misconfigured. A mismatch with it fails that attempt and the next server is tried.
+        try (NatsTestServer tls = new NatsTestServer("src/test/resources/tls.conf", false);
+             NatsTestServer plain = new NatsTestServer()) {
+            // no context: the server that requires TLS is passed over, the plain one is reached
+            ListenerForTesting listener = new ListenerForTesting();
+            Options options = new Options.Builder()
+                .servers(new String[]{tls.getURI(), plain.getURI()})
+                .noRandomize()
+                .maxReconnects(0)
+                .errorListener(listener)
+                .build();
+            try (Connection nc = standardConnectionWait(Nats.connect(options))) {
+                assertEquals(plain.getNatsPort(), options.createURIForServer(nc.getConnectedUrl()).getPort());
+            }
+            assertEquals(1, countMismatches(listener, "SSL required by server."), listener.getExceptions().toString());
+
+            // a context: the plain server is passed over, the one with TLS is reached
+            listener = new ListenerForTesting();
+            options = new Options.Builder()
+                .servers(new String[]{plain.getURI(), tls.getURI()})
+                .noRandomize()
+                .maxReconnects(0)
+                .sslContext(SslTestingHelper.createTestSSLContext())
+                .errorListener(listener)
+                .build();
+            try (Connection nc = standardConnectionWait(Nats.connect(options))) {
+                assertEquals(tls.getNatsPort(), options.createURIForServer(nc.getConnectedUrl()).getPort());
+            }
+            assertEquals(1, countMismatches(listener, "SSL connection wanted by client."), listener.getExceptions().toString());
+        }
+    }
+
+    @Test
+    public void testTlsMismatchNextToAnUnreachableServerKeepsReconnecting() throws Exception {
+        // An unreachable server is not a mismatch, it may come back: the round is not conclusive and the normal
+        // reconnect rules apply, so the reconnect budget is used before the connection closes.
+        ListenerForTesting listener = new ListenerForTesting();
+        try (NatsTestServer tls = new NatsTestServer("src/test/resources/tls.conf", false)) {
+            Options options = new Options.Builder()
+                .servers(new String[]{tls.getURI(), "nats://localhost:" + NatsTestServer.nextPort()})
+                .noRandomize()
+                .maxReconnects(1)
+                .reconnectWait(Duration.ofMillis(100))
+                .connectionListener(listener)
+                .errorListener(listener)
+                .build();
+            listener.prepForStatusChange(Events.CLOSED);
+            Connection nc = Nats.connectReconnectOnConnect(options); // does not throw: the budget is used, then the connection closes
+            assertTrue(listener.waitForStatusChange(5, TimeUnit.SECONDS));
+            assertEquals(Connection.Status.CLOSED, nc.getStatus());
+            // the initial round and at least one reconnect round reached the server that requires TLS
+            assertTrue(countMismatches(listener, "SSL required by server.") >= 2, listener.getExceptions().toString());
+        }
+    }
+
+    @Test
+    public void testServerStartsRequiringTlsClientHasNoContextClosesOnReconnect() throws Exception {
+        // A connected client without an SSL context meets a server that requires TLS on reconnect. The pool has that
+        // one server, so one attempt is a full round: the reconnect stops and the connection is closed, however many
+        // reconnects remain.
+        ListenerForTesting listener = new ListenerForTesting();
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = new Options.Builder()
+                .server(ts.getURI())
+                .maxReconnects(10)
+                .reconnectWait(Duration.ofMillis(100))
+                .connectionListener(listener)
+                .errorListener(listener)
+                .build();
+            assertFalse(options.isTLSRequired());
+            ProxyConnection conn = new ProxyConnection(options, SERVER_UNCHANGED);
+            conn.connect(false);
+            standardConnectionWait(conn);
+
+            conn.serverType = SERVER_CLAIMS_TLS_REQUIRED;
+            listener.prepForStatusChange(Events.CLOSED);
+            conn.forceReconnect();
+            assertTrue(listener.waitForStatusChange(5, TimeUnit.SECONDS));
+            assertEquals(Connection.Status.CLOSED, conn.getStatus());
+            List<Exception> exceptions = listener.getExceptions();
+            long attempts = exceptions.stream().filter(x -> String.valueOf(x.getMessage()).contains("SSL required by server")).count();
+            assertEquals(1, attempts, exceptions.toString());
+        }
+    }
+
+    // A connection that remembers what it knew at the moment it reported connected.
+    static class InfoCountingConnection extends ProxyConnection {
+        volatile int infosHandledAtConnected = -1;
+        volatile Collection<String> serversAtConnected;
+
+        InfoCountingConnection(Options options) throws Exception {
+            super(options, SERVER_UNCHANGED);
+        }
+
+        @Override
+        protected void updateStatus(Status newStatus, String uriDetail) {
+            if (newStatus == Status.CONNECTED) {
+                infosHandledAtConnected = infosHandled;
+                serversAtConnected = getServers();
+            }
+            super.updateStatus(newStatus, uriDetail);
+        }
+    }
+
+    private static final String CLUSTER_TLS_CONF = "src/test/resources/cluster_tls.conf";
+
+    private static String[] clusterInserts(int listenPort, int routePort) {
+        return new String[] {
+            "cluster {",
+            "name: tlsClusterName",
+            "listen: localhost:" + listenPort,
+            "routes = [",
+            "nats-route://localhost:" + routePort,
+            "]",
+            "}"
+        };
+    }
+
+    // Connects to the server with a good context and waits until it has reported the other cluster member,
+    // so that the tests that follow meet a formed cluster whose INFO carries connect_urls.
+    private static void waitForClusterToForm(NatsTestServer server) throws Exception {
+        ListenerForTesting listener = new ListenerForTesting();
+        Options options = new Options.Builder()
+            .server(server.getURI())
+            .sslContext(SslTestingHelper.createTestSSLContext())
+            .connectionListener(listener)
+            .build();
+        listener.prepForStatusChange(Events.DISCOVERED_SERVERS);
+        try (Connection nc = standardConnectionWait(Nats.connect(options))) {
+            if (nc.getServers().size() < 2) {
+                assertTrue(listener.waitForStatusChange(10, TimeUnit.SECONDS), "cluster did not form");
+            }
+        }
+    }
+
+    @Test
+    public void testPlaintextInfoIsNotUsedWhenTlsFollows() throws Exception {
+        // ADR-40: on TLS after INFO the INFO read in plaintext must not supply discovered servers, whether the
+        // handshake then succeeds or fails. Here it fails, and the pool still holds only the configured server.
+        int aPort = NatsTestServer.nextPort();
+        int bPort = NatsTestServer.nextPort();
+        int aCluster = NatsTestServer.nextPort();
+        int bCluster = NatsTestServer.nextPort();
+        try (NatsTestServer a = new NatsTestServer(CLUSTER_TLS_CONF, clusterInserts(aCluster, bCluster), aPort, false);
+             NatsTestServer b = new NatsTestServer(CLUSTER_TLS_CONF, clusterInserts(bCluster, aCluster), bPort, false)) {
+            waitForClusterToForm(a);
+
+            ListenerForTesting listener = new ListenerForTesting();
+            Options options = new Options.Builder()
+                .server(a.getURI())
+                .sslContext(SslTestingHelper.getFailContext())
+                .maxReconnects(0)
+                .connectionListener(listener)
+                .errorListener(listener)
+                .build();
+            ProxyConnection conn = new ProxyConnection(options, SERVER_UNCHANGED);
+            assertThrows(Exception.class, () -> conn.connect(false));
+
+            // one handshake failure: the other member was never learned, so it was never dialed
+            List<Exception> exceptions = listener.getExceptions();
+            long handshakeFailures = exceptions.stream().filter(e -> String.valueOf(e.getMessage()).contains("Fail mode: all certificates rejected")).count();
+            assertEquals(1, handshakeFailures, exceptions.toString());
+            assertFalse(conn.getServers().toString().contains(":" + bPort), conn.getServers().toString());
+            assertEquals(0, listener.getEventCount(Events.DISCOVERED_SERVERS));
+        }
+    }
+
+    @Test
+    public void testInfoAfterFirstPongIsWaitedForOnTlsAfterInfo() throws Exception {
+        // ADR-40: on TLS after INFO against nats-server 2.12 and later, the INFO that follows the first PONG brings
+        // the discovered servers inside TLS, and the client waits for it before it reports connected.
+        ensureRunServerInfo();
+        if (TestBase.atLeast2_12()) {
+            int aPort = NatsTestServer.nextPort();
+            int bPort = NatsTestServer.nextPort();
+            int aCluster = NatsTestServer.nextPort();
+            int bCluster = NatsTestServer.nextPort();
+            try (NatsTestServer a = new NatsTestServer(CLUSTER_TLS_CONF, clusterInserts(aCluster, bCluster), aPort, false);
+                 NatsTestServer b = new NatsTestServer(CLUSTER_TLS_CONF, clusterInserts(bCluster, aCluster), bPort, false)) {
+                waitForClusterToForm(a);
+
+                Options options = new Options.Builder()
+                    .server(a.getURI())
+                    .sslContext(SslTestingHelper.createTestSSLContext())
+                    .maxReconnects(0)
+                    .build();
+                InfoCountingConnection conn = new InfoCountingConnection(options);
+                conn.connect(false);
+                standardConnectionWait(conn);
+                assertTrue(conn.infosHandledAtConnected >= 2, "the plaintext INFO and the INFO after the first PONG, got " + conn.infosHandledAtConnected);
+                assertTrue(conn.serversAtConnected.toString().contains(":" + bPort), "discovered server known when connected was reported: " + conn.serversAtConnected);
+                closeConnection(conn, 1000);
+            }
+        }
+    }
+
+    @Test
+    public void testLameDuckInPlaintextInfoIsIgnoredWhenTlsFollows() throws Exception {
+        // ADR-40: the lame duck flag of the INFO read in plaintext before a TLS upgrade raises no event.
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
+            ListenerForTesting listener = new ListenerForTesting();
+            Options options = new Options.Builder()
+                .server(ts.getURI())
+                .sslContext(SslTestingHelper.createTestSSLContext())
+                .maxReconnects(0)
+                .connectionListener(listener)
+                .build();
+            ProxyConnection conn = new ProxyConnection(options, SERVER_CLAIMS_LAME_DUCK);
+            listener.prepForStatusChange(Events.CONNECTED);
+            conn.connect(false);
+            standardConnectionWait(conn);
+            assertTrue(listener.waitForStatusChange(5, TimeUnit.SECONDS)); // callbacks are delivered in order, so any LAME_DUCK came first
+            assertEquals(0, listener.getEventCount(Events.LAME_DUCK));
+            if (TestBase.atLeast2_12(ensureRunServerInfo())) {
+                // the INFO after the first PONG arrived inside TLS before connected was reported, also from a standalone server
+                assertTrue(conn.infosHandled >= 2, "infos handled: " + conn.infosHandled);
+            }
+            closeConnection(conn, 1000);
+        }
+
+        // the same flag on a plaintext connection is acted on
+        try (NatsTestServer ts = new NatsTestServer()) {
+            ListenerForTesting listener = new ListenerForTesting();
+            Options options = new Options.Builder()
+                .server(ts.getURI())
+                .maxReconnects(0)
+                .connectionListener(listener)
+                .build();
+            ProxyConnection conn = new ProxyConnection(options, SERVER_CLAIMS_LAME_DUCK);
+            listener.prepForStatusChange(Events.LAME_DUCK);
+            conn.connect(false);
+            standardConnectionWait(conn);
+            assertTrue(listener.waitForStatusChange(5, TimeUnit.SECONDS));
+            assertEquals(1, listener.getEventCount(Events.LAME_DUCK));
+            closeConnection(conn, 1000);
+        }
+    }
+
+    @Test
+    public void testDataAfterInfoBeforeTlsUpgradeFailsAsHandshakeFailure() throws Exception {
+        // ADR-40: bytes received after the INFO line and before the TLS handshake are not acted on. The attempt
+        // fails at once as a TLS handshake failure that quotes the server's line as untrusted text.
+        String payload = "INFO {\"server_id\":\"test\",\"version\":\"2.11.0\",\"tls_required\":true}\r\n-ERR 'maximum connections exceeded'\r\n";
+        try (ServerSocket ss = InfoHandlerTests.serverThatWritesThenCloses(payload)) {
+            ListenerForTesting listener = new ListenerForTesting();
+            Options options = new Options.Builder()
+                .server("nats://localhost:" + ss.getLocalPort())
+                .sslContext(SslTestingHelper.createTestSSLContext())
+                .maxReconnects(0)
+                .errorListener(listener)
+                .build();
+            assertThrows(IOException.class, () -> Nats.connect(options));
+            List<Exception> exceptions = listener.getExceptions();
+            assertTrue(exceptions.stream().anyMatch(e -> {
+                String m = String.valueOf(e.getMessage());
+                return m.contains("TLS handshake failed") && m.contains("\"-ERR 'maximum connections exceeded'\"");
+            }), exceptions.toString());
+            assertTrue(listener.getErrors().isEmpty(), "the -ERR was not acted on: " + listener.getErrors());
+        }
+    }
+
+    @Test
+    public void testTlsFirstWithoutContextUsesTheDefaultContext() throws Exception {
+        if (TestBase.atLeast2_10_3(ensureRunServerInfo())) {
+            SSLContext originalDefault = SSLContext.getDefault();
+            try (NatsTestServer ts = new NatsTestServer(
+                NatsTestServer.builder()
+                    .configFilePath("src/test/resources/tls_first.conf")
+                    .skipConnectValidate())
+            ) {
+                SSLContext.setDefault(SslTestingHelper.createTestSSLContext());
+                Options options = new Options.Builder()
+                    .server(ts.getURI())
+                    .maxReconnects(0)
+                    .tlsFirst()
+                    .build();
+                assertTrue(options.isTLSRequired());
+                assertCanConnectAndPubSub(options);
+            }
+            finally {
+                SSLContext.setDefault(originalDefault);
+            }
+        }
+    }
+
+    @Test
     public void testClientSecureServerNotMismatch() {
         assertThrows(IOException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer()) {
@@ -421,14 +748,22 @@ public class TLSConnectTests extends TestBase {
         assertEquals("tlsAlgorithm", factory.properties.getTlsAlgorithm());
     }
 
-    private static final int SERVER_INSECURE = 1;
-    private static final int SERVER_TLS_AVAILABLE = 2;
-    private static final int SERVER_TLS_REQUIRED = 3;
+    private static final int SERVER_UNCHANGED = 0;     // INFO passed through
+    private static final int SERVER_INSECURE = 1;      // tls_required removed from INFO
+    private static final int SERVER_TLS_AVAILABLE = 2; // tls_required turned into tls_available
+    private static final int SERVER_TLS_REQUIRED = 3;  // INFO passed through, the server itself requires TLS
+    private static final int SERVER_CLAIMS_TLS_REQUIRED = 4; // tls_required added to the INFO of a plain server
+    private static final int SERVER_CLAIMS_LAME_DUCK = 5;    // ldm added to the first INFO only
     static class ProxyConnection extends NatsConnection {
         int serverType;
+        int infosHandled;
 
         public ProxyConnection(String servers, boolean tlsFirst, ErrorListener listener, int serverType) throws Exception {
-            super(makeMiddleman(servers, tlsFirst, listener));
+            this(makeMiddleman(servers, tlsFirst, listener), serverType);
+        }
+
+        public ProxyConnection(Options options, int serverType) throws Exception {
+            super(options);
             this.serverType = serverType;
         }
 
@@ -448,11 +783,16 @@ public class TLSConnectTests extends TestBase {
 
         @Override
         protected void handleInfo(String infoJson) {
+            infosHandled++;
             switch (serverType) {
+                case SERVER_CLAIMS_LAME_DUCK:
+                    super.handleInfo(infosHandled == 1 ? infoJson.replaceFirst("\\{", "{\"ldm\":true,") : infoJson); break;
                 case SERVER_INSECURE:
                     super.handleInfo(infoJson.replace(",\"tls_required\":true", "")); break;
                 case SERVER_TLS_AVAILABLE:
                     super.handleInfo(infoJson.replace("\"tls_required\":true", "\"tls_available\":true")); break;
+                case SERVER_CLAIMS_TLS_REQUIRED:
+                    super.handleInfo(infoJson.replaceFirst("\\{", "{\"tls_required\":true,")); break;
                 default:
                     super.handleInfo(infoJson);
             }

@@ -154,6 +154,54 @@ public class ServerPoolTests extends TestBase {
         validateNslp(nsp, null, true, BOOT_ONE, BOOT_TWO, "nats://d9");
     }
 
+    @Test
+    public void testDiscoveredServersInheritTheOriginsUserInfo() throws URISyntaxException {
+        String bootWithCreds = "nats://derek:password@b1";
+        Options o = new Options.Builder().servers(new String[]{bootWithCreds, BOOT_TWO}).noRandomize().build();
+        NatsServerPool nsp = new NatsServerPool();
+        nsp.initialize(o);
+        NatsUri b1 = entry(nsp, "b1").nuri;
+        NatsUri b2 = entry(nsp, "b2").nuri;
+
+        // learned through the configured server with credentials: the discovered servers inherit them
+        nsp.acceptDiscoveredUrls(Arrays.asList(DISC_ONE, DISC_TWO), b1);
+        assertEquals("derek:password", entry(nsp, "d1").nuri.getInheritedUserInfo());
+        assertEquals("derek:password", entry(nsp, "d2").nuri.getInheritedUserInfo());
+        // the configured server is unchanged, and no server list string carries inherited credentials
+        assertNull(entry(nsp, "b1").nuri.getInheritedUserInfo());
+        for (String s : nsp.getServerList()) {
+            assertTrue(s.equals(bootWithCreds + ":4222") || !s.contains("derek"), s);
+        }
+
+        // learned through a discovered server: what that server inherited is passed on
+        nsp.acceptDiscoveredUrls(Arrays.asList(DISC_ONE, DISC_TWO, DISC_THREE), entry(nsp, "d1").nuri);
+        assertEquals("derek:password", entry(nsp, "d3").nuri.getInheritedUserInfo());
+
+        // the first report decides: a later report through a server without credentials changes nothing
+        nsp.acceptDiscoveredUrls(Arrays.asList(DISC_ONE, DISC_TWO, DISC_THREE, "nats://d4"), b2);
+        assertEquals("derek:password", entry(nsp, "d1").nuri.getInheritedUserInfo());
+        assertNull(entry(nsp, "d4").nuri.getInheritedUserInfo());
+
+        // an entry that carries its own user info keeps it and inherits nothing
+        nsp.acceptDiscoveredUrls(Arrays.asList(DISC_ONE, DISC_TWO, DISC_THREE, "nats://d4", "nats://own:pw@d5"), b1);
+        assertNull(entry(nsp, "d5").nuri.getInheritedUserInfo());
+        assertEquals("own:pw", entry(nsp, "d5").nuri.getConnectUserInfo());
+
+        // no origin, nothing inherited
+        nsp.acceptDiscoveredUrls(Arrays.asList(DISC_ONE, DISC_TWO, DISC_THREE, "nats://d4", "nats://own:pw@d5", "nats://d6"), null);
+        assertNull(entry(nsp, "d6").nuri.getInheritedUserInfo());
+    }
+
+    private static ServerPoolEntry entry(NatsServerPool nsp, String host) {
+        for (ServerPoolEntry e : nsp.entryList) {
+            if (e.nuri.getHost().equals(host)) {
+                return e;
+            }
+        }
+        fail("no entry for " + host);
+        return null;
+    }
+
     private static NatsServerPool newNatsServerPool(Options o, NatsUri last, List<String> discoveredServers) {
         NatsServerPool nsp = new NatsServerPool();
         nsp.initialize(o);

@@ -1,4 +1,4 @@
-// Copyright 2022 The NATS Authors
+// Copyright 2022-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -217,14 +217,14 @@ public class NatsObjectStore extends NatsFeatureBase implements ObjectStore {
             // track the byte count and chunks
             // update the digest
             // write the bytes to the output file
-            totalBytes = data == null ? 0 : data.length;
             totalChunks = 1;
-            digester.update(data);
-            if (totalBytes > 0) {
+            if (data != null) {
+                totalBytes = data.length;
+                digester.update(data);
                 out.write(data);
             }
         }
-        else {
+        else if (oi.getChunks() > 0) { // an empty object has no chunks, so there is nothing to read
             JetStreamSubscription sub = js.subscribe(rawChunkSubject(oi.getNuid()),
                 PushSubscribeOptions.builder().stream(streamName).ordered(true).build());
 

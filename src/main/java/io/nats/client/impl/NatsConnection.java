@@ -63,6 +63,14 @@ class NatsConnection implements Connection {
 
     protected CompletableFuture<DataPort> dataPortFuture;
     protected DataPort dataPort;
+    // the TLS mismatch the current attempt failed with, null when it did not; see upgradeToSecureIfNeeded
+    private volatile String attemptTlsMismatch;
+    // true while the INFO read in plaintext before a TLS upgrade is handled; see readInitialInfo and handleInfo
+    private volatile boolean infoBeforeTlsUpgrade;
+    // bytes read past the INFO line, handed to the reader when it starts; see readInitialInfo
+    private byte[] infoTrailingBytes;
+    // completed by the first INFO the reader handles while an attempt waits for the INFO that follows the first PONG
+    private volatile CompletableFuture<Void> infoAfterPong;
     protected NatsUri currentServer;
     protected NatsUri connectingServer;
     protected NatsUri lastServer;
@@ -247,6 +255,8 @@ class NatsConnection implements Connection {
 
         Set<NatsUri> failList = new HashSet<>();
         boolean keepGoing = true;
+        String tlsMismatch = null;               // the mismatch of the last attempt that failed with one
+        boolean everyAttemptTlsMismatch = true;  // false once an attempt failed for another reason
         NatsUri first = null;
         NatsUri cur;
         // A rejected server, mapped to the count of usable servers handed out when it was last supplied.
@@ -284,6 +294,7 @@ class NatsConnection implements Connection {
                     break;
                 }
                 connectError.set(null); // new on each attempt
+                attemptTlsMismatch = null;
 
                 timeTraceLogger.trace("setting status to connecting");
                 updateStatus(Status.CONNECTING, resolved, cur);
@@ -305,6 +316,13 @@ class NatsConnection implements Connection {
                 if (this.isAuthenticationError(err)) {
                     this.serverAuthErrors.put(resolved, err);
                 }
+
+                if (attemptTlsMismatch == null) {
+                    everyAttemptTlsMismatch = false;
+                }
+                else {
+                    tlsMismatch = attemptTlsMismatch;
+                }
             }
 
             if (!isConnected() && !isClosed()) {
@@ -314,6 +332,13 @@ class NatsConnection implements Connection {
         }
 
         if (!isConnected() && !isClosed()) {
+            if (tlsMismatch != null && everyAttemptTlsMismatch) {
+                // One round over the whole server list, and every attempt failed with the TLS mismatch between the
+                // options and the server. The options are the same for every server, so retrying cannot help.
+                timeTraceLogger.trace("every server failed with a TLS mismatch, closing");
+                close();
+                throw new IOException(tlsMismatch + " Every server of the connection failed with this TLS mismatch, so the connection was closed without retrying: " + failList);
+            }
             if (reconnectOnConnect) {
                 timeTraceLogger.trace("trying to reconnect on connect");
                 reconnectImpl(); // call the impl here otherwise the tryingToConnect guard will block the behavior
@@ -488,6 +513,8 @@ class NatsConnection implements Connection {
 
     protected void reconnectImplConnect() throws InterruptedException {
         int totalRounds = 0;
+        int roundAttempts = 0;                  // attempts made in the current round over the pool
+        boolean roundAllTlsMismatch = true;     // false once an attempt of the round failed for another reason
         NatsUri first = null;
         NatsUri cur;
         // see connect: a rejected server, mapped to the count of usable servers handed out when it was last supplied
@@ -514,6 +541,13 @@ class NatsConnection implements Connection {
             }
             else if (first.equals(cur)) {
                 // went around the pool an entire time
+                if (roundAttempts > 0 && roundAllTlsMismatch) {
+                    // every server failed with the TLS mismatch between the options and the server,
+                    // retrying cannot help; the caller closes the connection
+                    return;
+                }
+                roundAttempts = 0;
+                roundAllTlsMismatch = true;
                 invokeReconnectDelayHandler(++totalRounds);
             }
 
@@ -525,6 +559,7 @@ class NatsConnection implements Connection {
                     return;
                 }
                 connectError.set(null); // reset on each loop
+                attemptTlsMismatch = null;
                 if (isDisconnectingOrClosed() || this.isClosing()) {
                     return;
                 }
@@ -545,6 +580,11 @@ class NatsConnection implements Connection {
                         return; // double auth error
                     }
                     serverAuthErrors.put(resolved, err);
+                }
+
+                roundAttempts++;
+                if (attemptTlsMismatch == null) {
+                    roundAllTlsMismatch = false;
                 }
             }
 
@@ -667,9 +707,13 @@ class NatsConnection implements Connection {
             // Since it is submitted as an async task, the future
             // will be aware of any exception thrown, and the future.get()
             // will throw an ExecutionException which is handled futher down
+            // ---
+            // TLS after INFO: the INFO is read in plaintext and the TLS upgrade follows.
+            // ADR-40 limits what that INFO may do, see readInitialInfo and handleInfo.
+            boolean tlsAfterInfo = options.isTLSRequired() && !options.isTlsFirst() && !resolved.isWebsocket();
             Callable<Object> connectTask = () -> {
                 if (!options.isTlsFirst()) {
-                    readInitialInfo();
+                    readInitialInfo(tlsAfterInfo);
                     checkVersionRequirements();
                 }
                 long start = NatsSystemClock.nanoTime();
@@ -681,7 +725,7 @@ class NatsConnection implements Connection {
                         ((double) (NatsSystemClock.nanoTime() - start)) / NANOS_PER_SECOND);
                 }
                 if (options.isTlsFirst()) {
-                    readInitialInfo();
+                    readInitialInfo(false);
                     checkVersionRequirements();
                 }
                 return null;
@@ -698,6 +742,8 @@ class NatsConnection implements Connection {
 
             // start the reader and writer after we secured the connection, if necessary
             timeCheck(end, "starting reader");
+            this.reader.preload(infoTrailingBytes); // bytes read past the INFO line, if any, are parsed first
+            infoTrailingBytes = null;
             this.reader.start(this.dataPortFuture);
             timeCheck(end, "starting writer");
             this.writer.start(this.dataPortFuture);
@@ -706,10 +752,32 @@ class NatsConnection implements Connection {
             this.sendConnect(resolved);
 
             timeoutNanos = timeCheck(end, "sending initial ping");
+            // ADR-40, sources of discovered servers: on TLS after INFO the discovered servers come from the INFOs
+            // received inside TLS. nats-server 2.12 and later answer the first PING with PONG followed by such an
+            // INFO, so wait for it before reporting connected, on a timer of its own. Before 2.12 that INFO comes
+            // only when the cluster changes, so there is nothing to wait for.
+            boolean waitForInfoAfterPong = tlsAfterInfo && !options.isIgnoreDiscoveredServers()
+                && getServerInfo().isSameOrNewerThanVersion("2.12.0");
+            CompletableFuture<Void> waitingFor = waitForInfoAfterPong ? new CompletableFuture<>() : null;
+            this.infoAfterPong = waitingFor;
             Future<Boolean> pongFuture = sendPing();
 
             if (pongFuture != null) {
                 pongFuture.get(timeoutNanos, TimeUnit.NANOSECONDS);
+            }
+
+            if (waitingFor != null) {
+                long waitStart = NatsSystemClock.nanoTime();
+                try {
+                    waitingFor.get(options.getConnectionTimeout().toNanos(), TimeUnit.NANOSECONDS);
+                }
+                catch (TimeoutException e) {
+                    // report connected without it; the INFO is applied when it arrives
+                }
+                finally {
+                    this.infoAfterPong = null;
+                    end += NatsSystemClock.nanoTime() - waitStart; // the wait does not count against the attempt
+                }
             }
 
             if (pingTask == null) {
@@ -810,15 +878,21 @@ class NatsConnection implements Connection {
                 // required  | isTLSRequired()     | ok
                 // available | isTLSRequired()     | ok
                 // neither   | isTLSRequired()     | mismatch
+                // A mismatch fails the attempt and the next server is tried, since a single server can be
+                // misconfigured. The options decide TLS for every server, so once every server of one round
+                // over the list has failed with the mismatch, retrying cannot help and the connect and
+                // reconnect loops close the connection instead. See connectImpl and reconnectImplConnect.
                 ServerInfo serverInfo = getServerInfo();
                 if (options.isTLSRequired()) {
                     if (!serverInfo.isTLSRequired() && !serverInfo.isTLSAvailable()) {
-                        throw new IOException("SSL connection wanted by client.");
+                        attemptTlsMismatch = "SSL connection wanted by client.";
+                        throw new IOException(attemptTlsMismatch);
                     }
                     dataPort.upgradeToSecure();
                 }
                 else if (serverInfo.isTLSRequired()) {
-                    throw new IOException("SSL required by server.");
+                    attemptTlsMismatch = "SSL required by server.";
+                    throw new IOException(attemptTlsMismatch);
                 }
             }
         }
@@ -831,6 +905,10 @@ class NatsConnection implements Connection {
         try {
             if (this.connecting || this.disconnecting || this.status == Status.CLOSED || this.isDraining()) {
                 this.exceptionDuringConnectChange = io;
+                CompletableFuture<Void> waitingFor = infoAfterPong;
+                if (waitingFor != null) {
+                    waitingFor.completeExceptionally(io); // the connection was lost during the wait, the attempt fails
+                }
                 return;
             }
         }
@@ -1733,8 +1811,7 @@ class NatsConnection implements Connection {
             ServerInfo info = this.serverInfo.get();
             // This is changed - we used to use info.isAuthRequired(), but are changing it to
             // better match older versions of the server. It may change again in the future.
-            CharBuffer connectOptions = options.buildProtocolConnectOptionsString(
-                nuri.toString(), true, info.getNonce());
+            CharBuffer connectOptions = options.buildProtocolConnectOptionsString(nuri, true, info.getNonce());
             ByteArrayBuilder bab =
                 new ByteArrayBuilder(OP_CONNECT_SP_LEN + connectOptions.limit(), UTF_8)
                     .append(CONNECT_SP_BYTES).append(connectOptions);
@@ -1871,10 +1948,22 @@ class NatsConnection implements Connection {
     }
 
     protected void readInitialInfo() throws IOException {
+        readInitialInfo(false);
+    }
+
+    /**
+     * Read the INFO line the server sends first and handle it.
+     * @param tlsUpgradeFollows true when the INFO is read in plaintext and a TLS upgrade follows. ADR-40 then limits
+     *                          what the INFO may do, see {@link #handleInfo(String)}, and bytes received after the
+     *                          INFO line fail the attempt as a TLS handshake failure instead of being acted on.
+     * @throws IOException when the INFO cannot be read
+     */
+    protected void readInitialInfo(boolean tlsUpgradeFollows) throws IOException {
         byte[] readBuffer = new byte[options.getBufferSize()];
         ByteBuffer protocolBuffer = ByteBuffer.allocate(options.getBufferSize());
         boolean gotCRLF = false;
         boolean gotCR = false;
+        byte[] trailingBytes = null; // bytes that arrived after the INFO line in the same read
 
         while (!gotCRLF) {
             int read = this.dataPort.read(readBuffer, 0, readBuffer.length);
@@ -1891,10 +1980,9 @@ class NatsConnection implements Connection {
                     if (b != LF) {
                         throw new IOException("Missed LF after CR waiting for INFO.");
                     }
-                    else if (i < read) {
-                        throw new IOException("Read past initial info message.");
+                    if (i < read) {
+                        trailingBytes = Arrays.copyOfRange(readBuffer, i, read);
                     }
-
                     gotCRLF = true;
                     break;
                 }
@@ -1926,14 +2014,76 @@ class NatsConnection implements Connection {
             throw new IOException("Received non-info initial message.");
         }
 
-        handleInfo(infoJson);
+        if (trailingBytes != null && tlsUpgradeFollows) {
+            // ADR-40, standard TLS: the client must not act on any byte received after the INFO line when a TLS
+            // upgrade follows. Fail the attempt at once, as a TLS handshake failure that quotes the server's line
+            // as untrusted text.
+            throw new IOException("TLS handshake failed, the server sent data after INFO and before the handshake. Untrusted text from the server: " + quoteUntrusted(trailingBytes));
+        }
+
+        infoBeforeTlsUpgrade = tlsUpgradeFollows;
+        try {
+            handleInfo(infoJson);
+        }
+        finally {
+            infoBeforeTlsUpgrade = false;
+        }
+        infoTrailingBytes = trailingBytes; // on a plaintext connection, or inside TLS first, the reader parses them
+    }
+
+    /**
+     * Quote the first line of text received from a server that is not yet trusted: cut at 256 bytes, with every
+     * control character escaped, so the quote can carry neither a terminal escape sequence nor a fake line break.
+     */
+    static String quoteUntrusted(byte[] bytes) {
+        int len = bytes.length;
+        for (int i = 0; i < len; i++) {
+            if (bytes[i] == CR || bytes[i] == LF) {
+                len = i;
+                break;
+            }
+        }
+        boolean cut = len > 256;
+        if (cut) {
+            len = 256;
+        }
+        String text = new String(bytes, 0, len, UTF_8);
+        StringBuilder sb = new StringBuilder(len + 32).append('"');
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '"' || c == '\\') {
+                sb.append('\\').append(c);
+            }
+            else if (c == '\t') {
+                sb.append("\\t");
+            }
+            else if (c < 0x20 || (c >= 0x7f && c <= 0x9f)) {
+                sb.append(String.format("\\u%04x", (int) c));
+            }
+            else {
+                sb.append(c);
+            }
+        }
+        sb.append('"');
+        if (cut) {
+            sb.append(" (cut at 256 bytes)");
+        }
+        return sb.toString();
     }
 
     protected void handleInfo(String infoJson) {
         ServerInfo serverInfo = new ServerInfo(infoJson);
         this.serverInfo.set(serverInfo);
 
-        List<String> urls = this.serverInfo.get().getConnectURLs();
+        if (infoBeforeTlsUpgrade) {
+            // ADR-40, sources of discovered servers: the INFO read in plaintext before a TLS upgrade serves this
+            // attempt only, for its nonce, limits, version and tls flags. Its connect_urls and its lame duck flag
+            // are not used, whether the handshake then succeeds or fails. Discovered servers come from the INFOs
+            // received inside TLS, the first of which nats-server 2.12 and later send after the first PONG.
+            return;
+        }
+
+        List<String> urls = serverInfo.getConnectURLs();
         if (!urls.isEmpty()) {
             NatsUri origin = currentServer == null ? connectingServer : currentServer;
             if (serverPool.acceptDiscoveredUrls(urls, origin)) {
@@ -1943,6 +2093,11 @@ class NatsConnection implements Connection {
 
         if (serverInfo.isLameDuckMode()) {
             processConnectionEvent(Events.LAME_DUCK, uriDetail(currentServer));
+        }
+
+        CompletableFuture<Void> waitingFor = infoAfterPong;
+        if (waitingFor != null) {
+            waitingFor.complete(null); // the attempt waited for this INFO, it can report connected now
         }
     }
 

@@ -1,4 +1,4 @@
-// Copyright 2022 The NATS Authors
+// Copyright 2022-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -19,6 +19,7 @@ import io.nats.client.impl.JetStreamTestBase;
 import io.nats.client.impl.MockNatsConnection;
 import io.nats.client.impl.NatsMessage;
 import io.nats.client.support.DateTimeUtils;
+import io.nats.client.support.JsonParser;
 import io.nats.client.support.JsonSerializable;
 import io.nats.client.support.JsonUtils;
 import io.nats.client.support.JsonValue;
@@ -36,6 +37,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -289,12 +291,16 @@ public class ServiceTests extends JetStreamTestBase {
                 }
                 assertTrue(found);
 
-                // test reset
-                ZonedDateTime zdt = DateTimeUtils.gmtNow();
+                // test reset: counters are zeroed, start times are not changed
+                StatsResponse beforeReset = service1.getStatsResponse();
+                Map<String, ZonedDateTime> endpointStarted = new HashMap<>();
+                for (EndpointStats es : beforeReset.getEndpointStatsList()) {
+                    endpointStarted.put(es.getName(), es.getStarted());
+                }
                 sleep(1);
                 service1.reset();
                 StatsResponse sr = service1.getStatsResponse();
-                assertTrue(zdt.isBefore(sr.getStarted()));
+                assertEquals(beforeReset.getStarted(), sr.getStarted());
                 for (int x = 0; x < 3; x++) {
                     EndpointStats er = sr.getEndpointStatsList().get(x);
                     assertEquals(0, er.getNumRequests());
@@ -310,7 +316,7 @@ public class ServiceTests extends JetStreamTestBase {
                         assertNull(er.getData());
                         assertNull(er.getDataAsJson());
                     }
-                    assertTrue(zdt.isBefore(er.getStarted()));
+                    assertEquals(endpointStarted.get(er.getName()), er.getStarted());
                 }
 
                 // shutdown
@@ -754,6 +760,14 @@ public class ServiceTests extends JetStreamTestBase {
         assertTrue(service.getPingResponse().toJson().contains("\"foo\""));
         assertNotNull(service.getPingResponse().getMetadata());
 
+        // metadata is immutable once set: changing the map given to the builder changes nothing
+        meta.put("foo", "changed");
+        meta.put("added", "value");
+        assertEquals(1, service.getPingResponse().getMetadata().size());
+        assertEquals("bar", service.getPingResponse().getMetadata().get("foo"));
+        assertEquals("bar", service.getInfoResponse().getMetadata().get("foo"));
+        assertEquals("bar", service.getStatsResponse().getMetadata().get("foo"));
+
         // more coverage
         service = Service.builder().connection(conn).name(NAME).version("1.0.0").addServiceEndpoint(se)
             .drainTimeout(null)
@@ -866,6 +880,119 @@ public class ServiceTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testServiceBuilderPrefix() {
+        Options options = new Options.Builder().build();
+        Connection conn = new MockNatsConnection(options);
+        Supplier<ServiceBuilder> sb = () -> Service.builder().connection(conn).name(NAME).version("1.0.0");
+
+        // default and normalized
+        assertEquals("$SRV", sb.get().build().getPrefix());
+        assertEquals("$SRV", sb.get().prefix(null).build().getPrefix());
+        assertEquals("$SRV", sb.get().prefix(EMPTY).build().getPrefix());
+        assertEquals("$SRV", sb.get().prefix(" ").build().getPrefix());
+        assertEquals("$SRV", sb.get().prefix(".").build().getPrefix());
+        assertEquals("$SRV", sb.get().prefix("$SRV").build().getPrefix());
+        assertEquals("$SRV", sb.get().prefix("$SRV.").build().getPrefix());
+        assertEquals("ACME", sb.get().prefix("ACME").build().getPrefix());
+        assertEquals("ACME", sb.get().prefix(" ACME. ").build().getPrefix());
+        assertEquals("ACME.SRV", sb.get().prefix("ACME.SRV").build().getPrefix());
+        assertEquals("AcMe", sb.get().prefix("AcMe").build().getPrefix());
+        assertEquals("acme", sb.get().prefix("acme").build().getPrefix());
+        assertEquals("$srv", sb.get().prefix("$srv").build().getPrefix()); // $SRV is case-sensitive
+        assertEquals("ACME.$srv", sb.get().prefix("ACME.$srv").build().getPrefix());
+
+        // refused
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("A..B"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("ACME.."));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix(".ACME"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("A B"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("A\tB"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("A\u0007B"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("*"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix(">"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("A.*"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("A.>"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("A*"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("$SRV.ACME"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("ACME.$SRV"));
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("A.$SRV.B"));
+
+        // an endpoint cannot be the prefix or under it, nor under $SRV
+        Function<String, ServiceEndpoint> se = subject -> ServiceEndpoint.builder()
+            .endpoint(Endpoint.builder().name(name(0)).subject(subject).build())
+            .handler(m -> {})
+            .build();
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("ACME").addServiceEndpoint(se.apply("ACME")).build());
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("ACME").addServiceEndpoint(se.apply("ACME.PING")).build());
+        assertThrows(IllegalArgumentException.class, () -> sb.get().prefix("ACME.SRV").addServiceEndpoint(se.apply("ACME.SRV.foo")).build());
+        assertThrows(IllegalArgumentException.class, () -> sb.get().addServiceEndpoint(se.apply("$SRV.foo")).build());
+        assertThrows(IllegalArgumentException.class, () -> se.apply("$SRV.foo")); // $SRV is refused by the endpoint builder for any prefix
+        assertDoesNotThrow(() -> sb.get().prefix("ACME").addServiceEndpoint(se.apply("ACMEX.foo")).build());
+        assertDoesNotThrow(() -> sb.get().prefix("ACME").addServiceEndpoint(se.apply("acme.foo")).build());
+        assertDoesNotThrow(() -> sb.get().prefix("ACME.SRV").addServiceEndpoint(se.apply("ACME.foo")).build());
+
+        // the same check when adding after build, and a refused endpoint means none are added
+        Service service = sb.get().prefix("ACME").build();
+        assertThrows(IllegalArgumentException.class, () -> service.addServiceEndpoints(se.apply("ACME.PING")));
+        ServiceEndpoint ok = ServiceEndpoint.builder()
+            .endpoint(Endpoint.builder().name("ok").subject("ok").build())
+            .handler(m -> {})
+            .build();
+        assertThrows(IllegalArgumentException.class, () -> service.addServiceEndpoints(ok, se.apply("ACME.INFO")));
+        assertNull(service.getEndpointStats("ok"));
+        assertThrows(IllegalArgumentException.class, () -> service.addServiceEndpoints(Collections.singletonList(se.apply("ACME"))));
+        service.addServiceEndpoints(ok);
+        assertNotNull(service.getEndpointStats("ok"));
+    }
+
+    @Test
+    public void testServicePrefix() throws Exception {
+        runInServer(nc -> {
+            for (String prefix : new String[]{"ACME", "ACME.SRV", "AcMe", "acme"}) {
+                ServiceEndpoint se = ServiceEndpoint.builder()
+                    .endpointName("add")
+                    .handler(m -> m.respond(nc, "added"))
+                    .build();
+
+                Service service = new ServiceBuilder()
+                    .connection(nc)
+                    .name("orders")
+                    .version("1.0.0")
+                    .prefix(prefix)
+                    .addServiceEndpoint(se)
+                    .build();
+                service.startService();
+                assertTrue(service.isStarted(1, TimeUnit.SECONDS));
+                String id = service.getId();
+
+                // all nine discovery subjects are under the prefix, exactly as cased
+                for (String verb : new String[]{"PING", "INFO", "STATS"}) {
+                    for (String subject : new String[]{prefix + DOT + verb, prefix + DOT + verb + ".orders", prefix + DOT + verb + ".orders." + id}) {
+                        Message m = nc.request(subject, null, Duration.ofSeconds(2));
+                        assertNotNull(m, subject);
+                        assertFalse(m.isStatusMessage(), subject);
+                        assertTrue(new String(m.getData(), StandardCharsets.UTF_8).contains(id), subject);
+                    }
+                }
+
+                // discovery with the prefix finds the service, the default does not
+                Discovery discovery = new Discovery(nc, prefix);
+                assertEquals(1, discovery.ping().size());
+                assertEquals(1, discovery.info("orders").size());
+                assertEquals(1, discovery.stats("orders").size());
+                assertNotNull(discovery.ping("orders", id));
+                assertNotNull(new Discovery(nc, 500, 5, " " + prefix + ". ").ping("orders", id));
+
+                Discovery defaultDiscovery = new Discovery(nc, 500, 5);
+                assertEquals(0, defaultDiscovery.ping().size());
+                assertNull(defaultDiscovery.ping("orders", id));
+
+                service.stop();
+            }
+        });
+    }
+
+    @Test
     public void testHandlerException() throws Exception {
         runInServer(nc -> {
             ServiceEndpoint exServiceEndpoint = ServiceEndpoint.builder()
@@ -894,6 +1021,285 @@ public class ServiceTests extends JetStreamTestBase {
             assertEquals(1, er.getNumErrors());
             assertEquals("java.lang.RuntimeException: handler-problem", er.getLastError());
         });
+    }
+
+    @Test
+    public void testHandlerStandardError() throws Exception {
+        runInServer(nc -> {
+            ServiceEndpoint seEndpoint = ServiceEndpoint.builder()
+                .endpointName("seEndpoint")
+                .endpointSubject("seSubject")
+                .handler(m -> {
+                    if (new String(m.getData()).equals("fail")) {
+                        m.respondStandardError(nc, "failed", 400);
+                    }
+                    else {
+                        m.respond(nc, "ok");
+                    }
+                })
+                .build();
+
+            Service seService = new ServiceBuilder()
+                .connection(nc)
+                .name("StandardErrorService")
+                .version("0.0.1")
+                .addServiceEndpoint(seEndpoint)
+                .build();
+            seService.startService();
+
+            assertEquals("ok", new String(nc.request("seSubject", "pass".getBytes()).get().getData()));
+            Message m = nc.request("seSubject", "fail".getBytes()).get();
+            assertEquals("failed", m.getHeaders().getFirst(NATS_SERVICE_ERROR));
+            assertEquals("400", m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
+
+            // the error is counted when the handler returns, which can be just after the reply arrives
+            EndpointStats er = seService.getEndpointStats("seEndpoint");
+            for (int i = 0; i < 100 && er.getNumErrors() == 0; i++) {
+                Thread.sleep(10);
+                er = seService.getEndpointStats("seEndpoint");
+            }
+            assertEquals(2, er.getNumRequests());
+            assertEquals(1, er.getNumErrors());
+            assertEquals("failed", er.getLastError());
+
+            seService.reset();
+            er = seService.getEndpointStats("seEndpoint");
+            assertEquals(0, er.getNumErrors());
+            assertNull(er.getLastError());
+        });
+    }
+
+    @Test
+    public void testRespondError() throws Exception {
+        runInServer(nc -> {
+            AtomicReference<ServiceMessage> lastMsg = new AtomicReference<>();
+            Headers customHeaders = new Headers().put("X-Order", "7");
+            byte[] bytes = "payload".getBytes();
+            JsonValue json = new JsonValue("payload");
+            ServiceEndpoint seEndpoint = ServiceEndpoint.builder()
+                .endpointName("reEndpoint")
+                .endpointSubject("reSubject")
+                .handler(m -> {
+                    switch (new String(m.getData())) {
+                        case "plain": m.respondError(nc, 400, "bad order"); break;
+                        case "empty": m.respondError(nc, 500, EMPTY); break;
+                        case "headers": m.respondError(nc, 1000, "headers", customHeaders); break;
+                        case "bytes": m.respondError(nc, 1001, "bytes", bytes); break;
+                        case "string": m.respondError(nc, 1002, "string", "payload"); break;
+                        case "json": m.respondError(nc, 1003, "json", json); break;
+                        case "bytesHeaders": m.respondError(nc, 1004, "bytesHeaders", bytes, customHeaders); break;
+                        case "stringHeaders": m.respondError(nc, 1005, "stringHeaders", "payload", customHeaders); break;
+                        case "jsonHeaders": m.respondError(nc, 1006, "jsonHeaders", json, customHeaders); break;
+                        case "standard": m.respondStandardError(nc, "standard", 404); break;
+                        case "standardNull": m.respondStandardError(nc, null, 405); break;
+                        case "nullString": m.respond(nc, (String) null); break;
+                        case "nullJson": m.respond(nc, (JsonSerializable) null); break;
+                        case "nullCode": m.respondError(nc, null, "no code"); break;
+                        case "nulls": m.respondError(nc, null, "nulls", (byte[]) null, null); break;
+                        case "nullRespond": m.respond(nc, (byte[]) null, null); break;
+                        default: m.respond(nc, "ok");
+                    }
+                    lastMsg.set(m);
+                })
+                .build();
+
+            Service reService = new ServiceBuilder()
+                .connection(nc)
+                .name("RespondErrorService")
+                .version("0.0.1")
+                .addServiceEndpoint(seEndpoint)
+                .build();
+            reService.startService();
+
+            // code and description, no body
+            Message m = nc.request("reSubject", "plain".getBytes()).get();
+            assertErrorReply(m, "bad order", "400", "", false);
+            assertLastError(reService, 1, "bad order");
+            assertEquals("bad order", lastMsg.get().getResponseErrorDescription());
+            assertEquals(400, lastMsg.get().getResponseErrorCode());
+            assertNull(lastMsg.get().getResponseData());
+            assertEquals("bad order", lastMsg.get().getStandardError());
+
+            // an empty description is sent as given
+            m = nc.request("reSubject", "empty".getBytes()).get();
+            assertErrorReply(m, EMPTY, "500", "", false);
+            assertLastError(reService, 2, EMPTY);
+
+            // custom headers, no data
+            m = nc.request("reSubject", "headers".getBytes()).get();
+            assertErrorReply(m, "headers", "1000", "", true);
+            assertLastError(reService, 3, "headers");
+            assertNull(lastMsg.get().getResponseData());
+
+            // data, each type
+            m = nc.request("reSubject", "bytes".getBytes()).get();
+            assertErrorReply(m, "bytes", "1001", "payload", false);
+            assertLastError(reService, 4, "bytes");
+            assertEquals("payload", new String(lastMsg.get().getResponseData()));
+
+            m = nc.request("reSubject", "string".getBytes()).get();
+            assertErrorReply(m, "string", "1002", "payload", false);
+            assertLastError(reService, 5, "string");
+
+            m = nc.request("reSubject", "json".getBytes()).get();
+            assertErrorReply(m, "json", "1003", "\"payload\"", false);
+            assertLastError(reService, 6, "json");
+
+            // data and custom headers, each type
+            m = nc.request("reSubject", "bytesHeaders".getBytes()).get();
+            assertErrorReply(m, "bytesHeaders", "1004", "payload", true);
+            assertLastError(reService, 7, "bytesHeaders");
+            assertEquals("7", lastMsg.get().getResponseHeaders().getFirst("X-Order"));
+            assertEquals("1004", lastMsg.get().getResponseHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
+
+            m = nc.request("reSubject", "stringHeaders".getBytes()).get();
+            assertErrorReply(m, "stringHeaders", "1005", "payload", true);
+            assertLastError(reService, 8, "stringHeaders");
+
+            m = nc.request("reSubject", "jsonHeaders".getBytes()).get();
+            assertErrorReply(m, "jsonHeaders", "1006", "\"payload\"", true);
+            assertLastError(reService, 9, "jsonHeaders");
+
+            // the error headers were added to a copy of the custom headers
+            assertNull(customHeaders.getFirst(NATS_SERVICE_ERROR));
+            assertNull(customHeaders.getFirst(NATS_SERVICE_ERROR_CODE));
+
+            m = nc.request("reSubject", "standard".getBytes()).get();
+            assertErrorReply(m, "standard", "404", "", false);
+            assertLastError(reService, 10, "standard");
+
+            // a null standard error text sends only the code, which becomes the last error
+            m = nc.request("reSubject", "standardNull".getBytes()).get();
+            assertNull(m.getHeaders().getFirst(NATS_SERVICE_ERROR));
+            assertEquals("405", m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
+            assertLastError(reService, 11, "405");
+            assertNull(lastMsg.get().getResponseErrorDescription());
+            assertEquals(405, lastMsg.get().getResponseErrorCode());
+            assertEquals("405", lastMsg.get().getStandardError());
+
+            // null data is sent as an empty body
+            m = nc.request("reSubject", "nullString".getBytes()).get();
+            assertEquals(0, m.getData().length);
+            waitForRequests(reService, 12);
+            assertNull(lastMsg.get().getResponseData());
+
+            m = nc.request("reSubject", "nullJson".getBytes()).get();
+            assertEquals(0, m.getData().length);
+            waitForRequests(reService, 13);
+            assertNull(lastMsg.get().getResponseData());
+
+            // a null code sends only the description
+            m = nc.request("reSubject", "nullCode".getBytes()).get();
+            assertEquals("no code", m.getHeaders().getFirst(NATS_SERVICE_ERROR));
+            assertNull(m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
+            assertLastError(reService, 12, "no code");
+            assertEquals("no code", lastMsg.get().getResponseErrorDescription());
+            assertNull(lastMsg.get().getResponseErrorCode());
+
+            // a null code, data and custom headers
+            m = nc.request("reSubject", "nulls".getBytes()).get();
+            assertEquals("nulls", m.getHeaders().getFirst(NATS_SERVICE_ERROR));
+            assertNull(m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
+            assertEquals(0, m.getData().length);
+            assertLastError(reService, 13, "nulls");
+            assertNull(lastMsg.get().getResponseData());
+            assertNull(lastMsg.get().getResponseHeaders().getFirst("X-Order"));
+
+            // null data and null custom headers, not an error
+            m = nc.request("reSubject", "nullRespond".getBytes()).get();
+            assertFalse(m.hasHeaders());
+            assertEquals(0, m.getData().length);
+            waitForRequests(reService, 16);
+            assertNull(lastMsg.get().getResponseData());
+            assertNull(lastMsg.get().getResponseHeaders());
+
+            assertEquals("ok", new String(nc.request("reSubject", "pass".getBytes()).get().getData()));
+            waitForRequests(reService, 17);
+            assertEquals(13, reService.getEndpointStats("reEndpoint").getNumErrors());
+            assertEquals("nulls", reService.getEndpointStats("reEndpoint").getLastError());
+            assertNull(lastMsg.get().getResponseErrorDescription());
+            assertNull(lastMsg.get().getResponseErrorCode());
+            assertEquals("ok", new String(lastMsg.get().getResponseData()));
+            assertNull(lastMsg.get().getResponseHeaders());
+            assertNull(lastMsg.get().getStandardError()); // no error was sent
+        });
+    }
+
+    @Test
+    public void testServiceReplyMessage() {
+        // no headers, no data
+        ServiceReplyMessage t = new ServiceReplyMessage(NatsMessage.builder().subject("sub").build());
+        assertEquals("sub", t.getSubject());
+        assertNull(t.getHeaders());
+        assertNotNull(t.getData());
+        assertEquals(0, t.getData().length);
+        assertFalse(t.isError());
+        assertNull(t.getErrorDescription());
+        assertNull(t.getErrorCode());
+
+        // data, headers that are not error headers
+        t = new ServiceReplyMessage(NatsMessage.builder().subject("sub").data("payload")
+            .headers(new Headers().put("X-Order", "7")).build());
+        assertEquals("payload", new String(t.getData(), StandardCharsets.UTF_8));
+        assertNotNull(t.getHeaders());
+        assertEquals("7", t.getHeaders().getFirst("X-Order"));
+        assertFalse(t.isError());
+        assertNull(t.getErrorDescription());
+        assertNull(t.getErrorCode());
+
+        // both error headers
+        t = new ServiceReplyMessage(NatsMessage.builder().subject("sub")
+            .headers(new Headers().put(NATS_SERVICE_ERROR, "bad order").put(NATS_SERVICE_ERROR_CODE, "400")).build());
+        assertTrue(t.isError());
+        assertEquals("bad order", t.getErrorDescription());
+        assertEquals(400, t.getErrorCode());
+
+        // code only
+        t = new ServiceReplyMessage(NatsMessage.builder().subject("sub")
+            .headers(new Headers().put(NATS_SERVICE_ERROR_CODE, "503")).build());
+        assertTrue(t.isError());
+        assertNull(t.getErrorDescription());
+        assertEquals(503, t.getErrorCode());
+
+        // description only
+        t = new ServiceReplyMessage(NatsMessage.builder().subject("sub")
+            .headers(new Headers().put(NATS_SERVICE_ERROR, "no code")).build());
+        assertTrue(t.isError());
+        assertEquals("no code", t.getErrorDescription());
+        assertNull(t.getErrorCode());
+
+        // an empty description only is not an error
+        t = new ServiceReplyMessage(NatsMessage.builder().subject("sub")
+            .headers(new Headers().put(NATS_SERVICE_ERROR, EMPTY)).build());
+        assertFalse(t.isError());
+        assertNull(t.getErrorDescription());
+        assertNull(t.getErrorCode());
+    }
+
+    private static void assertErrorReply(Message m, String description, String code, String data, boolean customHeader) {
+        assertEquals(description, m.getHeaders().getFirst(NATS_SERVICE_ERROR));
+        assertEquals(code, m.getHeaders().getFirst(NATS_SERVICE_ERROR_CODE));
+        assertEquals(data, new String(m.getData()));
+        assertEquals(customHeader ? "7" : null, m.getHeaders().getFirst("X-Order"));
+    }
+
+    // the handler sets lastMsg before it returns, which can be just after the reply arrives
+    private static void waitForRequests(Service service, long numRequests) throws InterruptedException {
+        for (int i = 0; i < 100 && service.getEndpointStats("reEndpoint").getNumRequests() < numRequests; i++) {
+            Thread.sleep(10);
+        }
+        assertEquals(numRequests, service.getEndpointStats("reEndpoint").getNumRequests());
+    }
+
+    // the error is counted when the handler returns, which can be just after the reply arrives
+    private static void assertLastError(Service service, long numErrors, String lastError) throws InterruptedException {
+        EndpointStats es = service.getEndpointStats("reEndpoint");
+        for (int i = 0; i < 100 && es.getNumErrors() < numErrors; i++) {
+            Thread.sleep(10);
+            es = service.getEndpointStats("reEndpoint");
+        }
+        assertEquals(numErrors, es.getNumErrors());
+        assertEquals(lastError, es.getLastError());
     }
 
     @Test
@@ -1035,6 +1441,20 @@ public class ServiceTests extends JetStreamTestBase {
         assertNull(e.getMetadata());
         assertEquals("qg", e.getQueueGroup());
 
+        // an empty or blank queue group means no queue group, and the queue group is trimmed
+        assertNull(new Endpoint(NAME, SUBJECT, EMPTY, null).getQueueGroup());
+        assertNull(new Endpoint(NAME, SUBJECT, " ", null).getQueueGroup());
+        assertNull(Endpoint.builder().name(NAME).queueGroup(EMPTY).build().getQueueGroup());
+        assertEquals("qg", new Endpoint(NAME, SUBJECT, " qg ", null).getQueueGroup());
+        assertNull(new Endpoint(JsonParser.parseUnchecked("{\"name\":\"" + NAME + "\",\"queue_group\":\"\"}")).getQueueGroup());
+
+        // a queue group is an ADR-6 queue-name, so it cannot hold '.', '*' or '>'
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, SUBJECT, "q.dot", null));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, SUBJECT, "q*", null));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(NAME, SUBJECT, "q>", null));
+        assertThrows(IllegalArgumentException.class, () -> Endpoint.builder().name(NAME).queueGroup("q.dot").build());
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(JsonParser.parseUnchecked("{\"name\":\"" + NAME + "\",\"queue_group\":\"q.dot\"}")));
+
         metadata.put("k", "v");
 
         e = new Endpoint(NAME, SUBJECT, metadata);
@@ -1057,6 +1477,18 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals("foo.>", e.getSubject());
         e = new Endpoint(NAME, "foo.*");
         assertEquals("foo.*", e.getSubject());
+
+        // an empty subject means the name is the subject
+        assertEpNameSubQ(new Endpoint(NAME, EMPTY), NAME);
+        assertEpNameSubQ(Endpoint.builder().name(NAME).subject(EMPTY).build(), NAME);
+
+        // from json, the name is required and a null or empty subject means the name is the subject
+        assertEquals(SUBJECT, new Endpoint(JsonParser.parseUnchecked("{\"name\":\"" + NAME + "\",\"subject\":\"" + SUBJECT + "\"}")).getSubject());
+        assertEquals(NAME, new Endpoint(JsonParser.parseUnchecked("{\"name\":\"" + NAME + "\"}")).getSubject());
+        assertEquals(NAME, new Endpoint(JsonParser.parseUnchecked("{\"name\":\"" + NAME + "\",\"subject\":\"\"}")).getSubject());
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(JsonParser.parseUnchecked("{\"subject\":\"" + SUBJECT + "\"}")));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(JsonParser.parseUnchecked("{\"name\":\"\",\"subject\":\"" + SUBJECT + "\"}")));
+        assertThrows(IllegalArgumentException.class, () -> new Endpoint(JsonParser.parseUnchecked("{\"name\":\"" + HAS_SPACE + "\",\"subject\":\"" + SUBJECT + "\"}")));
 
         // coverage
         e = new Endpoint(NAME, SUBJECT, metadata);
@@ -1182,8 +1614,18 @@ public class ServiceTests extends JetStreamTestBase {
         g1 = new Group("foo.*");
         assertEquals("foo.*", g1.getName());
 
-        assertThrows(IllegalArgumentException.class, () -> new Group(null));
-        assertThrows(IllegalArgumentException.class, () -> new Group(EMPTY));
+        // null, empty and blank names are allowed, stored as null and add nothing to the subject
+        assertNull(new Group(null).getName());
+        assertNull(new Group(EMPTY).getName());
+        assertNull(new Group(" ").getName());
+        assertNull(new Group(null).getSubject());
+        assertEquals("Group []", new Group(null).toString());
+        assertEquals("foo", new Group(" foo ").getName());
+        assertEquals(subject(1), new Group(null).appendGroup(new Group(subject(1))).getSubject());
+        assertEquals(subject(1), new Group(subject(1)).appendGroup(new Group(EMPTY)).getSubject());
+        assertEquals(subject(1) + DOT + subject(2), new Group(subject(1)).appendGroup(new Group(EMPTY)).appendGroup(new Group(subject(2))).getSubject());
+        assertNull(new Group(EMPTY).appendGroup(new Group(null)).getSubject());
+
         assertThrows(IllegalArgumentException.class, () -> new Group(HAS_SPACE));
         assertThrows(IllegalArgumentException.class, () -> new Group(STAR_NOT_SEGMENT)); // invalid in the middle
         assertThrows(IllegalArgumentException.class, () -> new Group("foo.>")); // GT invalid everywhere
@@ -1239,6 +1681,15 @@ public class ServiceTests extends JetStreamTestBase {
         assertEquals(e1.getName(), se.getName());
         assertEquals(g2.getSubject() + DOT + e1.getSubject(), se.getSubject());
 
+        // a group with no name adds no prefix
+        se = ServiceEndpoint.builder()
+            .group(new Group(EMPTY))
+            .endpoint(e1)
+            .handler(smh)
+            .build();
+        assertNull(se.getGroupName());
+        assertEquals(e1.getSubject(), se.getSubject());
+
         se = ServiceEndpoint.builder()
             .endpoint(e1)
             .endpoint(e2) // last one wins
@@ -1288,6 +1739,20 @@ public class ServiceTests extends JetStreamTestBase {
             () -> ServiceEndpoint.builder().endpoint(e1).build());
         assertTrue(iae.getMessage().contains("Handler"));
 
+        // $SRV is reserved for service discovery, with or without a group
+        for (String reserved : new String[]{"$SRV", "$SRV.custom", "$SRV.PING.orders"}) {
+            iae = assertThrows(IllegalArgumentException.class,
+                () -> ServiceEndpoint.builder().endpointName(name(300)).endpointSubject(reserved).handler(smh).build());
+            assertTrue(iae.getMessage().contains("$SRV"));
+        }
+        iae = assertThrows(IllegalArgumentException.class,
+            () -> ServiceEndpoint.builder().group(new Group("$SRV")).endpoint(e1).handler(smh).build());
+        assertTrue(iae.getMessage().contains("$SRV"));
+
+        // only the exact $SRV token is reserved
+        assertEquals("$SRVX.custom", ServiceEndpoint.builder().endpointName(name(300)).endpointSubject("$SRVX.custom").handler(smh).build().getSubject());
+        assertEquals("custom.$SRV", ServiceEndpoint.builder().endpointName(name(300)).endpointSubject("custom.$SRV").handler(smh).build().getSubject());
+
         se = ServiceEndpoint.builder()
             .endpointName("directName")
             .endpointQueueGroup("directQ")
@@ -1325,9 +1790,10 @@ public class ServiceTests extends JetStreamTestBase {
 
     @Test
     public void testUtilToDiscoverySubject() {
-        assertEquals("$SRV.PING", Service.toDiscoverySubject(SRV_PING, null, null));
-        assertEquals("$SRV.PING.myservice", Service.toDiscoverySubject(SRV_PING, "myservice", null));
-        assertEquals("$SRV.PING.myservice.123", Service.toDiscoverySubject(SRV_PING, "myservice", "123"));
+        assertEquals("$SRV.PING", Service.toDiscoverySubject("$SRV", SRV_PING, null, null));
+        assertEquals("$SRV.PING.myservice", Service.toDiscoverySubject("$SRV", SRV_PING, "myservice", null));
+        assertEquals("$SRV.PING.myservice.123", Service.toDiscoverySubject("$SRV", SRV_PING, "myservice", "123"));
+        assertEquals("ACME.SRV.PING.myservice.123", Service.toDiscoverySubject("ACME.SRV", SRV_PING, "myservice", "123"));
     }
 
     static class TestServiceResponses extends ServiceResponse {

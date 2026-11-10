@@ -1,4 +1,4 @@
-// Copyright 2020 The NATS Authors
+// Copyright 2020-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -118,8 +118,9 @@ public abstract class Validator {
         return validatePrintableExceptWildGt(s, "Reply To", required);
     }
 
+    // ADR-6 queue-name is a term: printable ascii except dot, asterisk or gt
     public static String validateQueueName(String s, boolean required) {
-        return validateSubjectTermStrict(s, "QueueName", required);
+        return validatePrintableExceptWildDotGt(s, "QueueName", required);
     }
 
     public static String validateStreamName(String s, boolean required) {

@@ -190,7 +190,9 @@ public class SniTestServer implements AutoCloseable {
 
     private void serve(Socket raw, SSLContext context, boolean tlsFirst, List<String> discovered) {
         String urls = discovered.isEmpty() ? "" : ",\"connect_urls\":[\"" + String.join("\",\"", discovered) + "\"]";
-        String info = "INFO {\"server_id\":\"sni-test\",\"version\":\"2.11.0\",\"proto\":1,"
+        // version 2.12.0: like nats-server 2.12 and later, the INFO that follows the first PONG is sent as well, inside
+        // TLS. With TLS after INFO the client takes the connect_urls from that one, not from the plaintext INFO.
+        String info = "INFO {\"server_id\":\"sni-test\",\"version\":\"2.12.0\",\"proto\":1,"
             + "\"max_payload\":1048576,\"tls_required\":true" + urls + "}\r\n";
         try (Socket ignored = raw) {
             raw.setSoTimeout(10_000);
@@ -208,9 +210,14 @@ public class SniTestServer implements AutoCloseable {
                 }
                 BufferedReader in = new BufferedReader(new InputStreamReader(tls.getInputStream(), StandardCharsets.UTF_8));
                 String line;
+                boolean firstPing = true;
                 while ((line = in.readLine()) != null) {
                     if ("PING".equals(line)) {
                         out.write("PONG\r\n");
+                        if (firstPing) {
+                            out.write(info);
+                            firstPing = false;
+                        }
                         out.flush();
                     }
                 }

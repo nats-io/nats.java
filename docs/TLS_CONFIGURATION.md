@@ -12,8 +12,8 @@ The context is accepted or created once, when `Options.Builder.build()` runs, in
 2. `sslContextFactory(SSLContextFactory)` was set, or the `io.nats.client.ssl.context.factory.class` property named a class: the factory builds the context from the keystore, truststore and algorithm properties.
 3. `keystore` or `truststore` was set, by builder or property: the client builds a context from those JKS files with the `tls.algorithm` property, `SunX509` by default.
 4. `opentls()` was called, the `io.nats.client.opentls` property is true, or any bootstrap server has the `opentls://` scheme: the trust-all context described in section 3.
-5. `secure()` was called, the `io.nats.client.secure` property is true, or any bootstrap server has the `tls://` or `wss://` scheme: `SSLContext.getDefault()`, described in section 2.
-6. Otherwise no context, and the connection is plain TCP. A server that requires TLS then fails the connect with "SSL required by server."
+5. `secure()` or `tlsFirst()` was called, the `io.nats.client.secure` property is true, or any bootstrap server has the `tls://` or `wss://` scheme: `SSLContext.getDefault()`, described in section 2.
+6. Otherwise no context, and the connection is plain TCP. A server that requires TLS then fails the attempt with "SSL required by server."; section 8 says when that closes the connection.
 
 Rules 4 and 5 look at the bootstrap servers only when neither `opentls` nor `secure` was set explicitly. Asking for both is an error, section 5.
 
@@ -89,8 +89,14 @@ The README's TLS Certs section shows how the test keystore and truststore are pr
 
 ## 7. TLS handshake first
 
-`tlsFirst()` performs the TLS handshake before reading the server's INFO, for servers configured with `handshake_first`. It requires a context: building options with `tlsFirst()` and no context from the rules above fails with "SSL context required for tls handshake first".
+`tlsFirst()` performs the TLS handshake before reading the server's INFO, for servers configured with `handshake_first`. It asks for TLS: when rules 1 to 4 of section 1 give no context, it selects `SSLContext.getDefault()`, rule 5.
 
 ## 8. What the server and client expect of each other
 
-Whether the client attempts the TLS upgrade is decided by whether it has a context; whether the server requires or offers TLS comes from its INFO. The README's "TLS client versus server checks" table lists the six combinations and the two that fail with an `IOException`.
+Whether the client attempts the TLS upgrade is decided by whether it has a context; whether the server requires or offers TLS comes from its INFO. The README's "TLS client versus server checks" table lists the six combinations and the two that fail with an `IOException`. Either mismatch fails the attempt and the next server is tried, since a single server can be misconfigured. When every server of one full round over the server list fails with the mismatch, retrying cannot help, because the same options are used for every server, and the connection is closed: the initial connect throws, also with reconnect-on-connect, and a reconnect ends with the connection closed. A server that cannot be reached is not a mismatch, so a round that contains one is not conclusive and the normal reconnect rules apply. The scheme of a url that a custom `ServerPool` hands out does not change which servers the client uses TLS with; only the options decide.
+
+## 9. Discovered servers and TLS after INFO
+
+With TLS after INFO, the usual flow for `tls://` and `secure()`, the server's first INFO arrives in plaintext before the handshake. The client takes its nonce, limits, version and TLS flags for that attempt, and nothing else: its `connect_urls` are not added to the server list and its lame duck flag raises no event, whether the handshake then succeeds or fails. Discovered servers come from the INFOs received inside TLS. nats-server 2.12 and later answer the client's first PING with PONG followed by such an INFO, and the client waits for it before it reports connected, for at most the connection timeout, on a timer of its own; when it arrives later it is applied then. Before 2.12 the server sends an INFO inside TLS only when the cluster's addresses change, so a connection to an older cluster has no discovered servers until that happens. To have failover servers from the start against such a cluster, configure more than one server, or use `tlsFirst()` where the server allows it: under TLS first, as on a plaintext connection or over `wss://`, the first INFO arrives inside TLS and is used in full. `ignoreDiscoveredServers()` turns the wait off together with the discovered servers.
+
+Bytes that arrive after the INFO line and before the handshake are not acted on. The attempt fails at once as a TLS handshake failure whose message quotes the server's line as untrusted text, cut at 256 bytes with control characters escaped. A full nats-server that writes INFO followed by `-ERR 'maximum connections exceeded'` is reported that way. On a plaintext connection the same bytes are protocol and are processed normally, so the `-ERR` reaches the error listener.
