@@ -2307,6 +2307,9 @@ public class Options {
          * the INFO protocol from the server. If this option is enabled
          * but the server is not configured to perform the TLS handshake
          * first, the connection will fail.
+         * <p>
+         * TLS Handshake First asks for TLS. When no SSL context comes from the other
+         * settings, the default SSL context is used, the same as {@link #secure()}.
          * @return the Builder for chaining
          */
         public Builder tlsFirst() {
@@ -2482,6 +2485,11 @@ public class Options {
                             }
                         }
 
+                        // tls first asks for TLS: when nothing else has chosen a context, it uses the default one
+                        if (tlsFirst && !useTrustAllTls) {
+                            useDefaultTls = true;
+                        }
+
                         // One SSL context serves every server of a connection, so it cannot both verify
                         // certificates (secure, tls, wss) and trust all of them (opentls). Asking for both,
                         // by the builder, by properties or by a server list that mixes the schemes, is an
@@ -2511,6 +2519,7 @@ public class Options {
             }
 
             if (tlsFirst && sslContext == null) {
+                // only an SSLContextFactory that returned null gets here, every other path has a context by now
                 throw new IllegalStateException("SSL context required for tls handshake first");
             }
 

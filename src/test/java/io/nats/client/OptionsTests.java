@@ -1207,6 +1207,35 @@ public class OptionsTests {
     }
 
     @Test
+    public void testTlsFirstAsksForTls() throws Exception {
+        SSLContext ctx = SslTestingHelper.createTestSSLContext();
+        SSLContext originalDefault = SSLContext.getDefault();
+        try {
+            SSLContext.setDefault(ctx);
+
+            // tls first without any other tls setting selects the default context, the same as secure()
+            Options o = new Options.Builder().tlsFirst().build();
+            assertTrue(o.isTlsFirst());
+            assertTrue(o.isTLSRequired());
+            assertEquals(ctx, o.getSslContext());
+
+            // a context from another setting is kept
+            SSLContext supplied = SslTestingHelper.createTestSSLContext();
+            o = new Options.Builder().tlsFirst().sslContext(supplied).build();
+            assertEquals(supplied, o.getSslContext());
+            o = new Options.Builder().tlsFirst().opentls().build();
+            assertNotNull(o.getSslContext());
+            assertNotEquals(ctx, o.getSslContext());
+            o = new Options.Builder().server("opentls://localhost").tlsFirst().build();
+            assertNotNull(o.getSslContext());
+            assertNotEquals(ctx, o.getSslContext());
+        }
+        finally {
+            SSLContext.setDefault(originalDefault);
+        }
+    }
+
+    @Test
     public void testTokenSupplier() {
         String serverURI = "nats://localhost:2222";
         Options o = new Options.Builder().build();

@@ -32,6 +32,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.time.Duration;
 import java.util.Date;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
@@ -343,6 +344,157 @@ public class TLSConnectTests extends TestBase {
     }
 
     @Test
+    public void testTlsMismatchWithEveryServerClosesWithoutRetrying() throws Exception {
+        // The options decide whether the client uses TLS, for every server of the connection. When every server of
+        // one round over the list fails with a TLS mismatch, retrying cannot help: the connect closes the connection
+        // and throws, without reconnecting on connect.
+        try (NatsTestServer tls = new NatsTestServer("src/test/resources/tls.conf", false);
+             NatsTestServer tls2 = new NatsTestServer("src/test/resources/tls.conf", false);
+             NatsTestServer plain = new NatsTestServer();
+             NatsTestServer plain2 = new NatsTestServer()) {
+            // the servers require TLS, the options have no context
+            _testTlsMismatchWithEveryServer(new Options.Builder(), tls, tls2, "SSL required by server.");
+            // the servers have no TLS, the options have a context
+            _testTlsMismatchWithEveryServer(new Options.Builder().sslContext(SslTestingHelper.createTestSSLContext()), plain, plain2, "SSL connection wanted by client.");
+        }
+    }
+
+    private static void _testTlsMismatchWithEveryServer(Options.Builder builder, NatsTestServer s1, NatsTestServer s2, String mismatch) {
+        ListenerForTesting listener = new ListenerForTesting();
+        Options options = builder
+            .servers(new String[]{s1.getURI(), s2.getURI()})
+            .noRandomize()
+            .maxReconnects(3)
+            .reconnectWait(Duration.ofSeconds(1))
+            .connectionListener(listener)
+            .errorListener(listener)
+            .build();
+
+        long start = System.nanoTime();
+        IOException e = assertThrows(IOException.class, () -> Nats.connectReconnectOnConnect(options));
+        long elapsedMillis = (System.nanoTime() - start) / 1_000_000;
+        assertTrue(e.getMessage().startsWith(mismatch), e.getMessage());
+        assertTrue(elapsedMillis < 1000, "closed after one round, not after a reconnect wait: " + elapsedMillis + " ms");
+        // one attempt per server and no reconnect round
+        assertEquals(2, countMismatches(listener, mismatch), listener.getExceptions().toString());
+    }
+
+    private static long countMismatches(ListenerForTesting listener, String mismatch) {
+        return listener.getExceptions().stream().filter(x -> String.valueOf(x.getMessage()).contains(mismatch)).count();
+    }
+
+    @Test
+    public void testTlsMismatchWithOneServerDoesNotStopTheConnect() throws Exception {
+        // A single server can be misconfigured. A mismatch with it fails that attempt and the next server is tried.
+        try (NatsTestServer tls = new NatsTestServer("src/test/resources/tls.conf", false);
+             NatsTestServer plain = new NatsTestServer()) {
+            // no context: the server that requires TLS is passed over, the plain one is reached
+            ListenerForTesting listener = new ListenerForTesting();
+            Options options = new Options.Builder()
+                .servers(new String[]{tls.getURI(), plain.getURI()})
+                .noRandomize()
+                .maxReconnects(0)
+                .errorListener(listener)
+                .build();
+            try (Connection nc = standardConnectionWait(Nats.connect(options))) {
+                assertEquals(plain.getNatsPort(), options.createURIForServer(nc.getConnectedUrl()).getPort());
+            }
+            assertEquals(1, countMismatches(listener, "SSL required by server."), listener.getExceptions().toString());
+
+            // a context: the plain server is passed over, the one with TLS is reached
+            listener = new ListenerForTesting();
+            options = new Options.Builder()
+                .servers(new String[]{plain.getURI(), tls.getURI()})
+                .noRandomize()
+                .maxReconnects(0)
+                .sslContext(SslTestingHelper.createTestSSLContext())
+                .errorListener(listener)
+                .build();
+            try (Connection nc = standardConnectionWait(Nats.connect(options))) {
+                assertEquals(tls.getNatsPort(), options.createURIForServer(nc.getConnectedUrl()).getPort());
+            }
+            assertEquals(1, countMismatches(listener, "SSL connection wanted by client."), listener.getExceptions().toString());
+        }
+    }
+
+    @Test
+    public void testTlsMismatchNextToAnUnreachableServerKeepsReconnecting() throws Exception {
+        // An unreachable server is not a mismatch, it may come back: the round is not conclusive and the normal
+        // reconnect rules apply, so the reconnect budget is used before the connection closes.
+        ListenerForTesting listener = new ListenerForTesting();
+        try (NatsTestServer tls = new NatsTestServer("src/test/resources/tls.conf", false)) {
+            Options options = new Options.Builder()
+                .servers(new String[]{tls.getURI(), "nats://localhost:" + NatsTestServer.nextPort()})
+                .noRandomize()
+                .maxReconnects(1)
+                .reconnectWait(Duration.ofMillis(100))
+                .connectionListener(listener)
+                .errorListener(listener)
+                .build();
+            listener.prepForStatusChange(Events.CLOSED);
+            Connection nc = Nats.connectReconnectOnConnect(options); // does not throw: the budget is used, then the connection closes
+            assertTrue(listener.waitForStatusChange(5, TimeUnit.SECONDS));
+            assertEquals(Connection.Status.CLOSED, nc.getStatus());
+            // the initial round and at least one reconnect round reached the server that requires TLS
+            assertTrue(countMismatches(listener, "SSL required by server.") >= 2, listener.getExceptions().toString());
+        }
+    }
+
+    @Test
+    public void testServerStartsRequiringTlsClientHasNoContextClosesOnReconnect() throws Exception {
+        // A connected client without an SSL context meets a server that requires TLS on reconnect. The pool has that
+        // one server, so one attempt is a full round: the reconnect stops and the connection is closed, however many
+        // reconnects remain.
+        ListenerForTesting listener = new ListenerForTesting();
+        try (NatsTestServer ts = new NatsTestServer()) {
+            Options options = new Options.Builder()
+                .server(ts.getURI())
+                .maxReconnects(10)
+                .reconnectWait(Duration.ofMillis(100))
+                .connectionListener(listener)
+                .errorListener(listener)
+                .build();
+            assertFalse(options.isTLSRequired());
+            ProxyConnection conn = new ProxyConnection(options, SERVER_UNCHANGED);
+            conn.connect(false);
+            standardConnectionWait(conn);
+
+            conn.serverType = SERVER_CLAIMS_TLS_REQUIRED;
+            listener.prepForStatusChange(Events.CLOSED);
+            conn.forceReconnect();
+            assertTrue(listener.waitForStatusChange(5, TimeUnit.SECONDS));
+            assertEquals(Connection.Status.CLOSED, conn.getStatus());
+            List<Exception> exceptions = listener.getExceptions();
+            long attempts = exceptions.stream().filter(x -> String.valueOf(x.getMessage()).contains("SSL required by server")).count();
+            assertEquals(1, attempts, exceptions.toString());
+        }
+    }
+
+    @Test
+    public void testTlsFirstWithoutContextUsesTheDefaultContext() throws Exception {
+        if (TestBase.atLeast2_10_3(ensureRunServerInfo())) {
+            SSLContext originalDefault = SSLContext.getDefault();
+            try (NatsTestServer ts = new NatsTestServer(
+                NatsTestServer.builder()
+                    .configFilePath("src/test/resources/tls_first.conf")
+                    .skipConnectValidate())
+            ) {
+                SSLContext.setDefault(SslTestingHelper.createTestSSLContext());
+                Options options = new Options.Builder()
+                    .server(ts.getURI())
+                    .maxReconnects(0)
+                    .tlsFirst()
+                    .build();
+                assertTrue(options.isTLSRequired());
+                assertCanConnectAndPubSub(options);
+            }
+            finally {
+                SSLContext.setDefault(originalDefault);
+            }
+        }
+    }
+
+    @Test
     public void testClientSecureServerNotMismatch() {
         assertThrows(IOException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer()) {
@@ -411,14 +563,20 @@ public class TLSConnectTests extends TestBase {
         assertEquals("tlsAlgorithm", factory.properties.getTlsAlgorithm());
     }
 
-    private static final int SERVER_INSECURE = 1;
-    private static final int SERVER_TLS_AVAILABLE = 2;
-    private static final int SERVER_TLS_REQUIRED = 3;
+    private static final int SERVER_UNCHANGED = 0;     // INFO passed through
+    private static final int SERVER_INSECURE = 1;      // tls_required removed from INFO
+    private static final int SERVER_TLS_AVAILABLE = 2; // tls_required turned into tls_available
+    private static final int SERVER_TLS_REQUIRED = 3;  // INFO passed through, the server itself requires TLS
+    private static final int SERVER_CLAIMS_TLS_REQUIRED = 4; // tls_required added to the INFO of a plain server
     static class ProxyConnection extends NatsConnection {
         int serverType;
 
         public ProxyConnection(String servers, boolean tlsFirst, ErrorListener listener, int serverType) throws Exception {
-            super(makeMiddleman(servers, tlsFirst, listener));
+            this(makeMiddleman(servers, tlsFirst, listener), serverType);
+        }
+
+        public ProxyConnection(Options options, int serverType) throws Exception {
+            super(options);
             this.serverType = serverType;
         }
 
@@ -443,6 +601,8 @@ public class TLSConnectTests extends TestBase {
                     super.handleInfo(infoJson.replace(",\"tls_required\":true", "")); break;
                 case SERVER_TLS_AVAILABLE:
                     super.handleInfo(infoJson.replace("\"tls_required\":true", "\"tls_available\":true")); break;
+                case SERVER_CLAIMS_TLS_REQUIRED:
+                    super.handleInfo(infoJson.replaceFirst("\\{", "{\"tls_required\":true,")); break;
                 default:
                     super.handleInfo(infoJson);
             }
