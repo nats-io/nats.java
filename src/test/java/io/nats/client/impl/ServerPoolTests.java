@@ -127,6 +127,34 @@ public class ServerPoolTests extends TestBase {
     }
 
     @Test
+    public void testServerRejected() throws URISyntaxException {
+        // a rejected server leaves the pool and does not come back when it is discovered again
+        Options o = new Options.Builder().noRandomize().servers(bootstrap).build();
+        NatsServerPool nsp = newNatsServerPool(o, null, discoveredServers);
+        validateNslp(nsp, null, true, combined);
+
+        nsp.serverRejected(new NatsUri(DISC_ONE));
+        validateNslp(nsp, null, true, BOOT_ONE, BOOT_TWO, DISC_TWO, DISC_THREE);
+
+        // discovered again: not taken back, and not counted as an unknown server
+        assertFalse(nsp.acceptDiscoveredUrls(discoveredServers));
+        validateNslp(nsp, null, true, BOOT_ONE, BOOT_TWO, DISC_TWO, DISC_THREE);
+
+        // a server the pool does not hold is remembered all the same; the empty result prunes the gossiped servers as usual
+        nsp.serverRejected(new NatsUri("nats://d4"));
+        assertFalse(nsp.acceptDiscoveredUrls(Collections.singletonList("nats://d4")));
+        validateNslp(nsp, null, true, BOOT_ONE, BOOT_TWO);
+
+        // the memory is the exact uri: the scheme is what made the server unusable, so the same host and port
+        // under another scheme is still accepted while the rejected uri itself is not
+        nsp.serverRejected(new NatsUri("ws://d9"));
+        assertTrue(nsp.acceptDiscoveredUrls(Collections.singletonList("nats://d9")));
+        validateNslp(nsp, null, true, BOOT_ONE, BOOT_TWO, "nats://d9");
+        assertFalse(nsp.acceptDiscoveredUrls(Arrays.asList("ws://d9", "nats://d9")));
+        validateNslp(nsp, null, true, BOOT_ONE, BOOT_TWO, "nats://d9");
+    }
+
+    @Test
     public void testDiscoveredServersInheritTheOriginsUserInfo() throws URISyntaxException {
         String bootWithCreds = "nats://derek:password@b1";
         Options o = new Options.Builder().servers(new String[]{bootWithCreds, BOOT_TWO}).noRandomize().build();

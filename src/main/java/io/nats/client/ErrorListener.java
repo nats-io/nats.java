@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2015-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -149,6 +149,18 @@ public interface ErrorListener {
      * @param conn The connection that had the issue
      */
     default void socketWriteTimeout(Connection conn) {}
+
+    /**
+     * Called by the connection when the server pool supplied a server that the connection will never attempt,
+     * because it cannot be used with the options: for example a plain ws:// server when the options carry
+     * an SSL context, since a plain websocket is never upgraded to TLS. The connection goes on to the next
+     * server, and the pool is told through ServerPool.serverRejected so it stops supplying the server.
+     *
+     * @param conn The connection that rejected the server
+     * @param server The server that was rejected, as a url
+     * @param reason Why it was rejected
+     */
+    default void serverRejected(Connection conn, String server, String reason) {}
 
     /**
      * General message producing function which understands the possible parameters to listener calls.

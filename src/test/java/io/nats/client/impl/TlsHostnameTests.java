@@ -133,7 +133,7 @@ public class TlsHostnameTests {
             .server("tls://" + host + ":" + server.port())
             .serverPool(new NatsServerPool() {
                 @Override
-                public List<String> resolveHostToIps(String hostToResolve, boolean maxOneResult, boolean includeIPV6) {
+                public List<String> resolveHostToIps(@NonNull String hostToResolve, boolean maxOneResult, boolean includeIPV6) {
                     poolAsked.set(true);
                     assertEquals(host, hostToResolve);
                     return Collections.singletonList("127.0.0.1");
@@ -514,7 +514,7 @@ public class TlsHostnameTests {
             .server("tls://" + host + ":" + server.port())
             .serverPool(new NatsServerPool() {
                 @Override
-                public List<String> resolveHostToIps(String hostToResolve, boolean maxOneResult, boolean includeIPV6) {
+                public List<String> resolveHostToIps(@NonNull String hostToResolve, boolean maxOneResult, boolean includeIPV6) {
                     return Collections.singletonList("127.0.0.1");
                 }
             })
