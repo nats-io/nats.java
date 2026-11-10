@@ -1159,6 +1159,8 @@ If there is a mismatch, an IOException will be thrown while connecting and the n
 | available     | tls requested     | ok                                           |
 | neither       | tls requested     | mismatch, "SSL connection wanted by client." |
 
+With TLS after INFO the server's first INFO arrives in plaintext. Its `connect_urls` and lame duck flag are not used; discovered servers come from the INFOs received inside TLS, the first of which nats-server 2.12 and later send right after the first PONG, and the client waits for that one before reporting connected. See [TLS configuration](docs/TLS_CONFIGURATION.md), section 9, including what this means against servers before 2.12.
+
 
 ### TLS Handshake First
 In Server 2.10.3 and later, there is the ability to have TLS Handshake First.
