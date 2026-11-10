@@ -1133,6 +1133,80 @@ public class OptionsTests {
     }
 
     @Test
+    public void testTokenIsJsonEncodedInConnectOptions() {
+        // a token with a quote and a backslash, from the options and from the url, is written as valid JSON
+        String token = "to\"k\\en";
+        String expected = "\"auth_token\":\"to\\\"k\\\\en\"";
+        Options o = new Options.Builder().token(token.toCharArray()).build();
+        String connectString = o.buildProtocolConnectOptionsString("nats://localhost:2222", true, null).toString();
+        assertTrue(connectString.contains(expected), connectString);
+
+        String serverURI = "nats://to%22k%5Cen@localhost:2222";
+        o = new Options.Builder().server(serverURI).build();
+        connectString = o.buildProtocolConnectOptionsString(serverURI, true, null).toString();
+        assertTrue(connectString.contains(expected), connectString);
+    }
+
+    @Test
+    public void testUrlCredentialsReplaceAnNkeyFromTheOptions() throws Exception {
+        // credentials in the url being dialed replace an nkey-only auth handler, as nats.go does
+        AuthHandlerForTesting th = new AuthHandlerForTesting();
+        byte[] nonce = "abcdefg".getBytes(StandardCharsets.UTF_8);
+        Options o = new Options.Builder().authHandler(th).build();
+
+        String connectString = o.buildProtocolConnectOptionsString("nats://derek:password@localhost:4222", true, nonce).toString();
+        assertTrue(connectString.contains("\"user\":\"derek\""), connectString);
+        assertTrue(connectString.contains("\"pass\":\"password\""), connectString);
+        assertFalse(connectString.contains("\"nkey\""), connectString);
+        assertFalse(connectString.contains("\"sig\""), connectString);
+        assertFalse(connectString.contains("\"jwt\""), connectString);
+
+        connectString = o.buildProtocolConnectOptionsString("nats://alberto@localhost:4222", true, nonce).toString();
+        assertTrue(connectString.contains("\"auth_token\":\"alberto\""), connectString);
+        assertFalse(connectString.contains("\"nkey\""), connectString);
+
+        // without credentials in the url the nkey is sent
+        connectString = o.buildProtocolConnectOptionsString("nats://localhost:4222", true, nonce).toString();
+        assertTrue(connectString.contains("\"nkey\":\"" + new String(th.getID()) + "\""), connectString);
+
+        // a JWT is still sent, with its nkey and signature, next to the url credentials
+        AuthHandlerForTesting jwtHandler = new AuthHandlerForTesting(NKey.createUser(null), "jwt".toCharArray());
+        o = new Options.Builder().authHandler(jwtHandler).build();
+        connectString = o.buildProtocolConnectOptionsString("nats://derek:password@localhost:4222", true, nonce).toString();
+        assertTrue(connectString.contains("\"jwt\":\"jwt\""), connectString);
+        assertTrue(connectString.contains("\"nkey\":\"" + new String(jwtHandler.getID()) + "\""), connectString);
+        assertTrue(connectString.contains("\"user\":\"derek\""), connectString);
+    }
+
+    @Test
+    public void testInheritedUserInfoInConnectOptions() throws URISyntaxException {
+        Options o = new Options.Builder().build();
+
+        // a discovered server with inherited user info is sent those credentials
+        NatsUri discovered = new NatsUri("nats://localhost:4222").withInheritedUserInfo("derek:password");
+        String connectString = o.buildProtocolConnectOptionsString(discovered, true, null).toString();
+        assertTrue(connectString.contains("\"user\":\"derek\""), connectString);
+        assertTrue(connectString.contains("\"pass\":\"password\""), connectString);
+
+        // an inherited token
+        connectString = o.buildProtocolConnectOptionsString(discovered.withInheritedUserInfo("alberto"), true, null).toString();
+        assertTrue(connectString.contains("\"auth_token\":\"alberto\""), connectString);
+
+        // the uri's own user info wins over inherited user info
+        NatsUri own = new NatsUri("nats://own:ownpass@localhost:4222").withInheritedUserInfo("derek:password");
+        connectString = o.buildProtocolConnectOptionsString(own, true, null).toString();
+        assertTrue(connectString.contains("\"user\":\"own\""), connectString);
+        assertFalse(connectString.contains("derek"), connectString);
+
+        // inherited user info wins over the options; the options are the fallback when there is none
+        o = new Options.Builder().userInfo("optuser", "optpass").build();
+        connectString = o.buildProtocolConnectOptionsString(discovered, true, null).toString();
+        assertTrue(connectString.contains("\"user\":\"derek\""), connectString);
+        connectString = o.buildProtocolConnectOptionsString(new NatsUri("nats://localhost:4222"), true, null).toString();
+        assertTrue(connectString.contains("\"user\":\"optuser\""), connectString);
+    }
+
+    @Test
     public void testTokenSupplier() {
         String serverURI = "nats://localhost:2222";
         Options o = new Options.Builder().build();
@@ -1406,6 +1480,45 @@ public class OptionsTests {
     boolean[] ips = new boolean[]     { false,  true,      true,           false, false};
     Integer[] ports = new Integer[]   {1122, null};
     String[] userInfos = new String[] {null, "u:p"};
+
+    @Test
+    public void testNatsUriUpperCaseSchemeKeepsTheRestOfTheUrl() throws URISyntaxException {
+        // only the scheme is lower cased; user info and host that happen to contain the scheme are untouched
+        NatsUri nuri = new NatsUri("NATS://NATSUSER:pw@localhost:4222");
+        assertEquals("nats", nuri.getScheme());
+        assertEquals("NATSUSER:pw", nuri.getUserInfo());
+        assertEquals("nats://NATSUSER:pw@localhost:4222", nuri.toString());
+
+        nuri = new NatsUri("TLS://TLSHOST");
+        assertEquals("tls", nuri.getScheme());
+        assertEquals("TLSHOST", nuri.getHost());
+        assertTrue(nuri.isSecure());
+    }
+
+    @Test
+    public void testNatsUriInheritedUserInfo() throws URISyntaxException {
+        NatsUri plain = new NatsUri("nats://localhost:4222");
+        assertNull(plain.getInheritedUserInfo());
+        assertNull(plain.getConnectUserInfo());
+
+        NatsUri inherited = plain.withInheritedUserInfo("derek:password");
+        assertEquals("derek:password", inherited.getInheritedUserInfo());
+        assertEquals("derek:password", inherited.getConnectUserInfo());
+        // not part of the uri, its string form, equality or hash code
+        assertNull(inherited.getUserInfo());
+        assertEquals(plain.toString(), inherited.toString());
+        assertEquals(plain, inherited);
+        assertEquals(plain.hashCode(), inherited.hashCode());
+
+        // the uri's own user info comes first
+        NatsUri own = new NatsUri("nats://own:ownpass@localhost:4222").withInheritedUserInfo("derek:password");
+        assertEquals("own:ownpass", own.getConnectUserInfo());
+
+        // survives rehosting and a tls host, and can be cleared
+        assertEquals("derek:password", inherited.reHost("127.0.0.1").getInheritedUserInfo());
+        assertEquals("derek:password", inherited.withTlsHost("localhost").getInheritedUserInfo());
+        assertNull(inherited.withInheritedUserInfo(null).getInheritedUserInfo());
+    }
 
     @Test
     public void testNatsUri() throws URISyntaxException {

@@ -43,6 +43,8 @@ public interface ServerPool {
      * it passes them on to the provider for later use, together with the server whose INFO supplied them.
      * A discovered server given as a bare ip address has no hostname to present to the server
      * during the TLS handshake; the pool may save the origin's hostname on it for that purpose.
+     * A discovered server is sent the credentials used for the server that reported it; the pool may save
+     * the origin's user info on it for that purpose, see {@link NatsUri#withInheritedUserInfo(String)}.
      * The default implementation ignores the origin and calls {@link #acceptDiscoveredUrls(List)}.
      * @param discoveredServers the list of discovered servers.
      * @param origin the server whose INFO supplied the list, or null when it is not known
