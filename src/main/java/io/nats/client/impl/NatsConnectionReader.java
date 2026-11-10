@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2015-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -67,6 +67,7 @@ class NatsConnectionReader implements Runnable {
 
     private final byte[] buffer;
     private int bufferPosition;
+    private byte[] preloaded; // see preload
 
     private Future<Boolean> stopped;
     private Future<DataPort> dataPortFuture;
@@ -162,6 +163,12 @@ class NatsConnectionReader implements Runnable {
         refreshReadListener(connection);
     }
 
+    // Bytes the connection read past the INFO line before this reader started. They are the first
+    // bytes the reader parses when it starts. Null clears a preload from an earlier attempt.
+    void preload(byte[] bytes) {
+        this.preloaded = bytes;
+    }
+
     // Should only be called if the current thread has exited.
     // Use the Future from stop() to determine if it is ok to call this.
     // This method resets that future so mistiming can result in badness.
@@ -207,7 +214,16 @@ class NatsConnectionReader implements Runnable {
 
             while (running.get() && !Thread.interrupted()) {
                 this.bufferPosition = 0;
-                int bytesRead = dataPort.read(this.buffer, 0, this.buffer.length);
+                int bytesRead;
+                if (preloaded != null) {
+                    // the connection read these bytes while reading the INFO line; both buffers have the options' size
+                    bytesRead = preloaded.length;
+                    System.arraycopy(preloaded, 0, this.buffer, 0, bytesRead);
+                    preloaded = null;
+                }
+                else {
+                    bytesRead = dataPort.read(this.buffer, 0, this.buffer.length);
+                }
 
                 if (bytesRead > 0) {
                     connection.getStatisticsCollector().registerRead(bytesRead);
