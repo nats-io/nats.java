@@ -89,6 +89,24 @@ public class ConnectionListenerTests {
                 assertEquals(1, listener.getDiscoveredServerSkippedEvents().size(), listener.getDiscoveredServerSkippedEvents().toString());
                 assertEquals("the entry carries a scheme", listener.getDiscoveredServerSkippedEvents().get(0).reason);
             }
+
+            // a connection that ignores discovered servers uses no entry and is not told about the skipped one either
+            try (NatsServerProtocolMock ts2 = new NatsServerProtocolMock(null, customInfo)) {
+                ListenerForTesting listener = new ListenerForTesting();
+                Options options = new Options.Builder().
+                                    server(ts2.getNatsLocalhostUri()).
+                                    maxReconnects(0).
+                                    ignoreDiscoveredServers().
+                                    connectionListener(listener).
+                                    errorListener(listener).
+                                    build();
+
+                listener.prepForStatusChange(Events.CONNECTED);
+                standardCloseConnection( listenerConnectionWait(options, listener) );
+                assertEquals(0, listener.getEventCount(Events.DISCOVERED_SERVERS));
+                assertFalse(listener._eventually(500, listener::getDiscoveredServerSkippedEvents, e -> true));
+                assertTrue(listener.getDiscoveredServerSkippedEvents().isEmpty());
+            }
         }
     }
 

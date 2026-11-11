@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.support.UntrustedText;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -88,6 +89,10 @@ public class InfoHandlerTests {
         assertEquals(256 + 2 + " (cut at 256 bytes)".length(), quoted.length());
         // empty
         assertEquals("\"\"", NatsConnection.quoteUntrusted(new byte[0]));
+        // the public form in support quotes the same way; a token keeps a line break escaped instead of ending there
+        assertEquals("\"a\"", UntrustedText.quoteFirstLine("a\r\nb".getBytes(StandardCharsets.UTF_8)));
+        assertEquals("\"a\\u000d\\u000ab\"", UntrustedText.quote("a\r\nb"));
+        assertEquals(NatsConnection.quoteUntrusted(big), UntrustedText.quoteFirstLine(big));
     }
 
     @Test
