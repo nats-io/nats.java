@@ -32,8 +32,14 @@ public interface ServerPool {
 
     /**
      * When the connection received discovered servers (ServerInfo.getConnectURLs)
-     * it passes them on to the provider for later use
-     * @param discoveredServers the list of discovered servers.
+     * it passes them on to the provider for later use.
+     * Each entry is {@code host:port}, with an IPv6 address in brackets, as nats-server writes it. Before the call,
+     * the connection drops the user info of an entry and leaves out an entry that carries a scheme, that does not
+     * parse as {@code host:port}, or whose port is outside 1 to 65535, reporting each one through
+     * {@link ErrorListener#discoveredServerSkipped(Connection, String, String)}; the rule is
+     * {@link NatsUri#discoveredHostPort(String)}. A discovered server is dialed with the transport and the TLS
+     * of the server that reported it, never with a transport the entry names.
+     * @param discoveredServers the list of discovered servers, each as {@code host:port}
      * @return true if there were any unknown servers provided
      */
     boolean acceptDiscoveredUrls(@NonNull List<@NonNull String> discoveredServers);
@@ -41,12 +47,15 @@ public interface ServerPool {
     /**
      * When the connection received discovered servers (ServerInfo.getConnectURLs)
      * it passes them on to the provider for later use, together with the server whose INFO supplied them.
+     * The entries are {@code host:port} only, see {@link #acceptDiscoveredUrls(List)}.
+     * A discovered server is dialed with the transport and the TLS of the origin; the default pool gives it
+     * the origin's scheme for that purpose.
      * A discovered server given as a bare ip address has no hostname to present to the server
      * during the TLS handshake; the pool may save the origin's hostname on it for that purpose.
      * A discovered server is sent the credentials used for the server that reported it; the pool may save
      * the origin's user info on it for that purpose, see {@link NatsUri#withInheritedUserInfo(String)}.
      * The default implementation ignores the origin and calls {@link #acceptDiscoveredUrls(List)}.
-     * @param discoveredServers the list of discovered servers.
+     * @param discoveredServers the list of discovered servers, each as {@code host:port}
      * @param origin the server whose INFO supplied the list, or null when it is not known
      * @return true if there were any unknown servers provided
      */

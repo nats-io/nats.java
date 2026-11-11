@@ -61,6 +61,7 @@ public class ListenerForTesting implements ErrorListener, ConnectionListener {
     private final List<HeartbeatAlarmEvent> heartbeatAlarms = new ArrayList<>();
     private final List<FlowControlProcessedEvent> flowControlProcessedEvents = new ArrayList<>();
     private final List<ServerRejectedEvent> serverRejectedEvents = new ArrayList<>();
+    private final List<DiscoveredServerSkippedEvent> discoveredServerSkippedEvents = new ArrayList<>();
     public final AtomicInteger socketWriteTimeoutCount = new AtomicInteger();
 
     private final boolean printExceptions;
@@ -102,6 +103,7 @@ public class ListenerForTesting implements ErrorListener, ConnectionListener {
         heartbeatAlarms.clear();
         flowControlProcessedEvents.clear();
         serverRejectedEvents.clear();
+        discoveredServerSkippedEvents.clear();
         socketWriteTimeoutCount.set(0);
     }
 
@@ -384,6 +386,10 @@ public class ListenerForTesting implements ErrorListener, ConnectionListener {
         return serverRejectedEvents;
     }
 
+    public List<DiscoveredServerSkippedEvent> getDiscoveredServerSkippedEvents() {
+        return discoveredServerSkippedEvents;
+    }
+
     public int getSocketWriteTimeoutCount() {
         return socketWriteTimeoutCount.get();
     }
@@ -567,6 +573,11 @@ public class ListenerForTesting implements ErrorListener, ConnectionListener {
         serverRejectedEvents.add(new ServerRejectedEvent(server, reason));
     }
 
+    @Override
+    public void discoveredServerSkipped(Connection conn, String entry, String reason) {
+        discoveredServerSkippedEvents.add(new DiscoveredServerSkippedEvent(entry, reason));
+    }
+
     public static class StatusEvent {
         String sid;
         Status status;
@@ -640,6 +651,24 @@ public class ListenerForTesting implements ErrorListener, ConnectionListener {
         public String toString() {
             return "ServerRejectedEvent{" +
                 "server='" + server + '\'' +
+                ", reason='" + reason + '\'' +
+                '}';
+        }
+    }
+
+    public static class DiscoveredServerSkippedEvent {
+        final String entry;
+        final String reason;
+
+        public DiscoveredServerSkippedEvent(String entry, String reason) {
+            this.entry = entry;
+            this.reason = reason;
+        }
+
+        @Override
+        public String toString() {
+            return "DiscoveredServerSkippedEvent{" +
+                "entry='" + entry + '\'' +
                 ", reason='" + reason + '\'' +
                 '}';
         }

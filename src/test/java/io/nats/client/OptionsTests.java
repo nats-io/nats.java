@@ -1634,6 +1634,118 @@ public class OptionsTests {
 
 
     @Test
+    public void testNatsUriDiscoveredHostPort() throws URISyntaxException {
+        // ADR-40, the form of a connect_urls entry. nats-server writes host:port, an IPv6 address in brackets.
+        // User info is dropped. An entry with a scheme is not used, not even its host and port. An entry that does
+        // not parse as host:port, or whose port is out of range, is not used. Many of the forms are those an audit
+        // wrote to confuse a url parser; ServerInfo trims an entry before it gets here, so the forms are untrimmed
+        String[][] used = {
+            {"h:4222", "h:4222"},
+            {"127.0.0.1:4222", "127.0.0.1:4222"},
+            {"[::1]:4222", "[::1]:4222"},
+            {"[1:2:3:4:5:6:7:8]:4222", "[1:2:3:4:5:6:7:8]:4222"},
+            {"[fe80::1%25eth0]:4222", "[fe80::1%25eth0]:4222"},
+            {"localhost:4222", "localhost:4222"},
+            {"a.b.c.d.e:1", "a.b.c.d.e:1"},
+            {"h:65535", "h:65535"},
+            {"h:04222", "h:4222"},
+            {"h:000001", "h:1"},
+            {"Host.Example.COM:1", "Host.Example.COM:1"}, // the host is kept as written
+            {"host.:4222", "host.:4222"},
+            {"h-1.x:4222", "h-1.x:4222"},
+            {"u@h:4222", "h:4222"},
+            {"u:p@h:4222", "h:4222"},
+            {"@h:4222", "h:4222"},
+            {"a@b@h:4222", "h:4222"},
+            {"host\u0000@host:4222", "host:4222"},
+            // numeric host forms that are not a dotted quad are hostnames in this revision of the ADR
+            {"0x7f000001:4222", "0x7f000001:4222"},
+            {"2130706433:4222", "2130706433:4222"},
+        };
+        for (String[] u : used) {
+            assertEquals(u[1], NatsUri.discoveredHostPort(u[0]), shown(u[0]));
+        }
+
+        String scheme = "the entry carries a scheme";
+        String notHostPort = "the entry does not parse as host:port";
+        String port = "the port is not between 1 and 65535";
+        String[][] skipped = {
+            {"nats://h:4222", scheme},
+            {"tls://h:4222", scheme},
+            {"ws://h:4222", scheme},
+            {"wss://h:4222", scheme},
+            {"WS://h:4222", scheme},
+            {"Nats://h:4222", scheme},
+            {"ws://u:p@h:4222", scheme},
+            {"ws://127.0.0.1:1@evil.test:2", scheme},
+            {"%77s://h:4222", scheme},
+            {"w\u0001s://h:4222", scheme},
+            {"na\tts://h:4222", scheme},
+            {"\u00A0ws://h:4222", scheme},
+            {"ws://h:4222/path", scheme},
+            {"h", notHostPort},
+            {"h:", notHostPort},
+            {":4222", notHostPort},
+            {"u@:4222", notHostPort},
+            {"h:abc", notHostPort},
+            {"h:+1", notHostPort},
+            {"h:-1", notHostPort},
+            {"h:\u0661", notHostPort}, // an Arabic-Indic digit
+            {"h:4222\u0000", notHostPort},
+            {"h:4222/", notHostPort},
+            {"h:4222?", notHostPort},
+            {"h:4222#", notHostPort},
+            {"h:4222:4223", notHostPort},
+            {"h/path:4222", notHostPort},
+            {"h?x=1:4222", notHostPort},
+            {"h#f:4222", notHostPort},
+            {"h :4222", notHostPort},
+            {"h_x:4222", notHostPort},
+            {"-h:4222", notHostPort},
+            {"h-:4222", notHostPort},
+            {"h%40x:4222", notHostPort},
+            {"\uFEFFh:4222", notHostPort},
+            {"::1:4222", notHostPort},
+            {"[::1]", notHostPort},
+            {"[::1]:x", notHostPort},
+            {"[::1]:4222:1", notHostPort},
+            {"[]:4222", notHostPort},
+            {"[x]:4222", notHostPort},
+            {"127.1:4222", notHostPort},
+            {"1.2.3:4222", notHostPort},
+            {"999.1.1.1:4222", notHostPort},
+            {"1.1.1.1.1:4222", notHostPort},
+            {"ws:h:4222", notHostPort},
+            {"ws:/h:4222", notHostPort},
+            {"ws:\t//h:4222", notHostPort},
+            {"//h:4222", notHostPort},
+            {"///h:4222", notHostPort},
+            {"h:0", port},
+            {"h:65536", port},
+            {"h:99999", port},
+            {"h:4294971518", port}, // 65535 + 2^32: not a port by overflow either
+        };
+        for (String[] k : skipped) {
+            URISyntaxException e = assertThrows(URISyntaxException.class, () -> NatsUri.discoveredHostPort(k[0]), shown(k[0]));
+            assertEquals(k[1], e.getReason(), shown(k[0]));
+            assertEquals(k[0], e.getInput(), shown(k[0]));
+        }
+    }
+
+    private static String shown(String entry) {
+        StringBuilder sb = new StringBuilder();
+        for (char c : entry.toCharArray()) {
+            if (c < 0x20 || c > 0x7e) {
+                sb.append(String.format("\\u%04x", (int) c));
+            }
+            else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
+    @Test
     public void testNuriRehost() throws URISyntaxException {
         NatsUri nuri = new NatsUri("nats://host:80");
         assertEquals("nats://rehost:80", nuri.reHost("rehost").toString());

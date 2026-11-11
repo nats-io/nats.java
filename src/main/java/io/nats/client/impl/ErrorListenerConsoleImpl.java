@@ -106,4 +106,12 @@ public class ErrorListenerConsoleImpl implements ErrorListener {
     public void serverRejected(Connection conn, String server, String reason) {
         System.out.println(supplyMessage("[WARNING] serverRejected", conn, null, null, "Server: ", server, "Reason: ", reason));
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void discoveredServerSkipped(Connection conn, String entry, String reason) {
+        System.out.println(supplyMessage("[WARNING] discoveredServerSkipped", conn, null, null, "Entry: ", NatsConnection.quoteUntrusted(entry), "Reason: ", reason));
+    }
 }

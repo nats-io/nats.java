@@ -383,6 +383,44 @@ public class ReconnectTests {
     }
 
     @Test
+    public void testUserInfoInAConnectUrlsEntryIsNotUsedAsCredentials() throws Exception {
+        // ADR-40, the form of a connect_urls entry: user info in an entry is dropped. The discovered server is sent
+        // the credentials used for the server that reported it, here those of the configured url, which the real
+        // server requires. Were the entry's own user info used, the server would refuse the reconnect
+        ListenerForTesting listener = new ListenerForTesting();
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/cluster_auth.conf", false)) {
+            String entry = "mallory:evilpass@localhost:" + ts.getNatsPort();
+            String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\",\"connect_urls\": [\"" + entry + "\"]}";
+            NatsConnection nc;
+            Options options;
+            try (NatsServerProtocolMock mock = new NatsServerProtocolMock(null, customInfo)) {
+                options = new Options.Builder()
+                    .server("nats://rcuser:rcpass@localhost:" + mock.getPort())
+                    .connectionListener(listener)
+                    .errorListener(listener)
+                    .maxReconnects(5)
+                    .connectionTimeout(Duration.ofSeconds(5))
+                    .reconnectWait(Duration.ofMillis(100))
+                    .build();
+                nc = (NatsConnection) standardConnection(options);
+                assertEquals(mock.getPort(), options.createURIForServer(nc.getConnectedUrl()).getPort());
+                listener.prepForStatusChange(Events.RECONNECTED);
+            }
+
+            flushAndWaitLong(nc, listener);
+            assertConnected(nc);
+            URI uri = options.createURIForServer(nc.getConnectedUrl());
+            assertEquals(ts.getNatsPort(), uri.getPort());
+            assertNull(uri.getUserInfo()); // the discovered server's url carries no user info, neither the entry's nor the client's
+            assertTrue(listener.getDiscoveredServerSkippedEvents().isEmpty(), listener.getDiscoveredServerSkippedEvents().toString());
+            for (String error : listener.getErrors()) {
+                assertFalse(error.toLowerCase().contains("authorization"), error);
+            }
+            standardCloseConnection(nc);
+        }
+    }
+
+    @Test
     public void testOverflowReconnectBuffer() {
         assertThrows(IllegalStateException.class, () -> {
             Connection nc;

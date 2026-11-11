@@ -110,4 +110,12 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
     public void serverRejected(Connection conn, String server, String reason) {
         LOGGER.warning(() -> supplyMessage("serverRejected", conn, null, null, "Server: ", server, "Reason: ", reason));
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void discoveredServerSkipped(Connection conn, String entry, String reason) {
+        LOGGER.warning(() -> supplyMessage("discoveredServerSkipped", conn, null, null, "Entry: ", NatsConnection.quoteUntrusted(entry), "Reason: ", reason));
+    }
 }

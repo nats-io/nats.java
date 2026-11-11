@@ -115,18 +115,24 @@ public class NatsServerPool implements ServerPool {
             // 2. Build a list for discovered
             //    - since we'll need the NatsUris later
             //    - and to have a list to use to prune removed gossiped servers
+            //    - an entry is host:port, as nats-server writes it, and its user info is dropped. An entry that carries
+            //      a scheme, that does not parse as host:port, or whose port is out of range is left out: the connection
+            //      reported it before handing the list over, and it never becomes a server
+            //    - a discovered server takes the scheme of the server that reported it, so it is dialed with that
+            //      server's transport and TLS. Without an origin it takes the pool's default scheme
             //    - a server the connection rejected is never supplied again, so it is left out here.
             //      The match is the exact uri: the scheme is what made it unusable, so the same
             //      host and port under another scheme is still a candidate
+            String scheme = origin != null ? origin.getScheme() : (defaultScheme == null ? NatsConstants.NATS_PROTOCOL : defaultScheme);
             List<NatsUri> discovered = new ArrayList<>();
             for (String d : discoveredServers) {
                 try {
-                    NatsUri nuri = new NatsUri(d, defaultScheme);
+                    NatsUri nuri = new NatsUri(scheme + "://" + NatsUri.discoveredHostPort(d));
                     if (!rejected.contains(nuri)) {
                         discovered.add(nuri);
                     }
                 } catch (URISyntaxException ignore) {
-                    // should never actually happen
+                    // the entry is not used
                 }
             }
 
@@ -155,6 +161,7 @@ public class NatsServerPool implements ServerPool {
             //    - a discovered server is sent the credentials used for the server that reported it:
             //      the origin's own url user info, or the user info the origin itself inherited.
             //      The options are the fallback, so there is nothing to carry when the origin has neither.
+            //      User info the entry itself carried was dropped in step 2.
             boolean discoveryContainedUnknowns = false;
             if (!discovered.isEmpty()) {
                 discoveryContainedUnknowns = true;
@@ -164,7 +171,7 @@ public class NatsServerPool implements ServerPool {
                     if (originHost != null && d.hostIsIpAddress()) {
                         d = d.withTlsHost(originHost);
                     }
-                    if (originUserInfo != null && d.getUserInfo() == null) {
+                    if (originUserInfo != null) {
                         d = d.withInheritedUserInfo(originUserInfo);
                     }
                     newEntryList.add(new ServerPoolEntry(d, true));

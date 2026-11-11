@@ -638,7 +638,8 @@ class NatsConnection implements Connection {
     // A server the connection will never attempt because it cannot be used with the options: a ws:// server is
     // a plain websocket that is never upgraded to TLS, so with an SSL context it would be reached without TLS.
     // Both connect loops ask this when the pool hands a server out, before anything is sent to it. The bootstrap
-    // list cannot hold such a server, so one comes from connect_urls or from a custom ServerPool.
+    // list cannot hold such a server, and a connect_urls entry never brings a scheme of its own (handleInfo), so
+    // one comes from a custom ServerPool.
     protected String rejectionReason(NatsUri nuri) {
         if (options.isTLSRequired() && WEBSOCKET_PROTOCOL.equals(nuri.getScheme())) {
             return "the options require TLS and a ws:// server is never upgraded to TLS";
@@ -2036,11 +2037,25 @@ class NatsConnection implements Connection {
      * control character escaped, so the quote can carry neither a terminal escape sequence nor a fake line break.
      */
     static String quoteUntrusted(byte[] bytes) {
+        return quoteUntrusted(bytes, true);
+    }
+
+    /**
+     * Quote one token the client did not accept, such as a connect_urls entry, the same way: cut at 256 bytes, with
+     * every control character escaped. A line break inside the token is escaped, not taken as its end.
+     */
+    static String quoteUntrusted(String token) {
+        return quoteUntrusted(token.getBytes(UTF_8), false);
+    }
+
+    private static String quoteUntrusted(byte[] bytes, boolean firstLineOnly) {
         int len = bytes.length;
-        for (int i = 0; i < len; i++) {
-            if (bytes[i] == CR || bytes[i] == LF) {
-                len = i;
-                break;
+        if (firstLineOnly) {
+            for (int i = 0; i < len; i++) {
+                if (bytes[i] == CR || bytes[i] == LF) {
+                    len = i;
+                    break;
+                }
             }
         }
         boolean cut = len > 256;
@@ -2085,9 +2100,22 @@ class NatsConnection implements Connection {
 
         List<String> urls = serverInfo.getConnectURLs();
         if (!urls.isEmpty()) {
+            // ADR-40, the form of a connect_urls entry: the pool is handed host:port entries only, so a custom pool is
+            // covered as well. User info is dropped. An entry that carries a scheme, that does not parse as host:port,
+            // or whose port is out of range is skipped and reported; the other entries are still used
+            List<String> hostPorts = new ArrayList<>(urls.size());
+            for (String entry : urls) {
+                try {
+                    hostPorts.add(NatsUri.discoveredHostPort(entry));
+                }
+                catch (URISyntaxException e) {
+                    String reason = e.getReason();
+                    makeCallback(() -> options.getErrorListener().discoveredServerSkipped(this, entry, reason));
+                }
+            }
             NatsUri origin = currentServer == null ? connectingServer : currentServer;
-            if (serverPool.acceptDiscoveredUrls(urls, origin)) {
-                processConnectionEvent(Events.DISCOVERED_SERVERS, urls.toString());
+            if (serverPool.acceptDiscoveredUrls(hostPorts, origin)) {
+                processConnectionEvent(Events.DISCOVERED_SERVERS, hostPorts.toString());
             }
         }
 

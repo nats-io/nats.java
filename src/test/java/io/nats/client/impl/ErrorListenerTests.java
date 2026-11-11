@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2015-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -437,6 +437,8 @@ public class ErrorListenerTests {
         el.pullStatusError(null, null, null);
         el.flowControlProcessed(null, null, null, null);
         el.socketWriteTimeout(null);
+        el.serverRejected(null, "ws://host:4222", "reason");
+        el.discoveredServerSkipped(null, "ws://host:4222", "reason");
     }
 
     private void _cover(ReadListener rl) {

@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2015-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -54,18 +54,40 @@ public class ConnectionListenerTests {
     public void testDiscoveredServersCountAndListenerInOptions() throws Exception {
 
         try (NatsTestServer ts = new NatsTestServer()) {
-            String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\",\"connect_urls\": [\""+ts.getURI()+"\"]}";
+            String hostPort = ts.getURI().substring("nats://".length()); // a connect_urls entry is host:port
+            String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\",\"connect_urls\": [\"" + hostPort + "\"]}";
             try (NatsServerProtocolMock ts2 = new NatsServerProtocolMock(null, customInfo)) {
                 ListenerForTesting listener = new ListenerForTesting();
                 Options options = new Options.Builder().
                                     server(ts2.getNatsLocalhostUri()).
                                     maxReconnects(0).
                                     connectionListener(listener).
+                                    errorListener(listener).
                                     build();
-                                    
+
                 listener.prepForStatusChange(Events.CONNECTED);
                 standardCloseConnection( listenerConnectionWait(options, listener) );
                 assertEquals(1, listener.getEventCount(Events.DISCOVERED_SERVERS));
+                assertTrue(listener.getDiscoveredServerSkippedEvents().isEmpty());
+            }
+
+            // an entry with a scheme is skipped and reported: no server is discovered from it
+            customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\",\"connect_urls\": [\"" + ts.getURI() + "\"]}";
+            try (NatsServerProtocolMock ts2 = new NatsServerProtocolMock(null, customInfo)) {
+                ListenerForTesting listener = new ListenerForTesting();
+                Options options = new Options.Builder().
+                                    server(ts2.getNatsLocalhostUri()).
+                                    maxReconnects(0).
+                                    connectionListener(listener).
+                                    errorListener(listener).
+                                    build();
+
+                listener.prepForStatusChange(Events.CONNECTED);
+                standardCloseConnection( listenerConnectionWait(options, listener) );
+                assertEquals(0, listener.getEventCount(Events.DISCOVERED_SERVERS));
+                assertTrue(listener._eventually(2000, listener::getDiscoveredServerSkippedEvents, e -> e.entry.equals(ts.getURI())));
+                assertEquals(1, listener.getDiscoveredServerSkippedEvents().size(), listener.getDiscoveredServerSkippedEvents().toString());
+                assertEquals("the entry carries a scheme", listener.getDiscoveredServerSkippedEvents().get(0).reason);
             }
         }
     }

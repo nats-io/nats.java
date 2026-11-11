@@ -28,6 +28,9 @@ public class NatsUri {
     private static final int NO_PORT = -1;
     private static final String UNABLE_TO_PARSE = "Unable to parse URI string.";
     private static final String UNSUPPORTED_SCHEME = "Unsupported NATS URI scheme.";
+    private static final String ENTRY_CARRIES_A_SCHEME = "the entry carries a scheme";
+    private static final String ENTRY_NOT_HOST_PORT = "the entry does not parse as host:port";
+    private static final String ENTRY_PORT_OUT_OF_RANGE = "the port is not between 1 and 65535";
     private static final String URI_E_ALLOW_TRY_PREFIXED = "Illegal character in scheme name at index";
     private static final Pattern IPV4_RE = Pattern.compile("(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])");
     private static final String COLON_SLASH_SLASH = "://";
@@ -346,6 +349,61 @@ public class NatsUri {
                 throw e;
             }
         }
+    }
+
+    /**
+     * The host and port of a {@code connect_urls} entry, in the form nats-server writes: {@code host:port}, with an
+     * IPv6 address in brackets. User info before the host ({@code user@host:port}, {@code user:pass@host:port}) is
+     * dropped, since a discovered server is sent the credentials used for the server that reported it. An entry that
+     * carries a scheme ({@code nats://host:port}, {@code ws://host:port}) is not used, not even reduced to its host
+     * and port, since a discovered server is dialed with the transport and the TLS of the server that reported it.
+     * An entry that does not parse as {@code host:port} once user info is dropped, or whose port is outside 1 to 65535,
+     * is not used. The host is checked the way {@link URI} checks a host, and kept as written.
+     * @param entry the entry as the server sent it
+     * @return the {@code host:port} of the entry
+     * @throws URISyntaxException when the entry is not used; the reason says why
+     */
+    @NonNull
+    public static String discoveredHostPort(@NonNull String entry) throws URISyntaxException {
+        if (entry.contains(COLON_SLASH_SLASH)) {
+            throw new URISyntaxException(entry, ENTRY_CARRIES_A_SCHEME);
+        }
+        String hostPort = entry.substring(entry.lastIndexOf('@') + 1); // drops user info; drops nothing when there is no @
+        int colon = hostPort.lastIndexOf(':');
+        if (colon < 1 || colon == hostPort.length() - 1) {
+            throw new URISyntaxException(entry, ENTRY_NOT_HOST_PORT);
+        }
+        String host = hostPort.substring(0, colon);
+        if (host.startsWith("[") ? !host.endsWith("]") : host.indexOf(':') != -1) {
+            // an IPv6 address is in brackets; a colon anywhere else in the host means this is not host:port
+            throw new URISyntaxException(entry, ENTRY_NOT_HOST_PORT);
+        }
+        int port = 0;
+        for (int i = colon + 1; i < hostPort.length(); i++) {
+            char c = hostPort.charAt(i);
+            if (c < '0' || c > '9') {
+                throw new URISyntaxException(entry, ENTRY_NOT_HOST_PORT);
+            }
+            port = port * 10 + (c - '0');
+            if (port > 65535) {
+                throw new URISyntaxException(entry, ENTRY_PORT_OUT_OF_RANGE);
+            }
+        }
+        if (port == 0) {
+            throw new URISyntaxException(entry, ENTRY_PORT_OUT_OF_RANGE);
+        }
+        URI uri;
+        try {
+            uri = new URI(NATS_PROTOCOL_SLASH_SLASH + host + ":" + port);
+        }
+        catch (URISyntaxException e) {
+            throw new URISyntaxException(entry, ENTRY_NOT_HOST_PORT);
+        }
+        // the whole host must have been taken as the host: a path, query or fragment character inside it ends the host early
+        if (!host.equals(uri.getHost()) || uri.getPort() != port) {
+            throw new URISyntaxException(entry, ENTRY_NOT_HOST_PORT);
+        }
+        return host + ":" + port;
     }
 
     @NonNull
