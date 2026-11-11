@@ -169,7 +169,10 @@ public interface ErrorListener {
      * {@code nats://host:port} or {@code ws://host:port}, is skipped as a whole, since a discovered server is dialed
      * with the transport and the TLS of the server that reported it, not with what the entry names. An entry that
      * does not parse as {@code host:port} once its user info is dropped, or whose port is outside 1 to 65535, is
-     * skipped as well. The other entries of the INFO are used. User info in an entry is dropped without a report.
+     * skipped as well. Under TLS with the name check on, a discovered ip address that has no name to verify its
+     * certificate against, learned through a server given as an ip address while neither {@code tlsServerName} nor
+     * {@code tlsVerifyDiscoveredByIp} is set, is skipped too. The other entries of the INFO are used. User info in
+     * an entry is dropped without a report.
      * Called once per skipped entry, each time an INFO carries it. Not called when the options ignore discovered
      * servers, since the connection then uses no entry; the pool still receives the list.
      *

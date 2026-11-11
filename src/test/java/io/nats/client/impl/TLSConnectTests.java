@@ -1120,6 +1120,9 @@ public class TLSConnectTests extends TestBase {
                 entries.add("127.0.0.1:" + second.port());
                 try (SniTestServer first = new SniTestServer(certificates, false, entries, true)) {
                     Options options = tlsRequiring(first.port(), certificates, listener)
+                        // the seed is an ip address, so a discovered ip address has no name to inherit; the certificate
+                        // carries the address, which this option verifies it against (ADR-40, the TLS name of a discovered server)
+                        .tlsVerifyDiscoveredByIp()
                         .reconnectWait(Duration.ofMillis(50))
                         .maxReconnects(3)
                         .build();

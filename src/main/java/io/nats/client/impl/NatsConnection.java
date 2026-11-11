@@ -69,6 +69,8 @@ class NatsConnection implements Connection {
     private volatile boolean infoBeforeTlsUpgrade;
     // why the last connection attempt failed, the cause of the exception a failed connect throws; see tryToConnect
     private volatile Throwable connectFailure;
+    // the reason a discovered ip address is skipped under TLS when it has no name to verify against; see handleInfo
+    static final String DISCOVERED_IP_HAS_NO_NAME = "the server is an ip address with no name to verify its certificate against, learned through a server given as an ip address; set tlsServerName to the name the certificates carry, or tlsVerifyDiscoveredByIp to verify it against its address";
     // bytes read past the INFO line, handed to the reader when it starts; see readInitialInfo
     private byte[] infoTrailingBytes;
     // completed by the first INFO the reader handles while an attempt waits for the INFO that follows the first PONG
@@ -2073,19 +2075,35 @@ class NatsConnection implements Connection {
             // that ignores discovered servers is not told about entries it would not use; the pool still receives the
             // list, since a custom pool honors that option itself
             boolean report = !options.isIgnoreDiscoveredServers();
+            NatsUri origin = currentServer == null ? connectingServer : currentServer;
+            // ADR-40, the TLS name of a discovered server: under TLS with the name check on, a discovered ip address
+            // is verified against the name it inherits from the server that reported it, over any number of hops.
+            // When there is no name to inherit, and neither tlsServerName nor tlsVerifyDiscoveredByIp is set, the
+            // client must not connect to it over TLS: the entry is skipped and reported, naming the two settings
+            boolean ipNeedsName = options.isTLSRequired() && options.isTlsVerifyHostname()
+                && options.getTlsServerName() == null && !options.isTlsVerifyDiscoveredByIp()
+                && (origin == null || origin.tlsHostToInherit() == null);
             List<String> hostPorts = new ArrayList<>(urls.size());
             for (String entry : urls) {
+                String hostPort;
+                String reason;
                 try {
-                    hostPorts.add(NatsUri.discoveredHostPort(entry));
+                    hostPort = NatsUri.discoveredHostPort(entry);
+                    reason = ipNeedsName && NatsUri.isIpAddress(hostPort.substring(0, hostPort.lastIndexOf(':')))
+                        ? DISCOVERED_IP_HAS_NO_NAME : null;
                 }
                 catch (URISyntaxException e) {
-                    if (report) {
-                        String reason = e.getReason();
-                        makeCallback(() -> options.getErrorListener().discoveredServerSkipped(this, entry, reason));
-                    }
+                    hostPort = null;
+                    reason = e.getReason();
+                }
+                if (reason == null) {
+                    hostPorts.add(hostPort);
+                }
+                else if (report) {
+                    String why = reason;
+                    makeCallback(() -> options.getErrorListener().discoveredServerSkipped(this, entry, why));
                 }
             }
-            NatsUri origin = currentServer == null ? connectingServer : currentServer;
             if (serverPool.acceptDiscoveredUrls(hostPorts, origin)) {
                 processConnectionEvent(Events.DISCOVERED_SERVERS, hostPorts.toString());
             }

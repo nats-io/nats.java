@@ -105,6 +105,17 @@ public class NatsUri {
     }
 
     /**
+     * The hostname a server discovered as an ip address through this server inherits, to be verified against and
+     * sent as SNI: this server's own TLS host, so that the name travels over any number of hops, or null when this
+     * server is an ip address with no name of its own to pass on.
+     * @return the hostname to inherit, or null
+     */
+    @Nullable
+    public String tlsHostToInherit() {
+        return hostIsIpAddress && tlsHost == null ? null : getTlsHost();
+    }
+
+    /**
      * The raw user info this server inherited from the server it was learned through, so that CONNECT
      * to a discovered server uses the credentials used for the server that reported it. It is never part
      * of the uri itself: not of its string form, its equality or its hash code.

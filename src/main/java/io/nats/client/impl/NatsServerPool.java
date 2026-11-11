@@ -155,9 +155,13 @@ public class NatsServerPool implements ServerPool {
             }
 
             // 4. Add all left over from the new discovered list
-            //    - a discovered server given as a bare ip address gets the hostname of the origin
-            //      to present during the TLS handshake, when the origin was configured with a hostname.
-            //      One hop only: an origin that is itself an ip address supplies nothing.
+            //    - a discovered server given as a bare ip address gets the hostname of the origin, to be verified
+            //      against and to present during the TLS handshake: the hostname the origin was configured with, or
+            //      the one the origin inherited itself, so the name travels over any number of hops (ADR-40, the TLS
+            //      name of a discovered server). An origin that is an ip address with no name supplies nothing.
+            //      With tlsVerifyDiscoveredByIp a discovered ip address is verified against its address instead and
+            //      inherits nothing. Under TLS, a discovered ip address that would get no name is skipped by the
+            //      connection before this call, see NatsConnection.handleInfo
             //    - a discovered server is sent the credentials used for the server that reported it:
             //      the origin's own url user info, or the user info the origin itself inherited.
             //      The options are the fallback, so there is nothing to carry when the origin has neither.
@@ -165,7 +169,7 @@ public class NatsServerPool implements ServerPool {
             boolean discoveryContainedUnknowns = false;
             if (!discovered.isEmpty()) {
                 discoveryContainedUnknowns = true;
-                String originHost = origin == null || origin.hostIsIpAddress() ? null : origin.getHost();
+                String originHost = origin == null || options.isTlsVerifyDiscoveredByIp() ? null : origin.tlsHostToInherit();
                 String originUserInfo = origin == null ? null : origin.getConnectUserInfo();
                 for (NatsUri d : discovered) {
                     if (originHost != null && d.hostIsIpAddress()) {

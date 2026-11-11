@@ -725,6 +725,12 @@ public class Options {
      */
     public static final String PROP_TLS_SERVER_NAME = PFX + "tls.server.name";
     /**
+     * Property used to verify a discovered server given as an ip address against that address instead of the
+     * hostname it inherits, and to connect to one that has no name to inherit,
+     * see {@link Builder#tlsVerifyDiscoveredByIp() tlsVerifyDiscoveredByIp}.
+     */
+    public static final String PROP_TLS_VERIFY_DISCOVERED_BY_IP = PFX + "tls.verify.discovered.by.ip";
+    /**
      * This property is used to enable support for UTF8 subjects. See {@link Builder#supportUTF8Subjects() supportUTF8Subjects()}
      */
     public static final String PROP_UTF8_SUBJECTS = "allow.utf8.subjects";
@@ -938,6 +944,7 @@ public class Options {
     private final boolean tlsFirst;
     private final boolean tlsVerifyHostname;
     private final String tlsServerName;
+    private final boolean tlsVerifyDiscoveredByIp;
     private final boolean useTimeoutException;
     private final boolean advancedRequestBehavior;
     private final boolean useDispatcherWithExecutor;
@@ -1112,6 +1119,7 @@ public class Options {
         private boolean tlsFirst = false;
         private boolean tlsVerifyHostname = true;
         private String tlsServerName = null;
+        private boolean tlsVerifyDiscoveredByIp = false;
         private boolean useTimeoutException = false;
         private boolean advancedRequestBehavior = false;
         private boolean useDispatcherWithExecutor = false;
@@ -1274,6 +1282,7 @@ public class Options {
             booleanProperty(props, PROP_TLS_FIRST, b -> this.tlsFirst = b);
             booleanProperty(props, PROP_TLS_VERIFY_HOSTNAME, b -> this.tlsVerifyHostname = b);
             stringProperty(props, PROP_TLS_SERVER_NAME, this::tlsServerName);
+            booleanProperty(props, PROP_TLS_VERIFY_DISCOVERED_BY_IP, b -> this.tlsVerifyDiscoveredByIp = b);
             booleanProperty(props, PROP_USE_TIMEOUT_EXCEPTION, b -> this.useTimeoutException = b);
             booleanProperty(props, PROP_ADVANCED_REQUEST_BEHAVIOR, b -> this.advancedRequestBehavior = b);
             booleanProperty(props, PROP_USE_DISPATCHER_WITH_EXECUTOR, b -> this.useDispatcherWithExecutor = b);
@@ -2337,8 +2346,10 @@ public class Options {
          * subject alternative names. The same name is sent to the server as the TLS server name (SNI),
          * with one trailing dot stripped; for an ip address no server name is sent.
          * A server discovered from connect_urls as a bare ip address
-         * is checked against the hostname of the server that supplied it, when that server was
-         * configured by hostname; otherwise it is checked as an ip address.
+         * is checked against the hostname it inherits from the server that reported it, over any number of hops:
+         * the hostname that server was configured with, or the one it inherited itself. With no name to inherit,
+         * behind a server configured by ip address, the client does not connect to it over TLS unless
+         * {@link #tlsVerifyDiscoveredByIp() tlsVerifyDiscoveredByIp} is set, which checks it as an ip address.
          * {@link #tlsServerName(String) tlsServerName} replaces every one of these names with one name.
          * The check is performed by the trust manager in use. The JDK performs it for its own
          * trust managers, which an SSLContext built from a keystore and truststore or the default
@@ -2374,6 +2385,23 @@ public class Options {
          */
         public Builder tlsServerName(String tlsServerName) {
             this.tlsServerName = tlsServerName == null ? null : emptyAsNull(tlsServerName.trim());
+            return this;
+        }
+
+        /**
+         * Verify a server discovered from connect_urls as an ip address against that address, instead of the hostname
+         * it inherits from the server that reported it, with no server name (SNI) sent, and connect to a discovered
+         * ip address that has no name to inherit, which the client otherwise skips. For clusters whose node
+         * certificates carry only ip addresses; safe only where the CA that issued them is not shared with others.
+         * It has no effect while {@link #tlsServerName(String) tlsServerName} is set, which names every server, and
+         * none with the name check turned off. Off by default.
+         * <p>
+         * Like a TLS server name it asks for TLS: when no SSL context comes from the other settings, the default SSL
+         * context is used, the same as {@link #secure()}.
+         * @return the Builder for chaining
+         */
+        public Builder tlsVerifyDiscoveredByIp() {
+            this.tlsVerifyDiscoveredByIp = true;
             return this;
         }
 
@@ -2516,8 +2544,9 @@ public class Options {
                             }
                         }
 
-                        // tls first and a tls server name ask for TLS: when nothing else has chosen a context, the default one
-                        if ((tlsFirst || tlsServerName != null) && !useTrustAllTls) {
+                        // tls first, a tls server name and verify discovered by ip ask for TLS: when nothing else has
+                        // chosen a context, the default one
+                        if ((tlsFirst || tlsServerName != null || tlsVerifyDiscoveredByIp) && !useTrustAllTls) {
                             useDefaultTls = true;
                         }
 
@@ -2554,7 +2583,7 @@ public class Options {
             if (sslContext != null) {
                 for (NatsUri natsUri : natsServerUris) {
                     if (WEBSOCKET_PROTOCOL.equals(natsUri.getScheme())) {
-                        throw new IllegalStateException("Options require TLS (secure, opentls, tls first, a tls server name, an SSL context, keystore or truststore, an SSL context factory, or a tls, wss or opentls server url), but the server list has a ws:// server, which is never upgraded to TLS. Use wss:// for that server.");
+                        throw new IllegalStateException("Options require TLS (secure, opentls, tls first, a tls server name, verify discovered by ip, an SSL context, keystore or truststore, an SSL context factory, or a tls, wss or opentls server url), but the server list has a ws:// server, which is never upgraded to TLS. Use wss:// for that server.");
                     }
                 }
             }
@@ -2695,6 +2724,7 @@ public class Options {
             this.tlsFirst = o.tlsFirst;
             this.tlsVerifyHostname = o.tlsVerifyHostname;
             this.tlsServerName = o.tlsServerName;
+            this.tlsVerifyDiscoveredByIp = o.tlsVerifyDiscoveredByIp;
             this.useTimeoutException = o.useTimeoutException;
             this.advancedRequestBehavior = o.advancedRequestBehavior;
             this.useDispatcherWithExecutor = o.useDispatcherWithExecutor;
@@ -2781,6 +2811,7 @@ public class Options {
         this.tlsFirst = b.tlsFirst;
         this.tlsVerifyHostname = b.tlsVerifyHostname;
         this.tlsServerName = b.tlsServerName;
+        this.tlsVerifyDiscoveredByIp = b.tlsVerifyDiscoveredByIp;
         this.useTimeoutException = b.useTimeoutException;
         this.advancedRequestBehavior = b.advancedRequestBehavior;
         this.useDispatcherWithExecutor = b.useDispatcherWithExecutor;
@@ -3625,6 +3656,15 @@ public class Options {
     @Nullable
     public String getTlsServerName() {
         return tlsServerName;
+    }
+
+    /**
+     * Get whether a discovered server given as an ip address is verified against that address, and connected to
+     * when it has no name to inherit, see {@link Builder#tlsVerifyDiscoveredByIp() tlsVerifyDiscoveredByIp()}
+     * @return the flag
+     */
+    public boolean isTlsVerifyDiscoveredByIp() {
+        return tlsVerifyDiscoveredByIp;
     }
 
     /**

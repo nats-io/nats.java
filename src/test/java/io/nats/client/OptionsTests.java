@@ -1948,6 +1948,29 @@ public class OptionsTests {
         assertThrows(IllegalStateException.class, () -> new Options.Builder().server("ws://localhost:80").tlsServerName("x.test").build());
     }
 
+    @Test
+    public void testTlsVerifyDiscoveredByIp() throws Exception {
+        // ADR-40, the TLS name of a discovered server: the verify-by-ip opt-in. A TLS configuration, so it asks for TLS
+        assertFalse(new Options.Builder().build().isTlsVerifyDiscoveredByIp());
+        Options options = new Options.Builder().tlsVerifyDiscoveredByIp().build();
+        assertTrue(options.isTlsVerifyDiscoveredByIp());
+        assertTrue(options.isTLSRequired());
+        assertSame(SSLContext.getDefault(), options.getSslContext());
+        assertTrue(new Options.Builder(options).build().isTlsVerifyDiscoveredByIp());
+
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_TLS_VERIFY_DISCOVERED_BY_IP, "true");
+        assertTrue(new Options.Builder(props).build().isTlsVerifyDiscoveredByIp());
+        props.setProperty(Options.PROP_TLS_VERIFY_DISCOVERED_BY_IP, "false");
+        assertFalse(new Options.Builder(props).build().isTlsVerifyDiscoveredByIp());
+
+        Options open = new Options.Builder().opentls().tlsVerifyDiscoveredByIp().build();
+        assertTrue(open.isTLSRequired());
+        assertNotSame(SSLContext.getDefault(), open.getSslContext());
+
+        assertThrows(IllegalStateException.class, () -> new Options.Builder().server("ws://localhost:80").tlsVerifyDiscoveredByIp().build());
+    }
+
     @SuppressWarnings("deprecation")
     private void validateHostnameResolveMode(HostnameResolveMode expected,
                                              boolean isNoResolveHostnames, boolean isEnableFastFallback,

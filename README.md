@@ -650,6 +650,7 @@ assertEquals(8000, o.getMaxMessagesInOutgoingQueue());
 | tls.first                         | Property used to set TLS Handshake First behavior                                    |
 | tls.verify.hostname               | Property used to set tls hostname verification, on by default; false turns it off    |
 | tls.server.name                   | Property used to set the TLS server name of every server, verified and sent as SNI   |
+| tls.verify.discovered.by.ip       | Verify a discovered ip address against its address; connect to one that has no name   |
 | use.timeout.exception             | Instruct the client to throw TimeoutException instead of CancellationException       |
 | advanced.request.behavior         | Surface a specific RequestFailureException (reason, status, last error) on no reply |
 | use.dispatcher.with.executor      | Instruct dispatchers to dispatch all messages as a task                              |
@@ -1151,7 +1152,7 @@ NATS supports TLS 1.2. The server can be configured to verify client certificate
     Connection nc = Nats.connect(options);
     ```
 
-In every case the client checks that the certificate the server presents is issued for the server name the connection was made with: the hostname in the url, or the ip address when the url has one, which the certificate must then carry as a subject alternative name. This is on by default, including with `opentls`. `tlsServerName(name)` on the builder, or the `io.nats.client.tls.server.name` property, sets one name for every server instead, for servers reached by ip address or by a name their certificates do not carry; it asks for TLS on its own. `tlsVerifyHostname(false)` on the builder, or the `io.nats.client.tls.verify.hostname=false` property, turns the check off as the last resort; see [TLS configuration](docs/TLS_CONFIGURATION.md).
+In every case the client checks that the certificate the server presents is issued for the server name the connection was made with: the hostname in the url, or the ip address when the url has one, which the certificate must then carry as a subject alternative name. This is on by default, including with `opentls`. `tlsServerName(name)` on the builder, or the `io.nats.client.tls.server.name` property, sets one name for every server instead, for servers reached by ip address or by a name their certificates do not carry; it asks for TLS on its own. A server the cluster advertises by ip address is checked against the hostname inherited from the server that reported it, over any number of hops; one with no name to inherit is skipped unless `tlsVerifyDiscoveredByIp()` is set. `tlsVerifyHostname(false)` on the builder, or the `io.nats.client.tls.verify.hostname=false` property, turns the check off as the last resort; see [TLS configuration](docs/TLS_CONFIGURATION.md).
 
 If you want to try out these techniques, take a look at the [README.md](src/examples/java/io/nats/examples/README.md) for instructions.
 

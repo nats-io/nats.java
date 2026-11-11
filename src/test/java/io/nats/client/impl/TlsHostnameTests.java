@@ -448,6 +448,11 @@ public class TlsHostnameTests {
         assertEquals("127.0.0.1", discovered.getHost());
         assertEquals(new NatsUri("tls://127.0.0.1:4222"), discovered);
         assertEquals("one.test", discovered.reHost("127.0.0.2").getTlsHost());
+        // the name a server discovered as an ip address inherits through each of these
+        assertEquals(SniTestServer.HOST, original.tlsHostToInherit());
+        assertEquals(SniTestServer.HOST, original.reHost("127.0.0.1").tlsHostToInherit());
+        assertNull(new NatsUri("tls://127.0.0.1:4222").tlsHostToInherit());
+        assertEquals("one.test", discovered.tlsHostToInherit());
     }
 
     @Test
@@ -490,13 +495,28 @@ public class TlsHostnameTests {
         pool.acceptDiscoveredUrls(Arrays.asList("127.0.0.1:4222", "127.0.0.2:4222"), two);
         assertEquals("one.test", entry(pool, "127.0.0.1").getTlsHost()); // already known, keeps its name
         assertEquals("two.test", entry(pool, "127.0.0.2").getTlsHost());
-        // one hop only: an origin that is an ip address supplies nothing
+        // an origin that is an ip address with no name supplies nothing
         pool.acceptDiscoveredUrls(Collections.singletonList("127.0.0.3:4222"), nine);
         assertEquals("127.0.0.3", entry(pool, "127.0.0.3").getTlsHost());
-        // nor does an origin that is a discovered ip carrying a name
+        // ADR-40, the TLS name of a discovered server: the name travels over any number of hops, so an origin that is
+        // a discovered ip carrying a name passes that name on
         NatsUri discoveredWithName = new NatsUri("tls://127.0.0.1:4222").withTlsHost("one.test");
         pool.acceptDiscoveredUrls(Collections.singletonList("127.0.0.4:4222"), discoveredWithName);
-        assertEquals("127.0.0.4", entry(pool, "127.0.0.4").getTlsHost());
+        assertEquals("one.test", entry(pool, "127.0.0.4").getTlsHost());
+        // a resolved origin keeps its hostname and passes that on as well
+        pool.acceptDiscoveredUrls(Collections.singletonList("127.0.0.5:4222"), two.reHost("127.0.0.2"));
+        assertEquals("two.test", entry(pool, "127.0.0.5").getTlsHost());
+    }
+
+    @Test
+    public void discoveryInheritsNoNameWhenDiscoveredServersAreVerifiedByIp() throws Exception {
+        // with tlsVerifyDiscoveredByIp a discovered ip address is verified against its address, so it inherits nothing
+        NatsServerPool pool = new NatsServerPool();
+        pool.initialize(new Options.Builder().noRandomize().tlsVerifyDiscoveredByIp().server("tls://one.test:4222").build());
+        NatsUri one = new NatsUri("tls://one.test:4222");
+        pool.acceptDiscoveredUrls(Arrays.asList("127.0.0.1:4222", "other.test:4222"), one);
+        assertEquals("127.0.0.1", entry(pool, "127.0.0.1").getTlsHost());
+        assertEquals("other.test", entry(pool, "other.test").getTlsHost());
     }
 
     private static NatsUri entry(NatsServerPool pool, String host) {
@@ -613,6 +633,136 @@ public class TlsHostnameTests {
             Options verifying = verifying(server, SniTestServer.HOST, SSLUtils.createTrustAllTlsContext(), false, errors).build();
             assertThrows(IOException.class, () -> Nats.connect(verifying));
             assertIdentityFailure(errors, SniTestServer.HOST);
+        }
+    }
+
+    // ---- ADR-40, the TLS name of a discovered server: over any number of hops, and the no-name rule ----
+
+    private static void awaitEvent(List<ConnectionListener.Events> events, ConnectionListener.Events type, int count) throws InterruptedException {
+        long end = System.currentTimeMillis() + 10_000;
+        while (System.currentTimeMillis() < end) {
+            if (events.stream().filter(e -> e == type).count() >= count) {
+                return;
+            }
+            Thread.sleep(20);
+        }
+        fail("Expected " + count + " of " + type + ", events: " + events);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    public void discoveredIpRetainsHostnameOverTwoHops(boolean tlsFirst) throws Exception {
+        // the first server, configured by hostname, reports the second as a bare ip; the second reports the third as
+        // a bare ip. Each reconnect presents and is verified against the configured hostname, the name the
+        // certificate carries: the name travels over any number of hops
+        DiagnosticSslContext context = dottedCertificates.clientContext();
+        List<ConnectionListener.Events> events = new CopyOnWriteArrayList<>();
+        try (SniTestServer third = new SniTestServer(dottedCertificates, tlsFirst, 0);
+             SniTestServer second = new SniTestServer(dottedCertificates, tlsFirst, third.port());
+             SniTestServer first = new SniTestServer(dottedCertificates, tlsFirst, second.port());
+             Connection nc = Nats.connect(options(first, SniTestServer.HOST, context, HostnameResolveMode.ResolveToAll, tlsFirst)
+                 .maxReconnects(5)
+                 .reconnectWait(Duration.ofMillis(10))
+                 .connectionListener((conn, event) -> events.add(event))
+                 .build())) {
+            nc.flush(Duration.ofSeconds(2));
+            first.close();
+            awaitEvent(events, ConnectionListener.Events.RECONNECTED, 1);
+            nc.flush(Duration.ofSeconds(2));
+            assertEquals("tls://127.0.0.1:" + second.port(), nc.getConnectedUrl());
+            assertEquals(SniTestServer.HOST, second.requestedName.get(2, TimeUnit.SECONDS));
+            second.close();
+            awaitEvent(events, ConnectionListener.Events.RECONNECTED, 2);
+            nc.flush(Duration.ofSeconds(2));
+            assertEquals("tls://127.0.0.1:" + third.port(), nc.getConnectedUrl());
+            assertEquals(SniTestServer.HOST, third.requestedName.get(2, TimeUnit.SECONDS));
+            assertEquals(dottedCertificates.valid, third.selectedCertificate.get(2, TimeUnit.SECONDS));
+            assertFalse(context.getTrustCheckEvents().isEmpty());
+            for (TrustCheckEvent event : context.getTrustCheckEvents()) {
+                assertTrue(event.trusted);
+            }
+        }
+    }
+
+    private static Options.Builder byIp(SniTestServer first, DiagnosticSslContext context, ListenerForTesting listener, List<ConnectionListener.Events> events) {
+        return new Options.Builder()
+            .server("tls://127.0.0.1:" + first.port())
+            .sslContext(context)
+            .noRandomize()
+            .maxReconnects(1)
+            .reconnectWait(Duration.ofMillis(10))
+            .connectionTimeout(Duration.ofSeconds(2))
+            .errorListener(listener)
+            .connectionListener((conn, event) -> events.add(event));
+    }
+
+    @Test
+    public void discoveredIpWithNoNameToInheritIsSkippedUnlessAllowed() throws Exception {
+        // behind a server configured by ip address, a discovered ip address has no name to verify its certificate
+        // against. It is skipped and reported, naming the two settings; with tlsVerifyDiscoveredByIp it is verified
+        // against its address with no SNI; with tlsServerName against that name; with the name check turned off the
+        // rule does not apply. The certificates carry nats.test and 127.0.0.1
+        SniTestServer.Certificates withIpSan = new SniTestServer.Certificates(SniTestServer.HOST, true);
+
+        // skipped: never pooled, never dialed, and once the first server is gone the connection closes
+        ListenerForTesting listener = new ListenerForTesting();
+        List<ConnectionListener.Events> events = new CopyOnWriteArrayList<>();
+        try (SniTestServer second = new SniTestServer(withIpSan, false, 0, true);
+             SniTestServer first = new SniTestServer(withIpSan, false, second.port(), true);
+             Connection nc = Nats.connect(byIp(first, withIpSan.clientContext(), listener, events).build())) {
+            nc.flush(Duration.ofSeconds(2));
+            String entry = "127.0.0.1:" + second.port();
+            assertTrue(listener._eventually(2000, listener::getDiscoveredServerSkippedEvents, e -> e.entry.equals(entry)));
+            assertEquals(NatsConnection.DISCOVERED_IP_HAS_NO_NAME, listener.getDiscoveredServerSkippedEvents().get(0).reason);
+            assertFalse(nc.getServers().contains("tls://" + entry), nc.getServers().toString());
+            first.close();
+            awaitEvent(events, ConnectionListener.Events.CLOSED, 1);
+            assertFalse(second.requestedName.isDone());
+        }
+
+        // verified against its address, no SNI
+        listener = new ListenerForTesting();
+        events.clear();
+        DiagnosticSslContext context = withIpSan.clientContext();
+        try (SniTestServer second = new SniTestServer(withIpSan, false, 0, true);
+             SniTestServer first = new SniTestServer(withIpSan, false, second.port(), true);
+             Connection nc = Nats.connect(byIp(first, context, listener, events).tlsVerifyDiscoveredByIp().build())) {
+            nc.flush(Duration.ofSeconds(2));
+            assertFalse(listener._eventually(500, listener::getDiscoveredServerSkippedEvents, e -> true));
+            first.close();
+            awaitEvent(events, ConnectionListener.Events.RECONNECTED, 1);
+            nc.flush(Duration.ofSeconds(2));
+            assertEquals("tls://127.0.0.1:" + second.port(), nc.getConnectedUrl());
+            assertEquals("", second.requestedName.get(2, TimeUnit.SECONDS));
+            for (TrustCheckEvent event : context.getTrustCheckEvents()) {
+                assertTrue(event.trusted);
+            }
+        }
+
+        // verified against the tls server name
+        listener = new ListenerForTesting();
+        events.clear();
+        try (SniTestServer second = new SniTestServer(withIpSan, false, 0);
+             SniTestServer first = new SniTestServer(withIpSan, false, second.port());
+             Connection nc = Nats.connect(byIp(first, withIpSan.clientContext(), listener, events).tlsServerName(SniTestServer.HOST).build())) {
+            nc.flush(Duration.ofSeconds(2));
+            assertFalse(listener._eventually(500, listener::getDiscoveredServerSkippedEvents, e -> true));
+            first.close();
+            awaitEvent(events, ConnectionListener.Events.RECONNECTED, 1);
+            assertEquals(SniTestServer.HOST, second.requestedName.get(2, TimeUnit.SECONDS));
+        }
+
+        // the rule does not apply with the name check turned off
+        listener = new ListenerForTesting();
+        events.clear();
+        try (SniTestServer second = new SniTestServer(withIpSan, false, 0, true);
+             SniTestServer first = new SniTestServer(withIpSan, false, second.port(), true);
+             Connection nc = Nats.connect(byIp(first, withIpSan.clientContext(), listener, events).tlsVerifyHostname(false).build())) {
+            nc.flush(Duration.ofSeconds(2));
+            assertFalse(listener._eventually(500, listener::getDiscoveredServerSkippedEvents, e -> true));
+            first.close();
+            awaitEvent(events, ConnectionListener.Events.RECONNECTED, 1);
+            assertEquals("tls://127.0.0.1:" + second.port(), nc.getConnectedUrl());
         }
     }
 
