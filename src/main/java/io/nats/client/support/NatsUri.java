@@ -33,6 +33,7 @@ public class NatsUri {
     private static final String ENTRY_PORT_OUT_OF_RANGE = "the port is not between 1 and 65535";
     private static final String URI_E_ALLOW_TRY_PREFIXED = "Illegal character in scheme name at index";
     private static final Pattern IPV4_RE = Pattern.compile("(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])");
+    private static final Pattern IPV6_RE = Pattern.compile("[0-9A-Fa-f.:]+(%[A-Za-z0-9_.\\-]+)?");
     private static final String COLON_SLASH_SLASH = "://";
 
     public static NatsUri DEFAULT_NATS_URI = new NatsUri();
@@ -419,12 +420,22 @@ public class NatsUri {
 
     /**
      * Whether a host, as written in a uri or given as a TLS server name, is an ip address: an IPv4 dotted quad, or an
-     * IPv6 address with or without its brackets.
+     * IPv6 address with or without its brackets. A hostname that happens to contain a colon, such as
+     * {@code host:port}, is not an ip address.
      * @param host the host
      * @return true for an ip address
      */
     public static boolean isIpAddress(@NonNull String host) {
-        return IPV4_RE.matcher(host).matches() || host.indexOf(':') != -1 || (host.startsWith("[") && host.endsWith("]"));
+        if (IPV4_RE.matcher(host).matches()) {
+            return true;
+        }
+        // an IPv6 address: hex digits, colons and dots, at least two colons, an optional zone
+        String h = host.startsWith("[") && host.endsWith("]") ? host.substring(1, host.length() - 1) : host;
+        int colons = 0;
+        for (int i = h.indexOf(':'); i != -1; i = h.indexOf(':', i + 1)) {
+            colons++;
+        }
+        return colons >= 2 && IPV6_RE.matcher(h).matches();
     }
 
     @NonNull

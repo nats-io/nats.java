@@ -299,6 +299,7 @@ class NatsConnection implements Connection {
                     break;
                 }
                 connectError.set(null); // new on each attempt
+                connectFailure = null;
                 attemptTlsMismatch = null;
 
                 timeTraceLogger.trace("setting status to connecting");
@@ -356,7 +357,9 @@ class NatsConnection implements Connection {
                 if (this.isAuthenticationError(err)) {
                     throw new AuthenticationException("Authentication error connecting to NATS server: " + err);
                 }
-                throw new IOException("Unable to connect to NATS servers: " + failList, connectFailure);
+                Throwable cause = connectFailure; // the last attempt's failure, or null when it ended without one
+                connectFailure = null;
+                throw new IOException("Unable to connect to NATS servers: " + failList, cause);
             }
         }
         else if (trace) {
@@ -564,6 +567,7 @@ class NatsConnection implements Connection {
                     return;
                 }
                 connectError.set(null); // reset on each loop
+                connectFailure = null;
                 attemptTlsMismatch = null;
                 if (isDisconnectingOrClosed() || this.isClosing()) {
                     return;

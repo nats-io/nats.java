@@ -969,6 +969,27 @@ public class TlsHostnameTests {
         }
     }
 
+    @Test
+    public void nameCheckFailureWrapsOnlyTheJdkNameCheck() {
+        // a chain failure, or a provider with other text, passes through unchanged; the JDK's own name check is wrapped
+        SocketDataPort port = new SocketDataPort();
+        port.host = "h.test";
+        port.port = 4222;
+        port.tlsHost = "x.test";
+        port.tlsHostSource = SocketDataPort.TLS_HOST_FROM_URL;
+        SSLHandshakeException expired = new SSLHandshakeException("PKIX path validation failed");
+        expired.initCause(new CertificateExpiredException("NotAfter: yesterday"));
+        assertSame(expired, port.nameCheckFailure(expired));
+        SSLHandshakeException other = new SSLHandshakeException("Received fatal alert: handshake_failure");
+        assertSame(other, port.nameCheckFailure(other));
+        SSLHandshakeException name = new SSLHandshakeException("No subject alternative DNS name matching x.test found.");
+        name.initCause(new CertificateException("No subject alternative DNS name matching x.test found."));
+        SSLHandshakeException wrapped = port.nameCheckFailure(name);
+        assertNotSame(name, wrapped);
+        assertSame(name, wrapped.getCause());
+        assertNameCheckError(Collections.singletonList(wrapped), "x.test", SocketDataPort.TLS_HOST_FROM_URL);
+    }
+
     public static class RecordingDataPort extends SocketDataPort {
         static volatile NatsUri resolved;
         static volatile NatsUri unresolved;

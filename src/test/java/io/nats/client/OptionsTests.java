@@ -1946,6 +1946,24 @@ public class OptionsTests {
 
         // it asks for TLS, so a ws:// server is refused as under every other setting that asks for TLS
         assertThrows(IllegalStateException.class, () -> new Options.Builder().server("ws://localhost:80").tlsServerName("x.test").build());
+
+        // a hostname, with or without one trailing dot, or an ip address; anything else is a configuration error
+        for (String ok : new String[]{"nats", "nats.example.com", "nats.example.com.", "10.0.0.5", "::1", "[::1]", "fe80::1%eth0"}) {
+            assertEquals(ok, new Options.Builder().tlsServerName(ok).build().getTlsServerName(), ok);
+        }
+        for (String bad : new String[]{"nats.example.com:4222", "127.0.0.1:4222", "nats example", "nats/x", "h_x", "-h", "."}) {
+            assertThrows(IllegalStateException.class, () -> new Options.Builder().tlsServerName(bad).build(), bad);
+        }
+    }
+
+    @Test
+    public void testNatsUriIsIpAddress() {
+        for (String ip : new String[]{"127.0.0.1", "10.0.0.5", "::1", "[::1]", "fe80::1", "[fe80::1%eth0]", "::ffff:10.0.0.5", "2001:db8::1"}) {
+            assertTrue(NatsUri.isIpAddress(ip), ip);
+        }
+        for (String notIp : new String[]{"nats", "nats.example.com", "nats.example.com.", "nats.example.com:4222", "127.0.0.1:4222", "a:b", "1.2.3", "999.1.1.1", "[nats]"}) {
+            assertFalse(NatsUri.isIpAddress(notIp), notIp);
+        }
     }
 
     @Test
