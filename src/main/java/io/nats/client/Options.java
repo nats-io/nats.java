@@ -18,6 +18,7 @@ import io.nats.client.support.*;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import javax.net.ssl.SNIHostName;
 import javax.net.ssl.SSLContext;
 import java.io.File;
 import java.io.IOException;
@@ -2473,6 +2474,20 @@ public class Options {
             if (natsServerUris.isEmpty()) {
                 server(DEFAULT_URL);
                 checkUrisForSecure = false;
+            }
+
+            if (tlsServerName != null) {
+                // ADR-40, certificate verification: the TLS server name is a hostname, as a certificate names a server,
+                // or an ip address. Anything else, such as host:port, is a configuration error, not a failed handshake
+                String name = tlsServerName.length() > 1 && tlsServerName.endsWith(".") ? tlsServerName.substring(0, tlsServerName.length() - 1) : tlsServerName;
+                if (!NatsUri.isIpAddress(name)) {
+                    try {
+                        new SNIHostName(name);
+                    }
+                    catch (IllegalArgumentException e) {
+                        throw new IllegalStateException("tlsServerName must be a hostname or an ip address, as a certificate names a server: " + tlsServerName, e);
+                    }
+                }
             }
 
             // ssl context can be directly provided, but if it's not

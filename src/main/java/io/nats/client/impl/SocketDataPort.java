@@ -277,7 +277,9 @@ public class SocketDataPort implements DataPort {
      * ADR-40, certificate verification: when the name check failed, the error states the name the client expected and
      * where it came from, points at tlsServerName and, for a server discovered from the cluster, at the remedy on the
      * server side, client_advertise. It never suggests turning verification off. The JDK's CertificateException does
-     * not carry the names the certificate presented, so the error cannot state them.
+     * not carry the names the certificate presented, so the error cannot state them. The failure is recognized by the
+     * text of the JDK's own identity check (SunJSSE); a failure from another provider, and any other handshake
+     * failure, is returned unchanged.
      * @param e the handshake failure
      * @return the failure to throw: a wrapped one when the name check failed, otherwise e itself
      */
