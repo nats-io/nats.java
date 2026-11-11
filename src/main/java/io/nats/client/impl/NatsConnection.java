@@ -2039,57 +2039,18 @@ class NatsConnection implements Connection {
     }
 
     /**
-     * Quote the first line of text received from a server that is not yet trusted: cut at 256 bytes, with every
-     * control character escaped, so the quote can carry neither a terminal escape sequence nor a fake line break.
+     * Quote the first line of text received from a server that is not yet trusted, see
+     * {@link UntrustedText#quoteFirstLine(byte[])}.
      */
     static String quoteUntrusted(byte[] bytes) {
-        return quoteUntrusted(bytes, true);
+        return UntrustedText.quoteFirstLine(bytes);
     }
 
     /**
-     * Quote one token the client did not accept, such as a connect_urls entry, the same way: cut at 256 bytes, with
-     * every control character escaped. A line break inside the token is escaped, not taken as its end.
+     * Quote one token the client did not accept, such as a connect_urls entry, see {@link UntrustedText#quote(String)}.
      */
     static String quoteUntrusted(String token) {
-        return quoteUntrusted(token.getBytes(UTF_8), false);
-    }
-
-    private static String quoteUntrusted(byte[] bytes, boolean firstLineOnly) {
-        int len = bytes.length;
-        if (firstLineOnly) {
-            for (int i = 0; i < len; i++) {
-                if (bytes[i] == CR || bytes[i] == LF) {
-                    len = i;
-                    break;
-                }
-            }
-        }
-        boolean cut = len > 256;
-        if (cut) {
-            len = 256;
-        }
-        String text = new String(bytes, 0, len, UTF_8);
-        StringBuilder sb = new StringBuilder(len + 32).append('"');
-        for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
-            if (c == '"' || c == '\\') {
-                sb.append('\\').append(c);
-            }
-            else if (c == '\t') {
-                sb.append("\\t");
-            }
-            else if (c < 0x20 || (c >= 0x7f && c <= 0x9f)) {
-                sb.append(String.format("\\u%04x", (int) c));
-            }
-            else {
-                sb.append(c);
-            }
-        }
-        sb.append('"');
-        if (cut) {
-            sb.append(" (cut at 256 bytes)");
-        }
-        return sb.toString();
+        return UntrustedText.quote(token);
     }
 
     protected void handleInfo(String infoJson) {
@@ -2108,15 +2069,20 @@ class NatsConnection implements Connection {
         if (!urls.isEmpty()) {
             // ADR-40, the form of a connect_urls entry: the pool is handed host:port entries only, so a custom pool is
             // covered as well. User info is dropped. An entry that carries a scheme, that does not parse as host:port,
-            // or whose port is out of range is skipped and reported; the other entries are still used
+            // or whose port is out of range is skipped and reported; the other entries are still used. A connection
+            // that ignores discovered servers is not told about entries it would not use; the pool still receives the
+            // list, since a custom pool honors that option itself
+            boolean report = !options.isIgnoreDiscoveredServers();
             List<String> hostPorts = new ArrayList<>(urls.size());
             for (String entry : urls) {
                 try {
                     hostPorts.add(NatsUri.discoveredHostPort(entry));
                 }
                 catch (URISyntaxException e) {
-                    String reason = e.getReason();
-                    makeCallback(() -> options.getErrorListener().discoveredServerSkipped(this, entry, reason));
+                    if (report) {
+                        String reason = e.getReason();
+                        makeCallback(() -> options.getErrorListener().discoveredServerSkipped(this, entry, reason));
+                    }
                 }
             }
             NatsUri origin = currentServer == null ? connectingServer : currentServer;

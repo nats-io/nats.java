@@ -14,6 +14,7 @@
 package io.nats.client;
 
 import io.nats.client.support.Status;
+import io.nats.client.support.UntrustedText;
 
 /**
  * This library groups problems into four categories:
@@ -169,11 +170,13 @@ public interface ErrorListener {
      * with the transport and the TLS of the server that reported it, not with what the entry names. An entry that
      * does not parse as {@code host:port} once its user info is dropped, or whose port is outside 1 to 65535, is
      * skipped as well. The other entries of the INFO are used. User info in an entry is dropped without a report.
-     * Called once per skipped entry, each time an INFO carries it.
+     * Called once per skipped entry, each time an INFO carries it. Not called when the options ignore discovered
+     * servers, since the connection then uses no entry; the pool still receives the list.
      *
      * @param conn The connection that received the INFO
      * @param entry The entry as the server sent it. The client did not accept it as a server, so escape it before
-     *              it goes to a log or a terminal; the logger and console listeners of the library do
+     *              it goes to a log or a terminal, as {@link UntrustedText#quote(String)} does; the logger and console
+     *              listeners of the library use it
      * @param reason Why it was skipped
      */
     default void discoveredServerSkipped(Connection conn, String entry, String reason) {}
