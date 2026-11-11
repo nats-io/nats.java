@@ -25,6 +25,7 @@ import javax.net.ssl.HandshakeCompletedListener;
 import javax.net.ssl.SNIHostName;
 import javax.net.ssl.SNIServerName;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
@@ -35,6 +36,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.URISyntaxException;
+import java.security.cert.CertificateException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
@@ -53,11 +55,19 @@ public class SocketDataPort implements DataPort {
     protected String host;
     protected int port;
     protected String tlsHost;
+    // where tlsHost came from, named in the error when the certificate is not issued for it; see connect and nameCheckFailure
+    protected String tlsHostSource;
+    // tlsHost is an ip address: the certificate is checked against it as one, and no server name is sent
+    protected boolean tlsHostIsIpAddress;
     protected Socket socket;
     protected boolean isSecure = false;
 
     protected InputStream in;
     protected OutputStream out;
+
+    static final String TLS_HOST_FROM_URL = "the host of its url";
+    static final String TLS_HOST_FROM_OPTIONS = "the tlsServerName of the options";
+    static final String TLS_HOST_FROM_REPORTING_SERVER = "the hostname of the server that reported it, this server having been discovered as an ip address";
 
     @Deprecated
     @Override
@@ -77,8 +87,13 @@ public class SocketDataPort implements DataPort {
         // ip address from a server that had one. That is the server name to present during the TLS
         // handshake, whatever the hostname resolution mode turned the host of nuri into.
         String name = unresolvedUri.getTlsHost();
-        if (!unresolvedUri.hostIsIpAddress() || !name.equals(unresolvedUri.getHost())) {
+        if (!unresolvedUri.hostIsIpAddress()) {
             tlsHost = name;
+            tlsHostSource = TLS_HOST_FROM_URL;
+        }
+        else if (!name.equals(unresolvedUri.getHost())) {
+            tlsHost = name;
+            tlsHostSource = TLS_HOST_FROM_REPORTING_SERVER;
         }
         connect(conn, nuri, timeoutNanos);
     }
@@ -90,9 +105,31 @@ public class SocketDataPort implements DataPort {
         long timeout = timeoutNanos / 1_000_000; // convert to millis
         host = nuri.getHost();
         port = nuri.getPort();
-        if (tlsHost == null && !nuri.hostIsIpAddress()) {
+        if (options.getTlsServerName() != null) {
+            // ADR-40, certificate verification: the name the user set is the name of every server, configured or
+            // discovered, over the host of the url and over the name a discovered ip address inherited.
+            tlsHost = options.getTlsServerName();
+            tlsHostSource = TLS_HOST_FROM_OPTIONS;
+        }
+        else if (tlsHost == null && !nuri.hostIsIpAddress()) {
             // connect was called without the unresolved uri, or the host was not resolved.
             tlsHost = host;
+            tlsHostSource = TLS_HOST_FROM_URL;
+        }
+        if (tlsHost != null) {
+            // ADR-40, certificate verification: one trailing dot is stripped from the name verified against and sent
+            // as the server name. RFC 6066 has no trailing dot in SNI, nats-server refuses a handshake whose name ends
+            // in one, and a certificate carries the name without it. The host is dialed as written.
+            if (tlsHost.length() > 1 && tlsHost.endsWith(".")) {
+                tlsHost = tlsHost.substring(0, tlsHost.length() - 1);
+            }
+            // A name that is an ip address is verified as one, against the certificate's ip subject alternative names,
+            // and no server name is sent: RFC 6066 does not allow an ip address in SNI. A configured ip address has
+            // no tlsHost and is verified the same way by the provider; this is a tlsServerName that is an ip address.
+            tlsHostIsIpAddress = NatsUri.isIpAddress(tlsHost);
+            if (tlsHostIsIpAddress && tlsHost.startsWith("[") && tlsHost.endsWith("]")) {
+                tlsHost = tlsHost.substring(1, tlsHost.length() - 1);
+            }
         }
 
         try {
@@ -186,15 +223,20 @@ public class SocketDataPort implements DataPort {
         if (tlsHost != null || verifyHostname) {
             SSLParameters sslParameters = sslSocket.getSSLParameters();
             if (tlsHost != null) {
-                // Present the hostname to the server as the TLS server name (SNI) in every hostname resolution mode.
-                // Setting it explicitly also covers names the provider would not derive from the peer host on its own,
-                // for instance a single label hostname like a kubernetes service name.
-                try {
-                    sslParameters.setServerNames(Collections.<SNIServerName>singletonList(new SNIHostName(tlsHost)));
+                if (tlsHostIsIpAddress) {
+                    // no server name for an ip address; an empty list sends no SNI extension
+                    sslParameters.setServerNames(Collections.<SNIServerName>emptyList());
                 }
-                catch (IllegalArgumentException e) {
-                    // not a legal SNI host name, for instance it has a trailing dot.
-                    // Leave the server name to the provider's default behavior for the peer host.
+                else {
+                    // Present the hostname to the server as the TLS server name (SNI) in every hostname resolution mode.
+                    // Setting it explicitly also covers names the provider would not derive from the peer host on its own,
+                    // for instance a single label hostname like a kubernetes service name.
+                    try {
+                        sslParameters.setServerNames(Collections.<SNIServerName>singletonList(new SNIHostName(tlsHost)));
+                    }
+                    catch (IllegalArgumentException e) {
+                        // not a legal SNI host name. Leave the server name to the provider's default behavior for the peer host.
+                    }
                 }
             }
             if (verifyHostname) {
@@ -208,7 +250,12 @@ public class SocketDataPort implements DataPort {
         final HandshakeCompletedListener hcl = (evt) -> waitForHandshake.complete(null);
 
         sslSocket.addHandshakeCompletedListener(hcl);
-        sslSocket.startHandshake();
+        try {
+            sslSocket.startHandshake();
+        }
+        catch (SSLHandshakeException e) {
+            throw nameCheckFailure(e);
+        }
 
         try {
             waitForHandshake.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
@@ -224,6 +271,42 @@ public class SocketDataPort implements DataPort {
         in = sslSocket.getInputStream();
         out = sslSocket.getOutputStream();
         isSecure = true;
+    }
+
+    /**
+     * ADR-40, certificate verification: when the name check failed, the error states the name the client expected and
+     * where it came from, points at tlsServerName and, for a server discovered from the cluster, at the remedy on the
+     * server side, client_advertise. It never suggests turning verification off. The JDK's CertificateException does
+     * not carry the names the certificate presented, so the error cannot state them.
+     * @param e the handshake failure
+     * @return the failure to throw: a wrapped one when the name check failed, otherwise e itself
+     */
+    protected SSLHandshakeException nameCheckFailure(SSLHandshakeException e) {
+        CertificateException check = null;
+        for (Throwable t = e.getCause(); t != null && check == null; t = t.getCause()) {
+            if (t instanceof CertificateException && isNameCheckMessage(t.getMessage())) {
+                check = (CertificateException) t;
+            }
+        }
+        if (check == null) {
+            return e;
+        }
+        String expected = tlsHost == null ? host : tlsHost;
+        String source = tlsHostSource == null ? TLS_HOST_FROM_URL : tlsHostSource;
+        SSLHandshakeException wrapped = new SSLHandshakeException("TLS certificate name check failed for " + host + ":" + port
+            + ". The certificate is not issued for " + expected + ", which is " + source
+            + ". The JDK reported: \"" + check.getMessage() + "\"."
+            + " Set tlsServerName to a name the certificate carries, or reissue the certificate for " + expected
+            + ". A server discovered from the cluster can advertise a name its certificate carries, client_advertise on nats-server.");
+        wrapped.initCause(e);
+        return wrapped;
+    }
+
+    // The messages of the JDK's identity check (sun.security.util.HostnameChecker): "No subject alternative names present",
+    // "No subject alternative DNS name matching x found.", "No subject alternative names matching IP address x found",
+    // "No name matching x found". A chain failure has other text and is not a name check failure.
+    private static boolean isNameCheckMessage(String message) {
+        return message != null && (message.startsWith("No subject alternative") || message.startsWith("No name matching"));
     }
 
     public int read(byte[] dst, int off, int len) throws IOException {

@@ -720,6 +720,11 @@ public class Options {
      */
     public static final String PROP_TLS_VERIFY_HOSTNAME = PFX + "tls.verify.hostname";
     /**
+     * Property used to set the TLS server name: the name the certificate of every server is verified against
+     * and sent to the server as the TLS server name (SNI), see {@link Builder#tlsServerName(String) tlsServerName}.
+     */
+    public static final String PROP_TLS_SERVER_NAME = PFX + "tls.server.name";
+    /**
      * This property is used to enable support for UTF8 subjects. See {@link Builder#supportUTF8Subjects() supportUTF8Subjects()}
      */
     public static final String PROP_UTF8_SUBJECTS = "allow.utf8.subjects";
@@ -932,6 +937,7 @@ public class Options {
     private final boolean ignoreDiscoveredServers;
     private final boolean tlsFirst;
     private final boolean tlsVerifyHostname;
+    private final String tlsServerName;
     private final boolean useTimeoutException;
     private final boolean advancedRequestBehavior;
     private final boolean useDispatcherWithExecutor;
@@ -1105,6 +1111,7 @@ public class Options {
         private boolean ignoreDiscoveredServers = false;
         private boolean tlsFirst = false;
         private boolean tlsVerifyHostname = true;
+        private String tlsServerName = null;
         private boolean useTimeoutException = false;
         private boolean advancedRequestBehavior = false;
         private boolean useDispatcherWithExecutor = false;
@@ -1266,6 +1273,7 @@ public class Options {
             booleanProperty(props, PROP_IGNORE_DISCOVERED_SERVERS, b -> this.ignoreDiscoveredServers = b);
             booleanProperty(props, PROP_TLS_FIRST, b -> this.tlsFirst = b);
             booleanProperty(props, PROP_TLS_VERIFY_HOSTNAME, b -> this.tlsVerifyHostname = b);
+            stringProperty(props, PROP_TLS_SERVER_NAME, this::tlsServerName);
             booleanProperty(props, PROP_USE_TIMEOUT_EXCEPTION, b -> this.useTimeoutException = b);
             booleanProperty(props, PROP_ADVANCED_REQUEST_BEHAVIOR, b -> this.advancedRequestBehavior = b);
             booleanProperty(props, PROP_USE_DISPATCHER_WITH_EXECUTOR, b -> this.useDispatcherWithExecutor = b);
@@ -2326,23 +2334,46 @@ public class Options {
          * or the ip address when the server was configured by ip address, in which case the
          * certificate must carry that address as a subject alternative name.
          * The check is the one the JDK performs for HTTPS, against the certificate's
-         * subject alternative names. A server discovered from connect_urls as a bare ip address
+         * subject alternative names. The same name is sent to the server as the TLS server name (SNI),
+         * with one trailing dot stripped; for an ip address no server name is sent.
+         * A server discovered from connect_urls as a bare ip address
          * is checked against the hostname of the server that supplied it, when that server was
          * configured by hostname; otherwise it is checked as an ip address.
+         * {@link #tlsServerName(String) tlsServerName} replaces every one of these names with one name.
          * The check is performed by the trust manager in use. The JDK performs it for its own
          * trust managers, which an SSLContext built from a keystore and truststore or the default
          * SSLContext has, and for any plain X509TrustManager, which it wraps, including the
          * trust-all manager of {@link #opentls() opentls}. A custom X509ExtendedTrustManager
          * is responsible for its own identity check.
          * <p>
-         * Turning it off removes the proof that the server is the one named in the url.
-         * Do that only where the certificate is known not to name the server, such as development
-         * against a self-signed certificate, and prefer reissuing the certificate for the name.
+         * When the certificate does not carry the name, set {@link #tlsServerName(String) tlsServerName} to a name
+         * it carries, or reissue the certificate for the name. Turning the check off is the last resort: it removes
+         * the proof that the server is the one named in the url. Do that only where the certificate is known not to
+         * name the server, such as development against a self-signed certificate.
          * @param tlsVerifyHostname true to verify, false to skip the check
          * @return the Builder for chaining
          */
         public Builder tlsVerifyHostname(boolean tlsVerifyHostname) {
             this.tlsVerifyHostname = tlsVerifyHostname;
+            return this;
+        }
+
+        /**
+         * Set the TLS server name: the name the certificate of every server, configured or discovered, is verified
+         * against and sent to the server as the TLS server name (SNI), in place of the name each server is reached
+         * with and of the hostname a discovered ip address inherits from the server that reported it. It is the first
+         * remedy when a certificate does not carry the name in the url: servers reached by ip address, or through a
+         * load balancer, proxy or service name, whose certificates all carry one name. One trailing dot is stripped.
+         * A name that is an ip address is verified as one, against the certificate's ip subject alternative names,
+         * and no server name is sent.
+         * <p>
+         * A TLS server name asks for TLS. When no SSL context comes from the other settings, the default SSL context
+         * is used, the same as {@link #secure()}.
+         * @param tlsServerName the name, or null or empty for the name of each server
+         * @return the Builder for chaining
+         */
+        public Builder tlsServerName(String tlsServerName) {
+            this.tlsServerName = tlsServerName == null ? null : emptyAsNull(tlsServerName.trim());
             return this;
         }
 
@@ -2485,8 +2516,8 @@ public class Options {
                             }
                         }
 
-                        // tls first asks for TLS: when nothing else has chosen a context, it uses the default one
-                        if (tlsFirst && !useTrustAllTls) {
+                        // tls first and a tls server name ask for TLS: when nothing else has chosen a context, the default one
+                        if ((tlsFirst || tlsServerName != null) && !useTrustAllTls) {
                             useDefaultTls = true;
                         }
 
@@ -2523,7 +2554,7 @@ public class Options {
             if (sslContext != null) {
                 for (NatsUri natsUri : natsServerUris) {
                     if (WEBSOCKET_PROTOCOL.equals(natsUri.getScheme())) {
-                        throw new IllegalStateException("Options require TLS (secure, opentls, an SSL context, keystore or truststore, an SSL context factory, or a tls, wss or opentls server url), but the server list has a ws:// server, which is never upgraded to TLS. Use wss:// for that server.");
+                        throw new IllegalStateException("Options require TLS (secure, opentls, tls first, a tls server name, an SSL context, keystore or truststore, an SSL context factory, or a tls, wss or opentls server url), but the server list has a ws:// server, which is never upgraded to TLS. Use wss:// for that server.");
                     }
                 }
             }
@@ -2663,6 +2694,7 @@ public class Options {
             this.ignoreDiscoveredServers = o.ignoreDiscoveredServers;
             this.tlsFirst = o.tlsFirst;
             this.tlsVerifyHostname = o.tlsVerifyHostname;
+            this.tlsServerName = o.tlsServerName;
             this.useTimeoutException = o.useTimeoutException;
             this.advancedRequestBehavior = o.advancedRequestBehavior;
             this.useDispatcherWithExecutor = o.useDispatcherWithExecutor;
@@ -2748,6 +2780,7 @@ public class Options {
         this.ignoreDiscoveredServers = b.ignoreDiscoveredServers;
         this.tlsFirst = b.tlsFirst;
         this.tlsVerifyHostname = b.tlsVerifyHostname;
+        this.tlsServerName = b.tlsServerName;
         this.useTimeoutException = b.useTimeoutException;
         this.advancedRequestBehavior = b.advancedRequestBehavior;
         this.useDispatcherWithExecutor = b.useDispatcherWithExecutor;
@@ -3582,6 +3615,16 @@ public class Options {
      */
     public boolean isTlsVerifyHostname() {
         return tlsVerifyHostname;
+    }
+
+    /**
+     * Get the TLS server name, the name the certificate of every server is verified against and sent as the
+     * TLS server name (SNI), see {@link Builder#tlsServerName(String) tlsServerName(String)} in the builder doc
+     * @return the name, or null when each server's own name is used
+     */
+    @Nullable
+    public String getTlsServerName() {
+        return tlsServerName;
     }
 
     /**

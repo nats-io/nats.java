@@ -36,6 +36,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLHandshakeException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -612,6 +613,209 @@ public class TlsHostnameTests {
             Options verifying = verifying(server, SniTestServer.HOST, SSLUtils.createTrustAllTlsContext(), false, errors).build();
             assertThrows(IOException.class, () -> Nats.connect(verifying));
             assertIdentityFailure(errors, SniTestServer.HOST);
+        }
+    }
+
+    // ---- ADR-40, certificate verification: the tls server name, the trailing dot, the name check error ----
+
+    private static Options.Builder collecting(Options.Builder builder, List<Throwable> errors) {
+        return builder.errorListener(new ErrorListener() {
+            @Override
+            public void exceptionOccurred(Connection conn, Exception exp) {
+                errors.add(exp);
+            }
+        });
+    }
+
+    private static void assertNameCheckError(List<Throwable> errors, String expectedName, String source) {
+        // the client's own error states the name it expected and where it came from, points at tlsServerName and at
+        // client_advertise, never at turning verification off, and has the JDK's exception as its cause
+        SSLHandshakeException found = null;
+        for (Throwable error : errors) {
+            for (Throwable t = error; t != null && found == null; t = t.getCause()) {
+                if (t instanceof SSLHandshakeException && t.getMessage().startsWith("TLS certificate name check failed")) {
+                    found = (SSLHandshakeException) t;
+                }
+            }
+        }
+        assertNotNull(found, "expected the name check error in " + errors);
+        String message = found.getMessage();
+        assertTrue(message.contains("not issued for " + expectedName + ", which is " + source), message);
+        assertTrue(message.contains("Set tlsServerName"), message);
+        assertTrue(message.contains("client_advertise"), message);
+        assertFalse(message.contains("tlsVerifyHostname"), message);
+        assertIdentityFailure(Collections.singletonList(found), expectedName);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    public void tlsServerNameIsTheNameOfEveryServer(boolean tlsFirst) throws Exception {
+        // the servers are reached by ip address and their certificate carries only a hostname. With that hostname as
+        // the tls server name it is sent as SNI and the certificate is verified against it, for the configured server
+        // and for the one it reports as an ip address
+        DiagnosticSslContext context = dottedCertificates.clientContext();
+        CountDownLatch reconnected = new CountDownLatch(1);
+        try (SniTestServer second = new SniTestServer(dottedCertificates, tlsFirst, 0);
+             SniTestServer first = new SniTestServer(dottedCertificates, tlsFirst, second.port())) {
+            Options.Builder builder = new Options.Builder()
+                .server("tls://127.0.0.1:" + first.port())
+                .sslContext(context)
+                .tlsServerName(SniTestServer.HOST)
+                .noRandomize()
+                .maxReconnects(2)
+                .reconnectWait(Duration.ofMillis(10))
+                .connectionTimeout(Duration.ofSeconds(2))
+                .connectionListener((conn, event) -> {
+                    if (event == ConnectionListener.Events.RECONNECTED) {
+                        reconnected.countDown();
+                    }
+                });
+            if (tlsFirst) {
+                builder.tlsFirst();
+            }
+            try (Connection nc = Nats.connect(builder.build())) {
+                nc.flush(Duration.ofSeconds(2));
+                assertEquals(SniTestServer.HOST, first.requestedName.get(2, TimeUnit.SECONDS));
+                assertEquals(dottedCertificates.valid, first.selectedCertificate.get(2, TimeUnit.SECONDS));
+                first.close();
+                assertTrue(reconnected.await(10, TimeUnit.SECONDS), "Did not reconnect to the discovered ip");
+                nc.flush(Duration.ofSeconds(2));
+                assertEquals("tls://127.0.0.1:" + second.port(), nc.getConnectedUrl());
+                assertEquals(SniTestServer.HOST, second.requestedName.get(2, TimeUnit.SECONDS));
+                assertEquals(dottedCertificates.valid, second.selectedCertificate.get(2, TimeUnit.SECONDS));
+                assertEquals(2, context.getTrustCheckEvents().size());
+                for (TrustCheckEvent event : context.getTrustCheckEvents()) {
+                    assertTrue(event.trusted);
+                }
+            }
+        }
+    }
+
+    @Test
+    public void tlsServerNameOverridesTheUrlHostAndTheInheritedName() throws Exception {
+        // configured by one name and given another as the tls server name: the other name is sent as SNI and verified
+        // against, for the configured server and for the ip address it reports, which would otherwise inherit the
+        // configured name. The certificates carry the other name only
+        SniTestServer.Certificates otherName = new SniTestServer.Certificates("other.test");
+        DiagnosticSslContext context = otherName.clientContext();
+        CountDownLatch reconnected = new CountDownLatch(1);
+        try (SniTestServer second = new SniTestServer(otherName, false, 0);
+             SniTestServer first = new SniTestServer(otherName, false, second.port());
+             Connection nc = Nats.connect(reconnecting(first, context, false, reconnected).tlsServerName("other.test").build())) {
+            nc.flush(Duration.ofSeconds(2));
+            assertEquals("other.test", first.requestedName.get(2, TimeUnit.SECONDS));
+            assertEquals(otherName.valid, first.selectedCertificate.get(2, TimeUnit.SECONDS));
+            first.close();
+            assertTrue(reconnected.await(10, TimeUnit.SECONDS), "Did not reconnect to the discovered ip");
+            nc.flush(Duration.ofSeconds(2));
+            assertEquals("tls://127.0.0.1:" + second.port(), nc.getConnectedUrl());
+            assertEquals("other.test", second.requestedName.get(2, TimeUnit.SECONDS));
+            assertEquals(otherName.valid, second.selectedCertificate.get(2, TimeUnit.SECONDS));
+            for (TrustCheckEvent event : context.getTrustCheckEvents()) {
+                assertTrue(event.trusted);
+            }
+        }
+    }
+
+    @Test
+    public void tlsServerNameThatIsAnIpAddressIsVerifiedAsOneAndSendsNoSni() throws Exception {
+        // reached by hostname and verified against the ip address the user set: no server name is sent, and the
+        // certificate must carry the ip address as a subject alternative name
+        SniTestServer.Certificates withIpSan = new SniTestServer.Certificates(SniTestServer.HOST, true);
+        List<Throwable> errors = new CopyOnWriteArrayList<>();
+        try (SniTestServer server = new SniTestServer(withIpSan, false, 0, true);
+             Connection nc = Nats.connect(verifying(server, SniTestServer.HOST, withIpSan.clientContext(), false, errors).tlsServerName("127.0.0.1").build())) {
+            nc.flush(Duration.ofSeconds(2));
+            assertEquals("", server.requestedName.get(2, TimeUnit.SECONDS));
+            assertTrue(errors.isEmpty(), errors.toString());
+        }
+        // without the ip subject alternative name the connection is rejected, and the error names the ip address
+        SniTestServer.Certificates withoutIpSan = new SniTestServer.Certificates(SniTestServer.HOST, false);
+        errors.clear();
+        try (SniTestServer server = new SniTestServer(withoutIpSan, false, 0, true)) {
+            Options verifying = verifying(server, SniTestServer.HOST, withoutIpSan.clientContext(), false, errors).tlsServerName("127.0.0.1").build();
+            IOException e = assertThrows(IOException.class, () -> Nats.connect(verifying));
+            assertEquals("", server.requestedName.get(2, TimeUnit.SECONDS));
+            assertNameCheckError(Collections.singletonList(e), "127.0.0.1", SocketDataPort.TLS_HOST_FROM_OPTIONS);
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    public void trailingDotIsStrippedFromTheNameVerifiedAgainstAndSentAsSni(boolean tlsFirst) throws Exception {
+        // a rooted name, nats.test. with its trailing dot, is dialed as written. The name sent as SNI and verified
+        // against is nats.test, the name the certificate carries; before, no server name was sent for a rooted name
+        DiagnosticSslContext context = dottedCertificates.clientContext();
+        AtomicBoolean poolAsked = new AtomicBoolean();
+        try (SniTestServer server = new SniTestServer(dottedCertificates, tlsFirst, 0);
+             Connection nc = Nats.connect(options(server, SniTestServer.HOST + ".", context, HostnameResolveMode.ResolveToAll, tlsFirst, poolAsked).build())) {
+            nc.flush(Duration.ofSeconds(2));
+            assertTrue(poolAsked.get()); // resolved as written, with the dot
+            assertValidCertificateSelected(server, dottedCertificates, context);
+        }
+        // the same for a rooted tls server name, the server being reached by ip address
+        context = dottedCertificates.clientContext();
+        try (SniTestServer server = new SniTestServer(dottedCertificates, tlsFirst, 0)) {
+            Options.Builder builder = new Options.Builder()
+                .server("tls://127.0.0.1:" + server.port())
+                .sslContext(context)
+                .tlsServerName(SniTestServer.HOST + ".")
+                .noReconnect()
+                .connectionTimeout(Duration.ofSeconds(2));
+            if (tlsFirst) {
+                builder.tlsFirst();
+            }
+            try (Connection nc = Nats.connect(builder.build())) {
+                nc.flush(Duration.ofSeconds(2));
+                assertValidCertificateSelected(server, dottedCertificates, context);
+            }
+        }
+    }
+
+    @Test
+    public void nameCheckErrorStatesTheExpectedNameItsSourceAndTheRemedies() throws Exception {
+        // ADR-40, certificate verification: the error states the name the client expected and where it came from,
+        // points at tlsServerName and, for a discovered server, at client_advertise, and never suggests turning
+        // verification off. The initial connect's exception carries the last attempt's failure as its cause
+        SniTestServer.Certificates otherName = new SniTestServer.Certificates("other.test", false, dottedCertificates);
+        List<Throwable> errors = new CopyOnWriteArrayList<>();
+        // the name is the host of the url
+        try (SniTestServer server = new SniTestServer(otherName, false, 0, true)) {
+            Options verifying = verifying(server, SniTestServer.HOST, otherName.clientContext(), false, errors).build();
+            IOException e = assertThrows(IOException.class, () -> Nats.connect(verifying));
+            assertTrue(e.getCause() instanceof SSLHandshakeException, String.valueOf(e.getCause()));
+            assertNameCheckError(Collections.singletonList(e), SniTestServer.HOST, SocketDataPort.TLS_HOST_FROM_URL);
+            assertNameCheckError(errors, SniTestServer.HOST, SocketDataPort.TLS_HOST_FROM_URL);
+        }
+        // the name is the tls server name
+        errors.clear();
+        try (SniTestServer server = new SniTestServer(otherName, false, 0, true)) {
+            Options verifying = verifying(server, SniTestServer.HOST, otherName.clientContext(), false, errors).tlsServerName("x.test").build();
+            IOException e = assertThrows(IOException.class, () -> Nats.connect(verifying));
+            assertNameCheckError(Collections.singletonList(e), "x.test", SocketDataPort.TLS_HOST_FROM_OPTIONS);
+        }
+        // the name is inherited: the first server, whose certificate carries nats.test, reports the second as an ip
+        // address, and the second's certificate, from the same CA, carries other.test. The reconnect to it fails the
+        // name check until the attempts run out and the connection closes
+        errors.clear();
+        CountDownLatch closed = new CountDownLatch(1);
+        DiagnosticSslContext context = dottedCertificates.clientContext();
+        try (SniTestServer second = new SniTestServer(otherName, false, 0, true);
+             SniTestServer first = new SniTestServer(dottedCertificates, false, second.port());
+             Connection nc = Nats.connect(collecting(options(first, SniTestServer.HOST, context, HostnameResolveMode.ResolveToAll, false), errors)
+                 .maxReconnects(2)
+                 .reconnectWait(Duration.ofMillis(10))
+                 .connectionListener((conn, event) -> {
+                     if (event == ConnectionListener.Events.CLOSED) {
+                         closed.countDown();
+                     }
+                 })
+                 .build())) {
+            nc.flush(Duration.ofSeconds(2));
+            first.close();
+            assertTrue(closed.await(10, TimeUnit.SECONDS), "Expected the reconnects to the discovered ip to fail the name check and the connection to close");
+            assertEquals(SniTestServer.HOST, second.requestedName.get(2, TimeUnit.SECONDS));
+            assertNameCheckError(errors, SniTestServer.HOST, SocketDataPort.TLS_HOST_FROM_REPORTING_SERVER);
         }
     }
 

@@ -63,6 +63,7 @@ public class SniTestServer implements AutoCloseable {
         public final X509Certificate valid;
         public final X509Certificate expired;
         private final X509Certificate ca;
+        private final KeyPair caKey;
         private final KeyPair serverKey;
 
         public Certificates() throws Exception {
@@ -78,13 +79,27 @@ public class SniTestServer implements AutoCloseable {
          * @param withLoopbackIpSan whether the valid certificate also carries 127.0.0.1 as an ip subject alternative name
          */
         public Certificates(String host, boolean withLoopbackIpSan) throws Exception {
+            this(host, withLoopbackIpSan, null);
+        }
+
+        /**
+         * @param issuedBy certificates whose CA issues these as well, so that one client context trusts both sets;
+         *                 null for a CA of their own
+         */
+        public Certificates(String host, boolean withLoopbackIpSan, Certificates issuedBy) throws Exception {
             this.host = host;
             long now = System.currentTimeMillis();
-            KeyPair caKey = ExpiringClientCertUtil.generateKeyPair();
             X500Name issuer = new X500Name("CN=SNI Test CA");
-            ca = ExpiringClientCertUtil.generateCertificate(issuer, issuer,
-                caKey.getPublic(), caKey.getPrivate(), new Date(now - 7_200_000),
-                new Date(now + 86_400_000), true);
+            if (issuedBy == null) {
+                caKey = ExpiringClientCertUtil.generateKeyPair();
+                ca = ExpiringClientCertUtil.generateCertificate(issuer, issuer,
+                    caKey.getPublic(), caKey.getPrivate(), new Date(now - 7_200_000),
+                    new Date(now + 86_400_000), true);
+            }
+            else {
+                caKey = issuedBy.caKey;
+                ca = issuedBy.ca;
+            }
             serverKey = ExpiringClientCertUtil.generateKeyPair();
             GeneralName[] names = withLoopbackIpSan
                 ? new GeneralName[]{new GeneralName(GeneralName.dNSName, host), new GeneralName(GeneralName.iPAddress, "127.0.0.1")}

@@ -318,7 +318,7 @@ public class NatsUri {
         isSecure = SECURE_PROTOCOLS.contains(s);
         isWebsocket = WEBSOCKET_PROTOCOLS.contains(s);
         s = uri.getHost();
-        hostIsIpAddress = IPV4_RE.matcher(s).matches() || s.startsWith("[") && s.endsWith("]");
+        hostIsIpAddress = isIpAddress(s);
     }
 
     static class Helper {
@@ -404,6 +404,16 @@ public class NatsUri {
             throw new URISyntaxException(entry, ENTRY_NOT_HOST_PORT);
         }
         return host + ":" + port;
+    }
+
+    /**
+     * Whether a host, as written in a uri or given as a TLS server name, is an ip address: an IPv4 dotted quad, or an
+     * IPv6 address with or without its brackets.
+     * @param host the host
+     * @return true for an ip address
+     */
+    public static boolean isIpAddress(@NonNull String host) {
+        return IPV4_RE.matcher(host).matches() || host.indexOf(':') != -1 || (host.startsWith("[") && host.endsWith("]"));
     }
 
     @NonNull

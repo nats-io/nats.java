@@ -67,6 +67,8 @@ class NatsConnection implements Connection {
     private volatile String attemptTlsMismatch;
     // true while the INFO read in plaintext before a TLS upgrade is handled; see readInitialInfo and handleInfo
     private volatile boolean infoBeforeTlsUpgrade;
+    // why the last connection attempt failed, the cause of the exception a failed connect throws; see tryToConnect
+    private volatile Throwable connectFailure;
     // bytes read past the INFO line, handed to the reader when it starts; see readInitialInfo
     private byte[] infoTrailingBytes;
     // completed by the first INFO the reader handles while an attempt waits for the INFO that follows the first PONG
@@ -250,6 +252,7 @@ class NatsConnection implements Connection {
         long start = NatsSystemClock.nanoTime();
 
         this.lastError.set(null);
+        this.connectFailure = null;
 
         timeTraceLogger.trace("starting connect loop");
 
@@ -351,7 +354,7 @@ class NatsConnection implements Connection {
                 if (this.isAuthenticationError(err)) {
                     throw new AuthenticationException("Authentication error connecting to NATS server: " + err);
                 }
-                throw new IOException("Unable to connect to NATS servers: " + failList);
+                throw new IOException("Unable to connect to NATS servers: " + failList, connectFailure);
             }
         }
         else if (trace) {
@@ -826,6 +829,9 @@ class NatsConnection implements Connection {
         }
         catch (Exception exp) {
             processException(exp);
+            // the connect task's own failure, unwrapped from the ExecutionException of its future, is the cause of the
+            // exception a failed connect throws
+            connectFailure = exp instanceof ExecutionException && exp.getCause() != null ? exp.getCause() : exp;
             try {
                 // allow force reconnect since this is pretty exceptional,
                 // a connection failure while trying to connect

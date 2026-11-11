@@ -231,7 +231,7 @@ To check a certificate, list its subject alternative names and compare them with
 openssl x509 -in server.pem -noout -ext subjectAltName
 ```
 
-If you are affected, connect by a name the certificate carries, or reissue the certificate with the names and ip addresses you connect with. For a cluster that advertises ips, set `client_advertise` on the servers so they advertise hostnames instead.
+If you are affected, set `tlsServerName` on the options builder, or the `io.nats.client.tls.server.name` property, to a name the certificates carry, connect by a name the certificate carries, or reissue the certificate with the names and ip addresses you connect with. For a cluster that advertises ips, set `client_advertise` on the servers so they advertise hostnames instead.
 
 To keep the old behavior, call `tlsVerifyHostname(false)` on the options builder, or set the property `io.nats.client.tls.verify.hostname=false`. This removes the proof that the server is the one named in the url, so treat it as a development setting, not a fix. The full rules are in [TLS configuration](docs/TLS_CONFIGURATION.md).
 
@@ -649,6 +649,7 @@ assertEquals(8000, o.getMaxMessagesInOutgoingQueue());
 | credential.path                   | Property used to set the path to a credentials file to be used in a FileAuthHandler  |
 | tls.first                         | Property used to set TLS Handshake First behavior                                    |
 | tls.verify.hostname               | Property used to set tls hostname verification, on by default; false turns it off    |
+| tls.server.name                   | Property used to set the TLS server name of every server, verified and sent as SNI   |
 | use.timeout.exception             | Instruct the client to throw TimeoutException instead of CancellationException       |
 | advanced.request.behavior         | Surface a specific RequestFailureException (reason, status, last error) on no reply |
 | use.dispatcher.with.executor      | Instruct dispatchers to dispatch all messages as a task                              |
@@ -1150,7 +1151,7 @@ NATS supports TLS 1.2. The server can be configured to verify client certificate
     Connection nc = Nats.connect(options);
     ```
 
-In every case the client checks that the certificate the server presents is issued for the server name the connection was made with: the hostname in the url, or the ip address when the url has one, which the certificate must then carry as a subject alternative name. This is on by default, including with `opentls`. `tlsVerifyHostname(false)` on the builder, or the `io.nats.client.tls.verify.hostname=false` property, turns it off; see [TLS configuration](docs/TLS_CONFIGURATION.md).
+In every case the client checks that the certificate the server presents is issued for the server name the connection was made with: the hostname in the url, or the ip address when the url has one, which the certificate must then carry as a subject alternative name. This is on by default, including with `opentls`. `tlsServerName(name)` on the builder, or the `io.nats.client.tls.server.name` property, sets one name for every server instead, for servers reached by ip address or by a name their certificates do not carry; it asks for TLS on its own. `tlsVerifyHostname(false)` on the builder, or the `io.nats.client.tls.verify.hostname=false` property, turns the check off as the last resort; see [TLS configuration](docs/TLS_CONFIGURATION.md).
 
 If you want to try out these techniques, take a look at the [README.md](src/examples/java/io/nats/examples/README.md) for instructions.
 
@@ -1179,7 +1180,7 @@ However, the java client also needs a keystore and truststore.jks files for crea
 When creating a connection, client TLS behavior is set while creating options.
 The client assumes TLS is requested if there is an SSLContext instance in the options. There are two ways one exists:
 1. The user directly supplied one, or supplied the keystore and truststore it is built from
-2. A default one was created because `secure()` or `tlsFirst()` was called, or because a supplied server url has a secure protocol such as `tls`, `wss` or `opentls`
+2. A default one was created because `secure()`, `tlsFirst()` or `tlsServerName()` was called, or because a supplied server url has a secure protocol such as `tls`, `wss` or `opentls`
 
 If there is a mismatch, an IOException will be thrown while connecting and the next server is tried, since a single server can be misconfigured. The options decide for every server of a connection, so when every server of one round over the server list fails with the mismatch, retrying cannot help: the connection is closed without reconnecting, and the initial connect throws.
 

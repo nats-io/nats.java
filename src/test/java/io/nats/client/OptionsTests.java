@@ -21,6 +21,7 @@ import io.nats.client.support.ssl.SslTestingHelper;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
 import io.nats.client.utils.CoverageServerPool;
 import io.nats.client.utils.ResourceUtils;
+import io.nats.client.support.SSLUtils;
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
@@ -1910,6 +1911,41 @@ public class OptionsTests {
         assertTrue(new Options.Builder(props).build().isTlsVerifyHostname());
         props.setProperty(Options.PROP_TLS_VERIFY_HOSTNAME, "false");
         assertFalse(new Options.Builder(props).build().isTlsVerifyHostname());
+    }
+
+    @Test
+    public void testTlsServerName() throws Exception {
+        // ADR-40, certificate verification: the TLS server name of every server. It is a TLS configuration, so it asks
+        // for TLS: alone it selects the default context; next to opentls the trust-all context stays; a supplied
+        // context stays. Null, empty and blank mean none.
+        assertNull(new Options.Builder().build().getTlsServerName());
+        assertNull(new Options.Builder().tlsServerName(null).build().getTlsServerName());
+        assertNull(new Options.Builder().tlsServerName("").build().getTlsServerName());
+        assertNull(new Options.Builder().tlsServerName("  ").build().getTlsServerName());
+        assertFalse(new Options.Builder().tlsServerName("  ").build().isTLSRequired());
+
+        Options options = new Options.Builder().tlsServerName(" nats.example.com ").build();
+        assertEquals("nats.example.com", options.getTlsServerName());
+        assertTrue(options.isTLSRequired());
+        assertSame(SSLContext.getDefault(), options.getSslContext());
+        assertEquals("nats.example.com", new Options.Builder(options).build().getTlsServerName());
+
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_TLS_SERVER_NAME, "x.test");
+        Options fromProps = new Options.Builder(props).build();
+        assertEquals("x.test", fromProps.getTlsServerName());
+        assertTrue(fromProps.isTLSRequired());
+
+        Options open = new Options.Builder().opentls().tlsServerName("x.test").build();
+        assertEquals("x.test", open.getTlsServerName());
+        assertTrue(open.isTLSRequired());
+        assertNotSame(SSLContext.getDefault(), open.getSslContext());
+
+        SSLContext supplied = SSLUtils.createTrustAllTlsContext();
+        assertSame(supplied, new Options.Builder().sslContext(supplied).tlsServerName("x.test").build().getSslContext());
+
+        // it asks for TLS, so a ws:// server is refused as under every other setting that asks for TLS
+        assertThrows(IllegalStateException.class, () -> new Options.Builder().server("ws://localhost:80").tlsServerName("x.test").build());
     }
 
     @SuppressWarnings("deprecation")
