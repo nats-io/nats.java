@@ -2872,6 +2872,8 @@ class NatsConnection implements Connection {
         return tracker;
     }
 
+    // The errors that count toward the authorization abort; the javadoc of Options.Builder.ignoreAuthErrorAbort names
+    // them, so a change here changes that sentence too
     protected boolean isAuthenticationError(String err) {
         if (err == null) {
             return false;

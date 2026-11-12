@@ -2354,7 +2354,8 @@ public class Options {
          * authentication or an expired account, the connection stops reconnecting and closes, since credentials
          * do not mend on their own. With this option it keeps reconnecting until it is closed or
          * {@link #maxReconnects(int) maxReconnects} is reached, as nats.go's {@code IgnoreAuthErrorAbort} does.
-         * An error line received before a TLS handshake never counts toward the abort.
+         * An error line received before a TLS handshake never counts toward the abort. The errors that count are
+         * the ones {@code NatsConnection.isAuthenticationError} recognizes; that method is their definition.
          * @return the Builder for chaining
          */
         public Builder ignoreAuthErrorAbort() {
