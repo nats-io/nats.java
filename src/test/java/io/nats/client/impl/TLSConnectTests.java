@@ -102,6 +102,46 @@ public class TLSConnectTests extends TestBase {
     }
 
     @Test
+    public void testTlsProtocolsAtOrAbove12() {
+        assertArrayEquals(new String[]{"TLSv1.2", "TLSv1.3"},
+            SocketDataPort.tlsProtocolsAtOrAbove12(new String[]{"SSLv2Hello", "SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2", "TLSv1.3"}));
+        assertArrayEquals(new String[]{}, SocketDataPort.tlsProtocolsAtOrAbove12(new String[]{"TLSv1", "TLSv1.1"}));
+        assertArrayEquals(new String[]{"TLSv1.3"}, SocketDataPort.tlsProtocolsAtOrAbove12(new String[]{"TLSv1.3"}));
+    }
+
+    /** records the protocol the handshake negotiated and the protocols the socket enabled */
+    public static class ProtocolRecordingDataPort extends SocketDataPort {
+        static volatile String negotiated;
+        static volatile String[] enabled;
+
+        @Override
+        public void upgradeToSecure() throws IOException {
+            super.upgradeToSecure();
+            javax.net.ssl.SSLSocket sslSocket = (javax.net.ssl.SSLSocket) socket;
+            negotiated = sslSocket.getSession().getProtocol();
+            enabled = sslSocket.getSSLParameters().getProtocols();
+        }
+    }
+
+    @Test
+    public void testBuiltContextNegotiatesTls13AndEnablesNothingBelow12() throws Exception {
+        // ADR-40, TLS versions: a context the client builds offers TLS 1.3, which nats-server negotiates, and the
+        // socket enables TLS 1.2 and above only. Before, built contexts were created for TLSv1.2 and offered no 1.3
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
+            Options options = new Options.Builder(createTestOptionsViaProperties(ts.getURI()))
+                .dataPortType(ProtocolRecordingDataPort.class.getName())
+                .build();
+            assertCanConnectAndPubSub(options);
+            assertEquals("TLSv1.3", ProtocolRecordingDataPort.negotiated);
+            List<String> enabled = Arrays.asList(ProtocolRecordingDataPort.enabled);
+            assertTrue(enabled.contains("TLSv1.2") && enabled.contains("TLSv1.3"), enabled.toString());
+            for (String protocol : enabled) {
+                assertTrue(protocol.equals("TLSv1.2") || protocol.equals("TLSv1.3"), protocol);
+            }
+        }
+    }
+
+    @Test
     public void testSimpleTLSConnection() throws Exception {
         //System.setProperty("javax.net.debug", "all");
         try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {

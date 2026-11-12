@@ -38,7 +38,9 @@ import java.net.SocketException;
 import java.net.URISyntaxException;
 import java.security.cert.CertificateException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -220,32 +222,33 @@ public class SocketDataPort implements DataPort {
         SSLSocket sslSocket = (SSLSocket) factory.createSocket(socket, peerHost, port, true);
         sslSocket.setUseClientMode(true);
 
+        SSLParameters sslParameters = sslSocket.getSSLParameters();
+        // ADR-40, TLS versions: never negotiate below TLS 1.2 and never fall back to a lower version, whatever the
+        // context enables
+        sslParameters.setProtocols(tlsProtocolsAtOrAbove12(sslParameters.getProtocols()));
         boolean verifyHostname = options.isTlsVerifyHostname();
-        if (tlsHost != null || verifyHostname) {
-            SSLParameters sslParameters = sslSocket.getSSLParameters();
-            if (tlsHost != null) {
-                if (tlsHostIsIpAddress) {
-                    // no server name for an ip address; an empty list sends no SNI extension
-                    sslParameters.setServerNames(Collections.<SNIServerName>emptyList());
+        if (tlsHost != null) {
+            if (tlsHostIsIpAddress) {
+                // no server name for an ip address; an empty list sends no SNI extension
+                sslParameters.setServerNames(Collections.<SNIServerName>emptyList());
+            }
+            else {
+                // Present the hostname to the server as the TLS server name (SNI) in every hostname resolution mode.
+                // Setting it explicitly also covers names the provider would not derive from the peer host on its own,
+                // for instance a single label hostname like a kubernetes service name.
+                try {
+                    sslParameters.setServerNames(Collections.<SNIServerName>singletonList(new SNIHostName(tlsHost)));
                 }
-                else {
-                    // Present the hostname to the server as the TLS server name (SNI) in every hostname resolution mode.
-                    // Setting it explicitly also covers names the provider would not derive from the peer host on its own,
-                    // for instance a single label hostname like a kubernetes service name.
-                    try {
-                        sslParameters.setServerNames(Collections.<SNIServerName>singletonList(new SNIHostName(tlsHost)));
-                    }
-                    catch (IllegalArgumentException e) {
-                        // not a legal SNI host name. Leave the server name to the provider's default behavior for the peer host.
-                    }
+                catch (IllegalArgumentException e) {
+                    // not a legal SNI host name. Leave the server name to the provider's default behavior for the peer host.
                 }
             }
-            if (verifyHostname) {
-                // The trust manager checks the certificate against the server name, or the peer host when there is none.
-                sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
-            }
-            sslSocket.setSSLParameters(sslParameters);
         }
+        if (verifyHostname) {
+            // The trust manager checks the certificate against the server name, or the peer host when there is none.
+            sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
+        }
+        sslSocket.setSSLParameters(sslParameters);
 
         final CompletableFuture<Void> waitForHandshake = new CompletableFuture<>();
         final HandshakeCompletedListener hcl = (evt) -> waitForHandshake.complete(null);
@@ -272,6 +275,30 @@ public class SocketDataPort implements DataPort {
         in = sslSocket.getInputStream();
         out = sslSocket.getOutputStream();
         isSecure = true;
+    }
+
+    /**
+     * Of the protocols a context enables, the ones at TLS 1.2 or above: the client never negotiates TLS 1.0, TLS 1.1 or
+     * SSL, and never falls back to them (ADR-40, TLS versions; RFC 8996 and BCP 195). A context that enables nothing
+     * at or above TLS 1.2 gets no protocol, and its handshake fails.
+     * @param enabled the protocols the socket enables
+     * @return the ones kept
+     */
+    static String[] tlsProtocolsAtOrAbove12(String[] enabled) {
+        List<String> kept = new ArrayList<>();
+        for (String protocol : enabled) {
+            if (protocol.startsWith("TLSv1.")) {
+                try {
+                    if (Integer.parseInt(protocol.substring("TLSv1.".length())) >= 2) {
+                        kept.add(protocol);
+                    }
+                }
+                catch (NumberFormatException ignore) {
+                    // not a version the client knows: not kept
+                }
+            }
+        }
+        return kept.toArray(new String[0]);
     }
 
     /**

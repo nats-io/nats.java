@@ -25,6 +25,8 @@ When the options end up with a context, by any of rules 1 to 5, a `ws://` server
 
 So `tls://` works out of the box against a server whose certificate chains to a public CA, and against a private CA once that CA is in the JVM trust store or supplied through the `truststore` properties, an `SSLContextFactory`, or an `SSLContext` you build. `tlsFirst()` (section 7) and `tlsServerName(name)` (section 4) select the default context as well when nothing else has chosen one.
 
+The contexts the client builds itself, from the keystore and truststore properties and for `opentls`, are created for `TLS`, the highest version the JVM supports, so they offer TLS 1.3 where the JVM has it; the default context is the JVM's own. On every connection, whatever the context, the client enables TLS 1.2 and above only: it never negotiates TLS 1.0 or 1.1 and never falls back below TLS 1.2, as RFC 8996 requires. nats-server never negotiates below TLS 1.2 either.
+
 ## 3. The trust-all context: `opentls`, or one supplied by hand
 
 `opentls` builds a context whose trust manager accepts any server certificate chain: self-signed, expired, revoked, issued by anyone, for any name. It presents no client certificate, so the server must have client verification off for it to connect.

@@ -1957,6 +1957,15 @@ public class OptionsTests {
     }
 
     @Test
+    public void testBuiltContextsOfferTheHighestTlsVersion() throws Exception {
+        // ADR-40, TLS versions: the contexts the client builds are created for TLS, the highest version the JVM
+        // supports, so TLS 1.3 is offered where the JVM has it; the floor at TLS 1.2 is set on every connection
+        assertEquals("TLS", Options.DEFAULT_SSL_PROTOCOL);
+        assertEquals("TLS", SSLUtils.createTrustAllTlsContext().getProtocol());
+        assertEquals("TLS", SSLUtils.createSSLContext(null, null, null, null).getProtocol());
+    }
+
+    @Test
     public void testNatsUriRedacted() throws URISyntaxException {
         // credentials hidden for logs, events and errors: a password becomes ***, a token as a whole; the rest stays
         String[][] cases = {

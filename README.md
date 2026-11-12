@@ -1117,7 +1117,7 @@ You can, however, set the Deliver Policy which will be used to start the subscri
 
 ## Connection Security
 
-NATS supports TLS 1.2. The server can be configured to verify client certificates or not. Depending on this setting, the client has several options.
+NATS supports TLS 1.2 and TLS 1.3. The client negotiates TLS 1.3 where the server and the JVM support it, and never below TLS 1.2, whatever the SSLContext. The server can be configured to verify client certificates or not. Depending on this setting, the client has several options.
 
 1. The Java library allows the use of the tls:// protocol in its urls. This setting expects a default SSLContext to be set. You can set this default context using System properties, or in code. For example, you could run the Publish example using:
 

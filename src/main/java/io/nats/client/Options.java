@@ -181,11 +181,13 @@ public class Options {
     public static final int DEFAULT_MAX_PINGS_OUT = 2;
 
     /**
-     * Default SSL protocol used to create an SSLContext if the {@link #PROP_SECURE
-     * secure property} is used.
+     * The SSLContext algorithm the client builds its contexts with, for the keystore and truststore properties,
+     * {@code opentls} and the trust-all context: {@value}, the highest TLS version the JVM supports, so the
+     * context offers TLS 1.3 where the JVM has it. On every connection, whatever the context, the client enables
+     * TLS 1.2 and above only and never falls back below TLS 1.2.
      * <p>This property is defined as {@value}</p>
      */
-    public static final String DEFAULT_SSL_PROTOCOL = "TLSv1.2";
+    public static final String DEFAULT_SSL_PROTOCOL = "TLS";
 
     /**
      * Default of pending message buffer that is used for buffering messages that
