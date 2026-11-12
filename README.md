@@ -612,6 +612,7 @@ assertEquals(8000, o.getMaxMessagesInOutgoingQueue());
 | reconnect.max                     | Configure maxReconnects.                                                             |
 | reconnect.jitter                  | Configure reconnectJitter.                                                           |
 | reconnect.jitter.tls              | Configure reconnectJitterTls.                                                        |
+| ignore.auth.error.abort           | Keep reconnecting after repeated authorization errors instead of closing             |
 | pedantic                          | Configure pedantic.                                                                  |
 | verbose                           | Configure verbose.                                                                   |
 | noecho                            | Configure noEcho.                                                                    |

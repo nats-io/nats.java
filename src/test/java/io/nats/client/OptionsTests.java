@@ -2009,6 +2009,20 @@ public class OptionsTests {
     }
 
     @Test
+    public void testIgnoreAuthErrorAbort() {
+        // ADR-40, authorization violation: the abort after repeated authorization errors can be switched off
+        assertFalse(new Options.Builder().build().isIgnoreAuthErrorAbort());
+        Options o = new Options.Builder().ignoreAuthErrorAbort().build();
+        assertTrue(o.isIgnoreAuthErrorAbort());
+        assertTrue(new Options.Builder(o).build().isIgnoreAuthErrorAbort());
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_IGNORE_AUTH_ERROR_ABORT, "true");
+        assertTrue(new Options.Builder(props).build().isIgnoreAuthErrorAbort());
+        props.setProperty(Options.PROP_IGNORE_AUTH_ERROR_ABORT, "false");
+        assertFalse(new Options.Builder(props).build().isIgnoreAuthErrorAbort());
+    }
+
+    @Test
     public void testReconnectJitterZeroMeansNoJitter() {
         // ADR-40, reconnect process: a jitter of zero, or none, means no jitter; a negative one is refused
         Options o = new Options.Builder().reconnectJitter(Duration.ZERO).reconnectJitterTls(Duration.ZERO).build();

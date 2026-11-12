@@ -593,7 +593,11 @@ class NatsConnection implements Connection {
 
                 String err = connectError.get();
                 if (this.isAuthenticationError(err)) {
-                    if (err.equals(this.serverAuthErrors.get(resolved))) {
+                    // ADR-40, authorization violation: the client may stop reconnecting after repeated authorization
+                    // errors, and the user must be able to switch that off. The second identical error from one server
+                    // ends the reconnect, and the caller closes; with ignoreAuthErrorAbort the reconnect goes on. An
+                    // error line before a TLS handshake fails the handshake without being parsed, so it never counts
+                    if (!options.isIgnoreAuthErrorAbort() && err.equals(this.serverAuthErrors.get(resolved))) {
                         return; // double auth error
                     }
                     serverAuthErrors.put(resolved, err);

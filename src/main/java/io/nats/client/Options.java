@@ -503,6 +503,11 @@ public class Options {
      */
     public static final String PROP_RECONNECT_JITTER_TLS = PFX + "reconnect.jitter.tls";
     /**
+     * Property used to keep reconnecting after repeated authorization errors instead of closing,
+     * see {@link Builder#ignoreAuthErrorAbort() ignoreAuthErrorAbort}.
+     */
+    public static final String PROP_IGNORE_AUTH_ERROR_ABORT = PFX + "ignore.auth.error.abort";
+    /**
      * Property used to set class name for the ReconnectDelayHandler implementation
      * {@link Builder#reconnectDelayHandler(ReconnectDelayHandler) reconnectDelayHandler}.
      */
@@ -944,6 +949,7 @@ public class Options {
     private final int maxMessagesInOutgoingQueue;
     private final boolean discardMessagesWhenOutgoingQueueFull;
     private final boolean ignoreDiscoveredServers;
+    private final boolean ignoreAuthErrorAbort;
     private final boolean tlsFirst;
     private final boolean tlsVerifyHostname;
     private final String tlsServerName;
@@ -1119,6 +1125,7 @@ public class Options {
         private int maxMessagesInOutgoingQueue = DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE;
         private boolean discardMessagesWhenOutgoingQueueFull = DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL;
         private boolean ignoreDiscoveredServers = false;
+        private boolean ignoreAuthErrorAbort = false;
         private boolean tlsFirst = false;
         private boolean tlsVerifyHostname = true;
         private String tlsServerName = null;
@@ -1282,6 +1289,7 @@ public class Options {
             booleanProperty(props, PROP_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL, b -> this.discardMessagesWhenOutgoingQueueFull = b);
 
             booleanProperty(props, PROP_IGNORE_DISCOVERED_SERVERS, b -> this.ignoreDiscoveredServers = b);
+            booleanProperty(props, PROP_IGNORE_AUTH_ERROR_ABORT, b -> this.ignoreAuthErrorAbort = b);
             booleanProperty(props, PROP_TLS_FIRST, b -> this.tlsFirst = b);
             booleanProperty(props, PROP_TLS_VERIFY_HOSTNAME, b -> this.tlsVerifyHostname = b);
             stringProperty(props, PROP_TLS_SERVER_NAME, this::tlsServerName);
@@ -2341,6 +2349,20 @@ public class Options {
         }
 
         /**
+         * Keep reconnecting after repeated authorization errors. By default, when a server answers the same
+         * authorization error twice in a row during a reconnect, an authorization violation, an expired user
+         * authentication or an expired account, the connection stops reconnecting and closes, since credentials
+         * do not mend on their own. With this option it keeps reconnecting until it is closed or
+         * {@link #maxReconnects(int) maxReconnects} is reached, as nats.go's {@code IgnoreAuthErrorAbort} does.
+         * An error line received before a TLS handshake never counts toward the abort.
+         * @return the Builder for chaining
+         */
+        public Builder ignoreAuthErrorAbort() {
+            this.ignoreAuthErrorAbort = true;
+            return this;
+        }
+
+        /**
          * Set TLS Handshake First behavior on. Default is off.
          * TLS Handshake First is used to instruct the library perform
          * the TLS handshake right after the connect and before receiving
@@ -2758,6 +2780,7 @@ public class Options {
             this.proxy = o.proxy;
 
             this.ignoreDiscoveredServers = o.ignoreDiscoveredServers;
+            this.ignoreAuthErrorAbort = o.ignoreAuthErrorAbort;
             this.tlsFirst = o.tlsFirst;
             this.tlsVerifyHostname = o.tlsVerifyHostname;
             this.tlsServerName = o.tlsServerName;
@@ -2845,6 +2868,7 @@ public class Options {
         this.proxy = b.proxy;
 
         this.ignoreDiscoveredServers = b.ignoreDiscoveredServers;
+        this.ignoreAuthErrorAbort = b.ignoreAuthErrorAbort;
         this.tlsFirst = b.tlsFirst;
         this.tlsVerifyHostname = b.tlsVerifyHostname;
         this.tlsServerName = b.tlsServerName;
@@ -3668,6 +3692,15 @@ public class Options {
      */
     public boolean isIgnoreDiscoveredServers() {
         return ignoreDiscoveredServers;
+    }
+
+    /**
+     * Get whether the connection keeps reconnecting after repeated authorization errors,
+     * see {@link Builder#ignoreAuthErrorAbort() ignoreAuthErrorAbort()} in the builder doc
+     * @return the flag
+     */
+    public boolean isIgnoreAuthErrorAbort() {
+        return ignoreAuthErrorAbort;
     }
 
     /**
