@@ -125,34 +125,37 @@ public class ServerPoolTests extends TestBase {
         NatsServerPool nsp = newNatsServerPool(o, null, null);
         NatsUri b1 = new NatsUri(BOOT_ONE);
         NatsUri b2 = new NatsUri(BOOT_TWO);
-        NatsUri d1 = new NatsUri(DISC_ONE);
+        NatsUri d2 = new NatsUri(DISC_TWO);
         nsp.connectFailed(b1);
         nsp.connectFailed(b1);
-        // a new discovered server starts at the highest count in the list
+        // the origin's own count does not lift the servers its list names: it is about to be reset
         nsp.acceptDiscoveredUrls(Collections.singletonList(ENTRY_DISC_ONE), b1);
-        assertEquals(2, entry(nsp, "d1").failedAttempts);
-        // pruned by a list without it, it keeps its count; the next new server starts at the highest in the list
-        nsp.connectFailed(d1);
-        nsp.acceptDiscoveredUrls(Collections.singletonList(ENTRY_DISC_TWO), b1);
-        assertFalse(has(nsp, "d1"));
+        assertEquals(0, entry(nsp, "d1").failedAttempts);
+        // from another origin, a new server starts at the highest count in the list
+        nsp.acceptDiscoveredUrls(Arrays.asList(ENTRY_DISC_ONE, ENTRY_DISC_TWO), b2);
+        assertEquals(0, entry(nsp, "d1").failedAttempts);
         assertEquals(2, entry(nsp, "d2").failedAttempts);
+        // pruned by a list without it, it keeps its count
+        nsp.connectFailed(d2);
+        nsp.acceptDiscoveredUrls(Collections.singletonList(ENTRY_DISC_ONE), b2);
+        assertFalse(has(nsp, "d2"));
         // back in a list, it starts at its kept count, which is the higher one
-        nsp.acceptDiscoveredUrls(Arrays.asList(ENTRY_DISC_ONE, ENTRY_DISC_TWO), b1);
-        assertEquals(3, entry(nsp, "d1").failedAttempts);
-        assertEquals(2, entry(nsp, "d2").failedAttempts);
+        nsp.acceptDiscoveredUrls(Arrays.asList(ENTRY_DISC_ONE, ENTRY_DISC_TWO), b2);
+        assertEquals(3, entry(nsp, "d2").failedAttempts);
+        assertEquals(0, entry(nsp, "d1").failedAttempts);
         // at the limit it leaves, and a list naming it does not bring it back: it has no attempt left
-        nsp.connectFailed(d1);
-        assertFalse(has(nsp, "d1"));
-        nsp.acceptDiscoveredUrls(Arrays.asList(ENTRY_DISC_ONE, ENTRY_DISC_TWO), b1);
-        assertFalse(has(nsp, "d1"));
-        assertTrue(has(nsp, "d2"));
+        nsp.connectFailed(d2);
+        assertFalse(has(nsp, "d2"));
+        nsp.acceptDiscoveredUrls(Arrays.asList(ENTRY_DISC_ONE, ENTRY_DISC_TWO), b2);
+        assertFalse(has(nsp, "d2"));
+        assertTrue(has(nsp, "d1"));
         // a successful connect resets the server it connected to only: the kept counts stay, so it stays out
         nsp.connectSucceeded(b2);
         assertEquals(0, entry(nsp, "b2").failedAttempts);
         assertEquals(2, entry(nsp, "b1").failedAttempts);
-        assertEquals(2, entry(nsp, "d2").failedAttempts);
+        assertEquals(0, entry(nsp, "d1").failedAttempts);
         nsp.acceptDiscoveredUrls(Arrays.asList(ENTRY_DISC_ONE, ENTRY_DISC_TWO), b2);
-        assertFalse(has(nsp, "d1"));
+        assertFalse(has(nsp, "d2"));
     }
 
     @Test
