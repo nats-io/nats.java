@@ -15,6 +15,7 @@ package io.nats.client;
 
 import io.nats.client.api.ServerInfo;
 import io.nats.client.impl.Headers;
+import io.nats.client.support.NatsUri;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -550,11 +551,23 @@ public interface Connection extends AutoCloseable {
     ServerInfo getServerInfo();
 
     /**
-     * the url used for the current connection, or null if disconnected
+     * the url used for the current connection, or null if disconnected. The url carries the credentials it was
+     * configured with, if any; for a log, an event or an error use {@link #getConnectedUrlRedacted()}.
      * @return the url string
      */
     @Nullable
     String getConnectedUrl();
+
+    /**
+     * the url used for the current connection with its credentials hidden, or null if disconnected: a password is
+     * replaced by {@code ***}, a token as a whole. The connection's own events and errors name servers this way.
+     * @return the url string with its credentials hidden
+     */
+    @Nullable
+    default String getConnectedUrlRedacted() {
+        String url = getConnectedUrl();
+        return url == null ? null : NatsUri.redactUrl(url);
+    }
 
     /**
      * the InetAddress of client as known by the NATS server, otherwise null.

@@ -34,6 +34,8 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.condition.OS.WINDOWS;
@@ -261,6 +263,46 @@ public class AuthTests extends TestBase {
             assertEquals(nc.getConnectedUrl(), "nats://alberto:casadecampo@localhost:" + ts2.getNatsPort());
             standardCloseConnection(nc);
         }
+    }
+
+    @Test
+    public void testCredentialsAreRedactedInEventsAndErrors() throws Exception {
+        // the connected url keeps the credentials it was configured with; the events, the connect failure text and
+        // the redacted accessor hide them. Before, the password of the url stood in every event detail and error
+        String[] customArgs = { "--user", "stephen", "--pass", "password" };
+        List<String> details = new CopyOnWriteArrayList<>();
+        try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
+            String url = "nats://stephen:password@localhost:" + ts.getNatsPort();
+            Options options = new Options.Builder().server(url).maxReconnects(0)
+                .connectionListener(new ConnectionListener() {
+                    @Override
+                    public void connectionEvent(Connection conn, Events type) {
+                    }
+
+                    @Override
+                    public void connectionEvent(Connection conn, Events type, Long time, String uriDetails) {
+                        if (uriDetails != null) {
+                            details.add(type + " " + uriDetails);
+                        }
+                    }
+                })
+                .build();
+            try (Connection nc = standardConnection(options)) {
+                assertEquals(url, nc.getConnectedUrl());
+                assertEquals("nats://stephen:***@localhost:" + ts.getNatsPort(), nc.getConnectedUrlRedacted());
+            }
+            assertFalse(details.isEmpty());
+            for (String detail : details) {
+                assertFalse(detail.contains("password"), detail);
+                assertTrue(detail.contains("stephen:***@"), detail);
+            }
+        }
+        int dead = NatsTestServer.nextPort();
+        Options failing = new Options.Builder().server("nats://stephen:password@localhost:" + dead).maxReconnects(0)
+            .connectionTimeout(Duration.ofSeconds(1)).build();
+        IOException e = assertThrows(IOException.class, () -> Nats.connect(failing));
+        assertFalse(e.getMessage().contains("password"), e.getMessage());
+        assertTrue(e.getMessage().contains("stephen:***@localhost:" + dead), e.getMessage());
     }
 
     @Test

@@ -27,6 +27,7 @@ import static io.nats.client.support.NatsConstants.*;
 public class NatsUri {
     private static final int NO_PORT = -1;
     private static final String UNABLE_TO_PARSE = "Unable to parse URI string.";
+    private static final String REDACTED = "***";
     private static final String UNSUPPORTED_SCHEME = "Unsupported NATS URI scheme.";
     private static final String ENTRY_CARRIES_A_SCHEME = "the entry carries a scheme";
     private static final String ENTRY_NOT_HOST_PORT = "the entry does not parse as host:port";
@@ -172,6 +173,48 @@ public class NatsUri {
     @Override
     public String toString() {
         return uri.toString();
+    }
+
+    /**
+     * This uri with its credentials hidden, for logs, events and error text: a password is replaced by {@code ***},
+     * and user info without a password, a token, is replaced as a whole; the user, the scheme, the host, the port
+     * and the path stay as they are. The user info a discovered server inherited is never part of the string form,
+     * so it never appears.
+     * @return the uri with its credentials hidden, or the plain string when it carries none
+     */
+    @NonNull
+    public String toRedactedString() {
+        String raw = uri.getRawUserInfo();
+        if (raw == null) {
+            return uri.toString();
+        }
+        int colon = raw.indexOf(':');
+        String shown = colon == -1 ? REDACTED : raw.substring(0, colon + 1) + REDACTED;
+        String s = uri.toString();
+        int start = s.indexOf(COLON_SLASH_SLASH) + COLON_SLASH_SLASH.length();
+        return s.substring(0, start) + shown + s.substring(start + raw.length());
+    }
+
+    /**
+     * A server url with its credentials hidden, see {@link #toRedactedString()}. A string that does not parse as a
+     * NATS url has whatever stands between its {@code ://} and its last {@code @} replaced, so that no credential
+     * survives in it either.
+     * @param url the url
+     * @return the url with its credentials hidden
+     */
+    @NonNull
+    public static String redactUrl(@NonNull String url) {
+        try {
+            return new NatsUri(url).toRedactedString();
+        }
+        catch (URISyntaxException e) {
+            int start = url.indexOf(COLON_SLASH_SLASH);
+            int at = url.lastIndexOf('@');
+            if (start == -1 || at < start) {
+                return url;
+            }
+            return url.substring(0, start + COLON_SLASH_SLASH.length()) + REDACTED + url.substring(at);
+        }
     }
 
     @Override

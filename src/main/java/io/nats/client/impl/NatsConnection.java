@@ -309,7 +309,7 @@ class NatsConnection implements Connection {
                 timeTraceLogger.trace("setting status to connecting");
                 updateStatus(Status.CONNECTING, resolved, cur);
 
-                timeTraceLogger.trace("trying to connect to %s", cur);
+                timeTraceLogger.trace("trying to connect to %s", cur.toRedactedString());
                 tryToConnect(cur, resolved, attemptStart);
 
                 if (isConnected()) {
@@ -347,7 +347,7 @@ class NatsConnection implements Connection {
                 // options and the server. The options are the same for every server, so retrying cannot help.
                 timeTraceLogger.trace("every server failed with a TLS mismatch, closing");
                 close();
-                throw new IOException(tlsMismatch + " Every server of the connection failed with this TLS mismatch, so the connection was closed without retrying: " + failList);
+                throw new IOException(tlsMismatch + " Every server of the connection failed with this TLS mismatch, so the connection was closed without retrying: " + redacted(failList));
             }
             if (reconnectOnConnect) {
                 timeTraceLogger.trace("trying to reconnect on connect");
@@ -363,7 +363,7 @@ class NatsConnection implements Connection {
                 }
                 Throwable cause = connectFailure; // the last attempt's failure, or null when it ended without one
                 connectFailure = null;
-                throw new IOException("Unable to connect to NATS servers: " + failList, cause);
+                throw new IOException("Unable to connect to NATS servers: " + redacted(failList), cause);
             }
         }
         else if (trace) {
@@ -582,7 +582,7 @@ class NatsConnection implements Connection {
                 }
                 updateStatus(Status.RECONNECTING, resolved, cur);
 
-                timeTraceLogger.trace("reconnecting to server %s", cur);
+                timeTraceLogger.trace("reconnecting to server %s", cur.toRedactedString());
                 tryToConnect(cur, resolved, attemptStart);
 
                 if (isConnected()) {
@@ -667,7 +667,7 @@ class NatsConnection implements Connection {
     // The pool has already handed the server out. Tell it so it stops supplying the server, and report it.
     protected void rejectServer(NatsUri nuri, String reason) {
         serverPool.serverRejected(nuri);
-        makeCallback(() -> options.getErrorListener().serverRejected(this, nuri.toString(), reason));
+        makeCallback(() -> options.getErrorListener().serverRejected(this, nuri.toRedactedString(), reason));
     }
 
     protected void tryToConnect(NatsUri cur, NatsUri resolved, long now) {
@@ -2333,18 +2333,31 @@ class NatsConnection implements Connection {
         makeCallback(() -> elc.call(this, options.getErrorListener()));
     }
 
+    // The detail of an event names servers with their credentials hidden, as every error and trace line does:
+    // a listener or a log must not receive the password of the url.
     protected String uriDetail(NatsUri uri) {
-        return uri == null ? null : uri.toString();
+        return uri == null ? null : uri.toRedactedString();
     }
 
     protected String uriDetail(NatsUri uri, NatsUri hostOrlast) {
         if (uri != null) {
             if (hostOrlast == null || uri.equals(hostOrlast)) {
-                return uri.toString();
+                return uri.toRedactedString();
             }
-            return uri + " [" + hostOrlast + "]";
+            return uri.toRedactedString() + " [" + hostOrlast.toRedactedString() + "]";
         }
-        return hostOrlast == null ? null : hostOrlast.toString();
+        return hostOrlast == null ? null : hostOrlast.toRedactedString();
+    }
+
+    protected static String redacted(Collection<NatsUri> uris) {
+        StringBuilder sb = new StringBuilder("[");
+        for (NatsUri uri : uris) {
+            if (sb.length() > 1) {
+                sb.append(", ");
+            }
+            sb.append(uri.toRedactedString());
+        }
+        return sb.append(']').toString();
     }
 
     protected void processConnectionEvent(Events type, String uriDetails) {
@@ -2502,6 +2515,16 @@ class NatsConnection implements Connection {
     @Nullable
     public String getConnectedUrl() {
         return currentServer == null ? null : currentServer.toString();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Nullable
+    public String getConnectedUrlRedacted() {
+        NatsUri current = currentServer;
+        return current == null ? null : current.toRedactedString();
     }
 
     /**

@@ -1957,6 +1957,28 @@ public class OptionsTests {
     }
 
     @Test
+    public void testNatsUriRedacted() throws URISyntaxException {
+        // credentials hidden for logs, events and errors: a password becomes ***, a token as a whole; the rest stays
+        String[][] cases = {
+            {"nats://u:p@h:4222", "nats://u:***@h:4222"},
+            {"nats://token@h:4222", "nats://***@h:4222"},
+            {"nats://h:4222", "nats://h:4222"},
+            {"nats://al%40ice:p%3Ass@a:4222", "nats://al%40ice:***@a:4222"},
+            {"wss://u:p@h:443/path", "wss://u:***@h:443/path"},
+            {"tls://u:@h:4222", "tls://u:***@h:4222"},
+        };
+        for (String[] c : cases) {
+            NatsUri nuri = new NatsUri(c[0]);
+            assertEquals(c[1], nuri.toRedactedString(), c[0]);
+            assertEquals(c[0], nuri.toString(), c[0]); // the string form itself is unchanged
+            assertEquals(c[1], NatsUri.redactUrl(c[0]), c[0]);
+        }
+        // a string that does not parse still loses what stands between :// and its last @
+        assertEquals("x://***@h", NatsUri.redactUrl("x://u:p@h"));
+        assertEquals("not a url", NatsUri.redactUrl("not a url"));
+    }
+
+    @Test
     public void testNatsUriIsIpAddress() {
         for (String ip : new String[]{"127.0.0.1", "10.0.0.5", "::1", "[::1]", "fe80::1", "[fe80::1%eth0]", "::ffff:10.0.0.5", "2001:db8::1"}) {
             assertTrue(NatsUri.isIpAddress(ip), ip);
