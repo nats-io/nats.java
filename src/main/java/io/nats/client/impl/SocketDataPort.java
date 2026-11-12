@@ -281,6 +281,10 @@ public class SocketDataPort implements DataPort {
      * Of the protocols a context enables, the ones at TLS 1.2 or above: the client never negotiates TLS 1.0, TLS 1.1 or
      * SSL, and never falls back to them (ADR-40, TLS versions; RFC 8996 and BCP 195). A context that enables nothing
      * at or above TLS 1.2 gets no protocol, and its handshake fails.
+     * <p>This is an allow-list on the name form {@code TLSv1.N} with N at least 2, chosen over a deny-list of the four
+     * names below the floor, {@code SSLv2Hello}, {@code SSLv3}, {@code TLSv1} and {@code TLSv1.1}: a protocol name the
+     * client does not know is dropped rather than kept, the safer reading against an unknown weak name. A TLS version
+     * named in another form is kept once the client learns it.</p>
      * @param enabled the protocols the socket enables
      * @return the ones kept
      */
