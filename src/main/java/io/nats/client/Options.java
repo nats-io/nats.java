@@ -1781,8 +1781,10 @@ public class Options {
         }
 
         /**
-         * Set the timeout for connection attempts. Each server in the options is allowed this timeout
-         * so if 3 servers are tried with a timeout of 5s the total time could be 15s.
+         * Set the timeout for connection attempts: one budget per attempt, from the TCP connect to the first PONG,
+         * which the TLS handshake, a WebSocket upgrade, INFO and CONNECT share. The name lookup of a server runs
+         * before its attempt under a timer of its own, of this same duration. Each server in the options is allowed
+         * this timeout so if 3 servers are tried with a timeout of 5s the total time could be 15s.
          *
          * @param connectionTimeout the time to wait
          * @return the Builder for chaining
@@ -1793,8 +1795,10 @@ public class Options {
         }
 
         /**
-         * Set the timeout for connection attempts. Each server in the options is allowed this timeout
-         * so if 3 servers are tried with a timeout of 5s the total time could be 15s.
+         * Set the timeout for connection attempts: one budget per attempt, from the TCP connect to the first PONG,
+         * which the TLS handshake, a WebSocket upgrade, INFO and CONNECT share. The name lookup of a server runs
+         * before its attempt under a timer of its own, of this same duration. Each server in the options is allowed
+         * this timeout so if 3 servers are tried with a timeout of 5s the total time could be 15s.
          *
          * @param connectionTimeoutMillis the time to wait in milliseconds
          * @return the Builder for chaining

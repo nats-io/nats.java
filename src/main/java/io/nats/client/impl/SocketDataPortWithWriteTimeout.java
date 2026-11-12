@@ -78,7 +78,9 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
     }
 
     public void close() throws IOException {
-        writeWatchTask.shutdown();
+        if (writeWatchTask != null) { // null while connect is still in progress, when an attempt is closed at its deadline
+            writeWatchTask.shutdown();
+        }
         super.close();
     }
 }

@@ -63,6 +63,8 @@ class NatsConnection implements Connection {
 
     protected CompletableFuture<DataPort> dataPortFuture;
     protected DataPort dataPort;
+    // the data port of an attempt in progress, from its connect until the attempt ends, so that close() can end it
+    private volatile DataPort attemptDataPort;
     // the TLS mismatch the current attempt failed with, null when it did not; see upgradeToSecureIfNeeded
     private volatile String attemptTlsMismatch;
     // true while the INFO read in plaintext before a TLS upgrade is handled; see readInitialInfo and handleInfo
@@ -291,7 +293,10 @@ class NatsConnection implements Connection {
             serverPool.nextServer(); // b/c we only peeked.
 
             // let server pool resolve hostnames, then loop through resolved
-            List<NatsUri> resolvedList = resolveHost(cur);
+            List<NatsUri> resolvedList = resolveHostBounded(cur);
+            // ADR-40, connection timeout: a name that resolves to several addresses is one attempt, and the
+            // addresses share its budget, so every address gets the same deadline
+            long attemptStart = NatsSystemClock.nanoTime();
             for (NatsUri resolved : resolvedList) {
                 if (isClosed()) {
                     keepGoing = false;
@@ -305,7 +310,7 @@ class NatsConnection implements Connection {
                 updateStatus(Status.CONNECTING, resolved, cur);
 
                 timeTraceLogger.trace("trying to connect to %s", cur);
-                tryToConnect(cur, resolved, NatsSystemClock.nanoTime());
+                tryToConnect(cur, resolved, attemptStart);
 
                 if (isConnected()) {
                     serverPool.connectSucceeded(cur);
@@ -563,7 +568,8 @@ class NatsConnection implements Connection {
 
             // let server list provider resolve hostnames
             // then loop through resolved
-            List<NatsUri> resolvedList = resolveHost(cur);
+            List<NatsUri> resolvedList = resolveHostBounded(cur);
+            long attemptStart = NatsSystemClock.nanoTime(); // one budget for all the addresses of the name, see connectImpl
             for (NatsUri resolved : resolvedList) {
                 if (isClosed()) {
                     return;
@@ -577,7 +583,7 @@ class NatsConnection implements Connection {
                 updateStatus(Status.RECONNECTING, resolved, cur);
 
                 timeTraceLogger.trace("reconnecting to server %s", cur);
-                tryToConnect(cur, resolved, NatsSystemClock.nanoTime());
+                tryToConnect(cur, resolved, attemptStart);
 
                 if (isConnected()) {
                     serverPool.connectSucceeded(cur);
@@ -705,7 +711,28 @@ class NatsConnection implements Connection {
 
             timeoutNanos = timeCheck(end, "connecting data port");
             DataPort newDataPort = this.options.buildDataPort();
-            newDataPort.connect(this, resolved, cur, timeoutNanos);
+            // ADR-40, connection timeout: the data port's connect, which covers the TCP connect, a wss TLS handshake,
+            // the WebSocket upgrade and the name resolution of the non-resolving modes, runs on the executor under
+            // the attempt's remaining time. At the deadline the attempt fails and the port is force-closed, which
+            // also unblocks a handshake or upgrade that hangs. close() force-closes the port of an attempt in progress
+            attemptDataPort = newDataPort;
+            long portTimeoutNanos = timeoutNanos;
+            Future<?> portConnect = executor.submit(() -> {
+                newDataPort.connect(this, resolved, cur, portTimeoutNanos);
+                return null;
+            });
+            try {
+                portConnect.get(timeoutNanos, TimeUnit.NANOSECONDS);
+            }
+            catch (TimeoutException e) {
+                portConnect.cancel(true);
+                forceCloseQuietly(newDataPort);
+                throw new TimeoutException("connection timed out");
+            }
+            catch (ExecutionException e) {
+                forceCloseQuietly(newDataPort);
+                throw e.getCause() instanceof Exception ? (Exception) e.getCause() : e;
+            }
 
             // Notify any threads waiting on the sockets
             this.dataPort = newDataPort;
@@ -774,6 +801,18 @@ class NatsConnection implements Connection {
             this.infoAfterPong = waitingFor;
             Future<Boolean> pongFuture = sendPing();
 
+            // a failure that landed before the PING was queued, such as the server closing after a -ERR, ends the
+            // attempt now; one that lands later answers the PING through handleCommunicationIssue
+            statusLock.lock();
+            try {
+                if (this.exceptionDuringConnectChange != null) {
+                    throw this.exceptionDuringConnectChange;
+                }
+            }
+            finally {
+                statusLock.unlock();
+            }
+
             if (pongFuture != null) {
                 pongFuture.get(timeoutNanos, TimeUnit.NANOSECONDS);
             }
@@ -838,8 +877,13 @@ class NatsConnection implements Connection {
         catch (Exception exp) {
             processException(exp);
             // the connect task's own failure, unwrapped from the ExecutionException of its future, is the cause of the
-            // exception a failed connect throws
-            connectFailure = exp instanceof ExecutionException && exp.getCause() != null ? exp.getCause() : exp;
+            // exception a failed connect throws. When the server sent an error during the attempt, that error is the
+            // failure and the read error that followed it is the cause (ADR-40, malformed input: a -ERR after which
+            // the server closed the connection fails the attempt with the server's error)
+            Throwable failure = exp instanceof ExecutionException && exp.getCause() != null ? exp.getCause() : exp;
+            String serverError = connectError.get();
+            connectFailure = serverError == null ? failure
+                : new IOException("The server ended the attempt with an error: " + UntrustedText.quote(serverError), failure);
             try {
                 // allow force reconnect since this is pretty exceptional,
                 // a connection failure while trying to connect
@@ -851,6 +895,7 @@ class NatsConnection implements Connection {
             }
         }
         finally {
+            attemptDataPort = null;
             statusLock.lock();
             try {
                 this.connecting = false;
@@ -859,6 +904,15 @@ class NatsConnection implements Connection {
             finally {
                 statusLock.unlock();
             }
+        }
+    }
+
+    private static void forceCloseQuietly(DataPort port) {
+        try {
+            port.forceClose();
+        }
+        catch (IOException ignore) {
+            // the port is being abandoned
         }
     }
 
@@ -923,6 +977,14 @@ class NatsConnection implements Connection {
                 CompletableFuture<Void> waitingFor = infoAfterPong;
                 if (waitingFor != null) {
                     waitingFor.completeExceptionally(io); // the connection was lost during the wait, the attempt fails
+                }
+                if (this.connecting) {
+                    // the attempt's PING is answered by this failure: the attempt ends now, with the failure, instead
+                    // of waiting out its budget for a PONG that cannot come (ADR-40, a -ERR after which the server
+                    // closed the connection fails the attempt with the server's error)
+                    for (CompletableFuture<Boolean> pong : pongQueue) {
+                        pong.completeExceptionally(io);
+                    }
                 }
                 return;
             }
@@ -1157,6 +1219,12 @@ class NatsConnection implements Connection {
         }
         catch (IOException ex) {
             processException(ex);
+        }
+
+        // an attempt in progress holds its own port until it completes; closing it ends the attempt
+        DataPort attempt = attemptDataPort;
+        if (attempt != null && attempt != dataPort) {
+            forceCloseQuietly(attempt);
         }
         cleanUpPongQueue();
 
@@ -2062,7 +2130,21 @@ class NatsConnection implements Connection {
     }
 
     protected void handleInfo(String infoJson) {
-        ServerInfo serverInfo = new ServerInfo(infoJson);
+        ServerInfo serverInfo;
+        try {
+            serverInfo = new ServerInfo(infoJson);
+        }
+        catch (IllegalArgumentException e) {
+            // ADR-40, malformed input: on an established connection an INFO that does not parse is skipped and
+            // reported, and the connection stays up. During an attempt it fails the attempt, as every error inside an
+            // attempt does: the exception goes up through readInitialInfo, or through the reader's parse error
+            Status status = this.status;
+            if (status == Status.CONNECTING || status == Status.RECONNECTING) {
+                throw e;
+            }
+            processException(new IllegalArgumentException("An INFO from the server does not parse and was skipped: " + UntrustedText.quote(infoJson), e));
+            return;
+        }
         this.serverInfo.set(serverInfo);
 
         if (infoBeforeTlsUpgrade) {
@@ -2348,6 +2430,29 @@ class NatsConnection implements Connection {
     @NonNull
     public Collection<String> getServers() {
         return serverPool.getServerList();
+    }
+
+    // ADR-40, connection timeout: the name lookup is outside the attempt's budget and bounded by a timer of its own,
+    // the connection timeout. InetAddress has no timeout, so the lookup runs on the executor and a lookup that does
+    // not finish in time, or fails, is reported and ends the attempt for that server, instead of holding the connect
+    // or the reconnect for as long as the resolver takes
+    protected List<NatsUri> resolveHostBounded(NatsUri nuri) throws InterruptedException {
+        if (nuri.hostIsIpAddress() || nuri.isWebsocket() || !options.hostnameResolveMode().resolve) {
+            return resolveHost(nuri); // no lookup here: the data port resolves, under the attempt's budget
+        }
+        Future<List<NatsUri>> lookup = executor.submit(() -> resolveHost(nuri));
+        try {
+            return lookup.get(options.getConnectionTimeout().toNanos(), TimeUnit.NANOSECONDS);
+        }
+        catch (TimeoutException e) {
+            lookup.cancel(true);
+            processException(new IOException("The name lookup of " + nuri.getHost() + " did not finish within the connection timeout", e));
+            return Collections.emptyList();
+        }
+        catch (ExecutionException e) {
+            processException(new IOException("The name lookup of " + nuri.getHost() + " failed", e.getCause()));
+            return Collections.emptyList();
+        }
     }
 
     protected List<NatsUri> resolveHost(NatsUri nuri) {

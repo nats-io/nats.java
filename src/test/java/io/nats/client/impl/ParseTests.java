@@ -13,6 +13,7 @@
 
 package io.nats.client.impl;
 
+import io.nats.client.Connection;
 import io.nats.client.Nats;
 import io.nats.client.NatsTestServer;
 import io.nats.client.Options;
@@ -24,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import static io.nats.client.support.NatsConstants.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ParseTests {
 
@@ -50,6 +52,40 @@ public class ParseTests {
     public void testTooBig() {
         assertThrows(NumberFormatException.class,
                 () -> NatsConnectionReader.parseLength(String.valueOf(100_000_000_000L)));
+        // ten digits that exceed an int; before, the value wrapped
+        assertThrows(NumberFormatException.class, () -> NatsConnectionReader.parseLength("4294971518"));
+        assertThrows(NumberFormatException.class, () -> NatsConnectionReader.parseLength("2147483648"));
+        assertEquals(Integer.MAX_VALUE, NatsConnectionReader.parseLength("2147483647"));
+    }
+
+    @Test
+    public void testLengthAboveTheServersMaxPayloadIsAParseError() {
+        // ADR-40, malformed input: a length the server cannot have sent, above its own max payload, makes the client
+        // reconnect instead of allocating it; a header length above the total length is the same
+        assertThrows(IOException.class, () -> {
+            try (NatsTestServer ts = new NatsTestServer(false);
+                    NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+                long max = nc.getServerInfo().getMaxPayload();
+                assertTrue(max > 0);
+                NatsConnectionReader reader = nc.getReader();
+                byte[] bytes = ("MSG subject 2 " + (max + 1) + "\r\n").getBytes(StandardCharsets.US_ASCII);
+                reader.fakeReadForTest(bytes);
+                reader.gatherOp(bytes.length);
+                reader.gatherMessageProtocol(bytes.length);
+                reader.parseProtocolMessage();
+            }
+        });
+        assertThrows(IOException.class, () -> {
+            try (NatsTestServer ts = new NatsTestServer(false);
+                    NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+                NatsConnectionReader reader = nc.getReader();
+                byte[] bytes = ("HMSG subject 2 20 10\r\n").getBytes(StandardCharsets.US_ASCII);
+                reader.fakeReadForTest(bytes);
+                reader.gatherOp(bytes.length);
+                reader.gatherMessageProtocol(bytes.length);
+                reader.parseProtocolMessage();
+            }
+        });
     }
 
     @Test
@@ -157,28 +193,32 @@ public class ParseTests {
     }
 
     @Test
-    public void testProtocolLineTooLong() {
-        assertThrows(IllegalArgumentException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                    NatsConnection nc = (NatsConnection) Nats.connect(new Options.Builder().
-                                                                        server(ts.getURI()).
-                                                                        maxControlLine(1024).
-                                                                        build())) {
-                NatsConnectionReader reader = nc.getReader();
-                StringBuilder longString = new StringBuilder();
+    public void testInfoThatDoesNotParseIsSkippedByTheReader() throws Exception {
+        // ADR-40, malformed input: on an established connection an INFO that does not parse is skipped and reported.
+        // Before, the IllegalArgumentException of the parse escaped the reader and ended its thread without a word
+        ListenerForTesting listener = new ListenerForTesting();
+        try (NatsTestServer ts = new NatsTestServer(false);
+                NatsConnection nc = (NatsConnection) Nats.connect(new Options.Builder().
+                                                                    server(ts.getURI()).
+                                                                    maxControlLine(1024).
+                                                                    errorListener(listener).
+                                                                    build())) {
+            NatsConnectionReader reader = nc.getReader();
+            StringBuilder longString = new StringBuilder();
 
-                longString.append("INFO ");
-                for (int i=0;i<500;i++ ){
-                    longString.append("helloworld");
-                }
-
-                byte[] bytes = longString.toString().getBytes(StandardCharsets.US_ASCII);
-                reader.fakeReadForTest(bytes);
-                reader.gatherOp(bytes.length);
-                reader.gatherProtocol(bytes.length);
-                reader.parseProtocolMessage();
+            longString.append("INFO ");
+            for (int i=0;i<500;i++ ){
+                longString.append("helloworld");
             }
-        });
+
+            byte[] bytes = longString.toString().getBytes(StandardCharsets.US_ASCII);
+            reader.fakeReadForTest(bytes);
+            reader.gatherOp(bytes.length);
+            reader.gatherProtocol(bytes.length);
+            reader.parseProtocolMessage(); // no exception
+            assertTrue(listener._eventually(2000, listener::getExceptions, e -> String.valueOf(e.getMessage()).contains("does not parse and was skipped")), listener.getExceptions().toString());
+            assertEquals(Connection.Status.CONNECTED, nc.getStatus());
+        }
     }
 
     @Test

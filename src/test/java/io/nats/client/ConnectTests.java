@@ -310,6 +310,70 @@ public class ConnectTests {
     }
 
     @Test
+    public void testAddressesOfOneNameShareOneAttemptBudget() throws Exception {
+        // ADR-40, connection timeout: a name that resolves to several addresses is one attempt, the addresses tried
+        // in turn under one budget. Before, every address got a full connection timeout of its own. A listener that
+        // accepts and never sends INFO makes each address burn the budget: three addresses took three timeouts
+        try (java.net.ServerSocket silent = new java.net.ServerSocket(0, 3, InetAddress.getLoopbackAddress())) {
+            String ip = silent.getInetAddress().getHostAddress();
+            ServerPool threeAddresses = new io.nats.client.impl.NatsServerPool() {
+                @Override
+                public List<String> resolveHostToIps(@org.jspecify.annotations.NonNull String host, boolean maxOneResult, boolean includeIPV6) {
+                    List<String> ips = new ArrayList<>();
+                    ips.add(ip);
+                    ips.add(ip);
+                    ips.add(ip);
+                    return ips;
+                }
+            };
+            Options options = new Options.Builder()
+                .server("nats://nats.three.test:" + silent.getLocalPort())
+                .serverPool(threeAddresses)
+                .maxReconnects(0)
+                .connectionTimeout(Duration.ofSeconds(1))
+                .build();
+            long start = System.currentTimeMillis();
+            assertThrows(IOException.class, () -> Nats.connect(options));
+            long elapsed = System.currentTimeMillis() - start;
+            assertTrue(elapsed < 2500, "three addresses must share the 1 s budget, not take 3 s: " + elapsed + " ms");
+        }
+    }
+
+    @Test
+    public void testNameLookupIsBoundedByTheConnectionTimeout() throws Exception {
+        // ADR-40, connection timeout: the name lookup is outside the attempt's budget and bounded by a timer of its
+        // own. A resolver that hangs ended the connect only when it returned; now the attempt for that server fails
+        // once the connection timeout passes, and the failure is reported
+        ListenerForTesting listener = new ListenerForTesting();
+        AtomicBoolean lookupInterrupted = new AtomicBoolean();
+        ServerPool hangingResolver = new io.nats.client.impl.NatsServerPool() {
+            @Override
+            public List<String> resolveHostToIps(@org.jspecify.annotations.NonNull String host, boolean maxOneResult, boolean includeIPV6) {
+                try {
+                    Thread.sleep(30_000);
+                }
+                catch (InterruptedException e) {
+                    lookupInterrupted.set(true);
+                }
+                return null;
+            }
+        };
+        Options options = new Options.Builder()
+            .server("nats://nats.lookup.test:4222")
+            .serverPool(hangingResolver)
+            .maxReconnects(0)
+            .connectionTimeout(Duration.ofSeconds(1))
+            .errorListener(listener)
+            .build();
+        long start = System.currentTimeMillis();
+        assertThrows(IOException.class, () -> Nats.connect(options));
+        long elapsed = System.currentTimeMillis() - start;
+        assertTrue(elapsed < 5000, "the connect should fail once the lookup timer passed: " + elapsed + " ms");
+        assertTrue(listener._eventually(2000, listener::getExceptions, e -> String.valueOf(e.getMessage()).contains("name lookup of nats.lookup.test")), listener.getExceptions().toString());
+        assertTrue(listener._eventually(2000, () -> java.util.Collections.singletonList(lookupInterrupted.get()), b -> b), "the hung lookup was cancelled");
+    }
+
+    @Test
     public void testConnectionTimeout() {
         assertThrows(IOException.class, () -> {
             try (NatsServerProtocolMock ts = new NatsServerProtocolMock(ExitAt.SLEEP_BEFORE_INFO)) { // will sleep for 3
