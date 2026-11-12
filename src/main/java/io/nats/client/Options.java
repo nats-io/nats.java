@@ -1353,7 +1353,9 @@ public class Options {
                         }
                     }
                     catch (URISyntaxException e) {
-                        throw new IllegalArgumentException(e);
+                        // the url with its credentials hidden: this error is the one that gets pasted into a ticket
+                        String redacted = NatsUri.redactUrl(s.trim());
+                        throw new IllegalArgumentException(e.getReason() + ": " + redacted, new URISyntaxException(redacted, e.getReason()));
                     }
                 }
             }
@@ -3257,7 +3259,9 @@ public class Options {
     }
 
     /**
-     * the servers as configured in options as URI's, see {@link Builder#servers(String[]) servers()} in the builder doc
+     * the servers as configured in options as URI's, see {@link Builder#servers(String[]) servers()} in the builder doc.
+     * The URIs carry the credentials they were configured with, if any; for a log use
+     * {@link NatsUri#redactUrl(String)} on their string form.
      * @return the processed servers
      */
     public List<URI> getServers() {

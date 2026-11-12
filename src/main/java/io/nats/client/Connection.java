@@ -521,7 +521,9 @@ public interface Connection extends AutoCloseable {
     /**
      * Return the list of known server urls, including additional servers discovered
      * after a connection has been established.
-     * Will be empty (but not null) before a connection is made and will represent the last connected server while disconnected
+     * Will be empty (but not null) before a connection is made and will represent the last connected server while disconnected.
+     * The urls carry the credentials they were configured with, if any; for a log use
+     * {@link NatsUri#redactUrl(String)} on each of them.
      * @return this connection's list of known server URLs
      */
     @NonNull
@@ -560,7 +562,8 @@ public interface Connection extends AutoCloseable {
 
     /**
      * the url used for the current connection with its credentials hidden, or null if disconnected: a password is
-     * replaced by {@code ***}, a token as a whole. The connection's own events and errors name servers this way.
+     * replaced by {@code ***}, a token as a whole, and nothing else about the url changes. The connection's own
+     * events and errors name servers this way.
      * @return the url string with its credentials hidden
      */
     @Nullable

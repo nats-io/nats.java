@@ -177,44 +177,42 @@ public class NatsUri {
 
     /**
      * This uri with its credentials hidden, for logs, events and error text: a password is replaced by {@code ***},
-     * and user info without a password, a token, is replaced as a whole; the user, the scheme, the host, the port
-     * and the path stay as they are. The user info a discovered server inherited is never part of the string form,
-     * so it never appears.
+     * and user info without a password, a token, is replaced as a whole; nothing else about the string changes.
+     * The user info a discovered server inherited is never part of the string form, so it never appears.
      * @return the uri with its credentials hidden, or the plain string when it carries none
      */
     @NonNull
     public String toRedactedString() {
-        String raw = uri.getRawUserInfo();
-        if (raw == null) {
-            return uri.toString();
-        }
-        int colon = raw.indexOf(':');
-        String shown = colon == -1 ? REDACTED : raw.substring(0, colon + 1) + REDACTED;
-        String s = uri.toString();
-        int start = s.indexOf(COLON_SLASH_SLASH) + COLON_SLASH_SLASH.length();
-        return s.substring(0, start) + shown + s.substring(start + raw.length());
+        return redactUrl(uri.toString());
     }
 
     /**
-     * A server url with its credentials hidden, see {@link #toRedactedString()}. A string that does not parse as a
-     * NATS url has whatever stands between its {@code ://} and its last {@code @} replaced, so that no credential
-     * survives in it either.
+     * A server url with its credentials hidden, in place: a password is replaced by {@code ***}, and user info
+     * without a password, a token, is replaced as a whole. The url is not parsed, so nothing else about the string
+     * changes: the scheme keeps its case, a missing port stays missing, and a string that is not a url at all is
+     * returned as it is unless it has user info between its {@code ://} and the {@code @} of its authority.
      * @param url the url
      * @return the url with its credentials hidden
      */
     @NonNull
     public static String redactUrl(@NonNull String url) {
-        try {
-            return new NatsUri(url).toRedactedString();
+        int start = url.indexOf(COLON_SLASH_SLASH);
+        if (start == -1) {
+            return url;
         }
-        catch (URISyntaxException e) {
-            int start = url.indexOf(COLON_SLASH_SLASH);
-            int at = url.lastIndexOf('@');
-            if (start == -1 || at < start) {
-                return url;
-            }
-            return url.substring(0, start + COLON_SLASH_SLASH.length()) + REDACTED + url.substring(at);
+        start += COLON_SLASH_SLASH.length();
+        int authorityEnd = url.indexOf('/', start);
+        if (authorityEnd == -1) {
+            authorityEnd = url.length();
         }
+        int at = url.lastIndexOf('@', authorityEnd - 1);
+        if (at < start) {
+            return url;
+        }
+        String userInfo = url.substring(start, at);
+        int colon = userInfo.indexOf(':');
+        String shown = colon == -1 ? REDACTED : userInfo.substring(0, colon + 1) + REDACTED;
+        return url.substring(0, start) + shown + url.substring(at);
     }
 
     @Override

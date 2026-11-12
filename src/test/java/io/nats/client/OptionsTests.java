@@ -1973,9 +1973,20 @@ public class OptionsTests {
             assertEquals(c[0], nuri.toString(), c[0]); // the string form itself is unchanged
             assertEquals(c[1], NatsUri.redactUrl(c[0]), c[0]);
         }
-        // a string that does not parse still loses what stands between :// and its last @
-        assertEquals("x://***@h", NatsUri.redactUrl("x://u:p@h"));
+        // the string is redacted in place, not parsed: the scheme keeps its case, a missing port stays missing, a
+        // string that is not a url is left alone unless it has user info in an authority
+        assertEquals("NATS://u:***@H", NatsUri.redactUrl("NATS://u:p@H"));
+        assertEquals("x://u:***@h/p@th", NatsUri.redactUrl("x://u:p@h/p@th"));
+        assertEquals("x://h/p@th", NatsUri.redactUrl("x://h/p@th"));
         assertEquals("not a url", NatsUri.redactUrl("not a url"));
+        assertEquals("@", NatsUri.redactUrl("@"));
+        assertEquals("x://", NatsUri.redactUrl("x://"));
+        // a server url that does not parse is refused without its credentials in the error or its cause
+        IllegalArgumentException bad = assertThrows(IllegalArgumentException.class, () -> new Options.Builder().server("nats://user:secret@bad host:4222"));
+        assertFalse(bad.getMessage().contains("secret"), bad.getMessage());
+        assertTrue(bad.getMessage().contains("user:***@bad host"), bad.getMessage());
+        assertNotNull(bad.getCause());
+        assertFalse(String.valueOf(bad.getCause().getMessage()).contains("secret"), bad.getCause().getMessage());
     }
 
     @Test
