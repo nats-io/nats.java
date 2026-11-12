@@ -2435,7 +2435,8 @@ class NatsConnection implements Connection {
     // ADR-40, connection timeout: the name lookup is outside the attempt's budget and bounded by a timer of its own,
     // the connection timeout. InetAddress has no timeout, so the lookup runs on the executor and a lookup that does
     // not finish in time, or fails, is reported and ends the attempt for that server, instead of holding the connect
-    // or the reconnect for as long as the resolver takes
+    // or the reconnect for as long as the resolver takes. The cancel below interrupts the lookup, which InetAddress
+    // ignores: a resolver that hangs keeps its executor thread until it returns; the attempt moves on without it
     protected List<NatsUri> resolveHostBounded(NatsUri nuri) throws InterruptedException {
         if (nuri.hostIsIpAddress() || nuri.isWebsocket() || !options.hostnameResolveMode().resolve) {
             return resolveHost(nuri); // no lookup here: the data port resolves, under the attempt's budget

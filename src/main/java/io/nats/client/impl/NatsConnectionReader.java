@@ -412,9 +412,12 @@ class NatsConnectionReader implements Runnable {
                     try {
                         incoming.setHeaders(new IncomingHeadersProcessor(msgHeaders));
                     }
-                    catch (IllegalArgumentException e) {
+                    catch (RuntimeException e) {
                         // ADR-40, malformed input: a header block that does not parse drops only the message that
-                        // carries it, and the connection stays up. The data that follows is read and then discarded
+                        // carries it, and the connection stays up. The data that follows is read and then discarded.
+                        // The parser throws IllegalArgumentException for a block it recognizes as bad and an index
+                        // error for one it cannot even scan, such as a block shorter than its version prefix or one
+                        // that ends in a space; a publisher can send either, since nats-server relays a block as written
                         discardIncoming = true;
                         this.connection.processException(new IllegalArgumentException("A message's header block does not parse, the message was dropped. The block starts with " + UntrustedText.quoteFirstLine(msgHeaders), e));
                     }
@@ -583,12 +586,17 @@ class NatsConnectionReader implements Runnable {
         return (int) retVal;
     }
 
-    // ADR-40, malformed input: a length the server cannot have sent, above its own max payload, is a line that does
-    // not parse. It makes the client reconnect instead of allocating the memory
+    // ADR-40, malformed input: a length that can only be an attack on memory is a line that does not parse, and
+    // makes the client reconnect instead of allocating it. The bound is generous, twice the server's max payload and
+    // never below 64 MiB, so that the headers a direct get adds to a stored message, or a message relayed from a
+    // server with a larger limit, pass. nats-server has no hard cap on max_payload; it warns above 8 MiB
+    static final long INCOMING_LENGTH_FLOOR = 64L * 1024 * 1024;
+
     private void checkIncomingLength(int length) {
         long max = connection.getServerInfo().getMaxPayload();
-        if (max > 0 && length > max) {
-            throw new IllegalStateException("Message length " + length + " exceeds the server's max payload " + max);
+        long bound = max > 0 && max * 2 > INCOMING_LENGTH_FLOOR ? max * 2 : INCOMING_LENGTH_FLOOR;
+        if (length > bound) {
+            throw new IllegalStateException("Message length " + length + " exceeds what a server could send, " + bound + " with a max payload of " + max);
         }
     }
 

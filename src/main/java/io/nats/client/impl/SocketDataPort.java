@@ -59,7 +59,8 @@ public class SocketDataPort implements DataPort {
     protected String tlsHostSource;
     // tlsHost is an ip address: the certificate is checked against it as one, and no server name is sent
     protected boolean tlsHostIsIpAddress;
-    protected Socket socket;
+    // written by the thread that connects, read by the thread that closes an attempt at its deadline or on close()
+    protected volatile Socket socket;
     protected boolean isSecure = false;
 
     protected InputStream in;

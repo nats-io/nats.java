@@ -59,22 +59,27 @@ public class ParseTests {
     }
 
     @Test
-    public void testLengthAboveTheServersMaxPayloadIsAParseError() {
-        // ADR-40, malformed input: a length the server cannot have sent, above its own max payload, makes the client
-        // reconnect instead of allocating it; a header length above the total length is the same
-        assertThrows(IOException.class, () -> {
-            try (NatsTestServer ts = new NatsTestServer(false);
-                    NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
-                long max = nc.getServerInfo().getMaxPayload();
-                assertTrue(max > 0);
-                NatsConnectionReader reader = nc.getReader();
-                byte[] bytes = ("MSG subject 2 " + (max + 1) + "\r\n").getBytes(StandardCharsets.US_ASCII);
-                reader.fakeReadForTest(bytes);
-                reader.gatherOp(bytes.length);
-                reader.gatherMessageProtocol(bytes.length);
-                reader.parseProtocolMessage();
-            }
-        });
+    public void testLengthBeyondWhatAServerCouldSendIsAParseError() throws Exception {
+        // ADR-40, malformed input: a length that can only be an attack on memory makes the client reconnect instead
+        // of allocating it. The bound is twice the server's max payload and never below 64 MiB, so a message above
+        // max_payload, such as a direct get response with its added headers, still parses; a header length above
+        // the total length is a parse error as well
+        try (NatsTestServer ts = new NatsTestServer(false);
+                NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {
+            long max = nc.getServerInfo().getMaxPayload();
+            assertTrue(max > 0 && max * 2 < NatsConnectionReader.INCOMING_LENGTH_FLOOR);
+            NatsConnectionReader reader = nc.getReader();
+            byte[] bytes = ("MSG subject 2 " + (max * 2) + "\r\n").getBytes(StandardCharsets.US_ASCII);
+            reader.fakeReadForTest(bytes);
+            reader.gatherOp(bytes.length);
+            reader.gatherMessageProtocol(bytes.length);
+            reader.parseProtocolMessage(); // parses: above max_payload but within the bound
+            bytes = ("MSG subject 2 " + (NatsConnectionReader.INCOMING_LENGTH_FLOOR + 1) + "\r\n").getBytes(StandardCharsets.US_ASCII);
+            reader.fakeReadForTest(bytes);
+            reader.gatherOp(bytes.length);
+            reader.gatherMessageProtocol(bytes.length);
+            assertThrows(IOException.class, reader::parseProtocolMessage);
+        }
         assertThrows(IOException.class, () -> {
             try (NatsTestServer ts = new NatsTestServer(false);
                     NatsConnection nc = (NatsConnection) Nats.connect(ts.getURI())) {

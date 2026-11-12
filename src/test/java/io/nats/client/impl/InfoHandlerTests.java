@@ -154,6 +154,8 @@ public class InfoHandlerTests {
                 assertTrue(in.read(buf) > 0); // INFO
                 out.write(("CONNECT {\"headers\":true,\"verbose\":false}\r\n"
                     + "HPUB hp 4 4\r\nXXXX\r\n"                   // a header block that does not parse
+                    + "HPUB hp 4 4\r\nNATS\r\n"                   // shorter than the version prefix
+                    + "HPUB hp 9 9\r\nNATS/1.0 \r\n"              // ends in a space
                     + "HPUB hp 12 14\r\nNATS/1.0\r\n\r\nok\r\n"  // a good one
                     + "PING\r\n").getBytes(StandardCharsets.UTF_8));
                 out.flush();
@@ -173,7 +175,7 @@ public class InfoHandlerTests {
             assertEquals("ok", new String(m.getData(), StandardCharsets.UTF_8));
             assertNull(sub.nextMessage(Duration.ofMillis(200)));
             assertEquals(Connection.Status.CONNECTED, nc.getStatus());
-            assertTrue(listener._eventually(2000, listener::getExceptions, ex -> String.valueOf(ex.getMessage()).contains("header block does not parse")), listener.getExceptions().toString());
+            assertTrue(listener._eventually(2000, () -> java.util.Collections.singletonList(listener.getExceptions().stream().filter(ex -> String.valueOf(ex.getMessage()).contains("header block does not parse")).count()), n -> n == 3), listener.getExceptions().toString());
         }
     }
 
@@ -193,8 +195,11 @@ public class InfoHandlerTests {
                     return;
                 }
                 String sid = line.split(" ")[2];
-                // a header block with the wrong version, then a good message on the same subscription
+                // header blocks the parser rejects (wrong version), cannot scan (shorter than the version prefix,
+                // ending in a space), then a good message on the same subscription
                 w.write("HMSG s " + sid + " 12 16\r\nNATS/0.0\r\n\r\nXXXX\r\n");
+                w.write("HMSG s " + sid + " 4 8\r\nNATSXXXX\r\n");
+                w.write("HMSG s " + sid + " 9 13\r\nNATS/1.0 XXXX\r\n");
                 w.write("MSG s " + sid + " 2\r\nok\r\n");
                 w.flush();
                 sent.complete(true);
@@ -214,7 +219,7 @@ public class InfoHandlerTests {
                 assertEquals("ok", new String(m.getData(), StandardCharsets.UTF_8));
                 assertNull(sub.nextMessage(Duration.ofMillis(200)));
                 assertEquals(Connection.Status.CONNECTED, nc.getStatus());
-                assertTrue(listener._eventually(2000, listener::getExceptions, ex -> String.valueOf(ex.getMessage()).contains("header block does not parse")), listener.getExceptions().toString());
+                assertTrue(listener._eventually(2000, () -> java.util.Collections.singletonList(listener.getExceptions().stream().filter(ex -> String.valueOf(ex.getMessage()).contains("header block does not parse")).count()), n -> n == 3), listener.getExceptions().toString());
             }
         }
     }
