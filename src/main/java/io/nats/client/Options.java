@@ -1701,8 +1701,10 @@ public class Options {
          * keeps its count, and a server that enters the list, discovered from the cluster or named again after it
          * left, starts at the higher of that kept count and the highest count of any server in the list, and at
          * the limit it does not enter, so a cluster whose servers keep naming each other cannot keep the client
-         * reconnecting past the limit. A server that left at its limit, configured or discovered, stays out while
-         * the connection lasts.</p>
+         * reconnecting past the limit. The counts accumulate across the reconnects of a connection, since a
+         * successful connect resets the server it connected to only: a server that is down during several partial
+         * outages reaches the limit without a full outage, and a server that left at its limit, configured or
+         * discovered, stays out while the connection lasts.</p>
          *
          * <p>This library has a slight difference from some NATS clients, if you set the maxReconnects to zero
          * there will not be any reconnect attempts, regardless of the number of known servers.</p>

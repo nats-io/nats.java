@@ -196,9 +196,11 @@ public class NatsServerPool implements ServerPool {
                 discoveryContainedUnknowns = true;
                 String originHost = origin == null || options.isTlsVerifyDiscoveredByIp() ? null : origin.tlsHostToInherit();
                 String originUserInfo = origin == null ? null : origin.getConnectUserInfo();
+                // the origin is the server being connected to, whose count connectSucceeded is about to reset, so
+                // its count does not lift the servers its own list names
                 int highest = 0;
                 for (ServerPoolEntry entry : newEntryList) {
-                    if (entry.failedAttempts > highest) {
+                    if (entry.failedAttempts > highest && !entry.nuri.equals(origin)) {
                         highest = entry.failedAttempts;
                     }
                 }
