@@ -23,7 +23,9 @@ import org.jspecify.annotations.Nullable;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -37,11 +39,23 @@ public class NatsServerPool implements ServerPool {
     protected NatsUri lastConnected;
     protected String defaultScheme;
     protected final List<NatsUri> rejected;
+    // ADR-40, max reconnects with a per-server count: a server that leaves the list keeps its count, for when it is
+    // named again, and a server that enters the list starts at the higher of that kept count and the highest count
+    // in the list; at the limit it has no attempt left and does not enter. A successful connect resets the count of
+    // the server it connected to only. Keyed by host and port as NatsUri.equivalent compares them; bounded, since
+    // a cluster can name a new address in every INFO
+    protected final Map<String, Integer> keptCounts;
 
     public NatsServerPool() {
         listLock = new ReentrantLock();
         entryList = new ArrayList<>(); // this gets updated occasionally
         rejected = new ArrayList<>();
+        keptCounts = new LinkedHashMap<String, Integer>(16, 0.75f, false) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<String, Integer> eldest) {
+                return size() > 1024;
+            }
+        };
         options = Options.builder().build(); // this will get updated when initialize is called
     }
 
@@ -138,19 +152,26 @@ public class NatsServerPool implements ServerPool {
 
             // 3. Start a new server list, loading in current order from the current list, and keeping
             //    - the last connected
+            //    - the origin, the server whose INFO this is, which is being connected to and is not yet the last
+            //      connected when its own INFO arrives (ADR-40, updating the server list: the configured servers
+            //      and the server the client is connected to are kept)
             //    - all non-gossiped
             //    - any found in the new discovered list
             //      - for any new discovered, we also remove them from
             //        that list so step there are no dupes for step #4
             //      - This also maintains the Srv state of an already known discovered
+            //    A gossiped server that left the list keeps its count, for when it comes back
             List<ServerPoolEntry> newEntryList = new ArrayList<>();
             for (ServerPoolEntry entry : entryList) {
                 int ix = findEquivalent(discovered, entry.nuri);
-                if (ix != -1 || entry.nuri.equals(lastConnected) || !entry.isGossiped) {
+                if (ix != -1 || entry.nuri.equals(lastConnected) || entry.nuri.equals(origin) || !entry.isGossiped) {
                     newEntryList.add(entry);
                     if (ix != -1) {
                         discovered.remove(ix);
                     }
+                }
+                else {
+                    keptCounts.put(entry.nuri.hostPortKey(), entry.failedAttempts);
                 }
             }
 
@@ -166,19 +187,38 @@ public class NatsServerPool implements ServerPool {
             //      the origin's own url user info, or the user info the origin itself inherited.
             //      The options are the fallback, so there is nothing to carry when the origin has neither.
             //      User info the entry itself carried was dropped in step 2.
+            //    - ADR-40, max reconnects with a per-server count: a server that enters the list starts at the
+            //      higher of the count it kept when it left and the highest count of any server in the list. At the
+            //      limit it has no attempt left: it does not enter, and keeps that count. A server leaves the list
+            //      only at its limit, so one that left stays out while the connection lasts
             boolean discoveryContainedUnknowns = false;
             if (!discovered.isEmpty()) {
                 discoveryContainedUnknowns = true;
                 String originHost = origin == null || options.isTlsVerifyDiscoveredByIp() ? null : origin.tlsHostToInherit();
                 String originUserInfo = origin == null ? null : origin.getConnectUserInfo();
+                int highest = 0;
+                for (ServerPoolEntry entry : newEntryList) {
+                    if (entry.failedAttempts > highest) {
+                        highest = entry.failedAttempts;
+                    }
+                }
                 for (NatsUri d : discovered) {
+                    String key = d.hostPortKey();
+                    Integer kept = keptCounts.remove(key);
+                    int start = kept == null || kept < highest ? highest : kept;
+                    if (start >= maxConnectAttempts) {
+                        keptCounts.put(key, start);
+                        continue;
+                    }
                     if (originHost != null && d.hostIsIpAddress()) {
                         d = d.withTlsHost(originHost);
                     }
                     if (originUserInfo != null) {
                         d = d.withInheritedUserInfo(originUserInfo);
                     }
-                    newEntryList.add(new ServerPoolEntry(d, true));
+                    ServerPoolEntry entry = new ServerPoolEntry(d, true);
+                    entry.failedAttempts = start;
+                    newEntryList.add(entry);
                 }
             }
 
@@ -269,9 +309,11 @@ public class NatsServerPool implements ServerPool {
         // 1. Work from the end because nextServer moved the one being tried to the end
         // 2. If we find the server in the list...
         //    2.1. remember it and
-        //    2.2. reset failed attempts
+        //    2.2. reset failed attempts, of this server only (ADR-40, max reconnects); the counts kept for
+        //         servers that left the list stay
         listLock.lock();
         try {
+            keptCounts.remove(nuri.hostPortKey());
             for (int x = entryList.size() - 1; x >= 0 ; x--) {
                 ServerPoolEntry entry = entryList.get(x);
                 if (entry.nuri.equals(nuri)) {
@@ -291,8 +333,8 @@ public class NatsServerPool implements ServerPool {
         // 1. Work from the end because nextServer moved the one being tried to the end
         // 2. If we find the server in the list...
         //    2.1. increment failed attempts
-        //    2.2. if failed attempts reaches max, remove it from the list
-        //         otherwise just move it to the end of the list
+        //    2.2. if failed attempts reaches max, remove it from the list, keeping its count for when it is
+        //         named again; otherwise just move it to the end of the list
         listLock.lock();
         try {
             for (int x = entryList.size() - 1; x >= 0 ; x--) {
@@ -301,6 +343,9 @@ public class NatsServerPool implements ServerPool {
                     entryList.remove(x);
                     if (++entry.failedAttempts < maxConnectAttempts) {
                         entryList.add(entry);
+                    }
+                    else {
+                        keptCounts.put(entry.nuri.hostPortKey(), entry.failedAttempts);
                     }
                     return;
                 }

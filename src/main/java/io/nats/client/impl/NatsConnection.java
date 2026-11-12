@@ -262,7 +262,7 @@ class NatsConnection implements Connection {
         boolean keepGoing = true;
         String tlsMismatch = null;               // the mismatch of the last attempt that failed with one
         boolean everyAttemptTlsMismatch = true;  // false once an attempt failed for another reason
-        NatsUri first = null;
+        Set<NatsUri> pass = new HashSet<>();    // the servers tried in this one pass over the pool
         NatsUri cur;
         // A rejected server, mapped to the count of usable servers handed out when it was last supplied.
         // The pool is told to drop a rejected server; if it supplies one again with nothing usable in between, it has nothing else.
@@ -283,11 +283,10 @@ class NatsConnection implements Connection {
                 continue; // before first is set: a rejected server must not end the pass
             }
             usableCount++;
-            if (first == null) {
-                first = cur;
-            }
-            else if (cur.equals(first)) {
-                break;  // connect only goes through loop once
+            if (!pass.add(cur)) {
+                // a server tried in this pass came back: connect only goes through the pool once. The pass ends on any
+                // server returning, not only on its first one, which may have left the pool by then
+                break;
             }
             serverPool.nextServer(); // b/c we only peeked.
 
@@ -523,7 +522,7 @@ class NatsConnection implements Connection {
         int totalRounds = 0;
         int roundAttempts = 0;                  // attempts made in the current round over the pool
         boolean roundAllTlsMismatch = true;     // false once an attempt of the round failed for another reason
-        NatsUri first = null;
+        Set<NatsUri> round = new HashSet<>();   // the servers handed out in the current round over the pool
         NatsUri cur;
         // see connect: a rejected server, mapped to the count of usable servers handed out when it was last supplied
         Map<NatsUri, Long> rejected = new HashMap<>();
@@ -541,14 +540,15 @@ class NatsConnection implements Connection {
                 continue; // before first is set and before the delay: a rejected server is not an attempt
             }
             usableCount++;
-            if (first == null) {
-                first = cur;
+            if (round.isEmpty()) {
                 if (options.reconnectDelayBehavior() == Options.ReconnectDelayBehavior.BeforeAllRounds) {
                     invokeReconnectDelayHandler(0);
                 }
             }
-            else if (first.equals(cur)) {
-                // went around the pool an entire time
+            else if (round.contains(cur)) {
+                // went around the pool an entire time: a server handed out in this round came back. The round ends on
+                // any server returning, not only on its first one, so the wait between rounds holds when that server
+                // left the pool through its attempt limit or an INFO that pruned it (ADR-40, reconnect process)
                 if (roundAttempts > 0 && roundAllTlsMismatch) {
                     // every server failed with the TLS mismatch between the options and the server,
                     // retrying cannot help; the caller closes the connection
@@ -556,8 +556,10 @@ class NatsConnection implements Connection {
                 }
                 roundAttempts = 0;
                 roundAllTlsMismatch = true;
+                round.clear();
                 invokeReconnectDelayHandler(++totalRounds);
             }
+            round.add(cur);
 
             // let server list provider resolve hostnames
             // then loop through resolved
@@ -2562,7 +2564,8 @@ class NatsConnection implements Connection {
             if (dur != null) {
                 currentWaitNanos = dur.toNanos();
                 dur = serverPool.hasSecureServer() ? options.getReconnectJitterTls() : options.getReconnectJitter();
-                if (dur != null) {
+                if (dur != null && dur.toNanos() > 0) {
+                    // a jitter of zero means no jitter; nextLong rejects a bound of zero
                     currentWaitNanos += ThreadLocalRandom.current().nextLong(dur.toNanos());
                 }
             }

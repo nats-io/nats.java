@@ -1967,6 +1967,19 @@ public class OptionsTests {
     }
 
     @Test
+    public void testReconnectJitterZeroMeansNoJitter() {
+        // ADR-40, reconnect process: a jitter of zero, or none, means no jitter; a negative one is refused
+        Options o = new Options.Builder().reconnectJitter(Duration.ZERO).reconnectJitterTls(Duration.ZERO).build();
+        assertEquals(Duration.ZERO, o.getReconnectJitter());
+        assertEquals(Duration.ZERO, o.getReconnectJitterTls());
+        o = new Options.Builder().reconnectJitter(null).reconnectJitterTls(null).build();
+        assertNull(o.getReconnectJitter());
+        assertNull(o.getReconnectJitterTls());
+        assertThrows(IllegalArgumentException.class, () -> new Options.Builder().reconnectJitter(Duration.ofMillis(-1)));
+        assertThrows(IllegalArgumentException.class, () -> new Options.Builder().reconnectJitterTls(Duration.ofMillis(-1)));
+    }
+
+    @Test
     public void testTlsVerifyDiscoveredByIp() throws Exception {
         // ADR-40, the TLS name of a discovered server: the verify-by-ip opt-in. A TLS configuration, so it asks for TLS
         assertFalse(new Options.Builder().build().isTlsVerifyDiscoveredByIp());

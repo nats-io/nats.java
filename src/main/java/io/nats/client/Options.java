@@ -1696,8 +1696,13 @@ public class Options {
          * Set the maximum number of reconnect attempts. Use 0 to turn off
          * auto-reconnect. Use -1 to turn on infinite reconnects.
          *
-         * <p>The reconnect count is incremented on a per-server basis, so if the server list contains 5 servers
-         * but max reconnects is set to 3, only 3 of those servers will be tried.</p>
+         * <p>The count is kept per server: a server leaves the list once its failed attempts reach the limit, and a
+         * successful connect resets the count of the server it connected to, only. A server that leaves the list
+         * keeps its count, and a server that enters the list, discovered from the cluster or named again after it
+         * left, starts at the higher of that kept count and the highest count of any server in the list, and at
+         * the limit it does not enter, so a cluster whose servers keep naming each other cannot keep the client
+         * reconnecting past the limit. A server that left at its limit, configured or discovered, stays out while
+         * the connection lasts.</p>
          *
          * <p>This library has a slight difference from some NATS clients, if you set the maxReconnects to zero
          * there will not be any reconnect attempts, regardless of the number of known servers.</p>
@@ -1733,11 +1738,15 @@ public class Options {
         /**
          * Set the jitter time to wait between reconnect attempts to the same server. This setting is used to vary
          * the reconnect wait to avoid multiple clients trying to reconnect to servers at the same time.
+         * Zero, or null, means no jitter: the wait is the reconnect wait alone.
          *
-         * @param time the time to wait
+         * @param time the time to wait, not negative
          * @return the Builder for chaining
          */
         public Builder reconnectJitter(Duration time) {
+            if (time != null && time.isNegative()) {
+                throw new IllegalArgumentException("reconnectJitter cannot be negative");
+            }
             this.reconnectJitter = time;
             return this;
         }
@@ -1745,12 +1754,15 @@ public class Options {
         /**
          * Set the jitter time for a tls/secure connection to wait between reconnect attempts to the same server.
          * This setting is used to vary the reconnect wait to avoid multiple clients trying to reconnect to
-         * servers at the same time.
+         * servers at the same time. Zero, or null, means no jitter: the wait is the reconnect wait alone.
          *
-         * @param time the time to wait
+         * @param time the time to wait, not negative
          * @return the Builder for chaining
          */
         public Builder reconnectJitterTls(Duration time) {
+            if (time != null && time.isNegative()) {
+                throw new IllegalArgumentException("reconnectJitterTls cannot be negative");
+            }
             this.reconnectJitterTls = time;
             return this;
         }

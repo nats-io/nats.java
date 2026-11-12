@@ -450,11 +450,17 @@ public class NatsUri {
         return sb.toString();
     }
 
-    private String equivalentComparable() {
+    /**
+     * The key under which this server is told apart from others: its host, lower-cased, and its port, the way
+     * {@link #equivalent(NatsUri)} compares two uris.
+     * @return the key
+     */
+    @NonNull
+    public String hostPortKey() {
         return uri.getHost().toLowerCase() + ":" + uri.getPort();
     }
 
     public boolean equivalent(@NonNull NatsUri other) {
-        return equivalentComparable().compareTo(other.equivalentComparable()) == 0;
+        return hostPortKey().equals(other.hostPortKey());
     }
 }

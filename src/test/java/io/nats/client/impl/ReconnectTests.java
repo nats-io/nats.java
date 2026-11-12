@@ -18,7 +18,9 @@ import io.nats.NatsServerRunner;
 import io.nats.client.*;
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.api.ServerInfo;
+import io.nats.client.support.NatsUri;
 import io.nats.client.support.ssl.SslTestingHelper;
+import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 
@@ -767,6 +769,96 @@ public class ReconnectTests {
                 // disconnect is called after every failed reconnect attempt.
                 incrementDisconnectedCount();
             }
+        }
+    }
+
+    @Test
+    public void testReconnectWithZeroJitter() throws Exception {
+        // ADR-40, reconnect process: a jitter of zero means no jitter. Before, the random part was drawn with a bound
+        // of zero, which throws, and the reconnect ended with the connection stuck in RECONNECTING
+        ListenerForTesting listener = new ListenerForTesting();
+        int port = NatsTestServer.nextPort();
+        Connection nc;
+        try (NatsTestServer ts = new NatsTestServer(port, false)) {
+            Options options = new Options.Builder()
+                .server(ts.getURI())
+                .maxReconnects(-1)
+                .reconnectWait(Duration.ofMillis(20))
+                .reconnectJitter(Duration.ZERO)
+                .reconnectJitterTls(Duration.ZERO)
+                .connectionListener(listener)
+                .build();
+            nc = standardConnection(options);
+            listener.prepForStatusChange(Events.DISCONNECTED);
+        }
+        assertTrue(listener.waitForStatusChange(5, TimeUnit.SECONDS), "disconnected");
+        listener.prepForStatusChange(Events.RECONNECTED);
+        try (NatsTestServer ignored = new NatsTestServer(port, false)) {
+            assertTrue(listener.waitForStatusChange(10, TimeUnit.SECONDS), "reconnected");
+            assertConnected(nc);
+        }
+        standardCloseConnection(nc);
+    }
+
+    @Test
+    public void testReconnectWaitHoldsWhenTheRoundsFirstServerLeavesThePool() throws Exception {
+        // ADR-40, reconnect process: the wait between rounds holds across the whole reconnect. A round used to be
+        // detected by its first server coming back; once that server had left the pool, through its attempt limit or
+        // an INFO that pruned it, every attempt ran without a wait. A pool that hands out one server once and then
+        // another one for good shows it: every attempt after the first must wait
+        int gone = NatsTestServer.nextPort();
+        int stays = NatsTestServer.nextPort();
+        AtomicInteger handedOut = new AtomicInteger();
+        AtomicInteger failures = new AtomicInteger();
+        AtomicInteger rounds = new AtomicInteger();
+        NatsTestServer ts = new NatsTestServer();
+        try {
+            NatsUri real = new NatsUri(ts.getURI());
+            NatsUri goneUri = new NatsUri("nats://localhost:" + gone);
+            NatsUri staysUri = new NatsUri("nats://localhost:" + stays);
+            ServerPool pool = new NatsServerPool() {
+                private NatsUri current() {
+                    int n = handedOut.get();
+                    return n == 0 ? real : n == 1 ? goneUri : staysUri;
+                }
+
+                @Override
+                public NatsUri peekNextServer() {
+                    return current();
+                }
+
+                @Override
+                public NatsUri nextServer() {
+                    NatsUri next = current();
+                    handedOut.incrementAndGet();
+                    return next;
+                }
+
+                @Override
+                public void connectFailed(@NonNull NatsUri nuri) {
+                    failures.incrementAndGet();
+                }
+            };
+            Options options = new Options.Builder()
+                .server(ts.getURI())
+                .serverPool(pool)
+                .maxReconnects(-1)
+                .connectionTimeout(Duration.ofSeconds(1))
+                .reconnectDelayHandler(round -> {
+                    rounds.incrementAndGet();
+                    return Duration.ofMillis(100);
+                })
+                .build();
+            try (Connection nc = Nats.connect(options)) {
+                assertConnected(nc);
+                ts.close();
+                sleep(1500);
+                assertTrue(rounds.get() >= 3, "rounds " + rounds.get());
+                assertTrue(failures.get() <= rounds.get() + 2, "attempts " + failures.get() + ", rounds " + rounds.get());
+            }
+        }
+        finally {
+            ts.close();
         }
     }
 

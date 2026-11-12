@@ -98,9 +98,10 @@ public class ServerPoolTests extends TestBase {
         }
         assertNull(nsp.nextServer());
 
-        // and that it's put back
+        // and not put back when a list names it: it kept its count, which is at the limit, so it has no attempt
+        // left (ADR-40, max reconnects with a per-server count)
         nsp.acceptDiscoveredUrls(Collections.singletonList(ENTRY_BOOT_ONE));
-        validateNslp(nsp, null, false, BOOT_ONE);
+        assertNull(nsp.nextServer());
 
         // testing that servers that fail max times and is removed
         o = new Options.Builder().server(BOOT_ONE).maxReconnects(0).build();
@@ -110,9 +111,67 @@ public class ServerPoolTests extends TestBase {
         nsp.connectFailed(failed);
         assertNull(nsp.nextServer());
 
-        // and that it's put back
+        // and not put back, for the same reason
         nsp.acceptDiscoveredUrls(Collections.singletonList(ENTRY_BOOT_ONE));
-        validateNslp(nsp, null, false, BOOT_ONE);
+        assertNull(nsp.nextServer());
+    }
+
+    @Test
+    public void testServerAddedStartsAtTheRaisedCount() throws URISyntaxException {
+        // ADR-40, max reconnects with a per-server count: a server added to the list starts at the higher of the
+        // count it kept when it left and the highest count of any server in the list; a server that left keeps its
+        // count; a successful connect resets the count of the server it connected to only
+        Options o = new Options.Builder().servers(bootstrap).maxReconnects(3).noRandomize().build(); // 4 attempts each
+        NatsServerPool nsp = newNatsServerPool(o, null, null);
+        NatsUri b1 = new NatsUri(BOOT_ONE);
+        NatsUri b2 = new NatsUri(BOOT_TWO);
+        NatsUri d1 = new NatsUri(DISC_ONE);
+        nsp.connectFailed(b1);
+        nsp.connectFailed(b1);
+        // a new discovered server starts at the highest count in the list
+        nsp.acceptDiscoveredUrls(Collections.singletonList(ENTRY_DISC_ONE), b1);
+        assertEquals(2, entry(nsp, "d1").failedAttempts);
+        // pruned by a list without it, it keeps its count; the next new server starts at the highest in the list
+        nsp.connectFailed(d1);
+        nsp.acceptDiscoveredUrls(Collections.singletonList(ENTRY_DISC_TWO), b1);
+        assertFalse(has(nsp, "d1"));
+        assertEquals(2, entry(nsp, "d2").failedAttempts);
+        // back in a list, it starts at its kept count, which is the higher one
+        nsp.acceptDiscoveredUrls(Arrays.asList(ENTRY_DISC_ONE, ENTRY_DISC_TWO), b1);
+        assertEquals(3, entry(nsp, "d1").failedAttempts);
+        assertEquals(2, entry(nsp, "d2").failedAttempts);
+        // at the limit it leaves, and a list naming it does not bring it back: it has no attempt left
+        nsp.connectFailed(d1);
+        assertFalse(has(nsp, "d1"));
+        nsp.acceptDiscoveredUrls(Arrays.asList(ENTRY_DISC_ONE, ENTRY_DISC_TWO), b1);
+        assertFalse(has(nsp, "d1"));
+        assertTrue(has(nsp, "d2"));
+        // a successful connect resets the server it connected to only: the kept counts stay, so it stays out
+        nsp.connectSucceeded(b2);
+        assertEquals(0, entry(nsp, "b2").failedAttempts);
+        assertEquals(2, entry(nsp, "b1").failedAttempts);
+        assertEquals(2, entry(nsp, "d2").failedAttempts);
+        nsp.acceptDiscoveredUrls(Arrays.asList(ENTRY_DISC_ONE, ENTRY_DISC_TWO), b2);
+        assertFalse(has(nsp, "d1"));
+    }
+
+    @Test
+    public void testConfiguredServerAtItsLimitStaysOut() throws URISyntaxException {
+        // ADR-40, max reconnects: a configured server leaves the list at its limit like any other and keeps its
+        // count, so a list naming it does not bring it back, also after a later connect succeeded elsewhere
+        String configured = "tls://u:p@b1:4222";
+        Options o = new Options.Builder().servers(new String[]{configured, "tls://b2:4222"}).maxReconnects(0).noRandomize().build();
+        NatsServerPool nsp = newNatsServerPool(o, null, null);
+        NatsUri b1 = new NatsUri(configured);
+        NatsUri b2 = new NatsUri("tls://b2:4222");
+        nsp.connectFailed(b1);
+        assertFalse(has(nsp, "b1"));
+        nsp.acceptDiscoveredUrls(Collections.singletonList(ENTRY_BOOT_ONE), b2);
+        assertFalse(has(nsp, "b1"));
+        nsp.connectSucceeded(b2);
+        nsp.acceptDiscoveredUrls(Collections.singletonList(ENTRY_BOOT_ONE), b2);
+        assertFalse(has(nsp, "b1"));
+        validateNslp(nsp, null, false, "tls://b2:4222");
     }
 
     @Test
@@ -257,6 +316,26 @@ public class ServerPoolTests extends TestBase {
         nsp.acceptDiscoveredUrls(Arrays.asList(ENTRY_DISC_ONE, ENTRY_DISC_TWO, ENTRY_DISC_THREE, "d4:4222", "own:pw@d5:4222", "own:pw@d6:4222"), null);
         assertNull(entry(nsp, "d6").nuri.getInheritedUserInfo());
         assertNull(entry(nsp, "d6").nuri.getConnectUserInfo());
+    }
+
+    @Test
+    public void testServerThatSentTheListIsKept() throws URISyntaxException {
+        // ADR-40, updating the server list: the configured servers and the server the client is connected to are
+        // kept. The origin of a list is that server, also before connectSucceeded made it the last connected one
+        Options o = new Options.Builder().servers(bootstrap).maxReconnects(0).build();
+        NatsServerPool nsp = newNatsServerPool(o, null, discoveredServers);
+        validateNslp(nsp, null, false, combined);
+        nsp.acceptDiscoveredUrls(Collections.singletonList(ENTRY_DISC_TWO), new NatsUri(DISC_ONE));
+        validateNslp(nsp, null, false, BOOT_ONE, BOOT_TWO, DISC_ONE, DISC_TWO);
+    }
+
+    private static boolean has(NatsServerPool nsp, String host) {
+        for (ServerPoolEntry e : nsp.entryList) {
+            if (e.nuri.getHost().equals(host)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static ServerPoolEntry entry(NatsServerPool nsp, String host) {
