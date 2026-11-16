@@ -5,7 +5,7 @@
 ### A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
 ![2.26.4](https://img.shields.io/badge/Current_Release-2.26.4-27AAE0?style=for-the-badge)
-![2.26.5](https://img.shields.io/badge/Current_Snapshot-2.26.5--SNAPSHOT-27AAE0?style=for-the-badge)
+![2.27.0](https://img.shields.io/badge/Current_Snapshot-2.27.0--SNAPSHOT-27AAE0?style=for-the-badge)
 
 [![Build Main Badge](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml/badge.svg?event=push)](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml)
 [![Coverage Status](https://coveralls.io/repos/github/nats-io/nats.java/badge.svg?branch=main)](https://coveralls.io/github/nats-io/nats.java?branch=main)
@@ -43,9 +43,11 @@
 
 ## Important
 
-Version 2.26.5 turns TLS hostname verification on by default, so a connection to a server whose certificate does not name the host in the url now fails. See [Version 2.26.5 Hostname Verification On By Default](#version-2265-hostname-verification-on-by-default) for who is affected and how to opt out.
+**2.27.0 Changes to secure connection behavior**
 
-The same version changes how the servers a cluster advertises are listed, verified over TLS and reconnected to, enforces TLS 1.2 as the floor, and hides url passwords from events and errors. See [Version 2.26.5 TLS Discovery and Reconnect](#version-2265-tls-discovery-and-reconnect) and the full notes in [RELEASE_NOTES_ADR40.md](RELEASE_NOTES_ADR40.md).
+TLS hostname verification is on by default: a connection to a server whose certificate does not name the host in the url now fails. See [Version 2.27.0 Hostname Verification On By Default](#version-2270-hostname-verification-on-by-default) for who is affected and how to opt out.
+
+The servers a cluster advertises are listed, verified over TLS and reconnected to by new rules, TLS 1.2 is the floor on every connection, and url passwords are hidden from events and errors. See [Version 2.27.0 TLS Discovery and Reconnect](#version-2270-tls-discovery-and-reconnect) and the full notes in [RELEASE_NOTES_ADR40.md](RELEASE_NOTES_ADR40.md).
 
 ## Client and Orbit
 
@@ -211,9 +213,9 @@ rather than shrinking the general `executor`.
 
 ## Recent Version Notes
 
-### Version 2.26.5 Hostname Verification On By Default
+### Version 2.27.0 Hostname Verification On By Default
 
-Starting with 2.26.5, the client checks that the certificate a server presents was issued for the host in the url you connect with. Before 2.26.5 it did not: any certificate your trust store accepted was accepted for any host, and `opentls` accepted any certificate at all. The check applies to every TLS connection, including `opentls`, and to servers the client discovers from the cluster, not only the ones in your options.
+Starting with 2.27.0, the client checks that the certificate a server presents was issued for the host in the url you connect with. Before 2.27.0 it did not: any certificate your trust store accepted was accepted for any host, and `opentls` accepted any certificate at all. The check applies to every TLS connection, including `opentls`, and to servers the client discovers from the cluster, not only the ones in your options.
 
 When the certificate does not name the host, the connection fails and the error names the host it was looking for, for example `No subject alternative names matching IP address 10.0.0.5 found`.
 
@@ -237,7 +239,7 @@ If you are affected, set `tlsServerName` on the options builder, or the `io.nats
 
 To keep the old behavior, call `tlsVerifyHostname(false)` on the options builder, or set the property `io.nats.client.tls.verify.hostname=false`. This removes the proof that the server is the one named in the url, so treat it as a development setting, not a fix. The full rules are in [TLS configuration](docs/TLS_CONFIGURATION.md).
 
-### Version 2.26.5 TLS Discovery and Reconnect
+### Version 2.27.0 TLS Discovery and Reconnect
 
 The same release changes what the client does with the servers a cluster advertises in `connect_urls`, and how it reconnects. The full list, with the behavior before and after each change and the option that restores the old one, is in [RELEASE_NOTES_ADR40.md](RELEASE_NOTES_ADR40.md). The ones most likely to reach you:
 
@@ -406,7 +408,7 @@ repositories {
 }
 
 dependencies {
-   implementation 'io.nats:jnats:2.26.5-SNAPSHOT'
+   implementation 'io.nats:jnats:2.27.0-SNAPSHOT'
 }
 ```
 
@@ -452,7 +454,7 @@ If you need a snapshot version, you must enable snapshots and change your depend
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.26.5-SNAPSHOT</version>
+    <version>2.27.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -1649,7 +1651,7 @@ and the example jar is in `build/libs`
 Once the Uber jar is built, you can run a class with a main using it's fully qualified class name. As an example:
 
 ```bash
-java -cp build/libs/java-nats-2.26.5-SNAPSHOT-uber.jar io.nats.examples.NatsSub
+java -cp build/libs/java-nats-2.27.0-SNAPSHOT-uber.jar io.nats.examples.NatsSub
 ```
 
 ## License

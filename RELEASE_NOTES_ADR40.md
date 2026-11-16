@@ -1,4 +1,4 @@
-# Release notes: TLS discovery and reconnect, version 2.26.5
+# Release notes: TLS discovery and reconnect, version 2.27.0
 
 These are my notes on the changes I made for the TLS discovery and reconnect rules (ADR-40): how the client treats the servers a cluster advertises, how it verifies them over TLS, how it reconnects, and what it writes in events and errors. Each item says what the client did before, what it does now, and the option that restores the old behavior where there is one. They go into the changelog for the release that carries them; until then this file is the reference.
 
