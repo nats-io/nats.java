@@ -45,6 +45,8 @@
 
 Version 2.26.5 turns TLS hostname verification on by default, so a connection to a server whose certificate does not name the host in the url now fails. See [Version 2.26.5 Hostname Verification On By Default](#version-2265-hostname-verification-on-by-default) for who is affected and how to opt out.
 
+The same version changes how the servers a cluster advertises are listed, verified over TLS and reconnected to, enforces TLS 1.2 as the floor, and hides url passwords from events and errors. See [Version 2.26.5 TLS Discovery and Reconnect](#version-2265-tls-discovery-and-reconnect) and the full notes in [RELEASE_NOTES_ADR40.md](RELEASE_NOTES_ADR40.md).
+
 ## Client and Orbit
 
 NATS client functionality is split across two layers: the **core client**
@@ -234,6 +236,18 @@ openssl x509 -in server.pem -noout -ext subjectAltName
 If you are affected, set `tlsServerName` on the options builder, or the `io.nats.client.tls.server.name` property, to a name the certificates carry, connect by a name the certificate carries, or reissue the certificate with the names and ip addresses you connect with. For a cluster that advertises ips, set `client_advertise` on the servers so they advertise hostnames instead.
 
 To keep the old behavior, call `tlsVerifyHostname(false)` on the options builder, or set the property `io.nats.client.tls.verify.hostname=false`. This removes the proof that the server is the one named in the url, so treat it as a development setting, not a fix. The full rules are in [TLS configuration](docs/TLS_CONFIGURATION.md).
+
+### Version 2.26.5 TLS Discovery and Reconnect
+
+The same release changes what the client does with the servers a cluster advertises in `connect_urls`, and how it reconnects. The full list, with the behavior before and after each change and the option that restores the old one, is in [RELEASE_NOTES_ADR40.md](RELEASE_NOTES_ADR40.md). The ones most likely to reach you:
+
+1. A discovered server is a `host:port` entry dialed with the transport and the TLS of the server that reported it. A custom `ServerPool` receives `host:port` only and takes the scheme from the `origin` argument.
+2. If you connect by ip address to a cluster that advertises ip addresses, set `tlsVerifyDiscoveredByIp()` or `tlsServerName`; without one of them the discovered servers are skipped and reported, and there is no failover.
+3. `maxReconnects` now holds during an outage in which the servers keep naming each other; before, the reconnect went on without end.
+4. The addresses of one hostname share one connection timeout per attempt; before, each address had its own.
+5. TLS 1.2 is the floor on every connection; a server that offers only TLS 1.0 or 1.1 fails.
+6. Events, errors and trace lines no longer carry url passwords; `getConnectedUrlRedacted()` gives the hidden form.
+7. `ignoreAuthErrorAbort()` keeps reconnecting after repeated authorization errors; off by default, which is the old behavior.
 
 ### Version 2.26.0 Advanced Request Behavior
 
