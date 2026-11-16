@@ -14,8 +14,8 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.support.Encoding;
 import io.nats.client.support.Status;
-import io.nats.client.support.UntrustedText;
 
 public class ErrorListenerConsoleImpl implements ErrorListener {
 
@@ -113,6 +113,6 @@ public class ErrorListenerConsoleImpl implements ErrorListener {
      */
     @Override
     public void discoveredServerSkipped(Connection conn, String entry, String reason) {
-        System.out.println(supplyMessage("[WARNING] discoveredServerSkipped", conn, null, null, "Entry: ", UntrustedText.quote(entry), "Reason: ", reason));
+        System.out.println(supplyMessage("[WARNING] discoveredServerSkipped", conn, null, null, "Entry: ", Encoding.quote(entry), "Reason: ", reason));
     }
 }

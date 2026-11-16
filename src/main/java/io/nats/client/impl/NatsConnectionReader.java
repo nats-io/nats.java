@@ -15,8 +15,8 @@ package io.nats.client.impl;
 
 import io.nats.client.Message;
 import io.nats.client.ReadListener;
+import io.nats.client.support.Encoding;
 import io.nats.client.support.IncomingHeadersProcessor;
-import io.nats.client.support.UntrustedText;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -419,7 +419,7 @@ class NatsConnectionReader implements Runnable {
                         // error for one it cannot even scan, such as a block shorter than its version prefix or one
                         // that ends in a space; a publisher can send either, since nats-server relays a block as written
                         discardIncoming = true;
-                        this.connection.processException(new IllegalArgumentException("A message's header block does not parse, the message was dropped. The block starts with " + UntrustedText.quoteFirstLine(msgHeaders), e));
+                        this.connection.processException(new IllegalArgumentException("A message's header block does not parse, the message was dropped. The block starts with " + Encoding.quoteFirstLine(msgHeaders), e));
                     }
                     msgHeaders = null;
                     msgHeadersPosition = -1;

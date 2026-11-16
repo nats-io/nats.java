@@ -887,7 +887,7 @@ class NatsConnection implements Connection {
             Throwable failure = exp instanceof ExecutionException && exp.getCause() != null ? exp.getCause() : exp;
             String serverError = connectError.get();
             connectFailure = serverError == null ? failure
-                : new IOException("The server ended the attempt with an error: " + UntrustedText.quote(serverError), failure);
+                : new IOException("The server ended the attempt with an error: " + Encoding.quote(serverError), failure);
             try {
                 // allow force reconnect since this is pretty exceptional,
                 // a connection failure while trying to connect
@@ -2116,10 +2116,10 @@ class NatsConnection implements Connection {
 
     /**
      * Quote the first line of text received from a server that is not yet trusted, see
-     * {@link UntrustedText#quoteFirstLine(byte[])}.
+     * {@link Encoding#quoteFirstLine(byte[])}.
      */
     static String quoteUntrusted(byte[] bytes) {
-        return UntrustedText.quoteFirstLine(bytes);
+        return Encoding.quoteFirstLine(bytes);
     }
 
     protected void handleInfo(String infoJson) {
@@ -2135,7 +2135,7 @@ class NatsConnection implements Connection {
             if (status == Status.CONNECTING || status == Status.RECONNECTING) {
                 throw e;
             }
-            processException(new IllegalArgumentException("An INFO from the server does not parse and was skipped: " + UntrustedText.quote(infoJson), e));
+            processException(new IllegalArgumentException("An INFO from the server does not parse and was skipped: " + Encoding.quote(infoJson), e));
             return;
         }
         this.serverInfo.set(serverInfo);

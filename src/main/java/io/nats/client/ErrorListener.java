@@ -13,8 +13,8 @@
 
 package io.nats.client;
 
+import io.nats.client.support.Encoding;
 import io.nats.client.support.Status;
-import io.nats.client.support.UntrustedText;
 
 /**
  * This library groups problems into four categories:
@@ -178,7 +178,7 @@ public interface ErrorListener {
      *
      * @param conn The connection that received the INFO
      * @param entry The entry as the server sent it. The client did not accept it as a server, so escape it before
-     *              it goes to a log or a terminal, as {@link UntrustedText#quote(String)} does; the logger and console
+     *              it goes to a log or a terminal, as {@link Encoding#quote(String)} does; the logger and console
      *              listeners of the library use it
      * @param reason Why it was skipped
      */

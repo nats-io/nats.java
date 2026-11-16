@@ -14,8 +14,8 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.support.Encoding;
 import io.nats.client.support.Status;
-import io.nats.client.support.UntrustedText;
 
 import java.util.logging.Logger;
 
@@ -117,6 +117,6 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
      */
     @Override
     public void discoveredServerSkipped(Connection conn, String entry, String reason) {
-        LOGGER.warning(() -> supplyMessage("discoveredServerSkipped", conn, null, null, "Entry: ", UntrustedText.quote(entry), "Reason: ", reason));
+        LOGGER.warning(() -> supplyMessage("discoveredServerSkipped", conn, null, null, "Entry: ", Encoding.quote(entry), "Reason: ", reason));
     }
 }

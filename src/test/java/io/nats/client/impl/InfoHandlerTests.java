@@ -14,7 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
-import io.nats.client.support.UntrustedText;
+import io.nats.client.support.Encoding;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -241,9 +241,9 @@ public class InfoHandlerTests {
         // empty
         assertEquals("\"\"", NatsConnection.quoteUntrusted(new byte[0]));
         // the public form in support quotes the same way; a token keeps a line break escaped instead of ending there
-        assertEquals("\"a\"", UntrustedText.quoteFirstLine("a\r\nb".getBytes(StandardCharsets.UTF_8)));
-        assertEquals("\"a\\u000d\\u000ab\"", UntrustedText.quote("a\r\nb"));
-        assertEquals(NatsConnection.quoteUntrusted(big), UntrustedText.quoteFirstLine(big));
+        assertEquals("\"a\"", Encoding.quoteFirstLine("a\r\nb".getBytes(StandardCharsets.UTF_8)));
+        assertEquals("\"a\\u000d\\u000ab\"", Encoding.quote("a\r\nb"));
+        assertEquals(NatsConnection.quoteUntrusted(big), Encoding.quoteFirstLine(big));
     }
 
     @Test
