@@ -26,19 +26,25 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509ExtendedKeyManager;
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.KeyPair;
 import java.security.KeyStore;
 import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -47,6 +53,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Minimal loopback NATS server that selects its certificate by the TLS server name (SNI) the client sends,
@@ -63,6 +70,7 @@ public class SniTestServer implements AutoCloseable {
         public final X509Certificate valid;
         public final X509Certificate expired;
         private final X509Certificate ca;
+        private final KeyPair caKey;
         private final KeyPair serverKey;
 
         public Certificates() throws Exception {
@@ -78,13 +86,27 @@ public class SniTestServer implements AutoCloseable {
          * @param withLoopbackIpSan whether the valid certificate also carries 127.0.0.1 as an ip subject alternative name
          */
         public Certificates(String host, boolean withLoopbackIpSan) throws Exception {
+            this(host, withLoopbackIpSan, null);
+        }
+
+        /**
+         * @param issuedBy certificates whose CA issues these as well, so that one client context trusts both sets;
+         *                 null for a CA of their own
+         */
+        public Certificates(String host, boolean withLoopbackIpSan, Certificates issuedBy) throws Exception {
             this.host = host;
             long now = System.currentTimeMillis();
-            KeyPair caKey = ExpiringClientCertUtil.generateKeyPair();
             X500Name issuer = new X500Name("CN=SNI Test CA");
-            ca = ExpiringClientCertUtil.generateCertificate(issuer, issuer,
-                caKey.getPublic(), caKey.getPrivate(), new Date(now - 7_200_000),
-                new Date(now + 86_400_000), true);
+            if (issuedBy == null) {
+                caKey = ExpiringClientCertUtil.generateKeyPair();
+                ca = ExpiringClientCertUtil.generateCertificate(issuer, issuer,
+                    caKey.getPublic(), caKey.getPrivate(), new Date(now - 7_200_000),
+                    new Date(now + 86_400_000), true);
+            }
+            else {
+                caKey = issuedBy.caKey;
+                ca = issuedBy.ca;
+            }
             serverKey = ExpiringClientCertUtil.generateKeyPair();
             GeneralName[] names = withLoopbackIpSan
                 ? new GeneralName[]{new GeneralName(GeneralName.dNSName, host), new GeneralName(GeneralName.iPAddress, "127.0.0.1")}
@@ -95,6 +117,27 @@ public class SniTestServer implements AutoCloseable {
             expired = ExpiringClientCertUtil.generateCertificate(new X500Name("CN=expired.default"), issuer,
                 serverKey.getPublic(), caKey.getPrivate(), new Date(now - 7_200_000),
                 new Date(now - 3_600_000), false);
+        }
+
+        /**
+         * The valid certificate and its key as PEM files, for the tls block of a nats-server configuration.
+         * The files are deleted when the JVM exits.
+         */
+        public PemFiles writePem() throws IOException, java.security.cert.CertificateEncodingException {
+            Path cert = Files.createTempFile("scenario-cert", ".pem");
+            Path key = Files.createTempFile("scenario-key", ".pem");
+            cert.toFile().deleteOnExit();
+            key.toFile().deleteOnExit();
+            Files.write(cert, pem("CERTIFICATE", valid.getEncoded()).getBytes(StandardCharsets.US_ASCII));
+            Files.write(key, pem("PRIVATE KEY", serverKey.getPrivate().getEncoded()).getBytes(StandardCharsets.US_ASCII));
+            // forward slashes: a backslash in a quoted nats-server configuration string is an escape
+            return new PemFiles(cert.toString().replace('\\', '/'), key.toString().replace('\\', '/'));
+        }
+
+        private static String pem(String type, byte[] der) {
+            return "-----BEGIN " + type + "-----\n"
+                + Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(der)
+                + "\n-----END " + type + "-----\n";
         }
 
         public DiagnosticSslContext clientContext() throws Exception {
@@ -111,9 +154,36 @@ public class SniTestServer implements AutoCloseable {
         }
     }
 
+    /** paths of a certificate and its key written as PEM, for a nats-server configuration */
+    public static class PemFiles {
+        public final String certFile;
+        public final String keyFile;
+
+        PemFiles(String certFile, String keyFile) {
+            this.certFile = certFile;
+            this.keyFile = keyFile;
+        }
+    }
+
     private final ServerSocket listener;
     private final ExecutorService executor = Executors.newCachedThreadPool();
     private final List<Socket> sockets = new CopyOnWriteArrayList<>();
+    /** the connections accepted so far */
+    public final AtomicInteger accepted = new AtomicInteger();
+    /** plaintext written before the INFO line, with TLS after INFO; for the ADR-40 injection cases */
+    public volatile String plaintextBeforeInfo;
+    /**
+     * plaintext written after the INFO line and before the handshake, with TLS after INFO; for the ADR-40 injection
+     * cases. It goes out in the same write as the INFO line, on purpose: the client then reads it together with the
+     * line and must refuse it there. Split into a write of its own, it would reach the client inside the handshake
+     * instead, which fails in another way.
+     */
+    public volatile String plaintextAfterInfo;
+    /**
+     * with plaintext injected, what the client then sent in plaintext: "" when it closed without sending anything,
+     * "TLS client hello" when it went on to the handshake, which then proceeds, or the text it should not have sent
+     */
+    public final CompletableFuture<String> clientPlaintext = new CompletableFuture<>();
     public final CompletableFuture<String> requestedName = new CompletableFuture<>();
     public final CompletableFuture<X509Certificate> selectedCertificate = new CompletableFuture<>();
     public final CompletableFuture<Void> completed = new CompletableFuture<>();
@@ -174,6 +244,7 @@ public class SniTestServer implements AutoCloseable {
             try {
                 while (!closed) {
                     Socket raw = listener.accept();
+                    accepted.incrementAndGet();
                     sockets.add(raw);
                     executor.submit(() -> serve(raw, context, tlsFirst, discovered));
                 }
@@ -196,11 +267,38 @@ public class SniTestServer implements AutoCloseable {
             + "\"max_payload\":1048576,\"tls_required\":true" + urls + "}\r\n";
         try (Socket ignored = raw) {
             raw.setSoTimeout(10_000);
+            InputStream consumed = null;
             if (!tlsFirst) {
-                raw.getOutputStream().write(info.getBytes(StandardCharsets.UTF_8));
+                String before = plaintextBeforeInfo == null ? "" : plaintextBeforeInfo;
+                String after = plaintextAfterInfo == null ? "" : plaintextAfterInfo;
+                raw.getOutputStream().write((before + info + after).getBytes(StandardCharsets.UTF_8));
                 raw.getOutputStream().flush();
+                if (!before.isEmpty() || !after.isEmpty()) {
+                    byte[] buf = new byte[256];
+                    int n;
+                    raw.setSoTimeout(3_000);
+                    try {
+                        n = raw.getInputStream().read(buf);
+                    }
+                    catch (SocketTimeoutException e) {
+                        clientPlaintext.complete("nothing within 3 s, the socket still open");
+                        return;
+                    }
+                    catch (IOException e) {
+                        n = -1; // closed by the client with a reset: nothing was sent
+                    }
+                    raw.setSoTimeout(10_000);
+                    if (n <= 0) {
+                        clientPlaintext.complete("");
+                        return;
+                    }
+                    clientPlaintext.complete(buf[0] == 0x16 ? "TLS client hello" : new String(buf, 0, n, StandardCharsets.UTF_8));
+                    consumed = new ByteArrayInputStream(buf, 0, n);
+                }
             }
-            try (SSLSocket tls = (SSLSocket) context.getSocketFactory().createSocket(raw, "127.0.0.1", port(), true)) {
+            try (SSLSocket tls = (SSLSocket) (consumed == null
+                    ? context.getSocketFactory().createSocket(raw, "127.0.0.1", port(), true)
+                    : context.getSocketFactory().createSocket(raw, consumed, true))) {
                 tls.setUseClientMode(false);
                 tls.startHandshake();
                 Writer out = new OutputStreamWriter(tls.getOutputStream(), StandardCharsets.UTF_8);

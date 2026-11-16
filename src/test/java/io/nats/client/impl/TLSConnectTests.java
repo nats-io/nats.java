@@ -33,19 +33,23 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.Options.PROP_SSL_CONTEXT_FACTORY_CLASS;
@@ -98,6 +102,46 @@ public class TLSConnectTests extends TestBase {
             .maxReconnects(0)
             .sslContextFactory(new SSLContextFactoryForTesting())
             .build();
+    }
+
+    @Test
+    public void testTlsProtocolsAtOrAbove12() {
+        assertArrayEquals(new String[]{"TLSv1.2", "TLSv1.3"},
+            SocketDataPort.tlsProtocolsAtOrAbove12(new String[]{"SSLv2Hello", "SSLv3", "TLSv1", "TLSv1.1", "TLSv1.2", "TLSv1.3"}));
+        assertArrayEquals(new String[]{}, SocketDataPort.tlsProtocolsAtOrAbove12(new String[]{"TLSv1", "TLSv1.1"}));
+        assertArrayEquals(new String[]{"TLSv1.3"}, SocketDataPort.tlsProtocolsAtOrAbove12(new String[]{"TLSv1.3"}));
+    }
+
+    /** records the protocol the handshake negotiated and the protocols the socket enabled */
+    public static class ProtocolRecordingDataPort extends SocketDataPort {
+        static volatile String negotiated;
+        static volatile String[] enabled;
+
+        @Override
+        public void upgradeToSecure() throws IOException {
+            super.upgradeToSecure();
+            javax.net.ssl.SSLSocket sslSocket = (javax.net.ssl.SSLSocket) socket;
+            negotiated = sslSocket.getSession().getProtocol();
+            enabled = sslSocket.getSSLParameters().getProtocols();
+        }
+    }
+
+    @Test
+    public void testBuiltContextNegotiatesTls13AndEnablesNothingBelow12() throws Exception {
+        // ADR-40, TLS versions: a context the client builds offers TLS 1.3, which nats-server negotiates, and the
+        // socket enables TLS 1.2 and above only. Before, built contexts were created for TLSv1.2 and offered no 1.3
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
+            Options options = new Options.Builder(createTestOptionsViaProperties(ts.getURI()))
+                .dataPortType(ProtocolRecordingDataPort.class.getName())
+                .build();
+            assertCanConnectAndPubSub(options);
+            assertEquals("TLSv1.3", ProtocolRecordingDataPort.negotiated);
+            List<String> enabled = Arrays.asList(ProtocolRecordingDataPort.enabled);
+            assertTrue(enabled.contains("TLSv1.2") && enabled.contains("TLSv1.3"), enabled.toString());
+            for (String protocol : enabled) {
+                assertTrue(protocol.equals("TLSv1.2") || protocol.equals("TLSv1.3"), protocol);
+            }
+        }
     }
 
     @Test
@@ -655,6 +699,54 @@ public class TLSConnectTests extends TestBase {
         }
     }
 
+    // a data port whose handshake wait never confirms the handshake, and that records what it writes in plaintext
+    public static class UnconfirmedHandshakeDataPort extends SocketDataPort {
+        public static final AtomicInteger plaintextWrites = new AtomicInteger();
+        public static final AtomicReference<String> plaintext = new AtomicReference<>("");
+
+        public static void reset() {
+            plaintextWrites.set(0);
+            plaintext.set("");
+        }
+
+        @Override
+        protected void awaitHandshake(CompletableFuture<Void> handshakeCompleted, Duration timeout) throws IOException {
+            throw new IOException("TLS handshake not confirmed, by the test");
+        }
+
+        @Override
+        public void write(byte[] src, int toWrite) throws IOException {
+            if (!isSecure) {
+                plaintextWrites.incrementAndGet();
+                plaintext.accumulateAndGet(new String(src, 0, toWrite, StandardCharsets.UTF_8), String::concat);
+            }
+            super.write(src, toWrite);
+        }
+    }
+
+    @Test
+    public void testAnUnconfirmedHandshakeFailsTheAttemptBeforeConnect() throws Exception {
+        // ADR-40, TLS: when the handshake-completed notification does not arrive, the upgrade fails the attempt, and
+        // nothing is written in plaintext after INFO: no CONNECT, so no credential. Before, the failure was reported
+        // and the upgrade returned with the plaintext streams in place, and CONNECT went out on the raw socket
+        UnconfirmedHandshakeDataPort.reset();
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
+            ListenerForTesting listener = new ListenerForTesting();
+            Options options = new Options.Builder()
+                .server(ts.getURI())
+                .sslContext(SslTestingHelper.createTestSSLContext())
+                .dataPortType(UnconfirmedHandshakeDataPort.class.getName())
+                .userInfo("user", "secret")
+                .maxReconnects(0)
+                .errorListener(listener)
+                .build();
+            IOException e = assertThrows(IOException.class, () -> Nats.connect(options));
+            assertTrue(String.valueOf(e.getCause()).contains("TLS handshake not confirmed"), String.valueOf(e.getCause()));
+            assertEquals(0, UnconfirmedHandshakeDataPort.plaintextWrites.get(), "written in plaintext: " + UnconfirmedHandshakeDataPort.plaintext.get());
+            assertFalse(UnconfirmedHandshakeDataPort.plaintext.get().contains("secret"));
+        }
+    }
+
     @Test
     public void testTlsFirstWithoutContextUsesTheDefaultContext() throws Exception {
         if (TestBase.atLeast2_10_3(ensureRunServerInfo())) {
@@ -1104,46 +1196,64 @@ public class TLSConnectTests extends TestBase {
     }
 
     @Test
-    public void testDiscoveredPlainWebsocketServerIsRejectedOnce() throws Exception {
-        // a ws:// entry in connect_urls enters the pool like any other entry. When the pool first hands it out,
-        // a connection that requires TLS skips it without dialing it, goes on to the next server, reports it
-        // through serverRejected, and tells the pool, which drops it and does not take it back from a later INFO
+    public void testConnectUrlsEntriesWithASchemeAreSkippedAndNotDialed() throws Exception {
+        // ADR-40, the form of a connect_urls entry: an entry that carries a scheme is skipped as a whole and reported,
+        // whatever the scheme, each time an INFO carries it. It never enters the pool, so it is never dialed, with or
+        // without TLS, and it is not a rejected server. The other entries are used, and are dialed the way the server
+        // that reported them was dialed: here over TLS
         SniTestServer.Certificates certificates = new SniTestServer.Certificates(SniTestServer.HOST, true);
         ListenerForTesting listener = new ListenerForTesting();
-        try (ServerSocket plainWs = new ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))) {
-            String wsUrl = "ws://127.0.0.1:" + plainWs.getLocalPort();
-            try (SniTestServer second = new SniTestServer(certificates, false, Collections.singletonList(wsUrl), true);
-                 SniTestServer first = new SniTestServer(certificates, false, Arrays.asList(wsUrl, "127.0.0.1:" + second.port()), true)) {
-                Options options = tlsRequiring(first.port(), certificates, listener)
-                    .reconnectWait(Duration.ofMillis(50))
-                    .maxReconnects(3)
-                    .build();
-                Connection nc = Nats.connect(options);
-                try {
-                    nc.flush(Duration.ofSeconds(2));
-                    assertTrue(listener._eventually(2000, listener::getConnectionEvents, e -> e == Events.DISCOVERED_SERVERS));
-                    Collection<String> servers = nc.getServers();
-                    assertTrue(servers.contains(wsUrl), servers.toString());
-                    assertTrue(servers.contains("tls://127.0.0.1:" + second.port()), servers.toString());
-                    assertTrue(listener.getServerRejectedEvents().isEmpty());
+        try (ServerSocket plain = new ServerSocket(0, 1, InetAddress.getByName("127.0.0.1"))) {
+            String hostPort = "127.0.0.1:" + plain.getLocalPort();
+            List<String> withScheme = Arrays.asList("ws://" + hostPort, "nats://" + hostPort, "tls://" + hostPort, "wss://" + hostPort);
+            try (SniTestServer second = new SniTestServer(certificates, false, withScheme, true)) {
+                List<String> entries = new ArrayList<>(withScheme);
+                entries.add("127.0.0.1:" + second.port());
+                try (SniTestServer first = new SniTestServer(certificates, false, entries, true)) {
+                    Options options = tlsRequiring(first.port(), certificates, listener)
+                        // the seed is an ip address, so a discovered ip address has no name to inherit; the certificate
+                        // carries the address, which this option verifies it against (ADR-40, the TLS name of a discovered server)
+                        .tlsVerifyDiscoveredByIp()
+                        .reconnectWait(Duration.ofMillis(50))
+                        .maxReconnects(3)
+                        .build();
+                    Connection nc = Nats.connect(options);
+                    try {
+                        nc.flush(Duration.ofSeconds(2));
+                        assertTrue(listener._eventually(2000, listener::getConnectionEvents, e -> e == Events.DISCOVERED_SERVERS));
+                        Collection<String> servers = nc.getServers();
+                        assertEquals(2, servers.size(), servers.toString());
+                        assertTrue(servers.contains("tls://127.0.0.1:" + first.port()), servers.toString());
+                        assertTrue(servers.contains("tls://127.0.0.1:" + second.port()), servers.toString());
 
-                    // the first server goes away: the pool hands out the ws entry, then the second server
-                    listener.prepForStatusChange(Events.RECONNECTED);
-                    first.close();
-                    assertTrue(listener.waitForStatusChange(5, TimeUnit.SECONDS));
-                    assertEquals("tls://127.0.0.1:" + second.port(), nc.getConnectedUrl());
+                        // one report per entry, with the entry as sent and the reason
+                        assertTrue(listener._eventually(2000, listener::getDiscoveredServerSkippedEvents, e -> e.entry.equals("wss://" + hostPort)));
+                        List<ListenerForTesting.DiscoveredServerSkippedEvent> skipped = listener.getDiscoveredServerSkippedEvents();
+                        assertEquals(withScheme.size(), skipped.size(), skipped.toString());
+                        for (String entry : withScheme) {
+                            assertTrue(skipped.stream().anyMatch(e -> e.entry.equals(entry) && e.reason.equals("the entry carries a scheme")), skipped.toString());
+                        }
+                        assertTrue(listener.getServerRejectedEvents().isEmpty(), listener.getServerRejectedEvents().toString());
+                        assertNotReportedAsException(listener, hostPort);
 
-                    assertTrue(listener._eventually(2000, listener::getServerRejectedEvents, e -> rejectedAsNeverUpgraded(e, wsUrl)));
-                    assertEquals(1, listener.getServerRejectedEvents().size(), listener.getServerRejectedEvents().toString());
-                    assertNotReportedAsException(listener, wsUrl);
-                    // the second server's INFO advertised the ws entry again and the pool did not take it back
-                    servers = nc.getServers();
-                    assertFalse(servers.contains(wsUrl), servers.toString());
-                    plainWs.setSoTimeout(500);
-                    assertThrows(SocketTimeoutException.class, plainWs::accept);
-                }
-                finally {
-                    nc.close();
+                        // the first server goes away: the reconnect lands on the second, whose INFO carries the same entries,
+                        // which are skipped and reported again
+                        listener.prepForStatusChange(Events.RECONNECTED);
+                        first.close();
+                        assertTrue(listener.waitForStatusChange(5, TimeUnit.SECONDS));
+                        assertEquals("tls://127.0.0.1:" + second.port(), nc.getConnectedUrl());
+                        assertTrue(listener._eventually(2000, () -> Collections.singletonList(listener.getDiscoveredServerSkippedEvents().size()), n -> n == 2 * withScheme.size()));
+                        assertTrue(listener.getServerRejectedEvents().isEmpty(), listener.getServerRejectedEvents().toString());
+                        servers = nc.getServers();
+                        for (String server : servers) {
+                            assertFalse(server.contains(hostPort), servers.toString());
+                        }
+                        plain.setSoTimeout(500);
+                        assertThrows(SocketTimeoutException.class, plain::accept);
+                    }
+                    finally {
+                        nc.close();
+                    }
                 }
             }
         }
@@ -1151,8 +1261,9 @@ public class TLSConnectTests extends TestBase {
 
     @Test
     public void testPlainWebsocketServerFromThePoolIsSkipped() throws Exception {
-        // a custom ServerPool can hand the connection a ws:// server. With TLS required it is skipped without
-        // being dialed, reported through serverRejected, and handed back to the pool, which drops it;
+        // a custom ServerPool can hand the connection a ws:// server; a connect_urls entry cannot bring one, since
+        // an entry with a scheme never enters the pool. With TLS required it is skipped without being dialed,
+        // reported through serverRejected, and handed back to the pool, which drops it;
         // the connection goes on to the next server
         SniTestServer.Certificates certificates = new SniTestServer.Certificates(SniTestServer.HOST, true);
         ListenerForTesting listener = new ListenerForTesting();

@@ -14,6 +14,7 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.support.Encoding;
 import io.nats.client.support.Status;
 
 import java.util.logging.Logger;
@@ -109,5 +110,13 @@ public class ErrorListenerLoggerImpl implements ErrorListener {
     @Override
     public void serverRejected(Connection conn, String server, String reason) {
         LOGGER.warning(() -> supplyMessage("serverRejected", conn, null, null, "Server: ", server, "Reason: ", reason));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void discoveredServerSkipped(Connection conn, String entry, String reason) {
+        LOGGER.warning(() -> supplyMessage("discoveredServerSkipped", conn, null, null, "Entry: ", Encoding.quote(entry), "Reason: ", reason));
     }
 }

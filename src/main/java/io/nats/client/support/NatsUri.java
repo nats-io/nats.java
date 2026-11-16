@@ -27,9 +27,14 @@ import static io.nats.client.support.NatsConstants.*;
 public class NatsUri {
     private static final int NO_PORT = -1;
     private static final String UNABLE_TO_PARSE = "Unable to parse URI string.";
+    private static final String REDACTED = "***";
     private static final String UNSUPPORTED_SCHEME = "Unsupported NATS URI scheme.";
+    private static final String ENTRY_CARRIES_A_SCHEME = "the entry carries a scheme";
+    private static final String ENTRY_NOT_HOST_PORT = "the entry does not parse as host:port";
+    private static final String ENTRY_PORT_OUT_OF_RANGE = "the port is not between 1 and 65535";
     private static final String URI_E_ALLOW_TRY_PREFIXED = "Illegal character in scheme name at index";
     private static final Pattern IPV4_RE = Pattern.compile("(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])");
+    private static final Pattern IPV6_RE = Pattern.compile("[0-9A-Fa-f.:]+(%[A-Za-z0-9_.\\-]+)?");
     private static final String COLON_SLASH_SLASH = "://";
 
     public static NatsUri DEFAULT_NATS_URI = new NatsUri();
@@ -102,6 +107,17 @@ public class NatsUri {
     }
 
     /**
+     * The hostname a server discovered as an ip address through this server inherits, to be verified against and
+     * sent as SNI: this server's own TLS host, so that the name travels over any number of hops, or null when this
+     * server is an ip address with no name of its own to pass on.
+     * @return the hostname to inherit, or null
+     */
+    @Nullable
+    public String tlsHostToInherit() {
+        return hostIsIpAddress && tlsHost == null ? null : getTlsHost();
+    }
+
+    /**
      * The raw user info this server inherited from the server it was learned through, so that CONNECT
      * to a discovered server uses the credentials used for the server that reported it. It is never part
      * of the uri itself: not of its string form, its equality or its hash code.
@@ -157,6 +173,50 @@ public class NatsUri {
     @Override
     public String toString() {
         return uri.toString();
+    }
+
+    /**
+     * This uri with its credentials hidden, for logs, events and error text: a password is replaced by {@code ***},
+     * and user info without a password, a token, is replaced as a whole; nothing else about the string changes.
+     * The user info a discovered server inherited is never part of the string form, so it never appears.
+     * @return the uri with its credentials hidden, or the plain string when it carries none
+     */
+    @NonNull
+    public String toRedactedString() {
+        return redactUrl(uri.toString());
+    }
+
+    /**
+     * A server url with its credentials hidden, in place: a password is replaced by {@code ***}, and user info
+     * without a password, a token, is replaced as a whole. The url is not parsed, so nothing else about the string
+     * changes: the scheme keeps its case, a missing port stays missing, and a string that is not a url at all is
+     * returned as it is unless it has user info between its {@code ://} and the {@code @} of its authority.
+     * @param url the url
+     * @return the url with its credentials hidden
+     */
+    @NonNull
+    public static String redactUrl(@NonNull String url) {
+        int start = url.indexOf(COLON_SLASH_SLASH);
+        if (start == -1) {
+            return url;
+        }
+        start += COLON_SLASH_SLASH.length();
+        // the authority ends at the first path, query or fragment delimiter; an @ in any of those is not user info
+        int authorityEnd = url.length();
+        for (char delimiter : new char[]{'/', '?', '#'}) {
+            int index = url.indexOf(delimiter, start);
+            if (index != -1 && index < authorityEnd) {
+                authorityEnd = index;
+            }
+        }
+        int at = url.lastIndexOf('@', authorityEnd - 1);
+        if (at < start) {
+            return url;
+        }
+        String userInfo = url.substring(start, at);
+        int colon = userInfo.indexOf(':');
+        String shown = colon == -1 ? REDACTED : userInfo.substring(0, colon + 1) + REDACTED;
+        return url.substring(0, start) + shown + url.substring(at);
     }
 
     @Override
@@ -315,7 +375,7 @@ public class NatsUri {
         isSecure = SECURE_PROTOCOLS.contains(s);
         isWebsocket = WEBSOCKET_PROTOCOLS.contains(s);
         s = uri.getHost();
-        hostIsIpAddress = IPV4_RE.matcher(s).matches() || s.startsWith("[") && s.endsWith("]");
+        hostIsIpAddress = isIpAddress(s);
     }
 
     static class Helper {
@@ -348,6 +408,81 @@ public class NatsUri {
         }
     }
 
+    /**
+     * The host and port of a {@code connect_urls} entry, in the form nats-server writes: {@code host:port}, with an
+     * IPv6 address in brackets. User info before the host ({@code user@host:port}, {@code user:pass@host:port}) is
+     * dropped, since a discovered server is sent the credentials used for the server that reported it. An entry that
+     * carries a scheme ({@code nats://host:port}, {@code ws://host:port}) is not used, not even reduced to its host
+     * and port, since a discovered server is dialed with the transport and the TLS of the server that reported it.
+     * An entry that does not parse as {@code host:port} once user info is dropped, or whose port is outside 1 to 65535,
+     * is not used. The host is checked the way {@link URI} checks a host, and kept as written.
+     * @param entry the entry as the server sent it
+     * @return the {@code host:port} of the entry
+     * @throws URISyntaxException when the entry is not used; the reason says why
+     */
+    @NonNull
+    public static String discoveredHostPort(@NonNull String entry) throws URISyntaxException {
+        if (entry.contains(COLON_SLASH_SLASH)) {
+            throw new URISyntaxException(entry, ENTRY_CARRIES_A_SCHEME);
+        }
+        String hostPort = entry.substring(entry.lastIndexOf('@') + 1); // drops user info; drops nothing when there is no @
+        int colon = hostPort.lastIndexOf(':');
+        if (colon < 1 || colon == hostPort.length() - 1) {
+            throw new URISyntaxException(entry, ENTRY_NOT_HOST_PORT);
+        }
+        String host = hostPort.substring(0, colon);
+        if (host.startsWith("[") ? !host.endsWith("]") : host.indexOf(':') != -1) {
+            // an IPv6 address is in brackets; a colon anywhere else in the host means this is not host:port
+            throw new URISyntaxException(entry, ENTRY_NOT_HOST_PORT);
+        }
+        int port = 0;
+        for (int i = colon + 1; i < hostPort.length(); i++) {
+            char c = hostPort.charAt(i);
+            if (c < '0' || c > '9') {
+                throw new URISyntaxException(entry, ENTRY_NOT_HOST_PORT);
+            }
+            port = port * 10 + (c - '0');
+            if (port > 65535) {
+                throw new URISyntaxException(entry, ENTRY_PORT_OUT_OF_RANGE);
+            }
+        }
+        if (port == 0) {
+            throw new URISyntaxException(entry, ENTRY_PORT_OUT_OF_RANGE);
+        }
+        URI uri;
+        try {
+            uri = new URI(NATS_PROTOCOL_SLASH_SLASH + host + ":" + port);
+        }
+        catch (URISyntaxException e) {
+            throw new URISyntaxException(entry, ENTRY_NOT_HOST_PORT);
+        }
+        // the whole host must have been taken as the host: a path, query or fragment character inside it ends the host early
+        if (!host.equals(uri.getHost()) || uri.getPort() != port) {
+            throw new URISyntaxException(entry, ENTRY_NOT_HOST_PORT);
+        }
+        return host + ":" + port;
+    }
+
+    /**
+     * Whether a host, as written in a uri or given as a TLS server name, is an ip address: an IPv4 dotted quad, or an
+     * IPv6 address with or without its brackets. A hostname that happens to contain a colon, such as
+     * {@code host:port}, is not an ip address.
+     * @param host the host
+     * @return true for an ip address
+     */
+    public static boolean isIpAddress(@NonNull String host) {
+        if (IPV4_RE.matcher(host).matches()) {
+            return true;
+        }
+        // an IPv6 address: hex digits, colons and dots, at least two colons, an optional zone
+        String h = host.startsWith("[") && host.endsWith("]") ? host.substring(1, host.length() - 1) : host;
+        int colons = 0;
+        for (int i = h.indexOf(':'); i != -1; i = h.indexOf(':', i + 1)) {
+            colons++;
+        }
+        return colons >= 2 && IPV6_RE.matcher(h).matches();
+    }
+
     @NonNull
     public static String join(@NonNull String delimiter, @NonNull List<NatsUri> uris) {
         StringBuilder sb = new StringBuilder();
@@ -360,11 +495,17 @@ public class NatsUri {
         return sb.toString();
     }
 
-    private String equivalentComparable() {
+    /**
+     * The key under which this server is told apart from others: its host, lower-cased, and its port, the way
+     * {@link #equivalent(NatsUri)} compares two uris.
+     * @return the key
+     */
+    @NonNull
+    public String hostPortKey() {
         return uri.getHost().toLowerCase() + ":" + uri.getPort();
     }
 
     public boolean equivalent(@NonNull NatsUri other) {
-        return equivalentComparable().compareTo(other.equivalentComparable()) == 0;
+        return hostPortKey().equals(other.hostPortKey());
     }
 }

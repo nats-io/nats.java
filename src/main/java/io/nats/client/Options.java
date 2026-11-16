@@ -18,6 +18,7 @@ import io.nats.client.support.*;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import javax.net.ssl.SNIHostName;
 import javax.net.ssl.SSLContext;
 import java.io.File;
 import java.io.IOException;
@@ -180,11 +181,13 @@ public class Options {
     public static final int DEFAULT_MAX_PINGS_OUT = 2;
 
     /**
-     * Default SSL protocol used to create an SSLContext if the {@link #PROP_SECURE
-     * secure property} is used.
+     * The SSLContext algorithm the client builds its contexts with, for the keystore and truststore properties,
+     * {@code opentls} and the trust-all context: {@value}, the highest TLS version the JVM supports, so the
+     * context offers TLS 1.3 where the JVM has it. On every connection, whatever the context, the client enables
+     * TLS 1.2 and above only and never falls back below TLS 1.2.
      * <p>This property is defined as {@value}</p>
      */
-    public static final String DEFAULT_SSL_PROTOCOL = "TLSv1.2";
+    public static final String DEFAULT_SSL_PROTOCOL = "TLS";
 
     /**
      * Default of pending message buffer that is used for buffering messages that
@@ -337,6 +340,8 @@ public class Options {
     public enum HostnameResolveMode {
         /**
          * Resolve host to all ip addresses allowing for connection attempts to try all ip addresses for a given hostname.
+         * The addresses are tried in turn within the one connection timeout of the attempt, so an address that does
+         * not answer can leave the rest to the next attempt, see {@link Builder#connectionTimeout(Duration)}.
          * Default mode. Does not include IPV6 addresses.
          */
         ResolveToAll(true, false, false),
@@ -349,6 +354,8 @@ public class Options {
 
         /**
          * Resolve host to all ip addresses allowing for connection attempts to try all ip addresses for a given hostname.
+         * The addresses are tried in turn within the one connection timeout of the attempt, so an address that does
+         * not answer can leave the rest to the next attempt, see {@link Builder#connectionTimeout(Duration)}.
          * Includes IPV6 addresses.
          */
         ResolveToAllIncludeIPV6(true, false, true),
@@ -499,6 +506,11 @@ public class Options {
      * reconnectJitterTls}.
      */
     public static final String PROP_RECONNECT_JITTER_TLS = PFX + "reconnect.jitter.tls";
+    /**
+     * Property used to keep reconnecting after repeated authorization errors instead of closing,
+     * see {@link Builder#ignoreAuthErrorAbort() ignoreAuthErrorAbort}.
+     */
+    public static final String PROP_IGNORE_AUTH_ERROR_ABORT = PFX + "ignore.auth.error.abort";
     /**
      * Property used to set class name for the ReconnectDelayHandler implementation
      * {@link Builder#reconnectDelayHandler(ReconnectDelayHandler) reconnectDelayHandler}.
@@ -720,6 +732,17 @@ public class Options {
      */
     public static final String PROP_TLS_VERIFY_HOSTNAME = PFX + "tls.verify.hostname";
     /**
+     * Property used to set the TLS server name: the name the certificate of every server is verified against
+     * and sent to the server as the TLS server name (SNI), see {@link Builder#tlsServerName(String) tlsServerName}.
+     */
+    public static final String PROP_TLS_SERVER_NAME = PFX + "tls.server.name";
+    /**
+     * Property used to verify a discovered server given as an ip address against that address instead of the
+     * hostname it inherits, and to connect to one that has no name to inherit,
+     * see {@link Builder#tlsVerifyDiscoveredByIp() tlsVerifyDiscoveredByIp}.
+     */
+    public static final String PROP_TLS_VERIFY_DISCOVERED_BY_IP = PFX + "tls.verify.discovered.by.ip";
+    /**
      * This property is used to enable support for UTF8 subjects. See {@link Builder#supportUTF8Subjects() supportUTF8Subjects()}
      */
     public static final String PROP_UTF8_SUBJECTS = "allow.utf8.subjects";
@@ -930,8 +953,11 @@ public class Options {
     private final int maxMessagesInOutgoingQueue;
     private final boolean discardMessagesWhenOutgoingQueueFull;
     private final boolean ignoreDiscoveredServers;
+    private final boolean ignoreAuthErrorAbort;
     private final boolean tlsFirst;
     private final boolean tlsVerifyHostname;
+    private final String tlsServerName;
+    private final boolean tlsVerifyDiscoveredByIp;
     private final boolean useTimeoutException;
     private final boolean advancedRequestBehavior;
     private final boolean useDispatcherWithExecutor;
@@ -1103,8 +1129,11 @@ public class Options {
         private int maxMessagesInOutgoingQueue = DEFAULT_MAX_MESSAGES_IN_OUTGOING_QUEUE;
         private boolean discardMessagesWhenOutgoingQueueFull = DEFAULT_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL;
         private boolean ignoreDiscoveredServers = false;
+        private boolean ignoreAuthErrorAbort = false;
         private boolean tlsFirst = false;
         private boolean tlsVerifyHostname = true;
+        private String tlsServerName = null;
+        private boolean tlsVerifyDiscoveredByIp = false;
         private boolean useTimeoutException = false;
         private boolean advancedRequestBehavior = false;
         private boolean useDispatcherWithExecutor = false;
@@ -1264,8 +1293,11 @@ public class Options {
             booleanProperty(props, PROP_DISCARD_MESSAGES_WHEN_OUTGOING_QUEUE_FULL, b -> this.discardMessagesWhenOutgoingQueueFull = b);
 
             booleanProperty(props, PROP_IGNORE_DISCOVERED_SERVERS, b -> this.ignoreDiscoveredServers = b);
+            booleanProperty(props, PROP_IGNORE_AUTH_ERROR_ABORT, b -> this.ignoreAuthErrorAbort = b);
             booleanProperty(props, PROP_TLS_FIRST, b -> this.tlsFirst = b);
             booleanProperty(props, PROP_TLS_VERIFY_HOSTNAME, b -> this.tlsVerifyHostname = b);
+            stringProperty(props, PROP_TLS_SERVER_NAME, this::tlsServerName);
+            booleanProperty(props, PROP_TLS_VERIFY_DISCOVERED_BY_IP, b -> this.tlsVerifyDiscoveredByIp = b);
             booleanProperty(props, PROP_USE_TIMEOUT_EXCEPTION, b -> this.useTimeoutException = b);
             booleanProperty(props, PROP_ADVANCED_REQUEST_BEHAVIOR, b -> this.advancedRequestBehavior = b);
             booleanProperty(props, PROP_USE_DISPATCHER_WITH_EXECUTOR, b -> this.useDispatcherWithExecutor = b);
@@ -1335,7 +1367,9 @@ public class Options {
                         }
                     }
                     catch (URISyntaxException e) {
-                        throw new IllegalArgumentException(e);
+                        // the url with its credentials hidden: this error is the one that gets pasted into a ticket
+                        String redacted = NatsUri.redactUrl(s.trim());
+                        throw new IllegalArgumentException(e.getReason() + ": " + redacted, new URISyntaxException(redacted, e.getReason()));
                     }
                 }
             }
@@ -1678,8 +1712,15 @@ public class Options {
          * Set the maximum number of reconnect attempts. Use 0 to turn off
          * auto-reconnect. Use -1 to turn on infinite reconnects.
          *
-         * <p>The reconnect count is incremented on a per-server basis, so if the server list contains 5 servers
-         * but max reconnects is set to 3, only 3 of those servers will be tried.</p>
+         * <p>The count is kept per server: a server leaves the list once its failed attempts reach the limit, and a
+         * successful connect resets the count of the server it connected to, only. A server that leaves the list
+         * keeps its count, and a server that enters the list, discovered from the cluster or named again after it
+         * left, starts at the higher of that kept count and the highest count of any server in the list, and at
+         * the limit it does not enter, so a cluster whose servers keep naming each other cannot keep the client
+         * reconnecting past the limit. The counts accumulate across the reconnects of a connection, since a
+         * successful connect resets the server it connected to only: a server that is down during several partial
+         * outages reaches the limit without a full outage, and a server that left at its limit, configured or
+         * discovered, stays out while the connection lasts.</p>
          *
          * <p>This library has a slight difference from some NATS clients, if you set the maxReconnects to zero
          * there will not be any reconnect attempts, regardless of the number of known servers.</p>
@@ -1715,11 +1756,15 @@ public class Options {
         /**
          * Set the jitter time to wait between reconnect attempts to the same server. This setting is used to vary
          * the reconnect wait to avoid multiple clients trying to reconnect to servers at the same time.
+         * Zero, or null, means no jitter: the wait is the reconnect wait alone.
          *
-         * @param time the time to wait
+         * @param time the time to wait, not negative
          * @return the Builder for chaining
          */
         public Builder reconnectJitter(Duration time) {
+            if (time != null && time.isNegative()) {
+                throw new IllegalArgumentException("reconnectJitter cannot be negative");
+            }
             this.reconnectJitter = time;
             return this;
         }
@@ -1727,12 +1772,15 @@ public class Options {
         /**
          * Set the jitter time for a tls/secure connection to wait between reconnect attempts to the same server.
          * This setting is used to vary the reconnect wait to avoid multiple clients trying to reconnect to
-         * servers at the same time.
+         * servers at the same time. Zero, or null, means no jitter: the wait is the reconnect wait alone.
          *
-         * @param time the time to wait
+         * @param time the time to wait, not negative
          * @return the Builder for chaining
          */
         public Builder reconnectJitterTls(Duration time) {
+            if (time != null && time.isNegative()) {
+                throw new IllegalArgumentException("reconnectJitterTls cannot be negative");
+            }
             this.reconnectJitterTls = time;
             return this;
         }
@@ -1751,8 +1799,12 @@ public class Options {
         }
 
         /**
-         * Set the timeout for connection attempts. Each server in the options is allowed this timeout
-         * so if 3 servers are tried with a timeout of 5s the total time could be 15s.
+         * Set the timeout for connection attempts: one budget per attempt, from the TCP connect to the first PONG,
+         * which the TLS handshake, a WebSocket upgrade, INFO and CONNECT share. A name that resolves to several
+         * addresses is one attempt: the addresses are tried in turn within this one budget, so an address that uses
+         * it up leaves the rest to the next attempt. The name lookup of a server runs before its attempt under a
+         * timer of its own, of this same duration. Each server in the options is allowed this timeout so if 3 servers
+         * are tried with a timeout of 5s the total time could be 15s.
          *
          * @param connectionTimeout the time to wait
          * @return the Builder for chaining
@@ -1763,8 +1815,12 @@ public class Options {
         }
 
         /**
-         * Set the timeout for connection attempts. Each server in the options is allowed this timeout
-         * so if 3 servers are tried with a timeout of 5s the total time could be 15s.
+         * Set the timeout for connection attempts: one budget per attempt, from the TCP connect to the first PONG,
+         * which the TLS handshake, a WebSocket upgrade, INFO and CONNECT share. A name that resolves to several
+         * addresses is one attempt: the addresses are tried in turn within this one budget, so an address that uses
+         * it up leaves the rest to the next attempt. The name lookup of a server runs before its attempt under a
+         * timer of its own, of this same duration. Each server in the options is allowed this timeout so if 3 servers
+         * are tried with a timeout of 5s the total time could be 15s.
          *
          * @param connectionTimeoutMillis the time to wait in milliseconds
          * @return the Builder for chaining
@@ -2105,6 +2161,12 @@ public class Options {
          * (or {@link #readerThreadFactory(ThreadFactory) readerThreadFactory}/{@link #writerThreadFactory(ThreadFactory) writerThreadFactory})
          * rather than shrinking this one.
          *
+         * <p>Each connection attempt also runs the data port's connect, and in the resolving hostname modes the name
+         * lookup, as tasks on this executor beside the thread that runs the connect or the reconnect, each under the
+         * connection timeout. A fixed pool must have room for them: with no thread free, every attempt ends in the
+         * connection timeout. A lookup the connection gave up on keeps its thread until the resolver returns, and a
+         * later attempt for the same server waits on that lookup instead of starting another.</p>
+         *
          * @param executor The ExecutorService to use for connections built with these options.
          * @return the Builder for chaining
          */
@@ -2301,6 +2363,21 @@ public class Options {
         }
 
         /**
+         * Keep reconnecting after repeated authorization errors. By default, when a server answers the same
+         * authorization error twice in a row during a reconnect, an authorization violation, an expired user
+         * authentication or an expired account, the connection stops reconnecting and closes, since credentials
+         * do not mend on their own. With this option it keeps reconnecting until it is closed or
+         * {@link #maxReconnects(int) maxReconnects} is reached, as nats.go's {@code IgnoreAuthErrorAbort} does.
+         * An error line received before a TLS handshake never counts toward the abort. The errors that count are
+         * the ones {@code NatsConnection.isAuthenticationError} recognizes; that method is their definition.
+         * @return the Builder for chaining
+         */
+        public Builder ignoreAuthErrorAbort() {
+            this.ignoreAuthErrorAbort = true;
+            return this;
+        }
+
+        /**
          * Set TLS Handshake First behavior on. Default is off.
          * TLS Handshake First is used to instruct the library perform
          * the TLS handshake right after the connect and before receiving
@@ -2326,23 +2403,65 @@ public class Options {
          * or the ip address when the server was configured by ip address, in which case the
          * certificate must carry that address as a subject alternative name.
          * The check is the one the JDK performs for HTTPS, against the certificate's
-         * subject alternative names. A server discovered from connect_urls as a bare ip address
-         * is checked against the hostname of the server that supplied it, when that server was
-         * configured by hostname; otherwise it is checked as an ip address.
+         * subject alternative names. The same name is sent to the server as the TLS server name (SNI),
+         * with one trailing dot stripped; for an ip address no server name is sent.
+         * A server discovered from connect_urls as a bare ip address
+         * is checked against the hostname it inherits from the server that reported it, over any number of hops:
+         * the hostname that server was configured with, or the one it inherited itself. With no name to inherit,
+         * behind a server configured by ip address, the client does not connect to it over TLS unless
+         * {@link #tlsVerifyDiscoveredByIp() tlsVerifyDiscoveredByIp} is set, which checks it as an ip address.
+         * {@link #tlsServerName(String) tlsServerName} replaces every one of these names with one name.
          * The check is performed by the trust manager in use. The JDK performs it for its own
          * trust managers, which an SSLContext built from a keystore and truststore or the default
          * SSLContext has, and for any plain X509TrustManager, which it wraps, including the
          * trust-all manager of {@link #opentls() opentls}. A custom X509ExtendedTrustManager
          * is responsible for its own identity check.
          * <p>
-         * Turning it off removes the proof that the server is the one named in the url.
-         * Do that only where the certificate is known not to name the server, such as development
-         * against a self-signed certificate, and prefer reissuing the certificate for the name.
+         * When the certificate does not carry the name, set {@link #tlsServerName(String) tlsServerName} to a name
+         * it carries, or reissue the certificate for the name. Turning the check off is the last resort: it removes
+         * the proof that the server is the one named in the url. Do that only where the certificate is known not to
+         * name the server, such as development against a self-signed certificate.
          * @param tlsVerifyHostname true to verify, false to skip the check
          * @return the Builder for chaining
          */
         public Builder tlsVerifyHostname(boolean tlsVerifyHostname) {
             this.tlsVerifyHostname = tlsVerifyHostname;
+            return this;
+        }
+
+        /**
+         * Set the TLS server name: the name the certificate of every server, configured or discovered, is verified
+         * against and sent to the server as the TLS server name (SNI), in place of the name each server is reached
+         * with and of the hostname a discovered ip address inherits from the server that reported it. It is the first
+         * remedy when a certificate does not carry the name in the url: servers reached by ip address, or through a
+         * load balancer, proxy or service name, whose certificates all carry one name. One trailing dot is stripped.
+         * A name that is an ip address is verified as one, against the certificate's ip subject alternative names,
+         * and no server name is sent.
+         * <p>
+         * A TLS server name asks for TLS. When no SSL context comes from the other settings, the default SSL context
+         * is used, the same as {@link #secure()}.
+         * @param tlsServerName the name, or null or empty for the name of each server
+         * @return the Builder for chaining
+         */
+        public Builder tlsServerName(String tlsServerName) {
+            this.tlsServerName = tlsServerName == null ? null : emptyAsNull(tlsServerName.trim());
+            return this;
+        }
+
+        /**
+         * Verify a server discovered from connect_urls as an ip address against that address, instead of the hostname
+         * it inherits from the server that reported it, with no server name (SNI) sent, and connect to a discovered
+         * ip address that has no name to inherit, which the client otherwise skips. For clusters whose node
+         * certificates carry only ip addresses; safe only where the CA that issued them is not shared with others.
+         * It has no effect while {@link #tlsServerName(String) tlsServerName} is set, which names every server, and
+         * none with the name check turned off. Off by default.
+         * <p>
+         * Like a TLS server name it asks for TLS: when no SSL context comes from the other settings, the default SSL
+         * context is used, the same as {@link #secure()}.
+         * @return the Builder for chaining
+         */
+        public Builder tlsVerifyDiscoveredByIp() {
+            this.tlsVerifyDiscoveredByIp = true;
             return this;
         }
 
@@ -2444,6 +2563,20 @@ public class Options {
                 checkUrisForSecure = false;
             }
 
+            if (tlsServerName != null) {
+                // ADR-40, certificate verification: the TLS server name is a hostname, as a certificate names a server,
+                // or an ip address. Anything else, such as host:port, is a configuration error, not a failed handshake
+                String name = tlsServerName.length() > 1 && tlsServerName.endsWith(".") ? tlsServerName.substring(0, tlsServerName.length() - 1) : tlsServerName;
+                if (!NatsUri.isIpAddress(name)) {
+                    try {
+                        new SNIHostName(name);
+                    }
+                    catch (IllegalArgumentException e) {
+                        throw new IllegalStateException("tlsServerName must be a hostname or an ip address, as a certificate names a server: " + tlsServerName, e);
+                    }
+                }
+            }
+
             // ssl context can be directly provided, but if it's not
             // there might be a factory, or just see if we should make it ourselves
             if (sslContext == null) {
@@ -2485,8 +2618,9 @@ public class Options {
                             }
                         }
 
-                        // tls first asks for TLS: when nothing else has chosen a context, it uses the default one
-                        if (tlsFirst && !useTrustAllTls) {
+                        // tls first, a tls server name and verify discovered by ip ask for TLS: when nothing else has
+                        // chosen a context, the default one
+                        if ((tlsFirst || tlsServerName != null || tlsVerifyDiscoveredByIp) && !useTrustAllTls) {
                             useDefaultTls = true;
                         }
 
@@ -2523,7 +2657,7 @@ public class Options {
             if (sslContext != null) {
                 for (NatsUri natsUri : natsServerUris) {
                     if (WEBSOCKET_PROTOCOL.equals(natsUri.getScheme())) {
-                        throw new IllegalStateException("Options require TLS (secure, opentls, an SSL context, keystore or truststore, an SSL context factory, or a tls, wss or opentls server url), but the server list has a ws:// server, which is never upgraded to TLS. Use wss:// for that server.");
+                        throw new IllegalStateException("Options require TLS (secure, opentls, tls first, a tls server name, verify discovered by ip, an SSL context, keystore or truststore, an SSL context factory, or a tls, wss or opentls server url), but the server list has a ws:// server, which is never upgraded to TLS. Use wss:// for that server.");
                     }
                 }
             }
@@ -2661,8 +2795,11 @@ public class Options {
             this.proxy = o.proxy;
 
             this.ignoreDiscoveredServers = o.ignoreDiscoveredServers;
+            this.ignoreAuthErrorAbort = o.ignoreAuthErrorAbort;
             this.tlsFirst = o.tlsFirst;
             this.tlsVerifyHostname = o.tlsVerifyHostname;
+            this.tlsServerName = o.tlsServerName;
+            this.tlsVerifyDiscoveredByIp = o.tlsVerifyDiscoveredByIp;
             this.useTimeoutException = o.useTimeoutException;
             this.advancedRequestBehavior = o.advancedRequestBehavior;
             this.useDispatcherWithExecutor = o.useDispatcherWithExecutor;
@@ -2746,8 +2883,11 @@ public class Options {
         this.proxy = b.proxy;
 
         this.ignoreDiscoveredServers = b.ignoreDiscoveredServers;
+        this.ignoreAuthErrorAbort = b.ignoreAuthErrorAbort;
         this.tlsFirst = b.tlsFirst;
         this.tlsVerifyHostname = b.tlsVerifyHostname;
+        this.tlsServerName = b.tlsServerName;
+        this.tlsVerifyDiscoveredByIp = b.tlsVerifyDiscoveredByIp;
         this.useTimeoutException = b.useTimeoutException;
         this.advancedRequestBehavior = b.advancedRequestBehavior;
         this.useDispatcherWithExecutor = b.useDispatcherWithExecutor;
@@ -3160,7 +3300,9 @@ public class Options {
     }
 
     /**
-     * the servers as configured in options as URI's, see {@link Builder#servers(String[]) servers()} in the builder doc
+     * the servers as configured in options as URI's, see {@link Builder#servers(String[]) servers()} in the builder doc.
+     * The URIs carry the credentials they were configured with, if any; for a log use
+     * {@link NatsUri#redactUrl(String)} on their string form.
      * @return the processed servers
      */
     public List<URI> getServers() {
@@ -3568,6 +3710,15 @@ public class Options {
     }
 
     /**
+     * Get whether the connection keeps reconnecting after repeated authorization errors,
+     * see {@link Builder#ignoreAuthErrorAbort() ignoreAuthErrorAbort()} in the builder doc
+     * @return the flag
+     */
+    public boolean isIgnoreAuthErrorAbort() {
+        return ignoreAuthErrorAbort;
+    }
+
+    /**
      * Get whether to do tls first
      * @return the flag
      */
@@ -3582,6 +3733,25 @@ public class Options {
      */
     public boolean isTlsVerifyHostname() {
         return tlsVerifyHostname;
+    }
+
+    /**
+     * Get the TLS server name, the name the certificate of every server is verified against and sent as the
+     * TLS server name (SNI), see {@link Builder#tlsServerName(String) tlsServerName(String)} in the builder doc
+     * @return the name, or null when each server's own name is used
+     */
+    @Nullable
+    public String getTlsServerName() {
+        return tlsServerName;
+    }
+
+    /**
+     * Get whether a discovered server given as an ip address is verified against that address, and connected to
+     * when it has no name to inherit, see {@link Builder#tlsVerifyDiscoveredByIp() tlsVerifyDiscoveredByIp()}
+     * @return the flag
+     */
+    public boolean isTlsVerifyDiscoveredByIp() {
+        return tlsVerifyDiscoveredByIp;
     }
 
     /**

@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2015-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -15,21 +15,35 @@ package io.nats.client;
 
 import io.nats.client.ConnectionListener.Events;
 import io.nats.client.NatsServerProtocolMock.ExitAt;
+import io.nats.client.Options.HostnameResolveMode;
 import io.nats.client.api.ServerInfo;
+import io.nats.client.impl.AbandonedConnectDataPort;
 import io.nats.client.impl.ListenerForTesting;
+import io.nats.client.impl.NatsServerPool;
 import io.nats.client.impl.SimulateSocketDataPortException;
+import io.nats.client.support.NatsUri;
 import io.nats.client.support.SSLUtils;
+import io.nats.client.support.ssl.SslTestingHelper;
+import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
 
+import javax.net.ssl.SSLContext;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -307,6 +321,269 @@ public class ConnectTests {
 
         assertTrue(listener.getExceptionCount() > 0);
         assertTrue(listener.getEventCount(Events.CLOSED) > 0);
+    }
+
+    @Test
+    public void testAddressesOfOneNameShareOneAttemptBudget() throws Exception {
+        // ADR-40, connection timeout: a name that resolves to several addresses is one attempt, the addresses tried
+        // in turn under one budget. Before, every address got a full connection timeout of its own. A listener that
+        // accepts and never sends INFO makes each address burn the budget: three addresses took three timeouts
+        try (java.net.ServerSocket silent = new java.net.ServerSocket(0, 3, InetAddress.getLoopbackAddress())) {
+            String ip = silent.getInetAddress().getHostAddress();
+            ServerPool threeAddresses = new io.nats.client.impl.NatsServerPool() {
+                @Override
+                public List<String> resolveHostToIps(@org.jspecify.annotations.NonNull String host, boolean maxOneResult, boolean includeIPV6) {
+                    List<String> ips = new ArrayList<>();
+                    ips.add(ip);
+                    ips.add(ip);
+                    ips.add(ip);
+                    return ips;
+                }
+            };
+            Options options = new Options.Builder()
+                .server("nats://nats.three.test:" + silent.getLocalPort())
+                .serverPool(threeAddresses)
+                .maxReconnects(0)
+                .connectionTimeout(Duration.ofSeconds(1))
+                .build();
+            long start = System.currentTimeMillis();
+            assertThrows(IOException.class, () -> Nats.connect(options));
+            long elapsed = System.currentTimeMillis() - start;
+            assertTrue(elapsed < 2500, "three addresses must share the 1 s budget, not take 3 s: " + elapsed + " ms");
+        }
+    }
+
+    @Test
+    public void testNameLookupIsBoundedByTheConnectionTimeout() throws Exception {
+        // ADR-40, connection timeout: the name lookup is outside the attempt's budget and bounded by a timer of its
+        // own. A resolver that hangs ended the connect only when it returned; now the attempt for that server fails
+        // once the connection timeout passes, and the failure is reported
+        ListenerForTesting listener = new ListenerForTesting();
+        AtomicBoolean lookupInterrupted = new AtomicBoolean();
+        ServerPool hangingResolver = new io.nats.client.impl.NatsServerPool() {
+            @Override
+            public List<String> resolveHostToIps(@org.jspecify.annotations.NonNull String host, boolean maxOneResult, boolean includeIPV6) {
+                try {
+                    Thread.sleep(30_000);
+                }
+                catch (InterruptedException e) {
+                    lookupInterrupted.set(true);
+                }
+                return null;
+            }
+        };
+        Options options = new Options.Builder()
+            .server("nats://nats.lookup.test:4222")
+            .serverPool(hangingResolver)
+            .maxReconnects(0)
+            .connectionTimeout(Duration.ofSeconds(1))
+            .errorListener(listener)
+            .build();
+        long start = System.currentTimeMillis();
+        assertThrows(IOException.class, () -> Nats.connect(options));
+        long elapsed = System.currentTimeMillis() - start;
+        assertTrue(elapsed < 5000, "the connect should fail once the lookup timer passed: " + elapsed + " ms");
+        assertTrue(listener._eventually(2000, listener::getExceptions, e -> String.valueOf(e.getMessage()).contains("name lookup of nats.lookup.test")), listener.getExceptions().toString());
+        assertTrue(listener._eventually(2000, () -> java.util.Collections.singletonList(lookupInterrupted.get()), b -> b), "the hung lookup's thread was released when the closed connection shut its executor down");
+    }
+
+    @Test
+    public void testAHungLookupIsNotRepeatedEveryRound() throws Exception {
+        // a lookup the connection gave up on stays in flight, and a later round for the same server waits on it
+        // instead of starting another: one lookup thread per unresolved server, not one per round. Before, every
+        // round submitted a new lookup while the earlier ones were still blocked in the resolver
+        CountDownLatch release = new CountDownLatch(1);
+        AtomicInteger lookups = new AtomicInteger();
+        ServerPool blockingResolver = new NatsServerPool() {
+            @Override
+            public List<String> resolveHostToIps(@NonNull String host, boolean maxOneResult, boolean includeIPV6) {
+                lookups.incrementAndGet();
+                try {
+                    release.await();
+                }
+                catch (InterruptedException e) {
+                    // the closed connection shut the executor down
+                }
+                return null;
+            }
+        };
+        Options options = new Options.Builder()
+            .server("nats://nats.lookup.test:4222")
+            .serverPool(blockingResolver)
+            .maxReconnects(3)
+            .reconnectWait(Duration.ofMillis(50))
+            .reconnectJitter(Duration.ZERO)
+            .connectionTimeout(Duration.ofMillis(200))
+            .build();
+        try (Connection nc = Nats.connectReconnectOnConnect(options)) {
+            assertEquals(Connection.Status.CLOSED, nc.getStatus(), "the reconnect ran out of attempts");
+        }
+        catch (IOException ignore) {
+            // ends closed either way
+        }
+        finally {
+            release.countDown();
+        }
+        assertEquals(1, lookups.get(), "one lookup for the server across the connect and every reconnect round");
+    }
+
+    // a pool that answers one host's lookup by sleeping past the connection timeout, and counts the failures it is told of
+    static class HangingLookupPool extends NatsServerPool {
+        final String hangingHost;
+        final Map<String, Integer> failed = new ConcurrentHashMap<>();
+
+        HangingLookupPool(String hangingHost) {
+            this.hangingHost = hangingHost;
+        }
+
+        @Override
+        public List<String> resolveHostToIps(@NonNull String host, boolean maxOneResult, boolean includeIPV6) {
+            if (!host.equals(hangingHost)) {
+                return super.resolveHostToIps(host, maxOneResult, includeIPV6);
+            }
+            try {
+                Thread.sleep(30_000);
+            }
+            catch (InterruptedException e) {
+                // the connection gave up on this lookup
+            }
+            return null;
+        }
+
+        @Override
+        public void connectFailed(@NonNull NatsUri nuri) {
+            failed.merge(nuri.getHost(), 1, Integer::sum);
+            super.connectFailed(nuri);
+        }
+    }
+
+    @Test
+    public void testLookupFailureIsAFailedAttemptNotATlsMismatch() throws Exception {
+        // a server whose name lookup does not finish within the connection timeout is a failed attempt of that server:
+        // reported through exceptionOccurred, the cause of the connect's failure, counted toward the server's limit,
+        // and never a TLS mismatch. Before, next to a server that failed with the mismatch, the lookup failure left
+        // the mismatch standing as every server's, and the connection closed without retrying
+        SSLContext context = SslTestingHelper.createTestSSLContext();
+        String hangingHost = "nats.lookup.test";
+        try (NatsTestServer plain = new NatsTestServer()) { // offers no TLS: a mismatch for a client that requires it
+            String plainServer = plain.getURI();
+            String hangingServer = "nats://" + hangingHost + ":4222";
+
+            // one pass over the pool: the mismatch, then the lookup that runs out of time
+            HangingLookupPool pool = new HangingLookupPool(hangingHost);
+            ListenerForTesting listener = new ListenerForTesting();
+            Options options = new Options.Builder()
+                .server(plainServer).server(hangingServer).noRandomize()
+                .sslContext(context)
+                .serverPool(pool)
+                .connectionTimeout(Duration.ofMillis(500))
+                .maxReconnects(0)
+                .errorListener(listener)
+                .build();
+            IOException e = assertThrows(IOException.class, () -> Nats.connect(options));
+            assertTrue(e.getMessage().startsWith("Unable to connect to NATS servers"), e.getMessage());
+            assertFalse(e.getMessage().contains("TLS mismatch"), e.getMessage());
+            assertNotNull(e.getCause(), "the lookup's failure is the cause");
+            assertTrue(String.valueOf(e.getCause().getMessage()).contains("name lookup of " + hangingHost + " did not finish"), String.valueOf(e.getCause()));
+            assertEquals(1, pool.failed.get(hangingHost), "the pool is told of the failed attempt: " + pool.failed);
+            assertTrue(listener._eventually(2000, listener::getExceptions, x -> String.valueOf(x.getMessage()).contains("name lookup of " + hangingHost)), listener.getExceptions().toString());
+
+            // the reconnect loop: the rounds go on until both servers reach their limit, each round failing the lookup
+            // once more. Before, the first round ended on the mismatch as every server's and the connection closed
+            pool = new HangingLookupPool(hangingHost);
+            listener = new ListenerForTesting();
+            Options reconnecting = new Options.Builder()
+                .server(plainServer).server(hangingServer).noRandomize()
+                .sslContext(context)
+                .serverPool(pool)
+                .connectionTimeout(Duration.ofMillis(500))
+                .maxReconnects(3)
+                .reconnectWait(Duration.ofMillis(100))
+                .reconnectJitter(Duration.ZERO)
+                .errorListener(listener)
+                .build();
+            try (Connection nc = Nats.connectReconnectOnConnect(reconnecting)) {
+                assertEquals(Connection.Status.CLOSED, nc.getStatus(), "the reconnect ran out of servers");
+            }
+            catch (IOException ignore) {
+                // ends closed either way
+            }
+            int plainFailures = pool.failed.getOrDefault(new NatsUri(plainServer).getHost(), 0);
+            int lookupFailures = pool.failed.getOrDefault(hangingHost, 0);
+            assertEquals(plainFailures, lookupFailures, "the lookup server is counted like the other: " + pool.failed);
+            assertTrue(lookupFailures >= 3, "the rounds went on past the first: " + pool.failed);
+            ListenerForTesting reported = listener;
+            assertTrue(reported._eventually(2000, () -> java.util.Collections.singletonList(reported.getExceptions().stream().filter(x -> String.valueOf(x.getMessage()).contains("name lookup of " + hangingHost)).count()), n -> n >= 3), reported.getExceptions().toString());
+        }
+    }
+
+    @Test
+    public void testLookupThatCannotBeStartedIsAFailedAttempt() throws Exception {
+        // a lookup the executor refuses is a failed attempt of its server and the cause of the connect's failure;
+        // before, the RejectedExecutionException came out of connect itself
+        ThreadPoolExecutor oneThread = new ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS, new SynchronousQueue<>(), new ThreadPoolExecutor.AbortPolicy());
+        CountDownLatch release = new CountDownLatch(1);
+        oneThread.execute(() -> {
+            try {
+                release.await();
+            }
+            catch (InterruptedException ignore) {
+                // released by the test
+            }
+        });
+        try {
+            Options options = new Options.Builder()
+                .server("nats://nats.lookup.test:4222")
+                .executor(oneThread)
+                .maxReconnects(0)
+                .connectionTimeout(Duration.ofMillis(500))
+                .build();
+            IOException e = assertThrows(IOException.class, () -> Nats.connect(options));
+            assertTrue(e.getMessage().startsWith("Unable to connect to NATS servers"), e.getMessage());
+            assertNotNull(e.getCause(), "the lookup's failure is the cause");
+            assertTrue(String.valueOf(e.getCause().getMessage()).contains("name lookup of nats.lookup.test could not be started"), String.valueOf(e.getCause()));
+            assertTrue(e.getCause().getCause() instanceof RejectedExecutionException, String.valueOf(e.getCause().getCause()));
+        }
+        finally {
+            release.countDown();
+            oneThread.shutdownNow();
+        }
+    }
+
+    @Test
+    public void testAnAttemptAbandonedAtItsDeadlineLeavesNoOpenSocketAndNoWriteWatchTask() throws Exception {
+        // an attempt the connection abandons at its deadline force-closes its port while the port's connect is still
+        // running. When that connect completes afterwards it closes the socket it got and fails, and the write-timeout
+        // port schedules no watch task; before, the socket stayed open and the task ran for nobody on the scheduled
+        // executor. The next attempt, with a port that connects at once, reaches the server
+        try (NatsTestServer ts = new NatsTestServer()) {
+            for (HostnameResolveMode mode : new HostnameResolveMode[]{HostnameResolveMode.ResolveToAll, HostnameResolveMode.HappyEyeballs}) {
+                AbandonedConnectDataPort.reset();
+                ScheduledThreadPoolExecutor scheduled = new ScheduledThreadPoolExecutor(1);
+                try {
+                    Options options = new Options.Builder()
+                        .server(ts.getURI())
+                        .dataPortType(AbandonedConnectDataPort.class.getName())
+                        .scheduledExecutor(scheduled)
+                        .hostnameResolveMode(mode)
+                        .connectionTimeout(Duration.ofMillis(500))
+                        .reconnectWait(Duration.ofMillis(100))
+                        .maxReconnects(5)
+                        .build();
+                    try (Connection nc = Nats.connectReconnectOnConnect(options)) {
+                        assertEquals(Connection.Status.CONNECTED, nc.getStatus(), mode + ": the second attempt connects");
+                        int tasksBefore = scheduled.getQueue().size();
+                        AbandonedConnectDataPort.proceed.countDown();
+                        String outcome = AbandonedConnectDataPort.outcome.get(5, TimeUnit.SECONDS);
+                        assertEquals("closed during connect, socket null", outcome, mode.name());
+                        assertEquals(tasksBefore, scheduled.getQueue().size(), mode + ": no write-watch task for the abandoned attempt");
+                    }
+                }
+                finally {
+                    scheduled.shutdownNow();
+                }
+            }
+        }
     }
 
     @Test

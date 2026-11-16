@@ -14,12 +14,16 @@
 package io.nats.client.impl;
 
 import io.nats.client.*;
+import io.nats.client.support.Encoding;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
@@ -61,14 +65,162 @@ public class InfoHandlerTests {
             Options options = new Options.Builder()
                 .server("nats://localhost:" + ss.getLocalPort())
                 .maxReconnects(0)
-                .connectionTimeout(Duration.ofMillis(500))
+                .connectionTimeout(Duration.ofSeconds(5))
                 .errorListener(listener)
                 .build();
-            assertThrows(IOException.class, () -> Nats.connect(options));
-            assertTrue(listener.getErrors().stream().anyMatch(e -> e.contains("maximum connections exceeded")),
+            // ADR-40, malformed input: a -ERR after which the server closes the connection fails the attempt with
+            // the server's error, at once, not when the attempt's budget runs out
+            long start = System.currentTimeMillis();
+            IOException e = assertThrows(IOException.class, () -> Nats.connect(options));
+            long elapsed = System.currentTimeMillis() - start;
+            assertTrue(elapsed < 3000, "the attempt should end at the close, not at the 5 s budget: " + elapsed + " ms");
+            boolean serverText = false;
+            for (Throwable t = e; t != null; t = t.getCause()) {
+                serverText |= String.valueOf(t.getMessage()).contains("maximum connections exceeded");
+            }
+            assertTrue(serverText, "expected the server's error in the cause chain of " + e);
+            assertTrue(listener.getErrors().stream().anyMatch(err -> err.contains("maximum connections exceeded")),
                 "errors: " + listener.getErrors() + " exceptions: " + listener.getExceptions());
-            assertTrue(listener.getExceptions().stream().noneMatch(e -> String.valueOf(e.getMessage()).contains("Read past initial info")),
+            assertTrue(listener.getExceptions().stream().noneMatch(ex -> String.valueOf(ex.getMessage()).contains("Read past initial info")),
                 listener.getExceptions().toString());
+        }
+    }
+
+    @Test
+    public void testInfoThatDoesNotParseIsSkippedOnAnEstablishedConnection() throws Exception {
+        // ADR-40, malformed input: on an established connection an INFO that does not parse is skipped and reported,
+        // and the connection stays up; the server's PING that follows is still answered. During an attempt such an
+        // INFO fails the attempt
+        String customInfo = "{\"server_id\":\"myid\", \"version\":\"9.9.99\"}";
+        CompletableFuture<Boolean> gotPong = new CompletableFuture<>();
+        CompletableFuture<Boolean> sendInfo = new CompletableFuture<>();
+        NatsServerProtocolMock.Customizer customizer = (ts, r, w) -> {
+            try {
+                sendInfo.get();
+            }
+            catch (Exception e) {
+                gotPong.cancel(true);
+                return;
+            }
+            w.write("INFO {\"server_id\":\"replacement\", \"version\": not json}\r\n");
+            w.write("PING\r\n");
+            w.flush();
+            try {
+                String pong = r.readLine();
+                gotPong.complete(pong != null && pong.startsWith("PONG"));
+            }
+            catch (Exception e) {
+                gotPong.cancel(true);
+            }
+        };
+        ListenerForTesting listener = new ListenerForTesting();
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(customizer, customInfo)) {
+            Options options = new Options.Builder().server(ts.getNatsLocalhostUri()).errorListener(listener).build();
+            try (Connection nc = Nats.connect(options)) {
+                assertEquals(Connection.Status.CONNECTED, nc.getStatus());
+                sendInfo.complete(Boolean.TRUE);
+                assertTrue(gotPong.get(5, TimeUnit.SECONDS), "the PING after the bad INFO was answered");
+                assertEquals(Connection.Status.CONNECTED, nc.getStatus());
+                assertEquals("myid", nc.getServerInfo().getServerId(), "the bad INFO did not replace the server info");
+                assertTrue(listener._eventually(2000, listener::getExceptions, ex -> String.valueOf(ex.getMessage()).contains("does not parse and was skipped")), listener.getExceptions().toString());
+                Exception reported = listener.getExceptions().stream().filter(ex -> String.valueOf(ex.getMessage()).contains("does not parse")).findFirst().get();
+                assertTrue(reported.getMessage().contains("skipped: \"{"), reported.getMessage()); // quoted, as untrusted text
+            }
+        }
+        // during the attempt the same INFO fails the attempt
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(null, "{\"server_id\":\"myid\", \"version\": not json}")) {
+            Options options = new Options.Builder().server(ts.getNatsLocalhostUri()).maxReconnects(0).connectionTimeout(Duration.ofSeconds(2)).build();
+            assertThrows(IOException.class, () -> Nats.connect(options));
+        }
+    }
+
+    @Test
+    public void testHeaderBlockThatDoesNotParseFromAPublisherThroughARealServerDropsOnlyThatMessage() throws Exception {
+        // nats-server relays a header block as the publisher wrote it: HPUB with a block that is not "NATS/1.0..."
+        // reaches the subscriber unchanged (measured against nats-server main, 2.16.0-dev, 2026-11-11). Before this
+        // change that ended the subscriber's reader without a word. Now the message is dropped and reported, the
+        // connection stays up, and the next message is delivered
+        ListenerForTesting listener = new ListenerForTesting();
+        try (NatsTestServer ts = new NatsTestServer(false);
+             Connection nc = Nats.connect(new Options.Builder().server(ts.getURI()).errorListener(listener).build())) {
+            Subscription sub = nc.subscribe("hp");
+            nc.flush(Duration.ofSeconds(2));
+            int port = new URI(ts.getURI()).getPort();
+            try (Socket publisher = new Socket("localhost", port)) {
+                publisher.setSoTimeout(3000);
+                InputStream in = publisher.getInputStream();
+                OutputStream out = publisher.getOutputStream();
+                byte[] buf = new byte[4096];
+                assertTrue(in.read(buf) > 0); // INFO
+                out.write(("CONNECT {\"headers\":true,\"verbose\":false}\r\n"
+                    + "HPUB hp 4 4\r\nXXXX\r\n"                   // a header block that does not parse
+                    + "HPUB hp 4 4\r\nNATS\r\n"                   // shorter than the version prefix
+                    + "HPUB hp 9 9\r\nNATS/1.0 \r\n"              // ends in a space
+                    + "HPUB hp 12 14\r\nNATS/1.0\r\n\r\nok\r\n"  // a good one
+                    + "PING\r\n").getBytes(StandardCharsets.UTF_8));
+                out.flush();
+                StringBuilder answered = new StringBuilder();
+                long end = System.currentTimeMillis() + 3000;
+                while (System.currentTimeMillis() < end && answered.indexOf("PONG") < 0 && answered.indexOf("-ERR") < 0) {
+                    int n = in.read(buf);
+                    if (n < 0) {
+                        break;
+                    }
+                    answered.append(new String(buf, 0, n, StandardCharsets.UTF_8));
+                }
+                assertTrue(answered.indexOf("PONG") >= 0, "the server took both publishes: " + answered);
+            }
+            Message m = sub.nextMessage(Duration.ofSeconds(2));
+            assertNotNull(m, "the good message after the dropped one");
+            assertEquals("ok", new String(m.getData(), StandardCharsets.UTF_8));
+            assertNull(sub.nextMessage(Duration.ofMillis(200)));
+            assertEquals(Connection.Status.CONNECTED, nc.getStatus());
+            assertTrue(listener._eventually(2000, () -> java.util.Collections.singletonList(listener.getExceptions().stream().filter(ex -> String.valueOf(ex.getMessage()).contains("header block does not parse")).count()), n -> n == 3), listener.getExceptions().toString());
+        }
+    }
+
+    @Test
+    public void testHeaderBlockThatDoesNotParseDropsOnlyThatMessage() throws Exception {
+        // ADR-40, malformed input: a header block that does not parse drops only the message that carries it; the
+        // connection stays up and the next message is delivered. The drop is reported
+        CompletableFuture<Boolean> sent = new CompletableFuture<>();
+        NatsServerProtocolMock.Customizer customizer = (ts, r, w) -> {
+            try {
+                String line;
+                while ((line = r.readLine()) != null && !line.startsWith("SUB ")) {
+                    // wait for the subscription
+                }
+                if (line == null) {
+                    sent.complete(false);
+                    return;
+                }
+                String sid = line.split(" ")[2];
+                // header blocks the parser rejects (wrong version), cannot scan (shorter than the version prefix,
+                // ending in a space), then a good message on the same subscription
+                w.write("HMSG s " + sid + " 12 16\r\nNATS/0.0\r\n\r\nXXXX\r\n");
+                w.write("HMSG s " + sid + " 4 8\r\nNATSXXXX\r\n");
+                w.write("HMSG s " + sid + " 9 13\r\nNATS/1.0 XXXX\r\n");
+                w.write("MSG s " + sid + " 2\r\nok\r\n");
+                w.flush();
+                sent.complete(true);
+            }
+            catch (Exception e) {
+                sent.complete(false);
+            }
+        };
+        ListenerForTesting listener = new ListenerForTesting();
+        try (NatsServerProtocolMock ts = new NatsServerProtocolMock(customizer, "{\"server_id\":\"myid\", \"version\":\"9.9.99\", \"headers\":true}")) {
+            Options options = new Options.Builder().server(ts.getNatsLocalhostUri()).errorListener(listener).build();
+            try (Connection nc = Nats.connect(options)) {
+                Subscription sub = nc.subscribe("s");
+                assertTrue(sent.get(5, TimeUnit.SECONDS), "the mock sent the messages");
+                Message m = sub.nextMessage(Duration.ofSeconds(2));
+                assertNotNull(m, "the good message after the dropped one");
+                assertEquals("ok", new String(m.getData(), StandardCharsets.UTF_8));
+                assertNull(sub.nextMessage(Duration.ofMillis(200)));
+                assertEquals(Connection.Status.CONNECTED, nc.getStatus());
+                assertTrue(listener._eventually(2000, () -> java.util.Collections.singletonList(listener.getExceptions().stream().filter(ex -> String.valueOf(ex.getMessage()).contains("header block does not parse")).count()), n -> n == 3), listener.getExceptions().toString());
+            }
         }
     }
 
@@ -88,6 +240,10 @@ public class InfoHandlerTests {
         assertEquals(256 + 2 + " (cut at 256 bytes)".length(), quoted.length());
         // empty
         assertEquals("\"\"", NatsConnection.quoteUntrusted(new byte[0]));
+        // the public form in support quotes the same way; a token keeps a line break escaped instead of ending there
+        assertEquals("\"a\"", Encoding.quoteFirstLine("a\r\nb".getBytes(StandardCharsets.UTF_8)));
+        assertEquals("\"a\\u000d\\u000ab\"", Encoding.quote("a\r\nb"));
+        assertEquals(NatsConnection.quoteUntrusted(big), Encoding.quoteFirstLine(big));
     }
 
     @Test

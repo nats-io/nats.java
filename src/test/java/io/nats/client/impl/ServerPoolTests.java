@@ -36,7 +36,13 @@ public class ServerPoolTests extends TestBase {
     public static final String HOST_THAT_CANT_BE_RESOLVED = "not.real.host";
     public static final String[] bootstrap = new String[]{BOOT_ONE, BOOT_TWO};
     public static final String[] combined = new String[]{BOOT_ONE, BOOT_TWO, DISC_ONE, DISC_TWO, DISC_THREE};
-    public static final List<String> discoveredServers = Arrays.asList(BOOT_TWO, DISC_ONE, DISC_TWO, DISC_THREE);
+    // connect_urls entries are host:port, as nats-server writes them
+    public static final String ENTRY_BOOT_ONE = "b1:4222";
+    public static final String ENTRY_BOOT_TWO = "b2:4222";
+    public static final String ENTRY_DISC_ONE = "d1:4222";
+    public static final String ENTRY_DISC_TWO = "d2:4222";
+    public static final String ENTRY_DISC_THREE = "d3:4222";
+    public static final List<String> discoveredServers = Arrays.asList(ENTRY_BOOT_TWO, ENTRY_DISC_ONE, ENTRY_DISC_TWO, ENTRY_DISC_THREE);
 
     @Test
     public void testPoolOptions() throws URISyntaxException {
@@ -92,9 +98,10 @@ public class ServerPoolTests extends TestBase {
         }
         assertNull(nsp.nextServer());
 
-        // and that it's put back
-        nsp.acceptDiscoveredUrls(Collections.singletonList(BOOT_ONE));
-        validateNslp(nsp, null, false, BOOT_ONE);
+        // and not put back when a list names it: it kept its count, which is at the limit, so it has no attempt
+        // left (ADR-40, max reconnects with a per-server count)
+        nsp.acceptDiscoveredUrls(Collections.singletonList(ENTRY_BOOT_ONE));
+        assertNull(nsp.nextServer());
 
         // testing that servers that fail max times and is removed
         o = new Options.Builder().server(BOOT_ONE).maxReconnects(0).build();
@@ -104,9 +111,70 @@ public class ServerPoolTests extends TestBase {
         nsp.connectFailed(failed);
         assertNull(nsp.nextServer());
 
-        // and that it's put back
-        nsp.acceptDiscoveredUrls(Collections.singletonList(BOOT_ONE));
-        validateNslp(nsp, null, false, BOOT_ONE);
+        // and not put back, for the same reason
+        nsp.acceptDiscoveredUrls(Collections.singletonList(ENTRY_BOOT_ONE));
+        assertNull(nsp.nextServer());
+    }
+
+    @Test
+    public void testServerAddedStartsAtTheRaisedCount() throws URISyntaxException {
+        // ADR-40, max reconnects with a per-server count: a server added to the list starts at the higher of the
+        // count it kept when it left and the highest count of any server in the list; a server that left keeps its
+        // count; a successful connect resets the count of the server it connected to only
+        Options o = new Options.Builder().servers(bootstrap).maxReconnects(3).noRandomize().build(); // 4 attempts each
+        NatsServerPool nsp = newNatsServerPool(o, null, null);
+        NatsUri b1 = new NatsUri(BOOT_ONE);
+        NatsUri b2 = new NatsUri(BOOT_TWO);
+        NatsUri d2 = new NatsUri(DISC_TWO);
+        nsp.connectFailed(b1);
+        nsp.connectFailed(b1);
+        // the origin's own count does not lift the servers its list names: it is about to be reset
+        nsp.acceptDiscoveredUrls(Collections.singletonList(ENTRY_DISC_ONE), b1);
+        assertEquals(0, entry(nsp, "d1").failedAttempts);
+        // from another origin, a new server starts at the highest count in the list
+        nsp.acceptDiscoveredUrls(Arrays.asList(ENTRY_DISC_ONE, ENTRY_DISC_TWO), b2);
+        assertEquals(0, entry(nsp, "d1").failedAttempts);
+        assertEquals(2, entry(nsp, "d2").failedAttempts);
+        // pruned by a list without it, it keeps its count
+        nsp.connectFailed(d2);
+        nsp.acceptDiscoveredUrls(Collections.singletonList(ENTRY_DISC_ONE), b2);
+        assertFalse(has(nsp, "d2"));
+        // back in a list, it starts at its kept count, which is the higher one
+        nsp.acceptDiscoveredUrls(Arrays.asList(ENTRY_DISC_ONE, ENTRY_DISC_TWO), b2);
+        assertEquals(3, entry(nsp, "d2").failedAttempts);
+        assertEquals(0, entry(nsp, "d1").failedAttempts);
+        // at the limit it leaves, and a list naming it does not bring it back: it has no attempt left
+        nsp.connectFailed(d2);
+        assertFalse(has(nsp, "d2"));
+        nsp.acceptDiscoveredUrls(Arrays.asList(ENTRY_DISC_ONE, ENTRY_DISC_TWO), b2);
+        assertFalse(has(nsp, "d2"));
+        assertTrue(has(nsp, "d1"));
+        // a successful connect resets the server it connected to only: the kept counts stay, so it stays out
+        nsp.connectSucceeded(b2);
+        assertEquals(0, entry(nsp, "b2").failedAttempts);
+        assertEquals(2, entry(nsp, "b1").failedAttempts);
+        assertEquals(0, entry(nsp, "d1").failedAttempts);
+        nsp.acceptDiscoveredUrls(Arrays.asList(ENTRY_DISC_ONE, ENTRY_DISC_TWO), b2);
+        assertFalse(has(nsp, "d2"));
+    }
+
+    @Test
+    public void testConfiguredServerAtItsLimitStaysOut() throws URISyntaxException {
+        // ADR-40, max reconnects: a configured server leaves the list at its limit like any other and keeps its
+        // count, so a list naming it does not bring it back, also after a later connect succeeded elsewhere
+        String configured = "tls://u:p@b1:4222";
+        Options o = new Options.Builder().servers(new String[]{configured, "tls://b2:4222"}).maxReconnects(0).noRandomize().build();
+        NatsServerPool nsp = newNatsServerPool(o, null, null);
+        NatsUri b1 = new NatsUri(configured);
+        NatsUri b2 = new NatsUri("tls://b2:4222");
+        nsp.connectFailed(b1);
+        assertFalse(has(nsp, "b1"));
+        nsp.acceptDiscoveredUrls(Collections.singletonList(ENTRY_BOOT_ONE), b2);
+        assertFalse(has(nsp, "b1"));
+        nsp.connectSucceeded(b2);
+        nsp.acceptDiscoveredUrls(Collections.singletonList(ENTRY_BOOT_ONE), b2);
+        assertFalse(has(nsp, "b1"));
+        validateNslp(nsp, null, false, "tls://b2:4222");
     }
 
     @Test
@@ -117,12 +185,12 @@ public class ServerPoolTests extends TestBase {
         validateNslp(nsp, null, false, combined);
 
         // new discovered list is missing d3
-        nsp.acceptDiscoveredUrls(Arrays.asList(DISC_ONE, DISC_TWO));
+        nsp.acceptDiscoveredUrls(Arrays.asList(ENTRY_DISC_ONE, ENTRY_DISC_TWO));
         validateNslp(nsp, null, false, BOOT_ONE, BOOT_TWO, DISC_ONE, DISC_TWO);
 
         // new discovered list is missing the last connected
         nsp.connectSucceeded(new NatsUri(DISC_TWO));
-        nsp.acceptDiscoveredUrls(Collections.singletonList(DISC_ONE));
+        nsp.acceptDiscoveredUrls(Collections.singletonList(ENTRY_DISC_ONE));
         validateNslp(nsp, null, false, BOOT_ONE, BOOT_TWO, DISC_ONE, DISC_TWO);
     }
 
@@ -142,16 +210,74 @@ public class ServerPoolTests extends TestBase {
 
         // a server the pool does not hold is remembered all the same; the empty result prunes the gossiped servers as usual
         nsp.serverRejected(new NatsUri("nats://d4"));
-        assertFalse(nsp.acceptDiscoveredUrls(Collections.singletonList("nats://d4")));
+        assertFalse(nsp.acceptDiscoveredUrls(Collections.singletonList("d4:4222")));
         validateNslp(nsp, null, true, BOOT_ONE, BOOT_TWO);
 
-        // the memory is the exact uri: the scheme is what made the server unusable, so the same host and port
-        // under another scheme is still accepted while the rejected uri itself is not
+        // the memory is the exact uri: the scheme is what made the server unusable, and a discovered server takes
+        // the scheme of the server that reported it. So the same host and port reported over another transport is
+        // still accepted, while reported over the rejected transport it is not
         nsp.serverRejected(new NatsUri("ws://d9"));
-        assertTrue(nsp.acceptDiscoveredUrls(Collections.singletonList("nats://d9")));
+        assertTrue(nsp.acceptDiscoveredUrls(Collections.singletonList("d9:4222"), new NatsUri(BOOT_ONE)));
         validateNslp(nsp, null, true, BOOT_ONE, BOOT_TWO, "nats://d9");
-        assertFalse(nsp.acceptDiscoveredUrls(Arrays.asList("ws://d9", "nats://d9")));
-        validateNslp(nsp, null, true, BOOT_ONE, BOOT_TWO, "nats://d9");
+        assertFalse(nsp.acceptDiscoveredUrls(Collections.singletonList("d9:4222"), new NatsUri("ws://w1")));
+        validateNslp(nsp, null, true, BOOT_ONE, BOOT_TWO);
+    }
+
+    @Test
+    public void testDiscoveredServersTakeTheSchemeOfTheOrigin() throws URISyntaxException {
+        // ADR-40, connecting to a discovered server: it is dialed with the transport and the TLS of the server that
+        // reported it. The pool gives it the origin's scheme; the entry itself never names one.
+        // The ws:// origin is not configured, since the options refuse ws:// next to a TLS scheme
+        Options o = new Options.Builder().servers(new String[]{BOOT_ONE, "tls://s1", "wss://x1"}).noRandomize().build();
+        NatsServerPool nsp = new NatsServerPool();
+        nsp.initialize(o);
+        nsp.acceptDiscoveredUrls(Collections.singletonList("d1:4222"), new NatsUri(BOOT_ONE));
+        assertEquals("nats", entry(nsp, "d1").nuri.getScheme());
+        nsp.acceptDiscoveredUrls(Arrays.asList("d1:4222", "d2:4222"), new NatsUri("tls://s1"));
+        assertEquals("tls", entry(nsp, "d2").nuri.getScheme());
+        nsp.acceptDiscoveredUrls(Arrays.asList("d1:4222", "d2:4222", "d3:4222"), new NatsUri("ws://w1"));
+        assertEquals("ws", entry(nsp, "d3").nuri.getScheme());
+        assertTrue(entry(nsp, "d3").nuri.isWebsocket());
+        nsp.acceptDiscoveredUrls(Arrays.asList("d1:4222", "d2:4222", "d3:4222", "d4:4222"), new NatsUri("wss://x1"));
+        assertEquals("wss", entry(nsp, "d4").nuri.getScheme());
+        assertTrue(entry(nsp, "d4").nuri.isSecure());
+
+        // a second hop: a server reported by a discovered server takes that server's scheme, so the transport is kept
+        nsp.acceptDiscoveredUrls(Arrays.asList("d1:4222", "d2:4222", "d3:4222", "d4:4222", "d5:4222"), entry(nsp, "d2").nuri);
+        assertEquals("tls", entry(nsp, "d5").nuri.getScheme());
+
+        // the first report decides: a known discovered server keeps its scheme when reported again over another transport
+        nsp.acceptDiscoveredUrls(Arrays.asList("d1:4222", "d2:4222", "d3:4222", "d4:4222", "d5:4222"), new NatsUri("ws://w1"));
+        assertEquals("nats", entry(nsp, "d1").nuri.getScheme());
+        assertEquals("tls", entry(nsp, "d2").nuri.getScheme());
+
+        // a configured server reported by another server does not change
+        nsp.acceptDiscoveredUrls(Arrays.asList("b1:4222", "s1:4222", "x1:4222"), new NatsUri("ws://w1"));
+        assertEquals("nats", entry(nsp, "b1").nuri.getScheme());
+        assertEquals("tls", entry(nsp, "s1").nuri.getScheme());
+        assertEquals("wss", entry(nsp, "x1").nuri.getScheme());
+
+        // without an origin, the pool's default scheme: the first configured scheme that is not nats, else nats
+        nsp.acceptDiscoveredUrls(Collections.singletonList("d6:4222"));
+        assertEquals("tls", entry(nsp, "d6").nuri.getScheme());
+        nsp = newNatsServerPool(new Options.Builder().servers(bootstrap).build(), null, Collections.singletonList("d7:4222"));
+        assertEquals("nats", entry(nsp, "d7").nuri.getScheme());
+    }
+
+    @Test
+    public void testDiscoveredEntriesAreHostAndPortOnly() throws URISyntaxException {
+        // ADR-40, the form of a connect_urls entry: the pool applies the rule of NatsUri.discoveredHostPort itself.
+        // An entry with a scheme, one that does not parse as host:port, and one with a port out of range are left
+        // out, and the other entries are used; see OptionsTests.testNatsUriDiscoveredHostPort for the forms
+        Options o = new Options.Builder().noRandomize().servers(bootstrap).build();
+        NatsServerPool nsp = newNatsServerPool(o, null, null);
+        List<String> entries = Arrays.asList("nats://d1:4222", "ws://d2:4222", "d3", "d4:0", "d5:65536", "d6/x:4222", "u:p@d7:4222", "d8:4222");
+        assertTrue(nsp.acceptDiscoveredUrls(entries, new NatsUri(BOOT_ONE)));
+        validateNslp(nsp, null, true, BOOT_ONE, BOOT_TWO, "nats://d7", "nats://d8");
+
+        // a list of which no entry is usable is an empty list: it prunes the discovered servers, as an empty list does
+        assertFalse(nsp.acceptDiscoveredUrls(Arrays.asList("nats://d7:4222", "tls://d8:4222"), new NatsUri(BOOT_ONE)));
+        validateNslp(nsp, null, true, BOOT_ONE, BOOT_TWO);
     }
 
     @Test
@@ -164,7 +290,7 @@ public class ServerPoolTests extends TestBase {
         NatsUri b2 = entry(nsp, "b2").nuri;
 
         // learned through the configured server with credentials: the discovered servers inherit them
-        nsp.acceptDiscoveredUrls(Arrays.asList(DISC_ONE, DISC_TWO), b1);
+        nsp.acceptDiscoveredUrls(Arrays.asList(ENTRY_DISC_ONE, ENTRY_DISC_TWO), b1);
         assertEquals("derek:password", entry(nsp, "d1").nuri.getInheritedUserInfo());
         assertEquals("derek:password", entry(nsp, "d2").nuri.getInheritedUserInfo());
         // the configured server is unchanged, and no server list string carries inherited credentials
@@ -174,22 +300,45 @@ public class ServerPoolTests extends TestBase {
         }
 
         // learned through a discovered server: what that server inherited is passed on
-        nsp.acceptDiscoveredUrls(Arrays.asList(DISC_ONE, DISC_TWO, DISC_THREE), entry(nsp, "d1").nuri);
+        nsp.acceptDiscoveredUrls(Arrays.asList(ENTRY_DISC_ONE, ENTRY_DISC_TWO, ENTRY_DISC_THREE), entry(nsp, "d1").nuri);
         assertEquals("derek:password", entry(nsp, "d3").nuri.getInheritedUserInfo());
 
         // the first report decides: a later report through a server without credentials changes nothing
-        nsp.acceptDiscoveredUrls(Arrays.asList(DISC_ONE, DISC_TWO, DISC_THREE, "nats://d4"), b2);
+        nsp.acceptDiscoveredUrls(Arrays.asList(ENTRY_DISC_ONE, ENTRY_DISC_TWO, ENTRY_DISC_THREE, "d4:4222"), b2);
         assertEquals("derek:password", entry(nsp, "d1").nuri.getInheritedUserInfo());
         assertNull(entry(nsp, "d4").nuri.getInheritedUserInfo());
 
-        // an entry that carries its own user info keeps it and inherits nothing
-        nsp.acceptDiscoveredUrls(Arrays.asList(DISC_ONE, DISC_TWO, DISC_THREE, "nats://d4", "nats://own:pw@d5"), b1);
-        assertNull(entry(nsp, "d5").nuri.getInheritedUserInfo());
-        assertEquals("own:pw", entry(nsp, "d5").nuri.getConnectUserInfo());
+        // user info the entry carries is dropped: the server is sent the credentials used for the server that reported it
+        nsp.acceptDiscoveredUrls(Arrays.asList(ENTRY_DISC_ONE, ENTRY_DISC_TWO, ENTRY_DISC_THREE, "d4:4222", "own:pw@d5:4222"), b1);
+        assertNull(entry(nsp, "d5").nuri.getUserInfo());
+        assertEquals("derek:password", entry(nsp, "d5").nuri.getInheritedUserInfo());
+        assertEquals("derek:password", entry(nsp, "d5").nuri.getConnectUserInfo());
+        assertEquals("nats://d5:4222", entry(nsp, "d5").nuri.toString());
 
-        // no origin, nothing inherited
-        nsp.acceptDiscoveredUrls(Arrays.asList(DISC_ONE, DISC_TWO, DISC_THREE, "nats://d4", "nats://own:pw@d5", "nats://d6"), null);
+        // no origin, nothing inherited, and the entry's own user info is still dropped
+        nsp.acceptDiscoveredUrls(Arrays.asList(ENTRY_DISC_ONE, ENTRY_DISC_TWO, ENTRY_DISC_THREE, "d4:4222", "own:pw@d5:4222", "own:pw@d6:4222"), null);
         assertNull(entry(nsp, "d6").nuri.getInheritedUserInfo());
+        assertNull(entry(nsp, "d6").nuri.getConnectUserInfo());
+    }
+
+    @Test
+    public void testServerThatSentTheListIsKept() throws URISyntaxException {
+        // ADR-40, updating the server list: the configured servers and the server the client is connected to are
+        // kept. The origin of a list is that server, also before connectSucceeded made it the last connected one
+        Options o = new Options.Builder().servers(bootstrap).maxReconnects(0).build();
+        NatsServerPool nsp = newNatsServerPool(o, null, discoveredServers);
+        validateNslp(nsp, null, false, combined);
+        nsp.acceptDiscoveredUrls(Collections.singletonList(ENTRY_DISC_TWO), new NatsUri(DISC_ONE));
+        validateNslp(nsp, null, false, BOOT_ONE, BOOT_TWO, DISC_ONE, DISC_TWO);
+    }
+
+    private static boolean has(NatsServerPool nsp, String host) {
+        for (ServerPoolEntry e : nsp.entryList) {
+            if (e.nuri.getHost().equals(host)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static ServerPoolEntry entry(NatsServerPool nsp, String host) {

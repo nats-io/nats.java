@@ -1,4 +1,4 @@
-// Copyright 2020 The NATS Authors
+// Copyright 2020-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -13,11 +13,16 @@
 
 package io.nats.client.support;
 
+import org.jspecify.annotations.NonNull;
+
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
+
+import static io.nats.client.support.NatsConstants.CR;
+import static io.nats.client.support.NatsConstants.LF;
 
 public abstract class Encoding {
     private Encoding() {}  /* ensures cannot be constructed */
@@ -372,6 +377,71 @@ public abstract class Encoding {
         } catch (UnsupportedEncodingException e) {
             return source;
         }
+    }
+
+    private static final int UNTRUSTED_QUOTE_LIMIT = 256;
+
+    /**
+     * Quote the first line of bytes received from a server and not accepted, the bytes up to the first CR or LF, for
+     * a log, a terminal or an error message. The quote is cut at 256 bytes, quotes and backslashes are escaped as in
+     * a string literal, a tab as {@code \t} and every other control character as a Java unicode escape, so the quote
+     * can carry neither a terminal escape sequence nor a fake line break.
+     * @param bytes the bytes as received
+     * @return the quoted first line
+     */
+    @NonNull
+    public static String quoteFirstLine(byte[] bytes) {
+        return quote(bytes, true);
+    }
+
+    /**
+     * Quote one token the client did not accept, such as a {@code connect_urls} entry, for a log, a terminal or an
+     * error message, with the escaping and the cut of {@link #quoteFirstLine(byte[])}. A line break inside the token
+     * is escaped, not taken as its end.
+     * @param token the token as received
+     * @return the quoted token
+     */
+    @NonNull
+    public static String quote(@NonNull String token) {
+        return quote(token.getBytes(StandardCharsets.UTF_8), false);
+    }
+
+    private static String quote(byte[] bytes, boolean firstLineOnly) {
+        int len = bytes.length;
+        if (firstLineOnly) {
+            for (int i = 0; i < len; i++) {
+                if (bytes[i] == CR || bytes[i] == LF) {
+                    len = i;
+                    break;
+                }
+            }
+        }
+        boolean cut = len > UNTRUSTED_QUOTE_LIMIT;
+        if (cut) {
+            len = UNTRUSTED_QUOTE_LIMIT;
+        }
+        String text = new String(bytes, 0, len, StandardCharsets.UTF_8);
+        StringBuilder sb = new StringBuilder(len + 32).append('"');
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '"' || c == '\\') {
+                sb.append('\\').append(c);
+            }
+            else if (c == '\t') {
+                sb.append("\\t");
+            }
+            else if (c < 0x20 || (c >= 0x7f && c <= 0x9f)) {
+                sb.append(String.format("\\u%04x", (int) c));
+            }
+            else {
+                sb.append(c);
+            }
+        }
+        sb.append('"');
+        if (cut) {
+            sb.append(" (cut at " + UNTRUSTED_QUOTE_LIMIT + " bytes)");
+        }
+        return sb.toString();
     }
 
     /**

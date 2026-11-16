@@ -1,4 +1,4 @@
-// Copyright 2021 The NATS Authors
+// Copyright 2021-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.time.Duration;
@@ -31,6 +32,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.ConnectionListener.Events.CONNECTED;
 import static io.nats.client.NatsTestServer.getLocalhostUri;
@@ -38,6 +40,33 @@ import static io.nats.client.NatsTestServer.nextPort;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class WebsocketConnectTests extends TestBase {
+
+    @Test
+    public void testWebSocketUpgradeIsBoundedByTheConnectionTimeout() throws Exception {
+        // ADR-40, connection timeout: the WebSocket upgrade shares the attempt's budget. A listener that accepts and
+        // never answers the upgrade request held the attempt for good before; now the attempt fails at the deadline
+        try (java.net.ServerSocket silent = new java.net.ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
+            Options options = Options.builder()
+                .server("ws://127.0.0.1:" + silent.getLocalPort())
+                .maxReconnects(0)
+                .connectionTimeout(Duration.ofSeconds(1))
+                .build();
+            AtomicReference<Throwable> outcome = new AtomicReference<>();
+            Thread connecting = new Thread(() -> {
+                try {
+                    Nats.connect(options).close();
+                }
+                catch (Throwable t) {
+                    outcome.set(t);
+                }
+            });
+            connecting.setDaemon(true); // on a client that hangs here, the test must still let the JVM exit
+            connecting.start();
+            connecting.join(5000);
+            assertFalse(connecting.isAlive(), "the connect did not end within 5 s with a 1 s connection timeout");
+            assertTrue(outcome.get() instanceof IOException, String.valueOf(outcome.get()));
+        }
+    }
 
     @Test
     public void testRequestReply() throws Exception {

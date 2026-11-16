@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2015-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -29,11 +29,15 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.condition.OS.WINDOWS;
@@ -261,6 +265,46 @@ public class AuthTests extends TestBase {
             assertEquals(nc.getConnectedUrl(), "nats://alberto:casadecampo@localhost:" + ts2.getNatsPort());
             standardCloseConnection(nc);
         }
+    }
+
+    @Test
+    public void testCredentialsAreRedactedInEventsAndErrors() throws Exception {
+        // the connected url keeps the credentials it was configured with; the events, the connect failure text and
+        // the redacted accessor hide them. Before, the password of the url stood in every event detail and error
+        String[] customArgs = { "--user", "stephen", "--pass", "password" };
+        List<String> details = new CopyOnWriteArrayList<>();
+        try (NatsTestServer ts = new NatsTestServer(customArgs, false)) {
+            String url = "nats://stephen:password@localhost:" + ts.getNatsPort();
+            Options options = new Options.Builder().server(url).maxReconnects(0)
+                .connectionListener(new ConnectionListener() {
+                    @Override
+                    public void connectionEvent(Connection conn, Events type) {
+                    }
+
+                    @Override
+                    public void connectionEvent(Connection conn, Events type, Long time, String uriDetails) {
+                        if (uriDetails != null) {
+                            details.add(type + " " + uriDetails);
+                        }
+                    }
+                })
+                .build();
+            try (Connection nc = standardConnection(options)) {
+                assertEquals(url, nc.getConnectedUrl());
+                assertEquals("nats://stephen:***@localhost:" + ts.getNatsPort(), nc.getConnectedUrlRedacted());
+            }
+            assertFalse(details.isEmpty());
+            for (String detail : details) {
+                assertFalse(detail.contains("password"), detail);
+                assertTrue(detail.contains("stephen:***@"), detail);
+            }
+        }
+        int dead = NatsTestServer.nextPort();
+        Options failing = new Options.Builder().server("nats://stephen:password@localhost:" + dead).maxReconnects(0)
+            .connectionTimeout(Duration.ofSeconds(1)).build();
+        IOException e = assertThrows(IOException.class, () -> Nats.connect(failing));
+        assertFalse(e.getMessage().contains("password"), e.getMessage());
+        assertTrue(e.getMessage().contains("stephen:***@localhost:" + dead), e.getMessage());
     }
 
     @Test
@@ -665,6 +709,67 @@ public class AuthTests extends TestBase {
     @Test
     public void testReconnectAfterRevoked() throws Exception {
         _testReconnectAfter("user authentication revoked");
+    }
+
+    @Test
+    public void testAuthErrorAbortCanBeSwitchedOff() throws Exception {
+        // ADR-40, authorization violation: by default the second identical authorization error from one server during
+        // a reconnect ends the reconnect and the connection closes; with ignoreAuthErrorAbort the reconnect goes on
+        // and succeeds once a server that accepts the credentials is back
+        String[] stephen = {"--user", "stephen", "--pass", "password"};
+        String[] alberto = {"--user", "alberto", "--pass", "casadecampo"};
+        for (boolean ignore : new boolean[]{false, true}) {
+            int port1 = NatsTestServer.nextPort();
+            ListenerForTesting listener = new ListenerForTesting();
+            AtomicInteger authErrors = new AtomicInteger();
+            ErrorListener counting = new ErrorListener() {
+                @Override
+                public void errorOccurred(Connection conn, String error) {
+                    if (error.toLowerCase().contains("authorization violation")) {
+                        authErrors.incrementAndGet();
+                    }
+                }
+            };
+            try (NatsTestServer ts2 = new NatsTestServer(alberto, false)) {
+                Options.Builder builder = new Options.Builder()
+                    .server("nats://stephen:password@localhost:" + port1)
+                    .server("nats://stephen:password@localhost:" + ts2.getNatsPort()) // the wrong credentials for ts2
+                    .noRandomize()
+                    .maxReconnects(-1)
+                    .reconnectWait(Duration.ofMillis(100))
+                    .connectionTimeout(Duration.ofSeconds(1))
+                    .connectionListener(listener)
+                    .errorListener(counting);
+                if (ignore) {
+                    builder.ignoreAuthErrorAbort();
+                }
+                Options options = builder.build();
+                Connection nc;
+                try (NatsTestServer ts1 = new NatsTestServer(stephen, port1, false)) {
+                    nc = standardConnection(options);
+                    assertEquals(port1, new URI(nc.getConnectedUrl()).getPort());
+                    listener.prepForStatusChange(ignore ? Events.RECONNECTED : Events.CLOSED);
+                }
+                // ts1 is down: the reconnect alternates ts1, refused, and ts2, authorization violation
+                long deadline = System.currentTimeMillis() + 5000;
+                while (authErrors.get() < 2 && System.currentTimeMillis() < deadline) {
+                    Thread.sleep(50);
+                }
+                assertTrue(authErrors.get() >= 2, "two authorization errors from ts2, got " + authErrors.get());
+                if (ignore) {
+                    assertNotEquals(Connection.Status.CLOSED, nc.getStatus());
+                    try (NatsTestServer ts1Again = new NatsTestServer(stephen, port1, false)) {
+                        assertTrue(listener.waitForStatusChange(10, TimeUnit.SECONDS), "reconnected once ts1 is back");
+                        assertEquals(port1, new URI(nc.getConnectedUrl()).getPort());
+                        standardCloseConnection(nc);
+                    }
+                }
+                else {
+                    assertTrue(listener.waitForStatusChange(5, TimeUnit.SECONDS), "closed after the second identical error");
+                    assertEquals(Connection.Status.CLOSED, nc.getStatus());
+                }
+            }
+        }
     }
 
     @Test

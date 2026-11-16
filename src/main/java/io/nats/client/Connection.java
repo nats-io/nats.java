@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2015-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -15,6 +15,7 @@ package io.nats.client;
 
 import io.nats.client.api.ServerInfo;
 import io.nats.client.impl.Headers;
+import io.nats.client.support.NatsUri;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -520,7 +521,9 @@ public interface Connection extends AutoCloseable {
     /**
      * Return the list of known server urls, including additional servers discovered
      * after a connection has been established.
-     * Will be empty (but not null) before a connection is made and will represent the last connected server while disconnected
+     * Will be empty (but not null) before a connection is made and will represent the last connected server while disconnected.
+     * The urls carry the credentials they were configured with, if any; for a log use
+     * {@link NatsUri#redactUrl(String)} on each of them.
      * @return this connection's list of known server URLs
      */
     @NonNull
@@ -550,11 +553,24 @@ public interface Connection extends AutoCloseable {
     ServerInfo getServerInfo();
 
     /**
-     * the url used for the current connection, or null if disconnected
+     * the url used for the current connection, or null if disconnected. The url carries the credentials it was
+     * configured with, if any; for a log, an event or an error use {@link #getConnectedUrlRedacted()}.
      * @return the url string
      */
     @Nullable
     String getConnectedUrl();
+
+    /**
+     * the url used for the current connection with its credentials hidden, or null if disconnected: a password is
+     * replaced by {@code ***}, a token as a whole, and nothing else about the url changes. The connection's own
+     * events and errors name servers this way.
+     * @return the url string with its credentials hidden
+     */
+    @Nullable
+    default String getConnectedUrlRedacted() {
+        String url = getConnectedUrl();
+        return url == null ? null : NatsUri.redactUrl(url);
+    }
 
     /**
      * the InetAddress of client as known by the NATS server, otherwise null.

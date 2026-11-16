@@ -21,6 +21,7 @@ import io.nats.client.support.ssl.SslTestingHelper;
 import io.nats.client.utils.CloseOnUpgradeAttempt;
 import io.nats.client.utils.CoverageServerPool;
 import io.nats.client.utils.ResourceUtils;
+import io.nats.client.support.SSLUtils;
 import org.junit.jupiter.api.Test;
 
 import javax.net.ssl.SSLContext;
@@ -1634,6 +1635,118 @@ public class OptionsTests {
 
 
     @Test
+    public void testNatsUriDiscoveredHostPort() throws URISyntaxException {
+        // ADR-40, the form of a connect_urls entry. nats-server writes host:port, an IPv6 address in brackets.
+        // User info is dropped. An entry with a scheme is not used, not even its host and port. An entry that does
+        // not parse as host:port, or whose port is out of range, is not used. Many of the forms are those an audit
+        // wrote to confuse a url parser; ServerInfo trims an entry before it gets here, so the forms are untrimmed
+        String[][] used = {
+            {"h:4222", "h:4222"},
+            {"127.0.0.1:4222", "127.0.0.1:4222"},
+            {"[::1]:4222", "[::1]:4222"},
+            {"[1:2:3:4:5:6:7:8]:4222", "[1:2:3:4:5:6:7:8]:4222"},
+            {"[fe80::1%25eth0]:4222", "[fe80::1%25eth0]:4222"},
+            {"localhost:4222", "localhost:4222"},
+            {"a.b.c.d.e:1", "a.b.c.d.e:1"},
+            {"h:65535", "h:65535"},
+            {"h:04222", "h:4222"},
+            {"h:000001", "h:1"},
+            {"Host.Example.COM:1", "Host.Example.COM:1"}, // the host is kept as written
+            {"host.:4222", "host.:4222"},
+            {"h-1.x:4222", "h-1.x:4222"},
+            {"u@h:4222", "h:4222"},
+            {"u:p@h:4222", "h:4222"},
+            {"@h:4222", "h:4222"},
+            {"a@b@h:4222", "h:4222"},
+            {"host\u0000@host:4222", "host:4222"},
+            // numeric host forms that are not a dotted quad are hostnames in this revision of the ADR
+            {"0x7f000001:4222", "0x7f000001:4222"},
+            {"2130706433:4222", "2130706433:4222"},
+        };
+        for (String[] u : used) {
+            assertEquals(u[1], NatsUri.discoveredHostPort(u[0]), shown(u[0]));
+        }
+
+        String scheme = "the entry carries a scheme";
+        String notHostPort = "the entry does not parse as host:port";
+        String port = "the port is not between 1 and 65535";
+        String[][] skipped = {
+            {"nats://h:4222", scheme},
+            {"tls://h:4222", scheme},
+            {"ws://h:4222", scheme},
+            {"wss://h:4222", scheme},
+            {"WS://h:4222", scheme},
+            {"Nats://h:4222", scheme},
+            {"ws://u:p@h:4222", scheme},
+            {"ws://127.0.0.1:1@evil.test:2", scheme},
+            {"%77s://h:4222", scheme},
+            {"w\u0001s://h:4222", scheme},
+            {"na\tts://h:4222", scheme},
+            {"\u00A0ws://h:4222", scheme},
+            {"ws://h:4222/path", scheme},
+            {"h", notHostPort},
+            {"h:", notHostPort},
+            {":4222", notHostPort},
+            {"u@:4222", notHostPort},
+            {"h:abc", notHostPort},
+            {"h:+1", notHostPort},
+            {"h:-1", notHostPort},
+            {"h:\u0661", notHostPort}, // an Arabic-Indic digit
+            {"h:4222\u0000", notHostPort},
+            {"h:4222/", notHostPort},
+            {"h:4222?", notHostPort},
+            {"h:4222#", notHostPort},
+            {"h:4222:4223", notHostPort},
+            {"h/path:4222", notHostPort},
+            {"h?x=1:4222", notHostPort},
+            {"h#f:4222", notHostPort},
+            {"h :4222", notHostPort},
+            {"h_x:4222", notHostPort},
+            {"-h:4222", notHostPort},
+            {"h-:4222", notHostPort},
+            {"h%40x:4222", notHostPort},
+            {"\uFEFFh:4222", notHostPort},
+            {"::1:4222", notHostPort},
+            {"[::1]", notHostPort},
+            {"[::1]:x", notHostPort},
+            {"[::1]:4222:1", notHostPort},
+            {"[]:4222", notHostPort},
+            {"[x]:4222", notHostPort},
+            {"127.1:4222", notHostPort},
+            {"1.2.3:4222", notHostPort},
+            {"999.1.1.1:4222", notHostPort},
+            {"1.1.1.1.1:4222", notHostPort},
+            {"ws:h:4222", notHostPort},
+            {"ws:/h:4222", notHostPort},
+            {"ws:\t//h:4222", notHostPort},
+            {"//h:4222", notHostPort},
+            {"///h:4222", notHostPort},
+            {"h:0", port},
+            {"h:65536", port},
+            {"h:99999", port},
+            {"h:4294971518", port}, // 65535 + 2^32: not a port by overflow either
+        };
+        for (String[] k : skipped) {
+            URISyntaxException e = assertThrows(URISyntaxException.class, () -> NatsUri.discoveredHostPort(k[0]), shown(k[0]));
+            assertEquals(k[1], e.getReason(), shown(k[0]));
+            assertEquals(k[0], e.getInput(), shown(k[0]));
+        }
+    }
+
+    private static String shown(String entry) {
+        StringBuilder sb = new StringBuilder();
+        for (char c : entry.toCharArray()) {
+            if (c < 0x20 || c > 0x7e) {
+                sb.append(String.format("\\u%04x", (int) c));
+            }
+            else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
+    @Test
     public void testNuriRehost() throws URISyntaxException {
         NatsUri nuri = new NatsUri("nats://host:80");
         assertEquals("nats://rehost:80", nuri.reHost("rehost").toString());
@@ -1798,6 +1911,157 @@ public class OptionsTests {
         assertTrue(new Options.Builder(props).build().isTlsVerifyHostname());
         props.setProperty(Options.PROP_TLS_VERIFY_HOSTNAME, "false");
         assertFalse(new Options.Builder(props).build().isTlsVerifyHostname());
+    }
+
+    @Test
+    public void testTlsServerName() throws Exception {
+        // ADR-40, certificate verification: the TLS server name of every server. It is a TLS configuration, so it asks
+        // for TLS: alone it selects the default context; next to opentls the trust-all context stays; a supplied
+        // context stays. Null, empty and blank mean none.
+        assertNull(new Options.Builder().build().getTlsServerName());
+        assertNull(new Options.Builder().tlsServerName(null).build().getTlsServerName());
+        assertNull(new Options.Builder().tlsServerName("").build().getTlsServerName());
+        assertNull(new Options.Builder().tlsServerName("  ").build().getTlsServerName());
+        assertFalse(new Options.Builder().tlsServerName("  ").build().isTLSRequired());
+
+        Options options = new Options.Builder().tlsServerName(" nats.example.com ").build();
+        assertEquals("nats.example.com", options.getTlsServerName());
+        assertTrue(options.isTLSRequired());
+        assertSame(SSLContext.getDefault(), options.getSslContext());
+        assertEquals("nats.example.com", new Options.Builder(options).build().getTlsServerName());
+
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_TLS_SERVER_NAME, "x.test");
+        Options fromProps = new Options.Builder(props).build();
+        assertEquals("x.test", fromProps.getTlsServerName());
+        assertTrue(fromProps.isTLSRequired());
+
+        Options open = new Options.Builder().opentls().tlsServerName("x.test").build();
+        assertEquals("x.test", open.getTlsServerName());
+        assertTrue(open.isTLSRequired());
+        assertNotSame(SSLContext.getDefault(), open.getSslContext());
+
+        SSLContext supplied = SSLUtils.createTrustAllTlsContext();
+        assertSame(supplied, new Options.Builder().sslContext(supplied).tlsServerName("x.test").build().getSslContext());
+
+        // it asks for TLS, so a ws:// server is refused as under every other setting that asks for TLS
+        assertThrows(IllegalStateException.class, () -> new Options.Builder().server("ws://localhost:80").tlsServerName("x.test").build());
+
+        // a hostname, with or without one trailing dot, or an ip address; anything else is a configuration error
+        for (String ok : new String[]{"nats", "nats.example.com", "nats.example.com.", "10.0.0.5", "::1", "[::1]", "fe80::1%eth0"}) {
+            assertEquals(ok, new Options.Builder().tlsServerName(ok).build().getTlsServerName(), ok);
+        }
+        for (String bad : new String[]{"nats.example.com:4222", "127.0.0.1:4222", "nats example", "nats/x", "h_x", "-h", "."}) {
+            assertThrows(IllegalStateException.class, () -> new Options.Builder().tlsServerName(bad).build(), bad);
+        }
+    }
+
+    @Test
+    public void testBuiltContextsOfferTheHighestTlsVersion() throws Exception {
+        // ADR-40, TLS versions: the contexts the client builds are created for TLS, the highest version the JVM
+        // supports, so TLS 1.3 is offered where the JVM has it; the floor at TLS 1.2 is set on every connection
+        assertEquals("TLS", Options.DEFAULT_SSL_PROTOCOL);
+        assertEquals("TLS", SSLUtils.createTrustAllTlsContext().getProtocol());
+        assertEquals("TLS", SSLUtils.createSSLContext(null, null, null, null).getProtocol());
+    }
+
+    @Test
+    public void testNatsUriRedacted() throws URISyntaxException {
+        // credentials hidden for logs, events and errors: a password becomes ***, a token as a whole; the rest stays
+        String[][] cases = {
+            {"nats://u:p@h:4222", "nats://u:***@h:4222"},
+            {"nats://token@h:4222", "nats://***@h:4222"},
+            {"nats://h:4222", "nats://h:4222"},
+            {"nats://al%40ice:p%3Ass@a:4222", "nats://al%40ice:***@a:4222"},
+            {"wss://u:p@h:443/path", "wss://u:***@h:443/path"},
+            {"tls://u:@h:4222", "tls://u:***@h:4222"},
+        };
+        for (String[] c : cases) {
+            NatsUri nuri = new NatsUri(c[0]);
+            assertEquals(c[1], nuri.toRedactedString(), c[0]);
+            assertEquals(c[0], nuri.toString(), c[0]); // the string form itself is unchanged
+            assertEquals(c[1], NatsUri.redactUrl(c[0]), c[0]);
+        }
+        // the string is redacted in place, not parsed: the scheme keeps its case, a missing port stays missing, a
+        // string that is not a url is left alone unless it has user info in an authority
+        assertEquals("NATS://u:***@H", NatsUri.redactUrl("NATS://u:p@H"));
+        assertEquals("x://u:***@h/p@th", NatsUri.redactUrl("x://u:p@h/p@th"));
+        assertEquals("x://h/p@th", NatsUri.redactUrl("x://h/p@th"));
+        // the authority ends at the first of /, ? and #: an @ in a query or fragment is not user info
+        assertEquals("nats://host:4222?x=a@b", NatsUri.redactUrl("nats://host:4222?x=a@b"));
+        assertEquals("nats://u:***@host:4222?x=a@b", NatsUri.redactUrl("nats://u:p@host:4222?x=a@b"));
+        assertEquals("nats://host#f@g", NatsUri.redactUrl("nats://host#f@g"));
+        assertEquals("nats://u:***@host#f@g", NatsUri.redactUrl("nats://u:p@host#f@g"));
+        assertEquals("nats://u:***@host?q#f@g", NatsUri.redactUrl("nats://u:p@host?q#f@g"));
+        assertEquals("not a url", NatsUri.redactUrl("not a url"));
+        assertEquals("@", NatsUri.redactUrl("@"));
+        assertEquals("x://", NatsUri.redactUrl("x://"));
+        // a server url that does not parse is refused without its credentials in the error or its cause
+        IllegalArgumentException bad = assertThrows(IllegalArgumentException.class, () -> new Options.Builder().server("nats://user:secret@bad host:4222"));
+        assertFalse(bad.getMessage().contains("secret"), bad.getMessage());
+        assertTrue(bad.getMessage().contains("user:***@bad host"), bad.getMessage());
+        assertNotNull(bad.getCause());
+        assertFalse(String.valueOf(bad.getCause().getMessage()).contains("secret"), bad.getCause().getMessage());
+    }
+
+    @Test
+    public void testNatsUriIsIpAddress() {
+        for (String ip : new String[]{"127.0.0.1", "10.0.0.5", "::1", "[::1]", "fe80::1", "[fe80::1%eth0]", "::ffff:10.0.0.5", "2001:db8::1"}) {
+            assertTrue(NatsUri.isIpAddress(ip), ip);
+        }
+        for (String notIp : new String[]{"nats", "nats.example.com", "nats.example.com.", "nats.example.com:4222", "127.0.0.1:4222", "a:b", "1.2.3", "999.1.1.1", "[nats]"}) {
+            assertFalse(NatsUri.isIpAddress(notIp), notIp);
+        }
+    }
+
+    @Test
+    public void testIgnoreAuthErrorAbort() {
+        // ADR-40, authorization violation: the abort after repeated authorization errors can be switched off
+        assertFalse(new Options.Builder().build().isIgnoreAuthErrorAbort());
+        Options o = new Options.Builder().ignoreAuthErrorAbort().build();
+        assertTrue(o.isIgnoreAuthErrorAbort());
+        assertTrue(new Options.Builder(o).build().isIgnoreAuthErrorAbort());
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_IGNORE_AUTH_ERROR_ABORT, "true");
+        assertTrue(new Options.Builder(props).build().isIgnoreAuthErrorAbort());
+        props.setProperty(Options.PROP_IGNORE_AUTH_ERROR_ABORT, "false");
+        assertFalse(new Options.Builder(props).build().isIgnoreAuthErrorAbort());
+    }
+
+    @Test
+    public void testReconnectJitterZeroMeansNoJitter() {
+        // ADR-40, reconnect process: a jitter of zero, or none, means no jitter; a negative one is refused
+        Options o = new Options.Builder().reconnectJitter(Duration.ZERO).reconnectJitterTls(Duration.ZERO).build();
+        assertEquals(Duration.ZERO, o.getReconnectJitter());
+        assertEquals(Duration.ZERO, o.getReconnectJitterTls());
+        o = new Options.Builder().reconnectJitter(null).reconnectJitterTls(null).build();
+        assertNull(o.getReconnectJitter());
+        assertNull(o.getReconnectJitterTls());
+        assertThrows(IllegalArgumentException.class, () -> new Options.Builder().reconnectJitter(Duration.ofMillis(-1)));
+        assertThrows(IllegalArgumentException.class, () -> new Options.Builder().reconnectJitterTls(Duration.ofMillis(-1)));
+    }
+
+    @Test
+    public void testTlsVerifyDiscoveredByIp() throws Exception {
+        // ADR-40, the TLS name of a discovered server: the verify-by-ip opt-in. A TLS configuration, so it asks for TLS
+        assertFalse(new Options.Builder().build().isTlsVerifyDiscoveredByIp());
+        Options options = new Options.Builder().tlsVerifyDiscoveredByIp().build();
+        assertTrue(options.isTlsVerifyDiscoveredByIp());
+        assertTrue(options.isTLSRequired());
+        assertSame(SSLContext.getDefault(), options.getSslContext());
+        assertTrue(new Options.Builder(options).build().isTlsVerifyDiscoveredByIp());
+
+        Properties props = new Properties();
+        props.setProperty(Options.PROP_TLS_VERIFY_DISCOVERED_BY_IP, "true");
+        assertTrue(new Options.Builder(props).build().isTlsVerifyDiscoveredByIp());
+        props.setProperty(Options.PROP_TLS_VERIFY_DISCOVERED_BY_IP, "false");
+        assertFalse(new Options.Builder(props).build().isTlsVerifyDiscoveredByIp());
+
+        Options open = new Options.Builder().opentls().tlsVerifyDiscoveredByIp().build();
+        assertTrue(open.isTLSRequired());
+        assertNotSame(SSLContext.getDefault(), open.getSslContext());
+
+        assertThrows(IllegalStateException.class, () -> new Options.Builder().server("ws://localhost:80").tlsVerifyDiscoveredByIp().build());
     }
 
     @SuppressWarnings("deprecation")

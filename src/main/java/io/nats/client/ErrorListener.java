@@ -13,6 +13,7 @@
 
 package io.nats.client;
 
+import io.nats.client.support.Encoding;
 import io.nats.client.support.Status;
 
 /**
@@ -161,6 +162,27 @@ public interface ErrorListener {
      * @param reason Why it was rejected
      */
     default void serverRejected(Connection conn, String server, String reason) {}
+
+    /**
+     * Called by the connection when a {@code connect_urls} entry of an INFO from the server was not used. nats-server
+     * writes an entry as {@code host:port}, with an IPv6 address in brackets. An entry that carries a scheme, such as
+     * {@code nats://host:port} or {@code ws://host:port}, is skipped as a whole, since a discovered server is dialed
+     * with the transport and the TLS of the server that reported it, not with what the entry names. An entry that
+     * does not parse as {@code host:port} once its user info is dropped, or whose port is outside 1 to 65535, is
+     * skipped as well. Under TLS with the name check on, a discovered ip address that has no name to verify its
+     * certificate against, learned through a server given as an ip address while neither {@code tlsServerName} nor
+     * {@code tlsVerifyDiscoveredByIp} is set, is skipped too. The other entries of the INFO are used. User info in
+     * an entry is dropped without a report.
+     * Called once per skipped entry, each time an INFO carries it. Not called when the options ignore discovered
+     * servers, since the connection then uses no entry; the pool still receives the list.
+     *
+     * @param conn The connection that received the INFO
+     * @param entry The entry as the server sent it. The client did not accept it as a server, so escape it before
+     *              it goes to a log or a terminal, as {@link Encoding#quote(String)} does; the logger and console
+     *              listeners of the library use it
+     * @param reason Why it was skipped
+     */
+    default void discoveredServerSkipped(Connection conn, String entry, String reason) {}
 
     /**
      * General message producing function which understands the possible parameters to listener calls.

@@ -15,6 +15,7 @@ package io.nats.client.impl;
 
 import io.nats.client.Message;
 import io.nats.client.ReadListener;
+import io.nats.client.support.Encoding;
 import io.nats.client.support.IncomingHeadersProcessor;
 
 import java.io.IOException;
@@ -73,6 +74,7 @@ class NatsConnectionReader implements Runnable {
     private Future<DataPort> dataPortFuture;
     private DataPort dataPort;
     private final AtomicBoolean running;
+    private boolean discardIncoming; // the message being gathered carries a header block that did not parse
 
     private final boolean utf8Mode;
     // The listener the reader thread invokes: either a no-op (no ReadListener configured) or a wrapper
@@ -270,6 +272,12 @@ class NatsConnectionReader implements Runnable {
         } catch (InterruptedException ex) {
             // Exit
             Thread.currentThread().interrupt();
+        } catch (RuntimeException ex) {
+            // ADR-40, malformed input: a reader must not stop silently. Input the parsing did not expect is reported
+            // and makes the client reconnect, as any other line that does not parse does
+            if (running.get()) {
+                this.connection.handleCommunicationIssue(new IOException("The reader failed on input from the server: " + ex, ex));
+            }
         } finally {
             this.running.set(false);
             // Clear the buffers, since they are only used inside this try/catch
@@ -401,7 +409,18 @@ class NatsConnectionReader implements Runnable {
                 }
 
                 if (msgHeadersPosition == msgHeaders.length) {
-                    incoming.setHeaders(new IncomingHeadersProcessor(msgHeaders));
+                    try {
+                        incoming.setHeaders(new IncomingHeadersProcessor(msgHeaders));
+                    }
+                    catch (RuntimeException e) {
+                        // ADR-40, malformed input: a header block that does not parse drops only the message that
+                        // carries it, and the connection stays up. The data that follows is read and then discarded.
+                        // The parser throws IllegalArgumentException for a block it recognizes as bad and an index
+                        // error for one it cannot even scan, such as a block shorter than its version prefix or one
+                        // that ends in a space; a publisher can send either, since nats-server relays a block as written
+                        discardIncoming = true;
+                        this.connection.processException(new IllegalArgumentException("A message's header block does not parse, the message was dropped. The block starts with " + Encoding.quoteFirstLine(msgHeaders), e));
+                    }
                     msgHeaders = null;
                     msgHeadersPosition = -1;
                     this.mode = Mode.GATHER_DATA;
@@ -442,10 +461,15 @@ class NatsConnectionReader implements Runnable {
 
                 if (gotCR) {
                     if (b == LF) {
-                        incoming.setData(msgData);
-                        NatsMessage m = incoming.getMessage();
-                        this.connection.deliverMessage(m);
-                        readListener.message(op, m);
+                        if (discardIncoming) {
+                            discardIncoming = false;
+                        }
+                        else {
+                            incoming.setData(msgData);
+                            NatsMessage m = incoming.getMessage();
+                            this.connection.deliverMessage(m);
+                            readListener.message(op, m);
+                        }
                         msgData = null;
                         msgDataPosition = 0;
                         incoming = null;
@@ -538,7 +562,7 @@ class NatsConnectionReader implements Runnable {
 
     public static int parseLength(String s) throws NumberFormatException {
         int length = s.length();
-        int retVal = 0;
+        long retVal = 0;
 
         if (length > TENS.length) {
             throw new NumberFormatException("Long in message length \"" + s + "\" "+length+" > "+TENS.length);
@@ -552,10 +576,28 @@ class NatsConnectionReader implements Runnable {
                 throw new NumberFormatException("Invalid char in message length '" + c + "'");
             }
 
-            retVal += d * TENS[length - i - 1];
+            retVal += (long) d * TENS[length - i - 1];
         }
 
-        return retVal;
+        if (retVal > Integer.MAX_VALUE) {
+            // ten digits can exceed an int; before, the value wrapped and the reader died on a negative array size
+            throw new NumberFormatException("Message length \"" + s + "\" is too large");
+        }
+        return (int) retVal;
+    }
+
+    // ADR-40, malformed input: a length that can only be an attack on memory is a line that does not parse, and
+    // makes the client reconnect instead of allocating it. The bound is generous, twice the server's max payload and
+    // never below 64 MiB, so that the headers a direct get adds to a stored message, or a message relayed from a
+    // server with a larger limit, pass. nats-server has no hard cap on max_payload; it warns above 8 MiB
+    static final long INCOMING_LENGTH_FLOOR = 64L * 1024 * 1024;
+
+    private void checkIncomingLength(int length) {
+        long max = connection.getServerInfo().getMaxPayload();
+        long bound = max > 0 && max * 2 > INCOMING_LENGTH_FLOOR ? max * 2 : INCOMING_LENGTH_FLOOR;
+        if (length > bound) {
+            throw new IllegalStateException("Message length " + length + " exceeds what a server could send, " + bound + " with a max payload of " + max);
+        }
     }
 
     void parseProtocolMessage() throws IOException {
@@ -591,6 +633,7 @@ class NatsConnectionReader implements Runnable {
                     }
 
                     int incomingLength = parseLength(lengthChars);
+                    checkIncomingLength(incomingLength);
 
                     this.incoming = new IncomingMessageFactory(sid, subject, replyTo, protocolLineLength, utf8Mode);
                     this.mode = Mode.GATHER_DATA;
@@ -633,6 +676,11 @@ class NatsConnectionReader implements Runnable {
 
                     if(hSubject==null || hSubject.isEmpty() || hSid==null || hSid.isEmpty()) {
                         throw new IllegalStateException("Bad HMSG control line, missing required fields");
+                    }
+                    checkIncomingLength(totLen);
+                    if (hdrLen > totLen) {
+                        // before, the negative data length ended the reader without a word
+                        throw new IllegalStateException("Bad HMSG control line, header length " + hdrLen + " exceeds total length " + totLen);
                     }
 
                     this.incoming = new IncomingMessageFactory(hSid, hSubject, hReplyTo, hProtocolLineLength, utf8Mode);
@@ -679,7 +727,9 @@ class NatsConnectionReader implements Runnable {
                     throw new IllegalStateException("Unknown protocol operation "+op);
             }
         }
-        catch (IllegalStateException | NumberFormatException | NullPointerException ex) {
+        catch (IllegalStateException | IllegalArgumentException | NullPointerException ex) {
+            // IllegalArgumentException covers NumberFormatException and, during an attempt, an INFO that does not
+            // parse, which handleInfo rethrows so that the attempt fails
             throw new IOException("Parse Protocol OP_" + op, ex);
         }
     }
@@ -693,6 +743,7 @@ class NatsConnectionReader implements Runnable {
         this.bufferPosition = 0;
         this.op = UNKNOWN_OP;
         this.mode = Mode.GATHER_OP;
+        this.discardIncoming = false;
     }
 
     String currentOp() {

@@ -5,7 +5,7 @@
 ### A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
 ![2.26.4](https://img.shields.io/badge/Current_Release-2.26.4-27AAE0?style=for-the-badge)
-![2.26.5](https://img.shields.io/badge/Current_Snapshot-2.26.5--SNAPSHOT-27AAE0?style=for-the-badge)
+![2.27.0](https://img.shields.io/badge/Current_Snapshot-2.27.0--SNAPSHOT-27AAE0?style=for-the-badge)
 
 [![Build Main Badge](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml/badge.svg?event=push)](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml)
 [![Coverage Status](https://coveralls.io/repos/github/nats-io/nats.java/badge.svg?branch=main)](https://coveralls.io/github/nats-io/nats.java?branch=main)
@@ -43,7 +43,11 @@
 
 ## Important
 
-Version 2.26.5 turns TLS hostname verification on by default, so a connection to a server whose certificate does not name the host in the url now fails. See [Version 2.26.5 Hostname Verification On By Default](#version-2265-hostname-verification-on-by-default) for who is affected and how to opt out.
+**2.27.0 Changes to secure connection behavior**
+
+TLS hostname verification is on by default: a connection to a server whose certificate does not name the host in the url now fails. See [Version 2.27.0 Hostname Verification On By Default](#version-2270-hostname-verification-on-by-default) for who is affected and how to opt out.
+
+The servers a cluster advertises are listed, verified over TLS and reconnected to by new rules, TLS 1.2 is the floor on every connection, and url passwords are hidden from events and errors. See [Version 2.27.0 TLS Discovery and Reconnect](#version-2270-tls-discovery-and-reconnect) and the full notes in [RELEASE_NOTES_ADR40.md](RELEASE_NOTES_ADR40.md).
 
 ## Client and Orbit
 
@@ -209,9 +213,9 @@ rather than shrinking the general `executor`.
 
 ## Recent Version Notes
 
-### Version 2.26.5 Hostname Verification On By Default
+### Version 2.27.0 Hostname Verification On By Default
 
-Starting with 2.26.5, the client checks that the certificate a server presents was issued for the host in the url you connect with. Before 2.26.5 it did not: any certificate your trust store accepted was accepted for any host, and `opentls` accepted any certificate at all. The check applies to every TLS connection, including `opentls`, and to servers the client discovers from the cluster, not only the ones in your options.
+Starting with 2.27.0, the client checks that the certificate a server presents was issued for the host in the url you connect with. Before 2.27.0 it did not: any certificate your trust store accepted was accepted for any host, and `opentls` accepted any certificate at all. The check applies to every TLS connection, including `opentls`, and to servers the client discovers from the cluster, not only the ones in your options.
 
 When the certificate does not name the host, the connection fails and the error names the host it was looking for, for example `No subject alternative names matching IP address 10.0.0.5 found`.
 
@@ -231,9 +235,21 @@ To check a certificate, list its subject alternative names and compare them with
 openssl x509 -in server.pem -noout -ext subjectAltName
 ```
 
-If you are affected, connect by a name the certificate carries, or reissue the certificate with the names and ip addresses you connect with. For a cluster that advertises ips, set `client_advertise` on the servers so they advertise hostnames instead.
+If you are affected, set `tlsServerName` on the options builder, or the `io.nats.client.tls.server.name` property, to a name the certificates carry, connect by a name the certificate carries, or reissue the certificate with the names and ip addresses you connect with. For a cluster that advertises ips, set `client_advertise` on the servers so they advertise hostnames instead.
 
 To keep the old behavior, call `tlsVerifyHostname(false)` on the options builder, or set the property `io.nats.client.tls.verify.hostname=false`. This removes the proof that the server is the one named in the url, so treat it as a development setting, not a fix. The full rules are in [TLS configuration](docs/TLS_CONFIGURATION.md).
+
+### Version 2.27.0 TLS Discovery and Reconnect
+
+The same release changes what the client does with the servers a cluster advertises in `connect_urls`, and how it reconnects. The full list, with the behavior before and after each change and the option that restores the old one, is in [RELEASE_NOTES_ADR40.md](RELEASE_NOTES_ADR40.md). The ones most likely to reach you:
+
+1. A discovered server is a `host:port` entry dialed with the transport and the TLS of the server that reported it. A custom `ServerPool` receives `host:port` only and takes the scheme from the `origin` argument.
+2. If you connect by ip address to a cluster that advertises ip addresses, set `tlsVerifyDiscoveredByIp()` or `tlsServerName`; without one of them the discovered servers are skipped and reported, and there is no failover.
+3. `maxReconnects` now holds during an outage in which the servers keep naming each other; before, the reconnect went on without end.
+4. The addresses of one hostname share one connection timeout per attempt; before, each address had its own.
+5. TLS 1.2 is the floor on every connection; a server that offers only TLS 1.0 or 1.1 fails.
+6. Events, errors and trace lines no longer carry url passwords; `getConnectedUrlRedacted()` gives the hidden form.
+7. `ignoreAuthErrorAbort()` keeps reconnecting after repeated authorization errors; off by default, which is the old behavior.
 
 ### Version 2.26.0 Advanced Request Behavior
 
@@ -392,7 +408,7 @@ repositories {
 }
 
 dependencies {
-   implementation 'io.nats:jnats:2.26.5-SNAPSHOT'
+   implementation 'io.nats:jnats:2.27.0-SNAPSHOT'
 }
 ```
 
@@ -438,7 +454,7 @@ If you need a snapshot version, you must enable snapshots and change your depend
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.26.5-SNAPSHOT</version>
+    <version>2.27.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -612,6 +628,7 @@ assertEquals(8000, o.getMaxMessagesInOutgoingQueue());
 | reconnect.max                     | Configure maxReconnects.                                                             |
 | reconnect.jitter                  | Configure reconnectJitter.                                                           |
 | reconnect.jitter.tls              | Configure reconnectJitterTls.                                                        |
+| ignore.auth.error.abort           | Keep reconnecting after repeated authorization errors instead of closing             |
 | pedantic                          | Configure pedantic.                                                                  |
 | verbose                           | Configure verbose.                                                                   |
 | noecho                            | Configure noEcho.                                                                    |
@@ -649,6 +666,8 @@ assertEquals(8000, o.getMaxMessagesInOutgoingQueue());
 | credential.path                   | Property used to set the path to a credentials file to be used in a FileAuthHandler  |
 | tls.first                         | Property used to set TLS Handshake First behavior                                    |
 | tls.verify.hostname               | Property used to set tls hostname verification, on by default; false turns it off    |
+| tls.server.name                   | Property used to set the TLS server name of every server, verified and sent as SNI   |
+| tls.verify.discovered.by.ip       | Verify a discovered ip address against its address; connect to one that has no name   |
 | use.timeout.exception             | Instruct the client to throw TimeoutException instead of CancellationException       |
 | advanced.request.behavior         | Surface a specific RequestFailureException (reason, status, last error) on no reply |
 | use.dispatcher.with.executor      | Instruct dispatchers to dispatch all messages as a task                              |
@@ -736,7 +755,7 @@ When options are built, the SSLContext will be accepted or created in the follow
 3. If `opentls` is true or any of the bootstrap servers has `opentls` as their scheme, a generic SSLContext will be created that **"trusts all certs"**. Asking for both, by setting `secure` and `opentls`, or with a bootstrap list that mixes `opentls` with `tls` or `wss`, is rejected; see [TLS configuration](docs/TLS_CONFIGURATION.md).
 4. If `secure` is true or any of the bootstrap servers has `tls` or `wss` as their scheme, the `javax.net.ssl.SSLContext.getDefault()` will be used.
 
-When the options end up with an SSLContext by any of these routes, a bootstrap server with the `ws` scheme is rejected when the options are built, because a `ws` connection is never upgraded to TLS. Use `wss` for that server. A `ws` server the cluster advertises in `connect_urls` is skipped when the pool hands it out, reported through the error listener's `serverRejected`, and dropped from the pool; see [TLS configuration](docs/TLS_CONFIGURATION.md).
+When the options end up with an SSLContext by any of these routes, a bootstrap server with the `ws` scheme is rejected when the options are built, because a `ws` connection is never upgraded to TLS. Use `wss` for that server. A server the cluster advertises in `connect_urls` is dialed the way the server that advertised it was dialed, with the same transport and the same TLS; an entry that carries a scheme of its own, `ws://` or any other, is skipped and reported through the error listener's `discoveredServerSkipped`. A `ws` server a custom `ServerPool` hands out is skipped when the pool hands it out, reported through `serverRejected`, and handed back to the pool; see [TLS configuration](docs/TLS_CONFIGURATION.md).
 
 ### Publishing
 
@@ -1115,7 +1134,7 @@ You can, however, set the Deliver Policy which will be used to start the subscri
 
 ## Connection Security
 
-NATS supports TLS 1.2. The server can be configured to verify client certificates or not. Depending on this setting, the client has several options.
+NATS supports TLS 1.2 and TLS 1.3. The client negotiates TLS 1.3 where the server and the JVM support it, and never below TLS 1.2, whatever the SSLContext. The server can be configured to verify client certificates or not. Depending on this setting, the client has several options.
 
 1. The Java library allows the use of the tls:// protocol in its urls. This setting expects a default SSLContext to be set. You can set this default context using System properties, or in code. For example, you could run the Publish example using:
 
@@ -1150,7 +1169,7 @@ NATS supports TLS 1.2. The server can be configured to verify client certificate
     Connection nc = Nats.connect(options);
     ```
 
-In every case the client checks that the certificate the server presents is issued for the server name the connection was made with: the hostname in the url, or the ip address when the url has one, which the certificate must then carry as a subject alternative name. This is on by default, including with `opentls`. `tlsVerifyHostname(false)` on the builder, or the `io.nats.client.tls.verify.hostname=false` property, turns it off; see [TLS configuration](docs/TLS_CONFIGURATION.md).
+In every case the client checks that the certificate the server presents is issued for the server name the connection was made with: the hostname in the url, or the ip address when the url has one, which the certificate must then carry as a subject alternative name. This is on by default, including with `opentls`. `tlsServerName(name)` on the builder, or the `io.nats.client.tls.server.name` property, sets one name for every server instead, for servers reached by ip address or by a name their certificates do not carry; it asks for TLS on its own. A server the cluster advertises by ip address is checked against the hostname inherited from the server that reported it, over any number of hops; one with no name to inherit is skipped unless `tlsVerifyDiscoveredByIp()` is set. `tlsVerifyHostname(false)` on the builder, or the `io.nats.client.tls.verify.hostname=false` property, turns the check off as the last resort; see [TLS configuration](docs/TLS_CONFIGURATION.md).
 
 If you want to try out these techniques, take a look at the [README.md](src/examples/java/io/nats/examples/README.md) for instructions.
 
@@ -1179,7 +1198,7 @@ However, the java client also needs a keystore and truststore.jks files for crea
 When creating a connection, client TLS behavior is set while creating options.
 The client assumes TLS is requested if there is an SSLContext instance in the options. There are two ways one exists:
 1. The user directly supplied one, or supplied the keystore and truststore it is built from
-2. A default one was created because `secure()` or `tlsFirst()` was called, or because a supplied server url has a secure protocol such as `tls`, `wss` or `opentls`
+2. A default one was created because `secure()`, `tlsFirst()` or `tlsServerName()` was called, or because a supplied server url has a secure protocol such as `tls`, `wss` or `opentls`
 
 If there is a mismatch, an IOException will be thrown while connecting and the next server is tried, since a single server can be misconfigured. The options decide for every server of a connection, so when every server of one round over the server list fails with the mismatch, retrying cannot help: the connection is closed without reconnecting, and the initial connect throws.
 
@@ -1632,7 +1651,7 @@ and the example jar is in `build/libs`
 Once the Uber jar is built, you can run a class with a main using it's fully qualified class name. As an example:
 
 ```bash
-java -cp build/libs/java-nats-2.26.5-SNAPSHOT-uber.jar io.nats.examples.NatsSub
+java -cp build/libs/java-nats-2.27.0-SNAPSHOT-uber.jar io.nats.examples.NatsSub
 ```
 
 ## License
