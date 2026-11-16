@@ -2152,7 +2152,8 @@ public class Options {
          * <p>Each connection attempt also runs the data port's connect, and in the resolving hostname modes the name
          * lookup, as tasks on this executor beside the thread that runs the connect or the reconnect, each under the
          * connection timeout. A fixed pool must have room for them: with no thread free, every attempt ends in the
-         * connection timeout. A lookup the connection gave up on keeps its thread until the resolver returns.</p>
+         * connection timeout. A lookup the connection gave up on keeps its thread until the resolver returns, and a
+         * later attempt for the same server waits on that lookup instead of starting another.</p>
          *
          * @param executor The ExecutorService to use for connections built with these options.
          * @return the Builder for chaining
