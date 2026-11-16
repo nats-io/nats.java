@@ -1191,6 +1191,7 @@ class NatsConnection implements Connection {
 
         callbackExecutor = null;
         executor = null;
+        lookups.clear(); // a lookup still running removes nothing and nobody waits for it
         connectExecutor = null;
         readerExecutor = null;
         writerExecutor = null;
@@ -2483,29 +2484,48 @@ class NatsConnection implements Connection {
         return serverPool.getServerList();
     }
 
+    // the name lookups in flight, one per server: a lookup the connection gave up on stays here until it returns, and
+    // a later attempt for the same server waits on it instead of starting another. See resolveHostBounded
+    private final ConcurrentHashMap<NatsUri, Future<List<NatsUri>>> lookups = new ConcurrentHashMap<>();
+
     // ADR-40, connection timeout: the name lookup is outside the attempt's budget and bounded by a timer of its own,
-    // the connection timeout. InetAddress has no timeout, so the lookup runs on the executor, and a lookup that does
-    // not finish in time, that fails or that cannot be started throws: the callers count it as a failed attempt of
-    // that server, instead of holding the connect or the reconnect for as long as the resolver takes. The cancel below
-    // interrupts the lookup, which InetAddress ignores: a resolver that hangs keeps its executor thread until it
-    // returns; the attempt moves on without it
+    // the connection timeout. InetAddress has no timeout and ignores interrupts, so the lookup runs on the executor,
+    // and a lookup that does not finish in time, that fails or that cannot be started throws: the callers count it as
+    // a failed attempt of that server, instead of holding the connect or the reconnect for as long as the resolver
+    // takes. The lookup itself goes on: it keeps its executor thread until the resolver returns, and it stays in
+    // lookups until then, so the next attempt for the same server, in the next round, waits on it with a timer of its
+    // own rather than submitting another. One thread per unresolved server, not one per round; the entry leaves the
+    // map when the lookup completes, however it completes
     protected List<NatsUri> resolveHostBounded(NatsUri nuri) throws InterruptedException, IOException {
         if (nuri.hostIsIpAddress() || nuri.isWebsocket() || !options.hostnameResolveMode().resolve) {
             return resolveHost(nuri); // no lookup here: the data port resolves, under the attempt's budget
         }
         Future<List<NatsUri>> lookup;
         try {
-            lookup = executor.submit(() -> resolveHost(nuri));
+            lookup = lookups.computeIfAbsent(nuri, server -> {
+                CompletableFuture<List<NatsUri>> result = new CompletableFuture<>();
+                executor.submit(() -> {
+                    try {
+                        result.complete(resolveHost(server));
+                    }
+                    catch (Throwable t) {
+                        result.completeExceptionally(t);
+                    }
+                    finally {
+                        lookups.remove(server, result);
+                    }
+                });
+                return result;
+            });
         }
         catch (RuntimeException e) {
-            // rejected by the executor, or the executor is gone because the connection closed
+            // rejected by the executor, or the executor is gone because the connection closed; nothing was mapped
             throw new IOException("The name lookup of " + nuri.getHost() + " could not be started", e);
         }
         try {
             return lookup.get(options.getConnectionTimeout().toNanos(), TimeUnit.NANOSECONDS);
         }
         catch (TimeoutException e) {
-            lookup.cancel(true);
             throw new IOException("The name lookup of " + nuri.getHost() + " did not finish within the connection timeout", e);
         }
         catch (ExecutionException e) {
