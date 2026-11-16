@@ -340,6 +340,8 @@ public class Options {
     public enum HostnameResolveMode {
         /**
          * Resolve host to all ip addresses allowing for connection attempts to try all ip addresses for a given hostname.
+         * The addresses are tried in turn within the one connection timeout of the attempt, so an address that does
+         * not answer can leave the rest to the next attempt, see {@link Builder#connectionTimeout(Duration)}.
          * Default mode. Does not include IPV6 addresses.
          */
         ResolveToAll(true, false, false),
@@ -352,6 +354,8 @@ public class Options {
 
         /**
          * Resolve host to all ip addresses allowing for connection attempts to try all ip addresses for a given hostname.
+         * The addresses are tried in turn within the one connection timeout of the attempt, so an address that does
+         * not answer can leave the rest to the next attempt, see {@link Builder#connectionTimeout(Duration)}.
          * Includes IPV6 addresses.
          */
         ResolveToAllIncludeIPV6(true, false, true),
@@ -1788,9 +1792,11 @@ public class Options {
 
         /**
          * Set the timeout for connection attempts: one budget per attempt, from the TCP connect to the first PONG,
-         * which the TLS handshake, a WebSocket upgrade, INFO and CONNECT share. The name lookup of a server runs
-         * before its attempt under a timer of its own, of this same duration. Each server in the options is allowed
-         * this timeout so if 3 servers are tried with a timeout of 5s the total time could be 15s.
+         * which the TLS handshake, a WebSocket upgrade, INFO and CONNECT share. A name that resolves to several
+         * addresses is one attempt: the addresses are tried in turn within this one budget, so an address that uses
+         * it up leaves the rest to the next attempt. The name lookup of a server runs before its attempt under a
+         * timer of its own, of this same duration. Each server in the options is allowed this timeout so if 3 servers
+         * are tried with a timeout of 5s the total time could be 15s.
          *
          * @param connectionTimeout the time to wait
          * @return the Builder for chaining
@@ -1802,9 +1808,11 @@ public class Options {
 
         /**
          * Set the timeout for connection attempts: one budget per attempt, from the TCP connect to the first PONG,
-         * which the TLS handshake, a WebSocket upgrade, INFO and CONNECT share. The name lookup of a server runs
-         * before its attempt under a timer of its own, of this same duration. Each server in the options is allowed
-         * this timeout so if 3 servers are tried with a timeout of 5s the total time could be 15s.
+         * which the TLS handshake, a WebSocket upgrade, INFO and CONNECT share. A name that resolves to several
+         * addresses is one attempt: the addresses are tried in turn within this one budget, so an address that uses
+         * it up leaves the rest to the next attempt. The name lookup of a server runs before its attempt under a
+         * timer of its own, of this same duration. Each server in the options is allowed this timeout so if 3 servers
+         * are tried with a timeout of 5s the total time could be 15s.
          *
          * @param connectionTimeoutMillis the time to wait in milliseconds
          * @return the Builder for chaining
@@ -2144,6 +2152,11 @@ public class Options {
          * {@link #readerExecutor(ExecutorService) readerExecutor}/{@link #writerExecutor(ExecutorService) writerExecutor}
          * (or {@link #readerThreadFactory(ThreadFactory) readerThreadFactory}/{@link #writerThreadFactory(ThreadFactory) writerThreadFactory})
          * rather than shrinking this one.
+         *
+         * <p>Each connection attempt also runs the data port's connect, and in the resolving hostname modes the name
+         * lookup, as tasks on this executor beside the thread that runs the connect or the reconnect, each under the
+         * connection timeout. A fixed pool must have room for them: with no thread free, every attempt ends in the
+         * connection timeout. A lookup the connection gave up on keeps its thread until the resolver returns.</p>
          *
          * @param executor The ExecutorService to use for connections built with these options.
          * @return the Builder for chaining
