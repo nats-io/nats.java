@@ -27,6 +27,8 @@ import io.nats.client.support.ssl.SslTestingHelper;
 import io.nats.client.utils.TestBase;
 import org.junit.jupiter.api.Test;
 
+import javax.net.ssl.SNIHostName;
+import javax.net.ssl.SNIServerName;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 import java.io.IOException;
@@ -47,7 +49,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * real nats-servers; a scenario about bytes on the wire runs against {@link SniTestServer}. Two are covered elsewhere:
  * S09, url credentials carried to discovered servers, by {@code ReconnectTests.testUrlCredentialsReachDiscoveredServers};
  * S27, server-advertised ws:// and nats:// entries against a TLS client, by
- * {@code TLSConnectTests.testConnectUrlsEntriesWithASchemeAreSkippedAndNotDialed}.
+ * {@code TLSConnectTests.testConnectUrlsEntriesWithASchemeAreSkippedAndNotDialed}. The last test is outside the
+ * standard's list: a server advertised under a rooted name, against real servers.
  */
 public class TlsDiscoveryScenarioTests extends TestBase {
     private static final String PLAIN_CONF = "src/test/resources/cluster_plain.conf";
@@ -56,39 +59,59 @@ public class TlsDiscoveryScenarioTests extends TestBase {
     private static final String CERT_NO_IP = "src/test/resources/certs/server_noip.pem";
     private static final String KEY_NO_IP = "src/test/resources/certs/key_noip.pem";
 
-    /** records the protocol of every TLS session the connection negotiates, one per upgrade */
+    /**
+     * records the protocol of every TLS session the connection negotiates, one per upgrade, and the server name the
+     * connection sent in each
+     */
     public static class RecordingDataPort extends SocketDataPort {
         static final List<String> protocols = new CopyOnWriteArrayList<>();
+        static final List<String> serverNames = new CopyOnWriteArrayList<>();
 
         @Override
         public void upgradeToSecure() throws IOException {
             super.upgradeToSecure();
-            protocols.add(((SSLSocket) socket).getSession().getProtocol());
+            SSLSocket tls = (SSLSocket) socket;
+            protocols.add(tls.getSession().getProtocol());
+            List<SNIServerName> names = tls.getSSLParameters().getServerNames();
+            if (names != null) {
+                for (SNIServerName name : names) {
+                    serverNames.add(name instanceof SNIHostName ? ((SNIHostName) name).getAsciiName() : name.toString());
+                }
+            }
         }
     }
 
-    /** two nats-servers routed to each other, each advertising 127.0.0.1 and its port, configured by inserts */
+    /**
+     * two nats-servers routed to each other, each advertising 127.0.0.1 and its port unless the second is given another
+     * host to advertise, configured by inserts
+     */
     private static final class Cluster implements AutoCloseable {
         final int aPort = NatsTestServer.nextPort();
         final int bPort = NatsTestServer.nextPort();
         final int aRoute = NatsTestServer.nextPort();
         final int bRoute = NatsTestServer.nextPort();
+        final String bAdvertiseHost;
         final NatsTestServer a;
         final NatsTestServer b;
         private boolean aClosed;
 
         Cluster(Consumer<List<String>> aExtra, Consumer<List<String>> bExtra) throws Exception {
-            List<String> aInserts = inserts(aPort, aRoute, bRoute);
+            this(aExtra, bExtra, "127.0.0.1");
+        }
+
+        Cluster(Consumer<List<String>> aExtra, Consumer<List<String>> bExtra, String bAdvertiseHost) throws Exception {
+            this.bAdvertiseHost = bAdvertiseHost;
+            List<String> aInserts = inserts(aPort, aRoute, bRoute, "127.0.0.1");
             aExtra.accept(aInserts);
-            List<String> bInserts = inserts(bPort, bRoute, aRoute);
+            List<String> bInserts = inserts(bPort, bRoute, aRoute, bAdvertiseHost);
             bExtra.accept(bInserts);
             a = new NatsTestServer(PLAIN_CONF, aInserts.toArray(new String[0]), aPort, false);
             b = new NatsTestServer(PLAIN_CONF, bInserts.toArray(new String[0]), bPort, false);
         }
 
-        private static List<String> inserts(int port, int listenPort, int routePort) {
+        private static List<String> inserts(int port, int listenPort, int routePort, String advertiseHost) {
             return new ArrayList<>(Arrays.asList(
-                "client_advertise: \"127.0.0.1:" + port + "\"",
+                "client_advertise: \"" + advertiseHost + ":" + port + "\"",
                 "cluster {",
                 "name: scenarioCluster",
                 "listen: localhost:" + listenPort,
@@ -103,7 +126,7 @@ public class TlsDiscoveryScenarioTests extends TestBase {
         }
 
         String bDiscovered() {
-            return "tls://127.0.0.1:" + bPort;
+            return "tls://" + bAdvertiseHost + ":" + bPort;
         }
 
         void killA() throws Exception {
@@ -395,6 +418,35 @@ public class TlsDiscoveryScenarioTests extends TestBase {
             assertEquals(0, listener.getEventCount(Events.DISCOVERED_SERVERS));
             for (Exception e : listener.getExceptions()) {
                 assertFalse(String.valueOf(e.getMessage()).contains(":" + canary.port()), "the canary was never dialed: " + e);
+            }
+        }
+    }
+
+    @Test
+    public void rootedDiscoveredNameIsDialedAsWrittenAndVerifiedWithoutTheDot() throws Exception {
+        // a server advertised under a rooted name, localhost. with its trailing dot, is listed and dialed as written.
+        // The name sent as SNI and verified against is localhost, without the dot: the certificate carries it that
+        // way, and nats-server refuses a handshake whose server name ends in a dot (ADR-40, certificate verification).
+        // The rule TlsHostnameTests covers against the fake server, here against two real nats-servers whose
+        // certificate names localhost only
+        RecordingDataPort.protocols.clear();
+        RecordingDataPort.serverNames.clear();
+        ListenerForTesting listener = new ListenerForTesting();
+        SSLContext context = SslTestingHelper.createTestSSLContext();
+        try (Cluster cluster = new Cluster(tls(CERT_NO_IP, KEY_NO_IP, false), tls(CERT_NO_IP, KEY_NO_IP, false), "localhost.")) {
+            waitForClusterToForm(cluster, context);
+            Options options = client(cluster, context, listener)
+                .dataPortType(RecordingDataPort.class.getName())
+                .maxReconnects(-1)
+                .build();
+            try (Connection nc = standardConnectionWait(Nats.connect(options))) {
+                awaitDiscovered(nc, cluster.bDiscovered());
+                listener.prepForStatusChange(Events.RECONNECTED);
+                cluster.killA();
+                assertTrue(listener.waitForStatusChange(10, TimeUnit.SECONDS), "reconnected to the discovered server");
+                assertEquals(cluster.bDiscovered(), nc.getConnectedUrl(), "dialed as written, with the dot");
+                assertEquals(Arrays.asList("localhost", "localhost"), RecordingDataPort.serverNames, "the server name sent to each server, without the dot");
+                roundTrip(nc);
             }
         }
     }
