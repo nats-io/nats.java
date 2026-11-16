@@ -1,4 +1,4 @@
-// Copyright 2015-2018 The NATS Authors
+// Copyright 2015-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -32,7 +32,7 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
 
     private long writeTimeoutNanos;
     private long delayPeriodNanos;
-    private ScheduledTask writeWatchTask;
+    private volatile ScheduledTask writeWatchTask;
     private final AtomicLong writeMustBeDoneBy;
 
     public SocketDataPortWithWriteTimeout() {
@@ -50,7 +50,7 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
 
     @Override
     public void connect(@NonNull NatsConnection conn, @NonNull NatsUri nuri, long timeoutNanos) throws IOException {
-        super.connect(conn, nuri, timeoutNanos);
+        super.connect(conn, nuri, timeoutNanos); // throws when the port was closed meanwhile, so nothing is scheduled then
         writeWatchTask = new ScheduledTask(conn.getScheduledExecutor(), delayPeriodNanos, TimeUnit.NANOSECONDS,
             () -> {
                 //  if now is after when it was supposed to be done by
@@ -69,6 +69,9 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
                     }
                 }
             });
+        if (closed) {
+            writeWatchTask.shutdown(); // closed between the connect and the scheduling, when close() had no task to stop
+        }
     }
 
     public void write(byte[] src, int toWrite) throws IOException {
@@ -78,9 +81,10 @@ public class SocketDataPortWithWriteTimeout extends SocketDataPort {
     }
 
     public void close() throws IOException {
-        if (writeWatchTask != null) { // null while connect is still in progress, when an attempt is closed at its deadline
-            writeWatchTask.shutdown();
+        super.close(); // sets closed before the task is read, so a connect that schedules it after this stops it itself
+        ScheduledTask task = writeWatchTask;
+        if (task != null) { // null while connect is still in progress, when an attempt is closed at its deadline
+            task.shutdown();
         }
-        super.close();
     }
 }
