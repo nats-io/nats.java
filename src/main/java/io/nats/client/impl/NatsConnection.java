@@ -2126,13 +2126,6 @@ class NatsConnection implements Connection {
         return UntrustedText.quoteFirstLine(bytes);
     }
 
-    /**
-     * Quote one token the client did not accept, such as a connect_urls entry, see {@link UntrustedText#quote(String)}.
-     */
-    static String quoteUntrusted(String token) {
-        return UntrustedText.quote(token);
-    }
-
     protected void handleInfo(String infoJson) {
         ServerInfo serverInfo;
         try {
