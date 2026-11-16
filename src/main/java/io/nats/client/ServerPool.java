@@ -92,6 +92,9 @@ public interface ServerPool {
 
     /**
      * Resolve a host name to an ip address based on the instructions. Replaces resolveHostToIps(String)
+     * <p>The connection calls this on a thread of its executor, under the connection timeout, and moves on when the
+     * call does not return in time: a call it gave up on may still be running when {@link #nextServer()} or
+     * {@link #connectFailed(NatsUri)} is called, so an implementation that keeps state across calls must guard it.</p>
      *
      * @param host         the host to resolve
      * @param maxOneResult flag to indicate to only return one result
