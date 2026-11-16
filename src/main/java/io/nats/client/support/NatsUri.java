@@ -201,9 +201,13 @@ public class NatsUri {
             return url;
         }
         start += COLON_SLASH_SLASH.length();
-        int authorityEnd = url.indexOf('/', start);
-        if (authorityEnd == -1) {
-            authorityEnd = url.length();
+        // the authority ends at the first path, query or fragment delimiter; an @ in any of those is not user info
+        int authorityEnd = url.length();
+        for (char delimiter : new char[]{'/', '?', '#'}) {
+            int index = url.indexOf(delimiter, start);
+            if (index != -1 && index < authorityEnd) {
+                authorityEnd = index;
+            }
         }
         int at = url.lastIndexOf('@', authorityEnd - 1);
         if (at < start) {
