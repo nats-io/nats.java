@@ -43,6 +43,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.nats.client.utils.TestBase.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -383,7 +384,47 @@ public class ConnectTests {
         long elapsed = System.currentTimeMillis() - start;
         assertTrue(elapsed < 5000, "the connect should fail once the lookup timer passed: " + elapsed + " ms");
         assertTrue(listener._eventually(2000, listener::getExceptions, e -> String.valueOf(e.getMessage()).contains("name lookup of nats.lookup.test")), listener.getExceptions().toString());
-        assertTrue(listener._eventually(2000, () -> java.util.Collections.singletonList(lookupInterrupted.get()), b -> b), "the hung lookup was cancelled");
+        assertTrue(listener._eventually(2000, () -> java.util.Collections.singletonList(lookupInterrupted.get()), b -> b), "the hung lookup's thread was released when the closed connection shut its executor down");
+    }
+
+    @Test
+    public void testAHungLookupIsNotRepeatedEveryRound() throws Exception {
+        // a lookup the connection gave up on stays in flight, and a later round for the same server waits on it
+        // instead of starting another: one lookup thread per unresolved server, not one per round. Before, every
+        // round submitted a new lookup while the earlier ones were still blocked in the resolver
+        CountDownLatch release = new CountDownLatch(1);
+        AtomicInteger lookups = new AtomicInteger();
+        ServerPool blockingResolver = new NatsServerPool() {
+            @Override
+            public List<String> resolveHostToIps(@NonNull String host, boolean maxOneResult, boolean includeIPV6) {
+                lookups.incrementAndGet();
+                try {
+                    release.await();
+                }
+                catch (InterruptedException e) {
+                    // the closed connection shut the executor down
+                }
+                return null;
+            }
+        };
+        Options options = new Options.Builder()
+            .server("nats://nats.lookup.test:4222")
+            .serverPool(blockingResolver)
+            .maxReconnects(3)
+            .reconnectWait(Duration.ofMillis(50))
+            .reconnectJitter(Duration.ZERO)
+            .connectionTimeout(Duration.ofMillis(200))
+            .build();
+        try (Connection nc = Nats.connectReconnectOnConnect(options)) {
+            assertEquals(Connection.Status.CLOSED, nc.getStatus(), "the reconnect ran out of attempts");
+        }
+        catch (IOException ignore) {
+            // ends closed either way
+        }
+        finally {
+            release.countDown();
+        }
+        assertEquals(1, lookups.get(), "one lookup for the server across the connect and every reconnect round");
     }
 
     // a pool that answers one host's lookup by sleeping past the connection timeout, and counts the failures it is told of
