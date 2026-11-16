@@ -1987,6 +1987,12 @@ public class OptionsTests {
         assertEquals("NATS://u:***@H", NatsUri.redactUrl("NATS://u:p@H"));
         assertEquals("x://u:***@h/p@th", NatsUri.redactUrl("x://u:p@h/p@th"));
         assertEquals("x://h/p@th", NatsUri.redactUrl("x://h/p@th"));
+        // the authority ends at the first of /, ? and #: an @ in a query or fragment is not user info
+        assertEquals("nats://host:4222?x=a@b", NatsUri.redactUrl("nats://host:4222?x=a@b"));
+        assertEquals("nats://u:***@host:4222?x=a@b", NatsUri.redactUrl("nats://u:p@host:4222?x=a@b"));
+        assertEquals("nats://host#f@g", NatsUri.redactUrl("nats://host#f@g"));
+        assertEquals("nats://u:***@host#f@g", NatsUri.redactUrl("nats://u:p@host#f@g"));
+        assertEquals("nats://u:***@host?q#f@g", NatsUri.redactUrl("nats://u:p@host?q#f@g"));
         assertEquals("not a url", NatsUri.redactUrl("not a url"));
         assertEquals("@", NatsUri.redactUrl("@"));
         assertEquals("x://", NatsUri.redactUrl("x://"));

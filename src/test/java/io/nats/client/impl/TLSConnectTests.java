@@ -33,6 +33,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
@@ -44,9 +45,11 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.nats.client.Options.PROP_SSL_CONTEXT_FACTORY_CLASS;
@@ -693,6 +696,54 @@ public class TLSConnectTests extends TestBase {
                 return m.contains("TLS handshake failed") && m.contains("\"-ERR 'maximum connections exceeded'\"");
             }), exceptions.toString());
             assertTrue(listener.getErrors().isEmpty(), "the -ERR was not acted on: " + listener.getErrors());
+        }
+    }
+
+    // a data port whose handshake wait never confirms the handshake, and that records what it writes in plaintext
+    public static class UnconfirmedHandshakeDataPort extends SocketDataPort {
+        public static final AtomicInteger plaintextWrites = new AtomicInteger();
+        public static final AtomicReference<String> plaintext = new AtomicReference<>("");
+
+        public static void reset() {
+            plaintextWrites.set(0);
+            plaintext.set("");
+        }
+
+        @Override
+        protected void awaitHandshake(CompletableFuture<Void> handshakeCompleted, Duration timeout) throws IOException {
+            throw new IOException("TLS handshake not confirmed, by the test");
+        }
+
+        @Override
+        public void write(byte[] src, int toWrite) throws IOException {
+            if (!isSecure) {
+                plaintextWrites.incrementAndGet();
+                plaintext.accumulateAndGet(new String(src, 0, toWrite, StandardCharsets.UTF_8), String::concat);
+            }
+            super.write(src, toWrite);
+        }
+    }
+
+    @Test
+    public void testAnUnconfirmedHandshakeFailsTheAttemptBeforeConnect() throws Exception {
+        // ADR-40, TLS: when the handshake-completed notification does not arrive, the upgrade fails the attempt, and
+        // nothing is written in plaintext after INFO: no CONNECT, so no credential. Before, the failure was reported
+        // and the upgrade returned with the plaintext streams in place, and CONNECT went out on the raw socket
+        UnconfirmedHandshakeDataPort.reset();
+        try (NatsTestServer ts = new NatsTestServer("src/test/resources/tls.conf", false)) {
+            ListenerForTesting listener = new ListenerForTesting();
+            Options options = new Options.Builder()
+                .server(ts.getURI())
+                .sslContext(SslTestingHelper.createTestSSLContext())
+                .dataPortType(UnconfirmedHandshakeDataPort.class.getName())
+                .userInfo("user", "secret")
+                .maxReconnects(0)
+                .errorListener(listener)
+                .build();
+            IOException e = assertThrows(IOException.class, () -> Nats.connect(options));
+            assertTrue(String.valueOf(e.getCause()).contains("TLS handshake not confirmed"), String.valueOf(e.getCause()));
+            assertEquals(0, UnconfirmedHandshakeDataPort.plaintextWrites.get(), "written in plaintext: " + UnconfirmedHandshakeDataPort.plaintext.get());
+            assertFalse(UnconfirmedHandshakeDataPort.plaintext.get().contains("secret"));
         }
     }
 
