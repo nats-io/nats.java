@@ -40,7 +40,9 @@ import java.security.cert.CertificateException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static io.nats.client.support.NatsConstants.SECURE_WEBSOCKET_PROTOCOL;
 
@@ -61,6 +63,10 @@ public class SocketDataPort implements DataPort {
     protected boolean tlsHostIsIpAddress;
     // written by the thread that connects, read by the thread that closes an attempt at its deadline or on close()
     protected volatile Socket socket;
+    // set by close() and forceClose(), read by the thread that connects: a connect that completes after the port was
+    // closed, as when an attempt was abandoned at its deadline before the socket was assigned, closes the socket it
+    // got and fails, instead of leaving an open socket that nothing closes
+    protected volatile boolean closed;
     protected boolean isSecure = false;
 
     protected InputStream in;
@@ -162,6 +168,9 @@ public class SocketDataPort implements DataPort {
                 }
                 socket.connect(inetSocketAddress, (int) timeout);
             }
+            if (closed) {
+                throw new IOException("closed during connect"); // the catch below closes the socket
+            }
 
             if (options.getSocketReadTimeoutMillis() > 0) {
                 socket.setSoTimeout(options.getSocketReadTimeoutMillis());
@@ -259,10 +268,7 @@ public class SocketDataPort implements DataPort {
         }
 
         try {
-            waitForHandshake.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
-        } catch (Exception ex) {
-            connection.handleCommunicationIssue(ex);
-            return;
+            awaitHandshake(waitForHandshake, timeout);
         }
         finally {
             sslSocket.removeHandshakeCompletedListener(hcl);
@@ -272,6 +278,31 @@ public class SocketDataPort implements DataPort {
         in = sslSocket.getInputStream();
         out = sslSocket.getOutputStream();
         isSecure = true;
+    }
+
+    /**
+     * Waits for the handshake-completed notification of the handshake that startHandshake ran. ADR-40, TLS: an
+     * upgrade whose handshake is not confirmed fails the attempt. It never returns with the plaintext streams still
+     * in place, so no CONNECT and no credential go out unprotected; before, the failure was reported and the upgrade
+     * returned.
+     * @param handshakeCompleted completed by the socket's handshake-completed listener
+     * @param timeout how long to wait, the connection timeout
+     * @throws IOException when the notification did not arrive within the timeout or the wait failed
+     */
+    protected void awaitHandshake(CompletableFuture<Void> handshakeCompleted, Duration timeout) throws IOException {
+        try {
+            handshakeCompleted.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
+        }
+        catch (TimeoutException e) {
+            throw new IOException("TLS handshake not confirmed within the connection timeout", e);
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("TLS handshake not confirmed", e);
+        }
+        catch (ExecutionException e) {
+            throw new IOException("TLS handshake not confirmed", e.getCause());
+        }
     }
 
     /**
@@ -328,6 +359,7 @@ public class SocketDataPort implements DataPort {
     }
 
     public void close() throws IOException {
+        closed = true; // before the socket is read: a connect that assigns the socket after this sees the flag
         if (socket != null) {
             socket.close();
         }
@@ -335,8 +367,8 @@ public class SocketDataPort implements DataPort {
 
     @Override
     public void forceClose() throws IOException {
-        // socket can technically be null, like between states
-        // practically it never will be, but guard it anyway
+        closed = true;
+        // socket is null while a connect has not assigned it yet, as under HappyEyeballs until the race is won
         if (socket != null) {
             try {
                 // If we are being asked to force close, there is no need to linger.

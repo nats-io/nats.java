@@ -293,7 +293,22 @@ class NatsConnection implements Connection {
             serverPool.nextServer(); // b/c we only peeked.
 
             // let server pool resolve hostnames, then loop through resolved
-            List<NatsUri> resolvedList = resolveHostBounded(cur);
+            List<NatsUri> resolvedList;
+            try {
+                resolvedList = resolveHostBounded(cur);
+            }
+            catch (IOException e) {
+                if (isClosed()) {
+                    break; // closed while the lookup ran, or before it could start
+                }
+                // ADR-40, connection timeout: a lookup that fails, runs out of time or cannot be started is a failed
+                // attempt of this server, reported and counted as one and never a TLS mismatch; the server joins the
+                // fail list below. Nothing was dialed, so the attempt has no status events
+                processException(e);
+                connectFailure = e;
+                everyAttemptTlsMismatch = false;
+                resolvedList = Collections.emptyList();
+            }
             // ADR-40, connection timeout: a name that resolves to several addresses is one attempt, and the
             // addresses share its budget, so every address gets the same deadline
             long attemptStart = NatsSystemClock.nanoTime();
@@ -568,7 +583,21 @@ class NatsConnection implements Connection {
 
             // let server list provider resolve hostnames
             // then loop through resolved
-            List<NatsUri> resolvedList = resolveHostBounded(cur);
+            List<NatsUri> resolvedList;
+            try {
+                resolvedList = resolveHostBounded(cur);
+            }
+            catch (IOException e) {
+                if (isClosed()) {
+                    return; // closed while the lookup ran, or before it could start
+                }
+                // a failed lookup is a failed attempt of this server, see connectImpl; it counts toward the round
+                processException(e);
+                connectFailure = e;
+                roundAttempts++;
+                roundAllTlsMismatch = false;
+                resolvedList = Collections.emptyList();
+            }
             long attemptStart = NatsSystemClock.nanoTime(); // one budget for all the addresses of the name, see connectImpl
             for (NatsUri resolved : resolvedList) {
                 if (isClosed()) {
@@ -787,6 +816,9 @@ class NatsConnection implements Connection {
             timeCheck(end, "starting writer");
             this.writer.start(this.dataPortFuture);
 
+            // ADR-40, TLS: a failure another thread recorded during the upgrade or the INFO ends the attempt before
+            // CONNECT, and with it any credential, is written
+            throwIfAttemptFailed();
             timeCheck(end, "sending connect message");
             this.sendConnect(resolved);
 
@@ -803,15 +835,7 @@ class NatsConnection implements Connection {
 
             // a failure that landed before the PING was queued, such as the server closing after a -ERR, ends the
             // attempt now; one that lands later answers the PING through handleCommunicationIssue
-            statusLock.lock();
-            try {
-                if (this.exceptionDuringConnectChange != null) {
-                    throw this.exceptionDuringConnectChange;
-                }
-            }
-            finally {
-                statusLock.unlock();
-            }
+            throwIfAttemptFailed();
 
             if (pongFuture != null) {
                 pongFuture.get(timeoutNanos, TimeUnit.NANOSECONDS);
@@ -904,6 +928,20 @@ class NatsConnection implements Connection {
             finally {
                 statusLock.unlock();
             }
+        }
+    }
+
+    // the failure another thread recorded for the attempt in progress, through handleCommunicationIssue, thrown so
+    // that the attempt ends where it is checked
+    private void throwIfAttemptFailed() throws Exception {
+        statusLock.lock();
+        try {
+            if (this.exceptionDuringConnectChange != null) {
+                throw this.exceptionDuringConnectChange;
+            }
+        }
+        finally {
+            statusLock.unlock();
         }
     }
 
@@ -2433,26 +2471,32 @@ class NatsConnection implements Connection {
     }
 
     // ADR-40, connection timeout: the name lookup is outside the attempt's budget and bounded by a timer of its own,
-    // the connection timeout. InetAddress has no timeout, so the lookup runs on the executor and a lookup that does
-    // not finish in time, or fails, is reported and ends the attempt for that server, instead of holding the connect
-    // or the reconnect for as long as the resolver takes. The cancel below interrupts the lookup, which InetAddress
-    // ignores: a resolver that hangs keeps its executor thread until it returns; the attempt moves on without it
-    protected List<NatsUri> resolveHostBounded(NatsUri nuri) throws InterruptedException {
+    // the connection timeout. InetAddress has no timeout, so the lookup runs on the executor, and a lookup that does
+    // not finish in time, that fails or that cannot be started throws: the callers count it as a failed attempt of
+    // that server, instead of holding the connect or the reconnect for as long as the resolver takes. The cancel below
+    // interrupts the lookup, which InetAddress ignores: a resolver that hangs keeps its executor thread until it
+    // returns; the attempt moves on without it
+    protected List<NatsUri> resolveHostBounded(NatsUri nuri) throws InterruptedException, IOException {
         if (nuri.hostIsIpAddress() || nuri.isWebsocket() || !options.hostnameResolveMode().resolve) {
             return resolveHost(nuri); // no lookup here: the data port resolves, under the attempt's budget
         }
-        Future<List<NatsUri>> lookup = executor.submit(() -> resolveHost(nuri));
+        Future<List<NatsUri>> lookup;
+        try {
+            lookup = executor.submit(() -> resolveHost(nuri));
+        }
+        catch (RuntimeException e) {
+            // rejected by the executor, or the executor is gone because the connection closed
+            throw new IOException("The name lookup of " + nuri.getHost() + " could not be started", e);
+        }
         try {
             return lookup.get(options.getConnectionTimeout().toNanos(), TimeUnit.NANOSECONDS);
         }
         catch (TimeoutException e) {
             lookup.cancel(true);
-            processException(new IOException("The name lookup of " + nuri.getHost() + " did not finish within the connection timeout", e));
-            return Collections.emptyList();
+            throw new IOException("The name lookup of " + nuri.getHost() + " did not finish within the connection timeout", e);
         }
         catch (ExecutionException e) {
-            processException(new IOException("The name lookup of " + nuri.getHost() + " failed", e.getCause()));
-            return Collections.emptyList();
+            throw new IOException("The name lookup of " + nuri.getHost() + " failed", e.getCause());
         }
     }
 
