@@ -2034,10 +2034,6 @@ class NatsConnection implements Connection {
         }
     }
 
-    protected void readInitialInfo() throws IOException {
-        readInitialInfo(false);
-    }
-
     /**
      * Read the INFO line the server sends first and handle it.
      * @param tlsUpgradeFollows true when the INFO is read in plaintext and a TLS upgrade follows. ADR-40 then limits
