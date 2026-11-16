@@ -172,7 +172,12 @@ public class SniTestServer implements AutoCloseable {
     public final AtomicInteger accepted = new AtomicInteger();
     /** plaintext written before the INFO line, with TLS after INFO; for the ADR-40 injection cases */
     public volatile String plaintextBeforeInfo;
-    /** plaintext written after the INFO line and before the handshake, with TLS after INFO; for the ADR-40 injection cases */
+    /**
+     * plaintext written after the INFO line and before the handshake, with TLS after INFO; for the ADR-40 injection
+     * cases. It goes out in the same write as the INFO line, on purpose: the client then reads it together with the
+     * line and must refuse it there. Split into a write of its own, it would reach the client inside the handshake
+     * instead, which fails in another way.
+     */
     public volatile String plaintextAfterInfo;
     /**
      * with plaintext injected, what the client then sent in plaintext: "" when it closed without sending anything,

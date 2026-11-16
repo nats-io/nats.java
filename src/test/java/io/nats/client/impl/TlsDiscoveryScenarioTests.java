@@ -133,19 +133,20 @@ public class TlsDiscoveryScenarioTests extends TestBase {
         return inserts -> {};
     }
 
-    // connects with a good context and waits until the server has reported the other member
-    private static void waitForClusterToForm(String url, SSLContext context) throws Exception {
-        ListenerForTesting listener = new ListenerForTesting();
+    // connects to the seed with a good context and waits until it has reported the other member. The seed advertises
+    // itself as 127.0.0.1 and its port, another entry than the configured localhost one, so the pool reaching two
+    // entries is not the sign; the other member's entry is
+    private static void waitForClusterToForm(Cluster cluster, SSLContext context) throws Exception {
         Options options = new Options.Builder()
-            .server(url)
+            .server(cluster.aByName())
             .sslContext(context)
-            .connectionListener(listener)
             .build();
-        listener.prepForStatusChange(Events.DISCOVERED_SERVERS);
         try (Connection nc = standardConnectionWait(Nats.connect(options))) {
-            if (nc.getServers().size() < 2) {
-                assertTrue(listener.waitForStatusChange(10, TimeUnit.SECONDS), "cluster did not form");
+            long deadline = System.currentTimeMillis() + 10_000;
+            while (!nc.getServers().contains(cluster.bDiscovered()) && System.currentTimeMillis() < deadline) {
+                Thread.sleep(100);
             }
+            assertTrue(nc.getServers().contains(cluster.bDiscovered()), "cluster did not form: " + nc.getServers());
         }
     }
 
@@ -211,7 +212,7 @@ public class TlsDiscoveryScenarioTests extends TestBase {
         ListenerForTesting listener = new ListenerForTesting();
         SSLContext context = SslTestingHelper.createTestSSLContext();
         try (Cluster cluster = new Cluster(tls(CERT_NO_IP, KEY_NO_IP, false), tls(CERT_NO_IP, KEY_NO_IP, false))) {
-            waitForClusterToForm(cluster.aByName(), context);
+            waitForClusterToForm(cluster, context);
             Options options = client(cluster, context, listener)
                 .dataPortType(RecordingDataPort.class.getName())
                 .maxReconnects(-1)
@@ -237,7 +238,7 @@ public class TlsDiscoveryScenarioTests extends TestBase {
         ListenerForTesting listener = new ListenerForTesting();
         SSLContext context = SslTestingHelper.createTestSSLContext();
         try (Cluster cluster = new Cluster(tls(CERT, KEY, true), tls(CERT, KEY, true))) {
-            waitForClusterToForm(cluster.aByName(), context);
+            waitForClusterToForm(cluster, context);
             Options options = client(cluster, context, listener)
                 .dataPortType(RecordingDataPort.class.getName())
                 .maxReconnects(-1)
@@ -260,8 +261,10 @@ public class TlsDiscoveryScenarioTests extends TestBase {
     @Test
     public void s16_discoveredServerWithACertificateFromAnUntrustedCaIsNotReconnectedTo() throws Exception {
         // S16: the discovered server presents a certificate from a CA the client does not trust. The reconnect to it
-        // fails the handshake every time, the failure is reported with the server, and the connection closes once
-        // every server has run out of attempts, instead of connecting anywhere else
+        // fails the handshake every time, the failure is reported, and the connection closes once every server has
+        // run out of attempts, instead of connecting anywhere else. The JDK reports the trust failure as "PKIX path
+        // validation failed" when the untrusted CA has the name of a trusted one, as every generated CA shares one
+        // name, and as "PKIX path building failed" otherwise; the assertion accepts both
         Certificates trusted = new Certificates("localhost", true);
         Certificates untrusted = new Certificates("localhost", true); // its own CA
         PemFiles aPem = trusted.writePem();
@@ -269,13 +272,13 @@ public class TlsDiscoveryScenarioTests extends TestBase {
         ListenerForTesting listener = new ListenerForTesting();
         SSLContext context = trusted.clientContext();
         try (Cluster cluster = new Cluster(tls(aPem.certFile, aPem.keyFile, false), tls(bPem.certFile, bPem.keyFile, false))) {
-            waitForClusterToForm(cluster.aByName(), context);
+            waitForClusterToForm(cluster, context);
             Options options = client(cluster, context, listener).maxReconnects(2).build();
             Connection nc = standardConnectionWait(Nats.connect(options));
             awaitDiscovered(nc, cluster.bDiscovered());
             listener.prepForStatusChange(Events.CLOSED);
             cluster.killA();
-            assertNeverReconnectedAndClosed(nc, listener, "PKIX path validation failed");
+            assertNeverReconnectedAndClosed(nc, listener, "PKIX path");
         }
     }
 
@@ -291,7 +294,7 @@ public class TlsDiscoveryScenarioTests extends TestBase {
         ListenerForTesting listener = new ListenerForTesting();
         SSLContext context = trusted.clientContext();
         try (Cluster cluster = new Cluster(tls(aPem.certFile, aPem.keyFile, false), tls(bPem.certFile, bPem.keyFile, false))) {
-            waitForClusterToForm(cluster.aByName(), context);
+            waitForClusterToForm(cluster, context);
             Options options = client(cluster, context, listener).maxReconnects(2).build();
             Connection nc = standardConnectionWait(Nats.connect(options));
             awaitDiscovered(nc, cluster.bDiscovered());
@@ -309,7 +312,7 @@ public class TlsDiscoveryScenarioTests extends TestBase {
         ListenerForTesting listener = new ListenerForTesting();
         SSLContext context = SslTestingHelper.createTestSSLContext();
         try (Cluster cluster = new Cluster(tls(CERT, KEY, false), plain())) {
-            waitForClusterToForm(cluster.aByName(), context);
+            waitForClusterToForm(cluster, context);
             Options options = client(cluster, context, listener).maxReconnects(2).build();
             Connection nc = standardConnectionWait(Nats.connect(options));
             awaitDiscovered(nc, cluster.bDiscovered());
@@ -386,7 +389,7 @@ public class TlsDiscoveryScenarioTests extends TestBase {
                 .reconnectWait(Duration.ofMillis(50))
                 .build();
             assertThrows(IOException.class, () -> Nats.connect(options));
-            assertTrue(reported(listener, "PKIX path validation failed"), listener.getExceptions().toString());
+            assertTrue(reported(listener, "PKIX path"), listener.getExceptions().toString());
             Thread.sleep(500);
             assertEquals(0, canary.accepted.get(), "the canary was never contacted");
             assertEquals(0, listener.getEventCount(Events.DISCOVERED_SERVERS));
