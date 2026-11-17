@@ -1,4 +1,4 @@
-// Copyright 2023 The NATS Authors
+// Copyright 2023-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -301,7 +301,9 @@ public class SimplificationTests extends JetStreamTestBase {
         }
         FetchConsumeOptions fetchConsumeOptions = builder.build();
 
-        long start = System.currentTimeMillis();
+        // nanoTime, not currentTimeMillis: the wall clock on a WSL machine steps against its host by seconds,
+        // and a backward step during the 2000 ms wait read as the fetch ending early
+        long start = System.nanoTime();
 
         int rcvd = 0;
         long elapsed;
@@ -319,7 +321,7 @@ public class SimplificationTests extends JetStreamTestBase {
                 msg.ack();
                 msg = consumer.nextMessage();
             }
-            elapsed = System.currentTimeMillis() - start;
+            elapsed = (System.nanoTime() - start) / 1_000_000;
         }
 
         switch (testType) {
@@ -1792,6 +1794,302 @@ public class SimplificationTests extends JetStreamTestBase {
                 sleep(1200); // more than the expires period for the consume
                 assertTrue(consumer.isFinished());
             }
+        });
+    }
+
+    @Test
+    public void testStopHandlesEverythingReceived() throws Exception {
+        jsServer.run(nc -> {
+            // a pull completes by message count, or by byte count when the batch is in bytes, so both are covered
+            ConsumeOptions byMessages = ConsumeOptions.builder().build();
+            ConsumeOptions byBytes = ConsumeOptions.builder().batchBytes(5000).build();
+            // backlog: the whole batch reaches the client before stop and most of it is still queued
+            _testStopConsume(nc, byMessages, true);
+            _testStopIterate(nc, byMessages, true);
+            _testStopConsume(nc, byBytes, true);
+            _testStopIterate(nc, byBytes, true);
+            // trickle: the batch fills after stop and the last arrival is what completes the pull
+            _testStopConsume(nc, byMessages, false);
+            _testStopIterate(nc, byMessages, false);
+            _testStopConsume(nc, byBytes, false);
+            _testStopIterate(nc, byBytes, false);
+        });
+    }
+
+    private static final int STOP_TEST_STOP_AT = 100;
+    private static final long STOP_TEST_WAIT_NANOS = 40_000_000_000L; // longer than the default pull expiration
+
+    private static ConsumerContext _stopTestContext(Connection nc, TestingStreamContainer tsc, boolean backlog) throws Exception {
+        if (backlog) {
+            jsPublish(nc.jetStream(), tsc.subject(), 2000);
+        }
+        nc.jetStreamManagement().addOrUpdateConsumer(tsc.stream, ConsumerConfiguration.builder().durable(tsc.consumerName()).build());
+        return nc.getConsumerContext(tsc.stream, tsc.consumerName());
+    }
+
+    private static void _stopTestAssert(Connection nc, TestingStreamContainer tsc, boolean backlog, boolean finished, long handled) throws Exception {
+        assertTrue(finished);
+        nc.flush(Duration.ofSeconds(1));
+        // acks are async, so wait up to 2 seconds for the server to apply the last of them before judging
+        ConsumerInfo ci = nc.jetStreamManagement().getConsumerInfo(tsc.stream, tsc.consumerName());
+        long deadline = System.nanoTime() + 2_000_000_000L;
+        while (ci.getNumAckPending() > 0 && System.nanoTime() < deadline) {
+            sleep(50);
+            ci = nc.jetStreamManagement().getConsumerInfo(tsc.stream, tsc.consumerName());
+        }
+        assertEquals(ci.getDelivered().getConsumerSequence(), handled); // everything the server delivered was handled
+        assertEquals(0, ci.getNumAckPending());
+        if (backlog) {
+            assertTrue(handled < 2000); // stop took effect, the stream was not pulled to the end
+        }
+    }
+
+    private static void _testStopConsume(Connection nc, ConsumeOptions co, boolean backlog) throws Exception {
+        TestingStreamContainer tsc = new TestingStreamContainer(nc);
+        ConsumerContext cctx = _stopTestContext(nc, tsc, backlog);
+        Publisher publisher = backlog ? null : new Publisher(nc.jetStream(), tsc.subject(), 5);
+        Thread pubThread = publisher == null ? null : new Thread(publisher);
+        if (pubThread != null) {
+            pubThread.start();
+        }
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicInteger handled = new AtomicInteger();
+        MessageHandler handler = msg -> {
+            if (backlog) {
+                sleep(2); // slow handler so the batch is still queued at the client when stop is called
+            }
+            msg.ack();
+            if (handled.incrementAndGet() == STOP_TEST_STOP_AT) {
+                latch.countDown();
+            }
+        };
+
+        boolean finished;
+        try (MessageConsumer consumer = cctx.consume(co, handler)) {
+            latch.await();
+            consumer.stop();
+            long deadline = System.nanoTime() + STOP_TEST_WAIT_NANOS;
+            while (!consumer.isFinished() && System.nanoTime() < deadline) {
+                sleep(10);
+            }
+            finished = consumer.isFinished();
+        }
+        if (publisher != null) {
+            publisher.stop();
+            pubThread.join();
+        }
+        _stopTestAssert(nc, tsc, backlog, finished, handled.get());
+    }
+
+    private static void _testStopIterate(Connection nc, ConsumeOptions co, boolean backlog) throws Exception {
+        TestingStreamContainer tsc = new TestingStreamContainer(nc);
+        ConsumerContext cctx = _stopTestContext(nc, tsc, backlog);
+        Publisher publisher = backlog ? null : new Publisher(nc.jetStream(), tsc.subject(), 5);
+        Thread pubThread = publisher == null ? null : new Thread(publisher);
+        if (pubThread != null) {
+            pubThread.start();
+        }
+
+        int handled = 0;
+        boolean finished;
+        try (IterableConsumer consumer = cctx.iterate(co)) {
+            while (handled < STOP_TEST_STOP_AT) {
+                Message msg = consumer.nextMessage(1000);
+                if (msg != null) {
+                    if (backlog) {
+                        sleep(2); // slow reader so the batch is still queued at the client when stop is called
+                    }
+                    msg.ack();
+                    handled++;
+                }
+            }
+            consumer.stop();
+            long deadline = System.nanoTime() + STOP_TEST_WAIT_NANOS;
+            while (!consumer.isFinished() && System.nanoTime() < deadline) {
+                Message msg = consumer.nextMessage(1000);
+                if (msg != null) {
+                    msg.ack();
+                    handled++;
+                }
+            }
+            finished = consumer.isFinished();
+        }
+        if (publisher != null) {
+            publisher.stop();
+            pubThread.join();
+        }
+        _stopTestAssert(nc, tsc, backlog, finished, handled);
+    }
+
+    @Test
+    public void testStopThenStatusWithoutPending() throws Exception {
+        jsServer.run(nc -> {
+            ConsumeOptions byMessages = ConsumeOptions.builder().build();
+            ConsumeOptions byBytes = ConsumeOptions.builder().batchBytes(5000).build();
+            _testStopThenStatusConsume(nc, byMessages);
+            _testStopThenStatusIterate(nc, byMessages);
+            _testStopThenStatusConsume(nc, byBytes);
+            _testStopThenStatusIterate(nc, byBytes);
+        });
+    }
+
+    // After stop(), a status without Nats-Pending headers ends the outstanding pull without the server saying
+    // how much of it was undelivered. It means nothing more arrives for the pull, so the test fires it only once
+    // the server reports every message delivered. The messages already received must still be handled before
+    // the consumer finishes, and it must finish well before the pull would have expired on its own.
+    private static final int STOP_STATUS_TEST_MESSAGES = 100; // fewer than a batch, so one pull delivers them all and stays open
+    private static final int STOP_STATUS_TEST_STOP_AT = 10;
+    private static final long STOP_STATUS_TEST_WAIT_NANOS = 10_000_000_000L; // well under the default pull expiration
+
+    // true once the server has sent every message the stream holds; the flush round trip after that means the
+    // reader has seen them all, so nothing more arrives for the outstanding pull, the premise of the status
+    private static boolean _stopTestAllDelivered(Connection nc, TestingStreamContainer tsc) throws Exception {
+        ConsumerInfo ci = nc.jetStreamManagement().getConsumerInfo(tsc.stream, tsc.consumerName());
+        if (ci.getDelivered().getConsumerSequence() < STOP_STATUS_TEST_MESSAGES) {
+            return false;
+        }
+        nc.flush(Duration.ofSeconds(1));
+        return true;
+    }
+
+    // what the manager passes for a status without Nats-Pending headers
+    private static void _stopTestStatusWithoutPending(MessageConsumer consumer) {
+        ((NatsMessageConsumer) consumer).pullCompletedWithStatus(-1, -1);
+    }
+
+    private static void _testStopThenStatusConsume(Connection nc, ConsumeOptions co) throws Exception {
+        TestingStreamContainer tsc = new TestingStreamContainer(nc);
+        ConsumerContext cctx = _stopTestContext(nc, tsc, false);
+        jsPublish(nc.jetStream(), tsc.subject(), STOP_STATUS_TEST_MESSAGES);
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicInteger handled = new AtomicInteger();
+        MessageHandler handler = msg -> {
+            sleep(2); // slow handler so most of the messages are still queued at the client when stop is called
+            msg.ack();
+            if (handled.incrementAndGet() == STOP_STATUS_TEST_STOP_AT) {
+                latch.countDown();
+            }
+        };
+
+        boolean finished;
+        try (MessageConsumer consumer = cctx.consume(co, handler)) {
+            latch.await();
+            // by messages one pull delivers everything at once; by bytes the server delivers as the handler frees room
+            while (!_stopTestAllDelivered(nc, tsc)) {
+                sleep(10);
+            }
+            consumer.stop();
+            _stopTestStatusWithoutPending(consumer);
+            long deadline = System.nanoTime() + STOP_STATUS_TEST_WAIT_NANOS;
+            while (!consumer.isFinished() && System.nanoTime() < deadline) {
+                sleep(10);
+            }
+            finished = consumer.isFinished();
+        }
+        _stopTestAssert(nc, tsc, false, finished, handled.get());
+        assertEquals(STOP_STATUS_TEST_MESSAGES, handled.get());
+    }
+
+    private static void _testStopThenStatusIterate(Connection nc, ConsumeOptions co) throws Exception {
+        TestingStreamContainer tsc = new TestingStreamContainer(nc);
+        ConsumerContext cctx = _stopTestContext(nc, tsc, false);
+        jsPublish(nc.jetStream(), tsc.subject(), STOP_STATUS_TEST_MESSAGES);
+
+        int handled = 0;
+        boolean finished;
+        try (IterableConsumer consumer = cctx.iterate(co)) {
+            // by messages one pull delivers everything at once; by bytes the server delivers as nextMessage frees room
+            while (handled < STOP_STATUS_TEST_STOP_AT || !_stopTestAllDelivered(nc, tsc)) {
+                Message msg = consumer.nextMessage(1000);
+                if (msg != null) {
+                    msg.ack();
+                    handled++;
+                }
+            }
+            consumer.stop();
+            _stopTestStatusWithoutPending(consumer);
+            long deadline = System.nanoTime() + STOP_STATUS_TEST_WAIT_NANOS;
+            while (!consumer.isFinished() && System.nanoTime() < deadline) {
+                Message msg = consumer.nextMessage(1000);
+                if (msg != null) {
+                    msg.ack();
+                    handled++;
+                }
+            }
+            finished = consumer.isFinished();
+        }
+        _stopTestAssert(nc, tsc, false, finished, handled);
+        assertEquals(STOP_STATUS_TEST_MESSAGES, handled);
+    }
+
+    @Test
+    public void testStopThenOrderedSequenceGap() throws Exception {
+        jsServer.run(nc -> {
+            JetStream js = nc.jetStream();
+            TestingStreamContainer tsc = new TestingStreamContainer(nc);
+            jsPublish(js, tsc.subject(), 6);
+            // the simulator drops stream sequence 3 before it is queued, so sequence 4 is the gap the manager detects
+            ((NatsJetStream) js)._pullOrderedMessageManagerFactory = PullOrderedTestDropSimulator::new;
+            CS_FOR_SS_3 = 3;
+            StreamContext sctx = js.getStreamContext(tsc.stream);
+            OrderedConsumerContext occtx = sctx.createOrderedConsumer(new OrderedConsumerConfiguration().filterSubject(tsc.subject()));
+            try (IterableConsumer consumer = occtx.iterate()) {
+                assertEquals(1, consumer.nextMessage(1000).metaData().streamSequence());
+                assertEquals(2, consumer.nextMessage(1000).metaData().streamSequence());
+                consumer.stop();
+                // What is queued behind the gap is out of order and never reaches the caller. The manager drops
+                // it without it being counted as processed, so a stopped ordered consumer closes on the gap
+                // instead of waiting for a processed count that would never reach zero.
+                assertNull(consumer.nextMessage(1000));
+                assertTrue(consumer.isFinished());
+            }
+        });
+    }
+
+    @Test
+    public void testStopKeepsAlarmWhilePullOutstanding() throws Exception {
+        jsServer.run(nc -> {
+            // After stop(), a partially filled pull still needs the server's 408 at expiry to bring the received
+            // side to zero. If the server disappears without a word first, the heartbeat alarm is the only thing
+            // left that can finish the consumer, so the timer must stay armed while anything is outstanding. Each
+            // message handled after stop is a pending update, which is where the timer used to be shut down. An
+            // orderly server stop answers every waiting pull with a 409 Server Shutdown and pending headers, so
+            // the silence is simulated by firing the alarm the way the timer task does.
+            TestingStreamContainer tsc = new TestingStreamContainer(nc);
+            ConsumerContext cctx = _stopTestContext(nc, tsc, false);
+            jsPublish(nc.jetStream(), tsc.subject(), STOP_STATUS_TEST_MESSAGES); // fewer than a batch, so the pull stays open
+
+            CountDownLatch stopAt = new CountDownLatch(1);
+            CountDownLatch allHandled = new CountDownLatch(1);
+            AtomicInteger handled = new AtomicInteger();
+            MessageHandler handler = msg -> {
+                sleep(1); // slow enough that stop() lands with most of the messages still queued
+                msg.ack();
+                int h = handled.incrementAndGet();
+                if (h == STOP_STATUS_TEST_STOP_AT) {
+                    stopAt.countDown();
+                }
+                if (h == STOP_STATUS_TEST_MESSAGES) {
+                    allHandled.countDown();
+                }
+            };
+
+            try (MessageConsumer consumer = cctx.consume(handler)) {
+                NatsMessageConsumer nmc = (NatsMessageConsumer) consumer;
+                stopAt.await();
+                consumer.stop();
+                assertTrue(allHandled.await(10, TimeUnit.SECONDS), "the queue did not drain after stop");
+                assertFalse(consumer.isFinished()); // everything received is handled, the pull is still outstanding
+                ScheduledTask alarm = nmc.pmm.heartbeatTaskRef.get();
+                assertNotNull(alarm, "the heartbeat alarm was shut down with the pull still outstanding");
+                assertFalse(alarm.isShutdown());
+                nmc.pmm.handleHeartbeatError(); // what the alarm task calls when nothing has arrived for three idle heartbeats
+                assertTrue(consumer.isFinished());
+                assertNull(nmc.pmm.heartbeatTaskRef.get());
+            }
+            assertEquals(STOP_STATUS_TEST_MESSAGES, handled.get());
         });
     }
 

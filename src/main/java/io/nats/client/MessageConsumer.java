@@ -1,4 +1,4 @@
-// Copyright 2020-2023 The NATS Authors
+// Copyright 2020-2026 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
@@ -48,8 +48,10 @@ public interface MessageConsumer extends AutoCloseable {
     ConsumerInfo getCachedConsumerInfo();
 
     /**
-     * Use {@link #close()} to unsubscribe. Stop will not unsubcribe or clean up resources.
-     * The consumer will finish all pull requests already in progress, but will not start any new ones.
+     * Stop will prevent any new pull requests. The pull requests already in progress are allowed to finish,
+     * and every message received for them is delivered to the handler or returned from nextMessage.
+     * Once that is done the consumer is unsubscribed and {@link #isFinished()} is set to true.
+     * Use {@link #close()} to unsubscribe immediately.
      */
     void stop();
 
@@ -66,7 +68,8 @@ public interface MessageConsumer extends AutoCloseable {
     boolean isStopped();
 
     /**
-     * Finish indicates all messages have been received from the server. Can be finished without being stopped.
+     * Finished indicates all messages requested from the server have been received and handled,
+     * meaning delivered to the handler or returned from nextMessage. Can be finished without being stopped.
      * @return the finished flag
      */
     boolean isFinished();
