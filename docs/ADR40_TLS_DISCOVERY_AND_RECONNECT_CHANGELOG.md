@@ -1,10 +1,10 @@
 # ADR-40 TLS discovery and reconnect: the changes of pull request nats-io/nats.java#1668
 
-The pull request delivers the client's conformance to ADR-40, revision 5, reviewed as ten pull requests in `synadia-labs/nats.java-internal`. This document carries the pull request description as submitted and a summary of every file the pull request changes, in the order of GitHub's file tree.
+The pull request delivers the client's conformance to ADR-40, revision 5, made in ten parts. This document carries the pull request description, with each part summarized in place of the list of parts, and a summary of every file the pull request changes, in the order of GitHub's file tree.
 
 ## Pull request description
 
-TLS discovery and reconnect: the client's conformance to ADR-40, revision 5, reviewed PR by PR in `synadia-labs/nats.java-internal` and delivered here as one change.
+TLS discovery and reconnect: the client's conformance to ADR-40, revision 5, made in ten parts and delivered here as one change.
 
 ## What changes
 
@@ -12,20 +12,192 @@ How the client treats the servers a cluster advertises, how it verifies them ove
 
 ## The reviewed pull requests
 
-Each was reviewed on its own layer in the internal repository; the review fixes are commits on the same branches. In stack order, bottom first:
+The change was made in ten parts, in this order. Each part is summarized below with its commits, all of which are in this pull request.
 
-1. [#1 Discovered servers: host:port entries, reporting server's transport, skipped entries reported](https://github.com/synadia-labs/nats.java-internal/pull/1)
-2. [#2 TLS server name option, trailing dot, name-check error](https://github.com/synadia-labs/nats.java-internal/pull/2)
-3. [#3 TLS name of a discovered server over hops; verify discovered servers by ip](https://github.com/synadia-labs/nats.java-internal/pull/3)
-4. [#4 Reconnect: round wait, zero jitter, per-server counts, origin kept](https://github.com/synadia-labs/nats.java-internal/pull/4)
-5. [#5 Reader robustness and attempt deadlines](https://github.com/synadia-labs/nats.java-internal/pull/5)
-6. [#6 Credentials redacted in events, errors and traces](https://github.com/synadia-labs/nats.java-internal/pull/6)
-7. [#7 TLS 1.3 offered, TLS 1.2 floor on every connection](https://github.com/synadia-labs/nats.java-internal/pull/7)
-8. [#8 Opt out of the authorization abort](https://github.com/synadia-labs/nats.java-internal/pull/8)
-9. [#9 Scenario tests](https://github.com/synadia-labs/nats.java-internal/pull/9)
-10. [#10 ADR-40 refactoring](https://github.com/synadia-labs/nats.java-internal/pull/10)
+### 1. Discovered servers: host:port entries, reporting server's transport, skipped entries reported
 
-A review of the whole stack followed; its fixes are on the branches of the pull requests that introduced the code and merged up through the stack: a failed or timed-out name lookup is a failed attempt and never a TLS mismatch, one lookup in flight per server, a data port closed during its connect stays closed, an unconfirmed TLS handshake fails the attempt before CONNECT, url redaction ends the authority at a query or fragment, and the javadocs of the connect threading and the shared connection timeout.
+An entry of `connect_urls` is `host:port`, with an IPv6 address in brackets, the form nats-server writes and the only form the client uses. User info in an entry is dropped: the discovered server is sent the credentials the client uses for the server that reported it. An entry that carries a scheme is skipped as a whole, as is one that does not parse as `host:port` once its user info is dropped or whose port is outside 1 to 65535; the other entries of the INFO are used. The rule is `NatsUri.discoveredHostPort`, applied in `NatsConnection.handleInfo` before the pool sees the list and again in `NatsServerPool`.
+
+A discovered server is dialed the way the server that reported it was dialed: it takes that server's scheme, so the same transport and, the context being per connection, the same TLS. Without an origin the pool's default scheme applies. A configured server named by an entry does not change.
+
+Skipped entries are reported through `ErrorListener.discoveredServerSkipped(Connection, String entry, String reason)`, a default method called once per skipped entry each time an INFO carries it, with the entry as the server sent it; the logger and console listeners log it at WARNING with the entry quoted and control characters escaped, through `Encoding.quote`. A connection that ignores discovered servers uses no entry and is not told about skipped ones; the pool still receives the list. An INFO whose entries are all skipped drops the servers learned from earlier INFOs and keeps the configured servers and the current one; an INFO without `connect_urls`, or with an empty list, changes nothing. The rejection of a `ws://` server that a custom `ServerPool` hands out stays; a `connect_urls` entry can no longer bring one.
+
+For a custom `ServerPool`, `acceptDiscoveredUrls` receives `host:port` strings only; a pool that gave its discovered servers a scheme from the entry takes it from the `origin` of `acceptDiscoveredUrls(List, NatsUri)` instead, as `NatsServerPool` does.
+
+Compatibility: the detail string of `Events.DISCOVERED_SERVERS` is the normalized `host:port` list, user info dropped and leading zeros removed from the port; in a bootstrap list that mixes transports, a server discovered through `nats://a` is listed and dialed as `nats://`, the transport of the server that reported it.
+
+Docs: README under the SSLContext rules; `docs/TLS_CONFIGURATION.md` sections 1 and 10. Tests: `OptionsTests.testNatsUriDiscoveredHostPort`; `ServerPoolTests.testDiscoveredServersTakeTheSchemeOfTheOrigin`, `testDiscoveredEntriesAreHostAndPortOnly`, `testDiscoveredServersInheritTheOriginsUserInfo`; `TLSConnectTests.testConnectUrlsEntriesWithASchemeAreSkippedAndNotDialed`; `ReconnectTests.testUserInfoInAConnectUrlsEntryIsNotUsedAsCredentials`; `ConnectionListenerTests`.
+
+Commits:
+
+- 87e4d0a8 Discovered servers: host:port entries only, dialed with the transport of the server that reported them, skipped entries reported
+- 8addebdc Review of the discovered-entry rule: no skipped-entry reports when discovered servers are ignored, the quoting helper public as UntrustedText, the all-skipped case documented
+- 778bd8b5 Review of the stack: acceptDiscoveredUrls states that the pool receives the list whether or not discovered servers are ignored, and that a custom pool honors the option itself
+
+### 2. TLS server name option, trailing dot, name-check error
+
+`Options.Builder.tlsServerName(String)`, property `io.nats.client.tls.server.name`, `Options.getTlsServerName()`: when set, it is the name the certificate of every server, configured or discovered, is verified against and sent as SNI, in place of the host of the url and of the hostname a discovered ip address inherits. It is for servers reached by ip address, or through a load balancer, proxy or service name, whose certificates carry one name, and it is the first remedy the javadoc, `docs/TLS_CONFIGURATION.md` and the README offer for a certificate that does not carry the name, before `tlsVerifyHostname(false)`. It asks for TLS: set with no other TLS setting it selects the default context, as `tlsFirst()` does, and the `ws://` rule applies. `build()` refuses a name that is neither a hostname nor an ip address, and a string with colons counts as an ip address only when it is an IPv6 address.
+
+One trailing dot is stripped from the name verified against and sent as SNI, for every server, and the host is dialed as written: RFC 6066 has no trailing dot in SNI, nats-server refuses a handshake whose name ends in one, and a certificate carries the name without it.
+
+A name that is an ip address is verified as an ip address and no SNI is sent; only a `tlsServerName` can be one, since a configured ip address has no TLS host.
+
+The error of a failed name check is an `SSLHandshakeException` that states the name the client expected and where it came from, the host of its url, the `tlsServerName` of the options, or the hostname of the server that reported a discovered ip address, quotes the JDK's text, points at `tlsServerName` and at `client_advertise` for a server discovered from the cluster, and never at turning verification off. The JDK's `CertificateException` is its cause. Only the JDK's own name-check failure is wrapped; any other handshake failure passes through unchanged. The `IOException` of a failed initial connect, "Unable to connect to NATS servers", carries the last attempt's failure as its cause. A `contains` check on the old JDK message still matches the new one; `startsWith` or equality checks do not.
+
+Docs: `docs/TLS_CONFIGURATION.md` sections 2 and 4; README property row, hostname verification note and TLS section. Tests: `OptionsTests.testTlsServerName`; `TlsHostnameTests.tlsServerNameIsTheNameOfEveryServer`, `tlsServerNameOverridesTheUrlHostAndTheInheritedName`, `tlsServerNameThatIsAnIpAddressIsVerifiedAsOneAndSendsNoSni`, `trailingDotIsStrippedFromTheNameVerifiedAgainstAndSentAsSni`, `nameCheckErrorStatesTheExpectedNameItsSourceAndTheRemedies`, `nameCheckFailureWrapsOnlyTheJdkNameCheck`.
+
+Commits:
+
+- 44686a78 TLS server name option; trailing dot stripped from the name verified and sent as SNI; name-check error states the expected name and the remedies
+- 63ba880c Merge branch 'adr-conformance-discovered-entries' into adr-conformance-tls-server-name
+- 1f259ac8 Review of the TLS server name: a name with a colon is not an ip address and is refused at build(), the connect failure is per attempt, the name-check wrapping is documented as the JDK's text
+- 35a42d0e Merge adr-conformance-discovered-entries: the stack review fixes
+
+### 3. TLS name of a discovered server over hops; verify discovered servers by ip
+
+A server discovered as an ip address is verified against, and presents as SNI, the hostname it inherits from the server that reported it: the hostname that server was configured with, or the one it inherited itself, so the name travels over any number of hops. `NatsUri.tlsHostToInherit()` is the rule and `NatsServerPool.acceptDiscoveredUrls` applies it.
+
+Under TLS with the name check on, a discovered ip address learned through a server given as an ip address has no name to verify against. While neither `tlsServerName` nor `tlsVerifyDiscoveredByIp` is set, `NatsConnection.handleInfo` skips the entry before the pool sees it and reports it through `discoveredServerSkipped` with a reason that names the two settings; a custom pool never receives such an entry.
+
+`Options.Builder.tlsVerifyDiscoveredByIp()`, property `io.nats.client.tls.verify.discovered.by.ip`, `Options.isTlsVerifyDiscoveredByIp()`: a discovered ip address is then verified against its address with no SNI, inheriting nothing, and one with no name is connected to. It is for clusters whose node certificates carry only ip addresses, and is documented as safe only where the CA that issued them is not shared with others. It has no effect while a TLS server name is set, and neither it nor the skip applies with the name check turned off. It asks for TLS like a TLS server name.
+
+Compatibility: a deployment that connects by ip address to a cluster that advertises ip addresses, with certificates that carry those addresses, needs `tlsVerifyDiscoveredByIp()` or `tlsServerName`; without one of them the discovered servers are skipped and reported, and the connection has no failover. A deployment that connects by hostname to a cluster that advertises ip addresses two or more hops deep verifies every hop against that hostname.
+
+Docs: `docs/TLS_CONFIGURATION.md` section 4; README property row and TLS section; the javadocs of `tlsVerifyHostname`, `ServerPool.acceptDiscoveredUrls` and `ErrorListener.discoveredServerSkipped`. Tests: `OptionsTests.testTlsVerifyDiscoveredByIp`; `TlsHostnameTests.discoveredIpRetainsHostnameOverTwoHops`, `discoveredIpWithNoNameToInheritIsSkippedUnlessAllowed`, `discoveryInheritsNoNameWhenDiscoveredServersAreVerifiedByIp`; `TLSConnectTests.testConnectUrlsEntriesWithASchemeAreSkippedAndNotDialed`.
+
+Commits:
+
+- e58e056f TLS name of a discovered server: inherited over any number of hops; a discovered ip address with no name is skipped unless tlsVerifyDiscoveredByIp or tlsServerName is set
+- eccf410e Merge branch 'adr-conformance-tls-server-name' into adr-conformance-discovered-tls-name
+- 1e2cd2a6 Merge adr-conformance-tls-server-name: the stack review fixes
+
+### 4. Reconnect: round wait, zero jitter, per-server counts, origin kept
+
+The wait between rounds holds across the whole reconnect: `reconnectImplConnect` keeps the servers handed out in the current round and ends the round when any of them comes back, so the wait holds when the round's first server left the pool through its attempt limit or an INFO that pruned it. `connectImpl` ends its one pass over the pool the same way.
+
+A `reconnectJitter` or `reconnectJitterTls` of zero means no jitter: the random part is added only when the jitter is above zero, and the builder refuses a negative one.
+
+Reconnect counts are per server. A server that enters the list during a reconnect, discovered from the cluster or named again after it left, starts at the higher of the count it kept when it left and the highest count of any server in the list, the origin of the list excluded; a server that left keeps its count; a successful connect resets the server it connected to only, so the counts accumulate across the reconnects of a connection. At the limit a server has no attempt left: it does not enter the list and keeps that count, so a server that left at its limit, configured or discovered, stays out while the connection lasts, and the connection closes at `maxReconnects` during an outage in which servers keep naming each other.
+
+`acceptDiscoveredUrls` keeps the origin of the list, the server whose INFO it is, which during a reconnect is being connected to and is not yet the last connected one when its own INFO arrives.
+
+The `maxReconnects` and the jitter javadocs state the rules. Tests: `OptionsTests.testReconnectJitterZeroMeansNoJitter`; `ServerPoolTests.testServerAddedStartsAtTheRaisedCount`, `testConfiguredServerAtItsLimitStaysOut`, `testServerThatSentTheListIsKept`, `testMaxReconnects`; `ReconnectTests.testReconnectWithZeroJitter`, `testReconnectWaitHoldsWhenTheRoundsFirstServerLeavesThePool`.
+
+Commits:
+
+- e5520ee4 Reconnect: the wait between rounds holds when the round's first server leaves the pool; a jitter of zero means no jitter; per-server counts are kept and raised for servers that enter the list; the server that sent a list is kept
+- 007918e8 Review of the reconnect counts: the origin's count does not lift the servers its list names; the javadoc says the counts accumulate across reconnects
+- 7e64957e Merge adr-conformance-discovered-tls-name: the stack review fixes
+
+### 5. Reader robustness and attempt deadlines
+
+An INFO that does not parse on an established connection is skipped and reported through `exceptionOccurred`, quoted as untrusted text, and the connection stays up; during an attempt it fails the attempt.
+
+A header block that does not parse drops only the message that carries it: the block is handed to `IncomingHeadersProcessor` when it is complete, and when that fails for any reason the message is marked, its data is read and discarded, and the drop is reported. nats-server relays a header block as the publisher wrote it, so such a block can reach any subscriber.
+
+`parseLength` computes in a long and rejects a value above an int. A length above twice the server's max payload, and never below 64 MiB, and a header length above the total length are parse errors that make the client reconnect instead of allocating the memory. Any other `RuntimeException` in the reader loop is reported and makes the client reconnect: the reader does not stop silently.
+
+A `-ERR` after which the server closes the connection fails the attempt at once with the server's text: the read failure answers the attempt's pending PING, and the `IOException` a connect throws carries the server's error ahead of the read error.
+
+The attempt's deadline covers the data port's connect: the TCP connect, a `wss://` TLS handshake, the WebSocket upgrade and the name resolution of the non-resolving modes run on the executor under the attempt's remaining time; at the deadline the port is force-closed, which unblocks an upgrade that hangs, and `close()` force-closes the port of an attempt in progress. A port closed while its connect still runs closes the socket it gets and fails, and the write-timeout port schedules no watch task for it.
+
+The name lookup of the resolving modes runs on the executor under the connection timeout, with one lookup in flight per server across the rounds of a reconnect; a lookup that does not finish in time, fails or cannot be started is a failed attempt of that server, reported, counted toward the server's limit and never a TLS mismatch. The `executor` and `ServerPool.resolveHostToIps` javadocs state the threading.
+
+The addresses of one name share one budget: a name that resolves to several addresses is one attempt, the addresses tried in turn under the attempt's deadline; the `connectionTimeout` and `ResolveToAll` javadocs state it.
+
+A TLS upgrade whose handshake-completed notification does not arrive within the connection timeout fails the attempt, and the attempt's recorded failure is checked before CONNECT is written as well as after the PING.
+
+Compatibility: a connect against a server that refuses with `-ERR` and closes fails at once with the server's error as the cause; a WebSocket upgrade and a name lookup that hang fail the attempt at the connection timeout.
+
+Tests: `InfoHandlerTests.testInfoThatDoesNotParseIsSkippedOnAnEstablishedConnection`, `testHeaderBlockThatDoesNotParseDropsOnlyThatMessage`, `testHeaderBlockThatDoesNotParseFromAPublisherThroughARealServerDropsOnlyThatMessage`; `ParseTests.testLengthBeyondWhatAServerCouldSendIsAParseError`, `testInfoThatDoesNotParseIsSkippedByTheReader`; `WebsocketConnectTests.testWebSocketUpgradeIsBoundedByTheConnectionTimeout`; `ConnectTests.testNameLookupIsBoundedByTheConnectionTimeout`, `testAddressesOfOneNameShareOneAttemptBudget`, `testLookupFailureIsAFailedAttemptNotATlsMismatch`, `testLookupThatCannotBeStartedIsAFailedAttempt`, `testAHungLookupIsNotRepeatedEveryRound`, `testAnAttemptAbandonedAtItsDeadlineLeavesNoOpenSocketAndNoWriteWatchTask`; `TLSConnectTests.testAnUnconfirmedHandshakeFailsTheAttemptBeforeConnect`.
+
+Commits:
+
+- 36071b11 Reader and attempt robustness: an INFO that does not parse is skipped and reported, a header block that does not parse drops only its message, impossible lengths and any parse failure reconnect instead of ending the reader, a server error ends the attempt at once, the data port connect and the name lookup are bounded
+- 4675dbed Review of the reader robustness: any failure of the header parser drops only the message, the length bound is twice the max payload and never below 64 MiB, the data port's socket is visible to the thread that closes it
+- c968b86d Merge branch 'adr-conformance-reconnect' into adr-conformance-reader
+- ec3c7893 Review of the stack: a failed name lookup is a failed attempt, a port closed during its connect stays closed, an unconfirmed TLS handshake fails the attempt before CONNECT
+- 36fc5f11 Review of the stack: the executor, resolveHostToIps, ResolveToAll and connectionTimeout javadocs state the connect threading and the one budget of a name's addresses; copyright years
+- 4a70fd2d Merge adr-conformance-reconnect: the stack review fixes
+- 9cd5b733 Review of the stack: one name lookup in flight per server, so a lookup the connection gave up on is waited on by the next round instead of being started again
+
+### 6. Credentials redacted in events, errors and traces
+
+`NatsUri.toRedactedString()` is the url with its credentials hidden: a password becomes `***`, a token as a whole, and the user, scheme, host, port and path stay as they are. `NatsUri.redactUrl(String)` does the same for a url string by position, parsing nothing, with the authority ending at the first of `/`, `?` and `#`; for a string that does not parse it replaces whatever stands between its `://` and its last `@`.
+
+Redacted: the detail string of every connection event, the "Unable to connect to NATS servers" failure and the TLS-mismatch failure, the connect and reconnect trace lines, and the `serverRejected` report. `Connection.getConnectedUrlRedacted()`, a default method, gives the connected url in that form; `getConnectedUrl()` and `getServers()` are unchanged, and their javadocs, with `Options.getServers()`, say the urls carry the credentials as configured and point at the redacted forms. `Options.Builder.servers` refuses a url that does not parse with the reason and the redacted url, and a cause whose input is redacted too.
+
+Compatibility: a connection listener's `uriDetails`, the text of a failed connect and the `serverRejected` string no longer contain the password of a url, and for a credentialed url no longer equal what `getConnectedUrl()` and `getServers()` return.
+
+Tests: `OptionsTests.testNatsUriRedacted`; `AuthTests.testCredentialsAreRedactedInEventsAndErrors`.
+
+Commits:
+
+- 22cf3585 Credentials of a server url are hidden in events, errors and trace lines; Connection.getConnectedUrlRedacted()
+- 29ba260a Review of the redaction: urls are redacted in place, the url parse error hides the credentials, the getServers javadocs point at the redaction
+- cfc4e55d Review of the stack: redactUrl ends the authority at the first of /, ? and #, so an @ in a query or fragment is not taken for user info; Connection.java copyright year
+- deb90d00 Merge adr-conformance-reader: the stack review fixes
+- 3f1fe266 Merge adr-conformance-reader: the stack review fixes, one lookup in flight per server
+
+### 7. TLS 1.3 offered, TLS 1.2 floor on every connection
+
+`Options.DEFAULT_SSL_PROTOCOL` is `TLS`, the highest version the JVM supports, so the contexts the client builds from the keystore and truststore properties and for `opentls` offer TLS 1.3 where the JVM has it; the default context is the JVM's own.
+
+`upgradeToSecure` keeps, of the protocols the socket enables, only those at TLS 1.2 or above, whatever the context: the client never negotiates TLS 1.0, 1.1 or SSL and never falls back to them. The filter, `tlsProtocolsAtOrAbove12`, is an allow-list on the name form `TLSv1.N` with N at least 2, so an unknown protocol name is dropped rather than kept. A context that enables nothing at or above 1.2 gets no protocol and its handshake fails.
+
+Compatibility: a connection to a server that offers only TLS 1.0 or 1.1 fails on every context; a context the application supplies is not changed, only floored; `Options.DEFAULT_SSL_PROTOCOL` is a compile-time constant, so code compiled against an earlier jar keeps `TLSv1.2` inlined until it is rebuilt.
+
+Docs: README "Connection Security" and `docs/TLS_CONFIGURATION.md` section 2. Tests: `OptionsTests.testBuiltContextsOfferTheHighestTlsVersion`; `TLSConnectTests.testTlsProtocolsAtOrAbove12`, `testBuiltContextNegotiatesTls13AndEnablesNothingBelow12`.
+
+Commits:
+
+- 6bdf2786 TLS versions: built contexts offer TLS 1.3, every connection enables TLS 1.2 and above only
+- 7d4f4d71 Review of the TLS versions: the protocol filter's javadoc states the allow-list choice
+- 334cbb38 Merge adr-conformance-redaction: the stack review fixes
+- 5fcd2bb5 Merge adr-conformance-redaction: the stack review fixes, one lookup in flight per server
+
+### 8. Opt out of the authorization abort
+
+`Options.Builder.ignoreAuthErrorAbort()`, property `io.nats.client.ignore.auth.error.abort`, `Options.isIgnoreAuthErrorAbort()`. By default the second identical authorization error from one server during a reconnect, an authorization violation, an expired user authentication or an expired account, ends the reconnect and the connection closes; with the option the reconnect goes on until the connection is closed or `maxReconnects` is reached. An error line received before a TLS handshake fails the handshake without being parsed, so it never counts toward the abort. The javadoc names `NatsConnection.isAuthenticationError` as the definition of the errors that count. The default connection timeout stays 2 s.
+
+Docs: the README property table. Tests: `OptionsTests.testIgnoreAuthErrorAbort`; `AuthTests.testAuthErrorAbortCanBeSwitchedOff`.
+
+Commits:
+
+- d81ef153 Authorization abort: ignoreAuthErrorAbort keeps reconnecting after repeated authorization errors
+- d3334c0a Review of the authorization abort: the option's javadoc and isAuthenticationError point at each other
+- 7508eff5 Merge adr-conformance-tls-versions: the stack review fixes
+- 91cb268e Merge adr-conformance-tls-versions: the stack review fixes, one lookup in flight per server
+
+### 9. Scenario tests
+
+`TlsDiscoveryScenarioTests`, test code only. Against two real nats-servers routed to each other, each advertising `127.0.0.1` and its port, the seed killed once the client holds the discovered entry: a discovered ip address is reconnected to over TLS under the name inherited from the seed, with a certificate that names `localhost` only, and carries traffic afterwards; TLS is kept on the reconnect when both servers offer plaintext through `allow_non_tls`; a discovered server with a certificate from an untrusted CA, with a trusted certificate for another name, or without TLS is never reconnected to, the failure is reported and the connection closes once every server has run out of attempts; a server advertised under a rooted name, `localhost.`, is dialed as written and verified and sent as SNI as `localhost`.
+
+Against `SniTestServer`: plaintext injected after INFO and before the upgrade is not acted on, the client answers nothing, closes, fails the attempt as a handshake failure quoting the first injected line, and never holds the server the injection advertised; a protocol line before INFO is not acted on; the plaintext INFO of a seed whose certificate the client does not trust never steers the client. Url credentials carried to discovered servers, and server-advertised `ws://` and `nats://` entries against a TLS client, are covered by `ReconnectTests.testUrlCredentialsReachDiscoveredServers` and `TLSConnectTests.testConnectUrlsEntriesWithASchemeAreSkippedAndNotDialed`.
+
+Test infrastructure: `SniTestServer` can write plaintext before or after the INFO line, records what the client then sent in plaintext, and counts accepted connections; `Certificates.writePem` writes a generated certificate and key as PEM files for a nats-server `tls` block; `cluster_plain.conf` is a server with nothing but a port, the tests adding the cluster and `tls` blocks as inserts. The exceptions handed to `exceptionOccurred` for a failed reconnect attempt are the raw ones, the JDK's `SSLHandshakeException` for a trust failure and the `IOException` for the TLS mismatch, and name no server; the name-check failure does, since it is wrapped.
+
+Commits:
+
+- d9983622 Scenario tests: the end-to-end cases of the TLS discovery and reconnect standard, in the client's own suite
+- d92bd93f Review of the scenario tests: the trust-failure needle accepts both JDK texts, the cluster wait looks for the other member, the single-write injection is stated
+- 01d895c0 Merge adr-conformance-auth-abort: the stack review fixes
+- c0063409 Merge adr-conformance-auth-abort: the stack review fixes, one lookup in flight per server
+
+### 10. ADR-40 refactoring
+
+`NatsConnection.quoteUntrusted(String)` and the no-argument `NatsConnection.readInitialInfo()`, both without callers, are removed; `readInitialInfo(boolean)` stays. `UntrustedText` is folded into `Encoding`: `Encoding.quoteFirstLine(byte[])` and `Encoding.quote(String)` are the same functions, with the cut at 256 bytes and the escaping, and the callers in `NatsConnection`, `NatsConnectionReader`, the console and logger error listeners, the `ErrorListener` javadoc, `InfoHandlerTests` and `docs/TLS_CONFIGURATION.md` point at `Encoding`. No behavior change. Also in this part: the rooted `client_advertise` scenario test, and `RELEASE_NOTES_ADR40.md` with the README's Important and Recent Version Notes references.
+
+Commits:
+
+- 90682986 Remove the unused quoteUntrusted(String) from NatsConnection
+- 4e9a6ff6 Remove the no-argument readInitialInfo from NatsConnection
+- 2745fd40 Move the quoting of untrusted text into Encoding, drop UntrustedText
+- f58735d7 Merge adr-conformance-scenario-tests: the review fixes of the scenario tests
+- 8b67f493 Rooted client_advertise against real servers: a server discovered as localhost. is dialed as written, and verified and sent as SNI as localhost
+- 8d91743e Release notes for the TLS discovery and reconnect changes, referenced from the README's Important and Version Notes sections
+- 0f160313 Merge adr-conformance-scenario-tests: the stack review fixes
+- d9183ce1 Merge adr-conformance-scenario-tests: the stack review fixes, one lookup in flight per server
 
 ## Compatibility
 
@@ -45,7 +217,7 @@ One section per file, 35 in all, in three groups: Project for the root items and
 
 `docs/ADR40_TLS_DISCOVERY_AND_RECONNECT_CHANGELOG.md`
 
-This document: a copy of the pull request description and a summary of every file the pull request changes, in the order of GitHub's file tree.
+This document: the pull request description, with a summary and the commits of each of the ten parts of the change, and a summary of every file the pull request changes, in the order of GitHub's file tree.
 
 ### TLS_CONFIGURATION.md
 
