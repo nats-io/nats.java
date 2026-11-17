@@ -2049,6 +2049,51 @@ public class SimplificationTests extends JetStreamTestBase {
     }
 
     @Test
+    public void testStopKeepsAlarmWhilePullOutstanding() throws Exception {
+        jsServer.run(nc -> {
+            // After stop(), a partially filled pull still needs the server's 408 at expiry to bring the received
+            // side to zero. If the server disappears without a word first, the heartbeat alarm is the only thing
+            // left that can finish the consumer, so the timer must stay armed while anything is outstanding. Each
+            // message handled after stop is a pending update, which is where the timer used to be shut down. An
+            // orderly server stop answers every waiting pull with a 409 Server Shutdown and pending headers, so
+            // the silence is simulated by firing the alarm the way the timer task does.
+            TestingStreamContainer tsc = new TestingStreamContainer(nc);
+            ConsumerContext cctx = _stopTestContext(nc, tsc, false);
+            jsPublish(nc.jetStream(), tsc.subject(), STOP_STATUS_TEST_MESSAGES); // fewer than a batch, so the pull stays open
+
+            CountDownLatch stopAt = new CountDownLatch(1);
+            CountDownLatch allHandled = new CountDownLatch(1);
+            AtomicInteger handled = new AtomicInteger();
+            MessageHandler handler = msg -> {
+                sleep(1); // slow enough that stop() lands with most of the messages still queued
+                msg.ack();
+                int h = handled.incrementAndGet();
+                if (h == STOP_STATUS_TEST_STOP_AT) {
+                    stopAt.countDown();
+                }
+                if (h == STOP_STATUS_TEST_MESSAGES) {
+                    allHandled.countDown();
+                }
+            };
+
+            try (MessageConsumer consumer = cctx.consume(handler)) {
+                NatsMessageConsumer nmc = (NatsMessageConsumer) consumer;
+                stopAt.await();
+                consumer.stop();
+                assertTrue(allHandled.await(10, TimeUnit.SECONDS), "the queue did not drain after stop");
+                assertFalse(consumer.isFinished()); // everything received is handled, the pull is still outstanding
+                ScheduledTask alarm = nmc.pmm.heartbeatTaskRef.get();
+                assertNotNull(alarm, "the heartbeat alarm was shut down with the pull still outstanding");
+                assertFalse(alarm.isShutdown());
+                nmc.pmm.handleHeartbeatError(); // what the alarm task calls when nothing has arrived for three idle heartbeats
+                assertTrue(consumer.isFinished());
+                assertNull(nmc.pmm.heartbeatTaskRef.get());
+            }
+            assertEquals(STOP_STATUS_TEST_MESSAGES, handled.get());
+        });
+    }
+
+    @Test
     public void testReconnectOverOrdered() throws Exception {
         // ------------------------------------------------------------
         // The idea here is...
