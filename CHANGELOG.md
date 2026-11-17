@@ -1,92 +1,126 @@
 # Change Log
 
+## 2.27.0
+
+### Core
+* sendPing removes its pong future when queueing the PING throws #1636
+* SNI and TLS hostname verification support #1638
+* Reject options that ask for both the default and the trust-all SSL context #1639
+* Hostname verification on by default #1640
+* Reject a ws:// server when the options carry an SSL context #1641
+* Upgrade bcprov-lts8on to 2.73.13 #1656
+* Fix read-only protection for header entry views #1658
+
+### Core Connection ADR-40
+* [ADR40] URL credentials: carry to discovered servers, replace nkey, JSON-encode token #1663
+* [ADR40] TLS mismatch: close the connection after a full round of mismatches; tlsFirst selects the default context #1665
+* [ADR40] Plaintext INFO before TLS: serves the attempt only, wait for the INFO after the first PONG on 2.12, bytes after INFO fail the handshake #1666
+* [ADR40] TLS discovery and reconnect #1668
+
+### JS / KV / OS
+* Close the dispatcher when a KV or Object Store watch fails to start #1643
+* Object store get: no wait for an empty object, no NPE on a single chunk with no data #1644 
+
+### Service / Conformance
+* ADR Conformance, Service, C-103 and C-107 #1645
+* ADR Conformance, Service, C-415 #1646
+* ADR Conformance, Service, C-309 and C-310 #1647
+* ADR Conformance, Service, C-404 #1648
+* Validate queue names as an ADR-6 queue-name #1649
+* ADR Conformance, Service, C-601, C-602 and C-603 #1650
+* ADR Conformance, Service, C-203 and C-204 #1651
+* Service respondError and ServiceReplyMessage #1652
+* Service response builder #1654
+* Service respondError overloads in place of the response builder #1655
+
+
 ## 2.26.4
 
 ### Core
-* Make outgoing pending count getters non-blocking #1632 @scottf
+* Make outgoing pending count getters non-blocking #1632
 
 ### JetStream
-* Fix consume with batch size 1 stopping after one message #1633 @scottf
+* Fix consume with batch size 1 stopping after one message #1633
 
 ### Test
-* Fix max bytes tests to respect the server 2.16 default ack format v2 #1630 @scottf
+* Fix max bytes tests to respect the server 2.16 default ack format v2 #1630
 
 ### CI/CD
-* Branch snapshot versions: plain on main, branch name elsewhere, no / in the version #1634 @scottf
+* Branch snapshot versions: plain on main, branch name elsewhere, no / in the version #1634
 
 ## 2.26.3
 
 ### Core
-* Fix pending queue lookup race in message delivery #1615 @scottf
+* Fix pending queue lookup race in message delivery #1615
 
 ### JetStream
-* Support ADR 60 Ack Policy Flow Control #1624 @scottf
-* Support ADR 50 Fast Ingest with constants #1628 @scottf
+* Support ADR 60 Ack Policy Flow Control #1624
+* Support ADR 50 Fast Ingest with constants #1628
 
 ### Service
-* Fix discoverMany handling of a no responders status #1620 @scottf
+* Fix discoverMany handling of a no responders status #1620
 
 ### Test
-* Update Test Server Runner (Major Version) #1617 @scottf
-* Fix test to respect server 2.15 change to max_consumers behavior #1623 @scottf
+* Update Test Server Runner (Major Version) #1617
+* Fix test to respect server 2.15 change to max_consumers behavior #1623
 
 ### CI/CD
-* Update GitHub Actions to Node 24 majors, install nats-server via shared action #1618 @scottf
-* Add a Windows build workflow #1619 @scottf
-* Update org.bouncycastle:bcprov-lts8on  #1622 @bugada @scottf
+* Update GitHub Actions to Node 24 majors, install nats-server via shared action #1618
+* Add a Windows build workflow #1619
+* Update org.bouncycastle:bcprov-lts8on  #1622 @bugada
 
 ## 2.26.2
 
 ### Core
-* Update the status before tearing the socket down in closeSocket #1609 @scottf
+* Update the status before tearing the socket down in closeSocket #1609
 
 ### JetStream
-* Fix regression of PublishOptions getStreamTimeout #1611 @utamas @scottf
+* Fix regression of PublishOptions getStreamTimeout #1611 @utamas
 
 ### Miscellaneous
-* test user pass with special characters fixed to run on all platforms #1605 @scottf
-* Connection Listener Stale State Tests #1607 @scottf
-* Fix Test Flappers #1612 @scottf
+* test user pass with special characters fixed to run on all platforms #1605
+* Connection Listener Stale State Tests #1607
+* Fix Test Flappers #1612
 
 ## 2.26.1
 
 ### Core
-* Reset Reader Connection #1592 @scottf
-* Simplify set reader connection #1594 @scottf
+* Reset Reader Connection #1592
+* Simplify set reader connection #1594
 * Count connect failure once per server, not once per resolved IP #1595 @stasimus
-* Address forceReconnectImpl reader/writer stop race #1601 @scottf
+* Address forceReconnectImpl reader/writer stop race #1601
 
 ### JetStream
-* Better exception raising on create consumer #1598 @scottf
+* Better exception raising on create consumer #1598
 
 ### Miscellaneous
-* Additional tests for reader repoint #1593 @scottf
-* Add provider dependency note to readme #1599 @scottf
-* Add docs.nats.io examples to main #1600 @scottf
-* Instructions for Building a Canary #1602 @scottf
+* Additional tests for reader repoint #1593
+* Add provider dependency note to readme #1599
+* Add docs.nats.io examples to main #1600
+* Instructions for Building a Canary #1602
 
 ## 2.26.0
 
 ### Core
-* Reconnect Delay Behavior and options cleanup #1578 @scottf
-* Advanced Request Behavior Option #1582 @scottf
-* Optional individual thread factories for reader and writer #1583 @scottf
-* Tidy executor options and additional testing #1590 @scottf
+* Reconnect Delay Behavior and options cleanup #1578
+* Advanced Request Behavior Option #1582
+* Optional individual thread factories for reader and writer #1583
+* Tidy executor options and additional testing #1590
 
 ### JetStream
-* Handle consume initial subscription failure. #1573 @scottf
-* Miscellaneous Improvements based on V3 work #1577 @scottf
-* Properly default idle heartbeat during setter. #1580 @scottf
-* Consumer Source Field Nullability #1587 @scottf
+* Handle consume initial subscription failure. #1573
+* Miscellaneous Improvements based on V3 work #1577
+* Properly default idle heartbeat during setter. #1580
+* Consumer Source Field Nullability #1587
 
 ### Misc
 * Add Client and Orbit section, drop duplicate Orbit link #1572 @Jarema
-* Change optional skip claude target #1574 @scottf
+* Change optional skip claude target #1574
 * Update README.md - Fix example links #1584 @github-pawo
 
 ### New Nats Docs
-* \[New Nats Docs Examples] fixed missing marker #1571 @scottf
-* \[New Nats Docs Examples] Normalize examples host #1575 @scottf
+* \[New Nats Docs Examples] fixed missing marker #1571
+* \[New Nats Docs Examples] Normalize examples host #1575
 
 ## 2.25.3
 
@@ -133,210 +167,210 @@
 
 ## 2.25.2
 ### Core
-* fix race condition in reconnect #1523 @scottf @jkraml-staffbase
-* "Payload Size" includes header bytes, not just data #1525 @scottf @francoisprunier
-* NatsConnection improvements: reader and writer replace, options executors use #1526 @scottf
-* HostnameResolveMode better organizes the 4 possible modes #1536 @scottf @bartosz822
+* fix race condition in reconnect #1523 @jkraml-staffbase
+* "Payload Size" includes header bytes, not just data #1525 @francoisprunier
+* NatsConnection improvements: reader and writer replace, options executors use #1526
+* HostnameResolveMode better organizes the 4 possible modes #1536 @bartosz822
 
 ### JetStream
-* Simplification track user processed not client received. #1528 @scottf
+* Simplification track user processed not client received. #1528
 * New Examples for Priority Groups #1529 @roeschter
-* StreamInfo fix active to handle -1 and not supplied correctly #1531 @scottf
+* StreamInfo fix active to handle -1 and not supplied correctly #1531
 
 ### Testing
-* SSL Error Raising Testing #1532 @scottf
-* Cleanup temp files and folders in tests #1534 @scottf
+* SSL Error Raising Testing #1532
+* Cleanup temp files and folders in tests #1534
 
 ### Miscellaneous
-* Updating Badges #1521 @scottf
-* Housekeeping #1535 @scottf
+* Updating Badges #1521
+* Housekeeping #1535
 
 
 ## 2.25.1
 ### Core
-* Fix setting options via properties #1489 @scottf
-* Lazy initialize Options executors #1492 @scottf
-* Adding flexibility for executor options #1493 @scottf
-* [bug] Properly count message/bytes when in discardWhenFull mode #1498 @scottf
-* Subject validation #1501 @scottf
-* Call to error listener should have been done in a callback, not directly #1502 @scottf
-* Message Queue Splitting #1505 @scottf
-* NatsConnectionReader better ReadListener call #1507 @scottf
-* NatsConnectionReader better exceptions #1509 @scottf
+* Fix setting options via properties #1489
+* Lazy initialize Options executors #1492
+* Adding flexibility for executor options #1493
+* [bug] Properly count message/bytes when in discardWhenFull mode #1498
+* Subject validation #1501
+* Call to error listener should have been done in a callback, not directly #1502
+* Message Queue Splitting #1505
+* NatsConnectionReader better ReadListener call #1507
+* NatsConnectionReader better exceptions #1509
 * Enable path component when connecting via WebSocket #1514 @jbaeck
 
 ### Object Store
-* Object Store purge on re-put #1491 @scottf
+* Object Store purge on re-put #1491
 
 ### Miscellaneous
-* Documenting Uber Jar and fixing example class usages. #1496 @scottf
-* Fix Flapper Test testSocketDataPortTimeout #1500 @scottf
-* Subject validation readme and backfill #1503 @scottf
-* Doc examples #1508 @scottf
-* Fix line ends #1511 @scottf
-* Doc examples #1513 @scottf
+* Documenting Uber Jar and fixing example class usages. #1496
+* Fix Flapper Test testSocketDataPortTimeout #1500
+* Subject validation readme and backfill #1503
+* Doc examples #1508
+* Fix line ends #1511
+* Doc examples #1513
 
 ## 2.24.1
 
 ### Build
-* Fix removed Automatic-Module-Name #1486 @scottf @derklaro
+* Fix removed Automatic-Module-Name #1486 @derklaro
 
 ### Core
-* Properly unsubscribe from dispatcher subject #1483 @scottf
-* Internal Options Executor Awareness #1484 @scottf
+* Properly unsubscribe from dispatcher subject #1483
+* Internal Options Executor Awareness #1484
 
 ## 2.24.0
 
 ### Core
-* [BUG] Properly return pending bytes #1437 @scottf
-* Improve ConnectionListener #1438 @scottf
-* Server Pool Improvement #1443 @scottf
-* Improved reconnect determining when to switch queues #1444 @scottf
-* Improve output queue push locking and error message #1446 @scottf
-* ConnectionListener event time #1448 @scottf
-* Optimize header reading #1449 @scottf
-* Header fine tuning #1451 @scottf
-* Header tuning don't over engineer #1453 @scottf
-* Micro-optimization getBytes(ISO_8859_1) vs getBytes(US_ASCII) #1455 @scottf
-* Reduce calls to stats by combining. #1465 @scottf
-* [BUG] MessageQueue drainTo was not properly copying length and size. #1468 @scottf
-* MessageQueue drainTo more #1469 @scottf
-* Auth Error is allowed to be set before being connected #1475 @scottf
+* [BUG] Properly return pending bytes #1437
+* Improve ConnectionListener #1438
+* Server Pool Improvement #1443
+* Improved reconnect determining when to switch queues #1444
+* Improve output queue push locking and error message #1446
+* ConnectionListener event time #1448
+* Optimize header reading #1449
+* Header fine tuning #1451
+* Header tuning don't over engineer #1453
+* Micro-optimization getBytes(ISO_8859_1) vs getBytes(US_ASCII) #1455
+* Reduce calls to stats by combining. #1465
+* [BUG] MessageQueue drainTo was not properly copying length and size. #1468
+* MessageQueue drainTo more #1469
+* Auth Error is allowed to be set before being connected #1475
 
 ### JetStream
-* Stream Config Persist mode #1436 @scottf
-* Review methods with varargs for proper validation #1456 @scottf
-* [BUG] AccountTier read reserved values as int instead of long #1457 @scottf
-* Handle both wrong last sequence 10071 / 10164 #1463 @scottf
-* Pinned Consumer Support #1472 @scottf
+* Stream Config Persist mode #1436
+* Review methods with varargs for proper validation #1456
+* [BUG] AccountTier read reserved values as int instead of long #1457
+* Handle both wrong last sequence 10071 / 10164 #1463
+* Pinned Consumer Support #1472
 
 ### Docs
 * Fixed the Typo in the Example Code #1450  @sikandar
 
 ### Test
-* Refactor test to validate issue 1426 #1447 @scottf
-* Additional test coverage #1452 @scottf
-* Demonstrate Pull Status Warning Handling #1454 @scottf
-* Miscellaneous Test Coverage #1460 @scottf
-* Fix and Enable ReconnectTests testForceReconnectQueueBehaviorCheck #1473 @scottf
-* Javadoc Technical Debt #1476 @scottf
+* Refactor test to validate issue 1426 #1447
+* Additional test coverage #1452
+* Demonstrate Pull Status Warning Handling #1454
+* Miscellaneous Test Coverage #1460
+* Fix and Enable ReconnectTests testForceReconnectQueueBehaviorCheck #1473
+* Javadoc Technical Debt #1476
 
 ### Build
-* Build modifications for Coveralls #1459 @scottf
+* Build modifications for Coveralls #1459
 
 ## 2.23.0
 
 ### Server 2.12 Specific
-* (2.12) All 2.12 PRs combined #1403* @scottf
-    * (2.12) ClusterInfo field updates #1408 @scottf
-    * (2.12) Support Stream Config allow_msg_schedules #1422 @scottf
-    * (2.12) Message Counter support #1423 @scottf
-    * (2.12) Support Batch Publish #1425 @scottf
-    * (2.12) Prioritized Consumer Support #1433 @scottf
+* (2.12) All 2.12 PRs combined #1403*
+    * (2.12) ClusterInfo field updates #1408
+    * (2.12) Support Stream Config allow_msg_schedules #1422
+    * (2.12) Message Counter support #1423
+    * (2.12) Support Batch Publish #1425
+    * (2.12) Prioritized Consumer Support #1433
 
 ### Core
-* Make NatsStatistics public so it can be extended #1414 @scottf
-* Statistics classes improvements #1415 @scottf
-* Lock around access to pending message and byte counts #1416 @scottf
-* Socket Read Timeout remove validation #1417 @scottf
-* Ensure write timeout is not less than 100 nanoseconds #1429 @scottf
-* Options to set underlying socket configuration of SO_SNDBUF and SO_RCVBUF #1432 @scottf
+* Make NatsStatistics public so it can be extended #1414
+* Statistics classes improvements #1415
+* Lock around access to pending message and byte counts #1416
+* Socket Read Timeout remove validation #1417
+* Ensure write timeout is not less than 100 nanoseconds #1429
+* Options to set underlying socket configuration of SO_SNDBUF and SO_RCVBUF #1432
 
 
 ### JetStream
 * Exposed StreamName #1431 @roeschter
 
 ### Misc
-* Add getter for ObjectMeta Metadata to ObjectInfo #1418 @scottf
-* Update SocketDataPortBlockSimulator #1430 @scottf
+* Add getter for ObjectMeta Metadata to ObjectInfo #1418
+* Update SocketDataPortBlockSimulator #1430
 
 ## 2.22.0
 
 ### Core
-* Expose connection outgoingPendingMessageCount and outgoingPendingBytes #1412 @scottf
+* Expose connection outgoingPendingMessageCount and outgoingPendingBytes #1412
 
 ### JetStream
-* Add publish header "Nats-Expected-Last-Subject-Sequence-Subject" #1401 @scottf
-* Add publish header "Nats-Expected-Last-Subject-Sequence-Subject" part b. #1402 @scottf
-* [Fix] Reset cached consumer info when re-making ordered consumers #1405 @scottf
-* consumers - metadata comparison #1410 @scottf
+* Add publish header "Nats-Expected-Last-Subject-Sequence-Subject" #1401
+* Add publish header "Nats-Expected-Last-Subject-Sequence-Subject" part b. #1402
+* [Fix] Reset cached consumer info when re-making ordered consumers #1405
+* consumers - metadata comparison #1410
 
 ### ObjectStore
-* ObjectMeta metadata #1399 @scottf
+* ObjectMeta metadata #1399
 
 ### Misc
 * Clarify documentation for JetStreamSubscription #1400 @davidmorley
-* Build (CI/CD) Stuff #1404 @scottf
+* Build (CI/CD) Stuff #1404
 * Update version of bouncycastle to resolve CVE-2025-9341 #1406 @vkolomeyko
 
 ## 2.21.5
 
 ### Core
 * Implement Fast fallback algorithm in SocketDataPort #1351 @jitinsharma
-* [FIX] Shutdown internal executors on connection close. #1357 @scottf
-* Convert serverAuthErrors to ConcurrentHashMap #1359 @scottf
-* Fix SSL handshake listeners never removed, preventing garbage collection #1360 @scottf
-* Fix core unsubscribe by subject #1363 @scottf
+* [FIX] Shutdown internal executors on connection close. #1357
+* Convert serverAuthErrors to ConcurrentHashMap #1359
+* Fix SSL handshake listeners never removed, preventing garbage collection #1360
+* Fix core unsubscribe by subject #1363
 * Move from JetBrains nullability annotations to JSpecify #1366
-* Fix timeout computing to address possible nano time overflow #1375 @scottf @magicprinc
-* Create NatsInetAddress to allow replacement of InetAddress #1378 @scottf @jitinsharma
-* Json parser tuning. #1382 @scottf
-* Connection and adjacent objects nullability markers. #1383 @scottf
+* Fix timeout computing to address possible nano time overflow #1375 @magicprinc
+* Create NatsInetAddress to allow replacement of InetAddress #1378 @jitinsharma
+* Json parser tuning. #1382
+* Connection and adjacent objects nullability markers. #1383
 * Headers +toString(), fixes #1385 @magicprinc
-* Header nullability #1395 @scottf
-* Updated SSL Files and Build preparing for server 2.12 #1397 @scottf
+* Header nullability #1395
+* Updated SSL Files and Build preparing for server 2.12 #1397
 
 ### JetStream
-* [Fix] Simplified Ordered Consumer - Getting name early can cause NPE #1354 @scottf
-* Stream Name cannot be null #1377 @scottf
-* Fix JetStreamApiException constructor nullability conflict #1379 @scottf
-* Ensuring nullability contracts #1387 @scottf
+* [Fix] Simplified Ordered Consumer - Getting name early can cause NPE #1354
+* Stream Name cannot be null #1377
+* Fix JetStreamApiException constructor nullability conflict #1379
+* Ensuring nullability contracts #1387
 
 ### Key Value
-* Add revision guard on KV key "create" #1356 @scottf
-* Fixed limit marker test for server change #1367 @scottf
-* Additional KV Marker / TTL testing #1391 @scottf
+* Add revision guard on KV key "create" #1356
+* Fixed limit marker test for server change #1367
+* Additional KV Marker / TTL testing #1391
 
 ### Testing / Examples / Docs / Etc
-* Ordered Consumer Examples #1352 @scottf
+* Ordered Consumer Examples #1352
 * Update readme for fast fallback option #1353 @jitinsharma
-* Improved Consumer Name Testing #1365 @scottf
-* Review for Issues (#1361 and #1362) #1368 @scottf
+* Improved Consumer Name Testing #1365
+* Review for Issues (#1361 and #1362) #1368
 * Unit test refactor #1369
-* Use String.replace instead of String.replaceAll #1381 @scottf @magicprinc
-* Fixed Jacoco from considering test classes #1390 @scottf
-* Fixing flapping tests #1393 @scottf
-* Fix test flappers #1396 @scottf
+* Use String.replace instead of String.replaceAll #1381 @magicprinc
+* Fixed Jacoco from considering test classes #1390
+* Fixing flapping tests #1393
+* Fix test flappers #1396
 
 ## 2.21.4
 
 ### Core
 * Fix race condition during reconnect sends UNSUB messages #1321 @ajax-surovskyi-y
 * Add connection auth token supplier option #1324 @buleuszmatak
-* Nano time for elapsed timings and Nats System Clock #1334 @scottf
-* Replace Timer with scheduled tasks #1335 @scottf
-* [Bug] Fix UNSUBs after disconnect can cause auth violations #1336 @scottf @ajax-surovskyi-y
-* Options allow token supplier from property, not just api method #1349 @scottf
+* Nano time for elapsed timings and Nats System Clock #1334
+* Replace Timer with scheduled tasks #1335
+* [Bug] Fix UNSUBs after disconnect can cause auth violations #1336 @ajax-surovskyi-y
+* Options allow token supplier from property, not just api method #1349
 
 ### JetStream
-* Annotating API objects with NotNull and Nullable #1333 @scottf
-* [Bug] MessageConsumer.isFinished() not set properly in certain conditions #1339 @scottf
-* [Bug] Pull Heartbeat handler intermittent failure after switch to scheduler #1345 @scottf
-* Fix heartbeat timer handling broken when replacing timer with scheduler. #1348 @scottf
+* Annotating API objects with NotNull and Nullable #1333
+* [Bug] MessageConsumer.isFinished() not set properly in certain conditions #1339
+* [Bug] Pull Heartbeat handler intermittent failure after switch to scheduler #1345
+* Fix heartbeat timer handling broken when replacing timer with scheduler. #1348
 
 ### Key Value
-* Nats-Marker-Reason must be mapped to a Key Value Operation #1323 @scottf
-* KV Purge Per Message TTL #1344 @scottf
+* Nats-Marker-Reason must be mapped to a Key Value Operation #1323
+* KV Purge Per Message TTL #1344
 
 ### Tests
-* Addition validation and test for token / token supplier #1325 @scottf
+* Addition validation and test for token / token supplier #1325
 * Add test for auth violations during reconnect #1328 @ajax-surovskyi-y
-* Fixed KV Limit Marker Test to only run against 2.11.2 or later #1338 @scottf
-* Fix flapping test: testOverflowFetch #1340 @scottf
-* Set the test timeout default to 3 minutes. #1343 @scottf
+* Fixed KV Limit Marker Test to only run against 2.11.2 or later #1338
+* Fix flapping test: testOverflowFetch #1340
+* Set the test timeout default to 3 minutes. #1343
 
 ###  Misc
-* Better Json Print Formatter #1327 @scottf
+* Better Json Print Formatter #1327
 
 ## 2.21.3
 
@@ -361,20 +395,20 @@ Use 2.21.4 instead
 * Changed header value validation to accept any ascii except CR & LF #1316 @francoisprunier
 
 ### JetStream
-* Update account ApiStats with level and inflight #1304 @scottf
-* Update account AccountTier with reserved memory and reserved storage #1305 @scottf
-* Add StreamAlternate structure to StreamInfo response #1306 @scottf
-* Better workflow for leadership change while pull consuming. #1313 @scottf
-* Ability to supply a prefix for watches. Fixed ordered consumer naming bug. #1314 @scottf
-* Use full NUID for generated consumer names #1317 @scottf
+* Update account ApiStats with level and inflight #1304
+* Update account AccountTier with reserved memory and reserved storage #1305
+* Add StreamAlternate structure to StreamInfo response #1306
+* Better workflow for leadership change while pull consuming. #1313
+* Ability to supply a prefix for watches. Fixed ordered consumer naming bug. #1314
+* Use full NUID for generated consumer names #1317
 
 ### Key Value
-* Update KV consumeKeys() to return the BlockingQueue immediately. #1308 @scottf
-* KV Limit Marker #1310  @scottf
-* KV LimitMarker add missing getter, additional docs and tests #1311 @scottf
+* Update KV consumeKeys() to return the BlockingQueue immediately. #1308
+* KV Limit Marker #1310 
+* KV LimitMarker add missing getter, additional docs and tests #1311
 
 ### General
-* Update repository info and cleanup readme. #1318 @scottf
+* Update repository info and cleanup readme. #1318
 
 ```
 ┌─────────────────────┬───────────────────┬─────────────────┬──────────────────────────┬──────────────────┐
@@ -390,13 +424,13 @@ Use 2.21.4 instead
 
 ## 2.21.1
 ### KV
-* KV TTL (stream max_age) versus stream duplicate_window #1301 @scottf
+* KV TTL (stream max_age) versus stream duplicate_window #1301
 
 ### JetStream
 * ConsumeOptions creation from json should use default, not minimum #1302
 
 ### Misc
-* Remove STAN references #1300 @scottf
+* Remove STAN references #1300
 
 ```
 ┌─────────────────────┬───────────────────┬─────────────────┬──────────────────────────┬──────────────────┐
@@ -412,13 +446,13 @@ Use 2.21.4 instead
 
 ## 2.21.0
 ### Core
-* Handle Server 2.10.26 returns No Responders instead of timeouts. #1292 @scottf
+* Handle Server 2.10.26 returns No Responders instead of timeouts. #1292
 
 ### Jetstream
-* Improve FetchConsumeOptions construction and add test #1293 @scottf
+* Improve FetchConsumeOptions construction and add test #1293
 
 ### 2.11 Specific
-Main 2 11 merge safe #1294 is actually a compilation of PRs related to 2.11 features  @scottf @MauriceVanVeen
+Main 2 11 merge safe #1294 is actually a compilation of PRs related to 2.11 features  @MauriceVanVeen
 * Main for server v2.11 #1239
 * Consumer Priority Group Overflow #1233
 * Add Message TTL Stream Configuration #1280
@@ -438,29 +472,29 @@ Main 2 11 merge safe #1294 is actually a compilation of PRs related to 2.11 feat
 
 ## 2.20.6
 ### Core
-* Reader Listener #1265 @scottf
-* [BUG] Hosts should never be resolved on websocket URI's #1286 @scottf
-* Replace ed25519 with BouncyCastle #1290 @scottf
+* Reader Listener #1265
+* [BUG] Hosts should never be resolved on websocket URI's #1286
+* Replace ed25519 with BouncyCastle #1290
 
 ### KV
-* KV Minor Changes #1264 @scottf
-* Tuning common code used for watches and key lookup #1281 @scottf
+* KV Minor Changes #1264
+* Tuning common code used for watches and key lookup #1281
 
 ### Service API
 * Remove Schema related leftovers #1263 @d0x7
-* Feature: Support adding service endpoint after construction #1274 @scottf
-* Feature: Support adding service endpoint after construction (more) #1276 @scottf
-* Service user endpoints can be run without queue groups. #1277 @scottf
-* Service, tuning review #1279 @scottf
+* Feature: Support adding service endpoint after construction #1274
+* Feature: Support adding service endpoint after construction (more) #1276
+* Service user endpoints can be run without queue groups. #1277
+* Service, tuning review #1279
 
 ### Documentation
 * Docs - close() versus stop() in MessageConsumer #1271 @roeschter
-* Remove the experimental mentions #1278 @scottf
+* Remove the experimental mentions #1278
 * Fix Javadoc for JetStream #1283 @vkolomeyko
-* [DOC] ResilientPublisher better api doc #1285 @scottf
+* [DOC] ResilientPublisher better api doc #1285
 
 ### Test
-* Add test coverage #1282 @scottf
+* Add test coverage #1282
 
 ### Benchmark
 
@@ -480,18 +514,18 @@ Main 2 11 merge safe #1294 is actually a compilation of PRs related to 2.11 feat
 
 ### Core
 * feat(nats-connection): implement named executor thread factories #1254 @kedzie
-* Edit lock don't unlock if was not locked. #1255 @scottf
-* Executor and Executor Factories in Options can be created via properties #1257 @scottf
+* Edit lock don't unlock if was not locked. #1255
+* Executor and Executor Factories in Options can be created via properties #1257
 
 ### JetStream
-* Fix simplified ordered consuming when a delivery policy was set. #1251 @scottf @roeschter
+* Fix simplified ordered consuming when a delivery policy was set. #1251 @roeschter
 * Fix: exception on simple consume when disconnected immediately #1253 @roeschter
 
 ### Documentation
 * NoWait documentation #1256 @roeschter
 
 ### Tests
-* Unit test coverage #1252 @scottf
+* Unit test coverage #1252
 
 ### Benchmark
 
@@ -510,24 +544,24 @@ Main 2 11 merge safe #1294 is actually a compilation of PRs related to 2.11 feat
 ## 2.20.4
 
 ### Core
-* Don't flush after the request from publishAsync calls #1220 @scottf
+* Don't flush after the request from publishAsync calls #1220
 
 ### JetStream
-* Easier access to timeout in JetStream implementations #1236 @scottf
+* Easier access to timeout in JetStream implementations #1236
 
 ### Object Store
-* Minor object store improvement - complete faster #1237 @scottf
+* Minor object store improvement - complete faster #1237
 
 ### Documentation
 * Javadocs Improvements #1221 @roeschter
-* Callout external docs and examples #1224 @scottf
+* Callout external docs and examples #1224
 
 ### Tests
-* Fixed tests for 2.8.4 regression stream and consumer metadata #1225 @scottf
-* Test base code improvements #1240 @scottf
+* Fixed tests for 2.8.4 regression stream and consumer metadata #1225
+* Test base code improvements #1240
 
 ### Misc
-* Add publish of test code jar to builds. #1230 @scottf
+* Add publish of test code jar to builds. #1230
 
 ## 2.20.3
 
@@ -536,19 +570,19 @@ SKIPPED
 ## 2.20.2
 
 ### Core
-* Publishing plus immediate flush #1211 @scottf
+* Publishing plus immediate flush #1211
 * When interrupted call interrupt #1212 @MauriceVanVeen
-* Interrupt fine tuning #1214 @scottf
-* Run loops check the interrupted flag #1215 @scottf
-* Tuning futures used for internal tracking #1216 @scottf
+* Interrupt fine tuning #1214
+* Run loops check the interrupted flag #1215
+* Tuning futures used for internal tracking #1216
 * Fix cleanResponses must handle cleaning up canceled future #1218 @MauriceVanVeen
 
 ## 2.20.1
 
 ### Core
 * Catch errors in Dispatchers and log #1200 @MauriceVanVeen
-* During forceReconnect, ensure reader/writer is stopped before continuing #1203 @MauriceVanVeen @scottf
-* While handleCommunicationIssue, closeSocket should use reconnect impl otherwise tryingToConnect will guard #1206 @MauriceVanVeen  @scottf
+* During forceReconnect, ensure reader/writer is stopped before continuing #1203 @MauriceVanVeen
+* While handleCommunicationIssue, closeSocket should use reconnect impl otherwise tryingToConnect will guard #1206 @MauriceVanVeen 
 * Remove redundant writer.flushBuffer() call #1207 @MauriceVanVeen
 
 ### Documentation
@@ -558,69 +592,69 @@ SKIPPED
 ## 2.20.0
 
 ### Core
-* CONNECT username and password need json encoding #1168 @scottf
-* UTF subject support #1169 @scottf
-* Handle InterruptedException when obtaining the lock to queue a message. #1170 @scottf
-* Handle duration string when accepting duration properties #1183 @scottf
-* Make NatsServerPool extendable #1185 @scottf
-* Allow user to set socket read timeout option #1188 @scottf
+* CONNECT username and password need json encoding #1168
+* UTF subject support #1169
+* Handle InterruptedException when obtaining the lock to queue a message. #1170
+* Handle duration string when accepting duration properties #1183
+* Make NatsServerPool extendable #1185
+* Allow user to set socket read timeout option #1188
 
 ### JetStream
-* Stream state subjects as a map #1177 @scottf
-* Stream state more efficient loading of subjects #1179 @scottf
+* Stream state subjects as a map #1177
+* Stream state more efficient loading of subjects #1179
 
 ### Key Value
-* Add filtering to KV keys methods #1173 @scottf
-* Add filtering to KV keys methods - Use greater than constant #1174 @scottf
-* Add filtering to KV keys methods - remove unnecessary optimization #1175 @scottf
+* Add filtering to KV keys methods #1173
+* Add filtering to KV keys methods - Use greater than constant #1174
+* Add filtering to KV keys methods - remove unnecessary optimization #1175
 
 ### Object Store
-* Object Store use over leaf-hub domain part 2 #1172 @scottf
+* Object Store use over leaf-hub domain part 2 #1172
 
 ### Unit Testing
-* Test implementation dependency update #1167 @scottf
-* Improve cluster testing support #1171 @scottf
-* Change test to run against 2.10 or later #1180 #1181 @scottf
-* Flapper Reconnect test fix #1189 @scottf
+* Test implementation dependency update #1167
+* Improve cluster testing support #1171
+* Change test to run against 2.10 or later #1180 #1181
+* Flapper Reconnect test fix #1189
 
 ### Project Management
 * Switch to Eclipse Temurin and add SDKMan for local dev #1176 @artur-ciocanu
-* Allowing building main on workflow_dispatch #1186 @scottf
+* Allowing building main on workflow_dispatch #1186
 
 ## 2.19.1
 
 ### Core
-* [Bug] Maximum Message Size accepted a long, but should accept an int #1161 @scottf
-* [Bug] Poison pill comparison was failing #1162 @scottf
-* Augmented force reconnect #1165 @scottf
+* [Bug] Maximum Message Size accepted a long, but should accept an int #1161
+* [Bug] Poison pill comparison was failing #1162
+* Augmented force reconnect #1165
 
 ### Object Store
-* Object Store use over leaf-hub domain #1160 @scottf
+* Object Store use over leaf-hub domain #1160
 
 ### Misc
-* Serialization changed, fixed javadocs #1159 @scottf
+* Serialization changed, fixed javadocs #1159
 
 ## 2.19.0
 ### Core
-Improve socket close behavior #1155 @scottf
+Improve socket close behavior #1155
 
 ### Tests
-Additional NKey Tests #1154 @scottf
+Additional NKey Tests #1154
 
 ### Misc
-Experimental Retrier utility removed to its own project/repo #1153 @scottf
+Experimental Retrier utility removed to its own project/repo #1153
 
 ## 2.18.1
 #### Core
-* General Retry Functionality #1145 @scottf
-* Cluster string in Placement is optional. #1150 @scottf
-* Remove duplicate reconnect event #1151 @scottf
+* General Retry Functionality #1145
+* Cluster string in Placement is optional. #1150
+* Remove duplicate reconnect event #1151
 
 #### JetStream
-* Support 409 Leadership Change #1144 @scottf
+* Support 409 Leadership Change #1144
 
 #### Doc
-* Update docs and comments (MessageQueue, forceReconnect) #1142 @scottf
+* Update docs and comments (MessageQueue, forceReconnect) #1142
 
 
 ## 2.18.0 / 2.17.7
@@ -635,19 +669,19 @@ Going forward, when a release contains only bug fixes, it's appropriate to simpl
 
 
 #### Core
-* Revert headers from being read-only upon message creation #1123 @scottf
-* tls_available support #1127 @scottf
-* Revisit Write Timeout Handling #1128 @scottf
+* Revert headers from being read-only upon message creation #1123
+* tls_available support #1127
+* Revisit Write Timeout Handling #1128
 * Remove rethrowable runtime exception during connection #1137 @ajax-surovskyi-y
 
 #### JetStream
 * Fix #1125 NatsJetStreamMetaData timestamp timezone #1126 @mrmx
 
 #### Doc
-* Update Readme with links to docs and examples. #1119 @scottf
+* Update Readme with links to docs and examples. #1119
 
 #### Misc
-* Refactor Encoding util for easier replacement of Base64 encoding class #1121 @scottf
+* Refactor Encoding util for easier replacement of Base64 encoding class #1121
 
 
 
@@ -662,22 +696,22 @@ and will be considered a bug fix.
 * Ensure NatsConnection inboxDispatcher is started prior to publishing messages #1109 @nathanschile
 
 #### JetStream
-* Add support for Consumer Create Action #1108 @scottf
+* Add support for Consumer Create Action #1108
 
 #### KV
-* KV Watch Multiple Filters #1113 @scottf
-* KV Watch Multiple Filters Additional Test #1114 @scottf
+* KV Watch Multiple Filters #1113
+* KV Watch Multiple Filters Additional Test #1114
 * KV Watch Multiple Filters remove comma delimited support #1117
 
 ### Simplification
 
 #### Test
-* Testing Cleanup Only - No Functionality Changes #1110 @scottf
-* Don't run testAddStreamInvalids with server older than 2.10 #1111 @scottf
+* Testing Cleanup Only - No Functionality Changes #1110
+* Don't run testAddStreamInvalids with server older than 2.10 #1111
 
 #### Doc
 * Added graalvm setup example #1112 @YunaBraska
-* Graalvm readme touch-up #1115 @scottf
+* Graalvm readme touch-up #1115
 
 #### Misc
 
@@ -685,24 +719,24 @@ and will be considered a bug fix.
 
 #### Core
 * Fix reconnect() calls close() when simultaneously 'disconnecting' in another thread #1082 @MauriceVanVeen
-* Optional dispatching with executor instead of blocking #1083 @scottf
-* Offer timeout millis no longer hardcoded #1088 @scottf
-* ReentrantLock instead of synchronized #1095 @scottf
-* Force Reconnect API #1100 @scottf
-* SSLContextFactory #1101 @scottf
+* Optional dispatching with executor instead of blocking #1083
+* Offer timeout millis no longer hardcoded #1088
+* ReentrantLock instead of synchronized #1095
+* Force Reconnect API #1100
+* SSLContextFactory #1101
 
 #### JetStream
 * Implement Consumers Pause #1093 @MauriceVanVeen
-* Make sure Fetch No Wait returns as soon as it gets 404/408 #1096 @scottf
-* Message Info always use last value in the headers. #1099 @scottf
+* Make sure Fetch No Wait returns as soon as it gets 404/408 #1096
+* Message Info always use last value in the headers. #1099
 
 #### KV
-* KV Watch From Revision #1081 @scottf
+* KV Watch From Revision #1081
 * KeyValue atomic delete and purge methods. #1092 @davidmcote
-* KV Transform support. #1098 @scottf
+* KV Transform support. #1098
 
 ### Simplification
-* Allow simplification fetch to have noWait with or without expires. #1089 @scottf
+* Allow simplification fetch to have noWait with or without expires. #1089
 
 #### Test
 * Add Test for NUID to handle Sequence and Concurrency #1094 @photizzo
@@ -711,19 +745,19 @@ and will be considered a bug fix.
 * upgrade documentation to specify backoff behavior #1078 @imclem
 
 #### Misc
-* Chaos App tuning and additional testing while porting. #1080 @scottf
+* Chaos App tuning and additional testing while porting. #1080
 
 ## 2.17.3
 
 #### Core
-* Socket Data Port with Manual Write Timeout #1064 @scottf
-* Provide implementation instead of empty trust manager check #1066 @scottf
+* Socket Data Port with Manual Write Timeout #1064
+* Provide implementation instead of empty trust manager check #1066
 
 #### Test
-* Reconnect On Connect Unit Test #1062 #1063 @scottf
+* Reconnect On Connect Unit Test #1062 #1063
 
 #### Doc
-* Document Message Immutability Headers Bug #1059 @scottf
+* Document Message Immutability Headers Bug #1059
 
 ## 2.17.2
 
@@ -732,30 +766,30 @@ Robustness and recovery
 #### Core
 * Support StreamConfiguration creation from JSON #1023 @senior
 * TimeoutException instead of CancellationException on timeout #1031 @maximbreitman
-* Message Headers Improvement #1054 @scottf
+* Message Headers Improvement #1054
 
 #### JetStream
-* Pull Request Validate Idle Heartbeat Against Expiration #1036 @scottf
-* Client side consumer recovery #1043 @scottf
-* Ensure robustness b/w compatible with server 2.8.4 #1046 @scottf
-* Chaos Testing Tuning #1055 @scottf
+* Pull Request Validate Idle Heartbeat Against Expiration #1036
+* Client side consumer recovery #1043
+* Ensure robustness b/w compatible with server 2.8.4 #1046
+* Chaos Testing Tuning #1055
 
 #### Extensions (KV / OS / Service)
-* KV and OS Compression and Metadata #1034 @scottf
+* KV and OS Compression and Metadata #1034
 
 #### Docs / Testing / Examples / Etc.
-* Initialize SocketDataPort directly #1022 @scottf
+* Initialize SocketDataPort directly #1022
 * Add dockerfile for compatibility tests #1024 @piotrpio
-* Update jnats-server-runner to 1.2.6 #1027 @scottf
-* Auth Test Improvement #1028 @scottf
-* Test Base Tuning #1030 @scottf
-* Publish Expectations Test for JetStream API Code #1032 @scottf
-* More Tests for recent NatsRequestCompletableFuture enhancement #1035 @scottf
+* Update jnats-server-runner to 1.2.6 #1027
+* Auth Test Improvement #1028
+* Test Base Tuning #1030
+* Publish Expectations Test for JetStream API Code #1032
+* More Tests for recent NatsRequestCompletableFuture enhancement #1035
 * Add nats by example link #1037 @Jarema
-* Improve test for real user authentication expired #1040 @scottf
-* Update readme / better subject validation notes #1047 @scottf
-* Fetch Resilient Example #1048 @scottf
-* Refactoring and improving example code. #1049 @scottf
+* Improve test for real user authentication expired #1040
+* Update readme / better subject validation notes #1047
+* Fetch Resilient Example #1048
+* Refactoring and improving example code. #1049
 
 ## 2.17.1
 
@@ -763,27 +797,27 @@ This release added was mostly about TLS and testing
 
 #### Core
 
-* Allow trust store without key store #999 @scottf @jnmoyne
-* Allow for custom dispatcher #1001 @scottf
-* Expanded support for server sent authorization errors #1006 @scottf
-* Reconnect on Connect additional api #1012 @scottf
-* Accept Tls First as an Option #1015 @scottf
+* Allow trust store without key store #999 @jnmoyne
+* Allow for custom dispatcher #1001
+* Expanded support for server sent authorization errors #1006
+* Reconnect on Connect additional api #1012
+* Accept Tls First as an Option #1015
 
 #### JetStream
 
 * Duplicate message for Interest stream fails seq check in PublishAck #1005 @MauriceVanVeen
-* Direct Message Subject Header May Contain Multiple Subjects #1016 @scottf
+* Direct Message Subject Header May Contain Multiple Subjects #1016
 
 #### Service Framework
 
-* Added custom endpoint queue support and fixed InfoResponse to show proper subject. #1010 @scottf
+* Added custom endpoint queue support and fixed InfoResponse to show proper subject. #1010
 
 #### Docs / Testing / Misc
 
-* Removing generic-ness from naming #1000 #1004 @scottf
-* Subscribe options name handling vs 2.8.4 #1011 @scottf
-* Client Compatibility Tests engine #1013 @scottf
-* Regression and Test Improvements #1017 #1018 @scottf
+* Removing generic-ness from naming #1000 #1004
+* Subscribe options name handling vs 2.8.4 #1011
+* Client Compatibility Tests engine #1013
+* Regression and Test Improvements #1017 #1018
 
 ## 2.17.0
 
@@ -796,36 +830,36 @@ This release added:
 
 #### JetStream 2.10 Specific
 
-* stream/consumer info timestamps, stream config first_seq #962 @scottf
-* Multiple Filter Subjects and Subject validation changes #965 @scottf
-* Stream Configuration Compression Option #976 @scottf
-* Subject Transform Stream Configuration Part 1 #978 @scottf
-* Consumer Limits Stream Configuration #979 @scottf
-* Subject Transforms in Mirror/Info and Source/Info #982 @scottf
-* Multiple Filter Subjects Review #984 @scottf
+* stream/consumer info timestamps, stream config first_seq #962
+* Multiple Filter Subjects and Subject validation changes #965
+* Stream Configuration Compression Option #976
+* Subject Transform Stream Configuration Part 1 #978
+* Consumer Limits Stream Configuration #979
+* Subject Transforms in Mirror/Info and Source/Info #982
+* Multiple Filter Subjects Review #984
 
 #### JetStream
 
-* Fast Bind #959 @scottf
-* Provide a default consumerByteCount implementation #969 @scottf
+* Fast Bind #959
+* Provide a default consumerByteCount implementation #969
 
 #### Core
 
 * Add StatisticsCollector to Options for custom statistics tracking #964 @johnlcox
-* Construct Options builder from properties file for user. #971 @scottf
-* Revert removal of client side checks #981 @scottf
+* Construct Options builder from properties file for user. #971
+* Revert removal of client side checks #981
 
 #### Docs / Testing / Misc
 
-* Test coverage and add note about websocket to readme. #956 @scottf
+* Test coverage and add note about websocket to readme. #956
 * Add issue forms #957 @bruth
-* fixed text in error message #961 @scottf
+* fixed text in error message #961
 * Simplify issue forms #966 @bruth
-* README.md library version more visible #972 @scottf
-* Update README to document connect Options properties #973 @scottf
-* update builds to use better way to install server #975 @scottf
+* README.md library version more visible #972
+* Update README to document connect Options properties #973
+* update builds to use better way to install server #975
 * Small improvements README.md #977 @aaabramov
-* Minor Api doc fixes #983 @scottf
+* Minor Api doc fixes #983
 
 ## 2.16.14
 
@@ -836,165 +870,165 @@ This release takes the experimental tag off both the Simplification API and the 
 
 #### Core
 
-* Minor correction and improved variable naming in NatsConnection #945 @scottf
-* Improving Options with better construction via properties #946 @scottf
-* Minor improvements to README.md #947 @scottf
-* Added unit tests for WebSocket + JWT #939 @scottf
-* Jwt Utils update to support "audience" #949 @scottf
+* Minor correction and improved variable naming in NatsConnection #945
+* Improving Options with better construction via properties #946
+* Minor improvements to README.md #947
+* Added unit tests for WebSocket + JWT #939
+* Jwt Utils update to support "audience" #949
 
 #### Simplification
 
-* Simplified Ordered Consumer #936 @scottf
-* Simplified Queue Example #940 @scottf
-* Ensure run simplification tests only if 2.9.1 or later #942 @scottf
-* Simplification More Review #948 @scottf
-* Simplification state, better thread safety #952 @scottf
+* Simplified Ordered Consumer #936
+* Simplified Queue Example #940
+* Ensure run simplification tests only if 2.9.1 or later #942
+* Simplification More Review #948
+* Simplification state, better thread safety #952
 
 #### Service
 
-* Service / Simplification Documentation and Release Prep #954 @scottf
+* Service / Simplification Documentation and Release Prep #954
 
 #### JetStream
 
-* fixed rate limit comparison bug #951 @scottf
-* Fix use of JsOptions timeout #953 @scottf
+* fixed rate limit comparison bug #951
+* Fix use of JsOptions timeout #953
 
 ## 2.16.13
 
 #### Core
 
-* Address secure Websocket changes in server 2.9.19 #931 @scottf
+* Address secure Websocket changes in server 2.9.19 #931
 
 #### JetStream
 
-* [BUG] Consumer Config fields are 32 bits (ints) not 64 bits (longs) #930 @scottf
+* [BUG] Consumer Config fields are 32 bits (ints) not 64 bits (longs) #930
 
 #### Simplification
 
-* Simplification Tuning and Review #927 @scottf
-* Simplification Review, Tuning, Examples, Testing 2 #929 @scottf
+* Simplification Tuning and Review #927
+* Simplification Review, Tuning, Examples, Testing 2 #929
 
 #### Misc / Test
 
-* Better testing checks against server versions #932 @scottf
+* Better testing checks against server versions #932
 
 ## 2.16.12
 
 #### Core
 
 * WS only read payload from network stream #902 @GrafBlutwurst
-* Remove client side check against server info max_payload when publishing #922 @scottf
+* Remove client side check against server info max_payload when publishing #922
 
 #### JetStream
 
-* Fixed GetChanges for backoff and metadata #910 @scottf
-* Fine tuning message manger result #921 @scottf
-* Remove validation when adding or updating consumer #923 @scottf
+* Fixed GetChanges for backoff and metadata #910
+* Fine tuning message manger result #921
+* Remove validation when adding or updating consumer #923
 
 #### Simplification
 
-* Completion, tuning, address feedback, etc. #917 #919 #926 @scottf
+* Completion, tuning, address feedback, etc. #917 #919 #926
 
 #### Service Framework
 
-* Remove schema from Service API #916 @scottf
-* Change INFO response to contain endpoint details #918 @scottf
-* Fine tune service start / stop #920 @scottf
-* Service code cleanup #925 @scottf
+* Remove schema from Service API #916
+* Change INFO response to contain endpoint details #918
+* Fine tune service start / stop #920
+* Service code cleanup #925
 
 #### Misc / Test
 
-* Update dependencies.md #904 @scottf
+* Update dependencies.md #904
 * Bump GH Actions versions (Go; node12 deprecation) @philpennock
-* Enhance jwt utils #906 #909 @scottf
+* Enhance jwt utils #906 #909
 * Message: Fix typo in javadoc #911 @nicoruti
-* Unit test improvements #915 @scottf
+* Unit test improvements #915
 
 ## 2.16.11
 
 #### Core
 
-* New connection option reportNoResponders #887 @scottf
+* New connection option reportNoResponders #887
 * WS Http Request Version Default To 1.1 #891 @aditya-agarwal-groww
 
 #### JetStream
 
-* better pull error message and async tests #888 @scottf
-* better handle pull status message comes from a previous pull #899 @scottf
+* better pull error message and async tests #888
+* better handle pull status message comes from a previous pull #899
 
 #### Misc / Test
 
-* Test Improvements #886 @scottf
-* Test tuning #889 @scottf
-* Server regression issue was fixed, setting test back #890 @scottf
-* test harness - more flexible way to wait for errors/exceptions #894 @scottf
-* flappers - trying more time #895 @scottf
+* Test Improvements #886
+* Test tuning #889
+* Server regression issue was fixed, setting test back #890
+* test harness - more flexible way to wait for errors/exceptions #894
+* flappers - trying more time #895
 * Update plugin repository to refer to existing services after Bintray shutdown #897 @cpiotr
 
 ## 2.16.10
 
 #### JetStream
 
-* For JS Subs, expose the consumer name since it's already tracked #869 @scottf
-* Part 1 in pull handling improvements #870 @scottf
-* Part 2 in pull handling improvements #871 @scottf
+* For JS Subs, expose the consumer name since it's already tracked #869
+* Part 1 in pull handling improvements #870
+* Part 2 in pull handling improvements #871
 * Time used fetching should never be negative #878 @liu-jianyang
 * Pull-fetch-time-left #879 @liu-jianyang
-* Simplification Part 1 #848 @scottf
-* Simplification (Experimental) Part 2 #882 @scottf
-* Simplification pre-experimental-release #884 @scottf
+* Simplification Part 1 #848
+* Simplification (Experimental) Part 2 #882
+* Simplification pre-experimental-release #884
 
 #### Core
 
-* fix rehost #874 @scottf
-* Options Builder constructor that takes existing Options #875 @scottf
-* StreamConfiguration and ConsumerConfiguration metadata support #877 @scottf
+* fix rehost #874
+* Options Builder constructor that takes existing Options #875
+* StreamConfiguration and ConsumerConfiguration metadata support #877
 
 #### Misc / Test
 
-* JsonValue improvement #868 @scottf
-* consume test for bytes can't run until at least 2.9.1 #883 @scottf
-* added metadata map to service and endpoints #862 @scottf
+* JsonValue improvement #868
+* consume test for bytes can't run until at least 2.9.1 #883
+* added metadata map to service and endpoints #862
 
 ## 2.16.9
 
 #### Core
 
-* ServerPool including Hostname resolution #847 @scottf
+* ServerPool including Hostname resolution #847
 * Enable add/remove of multiple ConnectionListeners per Connection #861 @davidmcote
 
 #### JetStream
 
-* pull status handling #819 @scottf
+* pull status handling #819
 
 #### Service  (Experimental)
 
-* use standard connection create inbox for discovery #857 @scottf
+* use standard connection create inbox for discovery #857
 
 #### Object Store (Experimental)
 
-* use -1 to indicate end of stream, not lack of full buffer #852 @scottf
-* digest resets after getting value, so can't call it more than once. #854 @scottf
+* use -1 to indicate end of stream, not lack of full buffer #852
+* digest resets after getting value, so can't call it more than once. #854
 
 #### Misc / Test
 
-* Update docs and examples #846 @scottf
-* 2.10 allows filter subject that doesn't match stream subjects #849 @scottf
+* Update docs and examples #846
+* 2.10 allows filter subject that doesn't match stream subjects #849
 *
 ## 2.16.8
 
 #### Core and JetStream
 
-* Fill in Publish / Request Header Gaps #839 @scottf
+* Fill in Publish / Request Header Gaps #839
 
 #### Core
 
-* Dispatcher with no default handler sometimes has NPE during close if messages are still coming in #841 @scottf
-* allow empty headers #844 @scottf
+* Dispatcher with no default handler sometimes has NPE during close if messages are still coming in #841
+* allow empty headers #844
 
 #### Test
 
-* Server runner update to 1.2.0 #843 @scottf
+* Server runner update to 1.2.0 #843
 
 ## 2.16.7
 
@@ -1004,62 +1038,62 @@ This release takes the experimental tag off both the Simplification API and the 
 
 #### Service
 
-* Service multi endpoints #830 @scottf
-* Service fine tuning #833 @scottf
-* Service subject in responses #834 @scottf
+* Service multi endpoints #830
+* Service fine tuning #833
+* Service subject in responses #834
 
 ## 2.16.6
 
 #### Core
 
-* message size calculation improvements #820 @scottf @MauriceVanVeen
-* consistent validation and version comparison fix #823 @scottf @pskiwi
+* message size calculation improvements #820 @MauriceVanVeen
+* consistent validation and version comparison fix #823 @pskiwi
 
 #### Service
 
-* Service Beta #813 @scottf
-* service response types #818 @scottf
+* Service Beta #813
+* service response types #818
 
 #### Key Value
 
-* kv additional update api #814 @scottf
+* kv additional update api #814
 
 #### Etc. Tests / Docs / Examples
 
 * fix inactiveThreshold docs in ConsumerConfiguration #809 @MauriceVanVeen
-* verify 810 is not a defect #811 @scottf
-* CI deploy snapshot for a branch #817 @scottf
+* verify 810 is not a defect #811
+* CI deploy snapshot for a branch #817
 
 ## 2.16.5
 
 #### Core
 
-* increase default max (pending) messages, ability to set pending limits in subscribe options #799 @scottf
-* better setup of pending limits #804 @scottf
-* ignore auth required flag from server when building connection string #807 @scottf @ColinSullivan1
+* increase default max (pending) messages, ability to set pending limits in subscribe options #799
+* better setup of pending limits #804
+* ignore auth required flag from server when building connection string #807 @ColinSullivan1
 
 #### Etc. Tests / Docs / Examples
 
-* Fix test only check mirror direct 2.9.0 and later #794 @scottf
+* Fix test only check mirror direct 2.9.0 and later #794
 * Fixes typo in Readme #795 @aaabramov
-* Better dev version and autobench naming #798 @scottf
+* Better dev version and autobench naming #798
 * Change Temporary File Creation in unit test. #800 @JLLeitschuh
-* fixed test - name not necessary, better for regression #803 @scottf
+* fixed test - name not necessary, better for regression #803
 
 ## 2.16.4
 
 #### Key Value (KV)
 
-* kv mirror support #789 @scottf
+* kv mirror support #789
 
 #### JetStream
 
-* stream state lost #792 @scottf
+* stream state lost #792
 
 #### Core
 
-* Implement RTT #784 @scottf
-* get client inet address #791 @scottf
+* Implement RTT #784
+* get client inet address #791
 
 #### Misc
 
@@ -1068,17 +1102,17 @@ This release takes the experimental tag off both the Simplification API and the 
 ## 2.16.3
 
 #### JetStream
-* changed handling of missing offset for paged #782 @scottf
+* changed handling of missing offset for paged #782
 
 ## 2.16.2
 
 #### Core
-* reader HMSG protocol line length size was wrong #774 @scottf
-* Message sending optimization #776 @scottf @MauriceVanVeen
+* reader HMSG protocol line length size was wrong #774
+* Message sending optimization #776 @MauriceVanVeen
 
 #### Misc
-* Fix Get Streams Doc #771 @scottf
-* PubWithHeadersBenchmark #772 @scottf
+* Fix Get Streams Doc #771
+* PubWithHeadersBenchmark #772
 
 ## 2.16.1
 #### Core
@@ -1089,125 +1123,125 @@ This release takes the experimental tag off both the Simplification API and the 
 
 #### JetStream
 
-* discard_new_per_subject #755 @scottf
-* streams / names with subject filtering, info pagination #759 @scottf
-* ordered consumer config setting changes #762 @scottf
-* Ordered Consumer Heartbeat Handling #766 @scottf
+* discard_new_per_subject #755
+* streams / names with subject filtering, info pagination #759
+* ordered consumer config setting changes #762
+* Ordered Consumer Heartbeat Handling #766
 
 #### KV or OS
 
-* object store tuning #731 @scottf
-* KV status bytes - Issue #754 @scottf
-* List materialized views #765 @scottf
+* object store tuning #731
+* KV status bytes - Issue #754
+* List materialized views #765
 
 #### Examples
 
-* Example to show handling pub acks in a separate thread than the publish. #748 @scottf
+* Example to show handling pub acks in a separate thread than the publish. #748
 
 ## 2.16.0 Support Server v2.9.0 and Object Store Experimental
 
 This release is a re-release of 2.15.7 with an additional opt-out and the minor version bump.
 
 #### JetStream Options Opt-Out
-* Ability to opt-out of using Server v2.9.0 consumer create api #728 @scottf
+* Ability to opt-out of using Server v2.9.0 consumer create api #728
 
 #### JetStream / Management
-* Get Message Enhancement #696 @scottf
-* No Erase option on message delete #698 @scottf
-* Support v2.9.0 Get Direct Message feature #701 #703 @scottf
-* Support v2.9.0 Consumer Create feature #723 #725 @scottf
+* Get Message Enhancement #696
+* No Erase option on message delete #698
+* Support v2.9.0 Get Direct Message feature #701 #703
+* Support v2.9.0 Consumer Create feature #723 #725
 
 #### Key Value
-* Fix bug to return null instead of entry on get of deleted or purged key #700 @scottf
-* Allow direct configuration for KV #718 #724 @scottf
+* Fix bug to return null instead of entry on get of deleted or purged key #700
+* Allow direct configuration for KV #718 #724
 
 #### Object Store
-* Initial implementation, experimental. #705 #714 #720 @scottf
+* Initial implementation, experimental. #705 #714 #720
 
 #### Core
-* Static Memory Auth Handler #702 @scottf
-* Support v2.9.0 stream configuration republish #709 @scottf
+* Static Memory Auth Handler #702
+* Support v2.9.0 stream configuration republish #709
 
 ## 2.15.7 Support Server v2.9.0 and Object Store Experimental
 
 #### JetStream / Management
-* Get Message Enhancement #696 @scottf
-* No Erase option on message delete #698 @scottf
-* Support v2.9.0 Get Direct Message feature #701 #703 @scottf
-* Support v2.9.0 Consumer Create feature #723 #725 @scottf
+* Get Message Enhancement #696
+* No Erase option on message delete #698
+* Support v2.9.0 Get Direct Message feature #701 #703
+* Support v2.9.0 Consumer Create feature #723 #725
 
 #### Key Value
-* Fix bug to return null instead of entry on get of deleted or purged key #700 @scottf
-* Allow direct configuration for KV #718 #724 @scottf
+* Fix bug to return null instead of entry on get of deleted or purged key #700
+* Allow direct configuration for KV #718 #724
 
 #### Object Store
-* Initial implementation, experimental. #705 #714 #720 @scottf
+* Initial implementation, experimental. #705 #714 #720
 
 #### Core
-* Static Memory Auth Handler #702 @scottf
-* Support v2.9.0 stream configuration republish #709 @scottf
+* Static Memory Auth Handler #702
+* Support v2.9.0 stream configuration republish #709
 
 ## 2.15.6 new Consumer configuration fields
 
 #### Core
-* better request timeout management #693 @scottf
+* better request timeout management #693
 
 #### JetStream
-* support num_replicas and mem_storage in consumer configuration #689 @goku321 @scottf
+* support num_replicas and mem_storage in consumer configuration #689 @goku321
 
 #### Misc
-* Change example to have more flexibility on message size #690  @scottf
+* Change example to have more flexibility on message size #690 
 
 ## 2.15.5 re-release 2.15.4 fixes, enhancements and experimental
 
 #### Core
-* Accept encoded connection urls #674  @scottf
-* Only track duplicate responses when advanced tracking is on #659 @scottf
+* Accept encoded connection urls #674 
+* Only track duplicate responses when advanced tracking is on #659
 
 #### JetStream
-* revert ConsumerConfiguration changes where some fields were downgraded #685 @scottf
-* consumer info change to sequence_info from sequence_pair #679 @scottf
-* consumer filter subject is now modifiable #676 @scottf
-* handle updated account stats #668 @scottf
-* Ability to create an External object #661 @scottf
+* revert ConsumerConfiguration changes where some fields were downgraded #685
+* consumer info change to sequence_info from sequence_pair #679
+* consumer filter subject is now modifiable #676
+* handle updated account stats #668
+* Ability to create an External object #661
 
 #### KV
-* ability to update bucket config #662 @scottf
+* ability to update bucket config #662
 
 #### Experimental
-* expose management getStreamNamesBySubjectFilter #681 @scottf
-* experimental pull reader #683 @scottf
+* expose management getStreamNamesBySubjectFilter #681
+* experimental pull reader #683
 
 #### Tests
 * Add test for NKey.clear #663 @lacinoire
 
 #### Misc
-* remove comments that say durable is required during pull #675 @scottf
-* better push queue example #670 @scottf
-* fix inactive threshold doc #660 @scottf
+* remove comments that say durable is required during pull #675
+* better push queue example #670
+* fix inactive threshold doc #660
 
 ## 2.15.3 Writeable Placement
 
 #### JetStream
 
-* Ability for user to create a Placement object [PR #655](https://github.com/nats-io/nats.java/pull/655) @scottf
+* Ability for user to create a Placement object [PR #655](https://github.com/nats-io/nats.java/pull/655)
 
 ## 2.15.2 JetStream Improvements
 
 #### JetStream
 
-* Pull config changes, ephemeral pull, unit tests [PR #645](https://github.com/nats-io/nats.java/pull/645) @scottf
-* Server urls connection management [PR #648](https://github.com/nats-io/nats.java/pull/648) @scottf
+* Pull config changes, ephemeral pull, unit tests [PR #645](https://github.com/nats-io/nats.java/pull/645)
+* Server urls connection management [PR #648](https://github.com/nats-io/nats.java/pull/648)
   - Architecture issue 113 Add option to ignore discovered urls
   - ServersToTryProvider provide a way that a user can provide a complete custom implementation to provide the server urls to try on connect / reconnect. Tiered servers could be implemented this way. EXPERIMENTAL feature.
-* EXPERIMENTAL PullRequestOptions [PR #649](https://github.com/nats-io/nats.java/pull/649) @scottf
+* EXPERIMENTAL PullRequestOptions [PR #649](https://github.com/nats-io/nats.java/pull/649)
 
 ## 2.15.1 Remove batch size limitations and add 409 support
 
 #### JetStream
 
-* Remove pull batch size limitation [PR #642](https://github.com/nats-io/nats.java/pull/642) @scottf
-* Statuses with code 409 are known statuses [PR #643](https://github.com/nats-io/nats.java/pull/643) @scottf
+* Remove pull batch size limitation [PR #642](https://github.com/nats-io/nats.java/pull/642)
+* Statuses with code 409 are known statuses [PR #643](https://github.com/nats-io/nats.java/pull/643)
 
 
 ## 2.15.0  Subscription must be made before consumer is created

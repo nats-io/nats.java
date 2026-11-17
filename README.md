@@ -4,8 +4,8 @@
 
 ### A [Java](http://java.com) client for the [NATS messaging system](https://nats.io).
 
-![2.26.4](https://img.shields.io/badge/Current_Release-2.26.4-27AAE0?style=for-the-badge)
-![2.27.0](https://img.shields.io/badge/Current_Snapshot-2.27.0--SNAPSHOT-27AAE0?style=for-the-badge)
+![2.27.0](https://img.shields.io/badge/Current_Release-2.27.0-27AAE0?style=for-the-badge)
+![2.27.1](https://img.shields.io/badge/Current_Snapshot-2.27.1--SNAPSHOT-27AAE0?style=for-the-badge)
 
 [![Build Main Badge](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml/badge.svg?event=push)](https://github.com/nats-io/nats.java/actions/workflows/build-main.yml)
 [![Coverage Status](https://coveralls.io/repos/github/nats-io/nats.java/badge.svg?branch=main)](https://coveralls.io/github/nats-io/nats.java?branch=main)
@@ -372,9 +372,9 @@ See [Building From Source](#building-from-source) for details on building the li
 
 ### Downloading the Jar
 
-You can download the latest jar at [jnats-2.26.4.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.26.4/jnats-2.26.4.jar).
+You can download the latest jar at [jnats-2.27.0.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.27.0/jnats-2.27.0.jar).
 
-The examples are available at [jnats-2.26.4-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.26.4/jnats-2.26.4-examples.jar).
+The examples are available at [jnats-2.27.0-examples.jar](https://search.maven.org/remotecontent?filepath=io/nats/jnats/2.27.0/jnats-2.27.0-examples.jar).
 
 ### Using Gradle
 
@@ -382,7 +382,7 @@ The NATS client is available in the Maven central repository, and can be importe
 
 ```groovy
 dependencies {
-    implementation 'io.nats:jnats:2.26.4'
+    implementation 'io.nats:jnats:2.27.0'
 }
 ```
 
@@ -408,7 +408,7 @@ repositories {
 }
 
 dependencies {
-   implementation 'io.nats:jnats:2.27.0-SNAPSHOT'
+   implementation 'io.nats:jnats:2.27.1-SNAPSHOT'
 }
 ```
 
@@ -420,7 +420,7 @@ The NATS client is available on the Maven Central Repository and can be imported
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.26.4</version>
+    <version>2.27.0</version>
 </dependency>
 ```
 
@@ -454,19 +454,22 @@ If you need a snapshot version, you must enable snapshots and change your depend
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>jnats</artifactId>
-    <version>2.27.0-SNAPSHOT</version>
+    <version>2.27.1-SNAPSHOT</version>
 </dependency>
 ```
 
 ### Integration with GraalVM
 
-To include this library with a GraalVM project, you must use configure these `initialize-at-run-time` classes. 
-* `--initialize-at-run-time=java.security.SecureRandom`.
+On GraalVM for JDK 21 and later, a native image of an application that uses this library builds without any `initialize-at-run-time` configuration: 
+the two classes of the library that hold a `SecureRandom`, `io.nats.client.support.RandomUtils` and `io.nats.client.NUID`, 
+are initialized at run time by default, so their seeds are not fixed into the image. 
+Measured with GraalVM CE 21.0.2 and jnats 2.26.4, building a static image: 
+with no flags the build succeeds and three processes started from the same binary get three different NUIDs. 
+The build also succeeds with the two flags that state the intent explicitly:
 * `--initialize-at-run-time=io.nats.client.support.RandomUtils`
 * `--initialize-at-run-time=io.nats.client.NUID`
 
-These will instruct GraalVM to initialize specified classes at runtime so that these instances don't have fixed seeds. 
-GraalVM won't compile without these parameters.
+Do not pass `--initialize-at-run-time=java.security.SecureRandom` on GraalVM for JDK 21 or later. The JDK's own classes initialize `SecureRandom` during the image build, so that flag fails the build with `Classes that should be initialized at run time got initialized during image building: java.security.SecureRandom`, and marking the JDK class that triggered it for run time is refused as well. Releases before GraalVM for JDK 21 used all three flags, the `SecureRandom` one included.
 
 For a much more thorough discussion of the subject, please visit the [nats-graalvm-example](https://github.com/YunaBraska/nats-graalvm-example) repository 
 made by one of our contributors. There is a detailed demonstration for creating an efficient NATS client with GraalVM.
@@ -1651,7 +1654,7 @@ and the example jar is in `build/libs`
 Once the Uber jar is built, you can run a class with a main using it's fully qualified class name. As an example:
 
 ```bash
-java -cp build/libs/java-nats-2.27.0-SNAPSHOT-uber.jar io.nats.examples.NatsSub
+java -cp build/libs/java-nats-2.27.1-SNAPSHOT-uber.jar io.nats.examples.NatsSub
 ```
 
 ## License
