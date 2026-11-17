@@ -25,7 +25,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Isolated;
 
 import java.io.IOException;
+import java.net.ServerSocket;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -805,17 +807,20 @@ public class ReconnectTests {
         // ADR-40, reconnect process: the wait between rounds holds across the whole reconnect. A round used to be
         // detected by its first server coming back; once that server had left the pool, through its attempt limit or
         // an INFO that pruned it, every attempt ran without a wait. A pool that hands out one server once and then
-        // another one for good shows it: every attempt after the first must wait
-        int gone = NatsTestServer.nextPort();
-        int stays = NatsTestServer.nextPort();
+        // another one for good shows it: every attempt after the first must wait.
+        // The two servers accept and close rather than being ports with no listener. An attempt to them fails on the
+        // missing INFO within milliseconds on every platform. Windows reports a refused connect only after
+        // retransmitting the SYN, so an attempt to a port with no listener there runs to the connection timeout and
+        // the window below sees no round.
         AtomicInteger handedOut = new AtomicInteger();
         AtomicInteger failures = new AtomicInteger();
         AtomicInteger rounds = new AtomicInteger();
-        NatsTestServer ts = new NatsTestServer();
-        try {
+        try (NatsTestServer ts = new NatsTestServer();
+             AcceptAndCloseListener gone = new AcceptAndCloseListener();
+             AcceptAndCloseListener stays = new AcceptAndCloseListener()) {
             NatsUri real = new NatsUri(ts.getURI());
-            NatsUri goneUri = new NatsUri("nats://localhost:" + gone);
-            NatsUri staysUri = new NatsUri("nats://localhost:" + stays);
+            NatsUri goneUri = gone.uri();
+            NatsUri staysUri = stays.uri();
             ServerPool pool = new NatsServerPool() {
                 private NatsUri current() {
                     int n = handedOut.get();
@@ -856,9 +861,6 @@ public class ReconnectTests {
                 assertTrue(rounds.get() >= 3, "rounds " + rounds.get());
                 assertTrue(failures.get() <= rounds.get() + 2, "attempts " + failures.get() + ", rounds " + rounds.get());
             }
-        }
-        finally {
-            ts.close();
         }
     }
 
@@ -1206,6 +1208,37 @@ public class ReconnectTests {
                     assertNotEquals(connectedPort, nc.getServerInfo().getPort());
                 }
             }
+        }
+    }
+
+    // Accepts every connection and closes it at once. A connect attempt to it succeeds at the socket and then fails
+    // on the missing INFO, within milliseconds on every platform. See testReconnectWaitHoldsWhenTheRoundsFirstServerLeavesThePool
+    static class AcceptAndCloseListener implements AutoCloseable {
+        private final ServerSocket listener;
+
+        AcceptAndCloseListener() throws IOException {
+            listener = new ServerSocket(0);
+            Thread t = new Thread(() -> {
+                while (!listener.isClosed()) {
+                    try {
+                        listener.accept().close();
+                    }
+                    catch (IOException ignore) {
+                        // closed, or an accept failed; the loop condition decides
+                    }
+                }
+            }, "accept-and-close-" + listener.getLocalPort());
+            t.setDaemon(true);
+            t.start();
+        }
+
+        NatsUri uri() throws URISyntaxException {
+            return new NatsUri("nats://localhost:" + listener.getLocalPort());
+        }
+
+        @Override
+        public void close() throws IOException {
+            listener.close();
         }
     }
 }
