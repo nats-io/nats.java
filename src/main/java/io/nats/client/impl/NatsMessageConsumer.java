@@ -241,7 +241,13 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
 
     protected void afterPendingUpdated() {
         if (stopped.get()) {
-            pmm.shutdownHeartbeatTimer();
+            // The alarm guards the outstanding pull: if the server goes away before the pull ends, the
+            // alarm is what closes the consumer, so the timer stays until nothing is outstanding. After
+            // that the server has nothing more to send, and the timer is shut down so the alarm cannot
+            // cut the handling of what is queued short.
+            if (noReceivedArePending) {
+                pmm.shutdownHeartbeatTimer();
+            }
             // No received pending means every message of the outstanding pulls has arrived at the
             // client, but some may still be queued for the handler or for nextMessage. fullClose()
             // unsubscribes, and the dispatcher skips queued messages of an inactive subscription, so
