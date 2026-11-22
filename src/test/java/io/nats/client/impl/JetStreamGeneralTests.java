@@ -1118,4 +1118,49 @@ public class JetStreamGeneralTests extends JetStreamTestBase {
         assertNotNull(gen);
         assertTrue(gen.startsWith("prefix-"));
     }
+
+    @Test
+    public void testCreateConsumerFailureUnsubscribes() throws Exception {
+        jsServer.run(nc -> {
+            NatsConnection conn = (NatsConnection) nc;
+
+            // checked exception on an invalidated sub: the original is thrown, the unsubscribe failure is suppressed
+            IOException io = new IOException("create failed");
+            NatsJetStreamSubscription sub = createTestSub(conn);
+            conn.invalidate(sub);
+            IOException thrown = assertThrows(IOException.class,
+                () -> failingCreate(conn, io)._createConsumerUnsubscribeOnException("s", null, sub));
+            assertSame(io, thrown);
+
+            // unchecked exception: thrown as is, and the subscription must not leak
+            IllegalStateException ise = new IllegalStateException("Connection is Draining");
+            NatsJetStreamSubscription sub2 = createTestSub(conn);
+            assertTrue(conn.subscribers.containsValue(sub2));
+            IllegalStateException thrown2 = assertThrows(IllegalStateException.class,
+                () -> failingCreate(conn, ise)._createConsumerUnsubscribeOnException("s", null, sub2));
+            assertSame(ise, thrown2);
+            assertFalse(sub2.isActive());
+            assertFalse(conn.subscribers.containsValue(sub2));
+        });
+    }
+
+    private static NatsJetStream failingCreate(NatsConnection conn, Exception toThrow) throws IOException {
+        return new NatsJetStream(conn, null) {
+            @Override
+            ConsumerInfo _createConsumer(String streamName, ConsumerConfiguration config, ConsumerCreateRequest.Action action) throws IOException {
+                if (toThrow instanceof IOException) { throw (IOException) toThrow; }
+                throw (RuntimeException) toThrow;
+            }
+        };
+    }
+
+    private static NatsJetStreamSubscription createTestSub(NatsConnection conn) throws IOException {
+        NatsJetStream js = new NatsJetStream(conn, null);
+        MessageManager mm = new MessageManager(conn, PushSubscribeOptions.builder().build(), true) {
+            @Override
+            protected ManageResult manage(Message msg) { return ManageResult.MESSAGE; }
+        };
+        return (NatsJetStreamSubscription) conn.createSubscription(conn.createInbox(), null, null,
+            (sid, subj, q, c, d) -> new NatsJetStreamSubscription(sid, subj, q, c, d, js, "s", null, mm));
+    }
 }
