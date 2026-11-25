@@ -141,7 +141,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
                 shutdownSub();
                 doSub(false);
             }
-            catch (JetStreamApiException | IOException e) {
+            catch (JetStreamApiException | IOException | RuntimeException e) {
                 resetOnException();
             }
         }
@@ -164,7 +164,7 @@ class NatsMessageConsumer extends NatsMessageConsumerBase implements PullManager
             fullResetPending();
             rePull();
         }
-        catch (JetStreamApiException | IOException e) {
+        catch (JetStreamApiException | IOException | RuntimeException e) {
             if (first) {
                 throw e;
             }
