@@ -136,19 +136,27 @@ class NatsJetStreamImpl implements NatsJetStreamConstants {
             ConsumerInfo ci = _createConsumer(stream, cc, ConsumerCreateRequest.Action.CreateOrUpdate);
             sub.setConsumerName(ci.getName());
         }
-        catch (IOException | JetStreamApiException e) {
+        catch (IOException | JetStreamApiException | RuntimeException e) {
+            // create consumer can fail. unsubscribe, then throw the original exception to the user
             try {
-                // create consumer can fail, unsubscribe and then throw the exception to the user
-                if (sub.getDispatcher() == null) {
-                    sub.unsubscribe();
-                }
-                else {
-                    sub.getDispatcher().unsubscribe(sub);
+                if (sub.isActive()) {
+                    // a subscription that has been invalidated reports a null dispatcher even
+                    // when it was created with one, so isActive must be checked first
+                    if (sub.getDispatcher() == null) {
+                        sub.unsubscribe();
+                    }
+                    else {
+                        sub.getDispatcher().unsubscribe(sub);
+                    }
                 }
             }
             catch (Exception eUnSub) {
-                // this exception is from the unsubscribe and isn't very useful.
-                // capture this so we can return the original
+                // the unsubscribe exception is not the interesting one, but keep it for diagnostics
+                e.addSuppressed(eUnSub);
+                // the unsubscribe did not happen, so clean up the client side directly. invalidate
+                // cannot throw, it removes the sub from the connection and from its dispatcher, and
+                // it is what shuts the message manager's heartbeat timer down
+                conn.invalidate(sub);
             }
             throw e;
         }
